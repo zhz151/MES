@@ -1,102 +1,49 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.JSInterop;
-using MES.Blazor.Models;
+using System.Security.Claims;
 
-namespace MES.Blazor.Services;
-
-public class CustomAuthenticationStateProvider : AuthenticationStateProvider
+namespace MES.Blazor.Services
 {
-    private readonly IJSRuntime _jsRuntime;
-    private const string USER_KEY = "user_info";
-    private ClaimsPrincipal _currentUser = new(new ClaimsIdentity());
-    private bool _isInitialized = false;
-
-    public CustomAuthenticationStateProvider(IJSRuntime jsRuntime)
+    public class CustomAuthenticationStateProvider : AuthenticationStateProvider
     {
-        _jsRuntime = jsRuntime;
-    }
+        private readonly IAuthService _authService;
 
-    public override async Task<AuthenticationState> GetAuthenticationStateAsync()
-    {
-        try
+        public CustomAuthenticationStateProvider(IAuthService authService)
         {
-            var userJson = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", USER_KEY);
-            Console.WriteLine($"[AuthState] GetAuthenticationStateAsync - userJson length: {(userJson?.Length ?? 0)}");
+            _authService = authService;
+        }
 
-            if (!string.IsNullOrEmpty(userJson))
+        public override async Task<AuthenticationState> GetAuthenticationStateAsync()
+        {
+            var token = await _authService.GetTokenAsync();
+            
+            if (!string.IsNullOrEmpty(token))
             {
-                Console.WriteLine("[AuthState] Parsing user info from localStorage...");
-                var userInfo = System.Text.Json.JsonSerializer.Deserialize<UserInfo>(userJson);
-                Console.WriteLine($"[AuthState] Parsed userInfo - Username: {userInfo?.Username}, IsAuthenticated: {userInfo?.IsAuthenticated}");
-
-                if (userInfo != null && userInfo.IsAuthenticated)
+                // Create a user claims identity from the JWT token
+                var identity = new ClaimsIdentity(new[]
                 {
-                    var claims = new List<Claim>
-                    {
-                        new Claim(ClaimTypes.Name, userInfo.Username),
-                        new Claim(ClaimTypes.Email, userInfo.Email)
-                    };
+                    new Claim(ClaimTypes.Name, "authenticated-user"),
+                    new Claim("jwt", token)
+                }, "apiauth");
 
-                    foreach (var role in userInfo.Roles)
-                    {
-                        claims.Add(new Claim(ClaimTypes.Role, role));
-                    }
-
-                    Console.WriteLine($"[AuthState] Creating authenticated user with {claims.Count} claims");
-                    var identity = new ClaimsIdentity(claims, "jwt");
-                    _currentUser = new ClaimsPrincipal(identity);
-                    _isInitialized = true;
-                    return new AuthenticationState(_currentUser);
-                }
+                var user = new ClaimsPrincipal(identity);
+                return new AuthenticationState(user);
+            }
+            else
+            {
+                return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
             }
         }
-        catch (Exception ex)
+
+        public async Task MarkUserAsAuthenticated(string token)
         {
-            Console.WriteLine($"[AuthState] GetAuthenticationStateAsync error: {ex.Message}");
+            await _authService.GetTokenAsync();
+            NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
         }
 
-        Console.WriteLine("[AuthState] Returning unauthenticated user");
-        _currentUser = new ClaimsPrincipal(new ClaimsIdentity());
-        _isInitialized = true;
-        return new AuthenticationState(_currentUser);
-    }
-
-    public void MarkUserAsAuthenticated(UserInfo userInfo)
-    {
-        Console.WriteLine($"[AuthState] ========== MarkUserAsAuthenticated ==========");
-        Console.WriteLine($"[AuthState] Username: {userInfo.Username}");
-
-        var claims = new List<Claim>
+        public async Task MarkUserAsLoggedOut()
         {
-            new Claim(ClaimTypes.Name, userInfo.Username),
-            new Claim(ClaimTypes.Email, userInfo.Email)
-        };
-
-        foreach (var role in userInfo.Roles)
-        {
-            claims.Add(new Claim(ClaimTypes.Role, role));
+            await _authService.LogoutAsync();
+            NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
         }
-
-        Console.WriteLine($"[AuthState] Creating ClaimsPrincipal with {claims.Count} claims");
-        var identity = new ClaimsIdentity(claims, "jwt");
-        _currentUser = new ClaimsPrincipal(identity);
-
-        Console.WriteLine("[AuthState] Calling NotifyAuthenticationStateChanged...");
-        NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(_currentUser)));
-
-        Console.WriteLine("[AuthState] NotifyAuthenticationStateChanged completed");
-        Console.WriteLine($"[AuthState] Current user authenticated: {_currentUser.Identity?.IsAuthenticated}");
-        Console.WriteLine($"[AuthState] Current user name: {_currentUser.Identity?.Name}");
-        Console.WriteLine($"[AuthState] Current user has claims: {_currentUser.Claims?.Count()}");
-        Console.WriteLine($"[AuthState] ========== MarkUserAsAuthenticated Completed ==========");
-    }
-
-    public void MarkUserAsLoggedOut()
-    {
-        Console.WriteLine("[AuthState] ========== MarkUserAsLoggedOut ==========");
-        _currentUser = new ClaimsPrincipal(new ClaimsIdentity());
-        NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(_currentUser)));
-        Console.WriteLine("[AuthState] ========== MarkUserAsLoggedOut Completed ==========");
     }
 }

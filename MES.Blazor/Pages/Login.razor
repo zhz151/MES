@@ -1,145 +1,133 @@
 @page "/login"
-@using MES.Blazor.Shared
 @using MES.Blazor.Models
 @using MES.Blazor.Services
-@using MudBlazor
-@using Microsoft.AspNetCore.Components.Authorization
-@layout EmptyLayout
 @inject IAuthService AuthService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
-@inject HttpClient HttpClient
-@inject AuthenticationStateProvider AuthStateProvider
 
-<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex justify-center align-center" Style="min-height: 100vh;">
-    <MudCard Class="pa-8" Elevation="3">
-        <MudCardContent>
-            <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4" Color="Color.Primary">
-                MES 生产执行系统
-            </MudText>
+<div class="login-container">
+    <h3>MES System Login</h3>
 
-            <MudText Typo="Typo.subtitle2" Align="Align.Center" Class="mb-6" Color="Color.Secondary">
-                不锈钢无缝钢管 MES 系统
-            </MudText>
+    <EditForm Model="_loginModel" OnValidSubmit="HandleLogin">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
 
-            @if (_showError)
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <InputText @bind-Value="_loginModel.Email" id="email" class="form-control" />
+            <ValidationMessage For="() => _loginModel.Email" />
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <InputText @bind-Value="_loginModel.Password" id="password" type="password" class="form-control"/>
+            <ValidationMessage For="() => _loginModel.Password" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" disabled="@_isLoading">
+            @if (_isLoading)
             {
-                <MudAlert Severity="Severity.Error" Class="mb-4" Dense="true">
-                    @_errorMessage
-                </MudAlert>
-            }
-
-            <MudTextField @bind-Value="_model.Username"
-                          Label="用户名 / 邮箱"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Normal"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Person"
-                          Disabled="@_isLoading">
-            </MudTextField>
-
-            <MudTextField @bind-Value="_model.Password"
-                          Label="密码"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Normal"
-                          Type="InputType.Password"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Lock"
-                          Disabled="@_isLoading">
-            </MudTextField>
-
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       Size="Size.Large"
-                       FullWidth="true"
-                       Class="mt-4"
-                       OnClick="OnLoginAsync"
-                       Disabled="@_isLoading">
-                @if (_isLoading)
-                {
-                    <MudText>登录中...</MudText>
-                }
-                else
-                {
-                    <MudText>登录系统</MudText>
-                }
-            </MudButton>
-
-            <MudPaper Class="mt-6 pa-4" Elevation="0" Style="background-color: #e3f2fd;">
-                <MudText Typo="Typo.caption" Color="Color.Default">
-                    <strong>测试账号：</strong><br/>
-                    邮箱: admin@mes.com<br/>
-                    密码: Admin@123456
-                </MudText>
-            </MudPaper>
-        </MudCardContent>
-    </MudCard>
-</MudContainer>
-
-@code {
-    private LoginRequest _model = new();
-    private bool _isLoading = false;
-    private bool _showError = false;
-    private string _errorMessage = string.Empty;
-    private AuthenticationState _currentAuthState = default!;
-
-    protected override async Task OnInitializedAsync()
-    {
-        Console.WriteLine("[Login] ========== OnInitializedAsync ==========");
-        _currentAuthState = await AuthStateProvider.GetAuthenticationStateAsync();
-        Console.WriteLine($"[Login] Initial auth state - IsAuthenticated: {_currentAuthState.User.Identity?.IsAuthenticated}");
-        Console.WriteLine($"[Login] Initial user - Name: {_currentAuthState.User.Identity?.Name}");
-        Console.WriteLine($"[Login] ========== OnInitializedAsync Completed ==========");
-    }
-
-    private async Task OnLoginAsync()
-    {
-        Console.WriteLine("[Login] ========== Login Button Clicked ==========");
-        _isLoading = true;
-        _showError = false;
-        StateHasChanged();
-
-        try
-        {
-            Console.WriteLine($"[Login] Attempting login for: {_model.Username}");
-            var result = await AuthService.LoginAsync(_model);
-            Console.WriteLine($"[Login] Result - Success: {result.Success}, Message: {result.Message}");
-
-            if (result.Success)
-            {
-                Console.WriteLine("[Login] Login successful, redirecting to home...");
-                Console.WriteLine("[Login] Waiting for auth state to update...");
-
-                // Wait for auth state to update
-                await Task.Delay(500);
-
-                // Check auth state
-                _currentAuthState = await AuthStateProvider.GetAuthenticationStateAsync();
-                Console.WriteLine($"[Login] Auth state after login - IsAuthenticated: {_currentAuthState.User.Identity?.IsAuthenticated}");
-                Console.WriteLine($"[Login] User after login - Name: {_currentAuthState.User.Identity?.Name}");
-
-                Console.WriteLine("[Login] Calling Navigation.NavigateTo...");
-                Navigation.NavigateTo("/", forceLoad: false);
-                Console.WriteLine("[Login] NavigateTo completed");
+                <span>Logging in...</span>
             }
             else
             {
-                Console.WriteLine($"[Login] Login failed: {result.Message}");
-                _errorMessage = result.Message;
-                _showError = true;
-                StateHasChanged();
+                <span>Login</span>
+            }
+        </button>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="alert alert-danger mt-3">
+                @_errorMessage
+            </div>
+        }
+    </EditForm>
+
+    <div class="test-info mt-3">
+        <small>Test Account: admin@mes.com / Admin@123456</small>
+    </div>
+</div>
+
+<style>
+    .login-container {
+        max-width: 400px;
+        margin: 100px auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+    }
+    .form-group {
+        margin-bottom: 15px;
+    }
+    label {
+        display: block;
+        margin-bottom: 5px;
+    }
+    .form-control {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+    .btn-primary {
+        width: 100%;
+        padding: 10px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    .alert {
+        padding: 10px;
+        border-radius: 4px;
+    }
+    .test-info {
+        font-size: 0.9em;
+        color: #666;
+        text-align: center;
+    }
+</style>
+
+@code {
+    private LoginModel _loginModel = new();
+    private bool _isLoading = false;
+    private string _errorMessage = string.Empty;
+
+    private async Task HandleLogin()
+    {
+        _isLoading = true;
+        _errorMessage = string.Empty;
+
+        try
+        {
+            var result = await AuthService.LoginAsync(_loginModel);
+            
+            if (result != null && !string.IsNullOrEmpty(result.Token))
+            {
+                if (AuthenticationStateProvider is CustomAuthenticationStateProvider customProvider)
+                {
+                    await customProvider.MarkUserAsAuthenticated(result.Token);
+                }
+                
+                Navigation.NavigateTo("/");
+            }
+            else
+            {
+                _errorMessage = "Login failed. Please check your credentials.";
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Login] Exception: {ex}");
-            _errorMessage = $"登录失败: {ex.Message}";
-            _showError = true;
-            StateHasChanged();
+            _errorMessage = $"Login error: {ex.Message}";
         }
         finally
         {
             _isLoading = false;
-            Console.WriteLine("[Login] ========== Login Process Completed ==========");
             StateHasChanged();
         }
     }

@@ -1,134 +1,147 @@
 @page "/"
-@using MES.Blazor.Models
-@using MES.Blazor.Services
-@using MudBlazor
-@using Microsoft.AspNetCore.Authorization
-@inject IJSRuntime JSRuntime
-@inject NavigationManager Navigation
-@attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Authorization
+@inject HttpClient Http
 
-<MudGrid Class="my-4">
-    <MudItem xs="12">
-        <MudText Typo="Typo.h4" Class="mb-4">欢迎使用 MES 系统</MudText>
-        <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-6">
-            不锈钢无缝钢管生产执行系统
-        </MudText>
-    </MudItem>
+<PageTitle>MES System</PageTitle>
 
-    <MudItem xs="12" sm="6" md="3">
-        <MudPaper Class="pa-4 text-center" Elevation="2">
-            <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Large" Color="Color.Primary" />
-            <MudText Typo="Typo.h4" Class="mt-2">0</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">进行中工单</MudText>
-        </MudPaper>
-    </MudItem>
+<AuthorizeView>
+    <Authorized>
+        <div class="welcome-container">
+            <h1>Welcome to MES System</h1>
+            <p>You have successfully logged in!</p>
+            <div class="api-test">
+                <h3>API Connectivity Test</h3>
+                <button class="btn btn-info" @onclick="TestApiConnection" disabled="@_isTesting">
+                    @if (_isTesting)
+                    {
+                        <span>Testing...</span>
+                    }
+                    else
+                    {
+                        <span>Test API Connection</span>
+                    }
+                </button>
+                
+                @if (!string.IsNullOrEmpty(_apiTestResult))
+                {
+                    <div class="test-result mt-3">
+                        <strong>API Response:</strong>
+                        <pre>@_apiTestResult</pre>
+                    </div>
+                }
+            </div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="guest-container">
+            <h1>MES Manufacturing Execution System</h1>
+            <p>Please <a href="/login">log in</a> to access the system.</p>
+            
+            <div class="api-test">
+                <h3>Public API Test</h3>
+                <button class="btn btn-outline-info" @onclick="TestPublicApi" disabled="@_isTesting">
+                    @if (_isTesting)
+                    {
+                        <span>Testing Public API...</span>
+                    }
+                    else
+                    {
+                        <span>Test Public API Connection</span>
+                    }
+                </button>
+                
+                @if (!string.IsNullOrEmpty(_apiTestResult))
+                {
+                    <div class="test-result mt-3">
+                        <strong>API Response:</strong>
+                        <pre>@_apiTestResult</pre>
+                    </div>
+                }
+            </div>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
 
-    <MudItem xs="12" sm="6" md="3">
-        <MudPaper Class="pa-4 text-center" Elevation="2">
-            <MudIcon Icon="@Icons.Material.Filled.QrCodeScanner" Size="Size.Large" Color="Color.Success" />
-            <MudText Typo="Typo.h4" Class="mt-2">0</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">今日报工数</MudText>
-        </MudPaper>
-    </MudItem>
-
-    <MudItem xs="12" sm="6" md="3">
-        <MudPaper Class="pa-4 text-center" Elevation="2">
-            <MudIcon Icon="@Icons.Material.Filled.Verified" Size="Size.Large" Color="Color.Warning" />
-            <MudText Typo="Typo.h4" Class="mt-2">0</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">合格率</MudText>
-        </MudPaper>
-    </MudItem>
-
-    <MudItem xs="12" sm="6" md="3">
-        <MudPaper Class="pa-4 text-center" Elevation="2">
-            <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Size="Size.Large" Color="Color.Error" />
-            <MudText Typo="Typo.h4" Class="mt-2">0</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">设备在线数</MudText>
-        </MudPaper>
-    </MudItem>
-
-    <MudItem xs="12" Class="mt-6">
-        <MudPaper Class="pa-4" Elevation="2">
-            <MudText Typo="Typo.h6" Class="mb-4">快速操作</MudText>
-            <MudGrid>
-                <MudItem xs="12" sm="6" md="3">
-                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" Href="/batches">
-                        <MudIcon Icon="@Icons.Material.Filled.QrCode" Class="mr-2" />
-                        生产批次管理
-                    </MudButton>
-                </MudItem>
-                <MudItem xs="12" sm="6" md="3">
-                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" Href="/workorders">
-                        <MudIcon Icon="@Icons.Material.Filled.ListAlt" Class="mr-2" />
-                        生产工单管理
-                    </MudButton>
-                </MudItem>
-                <MudItem xs="12" sm="6" md="3">
-                    <MudButton Variant="Variant.Outlined" Color="Color.Success" FullWidth="true" Href="/inspections">
-                        <MudIcon Icon="@Icons.Material.Filled.Science" Class="mr-2" />
-                        质量检验记录
-                    </MudButton>
-                </MudItem>
-                <MudItem xs="12" sm="6" md="3">
-                    <MudButton Variant="Variant.Outlined" Color="Color.Warning" FullWidth="true" Href="/equipment">
-                        <MudIcon Icon="@Icons.Material.Filled.Devices" Class="mr-2" />
-                        设备清单
-                    </MudButton>
-                </MudItem>
-            </MudGrid>
-        </MudPaper>
-    </MudItem>
-
-    <MudItem xs="12" Class="mt-4">
-        <MudPaper Class="pa-4" Elevation="2">
-            <MudText Typo="Typo.h6" Class="mb-4">系统信息</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                当前用户: @username
-            </MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                用户角色: Admin, User
-            </MudText>
-            <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="RefreshPage" Class="mt-2">
-                刷新页面
-            </MudButton>
-        </MudPaper>
-    </MudItem>
-</MudGrid>
+<style>
+    .welcome-container, .guest-container {
+        max-width: 800px;
+        margin: 50px auto;
+        text-align: center;
+    }
+    .api-test {
+        margin-top: 30px;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background-color: #f8f9fa;
+    }
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 10px;
+    }
+    .btn-info {
+        background-color: #17a2b8;
+        color: white;
+    }
+    .btn-outline-info {
+        background-color: transparent;
+        color: #17a2b8;
+        border: 1px solid #17a2b8;
+    }
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    .test-result {
+        text-align: left;
+        background-color: white;
+        padding: 15px;
+        border-radius: 4px;
+        border-left: 4px solid #17a2b8;
+    }
+    pre {
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+</style>
 
 @code {
-    private string username = "加载中...";
+    private bool _isTesting = false;
+    private string _apiTestResult = string.Empty;
 
-    protected override void OnInitialized()
+    private async Task TestApiConnection()
     {
-        Console.WriteLine("[Index] ========== OnInitialized ==========");
-        LoadUserInfo();
+        await TestApiEndpoint("api/auth/userinfo");
     }
 
-    private async void LoadUserInfo()
+    private async Task TestPublicApi()
     {
+        await TestApiEndpoint("api/auth/health");
+    }
+
+    private async Task TestApiEndpoint(string endpoint)
+    {
+        _isTesting = true;
+        _apiTestResult = string.Empty;
+        
         try
         {
-            var userJson = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "user_info");
-            if (!string.IsNullOrEmpty(userJson))
-            {
-                var userInfo = System.Text.Json.JsonSerializer.Deserialize<UserInfo>(userJson);
-                username = userInfo?.Username ?? "加载中...";
-            }
-            else
-            {
-                username = "未登录";
-            }
+            var response = await Http.GetAsync(endpoint);
+            var content = await response.Content.ReadAsStringAsync();
+            
+            _apiTestResult = $"Status: {response.StatusCode}\nResponse: {content}";
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Index] Error: {ex.Message}");
-            username = "加载失败";
+            _apiTestResult = $"Error: {ex.Message}";
         }
-    }
-
-    private void RefreshPage()
-    {
-        Console.WriteLine("[Index] ========== Refresh Clicked ==========");
-        LoadUserInfo();
+        finally
+        {
+            _isTesting = false;
+            StateHasChanged();
+        }
     }
 }

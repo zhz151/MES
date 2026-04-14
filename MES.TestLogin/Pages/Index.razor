@@ -1,0 +1,226 @@
+@page "/"
+@using Microsoft.AspNetCore.Components.Authorization
+@using MES.TestLogin.Services
+@inject HttpClient Http
+@inject IAuthService AuthService
+
+<PageTitle>MES System Test</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        <div class="welcome-container">
+            <h1>欢迎来到 MES 系统测试</h1>
+            <div class="alert alert-success">
+                <h4>登录成功！</h4>
+                <p>您已成功通过 API 认证流程。</p>
+            </div>
+            
+            <div class="api-test">
+                <h3>API 连接性测试</h3>
+                <button class="btn btn-info" @onclick="TestUserInfo" disabled="@_isTesting">
+                    @if (_isTesting)
+                    {
+                        <span>API 测试中...</span>
+                    }
+                    else
+                    {
+                        <span>测试用户信息 API</span>
+                    }
+                </button>
+                
+                <button class="btn btn-outline-info" @onclick="TestAuthApi" disabled="@_isTesting">
+                    <span>测试认证 API</span>
+                </button>
+
+                <button class="btn btn-outline-warning" @onclick="Logout">
+                    <span>登出系统</span>
+                </button>
+                
+                @if (!string.IsNullOrEmpty(_apiTestResult))
+                {
+                    <div class="test-result mt-3">
+                        <strong>API 响应:</strong>
+                        <pre>@_apiTestResult</pre>
+                    </div>
+                }
+            </div>
+        </div>
+    </Authorized>
+    
+    <NotAuthorized>
+        <div class="guest-container">
+            <h1>MES 制造执行系统 - 测试应用</h1>
+            <div class="alert alert-info">
+                <h4>测试系统说明</h4>
+                <p>此应用专门用于测试前后端认证集成流程。</p>
+                <p>请确保后端 API 正在运行：<code>https://localhost:5001</code></p>
+            </div>
+            
+            <div class="navigation">
+                <a href="/login" class="btn btn-primary">前往登录页面</a>
+            </div>
+            
+            <div class="api-test mt-4">
+                <h3>公开 API 测试</h3>
+                <button class="btn btn-outline-secondary" @onclick="TestPublicApi" disabled="@_isTesting">
+                    @if (_isTesting)
+                    {
+                        <span>测试中...</span>
+                    }
+                    else
+                    {
+                        <span>测试公开 API 连接</span>
+                    }
+                </button>
+                
+                @if (!string.IsNullOrEmpty(_apiTestResult))
+                {
+                    <div class="test-result mt-3">
+                        <strong>API 响应:</strong>
+                        <pre>@_apiTestResult</pre>
+                    </div>
+                }
+            </div>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+<style>
+    .welcome-container, .guest-container {
+        max-width: 800px;
+        margin: 50px auto;
+        text-align: center;
+    }
+    .alert {
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    .alert-info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+    }
+    .api-test {
+        margin-top: 30px;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background-color: #f8f9fa;
+    }
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 10px;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 14px;
+    }
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+    }
+    .btn-info {
+        background-color: #17a2b8;
+        color: white;
+    }
+    .btn-outline-info {
+        background-color: transparent;
+        color: #17a2b8;
+        border: 1px solid #17a2b8;
+    }
+    .btn-outline-warning {
+        background-color: transparent;
+        color: #ffc107;
+        border: 1px solid #ffc107;
+    }
+    .btn-outline-secondary {
+        background-color: transparent;
+        color: #6c757d;
+        border: 1px solid #6c757d;
+    }
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    .test-result {
+        text-align: left;
+        background-color: white;
+        padding: 15px;
+        border-radius: 4px;
+        border-left: 4px solid #17a2b8;
+    }
+    pre {
+        white-space: pre-wrap;
+        word-break: break-all;
+        margin: 0;
+        font-size: 12px;
+    }
+    .navigation {
+        margin: 20px 0;
+    }
+</style>
+
+@code {
+    private bool _isTesting = false;
+    private string _apiTestResult = string.Empty;
+
+    private async Task TestUserInfo()
+    {
+        await TestApiEndpoint("api/auth/userinfo");
+    }
+
+    private async Task TestAuthApi()
+    {
+        await TestApiEndpoint("api/auth/test");
+    }
+
+    private async Task TestPublicApi()
+    {
+        await TestApiEndpoint("api/auth/health");
+    }
+
+    private async Task TestApiEndpoint(string endpoint)
+    {
+        _isTesting = true;
+        _apiTestResult = string.Empty;
+        
+        try
+        {
+            Console.WriteLine("Testing endpoint: " + endpoint);
+            var response = await Http.GetAsync(endpoint);
+            var content = await response.Content.ReadAsStringAsync();
+            
+            _apiTestResult = $"端点: {endpoint}\n状态: {response.StatusCode}\n响应: {content}";
+        }
+        catch (Exception ex)
+        {
+            _apiTestResult = $"端点: {endpoint}\n错误: {ex.Message}";
+        }
+        finally
+        {
+            _isTesting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        if (AuthenticationStateProvider is CustomAuthenticationStateProvider customProvider)
+        {
+            await customProvider.MarkUserAsLoggedOut();
+        }
+        NavigationManager.NavigateTo("/");
+    }
+
+    [Inject] private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
+    [Inject] private NavigationManager NavigationManager { get; set; } = null!;
+}

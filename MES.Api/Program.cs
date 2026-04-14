@@ -95,6 +95,22 @@ builder.Services.AddServices();
 
 var app = builder.Build();
 
+// 初始化数据库和默认数据
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var initializationService = services.GetRequiredService<IInitializationService>();
+        await initializationService.InitializeAsync();
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "初始化过程中发生错误");
+    }
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
