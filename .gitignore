@@ -1,0 +1,37 @@
+# Visual Studio
+.vs/
+.vscode/
+
+# Build results
+bin/
+obj/
+[Mb]bin/
+[Mb]obj/
+
+# .NET
+*.user
+*.suo
+*.cache
+*.sln.docstates
+
+# Logs
+logs/
+*.log
+
+# Generated files
+*.sourcelink.json
+compressed/
+
+# IDE
+.idea/
+.comate/
+
+# Documentation (optional)
+docs/
+
+# User secrets
+secrets.json
+
+# Publish
+*.pubxml.user
+publish/
