@@ -1,0 +1,57 @@
+﻿@page "/"
+@using MES.Blazor.Models
+@using MES.Blazor.Services
+@using MudBlazor
+@using Microsoft.AspNetCore.Authorization
+@inject IAuthService AuthService
+@attribute [Authorize]
+
+<MudGrid>
+    <MudItem xs="12">
+        <MudText Typo="Typo.h4" Class="mb-4">欢迎使用 MES 系统</MudText>
+        <MudText Typo="Typo.subtitle2" Color="Color.Default" Class="mb-6">
+            不锈钢无缝钢管生产执行系统
+        </MudText>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4 text-center" Elevation="2">
+            <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Large" Color="Color.Primary" />
+            <MudText Typo="Typo.h4" Class="mt-2">0</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Default">进行中工单</MudText>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4 text-center" Elevation="2">
+            <MudIcon Icon="@Icons.Material.Filled.QrCodeScanner" Size="Size.Large" Color="Color.Success" />
+            <MudText Typo="Typo.h4" Class="mt-2">0</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Default">今日报工数</MudText>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4 text-center" Elevation="2">
+            <MudIcon Icon="@Icons.Material.Filled.Verified" Size="Size.Large" Color="Color.Warning" />
+            <MudText Typo="Typo.h4" Class="mt-2">0</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Default">合格率</MudText>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4 text-center" Elevation="2">
+            <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Size="Size.Large" Color="Color.Error" />
+            <MudText Typo="Typo.h4" Class="mt-2">0</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Default">设备在线数</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private UserInfo? _currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _currentUser = await AuthService.GetCurrentUserAsync();
+    }
+}

@@ -1,0 +1,110 @@
+@page "/login"
+@using MES.Blazor.Models
+@using MES.Blazor.Services
+@using MudBlazor
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<MudLayout>
+    <MudContainer MaxWidth="MaxWidth.ExtraSmall" Class="d-flex justify-center align-center" Style="min-height: 100vh;">
+        <MudCard Class="pa-8">
+            <MudCardContent>
+                <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-6" Color="Color.Primary">
+                    MES 生产执行系统
+                </MudText>
+                
+                <MudText Typo="Typo.subtitle2" Align="Align.Center" Class="mb-8" Color="Color.Default">
+                    不锈钢无缝钢管 MES 系统
+                </MudText>
+
+                <MudAlert Severity="Severity.Error" @bind-Visible="_showError" Class="mb-4">
+                    @_errorMessage
+                </MudAlert>
+
+                <MudTextField @bind-Value="_model.Username"
+                              Label="用户名 / 邮箱"
+                              Variant="Variant.Outlined"
+                              Immediate="true"
+                              Margin="Margin.Dense"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Person">
+                </MudTextField>
+
+                <MudTextField @bind-Value="_model.Password"
+                              Label="密码"
+                              Variant="Variant.Outlined"
+                              Immediate="true"
+                              Margin="Margin.Dense"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Lock"
+                              InputType="InputType.Password">
+                </MudTextField>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Size="Size.Large"
+                           FullWidth="true"
+                           Class="mt-6"
+                           OnClick="@OnLoginAsync"
+                           Disabled="_isLoading">
+                    @if (_isLoading)
+                    {
+                        <MudText>登录中...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>登录系统</MudText>
+                    }
+                </MudButton>
+            </MudCardContent>
+        </MudCard>
+    </MudContainer>
+</MudLayout>
+
+@code {
+    private LoginRequest _model = new();
+    private bool _isLoading = false;
+    private bool _showError = false;
+    private string _errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 检查是否已登录，如果已登录则跳转到首页
+        if (await AuthService.IsAuthenticatedAsync())
+        {
+            Navigation.NavigateTo("/", false);
+        }
+    }
+
+    private async Task OnLoginAsync()
+    {
+        _isLoading = true;
+        _showError = false;
+        StateHasChanged();
+
+        try
+        {
+            var result = await AuthService.LoginAsync(_model);
+            if (result.Success)
+            {
+                // 使用 forceLoad: false 避免页面完全重载
+                Navigation.NavigateTo("/", false);
+            }
+            else
+            {
+                _errorMessage = result.Message;
+                _showError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            _showError = true;
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+}
