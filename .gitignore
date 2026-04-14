@@ -1,0 +1,7 @@
+".comate/" 
+".comate/" 
+"docs/" 
+"*.sourcelink.json" 
+"compressed/" 
+"*.db-shm" 
+"*.db-wal" 
