@@ -10,6 +10,7 @@ E:\MES项目\MES\MES.Services\obj\Debug\net8.0\MES.Services.GeneratedMSBuildEdit
 E:\MES项目\MES\MES.Services\obj\Debug\net8.0\MES.Services.AssemblyInfoInputs.cache
 E:\MES项目\MES\MES.Services\obj\Debug\net8.0\MES.Services.AssemblyInfo.cs
 E:\MES项目\MES\MES.Services\obj\Debug\net8.0\MES.Services.csproj.CoreCompileInputs.cache
+E:\MES项目\MES\MES.Services\obj\Debug\net8.0\MES.Services.sourcelink.json
 E:\MES项目\MES\MES.Services\obj\Debug\net8.0\MES.Serv.2FFD9C5C.Up2Date
 E:\MES项目\MES\MES.Services\obj\Debug\net8.0\MES.Services.dll
 E:\MES项目\MES\MES.Services\obj\Debug\net8.0\refint\MES.Services.dll

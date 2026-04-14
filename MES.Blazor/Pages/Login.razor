@@ -1,65 +1,68 @@
 @page "/login"
 @using MES.Blazor.Models
 @using MES.Blazor.Services
+@using MES.Blazor.Shared
 @using MudBlazor
 @inject IAuthService AuthService
 @inject NavigationManager Navigation
 
-<MudLayout>
-    <MudContainer MaxWidth="MaxWidth.ExtraSmall" Class="d-flex justify-center align-center" Style="min-height: 100vh;">
-        <MudCard Class="pa-8">
-            <MudCardContent>
-                <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-6" Color="Color.Primary">
-                    MES 生产执行系统
-                </MudText>
-                
-                <MudText Typo="Typo.subtitle2" Align="Align.Center" Class="mb-8" Color="Color.Default">
-                    不锈钢无缝钢管 MES 系统
-                </MudText>
+<MudContainer MaxWidth="MaxWidth.ExtraSmall" Class="d-flex justify-center align-center" Style="min-height: 100vh;">
+    <MudCard Class="pa-8" Style="width: 400px;">
+        <MudCardContent>
+            <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-6" Color="Color.Primary">
+                MES 生产执行系统
+            </MudText>
+            
+            <MudText Typo="Typo.subtitle2" Align="Align.Center" Class="mb-8" Color="Color.Default">
+                不锈钢无缝钢管 MES 系统
+            </MudText>
 
-                <MudAlert Severity="Severity.Error" @bind-Visible="_showError" Class="mb-4">
-                    @_errorMessage
-                </MudAlert>
+            <MudAlert Severity="Severity.Error" @bind-Visible="_showError" Class="mb-4">
+                @_errorMessage
+            </MudAlert>
 
-                <MudTextField @bind-Value="_model.Username"
-                              Label="用户名 / 邮箱"
-                              Variant="Variant.Outlined"
-                              Immediate="true"
-                              Margin="Margin.Dense"
-                              Adornment="Adornment.Start"
-                              AdornmentIcon="@Icons.Material.Filled.Person">
-                </MudTextField>
+            <MudTextField @bind-Value="_model.Username"
+                          Label="用户名 / 邮箱"
+                          Variant="Variant.Outlined"
+                          Immediate="true"
+                          Margin="Margin.Dense"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Person"
+                          Class="mb-4">
+            </MudTextField>
 
-                <MudTextField @bind-Value="_model.Password"
-                              Label="密码"
-                              Variant="Variant.Outlined"
-                              Immediate="true"
-                              Margin="Margin.Dense"
-                              Adornment="Adornment.Start"
-                              AdornmentIcon="@Icons.Material.Filled.Lock"
-                              InputType="InputType.Password">
-                </MudTextField>
+            <MudTextField @bind-Value="_model.Password"
+                          Label="密码"
+                          Variant="Variant.Outlined"
+                          Immediate="true"
+                          Margin="Margin.Dense"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Lock"
+                          InputType="InputType.Password"
+                          Class="mb-4"
+                          OnKeyDown="@OnKeyDown">
+            </MudTextField>
 
-                <MudButton Variant="Variant.Filled"
-                           Color="Color.Primary"
-                           Size="Size.Large"
-                           FullWidth="true"
-                           Class="mt-6"
-                           OnClick="@OnLoginAsync"
-                           Disabled="_isLoading">
-                    @if (_isLoading)
-                    {
-                        <MudText>登录中...</MudText>
-                    }
-                    else
-                    {
-                        <MudText>登录系统</MudText>
-                    }
-                </MudButton>
-            </MudCardContent>
-        </MudCard>
-    </MudContainer>
-</MudLayout>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Size="Size.Large"
+                       FullWidth="true"
+                       Class="mt-6"
+                       OnClick="@OnLoginAsync"
+                       Disabled="_isLoading">
+                @if (_isLoading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="me-2" />
+                    <MudText>登录中...</MudText>
+                }
+                else
+                {
+                    <MudText>登录系统</MudText>
+                }
+            </MudButton>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
 
 @code {
     private LoginRequest _model = new();
@@ -78,33 +81,54 @@
 
     private async Task OnLoginAsync()
     {
+        if (string.IsNullOrWhiteSpace(_model.Username) || string.IsNullOrWhiteSpace(_model.Password))
+        {
+            _errorMessage = "请输入用户名和密码";
+            _showError = true;
+            return;
+        }
+
         _isLoading = true;
         _showError = false;
         StateHasChanged();
 
         try
         {
+            Console.WriteLine($"开始登录: {_model.Username}");
             var result = await AuthService.LoginAsync(_model);
-            if (result.Success)
+            Console.WriteLine($"登录结果: Success={result?.Success}, Message={result?.Message}");
+
+            if (result?.Success == true)
             {
-                // 使用 forceLoad: false 避免页面完全重载
-                Navigation.NavigateTo("/", false);
+                Console.WriteLine("登录成功，跳转到首页");
+                // 使用 forceLoad: true 确保页面完全刷新，认证状态重新加载
+                Navigation.NavigateTo("/", true);
             }
             else
             {
-                _errorMessage = result.Message;
+                _errorMessage = result?.Message ?? "登录失败，用户名或密码错误";
                 _showError = true;
+                Console.WriteLine($"登录失败: {_errorMessage}");
             }
         }
         catch (Exception ex)
         {
-            _errorMessage = ex.Message;
+            _errorMessage = $"登录异常: {ex.Message}";
             _showError = true;
+            Console.WriteLine($"登录异常: {ex}");
         }
         finally
         {
             _isLoading = false;
             StateHasChanged();
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await OnLoginAsync();
         }
     }
 }

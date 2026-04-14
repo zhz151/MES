@@ -145,6 +145,7 @@ E:\MES项目\MES\MES.Api\obj\Debug\net8.0\MES.Api.AssemblyInfo.cs
 E:\MES项目\MES\MES.Api\obj\Debug\net8.0\MES.Api.csproj.CoreCompileInputs.cache
 E:\MES项目\MES\MES.Api\obj\Debug\net8.0\MES.Api.MvcApplicationPartsAssemblyInfo.cs
 E:\MES项目\MES\MES.Api\obj\Debug\net8.0\MES.Api.MvcApplicationPartsAssemblyInfo.cache
+E:\MES项目\MES\MES.Api\obj\Debug\net8.0\MES.Api.sourcelink.json
 E:\MES项目\MES\MES.Api\obj\Debug\net8.0\rjimswa.dswa.cache.json
 E:\MES项目\MES\MES.Api\obj\Debug\net8.0\rjsmrazor.dswa.cache.json
 E:\MES项目\MES\MES.Api\obj\Debug\net8.0\rjsmcshtml.dswa.cache.json

@@ -44,3 +44,38 @@ System.IO.IOException: Failed to bind to address http://127.0.0.1:5000: address 
 2026-04-14 13:56:14.011 +08:00 [INF] Application started. Press Ctrl+C to shut down.
 2026-04-14 13:56:14.012 +08:00 [INF] Hosting environment: Development
 2026-04-14 13:56:14.014 +08:00 [INF] Content root path: E:\MES项目\MES\MES.Api
+2026-04-14 14:29:57.115 +08:00 [INF] Now listening on: https://localhost:5001
+2026-04-14 14:29:57.315 +08:00 [INF] Now listening on: http://localhost:5000
+2026-04-14 14:29:57.423 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-04-14 14:29:57.425 +08:00 [INF] Hosting environment: Development
+2026-04-14 14:29:57.427 +08:00 [INF] Content root path: E:\MES项目\MES\MES.Api
+2026-04-14 14:48:40.583 +08:00 [INF] Now listening on: https://localhost:5001
+2026-04-14 14:48:40.621 +08:00 [INF] Now listening on: http://localhost:5000
+2026-04-14 14:48:40.696 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-04-14 14:48:40.701 +08:00 [INF] Hosting environment: Development
+2026-04-14 14:48:40.702 +08:00 [INF] Content root path: E:\MES项目\MES\MES.Api
+2026-04-14 15:10:39.475 +08:00 [INF] Now listening on: https://localhost:5001
+2026-04-14 15:10:39.525 +08:00 [INF] Now listening on: http://localhost:5000
+2026-04-14 15:10:39.578 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-04-14 15:10:39.581 +08:00 [INF] Hosting environment: Development
+2026-04-14 15:10:39.583 +08:00 [INF] Content root path: E:\MES项目\MES\MES.Api
+2026-04-14 15:21:29.732 +08:00 [INF] Now listening on: https://localhost:5001
+2026-04-14 15:21:29.765 +08:00 [INF] Now listening on: http://localhost:5000
+2026-04-14 15:21:29.813 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-04-14 15:21:29.816 +08:00 [INF] Hosting environment: Development
+2026-04-14 15:21:29.816 +08:00 [INF] Content root path: E:\MES项目\MES\MES.Api
+2026-04-14 15:25:33.497 +08:00 [INF] Now listening on: https://localhost:5001
+2026-04-14 15:25:33.533 +08:00 [INF] Now listening on: http://localhost:5000
+2026-04-14 15:25:33.577 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-04-14 15:25:33.579 +08:00 [INF] Hosting environment: Development
+2026-04-14 15:25:33.582 +08:00 [INF] Content root path: E:\MES项目\MES\MES.Api
+2026-04-14 15:28:12.547 +08:00 [INF] Now listening on: https://localhost:5001
+2026-04-14 15:28:12.581 +08:00 [INF] Now listening on: http://localhost:5000
+2026-04-14 15:28:12.626 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-04-14 15:28:12.630 +08:00 [INF] Hosting environment: Development
+2026-04-14 15:28:12.632 +08:00 [INF] Content root path: E:\MES项目\MES\MES.Api
+2026-04-14 16:09:35.639 +08:00 [INF] Now listening on: https://localhost:5001
+2026-04-14 16:09:35.756 +08:00 [INF] Now listening on: http://localhost:5000
+2026-04-14 16:09:35.864 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-04-14 16:09:35.866 +08:00 [INF] Hosting environment: Development
+2026-04-14 16:09:35.868 +08:00 [INF] Content root path: E:\MES项目\MES\MES.Api

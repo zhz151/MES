@@ -16,7 +16,11 @@ var apiBaseUrl = builder.HostEnvironment.BaseAddress.Contains("https")
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
 
 // MudBlazor
-builder.Services.AddMudServices();
+builder.Services.AddMudServices(config =>
+{
+    // 禁用 PopoverProvider 重复检测警告
+    config.PopoverOptions.ThrowOnDuplicateProvider = false;
+});
 
 // 认证服务
 builder.Services.AddAuthorizationCore();

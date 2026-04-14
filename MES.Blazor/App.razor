@@ -1,19 +1,45 @@
-﻿@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Routing
 @using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+
+@* 全局 MudBlazor Provider - 只在此处定义一次，避免重复 *@
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
 
 <CascadingAuthenticationState>
     <Router AppAssembly="@typeof(App).Assembly">
         <Found Context="routeData">
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Shared.MainLayout)">
                 <NotAuthorized>
-                    <MES.Blazor.Pages.Login />
+                    @{
+                        var isAuthenticated = context.User.Identity?.IsAuthenticated ?? false;
+                        if (!isAuthenticated)
+                        {
+                            @* 未认证用户使用空布局显示登录页 *@
+                            <LayoutView Layout="@typeof(Shared.EmptyLayout)">
+                                <MES.Blazor.Pages.Login />
+                            </LayoutView>
+                        }
+                        else
+                        {
+                            @* 已认证但无权限 *@
+                            <LayoutView Layout="@typeof(Shared.MainLayout)">
+                                <MudContainer Class="d-flex justify-center align-center" Style="height: 100vh;">
+                                    <MudText Typo="Typo.h5" Color="Color.Error">您没有权限访问此页面</MudText>
+                                </MudContainer>
+                            </LayoutView>
+                        }
+                    }
                 </NotAuthorized>
                 <Authorizing>
-                    <MudContainer Class="d-flex justify-center align-center" Style="height: 100vh;">
-                        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-                        <MudText Class="ms-4">正在验证身份...</MudText>
-                    </MudContainer>
+                    <LayoutView Layout="@typeof(Shared.EmptyLayout)">
+                        <MudContainer Class="d-flex justify-center align-center" Style="height: 100vh;">
+                            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                            <MudText Class="ms-4">正在验证身份...</MudText>
+                        </MudContainer>
+                    </LayoutView>
                 </Authorizing>
             </AuthorizeRouteView>
             <FocusOnNavigate RouteData="@routeData" Selector="h1" />

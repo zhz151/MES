@@ -1,13 +1,9 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @using MES.Blazor.Models
 @using MES.Blazor.Services
 @using MudBlazor
 @inject IAuthService AuthService
 @inject NavigationManager Navigation
-
-<MudThemeProvider />
-<MudDialogProvider />
-<MudSnackbarProvider />
 
 <MudLayout>
     <MudAppBar Elevation="1">
@@ -96,7 +92,7 @@
         _currentUser = await AuthService.GetCurrentUserAsync();
     }
 
-    private async void OnLogoutClick()
+    private async Task OnLogoutClick()
     {
         await AuthService.LogoutAsync();
         Navigation.NavigateTo("/login", true);

@@ -6,6 +6,7 @@ E:\MES项目\MES\MES.Common\obj\Debug\net8.0\MES.Common.GeneratedMSBuildEditorCo
 E:\MES项目\MES\MES.Common\obj\Debug\net8.0\MES.Common.AssemblyInfoInputs.cache
 E:\MES项目\MES\MES.Common\obj\Debug\net8.0\MES.Common.AssemblyInfo.cs
 E:\MES项目\MES\MES.Common\obj\Debug\net8.0\MES.Common.csproj.CoreCompileInputs.cache
+E:\MES项目\MES\MES.Common\obj\Debug\net8.0\MES.Common.sourcelink.json
 E:\MES项目\MES\MES.Common\obj\Debug\net8.0\MES.Common.dll
 E:\MES项目\MES\MES.Common\obj\Debug\net8.0\refint\MES.Common.dll
 E:\MES项目\MES\MES.Common\obj\Debug\net8.0\MES.Common.pdb

@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "MES.Blazor",
   "resources": {
-    "hash": "sha256-fTX4Ql+jKy8Rp/rQqPgi2vfZOgNiYZF892R70KKOWkQ=",
+    "hash": "sha256-+132pS0whUCY1U8QXEbg6QBJd93TW78IKxOY18ClR50=",
     "jsModuleNative": {
       "dotnet.native.js": "sha256-A16ka545FHaB+QXjyJ4exXh7XpBAAIFnX8YkC4xAng8="
     },
@@ -230,12 +230,12 @@
       "mscorlib.wasm": "sha256-ovgR6YJeXMcsAhvGJVdyjhD5pU34EEAc0BGQYTUAyNk=",
       "netstandard.wasm": "sha256-90+pPOP/3NxK0buBFJlcvDw0r6Nk/i3+oM9dt2x+LPM=",
       "System.Private.CoreLib.wasm": "sha256-IXKG8p3ppN4zPjJOxht5wSXCcbFNPH6InVm7fsThBPI=",
-      "MES.Common.wasm": "sha256-sn84anCX++nov/sLg2ls9RaILoZ3GHLMPZRgWR9Hrrk=",
-      "MES.Blazor.wasm": "sha256-eN9xyYqcioL4anCKCl4fvj5+7MUdeynufg9wmGLoQ9A="
+      "MES.Common.wasm": "sha256-aop1jLfdlq3IFA5quDEv+izDBoDTWgObTbUHWqNSxEs=",
+      "MES.Blazor.wasm": "sha256-ysSku7KjpnuyncMxjHvI/Tt/Dn+yneYj+Zf+JKxM948="
     },
     "pdb": {
-      "MES.Common.pdb": "sha256-Gb9T8wQUwBoLdX3lb9v0+bKCMtkBt9o9om3tdSRGKyY=",
-      "MES.Blazor.pdb": "sha256-ht/IDJr5xOUpETS7YTK2zjoZCDzGHTSlYY40t3OUV8A="
+      "MES.Common.pdb": "sha256-WTPdYtNFJydpxS0uISzRTkavN3lN61x7EQS+oFcHi1w=",
+      "MES.Blazor.pdb": "sha256-IupTG1FrxcjBTGofiHgZVG0iC7O+bzoq6WQYo6IURXM="
     }
   },
   "cacheBootResources": true,
