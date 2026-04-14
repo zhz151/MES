@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "新建配置文件",
+    "Projects": [
+      {
+        "Path": "MES.Api\\MES.Api.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "MES.Blazor\\MES.Blazor.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

@@ -1,0 +1,23 @@
+@page "/test"
+
+<h1>测试页面</h1>
+
+<div>
+    <p>当前计数: @count</p>
+    <button @onclick="IncrementCount">点击增加</button>
+</div>
+
+<div style="margin-top: 20px; padding: 10px; background: yellow;">
+    <h3>Blazor运行状态检查</h3>
+    <p>如果能看到这个页面并点击按钮计数增加，说明Blazor正常运行</p>
+</div>
+
+@code {
+    private int count = 0;
+
+    private void IncrementCount()
+    {
+        count++;
+        Console.WriteLine($"Count increased to: {count}");
+    }
+}

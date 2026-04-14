@@ -1,15 +1,16 @@
-﻿@page "/"
+@page "/"
 @using MES.Blazor.Models
 @using MES.Blazor.Services
 @using MudBlazor
 @using Microsoft.AspNetCore.Authorization
-@inject IAuthService AuthService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
 @attribute [Authorize]
 
-<MudGrid>
+<MudGrid Class="my-4">
     <MudItem xs="12">
         <MudText Typo="Typo.h4" Class="mb-4">欢迎使用 MES 系统</MudText>
-        <MudText Typo="Typo.subtitle2" Color="Color.Default" Class="mb-6">
+        <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-6">
             不锈钢无缝钢管生产执行系统
         </MudText>
     </MudItem>
@@ -18,7 +19,7 @@
         <MudPaper Class="pa-4 text-center" Elevation="2">
             <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Large" Color="Color.Primary" />
             <MudText Typo="Typo.h4" Class="mt-2">0</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Default">进行中工单</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">进行中工单</MudText>
         </MudPaper>
     </MudItem>
 
@@ -26,7 +27,7 @@
         <MudPaper Class="pa-4 text-center" Elevation="2">
             <MudIcon Icon="@Icons.Material.Filled.QrCodeScanner" Size="Size.Large" Color="Color.Success" />
             <MudText Typo="Typo.h4" Class="mt-2">0</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Default">今日报工数</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">今日报工数</MudText>
         </MudPaper>
     </MudItem>
 
@@ -34,7 +35,7 @@
         <MudPaper Class="pa-4 text-center" Elevation="2">
             <MudIcon Icon="@Icons.Material.Filled.Verified" Size="Size.Large" Color="Color.Warning" />
             <MudText Typo="Typo.h4" Class="mt-2">0</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Default">合格率</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">合格率</MudText>
         </MudPaper>
     </MudItem>
 
@@ -42,16 +43,92 @@
         <MudPaper Class="pa-4 text-center" Elevation="2">
             <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Size="Size.Large" Color="Color.Error" />
             <MudText Typo="Typo.h4" Class="mt-2">0</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Default">设备在线数</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">设备在线数</MudText>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" Class="mt-6">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-4">快速操作</MudText>
+            <MudGrid>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" Href="/batches">
+                        <MudIcon Icon="@Icons.Material.Filled.QrCode" Class="mr-2" />
+                        生产批次管理
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" Href="/workorders">
+                        <MudIcon Icon="@Icons.Material.Filled.ListAlt" Class="mr-2" />
+                        生产工单管理
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Success" FullWidth="true" Href="/inspections">
+                        <MudIcon Icon="@Icons.Material.Filled.Science" Class="mr-2" />
+                        质量检验记录
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Warning" FullWidth="true" Href="/equipment">
+                        <MudIcon Icon="@Icons.Material.Filled.Devices" Class="mr-2" />
+                        设备清单
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" Class="mt-4">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-4">系统信息</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                当前用户: @username
+            </MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                用户角色: Admin, User
+            </MudText>
+            <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="RefreshPage" Class="mt-2">
+                刷新页面
+            </MudButton>
         </MudPaper>
     </MudItem>
 </MudGrid>
 
 @code {
-    private UserInfo? _currentUser;
+    private string username = "加载中...";
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        _currentUser = await AuthService.GetCurrentUserAsync();
+        Console.WriteLine("[Index] ========== OnInitialized ==========");
+        LoadUserInfo();
+    }
+
+    private async void LoadUserInfo()
+    {
+        try
+        {
+            var userJson = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "user_info");
+            if (!string.IsNullOrEmpty(userJson))
+            {
+                var userInfo = System.Text.Json.JsonSerializer.Deserialize<UserInfo>(userJson);
+                username = userInfo?.Username ?? "加载中...";
+            }
+            else
+            {
+                username = "未登录";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Index] Error: {ex.Message}");
+            username = "加载失败";
+        }
+    }
+
+    private void RefreshPage()
+    {
+        Console.WriteLine("[Index] ========== Refresh Clicked ==========");
+        LoadUserInfo();
     }
 }

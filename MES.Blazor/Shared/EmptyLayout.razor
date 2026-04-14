@@ -1,9 +1,5 @@
-﻿@inject NavigationManager Navigation
+@inherits LayoutComponentBase
 
-@code {
-    protected override void OnInitialized()
-    {
-        Navigation.NavigateTo("/login", true);
-    }
-}
-
+<div>
+    @Body
+</div>

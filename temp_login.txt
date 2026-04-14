@@ -1,14 +1,10 @@
 @page "/login"
-@using MES.Blazor.Shared
 @using MES.Blazor.Models
 @using MES.Blazor.Services
 @using MudBlazor
-@using Microsoft.AspNetCore.Components.Authorization
-@layout EmptyLayout
 @inject IAuthService AuthService
 @inject NavigationManager Navigation
 @inject HttpClient HttpClient
-@inject AuthenticationStateProvider AuthStateProvider
 
 <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex justify-center align-center" Style="min-height: 100vh;">
     <MudCard Class="pa-8" Elevation="3">
@@ -64,11 +60,28 @@
                 }
             </MudButton>
 
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Secondary"
+                       FullWidth="true"
+                       Class="mt-2"
+                       OnClick="OnTestApi"
+                       Disabled="@_isLoading">
+                <MudText>测试API连接</MudText>
+            </MudButton>
+
             <MudPaper Class="mt-6 pa-4" Elevation="0" Style="background-color: #e3f2fd;">
                 <MudText Typo="Typo.caption" Color="Color.Default">
                     <strong>测试账号：</strong><br/>
                     邮箱: admin@mes.com<br/>
                     密码: Admin@123456
+                </MudText>
+            </MudPaper>
+
+            <MudPaper Class="mt-4 pa-4" Elevation="0" Style="background-color: #fff9c4;">
+                <MudText Typo="Typo.caption" Color="Color.Default">
+                    <strong>诊断信息：</strong><br/>
+                    API Base: @_apiBaseUrl<br/>
+                    Login URL: @_loginUrl
                 </MudText>
             </MudPaper>
         </MudCardContent>
@@ -80,16 +93,24 @@
     private bool _isLoading = false;
     private bool _showError = false;
     private string _errorMessage = string.Empty;
-    private AuthenticationState _currentAuthState = default!;
+    private string _apiBaseUrl = string.Empty;
+    private string _loginUrl = string.Empty;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        Console.WriteLine("[Login] ========== OnInitializedAsync ==========");
-        _currentAuthState = await AuthStateProvider.GetAuthenticationStateAsync();
-        Console.WriteLine($"[Login] Initial auth state - IsAuthenticated: {_currentAuthState.User.Identity?.IsAuthenticated}");
-        Console.WriteLine($"[Login] Initial user - Name: {_currentAuthState.User.Identity?.Name}");
-        Console.WriteLine($"[Login] ========== OnInitializedAsync Completed ==========");
+        _apiBaseUrl = HttpClient.BaseAddress?.ToString() ?? "Unknown";
+        _loginUrl = $"{_apiBaseUrl}api/Auth/login";
+        Console.WriteLine($"[Login] API Base URL: {_apiBaseUrl}");
+        Console.WriteLine($"[Login] Login URL: {_loginUrl}");
+
+        // 清除旧的token用于测试
+        Console.WriteLine("[Login] Clearing old tokens from localStorage...");
+        _ = JSRuntime.InvokeVoidAsync("localStorage.removeItem", "auth_token");
+        _ = JSRuntime.InvokeVoidAsync("localStorage.removeItem", "user_info");
     }
+
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; } = default!;
 
     private async Task OnLoginAsync()
     {
@@ -101,25 +122,22 @@
         try
         {
             Console.WriteLine($"[Login] Attempting login for: {_model.Username}");
+            Console.WriteLine($"[Login] API URL: {_loginUrl}");
+            Console.WriteLine($"[Login] Request Body: {System.Text.Json.JsonSerializer.Serialize(_model)}");
+
             var result = await AuthService.LoginAsync(_model);
             Console.WriteLine($"[Login] Result - Success: {result.Success}, Message: {result.Message}");
 
             if (result.Success)
             {
                 Console.WriteLine("[Login] Login successful, redirecting to home...");
-                Console.WriteLine("[Login] Waiting for auth state to update...");
-
-                // Wait for auth state to update
-                await Task.Delay(500);
-
-                // Check auth state
-                _currentAuthState = await AuthStateProvider.GetAuthenticationStateAsync();
-                Console.WriteLine($"[Login] Auth state after login - IsAuthenticated: {_currentAuthState.User.Identity?.IsAuthenticated}");
-                Console.WriteLine($"[Login] User after login - Name: {_currentAuthState.User.Identity?.Name}");
-
-                Console.WriteLine("[Login] Calling Navigation.NavigateTo...");
+                Console.WriteLine("[Login] Using Navigation.NavigateTo with forceLoad=false");
                 Navigation.NavigateTo("/", forceLoad: false);
-                Console.WriteLine("[Login] NavigateTo completed");
+
+                // 添加延迟后手动刷新，确保认证状态更新
+                await Task.Delay(100);
+                Console.WriteLine("[Login] Triggering page refresh...");
+                await JSRuntime.InvokeVoidAsync("eval", "location.reload();");
             }
             else
             {
@@ -142,5 +160,43 @@
             Console.WriteLine("[Login] ========== Login Process Completed ==========");
             StateHasChanged();
         }
+    }
+
+    private async Task OnTestApi()
+    {
+        Console.WriteLine("[Login] ========== Testing API Connection ==========");
+        _errorMessage = string.Empty;
+        _showError = false;
+        StateHasChanged();
+
+        try
+        {
+            Console.WriteLine($"[Login] Testing API at: {_apiBaseUrl}api/DbAdmin/health");
+
+            var response = await HttpClient.GetAsync($"{_apiBaseUrl}api/DbAdmin/health");
+            Console.WriteLine($"[Login] Health Status: {response.StatusCode}");
+
+            var content = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"[Login] Health Response: {content}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                _errorMessage = $"API连接正常！Status: {response.StatusCode}";
+                _showError = true;
+            }
+            else
+            {
+                _errorMessage = $"API连接失败！Status: {response.StatusCode}\n响应: {content}";
+                _showError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Login] API Test Exception: {ex}");
+            _errorMessage = $"API连接异常: {ex.Message}";
+            _showError = true;
+        }
+
+        StateHasChanged();
     }
 }

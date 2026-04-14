@@ -1,9 +1,9 @@
-﻿@inject NavigationManager Navigation
+@inject NavigationManager Navigation
 
 @code {
     protected override void OnInitialized()
     {
-        Navigation.NavigateTo("/login", true);
+        Console.WriteLine("[RedirectToLogin] Redirecting to /login");
+        Navigation.NavigateTo("/login", forceLoad: false);
     }
 }
-

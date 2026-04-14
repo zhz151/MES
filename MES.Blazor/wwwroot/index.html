@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 
 <head>
@@ -36,12 +36,26 @@
     <!-- MudBlazor JS -->
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
-    
+
     <script>
+        // 添加日志辅助函数
+        window.MesLog = function(message) {
+            console.log('[MES]', message);
+        };
+
+        window.MesError = function(message) {
+            console.error('[MES ERROR]', message);
+        };
+
         // 可选：添加 PWA 相关代码
         window.addEventListener('beforeinstallprompt', (e) => {
             // 阻止自动提示，可以自定义安装按钮
             e.preventDefault();
+        });
+
+        // 监听Blazor错误
+        window.addEventListener('error', function(e) {
+            console.error('[Global Error]', e);
         });
     </script>
 </body>
