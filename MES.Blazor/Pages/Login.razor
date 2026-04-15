@@ -1,134 +1,77 @@
 @page "/login"
-@using MES.Blazor.Models
 @using MES.Blazor.Services
-@inject IAuthService AuthService
-@inject AuthenticationStateProvider AuthenticationStateProvider
+@using Blazored.LocalStorage
+@inject HttpClient Http
+@inject ILocalStorageService LocalStorage
+@inject AuthenticationStateProvider AuthProvider
 @inject NavigationManager Navigation
 
-<div class="login-container">
-    <h3>MES System Login</h3>
+<h3>登录 MES 系统</h3>
 
-    <EditForm Model="_loginModel" OnValidSubmit="HandleLogin">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
-
-        <div class="form-group">
-            <label for="email">Email:</label>
-            <InputText @bind-Value="_loginModel.Email" id="email" class="form-control" />
-            <ValidationMessage For="() => _loginModel.Email" />
-        </div>
-
-        <div class="form-group">
-            <label for="password">Password:</label>
-            <InputText @bind-Value="_loginModel.Password" id="password" type="password" class="form-control"/>
-            <ValidationMessage For="() => _loginModel.Password" />
-        </div>
-
-        <button type="submit" class="btn btn-primary" disabled="@_isLoading">
-            @if (_isLoading)
-            {
-                <span>Logging in...</span>
-            }
-            else
-            {
-                <span>Login</span>
-            }
-        </button>
-
-        @if (!string.IsNullOrEmpty(_errorMessage))
-        {
-            <div class="alert alert-danger mt-3">
-                @_errorMessage
-            </div>
-        }
-    </EditForm>
-
-    <div class="test-info mt-3">
-        <small>Test Account: admin@mes.com / Admin@123456</small>
+<EditForm Model="@model" OnValidSubmit="@HandleLogin">
+    <div class="mb-3">
+        <label for="email" class="form-label">邮箱</label>
+        <InputText id="email" class="form-control" @bind-Value="model.Email" />
+        <ValidationMessage For="@(() => model.Email)" />
     </div>
-</div>
-
-<style>
-    .login-container {
-        max-width: 400px;
-        margin: 100px auto;
-        padding: 20px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
+    <div class="mb-3">
+        <label for="password" class="form-label">密码</label>
+        <InputText id="password" type="password" class="form-control" @bind-Value="model.Password" />
+        <ValidationMessage For="@(() => model.Password)" />
+    </div>
+    <button type="submit" class="btn btn-primary">登录</button>
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger mt-3">@errorMessage</div>
     }
-    .form-group {
-        margin-bottom: 15px;
-    }
-    label {
-        display: block;
-        margin-bottom: 5px;
-    }
-    .form-control {
-        width: 100%;
-        padding: 8px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-    }
-    .btn-primary {
-        width: 100%;
-        padding: 10px;
-        background-color: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-    .btn-primary:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-    }
-    .alert {
-        padding: 10px;
-        border-radius: 4px;
-    }
-    .test-info {
-        font-size: 0.9em;
-        color: #666;
-        text-align: center;
-    }
-</style>
+</EditForm>
 
 @code {
-    private LoginModel _loginModel = new();
-    private bool _isLoading = false;
-    private string _errorMessage = string.Empty;
+    private LoginModel model = new();
+    private string errorMessage = "";
 
     private async Task HandleLogin()
     {
-        _isLoading = true;
-        _errorMessage = string.Empty;
-
         try
         {
-            var result = await AuthService.LoginAsync(_loginModel);
-            
-            if (result != null && !string.IsNullOrEmpty(result.Token))
+            var response = await Http.PostAsJsonAsync("https://localhost:7001/api/auth/login", model);
+            if (response.IsSuccessStatusCode)
             {
-                if (AuthenticationStateProvider is CustomAuthenticationStateProvider customProvider)
+                var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+                if (result?.token != null)
                 {
-                    await customProvider.MarkUserAsAuthenticated(result.Token);
+                    await LocalStorage.SetItemAsync("authToken", result.token);
+                    if (AuthProvider is CustomAuthStateProvider customAuth)
+                    {
+                        customAuth.MarkUserAsLoggedIn(result.token);
+                    }
+                    Navigation.NavigateTo("/", true);
                 }
-                
-                Navigation.NavigateTo("/");
             }
             else
             {
-                _errorMessage = "Login failed. Please check your credentials.";
+                errorMessage = "登录失败，请检查用户名密码";
             }
         }
         catch (Exception ex)
         {
-            _errorMessage = $"Login error: {ex.Message}";
+            errorMessage = ex.Message;
         }
-        finally
-        {
-            _isLoading = false;
-            StateHasChanged();
-        }
+    }
+
+    public class LoginModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "邮箱不能为空")]
+        [System.ComponentModel.DataAnnotations.EmailAddress(ErrorMessage = "请输入有效的邮箱地址")]
+        public string Email { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "密码不能为空")]
+        public string Password { get; set; } = "";
+    }
+
+    public class LoginResponse
+    {
+        public string token { get; set; } = "";
+        public string refreshToken { get; set; } = "";
     }
 }

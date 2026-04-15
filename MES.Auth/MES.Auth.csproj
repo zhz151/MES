@@ -3,7 +3,12 @@
   <ItemGroup>
     <ProjectReference Include="..\MES.Data\MES.Data.csproj" />
     <ProjectReference Include="..\MES.Core\MES.Core.csproj" />
-    <ProjectReference Include="..\MES.Auth\MES.Auth.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
   </ItemGroup>
 
   <PropertyGroup>

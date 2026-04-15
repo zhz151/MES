@@ -1,0 +1,71 @@
+@inherits LayoutComponentBase
+@using MES.Blazor.Services
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthProvider
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject IJSRuntime JSRuntime
+
+<MudThemeProvider />
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="Icons.Material.Filled.Menu" Color="Color.Inherit" OnClick="DrawerToggle" />
+        <MudText Typo="Typo.h6" Class="ml-2">MES 制造执行系统</MudText>
+        <MudSpacer />
+        <AuthorizeView>
+            <Authorized>
+                <MudText Typo="Typo.body1" Class="mr-4">你好, @context.User.Identity?.Name</MudText>
+                <MudButton Variant="Variant.Text" OnClick="Logout">退出</MudButton>
+            </Authorized>
+            <NotAuthorized>
+                <MudButton Variant="Variant.Text" OnClick="NavigateToLogin">登录</MudButton>
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudAppBar>
+    <MudDrawer @bind-Open="_drawerOpen" Elevation="2">
+        <MudNavMenu>
+            <MudNavLink Href="/" Match="NavLinkMatch.All">仪表盘</MudNavLink>
+            <AuthorizeView Roles="WorkOrderDirector,Admin">
+                <MudNavLink Href="/workorders">工单管理</MudNavLink>
+            </AuthorizeView>
+            <AuthorizeView Roles="BatchDirector,Admin">
+                <MudNavLink Href="/batches">批次管理</MudNavLink>
+            </AuthorizeView>
+        </MudNavMenu>
+    </MudDrawer>
+    <MudMainContent>
+        @Body
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+    
+    private void DrawerToggle() => _drawerOpen = !_drawerOpen;
+    
+    private void NavigateToLogin() => Navigation.NavigateTo("/login");
+    
+    private async Task Logout()
+    {
+        if (AuthProvider is CustomAuthStateProvider customAuth)
+        {
+            await customAuth.MarkUserAsLoggedOut();
+        }
+        else
+        {
+            try
+            {
+                await LocalStorage.RemoveItemAsync("authToken");
+                await LocalStorage.RemoveItemAsync("refreshToken");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Logout error: {ex.Message}");
+            }
+            
+            await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken");
+            await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "refreshToken");
+            
+            Navigation.NavigateTo("/", true);
+        }
+    }
+}

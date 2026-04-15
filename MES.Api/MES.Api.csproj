@@ -9,7 +9,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.25" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
@@ -20,7 +20,8 @@
   <ItemGroup>
     <ProjectReference Include="..\MES.Services\MES.Services.csproj" />
     <ProjectReference Include="..\MES.Data\MES.Data.csproj" />
-    <ProjectReference Include="..\MES.Common\MES.Common.csproj" />
+    <ProjectReference Include="..\MES.Core\MES.Core.csproj" />
+    <ProjectReference Include="..\MES.Auth\MES.Auth.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,8 +1,13 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
-using MES.Common.DTOs;
-using MES.Services;
+using System.Security.Claims;
+using System.Text;
+using MES.Data.Entities;
+using MES.Shared.Settings;
+using MES.Shared.Constants;
 
 namespace MES.Api.Controllers;
 
@@ -10,115 +15,58 @@ namespace MES.Api.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private readonly IAuthService _authService;
-    
-    public AuthController(IAuthService authService)
+    private readonly UserManager<AppUser> _userManager;
+    private readonly RoleManager<IdentityRole> _roleManager;
+    private readonly JwtSettings _jwtSettings;
+
+    public AuthController(UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager, IOptions<JwtSettings> jwtSettings)
     {
-        _authService = authService;
+        _userManager = userManager;
+        _roleManager = roleManager;
+        _jwtSettings = jwtSettings.Value;
     }
-    
-    /// <summary>
-    /// 用户注册
-    /// </summary>
-    [HttpPost("register")]
-    [AllowAnonymous]
-    public async Task<ActionResult<ApiResponse<LoginResponse>>> Register([FromBody] RegisterRequest request)
+
+    public class LoginRequest
     {
-        if (!ModelState.IsValid) return BadRequest(ApiResponse<LoginResponse>.Fail("请求参数无效"));
-        var result = await _authService.RegisterAsync(request);
-        if (!result.Success) return BadRequest(result);
-        return Ok(result);
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
     }
-    
-    /// <summary>
-    /// 用户登录
-    /// </summary>
+
     [HttpPost("login")]
-    [AllowAnonymous]
-    public async Task<ActionResult<ApiResponse<LoginResponse>>> Login([FromBody] LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        if (!ModelState.IsValid) return BadRequest(ApiResponse<LoginResponse>.Fail("请求参数无效"));
-        var result = await _authService.LoginAsync(request);
-        if (!result.Success) return Unauthorized(result);
-        return Ok(result);
+        var user = await _userManager.FindByEmailAsync(request.Email);
+        if (user == null || !await _userManager.CheckPasswordAsync(user, request.Password))
+            return Unauthorized(new { message = "������������" });
+
+        var roles = await _userManager.GetRolesAsync(user);
+        var token = GenerateJwtToken(user, roles);
+        return Ok(new { token, email = user.Email, roles });
     }
-    
-    /// <summary>
-    /// 刷新访问令牌
-    /// </summary>
-    [HttpPost("refresh")]
-    [AllowAnonymous]
-    public async Task<ActionResult<ApiResponse<LoginResponse>>> Refresh([FromBody] RefreshTokenRequest request)
+
+    private string GenerateJwtToken(AppUser user, IList<string> roles)
     {
-        var result = await _authService.RefreshTokenAsync(request.RefreshToken);
-        if (!result.Success) return Unauthorized(result);
-        return Ok(result);
-    }
-    
-    /// <summary>
-    /// 用户登出
-    /// </summary>
-    [HttpPost("logout")]
-    [Authorize]
-    public async Task<ActionResult<ApiResponse<bool>>> Logout()
-    {
-        var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-        if (string.IsNullOrEmpty(userId)) return BadRequest(ApiResponse<bool>.Fail("用户不存在"));
-        var result = await _authService.LogoutAsync(userId);
-        return Ok(result);
-    }
-    
-    /// <summary>
-    /// 获取当前用户信息
-    /// </summary>
-    [HttpGet("current-user")]
-    [Authorize]
-    public async Task<ActionResult<ApiResponse<UserInfoResponse>>> GetCurrentUser()
-    {
-        var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
-        
-        var result = await _authService.GetUserInfoAsync(userId);
-        if (!result.Success) return NotFound(result);
-        return Ok(result);
-    }
-    
-    /// <summary>
-    /// 修改用户密码
-    /// </summary>
-    [HttpPost("change-password")]
-    [Authorize]
-    public async Task<ActionResult<ApiResponse<bool>>> ChangePassword([FromBody] ChangePasswordRequest request)
-    {
-        var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
-        
-        var result = await _authService.ChangePasswordAsync(userId, request);
-        if (!result.Success) return BadRequest(result);
-        return Ok(result);
-    }
-    
-    /// <summary>
-    /// 获取用户权限列表
-    /// </summary>
-    [HttpGet("permissions")]
-    [Authorize]
-    public async Task<ActionResult<ApiResponse<List<string>>>> GetUserPermissions()
-    {
-        var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
-        
-        var result = await _authService.GetUserPermissionsAsync(userId);
-        return Ok(result);
-    }
-    
-    /// <summary>
-    /// 健康检查端点（用于测试API连通性）
-    /// </summary>
-    [HttpGet("health")]
-    [AllowAnonymous]
-    public ActionResult<string> Health()
-    {
-        return Ok("MES API - Authentication Service is running");
+        var claims = new List<Claim>
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email ?? ""),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim(ClaimTypes.Name, user.UserName ?? "")
+        };
+        foreach (var role in roles)
+            claims.Add(new Claim(ClaimTypes.Role, role));
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var expires = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpireMinutes);
+
+        var token = new JwtSecurityToken(
+            issuer: _jwtSettings.Issuer,
+            audience: _jwtSettings.Audience,
+            claims: claims,
+            expires: expires,
+            signingCredentials: creds
+        );
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }
