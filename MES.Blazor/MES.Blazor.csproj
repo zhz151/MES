@@ -18,6 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\MES.Core\MES.Core.csproj" />
     <ProjectReference Include="..\MES.Shared\MES.Shared.csproj" />
   </ItemGroup>
 

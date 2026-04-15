@@ -1,13 +1,19 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
 using MES.Data.Entities;
-using MES.Shared.Entities;
 
 namespace MES.Data;
 
 public class AppDbContext : IdentityDbContext<AppUser>
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+    private readonly IHttpContextAccessor _httpContextAccessor;
+
+    public AppDbContext(DbContextOptions<AppDbContext> options, IHttpContextAccessor httpContextAccessor) : base(options)
+    {
+        _httpContextAccessor = httpContextAccessor;
+    }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -33,22 +39,53 @@ public class AppDbContext : IdentityDbContext<AppUser>
     {
         var entries = ChangeTracker.Entries<BaseEntity>();
         var now = DateTimeOffset.Now;
+        var currentUser = GetCurrentUser();
+
         foreach (var entry in entries)
         {
-            if (entry.State == EntityState.Added)
+            switch (entry.State)
             {
-                entry.Entity.CreatedTime = now;
-                entry.Entity.UpdatedTime = now;
-                if (string.IsNullOrEmpty(entry.Entity.CreatedBy))
-                    entry.Entity.CreatedBy = "system";
-                entry.Entity.UpdatedBy = entry.Entity.CreatedBy;
-            }
-            else if (entry.State == EntityState.Modified)
-            {
-                entry.Entity.UpdatedTime = now;
-                entry.Entity.UpdatedBy = "system";
+                case EntityState.Added:
+                    entry.Entity.CreatedTime = now;
+                    entry.Entity.UpdatedTime = now;
+                    entry.Entity.CreatedBy = currentUser;
+                    entry.Entity.UpdatedBy = currentUser;
+                    entry.Entity.IsDeleted = false;
+                    break;
+                case EntityState.Modified:
+                    entry.Entity.UpdatedTime = now;
+                    entry.Entity.UpdatedBy = currentUser;
+                    break;
+                case EntityState.Deleted:
+                    // 软删除处理
+                    entry.State = EntityState.Modified;
+                    entry.Entity.IsDeleted = true;
+                    entry.Entity.UpdatedTime = now;
+                    entry.Entity.UpdatedBy = currentUser;
+                    break;
             }
         }
+
         return await base.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// 获取当前操作用户
+    /// </summary>
+    /// <returns>用户名</returns>
+    private string GetCurrentUser()
+    {
+        // 优先从HttpContext获取用户
+        var userName = _httpContextAccessor?.HttpContext?.User?.Identity?.Name;
+        if (!string.IsNullOrEmpty(userName))
+            return userName;
+
+        // 如果HttpContext中无法获取，尝试从Claims中获取
+        var emailClaim = _httpContextAccessor?.HttpContext?.User?.FindFirst(ClaimTypes.Email);
+        if (emailClaim != null)
+            return emailClaim.Value;
+
+        // 后备方案：如果是后台任务等场景，返回系统标识
+        return "system";
     }
 }

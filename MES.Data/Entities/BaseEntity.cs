@@ -1,4 +1,4 @@
-namespace MES.Shared.Entities;
+namespace MES.Data.Entities;
 
 public abstract class BaseEntity
 {

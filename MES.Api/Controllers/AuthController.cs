@@ -1,13 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
-using MES.Data.Entities;
-using MES.Shared.Settings;
-using MES.Shared.Constants;
+using MES.Auth.Services;
+using MES.Core.Models;
+using MES.Core.DTOs.Auth;
 
 namespace MES.Api.Controllers;
 
@@ -15,58 +9,42 @@ namespace MES.Api.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private readonly UserManager<AppUser> _userManager;
-    private readonly RoleManager<IdentityRole> _roleManager;
-    private readonly JwtSettings _jwtSettings;
+    private readonly IAuthService _authService;
 
-    public AuthController(UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager, IOptions<JwtSettings> jwtSettings)
+    public AuthController(IAuthService authService)
     {
-        _userManager = userManager;
-        _roleManager = roleManager;
-        _jwtSettings = jwtSettings.Value;
-    }
-
-    public class LoginRequest
-    {
-        public string Email { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
+        _authService = authService;
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    public async Task<ApiResponse<LoginResponse>> Login([FromBody] LoginRequest request)
     {
-        var user = await _userManager.FindByEmailAsync(request.Email);
-        if (user == null || !await _userManager.CheckPasswordAsync(user, request.Password))
-            return Unauthorized(new { message = "ÓÊÏä»òÃÜÂë´íÎó" });
-
-        var roles = await _userManager.GetRolesAsync(user);
-        var token = GenerateJwtToken(user, roles);
-        return Ok(new { token, email = user.Email, roles });
+        return await _authService.LoginAsync(request);
     }
 
-    private string GenerateJwtToken(AppUser user, IList<string> roles)
+    [HttpPost("logout")]
+    public async Task<ApiResponse<object>> Logout()
     {
-        var claims = new List<Claim>
-        {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email ?? ""),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new Claim(ClaimTypes.Name, user.UserName ?? "")
-        };
-        foreach (var role in roles)
-            claims.Add(new Claim(ClaimTypes.Role, role));
-
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var expires = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpireMinutes);
-
-        var token = new JwtSecurityToken(
-            issuer: _jwtSettings.Issuer,
-            audience: _jwtSettings.Audience,
-            claims: claims,
-            expires: expires,
-            signingCredentials: creds
-        );
-        return new JwtSecurityTokenHandler().WriteToken(token);
+        return await _authService.LogoutAsync();
     }
+
+    [HttpPost("refresh-token")]
+    public async Task<ApiResponse<LoginResponse>> RefreshToken([FromBody] RefreshTokenRequest request)
+    {
+        return await _authService.RefreshTokenAsync(request.RefreshToken);
+    }
+
+    [HttpGet("current-user")]
+    public async Task<ApiResponse<UserInfoResponse>> GetCurrentUser()
+    {
+        return await _authService.GetCurrentUserAsync();
+    }
+}
+
+/// <summary>
+/// åˆ·æ–°ä»¤ç‰Œè¯·æ±‚
+/// </summary>
+public class RefreshTokenRequest
+{
+    public string RefreshToken { get; set; } = string.Empty;
 }

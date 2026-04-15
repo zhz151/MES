@@ -1,61 +1,140 @@
 @page "/login"
 @using MES.Blazor.Services
 @using Blazored.LocalStorage
+@using MudBlazor
+@using MES.Core.Models
+@using MES.Core.DTOs.Auth
 @inject HttpClient Http
 @inject ILocalStorageService LocalStorage
 @inject AuthenticationStateProvider AuthProvider
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 
-<h3>登录 MES 系统</h3>
+<div class="d-flex justify-center align-center" style="height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)">
+    <MudPaper Class="pa-8" Elevation="10" Style="max-width:400px; width:90%; border-radius:16px">
+        <div class="text-center mb-6">
+            <MudIcon Icon="@Icons.Material.Outlined.Factory" Size="Size.Large" Color="Color.Primary" />
+            <MudText Typo="Typo.h4" Class="mt-2" Color="Color.Primary">MES 制造执行系统</MudText>
+            <MudText Typo="Typo.body2" Class="mt-1" Color="Color.Secondary">欢迎登录运营管理系统</MudText>
+        </div>
 
-<EditForm Model="@model" OnValidSubmit="@HandleLogin">
-    <div class="mb-3">
-        <label for="email" class="form-label">邮箱</label>
-        <InputText id="email" class="form-control" @bind-Value="model.Email" />
-        <ValidationMessage For="@(() => model.Email)" />
-    </div>
-    <div class="mb-3">
-        <label for="password" class="form-label">密码</label>
-        <InputText id="password" type="password" class="form-control" @bind-Value="model.Password" />
-        <ValidationMessage For="@(() => model.Password)" />
-    </div>
-    <button type="submit" class="btn btn-primary">登录</button>
-    @if (!string.IsNullOrEmpty(errorMessage))
-    {
-        <div class="alert alert-danger mt-3">@errorMessage</div>
-    }
-</EditForm>
+        <MudForm Model="@model" @ref="form">
+            <MudTextField @bind-Value="model.Email"
+                         Label="邮箱"
+                         Variant="Variant.Outlined"
+                         Placeholder="请输入您的邮箱地址"
+                         Required="true">
+                <IconStart>@Icons.Material.Filled.Email</IconStart>
+                <ValidationMessage For="@(() => model.Email)" />
+            </MudTextField>
+
+            <MudTextField @bind-Value="model.Password"
+                         Label="密码"
+                         Variant="Variant.Outlined"
+                         InputType="InputType.Password"
+                         Placeholder="请输入您的密码"
+                         Required="true">
+                <IconStart>@Icons.Material.Filled.Lock</IconStart>
+                <ValidationMessage For="@(() => model.Password)" />
+            </MudTextField>
+
+            <div class="text-center mt-6">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Size="Size.Large"
+                           EndIcon="@Icons.Material.Filled.Login"
+                           OnClick="HandleLogin"
+                           Disabled="@isLoading"
+                           Class="px-8 py-4"
+                           Style="min-width:150px">
+                    @if (isLoading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
+                    }
+                    else
+                    {
+                        <span>登录</span>
+                    }
+                </MudButton>
+            </div>
+        </MudForm>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4">
+                @errorMessage
+            </MudAlert>
+        }
+
+        <div class="text-center mt-4">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                © 2026 MES制造执行系统 v1.0.0
+            </MudText>
+        </div>
+    </MudPaper>
+</div>
 
 @code {
     private LoginModel model = new();
     private string errorMessage = "";
+    private bool isLoading = false;
+    private MudForm form = new();
 
     private async Task HandleLogin()
     {
+        await form.Validate();
+        if (!form.IsValid) return;
+
+        isLoading = true;
+        errorMessage = "";
+        StateHasChanged();
+
         try
         {
-            var response = await Http.PostAsJsonAsync("https://localhost:7001/api/auth/login", model);
+            var response = await Http.PostAsJsonAsync("api/auth/login", model);
+            
             if (response.IsSuccessStatusCode)
             {
-                var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
-                if (result?.token != null)
+                // 使用新的统一响应格式解析
+                var authResponse = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
+                
+                if (authResponse?.Success == true && authResponse.Data != null)
                 {
-                    await LocalStorage.SetItemAsync("authToken", result.token);
+                    await LocalStorage.SetItemAsync("authToken", authResponse.Data.Token);
+                    await LocalStorage.SetItemAsync("userEmail", authResponse.Data.Email);
+                    await LocalStorage.SetItemAsync("userName", authResponse.Data.UserName);
+                    await LocalStorage.SetItemAsync("userFullName", authResponse.Data.FullName);
+                    await LocalStorage.SetItemAsync("userRoles", authResponse.Data.Roles);
+                    
                     if (AuthProvider is CustomAuthStateProvider customAuth)
                     {
-                        customAuth.MarkUserAsLoggedIn(result.token);
+                        customAuth.MarkUserAsLoggedIn(authResponse.Data.Token);
                     }
+                    
+                    Snackbar.Add("登录成功！", Severity.Success);
+                    
+                    await Task.Delay(500); // 显示成功消息的时间
                     Navigation.NavigateTo("/", true);
+                }
+                else
+                {
+                    errorMessage = authResponse?.Message ?? "登录失败";
                 }
             }
             else
             {
-                errorMessage = "登录失败，请检查用户名密码";
+                var errorResult = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
+                errorMessage = errorResult?.Message ?? "登录失败，请检查用户名密码";
             }
         }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
         }
     }
 
@@ -67,11 +146,5 @@
 
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "密码不能为空")]
         public string Password { get; set; } = "";
-    }
-
-    public class LoginResponse
-    {
-        public string token { get; set; } = "";
-        public string refreshToken { get; set; } = "";
     }
 }
