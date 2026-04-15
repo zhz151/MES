@@ -23,8 +23,8 @@
                          Label="邮箱"
                          Variant="Variant.Outlined"
                          Placeholder="请输入您的邮箱地址"
-                         Required="true">
-                <IconStart>@Icons.Material.Filled.Email</IconStart>
+                         Required="true"
+                         StartAdornment="@Icons.Material.Filled.Email">
                 <ValidationMessage For="@(() => model.Email)" />
             </MudTextField>
 
@@ -33,8 +33,8 @@
                          Variant="Variant.Outlined"
                          InputType="InputType.Password"
                          Placeholder="请输入您的密码"
-                         Required="true">
-                <IconStart>@Icons.Material.Filled.Lock</IconStart>
+                         Required="true"
+                         StartAdornment="@Icons.Material.Filled.Lock">
                 <ValidationMessage For="@(() => model.Password)" />
             </MudTextField>
 

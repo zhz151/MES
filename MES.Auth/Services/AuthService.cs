@@ -4,8 +4,9 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using MES.Core.Models;
+using MES.Data.Entities;
 using MES.Core.DTOs.Auth;
+using MES.Core.Models;
 using MES.Data;
 using MES.Shared.Settings;
 
@@ -44,20 +45,20 @@ public class AuthService : IAuthService
             var user = await _userManager.FindByEmailAsync(request.Email);
             if (user == null)
             {
-                return ApiResponse<LoginResponse>.Fail("用户名或密码错误");
+                return await Task.FromResult(ApiResponse<LoginResponse>.Fail("用户名或密码错误"));
             }
 
             // 验证密码
             var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
             if (!result.Succeeded)
             {
-                return ApiResponse<LoginResponse>.Fail("用户名或密码错误");
+                return await Task.FromResult(ApiResponse<LoginResponse>.Fail("用户名或密码错误"));
             }
 
             // 检查用户状态
             if (!user.IsActive)
             {
-                return ApiResponse<LoginResponse>.Fail("用户账户已被禁用，请联系管理员");
+                return await Task.FromResult(ApiResponse<LoginResponse>.Fail("用户账户已被禁用，请联系管理员"));
             }
 
             // 获取用户角色
@@ -84,11 +85,11 @@ public class AuthService : IAuthService
                 FullName = user.FullName
             };
 
-            return ApiResponse<LoginResponse>.Ok(loginResponse);
+            return await Task.FromResult(ApiResponse<LoginResponse>.Ok(loginResponse));
         }
         catch (Exception ex)
         {
-            return ApiResponse<LoginResponse>.Fail("登录失败：" + ex.Message);
+            return await Task.FromResult(ApiResponse<LoginResponse>.Fail("登录失败：" + ex.Message));
         }
     }
 
@@ -98,11 +99,11 @@ public class AuthService : IAuthService
         {
             // 从HttpContext获取当前用户（需要注入IHttpContextAccessor）
             // 这里简化实现，实际使用时需要从Claims中获取用户信息
-            return ApiResponse<UserInfoResponse>.Fail("获取当前用户信息功能待实现");
+            return await Task.FromResult(ApiResponse<UserInfoResponse>.Fail("获取当前用户信息功能待实现"));
         }
         catch (Exception ex)
         {
-            return ApiResponse<UserInfoResponse>.Fail("获取用户信息失败：" + ex.Message);
+            return await Task.FromResult(ApiResponse<UserInfoResponse>.Fail("获取用户信息失败：" + ex.Message));
         }
     }
 
@@ -111,18 +112,18 @@ public class AuthService : IAuthService
         try
         {
             await _signInManager.SignOutAsync();
-            return ApiResponse<object>.Ok(null, "注销成功");
+            return await Task.FromResult(ApiResponse<object>.Ok(null, "注销成功"));
         }
         catch (Exception ex)
         {
-            return ApiResponse<object>.Fail("注销失败：" + ex.Message);
+            return await Task.FromResult(ApiResponse<object>.Fail("注销失败：" + ex.Message));
         }
     }
 
     public async Task<ApiResponse<LoginResponse>> RefreshTokenAsync(string refreshToken)
     {
         // TODO: 实现刷新令牌逻辑
-        return ApiResponse<LoginResponse>.Fail("刷新令牌功能待实现");
+        return await Task.FromResult(ApiResponse<LoginResponse>.Fail("刷新令牌功能待实现"));
     }
 }
 
