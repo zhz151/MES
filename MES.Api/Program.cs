@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.Text;
 using MES.Data;
 using MES.Data.Entities;
@@ -9,6 +10,9 @@ using MES.Data.Seed;
 using MES.Shared.Settings;
 using MES.Auth.Services;
 using MES.Api.Middlewares;
+using MES.Core.Interfaces;
+using MES.Services.Order;
+using MES.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,11 +48,56 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+// Swagger 配置（支持 JWT 认证）
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "MES API",
+        Version = "v1",
+        Description = "MES 制造执行系统 API"
+    });
+
+    // 添加 JWT 认证配置
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "请输入 JWT Token，格式：Bearer {your token}"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
 
 // 注册认证服务
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
+
+// 注册订单服务
+builder.Services.AddScoped<IOrderService, OrderService>();
+
+// 注册辅助服务
+builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<IProductionStandardService, ProductionStandardService>();
+builder.Services.AddScoped<IGradeMappingService, GradeMappingService>();
+
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddCors(options =>
