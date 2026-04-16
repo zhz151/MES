@@ -20,23 +20,21 @@
 
         <MudForm Model="@model" @ref="form">
             <MudTextField @bind-Value="model.Email"
-                         Label="邮箱"
-                         Variant="Variant.Outlined"
-                         Placeholder="请输入您的邮箱地址"
-                         Required="true"
-                         StartAdornment="@Icons.Material.Filled.Email">
-                <ValidationMessage For="@(() => model.Email)" />
-            </MudTextField>
+                          Label="邮箱"
+                          Variant="Variant.Outlined"
+                          Placeholder="请输入您的邮箱地址"
+                          Required="true"
+                          RequiredError="邮箱不能为空"
+                          StartAdornment="@Icons.Material.Filled.Email" />
 
             <MudTextField @bind-Value="model.Password"
-                         Label="密码"
-                         Variant="Variant.Outlined"
-                         InputType="InputType.Password"
-                         Placeholder="请输入您的密码"
-                         Required="true"
-                         StartAdornment="@Icons.Material.Filled.Lock">
-                <ValidationMessage For="@(() => model.Password)" />
-            </MudTextField>
+                          Label="密码"
+                          Variant="Variant.Outlined"
+                          InputType="InputType.Password"
+                          Placeholder="请输入您的密码"
+                          Required="true"
+                          RequiredError="密码不能为空"
+                          StartAdornment="@Icons.Material.Filled.Lock" />
 
             <div class="text-center mt-6">
                 <MudButton Variant="Variant.Filled"
