@@ -1,0 +1,175 @@
+@page "/customers"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using Microsoft.AspNetCore.Authorization
+@inject ICustomerService CustomerService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Business" Class="mr-2" Color="Color.Primary" />
+                    客户管理
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">客户档案信息</MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="NavigateToCreate">
+                    新建客户
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <!-- 搜索栏 -->
+            <MudGrid>
+                <MudItem xs="12" md="8">
+                    <MudTextField T="string"
+                                  Label="搜索客户编码/单位/业务员"
+                                  Immediate="true"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  @bind-Value="searchKeyword"
+                                  @bind-Value:event="oninput"
+                                  OnKeyDown="OnSearchKeyDown" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudButton Variant="Variant.Outlined" 
+                               Color="Color.Primary" 
+                               FullWidth="true"
+                               OnClick="Search">
+                        搜索
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+
+            <!-- 表格 -->
+            <MudTable Items="@customers" Loading="@isLoading" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Class="mt-4">
+                <HeaderContent>
+                    <MudTh>客户编码</MudTh>
+                    <MudTh>客户单位</MudTh>
+                    <MudTh>业务员</MudTh>
+                    <MudTh>联系人</MudTh>
+                    <MudTh>联系电话</MudTh>
+                    <MudTh>状态</MudTh>
+                    <MudTh>操作</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.CustomerCode</MudTd>
+                    <MudTd>@context.CustomerUnit</MudTd>
+                    <MudTd>@context.Salesman</MudTd>
+                    <MudTd>@context.ContactPerson</MudTd>
+                    <MudTd>@context.ContactPhone</MudTd>
+                    <MudTd>
+                        <MudChip Size="Size.Small" Color="@(context.Status == "Active" ? Color.Success : Color.Error)">
+                            @(context.Status == "Active" ? "启用" : "停用")
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>
+                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info" OnClick="() => ViewCustomer(context.Id)">查看</MudButton>
+                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Warning" OnClick="() => EditCustomer(context.Id)">编辑</MudButton>
+                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteCustomer(context.Id)">删除</MudButton>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private List<CustomerProfileDto> customers = new();
+    private int totalCount;
+    private bool isLoading = true;
+    private string searchKeyword = string.Empty;
+    private QueryParams queryParams = new() { PageSize = 20 };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        queryParams.Keyword = searchKeyword;
+        var result = await CustomerService.GetPagedAsync(queryParams);
+
+        if (result.Success && result.Data != null)
+        {
+            customers = result.Data.Items;
+            totalCount = result.Data.TotalCount;
+        }
+        else
+        {
+            Snackbar.Add(result.Message ?? "加载数据失败", Severity.Error);
+        }
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task Search()
+    {
+        queryParams.PageIndex = 1;
+        await LoadData();
+    }
+
+    private void OnSearchKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            _ = Search();
+        }
+    }
+
+    private void NavigateToCreate()
+    {
+        Navigation.NavigateTo("/customers/create");
+    }
+
+    private void ViewCustomer(int id)
+    {
+        Navigation.NavigateTo($"/customers/{id}");
+    }
+
+    private void EditCustomer(int id)
+    {
+        Navigation.NavigateTo($"/customers/{id}/edit");
+    }
+
+    private async Task DeleteCustomer(int id)
+    {
+        bool? confirmed = await DialogService.ShowMessageBox(
+            "确认删除",
+            "确定要删除该客户吗？",
+            yesText: "删除", cancelText: "取消");
+
+        if (confirmed == true)
+        {
+            var result = await CustomerService.DeleteAsync(id);
+            if (result.Success)
+            {
+                Snackbar.Add("删除成功", Severity.Success);
+                await LoadData();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
+            }
+        }
+    }
+}

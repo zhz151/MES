@@ -1,0 +1,174 @@
+@page "/grade-mappings"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using Microsoft.AspNetCore.Authorization
+@inject IGradeMappingService GradeMappingService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Science" Class="mr-2" Color="Color.Primary" />
+                    牌号对照管理
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">标准牌号 ↔ 工厂牌号 映射配置</MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="NavigateToCreate">
+                    新建牌号
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <!-- 搜索栏 -->
+            <MudGrid>
+                <MudItem xs="12" md="8">
+                    <MudTextField T="string"
+                                  Label="搜索标准牌号/工厂牌号"
+                                  Immediate="true"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  @bind-Value="searchKeyword"
+                                  @bind-Value:event="oninput"
+                                  OnKeyDown="OnSearchKeyDown" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudButton Variant="Variant.Outlined" 
+                               Color="Color.Primary" 
+                               FullWidth="true"
+                               OnClick="Search">
+                        搜索
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+
+            <!-- 表格 -->
+            <MudTable Items="@gradeMappings" Loading="@isLoading" Dense="true" Hover="true" Class="mt-4">
+                <HeaderContent>
+                    <MudTh>标准牌号</MudTh>
+                    <MudTh>工厂牌号</MudTh>
+                    <MudTh>密度(g/cm³)</MudTh>
+                    <MudTh>热处理工艺</MudTh>
+                    <MudTh>特殊材料</MudTh>
+                    <MudTh>操作</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.StandardGrade</MudTd>
+                    <MudTd>@context.PlantGrade</MudTd>
+                    <MudTd>@context.Density.ToString("F4")</MudTd>
+                    <MudTd>@context.HeatTreatment</MudTd>
+                    <MudTd>
+                        <MudChip Size="Size.Small" Color="@(context.SpecialMaterial ? Color.Warning : Color.Default)">
+                            @(context.SpecialMaterial ? "特殊" : "常规")
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>
+                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info" OnClick="() => ViewGradeMapping(context.Id)">查看</MudButton>
+                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Warning" OnClick="() => EditGradeMapping(context.Id)">编辑</MudButton>
+                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteGradeMapping(context.Id)">删除</MudButton>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private List<StandardGradeMappingDto> gradeMappings = new();
+    private List<StandardGradeMappingDto> allGradeMappings = new();
+    private bool isLoading = true;
+    private string searchKeyword = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        allGradeMappings = await GradeMappingService.GetAllAsync();
+        ApplyFilter();
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private void ApplyFilter()
+    {
+        var query = allGradeMappings.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(searchKeyword))
+        {
+            query = query.Where(x => 
+                x.StandardGrade.Contains(searchKeyword, StringComparison.OrdinalIgnoreCase) ||
+                x.PlantGrade.Contains(searchKeyword, StringComparison.OrdinalIgnoreCase));
+        }
+
+        gradeMappings = query.OrderBy(x => x.StandardGrade).ToList();
+    }
+
+    private void Search()
+    {
+        ApplyFilter();
+    }
+
+    private void OnSearchKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            Search();
+        }
+    }
+
+    private void NavigateToCreate()
+    {
+        Navigation.NavigateTo("/grade-mappings/create");
+    }
+
+    private void ViewGradeMapping(int id)
+    {
+        Navigation.NavigateTo($"/grade-mappings/{id}");
+    }
+
+    private void EditGradeMapping(int id)
+    {
+        Navigation.NavigateTo($"/grade-mappings/{id}/edit");
+    }
+
+    private async Task DeleteGradeMapping(int id)
+    {
+        bool? confirmed = await DialogService.ShowMessageBox(
+            "确认删除",
+            "确定要删除该牌号对照吗？\n\n如果该牌号已被订单使用，删除后可能导致数据问题！",
+            yesText: "删除", cancelText: "取消");
+
+        if (confirmed == true)
+        {
+            var result = await GradeMappingService.DeleteAsync(id);
+            if (result != null && result.Success)
+            {
+                Snackbar.Add("删除成功", Severity.Success);
+                await LoadData();
+            }
+            else
+            {
+                Snackbar.Add(result?.Message ?? "删除失败", Severity.Error);
+            }
+        }
+    }
+}

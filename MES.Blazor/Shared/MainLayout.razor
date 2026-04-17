@@ -1,3 +1,4 @@
+// 文件路径: MES.Blazor/Shared/MainLayout.razor
 @inherits LayoutComponentBase
 @using MES.Blazor.Services
 @inject NavigationManager Navigation
@@ -24,11 +25,51 @@
     <MudDrawer @bind-Open="_drawerOpen" Elevation="2">
         <MudNavMenu>
             <MudNavLink Href="/" Match="NavLinkMatch.All">仪表盘</MudNavLink>
-            <AuthorizeView Roles="WorkOrderDirector,Admin">
+            
+            <!-- 订单模块 -->
+            <AuthorizeView Roles="OrderStaff,OrderDirector,Admin">
+                <MudNavGroup Title="订单管理" Icon="@Icons.Material.Filled.Receipt">
+                    <MudNavLink Href="/orders">订单列表</MudNavLink>
+                    <MudNavLink Href="/customers">客户管理</MudNavLink>
+                    <MudNavLink Href="/standards">产品标准</MudNavLink>
+                    <MudNavLink Href="/grade-mappings">牌号对照</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
+
+            <!-- 工单模块 -->
+            <AuthorizeView Roles="WorkOrderStaff,WorkOrderDirector,Admin">
                 <MudNavLink Href="/workorders">工单管理</MudNavLink>
             </AuthorizeView>
-            <AuthorizeView Roles="BatchDirector,Admin">
+
+            <!-- 批次模块 -->
+            <AuthorizeView Roles="BatchStaff,BatchDirector,Admin">
                 <MudNavLink Href="/batches">批次管理</MudNavLink>
+                <MudNavLink Href="/mobile-report">扫码报工</MudNavLink>
+            </AuthorizeView>
+
+            <!-- 质量模块 -->
+            <AuthorizeView Roles="QualityStaff,QualityDirector,Admin">
+                <MudNavLink Href="/quality">质量管理</MudNavLink>
+            </AuthorizeView>
+
+            <!-- 设备模块 -->
+            <AuthorizeView Roles="EquipmentStaff,EquipmentDirector,Admin">
+                <MudNavLink Href="/equipment">设备管理</MudNavLink>
+            </AuthorizeView>
+
+            <!-- 仓库模块 -->
+            <AuthorizeView Roles="WarehouseStaff,WarehouseDirector,Admin">
+                <MudNavLink Href="/warehouse">仓库管理</MudNavLink>
+            </AuthorizeView>
+
+            <!-- 物料模块 -->
+            <AuthorizeView Roles="MaterialStaff,MaterialDirector,Admin">
+                <MudNavLink Href="/materials">物料管理</MudNavLink>
+            </AuthorizeView>
+
+            <!-- 用户管理（仅 Admin） -->
+            <AuthorizeView Roles="Admin">
+                <MudNavLink Href="/admin/users">用户管理</MudNavLink>
             </AuthorizeView>
         </MudNavMenu>
     </MudDrawer>

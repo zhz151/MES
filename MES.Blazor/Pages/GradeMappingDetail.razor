@@ -1,0 +1,207 @@
+@page "/grade-mappings/{id:int}"
+@page "/grade-mappings/{id:int}/edit"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+@inject IGradeMappingService GradeMappingService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    @if (isLoading)
+    {
+        <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+    }
+    else if (gradeMapping == null)
+    {
+        <MudAlert Severity="Severity.Error">牌号对照不存在</MudAlert>
+    }
+    else
+    {
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">
+                        <MudIcon Icon="@Icons.Material.Filled.Science" Class="mr-2" Color="Color.Primary" />
+                        牌号对照详情
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        标准牌号：@gradeMapping.StandardGrade
+                    </MudText>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                    @if (isEditMode)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveGradeMapping" Disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
+                            }
+                            else
+                            {
+                                <span>保存</span>
+                            }
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <AuthorizeView Roles="OrderDirector,Admin">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑</MudButton>
+                        </AuthorizeView>
+                    }
+                </CardHeaderActions>
+            </MudCardHeader>
+
+            <MudCardContent>
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string"
+                                      Label="标准牌号"
+                                      @bind-Value="editGrade.StandardGrade"
+                                      Disabled="!isEditMode"
+                                      HelperText="如 304, 316L" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string"
+                                      Label="工厂牌号"
+                                      @bind-Value="editGrade.PlantGrade"
+                                      Disabled="!isEditMode"
+                                      HelperText="如 06Cr19Ni10" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField T="decimal"
+                                         Label="密度 (g/cm³)"
+                                         @bind-Value="densityValue"
+                                         Disabled="!isEditMode"
+                                         Format="F4"
+                                         Min="0" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <!-- 修复 CS0618: 使用 @bind-Value 替代 CheckedChanged -->
+                        <MudSwitch @bind-Value="editGrade.SpecialMaterial" Label="特殊材料" Disabled="!isEditMode" />
+                    </MudItem>
+                    <MudItem xs="12" md="12">
+                        <MudTextField T="string"
+                                      Label="热处理工艺"
+                                      @bind-Value="editGrade.HeatTreatment"
+                                      Disabled="!isEditMode"
+                                      HelperText="如：固溶处理 1010-1150℃，快冷" />
+                    </MudItem>
+                    <MudItem xs="12" md="12">
+                        <MudTextField T="string"
+                                      Label="特殊注意事项"
+                                      @bind-Value="editGrade.SpecialNote"
+                                      Disabled="!isEditMode"
+                                      Style="min-height: 80px;" />
+                    </MudItem>
+                    <MudItem xs="12" md="12">
+                        <MudTextField T="string"
+                                      Label="备注"
+                                      @bind-Value="editGrade.Remark"
+                                      Disabled="!isEditMode"
+                                      Style="min-height: 80px;" />
+                    </MudItem>
+                </MudGrid>
+            </MudCardContent>
+        </MudCard>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private bool isEditMode => Navigation.Uri.Contains("/edit");
+    private StandardGradeMappingDto? gradeMapping;
+    private UpdateGradeMappingRequest editGrade = new();
+    private bool isLoading = true;
+    private bool isSubmitting;
+
+    // 用于解决 decimal? 到 decimal 的绑定问题
+    private decimal densityValue;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        var result = await GradeMappingService.GetByIdAsync(Id);
+        if (result.Success && result.Data != null)
+        {
+            gradeMapping = result.Data;
+            editGrade = new UpdateGradeMappingRequest
+            {
+                StandardGrade = gradeMapping.StandardGrade,
+                PlantGrade = gradeMapping.PlantGrade,
+                Density = gradeMapping.Density,
+                HeatTreatment = gradeMapping.HeatTreatment,
+                SpecialMaterial = gradeMapping.SpecialMaterial,
+                SpecialNote = gradeMapping.SpecialNote,
+                Remark = gradeMapping.Remark
+            };
+            // 初始化局部变量
+            densityValue = gradeMapping.Density;
+        }
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private void EnterEditMode()
+    {
+        Navigation.NavigateTo($"/grade-mappings/{Id}/edit");
+    }
+
+    private async Task SaveGradeMapping()
+    {
+        if (string.IsNullOrWhiteSpace(editGrade.StandardGrade))
+        {
+            Snackbar.Add("标准牌号不能为空", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(editGrade.PlantGrade))
+        {
+            Snackbar.Add("工厂牌号不能为空", Severity.Warning);
+            return;
+        }
+
+        // 将局部变量赋值回 editGrade
+        editGrade.Density = densityValue;
+
+        if (editGrade.Density == null || editGrade.Density <= 0)
+        {
+            Snackbar.Add("密度必须大于0", Severity.Warning);
+            return;
+        }
+
+        isSubmitting = true;
+        StateHasChanged();
+
+        var result = await GradeMappingService.UpdateAsync(Id, editGrade);
+        if (result != null && result.Success)
+        {
+            Snackbar.Add("更新成功", Severity.Success);
+            Navigation.NavigateTo($"/grade-mappings/{Id}");
+        }
+        else
+        {
+            Snackbar.Add(result?.Message ?? "更新失败", Severity.Error);
+        }
+
+        isSubmitting = false;
+        StateHasChanged();
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/grade-mappings");
+    }
+}

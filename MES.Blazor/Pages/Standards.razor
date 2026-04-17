@@ -1,0 +1,185 @@
+@page "/standards"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using Microsoft.AspNetCore.Authorization
+@inject IProductionStandardService StandardService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.DocumentScanner" Class="mr-2" Color="Color.Primary" />
+                    产品标准管理
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">生产标准/工艺标准配置</MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="NavigateToCreate">
+                    新建标准
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <!-- 搜索栏 -->
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  Label="搜索标准编码/名称"
+                                  Immediate="true"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  @bind-Value="searchKeyword"
+                                  @bind-Value:event="oninput"
+                                  OnKeyDown="OnSearchKeyDown" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudSelect T="bool?" Label="状态筛选" @bind-Value="filterActive">
+                        <MudSelectItem Value="@((bool?)null)">全部</MudSelectItem>
+                        <MudSelectItem Value="@((bool?)true)">已启用</MudSelectItem>
+                        <MudSelectItem Value="@((bool?)false)">已停用</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Primary"
+                               FullWidth="true"
+                               OnClick="Search">
+                        搜索
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+
+            <!-- 表格 -->
+            <MudTable Items="@standards" Loading="@isLoading" Dense="true" Hover="true" Class="mt-4">
+                <HeaderContent>
+                    <MudTh>标准编码</MudTh>
+                    <MudTh>标准名称</MudTh>
+                    <MudTh>排序</MudTh>
+                    <MudTh>状态</MudTh>
+                    <MudTh>操作</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.StandardCode</MudTd>
+                    <MudTd>@context.StandardName</MudTd>
+                    <MudTd>@context.SortOrder</MudTd>
+                    <MudTd>
+                        <MudChip Size="Size.Small" Color="@(context.IsActive? Color.Success: Color.Error)">
+                            @(context.IsActive ? "启用" : "停用")
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>
+                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info" OnClick="() => ViewStandard(context.Id)">查看</MudButton>
+                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Warning" OnClick="() => EditStandard(context.Id)">编辑</MudButton>
+                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteStandard(context.Id)">删除</MudButton>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private List<ProductionStandardDto> standards = new();
+    private List<ProductionStandardDto> allStandards = new();
+    private bool isLoading = true;
+    private string searchKeyword = string.Empty;
+    private bool? filterActive = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        allStandards = await StandardService.GetAllAsync(false);
+        ApplyFilter();
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private void ApplyFilter()
+    {
+        var query = allStandards.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(searchKeyword))
+        {
+            query = query.Where(x =>
+                x.StandardCode.Contains(searchKeyword, StringComparison.OrdinalIgnoreCase) ||
+                x.StandardName.Contains(searchKeyword, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (filterActive.HasValue)
+        {
+            query = query.Where(x => x.IsActive == filterActive.Value);
+        }
+
+        standards = query.OrderBy(x => x.SortOrder).ToList();
+    }
+
+    private void Search()
+    {
+        ApplyFilter();
+    }
+
+    private void OnSearchKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            Search();
+        }
+    }
+
+    private void NavigateToCreate()
+    {
+        Navigation.NavigateTo("/standards/create");
+    }
+
+    private void ViewStandard(int id)
+    {
+        Navigation.NavigateTo($"/standards/{id}");
+    }
+
+    private void EditStandard(int id)
+    {
+        Navigation.NavigateTo($"/standards/{id}/edit");
+    }
+
+    private async Task DeleteStandard(int id)
+    {
+        bool? confirmed = await DialogService.ShowMessageBox(
+            "确认删除",
+            "确定要删除该产品标准吗？",
+            yesText: "删除", cancelText: "取消");
+
+        if (confirmed == true)
+        {
+            var result = await StandardService.DeleteAsync(id);
+            if (result != null && result.Success)
+            {
+                Snackbar.Add("删除成功", Severity.Success);
+                await LoadData();
+            }
+            else
+            {
+                Snackbar.Add(result?.Message ?? "删除失败", Severity.Error);
+            }
+        }
+    }
+}

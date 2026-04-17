@@ -1,0 +1,214 @@
+@page "/customers/{id:int}"
+@page "/customers/{id:int}/edit"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using Microsoft.AspNetCore.Authorization
+@inject ICustomerService CustomerService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    @if (isLoading)
+    {
+        <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+    }
+    else if (customer == null)
+    {
+        <MudAlert Severity="Severity.Error">客户不存在</MudAlert>
+    }
+    else
+    {
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">
+                        <MudIcon Icon="@Icons.Material.Filled.Business" Class="mr-2" Color="Color.Primary" />
+                        客户详情
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        客户编码：@customer.CustomerCode
+                    </MudText>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                    @if (isEditMode)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveCustomer" Disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
+                            }
+                            else
+                            {
+                                <span>保存</span>
+                            }
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <AuthorizeView Roles="OrderDirector,Admin">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑</MudButton>
+                        </AuthorizeView>
+                    }
+                </CardHeaderActions>
+            </MudCardHeader>
+
+            <MudCardContent>
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string" 
+                                      Label="客户编码" 
+                                      @bind-Value="editCustomer.CustomerCode" 
+                                      Disabled="!isEditMode"
+                                      Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string" 
+                                      Label="业务员" 
+                                      @bind-Value="editCustomer.Salesman" 
+                                      Disabled="!isEditMode"
+                                      Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="12">
+                        <MudTextField T="string" 
+                                      Label="客户单位" 
+                                      @bind-Value="editCustomer.CustomerUnit" 
+                                      Disabled="!isEditMode"
+                                      Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string" 
+                                      Label="最终用户" 
+                                      @bind-Value="editCustomer.EndCustomer" 
+                                      Disabled="!isEditMode" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="string" 
+                                   Label="状态" 
+                                   @bind-Value="editCustomer.Status" 
+                                   Disabled="!isEditMode">
+                            <MudSelectItem Value="@("Active")">启用</MudSelectItem>
+                            <MudSelectItem Value="@("Inactive")">停用</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string" 
+                                      Label="联系人" 
+                                      @bind-Value="editCustomer.ContactPerson" 
+                                      Disabled="!isEditMode" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string" 
+                                      Label="联系电话" 
+                                      @bind-Value="editCustomer.ContactPhone" 
+                                      Disabled="!isEditMode" />
+                    </MudItem>
+                    <MudItem xs="12" md="12">
+                        <MudTextField T="string" 
+                                      Label="联系地址" 
+                                      @bind-Value="editCustomer.Address" 
+                                      Disabled="!isEditMode" />
+                    </MudItem>
+                    <MudItem xs="12" md="12">
+                        <MudTextField T="string" 
+                                      Label="备注" 
+                                      @bind-Value="editCustomer.Remark" 
+                                      Disabled="!isEditMode"
+                                      Multiline="true" />
+                    </MudItem>
+                </MudGrid>
+            </MudCardContent>
+        </MudCard>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private bool isEditMode => Navigation.Uri.Contains("/edit");
+    private CustomerProfileDto? customer;
+    private UpdateCustomerRequest editCustomer = new();
+    private bool isLoading = true;
+    private bool isSubmitting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        var result = await CustomerService.GetByIdAsync(Id);
+        if (result.Success && result.Data != null)
+        {
+            customer = result.Data;
+            editCustomer = new UpdateCustomerRequest
+            {
+                CustomerCode = customer.CustomerCode,
+                Salesman = customer.Salesman,
+                CustomerUnit = customer.CustomerUnit,
+                EndCustomer = customer.EndCustomer,
+                ContactPerson = customer.ContactPerson,
+                ContactPhone = customer.ContactPhone,
+                Address = customer.Address,
+                Status = customer.Status,
+                Remark = customer.Remark
+            };
+        }
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private void EnterEditMode()
+    {
+        Navigation.NavigateTo($"/customers/{Id}/edit");
+    }
+
+    private async Task SaveCustomer()
+    {
+        if (string.IsNullOrWhiteSpace(editCustomer.CustomerCode))
+        {
+            Snackbar.Add("客户编码不能为空", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(editCustomer.Salesman))
+        {
+            Snackbar.Add("业务员不能为空", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(editCustomer.CustomerUnit))
+        {
+            Snackbar.Add("客户单位不能为空", Severity.Warning);
+            return;
+        }
+
+        isSubmitting = true;
+        StateHasChanged();
+
+        var result = await CustomerService.UpdateAsync(Id, editCustomer);
+        if (result.Success)
+        {
+            Snackbar.Add("更新成功", Severity.Success);
+            Navigation.NavigateTo($"/customers/{Id}");
+        }
+        else
+        {
+            Snackbar.Add(result.Message ?? "更新失败", Severity.Error);
+        }
+
+        isSubmitting = false;
+        StateHasChanged();
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/customers");
+    }
+}

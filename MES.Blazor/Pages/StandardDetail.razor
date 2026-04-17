@@ -1,0 +1,183 @@
+@page "/standards/{id:int}"
+@page "/standards/{id:int}/edit"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+@inject IProductionStandardService StandardService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    @if (isLoading)
+    {
+        <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+    }
+    else if (standard == null)
+    {
+        <MudAlert Severity="Severity.Error">产品标准不存在</MudAlert>
+    }
+    else
+    {
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">
+                        <MudIcon Icon="@Icons.Material.Filled.DocumentScanner" Class="mr-2" Color="Color.Primary" />
+                        产品标准详情
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        标准编码：@standard.StandardCode
+                    </MudText>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                    @if (isEditMode)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveStandard" Disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
+                            }
+                            else
+                            {
+                                <span>保存</span>
+                            }
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <AuthorizeView Roles="OrderDirector,Admin">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑</MudButton>
+                        </AuthorizeView>
+                    }
+                </CardHeaderActions>
+            </MudCardHeader>
+
+            <MudCardContent>
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string"
+                                      Label="标准编码"
+                                      @bind-Value="editStandard.StandardCode"
+                                      Disabled="!isEditMode"
+                                      HelperText="唯一标识，如 GB/T 14976" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <!-- 修复 CS1503: 使用局部变量 sortOrderValue 绑定 -->
+                        <MudNumericField T="int"
+                                         Label="排序序号"
+                                         @bind-Value="sortOrderValue"
+                                         Disabled="!isEditMode"
+                                         HelperText="数字越小越靠前" />
+                    </MudItem>
+                    <MudItem xs="12" md="12">
+                        <MudTextField T="string"
+                                      Label="标准名称"
+                                      @bind-Value="editStandard.StandardName"
+                                      Disabled="!isEditMode" />
+                    </MudItem>
+                    <MudItem xs="12" md="12">
+                        <MudSwitch @bind-Value="editStandard.IsActive" Label="启用" Disabled="!isEditMode" />
+                    </MudItem>
+                    <MudItem xs="12" md="12">
+                        <MudTextField T="string"
+                                      Label="备注"
+                                      @bind-Value="editStandard.Remark"
+                                      Disabled="!isEditMode"
+                                      Style="min-height: 80px;" />
+                    </MudItem>
+                </MudGrid>
+            </MudCardContent>
+        </MudCard>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private bool isEditMode => Navigation.Uri.Contains("/edit");
+    private ProductionStandardDto? standard;
+    private UpdateProductionStandardRequest editStandard = new();
+    private bool isLoading = true;
+    private bool isSubmitting;
+
+    // 用于绑定排序序号的局部变量
+    private int sortOrderValue;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        var result = await StandardService.GetByIdAsync(Id);
+        if (result.Success && result.Data != null)
+        {
+            standard = result.Data;
+            editStandard = new UpdateProductionStandardRequest
+            {
+                StandardCode = standard.StandardCode,
+                StandardName = standard.StandardName,
+                Remark = standard.Remark,
+                SortOrder = standard.SortOrder,
+                IsActive = standard.IsActive
+            };
+            // 修复 CS0019: standard.SortOrder 是 int 类型，直接赋值
+            sortOrderValue = standard.SortOrder;
+        }
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private void EnterEditMode()
+    {
+        Navigation.NavigateTo($"/standards/{Id}/edit");
+    }
+
+    private async Task SaveStandard()
+    {
+        if (string.IsNullOrWhiteSpace(editStandard.StandardCode))
+        {
+            Snackbar.Add("标准编码不能为空", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(editStandard.StandardName))
+        {
+            Snackbar.Add("标准名称不能为空", Severity.Warning);
+            return;
+        }
+
+        // 将局部变量赋值回 editStandard
+        editStandard.SortOrder = sortOrderValue;
+
+        isSubmitting = true;
+        StateHasChanged();
+
+        var result = await StandardService.UpdateAsync(Id, editStandard);
+        if (result != null && result.Success)
+        {
+            Snackbar.Add("更新成功", Severity.Success);
+            Navigation.NavigateTo($"/standards/{Id}");
+        }
+        else
+        {
+            Snackbar.Add(result?.Message ?? "更新失败", Severity.Error);
+        }
+
+        isSubmitting = false;
+        StateHasChanged();
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/standards");
+    }
+}

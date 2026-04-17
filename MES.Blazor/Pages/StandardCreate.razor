@@ -1,0 +1,111 @@
+@page "/standards/create"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+@inject IProductionStandardService StandardService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "OrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Primary" />
+                    新建产品标准
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">创建新的生产标准</MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveStandard" Disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
+                    }
+                    else
+                    {
+                        <span>保存</span>
+                    }
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  Label="标准编码"
+                                  @bind-Value="standard.StandardCode"
+                                  Required="true"
+                                  HelperText="唯一标识，如 GB/T 14976" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudNumericField T="int"
+                                     Label="排序序号"
+                                     @bind-Value="standard.SortOrder"
+                                     HelperText="数字越小越靠前" />
+                </MudItem>
+                <MudItem xs="12" md="12">
+                    <MudTextField T="string"
+                                  Label="标准名称"
+                                  @bind-Value="standard.StandardName"
+                                  Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="12">
+                    <MudSwitch @bind-Value="standard.IsActive" Label="启用" />
+                </MudItem>
+                <MudItem xs="12" md="12">
+                    <MudTextField T="string"
+                                  Label="备注"
+                                  @bind-Value="standard.Remark"
+                                  Style="min-height: 80px;" />
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private CreateProductionStandardRequest standard = new() { IsActive = true, SortOrder = 0 };
+    private bool isSubmitting;
+
+    private async Task SaveStandard()
+    {
+        if (string.IsNullOrWhiteSpace(standard.StandardCode))
+        {
+            Snackbar.Add("标准编码不能为空", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(standard.StandardName))
+        {
+            Snackbar.Add("标准名称不能为空", Severity.Warning);
+            return;
+        }
+
+        isSubmitting = true;
+        StateHasChanged();
+
+        var result = await StandardService.CreateAsync(standard);
+        if (result != null && result.Success)
+        {
+            Snackbar.Add("创建成功", Severity.Success);
+            Navigation.NavigateTo("/standards");
+        }
+        else
+        {
+            Snackbar.Add(result?.Message ?? "创建失败", Severity.Error);
+        }
+
+        isSubmitting = false;
+        StateHasChanged();
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/standards");
+    }
+}

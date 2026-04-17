@@ -1,0 +1,138 @@
+@page "/customers/create"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using Microsoft.AspNetCore.Authorization
+@inject ICustomerService CustomerService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "OrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Primary" />
+                    新建客户
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">创建新的客户档案</MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveCustomer" Disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
+                    }
+                    else
+                    {
+                        <span>保存</span>
+                    }
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string" 
+                                  Label="客户编码" 
+                                  @bind-Value="customer.CustomerCode" 
+                                  Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string" 
+                                  Label="业务员" 
+                                  @bind-Value="customer.Salesman" 
+                                  Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="12">
+                    <MudTextField T="string" 
+                                  Label="客户单位" 
+                                  @bind-Value="customer.CustomerUnit" 
+                                  Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string" 
+                                  Label="最终用户" 
+                                  @bind-Value="customer.EndCustomer" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="string" Label="状态" @bind-Value="customer.Status">
+                        <MudSelectItem Value="@("Active")">启用</MudSelectItem>
+                        <MudSelectItem Value="@("Inactive")">停用</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string" 
+                                  Label="联系人" 
+                                  @bind-Value="customer.ContactPerson" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string" 
+                                  Label="联系电话" 
+                                  @bind-Value="customer.ContactPhone" />
+                </MudItem>
+                <MudItem xs="12" md="12">
+                    <MudTextField T="string" 
+                                  Label="联系地址" 
+                                  @bind-Value="customer.Address" />
+                </MudItem>
+                <MudItem xs="12" md="12">
+                    <MudTextField T="string" 
+                                  Label="备注" 
+                                  @bind-Value="customer.Remark" 
+                                  Multiline="true" />
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private CreateCustomerRequest customer = new() { Status = "Active" };
+    private bool isSubmitting;
+
+    private async Task SaveCustomer()
+    {
+        if (string.IsNullOrWhiteSpace(customer.CustomerCode))
+        {
+            Snackbar.Add("客户编码不能为空", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(customer.Salesman))
+        {
+            Snackbar.Add("业务员不能为空", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(customer.CustomerUnit))
+        {
+            Snackbar.Add("客户单位不能为空", Severity.Warning);
+            return;
+        }
+
+        isSubmitting = true;
+        StateHasChanged();
+
+        var result = await CustomerService.CreateAsync(customer);
+        if (result.Success)
+        {
+            Snackbar.Add("创建成功", Severity.Success);
+            Navigation.NavigateTo("/customers");
+        }
+        else
+        {
+            Snackbar.Add(result.Message ?? "创建失败", Severity.Error);
+        }
+
+        isSubmitting = false;
+        StateHasChanged();
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/customers");
+    }
+}

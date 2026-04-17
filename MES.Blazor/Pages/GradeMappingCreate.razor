@@ -1,0 +1,144 @@
+@page "/grade-mappings/create"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+@inject IGradeMappingService GradeMappingService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "OrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Primary" />
+                    新建牌号对照
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">创建标准牌号与工厂牌号的映射</MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveGradeMapping" Disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
+                    }
+                    else
+                    {
+                        <span>保存</span>
+                    }
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  Label="标准牌号"
+                                  @bind-Value="gradeMapping.StandardGrade"
+                                  Required="true"
+                                  HelperText="如 304, 316L" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  Label="工厂牌号"
+                                  @bind-Value="gradeMapping.PlantGrade"
+                                  Required="true"
+                                  HelperText="如 06Cr19Ni10" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudNumericField T="decimal"
+                                     Label="密度 (g/cm³)"
+                                     @bind-Value="densityValue"
+                                     Required="true"
+                                     Format="F4"
+                                     Min="0" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <!-- 修复 CS0618: 使用 @bind-Value 替代 CheckedChanged -->
+                    <MudSwitch @bind-Value="gradeMapping.SpecialMaterial" Label="特殊材料" />
+                </MudItem>
+                <MudItem xs="12" md="12">
+                    <MudTextField T="string"
+                                  Label="热处理工艺"
+                                  @bind-Value="gradeMapping.HeatTreatment"
+                                  HelperText="如：固溶处理 1010-1150℃，快冷" />
+                </MudItem>
+                <MudItem xs="12" md="12">
+                    <MudTextField T="string"
+                                  Label="特殊注意事项"
+                                  @bind-Value="gradeMapping.SpecialNote"
+                                  Style="min-height: 80px;" />
+                </MudItem>
+                <MudItem xs="12" md="12">
+                    <MudTextField T="string"
+                                  Label="备注"
+                                  @bind-Value="gradeMapping.Remark"
+                                  Style="min-height: 80px;" />
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private CreateGradeMappingRequest gradeMapping = new() { Density = 7.93m, SpecialMaterial = false };
+    private bool isSubmitting;
+
+    // 用于绑定密度的局部变量
+    private decimal densityValue = 7.93m;
+
+    protected override void OnInitialized()
+    {
+        densityValue = gradeMapping.Density;
+    }
+
+    private async Task SaveGradeMapping()
+    {
+        if (string.IsNullOrWhiteSpace(gradeMapping.StandardGrade))
+        {
+            Snackbar.Add("标准牌号不能为空", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(gradeMapping.PlantGrade))
+        {
+            Snackbar.Add("工厂牌号不能为空", Severity.Warning);
+            return;
+        }
+
+        // 将局部变量赋值回 gradeMapping
+        gradeMapping.Density = densityValue;
+
+        if (gradeMapping.Density <= 0)
+        {
+            Snackbar.Add("密度必须大于0", Severity.Warning);
+            return;
+        }
+
+        isSubmitting = true;
+        StateHasChanged();
+
+        var result = await GradeMappingService.CreateAsync(gradeMapping);
+        if (result != null && result.Success)
+        {
+            Snackbar.Add("创建成功", Severity.Success);
+            Navigation.NavigateTo("/grade-mappings");
+        }
+        else
+        {
+            Snackbar.Add(result?.Message ?? "创建失败", Severity.Error);
+        }
+
+        isSubmitting = false;
+        StateHasChanged();
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/grade-mappings");
+    }
+}
