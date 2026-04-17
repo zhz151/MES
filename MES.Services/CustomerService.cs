@@ -219,12 +219,9 @@ public class CustomerService : ICustomerService
             entity.Address = request.Address;
         }
 
-        if (!string.IsNullOrEmpty(request.Status))
+        if (request.Status.HasValue)
         {
-            if (Enum.TryParse<CustomerStatus>(request.Status, true, out var status))
-            {
-                entity.Status = status;
-            }
+            entity.Status = request.Status.Value;
         }
 
         if (request.Remark != null)

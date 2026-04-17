@@ -19,7 +19,7 @@
     }
     else if (orderDetail == null)
     {
-        <MudAlert Severity="Severity.Error">¶©µ¥²»´æÔÚ</MudAlert>
+        <MudAlert Severity="Severity.Error">è®¢å•ä¸å­˜åœ¨</MudAlert>
     }
     else
     {
@@ -28,14 +28,14 @@
                 <CardHeaderContent>
                     <MudText Typo="Typo.h5" Class="font-weight-bold">
                         <MudIcon Icon="@Icons.Material.Filled.Receipt" Class="mr-2" Color="Color.Primary" />
-                        ¶©µ¥ÏêÇé
+                        è®¢å•è¯¦æƒ…
                     </MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        ¶©µ¥ºÅ£º@orderDetail.OrderNumber
+                        è®¢å•å·ï¼š@orderDetail.OrderNumber
                     </MudText>
                 </CardHeaderContent>
                 <CardHeaderActions>
-                    <MudButton Variant="Variant.Text" OnClick="GoBack">·µ»Ø</MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="GoBack">è¿”å›</MudButton>
                     @if (isEditMode)
                     {
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitUpdate" Disabled="@isSubmitting">
@@ -45,42 +45,42 @@
                             }
                             else
                             {
-                                <span>±£´æĞŞ¸Ä</span>
+                                <span>ä¿å­˜ä¿®æ”¹</span>
                             }
                         </MudButton>
                     }
                     else
                     {
                         <AuthorizeView Roles="OrderDirector,Admin">
-                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">±à¼­</MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">ç¼–è¾‘</MudButton>
                         </AuthorizeView>
                     }
                 </CardHeaderActions>
             </MudCardHeader>
 
             <MudCardContent>
-                <!-- ¶©µ¥»ù±¾ĞÅÏ¢ -->
+                <!-- è®¢å•åŸºæœ¬ä¿¡æ¯ -->
                 <MudText Typo="Typo.subtitle1" Class="mb-3">
                     <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
-                    »ù±¾ĞÅÏ¢
+                    åŸºæœ¬ä¿¡æ¯
                 </MudText>
                 <MudGrid>
                     <MudItem xs="12" md="4">
                         <MudTextField T="string"
-                                      Label="¶©µ¥ºÅ"
+                                      Label="è®¢å•å·"
                                       @bind-Value="editOrder.OrderNumber"
                                       Disabled="!isEditMode"
-                                      HelperText="11Î»×Ö·û" />
+                                      HelperText="11ä½å­—ç¬¦" />
                     </MudItem>
                     <MudItem xs="12" md="4">
                         <MudDatePicker @bind-Date="editOrder.SignDate"
-                                       Label="Ç©¶©ÈÕÆÚ"
+                                       Label="ç­¾è®¢æ—¥æœŸ"
                                        Disabled="!isEditMode" />
                     </MudItem>
                     <MudItem xs="12" md="4">
-                        <!-- ĞŞ¸´ CS1503: Ê¹ÓÃ T="int?" Æ¥Åä editOrder.CustomerId µÄ int? ÀàĞÍ -->
+                        <!-- ä¿®å¤ CS1503: ä½¿ç”¨ T="int?" åŒ¹é… editOrder.CustomerId çš„ int? ç±»å‹ -->
                         <MudSelect T="int?" @bind-Value="editOrder.CustomerId"
-                                   Label="¿Í»§µ¥Î»"
+                                   Label="å®¢æˆ·å•ä½"
                                    Disabled="!isEditMode">
                             @foreach (var customer in customers)
                             {
@@ -90,34 +90,34 @@
                     </MudItem>
                     <MudItem xs="12" md="4">
                         <MudSelect T="string" @bind-Value="editOrder.Status"
-                                   Label="¶©µ¥×´Ì¬"
+                                   Label="è®¢å•çŠ¶æ€"
                                    Disabled="!isEditMode">
-                            <MudSelectItem Value="@("Pending")">´ı´¦Àí</MudSelectItem>
-                            <MudSelectItem Value="@("Confirmed")">ÒÑÈ·ÈÏ</MudSelectItem>
-                            <MudSelectItem Value="@("Processing")">´¦ÀíÖĞ</MudSelectItem>
-                            <MudSelectItem Value="@("Completed")">ÒÑÍê³É</MudSelectItem>
-                            <MudSelectItem Value="@("Cancelled")">ÒÑÈ¡Ïû</MudSelectItem>
+                            <MudSelectItem Value="@("Pending")">å¾…å¤„ç†</MudSelectItem>
+                            <MudSelectItem Value="@("Confirmed")">å·²ç¡®è®¤</MudSelectItem>
+                            <MudSelectItem Value="@("Processing")">å¤„ç†ä¸­</MudSelectItem>
+                            <MudSelectItem Value="@("Completed")">å·²å®Œæˆ</MudSelectItem>
+                            <MudSelectItem Value="@("Cancelled")">å·²å–æ¶ˆ</MudSelectItem>
                         </MudSelect>
                     </MudItem>
                 </MudGrid>
 
                 <MudDivider Class="my-4" />
 
-                <!-- ¶©µ¥Ïî´ÎÁĞ±í -->
+                <!-- è®¢å•é¡¹æ¬¡åˆ—è¡¨ -->
                 <MudText Typo="Typo.subtitle1" Class="mb-3">
                     <MudIcon Icon="@Icons.Material.Filled.List" Size="Size.Small" Class="mr-1" />
-                    ¶©µ¥Ïî´Î
+                    è®¢å•é¡¹æ¬¡
                 </MudText>
 
                 <MudTable T="OrderItemDto" Items="@(orderDetail.Items ?? new List<OrderItemDto>())" Dense="true" Hover="true">
                     <HeaderContent>
-                        <MudTh>Ïî´Î</MudTh>
-                        <MudTh>¹æ¸ñ</MudTh>
-                        <MudTh>ÅÆºÅ</MudTh>
-                        <MudTh>ÊıÁ¿</MudTh>
-                        <MudTh>ºÏÍ¬ÖØÁ¿(kg)</MudTh>
-                        <MudTh>ÀíËãÖØÁ¿(kg)</MudTh>
-                        <MudTh>½»»õÈÕÆÚ</MudTh>
+                        <MudTh>é¡¹æ¬¡</MudTh>
+                        <MudTh>è§„æ ¼</MudTh>
+                        <MudTh>ç‰Œå·</MudTh>
+                        <MudTh>æ•°é‡</MudTh>
+                        <MudTh>åˆåŒé‡é‡(kg)</MudTh>
+                        <MudTh>ç†ç®—é‡é‡(kg)</MudTh>
+                        <MudTh>äº¤è´§æ—¥æœŸ</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.Sequence</MudTd>
@@ -157,14 +157,14 @@
         isLoading = true;
         StateHasChanged();
 
-        // ¼ÓÔØ¿Í»§ÁĞ±í
+        // åŠ è½½å®¢æˆ·åˆ—è¡¨
         var customersResult = await CustomerService.GetPagedAsync(new QueryParams { PageSize = 999 });
         if (customersResult.Success && customersResult.Data != null)
         {
             customers = customersResult.Data.Items;
         }
 
-        // ¼ÓÔØ¶©µ¥ÏêÇé
+        // åŠ è½½è®¢å•è¯¦æƒ…
         var result = await OrderService.GetByIdAsync(Id);
         if (result.Success && result.Data != null)
         {
@@ -175,7 +175,7 @@
                 SignDate = orderDetail.SignDate,
                 CustomerId = orderDetail.CustomerId,
                 Status = orderDetail.Status,
-                RowVersion = new byte[] { }  // ÁÙÊ±Õ¼Î»£¬Êµ¼ÊÓ¦´Óºó¶Ë»ñÈ¡
+                RowVersion = new byte[] { }  // ä¸´æ—¶å ä½ï¼Œå®é™…åº”ä»åç«¯è·å–
             };
         }
 
@@ -190,10 +190,10 @@
 
     private async Task SubmitUpdate()
     {
-        // ÑéÖ¤ RowVersion ²»Îª¿Õ
+        // éªŒè¯ RowVersion ä¸ä¸ºç©º
         if (editOrder.RowVersion == null || editOrder.RowVersion.Length == 0)
         {
-            Snackbar.Add("Êı¾İ°æ±¾ĞÅÏ¢È±Ê§£¬ÇëË¢ĞÂÒ³ÃæºóÖØÊÔ", Severity.Warning);
+            Snackbar.Add("æ•°æ®ç‰ˆæœ¬ä¿¡æ¯ç¼ºå¤±ï¼Œè¯·åˆ·æ–°é¡µé¢åé‡è¯•", Severity.Warning);
             return;
         }
 
@@ -203,12 +203,12 @@
         var result = await OrderService.UpdateAsync(Id, editOrder);
         if (result.Success)
         {
-            Snackbar.Add("¸üĞÂ³É¹¦", Severity.Success);
+            Snackbar.Add("æ›´æ–°æˆåŠŸ", Severity.Success);
             Navigation.NavigateTo($"/orders/{Id}");
         }
         else
         {
-            Snackbar.Add(result.Message ?? "¸üĞÂÊ§°Ü", Severity.Error);
+            Snackbar.Add(result.Message ?? "æ›´æ–°å¤±è´¥", Severity.Error);
         }
 
         isSubmitting = false;

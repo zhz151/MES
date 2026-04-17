@@ -1,4 +1,6 @@
-// 文件路径: MES.Core/DTOs/UpdateCustomerRequest.cs
+using System.ComponentModel.DataAnnotations;
+using MES.Core.Enums; 
+
 namespace MES.Core.DTOs;
 
 /// <summary>
@@ -44,7 +46,7 @@ public class UpdateCustomerRequest
     /// <summary>
     /// 客户状态
     /// </summary>
-    public string? Status { get; set; }
+    public CustomerStatus? Status { get; set; } 
 
     /// <summary>
     /// 备注

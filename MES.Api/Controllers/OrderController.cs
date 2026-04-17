@@ -28,15 +28,8 @@ public class OrderController : ControllerBase
     [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
     public async Task<ActionResult<ApiResponse<PagedResult<SalesOrderListDto>>>> GetPaged([FromQuery] QueryParams query)
     {
-        try
-        {
-            var result = await _orderService.GetPagedAsync(query);
-            return Ok(ApiResponse<PagedResult<SalesOrderListDto>>.Ok(result, "查询成功"));
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(ApiResponse<PagedResult<SalesOrderListDto>>.Fail(ex.Message, 400));
-        }
+        var result = await _orderService.GetPagedAsync(query);
+        return Ok(ApiResponse<PagedResult<SalesOrderListDto>>.Ok(result, "查询成功"));
     }
 
     /// <summary>
@@ -46,19 +39,8 @@ public class OrderController : ControllerBase
     [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
     public async Task<ActionResult<ApiResponse<SalesOrderDetailDto>>> GetById(int id)
     {
-        try
-        {
-            var result = await _orderService.GetByIdAsync(id);
-            if (result == null)
-            {
-                return NotFound(ApiResponse<SalesOrderDetailDto>.Fail("订单不存在", 404));
-            }
-            return Ok(ApiResponse<SalesOrderDetailDto>.Ok(result, "查询成功"));
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(ApiResponse<SalesOrderDetailDto>.Fail(ex.Message));
-        }
+        var result = await _orderService.GetByIdAsync(id);
+        return Ok(ApiResponse<SalesOrderDetailDto>.Ok(result, "查询成功"));
     }
 
     /// <summary>
@@ -68,15 +50,13 @@ public class OrderController : ControllerBase
     [Authorize(Roles = "OrderDirector,Admin")]
     public async Task<ActionResult<ApiResponse<SalesOrderListDto>>> Create([FromBody] CreateSalesOrderRequest request)
     {
-        try
+        if (!ModelState.IsValid)
         {
-            var result = await _orderService.CreateAsync(request);
-            return Ok(ApiResponse<SalesOrderListDto>.Ok(result, "创建成功"));
+            return BadRequest(ApiResponse<SalesOrderListDto>.Fail("请求参数无效"));
         }
-        catch (Exception ex)
-        {
-            return BadRequest(ApiResponse<SalesOrderListDto>.Fail(ex.Message));
-        }
+
+        var result = await _orderService.CreateAsync(request);
+        return Ok(ApiResponse<SalesOrderListDto>.Ok(result, "创建成功"));
     }
 
     /// <summary>
@@ -86,19 +66,8 @@ public class OrderController : ControllerBase
     [Authorize(Roles = "OrderDirector,Admin")]
     public async Task<ActionResult<ApiResponse<SalesOrderListDto>>> Update(int id, [FromBody] UpdateSalesOrderRequest request)
     {
-        try
-        {
-            var result = await _orderService.UpdateAsync(id, request);
-            return Ok(ApiResponse<SalesOrderListDto>.Ok(result, "更新成功"));
-        }
-        catch (Exception ex)
-        {
-            if (ex.Message.Contains("订单已被其他用户修改"))
-            {
-                return Conflict(ApiResponse<SalesOrderListDto>.Fail(ex.Message, 409));
-            }
-            return BadRequest(ApiResponse<SalesOrderListDto>.Fail(ex.Message));
-        }
+        var result = await _orderService.UpdateAsync(id, request);
+        return Ok(ApiResponse<SalesOrderListDto>.Ok(result, "更新成功"));
     }
 
     /// <summary>
@@ -108,14 +77,7 @@ public class OrderController : ControllerBase
     [Authorize(Roles = "OrderDirector,Admin")]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
     {
-        try
-        {
-            await _orderService.DeleteAsync(id);
-            return Ok(ApiResponse.Ok("删除成功"));
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(ApiResponse.Fail(ex.Message));
-        }
+        await _orderService.DeleteAsync(id);
+        return Ok(ApiResponse.Ok("删除成功"));
     }
 }
