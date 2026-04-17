@@ -5,6 +5,7 @@ using MES.Core.Models;
 using MES.Core.Enums;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Core.Exceptions;
 using Microsoft.AspNetCore.Http;
 
 namespace MES.Services.Order;
@@ -27,15 +28,15 @@ public class OrderService : IOrderService
             .Include(so => so.Customer)
             .AsQueryable();
 
-        // 关键词搜索
+        // Keyword search
         if (!string.IsNullOrEmpty(query.Keyword))
         {
-            queryable = queryable.Where(so => 
-                so.OrderNumber.Contains(query.Keyword) || 
+            queryable = queryable.Where(so =>
+                so.OrderNumber.Contains(query.Keyword) ||
                 so.Customer.CustomerUnit.Contains(query.Keyword));
         }
 
-        // 排序
+        // Sorting
         queryable = query.SortBy.ToLower() switch
         {
             "ordernumber" => query.IsDescending ? queryable.OrderByDescending(so => so.OrderNumber) : queryable.OrderBy(so => so.OrderNumber),
@@ -75,7 +76,7 @@ public class OrderService : IOrderService
             .FirstOrDefaultAsync(so => so.Id == id && !so.IsDeleted);
 
         if (salesOrder == null)
-            throw new BusinessException("订单不存在");
+            throw new BusinessException("Order does not exist");
 
         return new SalesOrderDetailDto
         {
@@ -120,17 +121,17 @@ public class OrderService : IOrderService
 
     public async Task<SalesOrderListDto> CreateAsync(CreateSalesOrderRequest request)
     {
-        // 1. 验证订单号唯一性
+        // 1. Verify order number uniqueness
         if (await _context.SalesOrders.AnyAsync(so => so.OrderNumber == request.OrderNumber))
-            throw new BusinessException("订单号已存在");
+            throw new BusinessException("Order number already exists");
 
-        // 2. 验证客户存在性
+        // 2. Verify customer exists
         var customer = await _context.CustomerProfiles
             .FirstOrDefaultAsync(c => c.Id == request.CustomerId && !c.IsDeleted);
         if (customer == null)
-            throw new BusinessException("客户不存在");
+            throw new BusinessException("Customer does not exist");
 
-        // 3. 创建销售单
+        // 3. Create sales order
         var salesOrder = new SalesOrder
         {
             OrderNumber = request.OrderNumber,
@@ -143,7 +144,7 @@ public class OrderService : IOrderService
             UpdatedTime = DateTimeOffset.UtcNow
         };
 
-        // 4. 处理订单项次
+        // 4. Process order items
         var sequence = 1;
         foreach (var itemRequest in request.Items)
         {
@@ -171,17 +172,17 @@ public class OrderService : IOrderService
             .FirstOrDefaultAsync(so => so.Id == id && !so.IsDeleted);
 
         if (salesOrder == null)
-            throw new BusinessException("订单不存在");
+            throw new BusinessException("Order does not exist");
 
-        // 验证状态
+        // Verify status
         if (salesOrder.Status == SalesOrderStatus.Completed)
-            throw new BusinessException("已完成的订单不能修改");
+            throw new BusinessException("Completed orders cannot be modified");
 
-        // 更新字段
+        // Update fields
         if (!string.IsNullOrEmpty(request.OrderNumber) && request.OrderNumber != salesOrder.OrderNumber)
         {
             if (await _context.SalesOrders.AnyAsync(so => so.OrderNumber == request.OrderNumber && so.Id != id))
-                throw new BusinessException("订单号已存在");
+                throw new BusinessException("Order number already exists");
             salesOrder.OrderNumber = request.OrderNumber;
         }
 
@@ -193,7 +194,7 @@ public class OrderService : IOrderService
             var customer = await _context.CustomerProfiles
                 .FirstOrDefaultAsync(c => c.Id == request.CustomerId.Value && !c.IsDeleted);
             if (customer == null)
-                throw new BusinessException("客户不存在");
+                throw new BusinessException("Customer does not exist");
             salesOrder.CustomerId = request.CustomerId.Value;
         }
 
@@ -205,7 +206,7 @@ public class OrderService : IOrderService
             }
         }
 
-        // 乐观并发控制
+        // Optimistic concurrency control
         if (salesOrder.RowVersion.SequenceEqual(request.RowVersion))
         {
             salesOrder.UpdatedBy = GetCurrentUser();
@@ -227,7 +228,7 @@ public class OrderService : IOrderService
         }
         else
         {
-            throw new BusinessException("订单已被其他用户修改，请刷新后重试");
+            throw new BusinessException("Order has been modified by another user, please refresh and try again");
         }
     }
 
@@ -238,17 +239,17 @@ public class OrderService : IOrderService
             .FirstOrDefaultAsync(so => so.Id == id && !so.IsDeleted);
 
         if (salesOrder == null)
-            throw new BusinessException("订单不存在");
+            throw new BusinessException("Order does not exist");
 
         if (salesOrder.Status == SalesOrderStatus.Completed)
-            throw new BusinessException("已完成的订单不能删除");
+            throw new BusinessException("Completed orders cannot be deleted");
 
-        // 软删除销售单
+        // Soft delete sales order
         salesOrder.IsDeleted = true;
         salesOrder.UpdatedBy = GetCurrentUser();
         salesOrder.UpdatedTime = DateTimeOffset.UtcNow;
 
-        // 级联软删除所有项次
+        // Cascade soft delete all items
         foreach (var orderItem in salesOrder.OrderItems.Where(oi => !oi.IsDeleted))
         {
             orderItem.IsDeleted = true;
@@ -261,28 +262,28 @@ public class OrderService : IOrderService
 
     private async Task<OrderItem> CreateOrderItemAsync(CreateOrderItemRequest request, int salesOrderId, int sequence)
     {
-        // 验证产品标准
+        // Verify production standard
         var productionStandard = await _context.ProductionStandards
             .FirstOrDefaultAsync(ps => ps.Id == request.ProductionStandardId && !ps.IsDeleted);
         if (productionStandard == null)
-            throw new BusinessException("产品标准不存在");
+            throw new BusinessException("Production standard does not exist");
 
-        // 验证牌号对照
+        // Verify grade mapping
         var gradeMapping = await _context.StandardGradeMappings
             .FirstOrDefaultAsync(sgm => sgm.StandardGrade == request.StandardGrade && !sgm.IsDeleted);
         if (gradeMapping == null)
-            throw new BusinessException("标准牌号不存在");
+            throw new BusinessException("Standard grade does not exist");
 
-        // 验证长度
+        // Validate length
         ValidateLengthStatus(request.LengthStatus, request.MinLength, request.MaxLength);
 
-        // 计算米数
+        // Calculate meters
         var meters = CalculateMeters(request.LengthStatus, request.MinLength, request.MaxLength, request.Quantity, request.Meters);
 
-        // 计算理算重量
+        // Calculate theoretical weight
         var theoreticalWeight = CalculateTheoreticalWeight(
-            gradeMapping.Density, 
-            request.OuterDiameter, 
+            gradeMapping.Density,
+            request.OuterDiameter,
             request.WallThickness,
             request.OuterDiameterNegative, request.OuterDiameterPositive,
             request.WallThicknessNegative, request.WallThicknessPositive,
@@ -326,16 +327,16 @@ public class OrderService : IOrderService
     private void ValidateLengthStatus(string lengthStatus, decimal? minLength, decimal? maxLength)
     {
         var status = Enum.Parse<LengthStatus>(lengthStatus);
-        
+
         switch (status)
         {
             case LengthStatus.Fixed:
                 if (!minLength.HasValue || minLength <= 0)
-                    throw new BusinessException("定尺时必须填写长度");
+                    throw new BusinessException("Fixed length requires length value");
                 break;
             case LengthStatus.Range:
                 if (!minLength.HasValue || minLength <= 0 || !maxLength.HasValue || maxLength <= 0 || maxLength <= minLength)
-                    throw new BusinessException("范围尺时必须填写最小长度和最大长度，且最大长度必须大于最小长度");
+                    throw new BusinessException("Range requires minimum length and maximum length, and maximum length must be greater than minimum length");
                 break;
         }
     }
@@ -343,7 +344,7 @@ public class OrderService : IOrderService
     private decimal? CalculateMeters(string lengthStatus, decimal? minLength, decimal? maxLength, int? quantity, decimal? meters)
     {
         var status = Enum.Parse<LengthStatus>(lengthStatus);
-        
+
         switch (status)
         {
             case LengthStatus.Fixed:
@@ -354,14 +355,14 @@ public class OrderService : IOrderService
             case LengthStatus.NonFixed:
                 return meters.HasValue ? Math.Round(meters.Value, 2) : 0;
         }
-        
+
         return 0;
     }
 
     private decimal CalculateMaxLength(string lengthStatus, decimal? minLength, decimal? maxLength)
     {
         var status = Enum.Parse<LengthStatus>(lengthStatus);
-        
+
         switch (status)
         {
             case LengthStatus.Fixed:
@@ -374,23 +375,23 @@ public class OrderService : IOrderService
     }
 
     private decimal CalculateTheoreticalWeight(
-        decimal density, 
-        decimal outerDiameter, 
+        decimal density,
+        decimal outerDiameter,
         decimal wallThickness,
         decimal outerDiameterNegative, decimal outerDiameterPositive,
         decimal wallThicknessNegative, decimal wallThicknessPositive,
         decimal? meters)
     {
-        // 计算有效值
+        // Calculate effective values
         var effectiveWallThickness = wallThickness - 0.5m * wallThicknessNegative + 0.5m * wallThicknessPositive;
         var effectiveOuterDiameter = outerDiameter - 0.5m * outerDiameterNegative + 0.5m * outerDiameterPositive;
 
-        // 计算理算重量
+        // Calculate theoretical weight
         var weight = density * 3.1416m * effectiveWallThickness * (effectiveOuterDiameter - effectiveWallThickness) * (meters ?? 0) / 1000;
-        
-        // 边界处理
+
+        // Boundary handling
         if (weight < 0) weight = 0;
-        
+
         return Math.Round(weight, 2);
     }
 
@@ -398,9 +399,4 @@ public class OrderService : IOrderService
     {
         return _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "System";
     }
-}
-
-public class BusinessException : Exception
-{
-    public BusinessException(string message) : base(message) { }
 }

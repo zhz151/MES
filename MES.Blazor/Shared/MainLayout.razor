@@ -24,8 +24,8 @@
     </MudAppBar>
     <MudDrawer @bind-Open="_drawerOpen" Elevation="2">
         <MudNavMenu>
-            <MudNavLink Href="/" Match="NavLinkMatch.All">仪表盘</MudNavLink>
-            
+            <MudNavLink Href="/" Match="NavLinkMatch.All">仪表板</MudNavLink>
+
             <!-- 订单模块 -->
             <AuthorizeView Roles="OrderStaff,OrderDirector,Admin">
                 <MudNavGroup Title="订单管理" Icon="@Icons.Material.Filled.Receipt">
@@ -80,11 +80,11 @@
 
 @code {
     private bool _drawerOpen = true;
-    
+
     private void DrawerToggle() => _drawerOpen = !_drawerOpen;
-    
+
     private void NavigateToLogin() => Navigation.NavigateTo("/login");
-    
+
     private async Task Logout()
     {
         if (AuthProvider is CustomAuthStateProvider customAuth)
@@ -102,10 +102,10 @@
             {
                 Console.WriteLine($"Logout error: {ex.Message}");
             }
-            
+
             await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken");
             await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "refreshToken");
-            
+
             Navigation.NavigateTo("/", true);
         }
     }

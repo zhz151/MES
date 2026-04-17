@@ -18,14 +18,14 @@ public static class DbInitializer
 
         await context.Database.EnsureCreatedAsync();
 
-        // ========== 1. ³õÊ¼»¯½ÇÉ« ==========
+        // ========== 1. Initialize Roles ==========
         foreach (var role in Roles.GetAllRoles())
         {
             if (!await roleManager.RoleExistsAsync(role))
                 await roleManager.CreateAsync(new IdentityRole(role));
         }
 
-        // ========== 2. ³õÊ¼»¯¹ÜÀíÔ±ÕËºÅ ==========
+        // ========== 2. Initialize Admin Account ==========
         var adminUser = await userManager.FindByEmailAsync("admin@mes.com");
         if (adminUser == null)
         {
@@ -33,7 +33,7 @@ public static class DbInitializer
             {
                 UserName = "admin@mes.com",
                 Email = "admin@mes.com",
-                FullName = "ÏµÍ³¹ÜÀíÔ±",
+                FullName = "System Administrator",
                 EmailConfirmed = true,
                 IsActive = true
             };
@@ -44,7 +44,7 @@ public static class DbInitializer
             }
         }
 
-        // ========== 3. ³õÊ¼»¯²úÆ·±ê×¼ ==========
+        // ========== 3. Initialize Production Standards ==========
         if (!context.ProductionStandards.Any())
         {
             var productionStandards = new List<ProductionStandard>
@@ -52,7 +52,7 @@ public static class DbInitializer
                 new ProductionStandard
                 {
                     StandardCode = "GB/T 14976",
-                    StandardName = "Á÷ÌåÊäËÍÓÃ²»Ğâ¸ÖÎŞ·ì¸Ö¹Ü",
+                    StandardName = "Fluid transport stainless steel seamless steel pipe",
                     SortOrder = 1,
                     IsActive = true
                 },
@@ -66,7 +66,7 @@ public static class DbInitializer
                 new ProductionStandard
                 {
                     StandardCode = "GB/T 13296",
-                    StandardName = "¹øÂ¯¡¢ÈÈ½»»»Æ÷ÓÃ²»Ğâ¸ÖÎŞ·ì¸Ö¹Ü",
+                    StandardName = "Boiler, heat exchanger stainless steel seamless steel pipe",
                     SortOrder = 3,
                     IsActive = true
                 },
@@ -94,7 +94,7 @@ public static class DbInitializer
                 new ProductionStandard
                 {
                     StandardCode = "GB/T 12771",
-                    StandardName = "Á÷ÌåÊäËÍÓÃ²»Ğâ¸Öº¸½Ó¸Ö¹Ü",
+                    StandardName = "Fluid transport stainless steel welded steel pipe",
                     SortOrder = 7,
                     IsActive = true
                 },
@@ -132,139 +132,139 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
-        // ========== 4. ³õÊ¼»¯ÅÆºÅ¶ÔÕÕ ==========
+        // ========== 4. Initialize Grade Mappings ==========
         if (!context.StandardGradeMappings.Any())
         {
             var gradeMappings = new List<StandardGradeMapping>
             {
-                // 304 ÏµÁĞ
+                // 304 Series
                 new StandardGradeMapping
                 {
                     StandardGrade = "304",
                     PlantGrade = "06Cr19Ni10",
                     Density = 7.93m,
-                    HeatTreatment = "¹ÌÈÜ´¦Àí 1010-1150¡æ£¬¿ìÀä",
+                    HeatTreatment = "Solution treatment 1010-1150â„ƒ, rapid cooling",
                     SpecialMaterial = false,
-                    Remark = "°ÂÊÏÌå²»Ğâ¸Ö"
+                    Remark = "Austenitic stainless steel"
                 },
                 new StandardGradeMapping
                 {
                     StandardGrade = "304L",
                     PlantGrade = "022Cr19Ni10",
                     Density = 7.93m,
-                    HeatTreatment = "¹ÌÈÜ´¦Àí 1010-1150¡æ£¬¿ìÀä",
+                    HeatTreatment = "Solution treatment 1010-1150â„ƒ, rapid cooling",
                     SpecialMaterial = false,
-                    Remark = "µÍÌ¼°ÂÊÏÌå²»Ğâ¸Ö"
+                    Remark = "Low carbon austenitic stainless steel"
                 },
-                // 316 ÏµÁĞ
+                // 316 Series
                 new StandardGradeMapping
                 {
                     StandardGrade = "316",
                     PlantGrade = "06Cr17Ni12Mo2",
                     Density = 7.98m,
-                    HeatTreatment = "¹ÌÈÜ´¦Àí 1010-1150¡æ£¬¿ìÀä",
+                    HeatTreatment = "Solution treatment 1010-1150â„ƒ, rapid cooling",
                     SpecialMaterial = false,
-                    Remark = "º¬îâ°ÂÊÏÌå²»Ğâ¸Ö"
+                    Remark = "Molybdenum-containing austenitic stainless steel"
                 },
                 new StandardGradeMapping
                 {
                     StandardGrade = "316L",
                     PlantGrade = "022Cr17Ni12Mo2",
                     Density = 7.98m,
-                    HeatTreatment = "¹ÌÈÜ´¦Àí 1010-1150¡æ£¬¿ìÀä",
+                    HeatTreatment = "Solution treatment 1010-1150â„ƒ, rapid cooling",
                     SpecialMaterial = false,
-                    Remark = "µÍÌ¼º¬îâ°ÂÊÏÌå²»Ğâ¸Ö"
+                    Remark = "Low carbon molybdenum-containing austenitic stainless steel"
                 },
-                // 321 ÏµÁĞ
+                // 321 Series
                 new StandardGradeMapping
                 {
                     StandardGrade = "321",
                     PlantGrade = "06Cr18Ni11Ti",
                     Density = 7.93m,
-                    HeatTreatment = "¹ÌÈÜ´¦Àí 920-1150¡æ£¬¿ìÀä",
+                    HeatTreatment = "Solution treatment 920-1150â„ƒ, rapid cooling",
                     SpecialMaterial = false,
-                    Remark = "º¬îÑ°ÂÊÏÌå²»Ğâ¸Ö£¬ÄÍ¾§¼ä¸¯Ê´"
+                    Remark = "Titanium-stabilized austenitic stainless steel, resistant to intergranular corrosion"
                 },
-                // 310S ÏµÁĞ
+                // 310S Series
                 new StandardGradeMapping
                 {
                     StandardGrade = "310S",
                     PlantGrade = "06Cr25Ni20",
                     Density = 7.98m,
-                    HeatTreatment = "¹ÌÈÜ´¦Àí 1030-1180¡æ£¬¿ìÀä",
+                    HeatTreatment = "Solution treatment 1030-1180â„ƒ, rapid cooling",
                     SpecialMaterial = false,
-                    Remark = "ÄÍ¸ßÎÂ°ÂÊÏÌå²»Ğâ¸Ö"
+                    Remark = "High temperature resistant austenitic stainless steel"
                 },
-                // 201 ÏµÁĞ
+                // 201 Series
                 new StandardGradeMapping
                 {
                     StandardGrade = "201",
                     PlantGrade = "12Cr17Mn6Ni5N",
                     Density = 7.93m,
-                    HeatTreatment = "¹ÌÈÜ´¦Àí 1010-1120¡æ£¬¿ìÀä",
+                    HeatTreatment = "Solution treatment 1010-1120â„ƒ, rapid cooling",
                     SpecialMaterial = false,
-                    Remark = "½ÚÄø°ÂÊÏÌå²»Ğâ¸Ö"
+                    Remark = "Nickel-saving austenitic stainless steel"
                 },
-                // 202 ÏµÁĞ
+                // 202 Series
                 new StandardGradeMapping
                 {
                     StandardGrade = "202",
                     PlantGrade = "12Cr18Mn9Ni5N",
                     Density = 7.93m,
-                    HeatTreatment = "¹ÌÈÜ´¦Àí 1010-1120¡æ£¬¿ìÀä",
+                    HeatTreatment = "Solution treatment 1010-1120â„ƒ, rapid cooling",
                     SpecialMaterial = false,
-                    Remark = "½ÚÄø°ÂÊÏÌå²»Ğâ¸Ö"
+                    Remark = "Nickel-saving austenitic stainless steel"
                 },
-                // 309S ÏµÁĞ
+                // 309S Series
                 new StandardGradeMapping
                 {
                     StandardGrade = "309S",
                     PlantGrade = "06Cr23Ni13",
                     Density = 7.98m,
-                    HeatTreatment = "¹ÌÈÜ´¦Àí 1030-1150¡æ£¬¿ìÀä",
+                    HeatTreatment = "Solution treatment 1030-1150â„ƒ, rapid cooling",
                     SpecialMaterial = false,
-                    Remark = "ÄÍ¸ßÎÂ°ÂÊÏÌå²»Ğâ¸Ö"
+                    Remark = "High temperature resistant austenitic stainless steel"
                 },
-                // 347 ÏµÁĞ
+                // 347 Series
                 new StandardGradeMapping
                 {
                     StandardGrade = "347",
                     PlantGrade = "06Cr18Ni11Nb",
                     Density = 7.93m,
-                    HeatTreatment = "¹ÌÈÜ´¦Àí 980-1150¡æ£¬¿ìÀä",
+                    HeatTreatment = "Solution treatment 980-1150â„ƒ, rapid cooling",
                     SpecialMaterial = false,
-                    Remark = "º¬îê°ÂÊÏÌå²»Ğâ¸Ö£¬ÄÍ¾§¼ä¸¯Ê´"
+                    Remark = "Niobium-stabilized austenitic stainless steel, resistant to intergranular corrosion"
                 },
-                // ÌØÊâ²ÄÁÏ
+                // Special Materials
                 new StandardGradeMapping
                 {
                     StandardGrade = "904L",
                     PlantGrade = "015Cr21Ni26Mo5Cu2",
                     Density = 8.24m,
-                    HeatTreatment = "¹ÌÈÜ´¦Àí 1090-1170¡æ£¬¿ìÀä",
+                    HeatTreatment = "Solution treatment 1090-1170â„ƒ, rapid cooling",
                     SpecialMaterial = true,
-                    SpecialNote = "³¬¼¶°ÂÊÏÌå²»Ğâ¸Ö£¬×¢ÒâËáÏ´¹¤ÒÕ",
-                    Remark = "³¬¼¶°ÂÊÏÌå²»Ğâ¸Ö"
+                    SpecialNote = "Super austenitic stainless steel, pay attention to pickling process",
+                    Remark = "Super austenitic stainless steel"
                 },
                 new StandardGradeMapping
                 {
                     StandardGrade = "S31803",
                     PlantGrade = "022Cr22Ni5Mo3N",
                     Density = 7.80m,
-                    HeatTreatment = "¹ÌÈÜ´¦Àí 1020-1100¡æ£¬¿ìÀä",
+                    HeatTreatment = "Solution treatment 1020-1100â„ƒ, rapid cooling",
                     SpecialMaterial = true,
-                    SpecialNote = "Ë«Ïà²»Ğâ¸Ö£¬ÑÏ¸ñ¿ØÖÆÈÈ´¦ÀíÎÂ¶È",
-                    Remark = "Ë«Ïà²»Ğâ¸Ö"
+                    SpecialNote = "Duplex stainless steel, strictly control heat treatment temperature",
+                    Remark = "Duplex stainless steel"
                 },
                 new StandardGradeMapping
                 {
                     StandardGrade = "S32750",
                     PlantGrade = "022Cr25Ni7Mo4N",
                     Density = 7.80m,
-                    HeatTreatment = "¹ÌÈÜ´¦Àí 1050-1120¡æ£¬¿ìÀä",
+                    HeatTreatment = "Solution treatment 1050-1120â„ƒ, rapid cooling",
                     SpecialMaterial = true,
-                    SpecialNote = "³¬¼¶Ë«Ïà²»Ğâ¸Ö£¬ÑÏ¸ñ¿ØÖÆÈÈ´¦Àí¹¤ÒÕ",
-                    Remark = "³¬¼¶Ë«Ïà²»Ğâ¸Ö"
+                    SpecialNote = "Super duplex stainless steel, strictly control heat treatment process",
+                    Remark = "Super duplex stainless steel"
                 }
             };
 
@@ -272,7 +272,7 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
-        // ========== 5. ³õÊ¼»¯²âÊÔ¿Í»§ ==========
+        // ========== 5. Initialize Test Customers ==========
         if (!context.CustomerProfiles.Any())
         {
             var customers = new List<CustomerProfile>
@@ -280,122 +280,122 @@ public static class DbInitializer
                 new CustomerProfile
                 {
                     CustomerCode = "C001",
-                    Salesman = "ÕÅÈı",
-                    CustomerUnit = "Ä³Ä³Ê¯»¯¹¤³ÌÓĞÏŞ¹«Ë¾",
-                    EndCustomer = "Ä³Ä³Á¶»¯³§",
-                    ContactPerson = "Àî¾­Àí",
+                    Salesman = "Zhang San",
+                    CustomerUnit = "XX Petrochemical Engineering Co., Ltd.",
+                    EndCustomer = "XX Refinery",
+                    ContactPerson = "Manager Li",
                     ContactPhone = "13800000001",
-                    Address = "Õã½­Ê¡Äş²¨ÊĞÄ³Ä³ÇøÊ¯»¯´óµÀ88ºÅ",
+                    Address = "No. 88, Petrochemical Avenue, Ningbo, Zhejiang",
                     Status = CustomerStatus.Active,
-                    Remark = "³¤ÆÚºÏ×÷¿Í»§£¬Ö÷Òª²É¹º316L/304ÎŞ·ì¹Ü"
+                    Remark = "Long-term cooperation customer, mainly purchasing 316L/304 seamless pipes"
                 },
                 new CustomerProfile
                 {
                     CustomerCode = "C002",
-                    Salesman = "ÀîËÄ",
-                    CustomerUnit = "Ä³Ä³¹øÂ¯ÖÆÔìÓĞÏŞ¹«Ë¾",
+                    Salesman = "Li Si",
+                    CustomerUnit = "XX Boiler Manufacturing Co., Ltd.",
                     EndCustomer = null,
-                    ContactPerson = "Íõ¹¤",
+                    ContactPerson = "Engineer Wang",
                     ContactPhone = "13800000002",
-                    Address = "½­ËÕÊ¡ÎŞÎıÊĞÄ³Ä³Çø¹¤ÒµÔ°18ºÅ",
+                    Address = "No. 18, Industrial Park, Wuxi, Jiangsu",
                     Status = CustomerStatus.Active,
-                    Remark = "¹øÂ¯ÓÃ¹Ü¿Í»§£¬ĞèÌá¹©ÖÊ±£Êé"
+                    Remark = "Boiler tube customer, need to provide quality certificate"
                 },
                 new CustomerProfile
                 {
                     CustomerCode = "C003",
-                    Salesman = "ÍõÎå",
-                    CustomerUnit = "Ä³Ä³º£Ñó¹¤³ÌÓĞÏŞ¹«Ë¾",
-                    EndCustomer = "Ä³Ä³º£ÉÏÆ½Ì¨ÏîÄ¿",
-                    ContactPerson = "ÕÔ×Ü",
+                    Salesman = "Wang Wu",
+                    CustomerUnit = "XX Ocean Engineering Co., Ltd.",
+                    EndCustomer = "XX Offshore Platform Project",
+                    ContactPerson = "Manager Zhao",
                     ContactPhone = "13800000003",
-                    Address = "É½¶«Ê¡ÇàµºÊĞÄ³Ä³Çøº£¹¤Â·1ºÅ",
+                    Address = "No. 1, Marine Industry Road, Qingdao, Shandong",
                     Status = CustomerStatus.Active,
-                    Remark = "º£Ñó¹¤³ÌÓÃ¹Ü£¬ÒªÇóË«Ïà²»Ğâ¸Ö"
+                    Remark = "Marine engineering tubes, requires duplex stainless steel"
                 },
                 new CustomerProfile
                 {
                     CustomerCode = "C004",
-                    Salesman = "ÕÔÁù",
-                    CustomerUnit = "Ä³Ä³»»ÈÈÆ÷ÓĞÏŞ¹«Ë¾",
+                    Salesman = "Zhao Liu",
+                    CustomerUnit = "XX Heat Exchanger Co., Ltd.",
                     EndCustomer = null,
-                    ContactPerson = "Ëï¾­Àí",
+                    ContactPerson = "Manager Sun",
                     ContactPhone = "13800000004",
-                    Address = "¹ã¶«Ê¡·ğÉ½ÊĞÄ³Ä³Çø¹¤Òµ´óµÀ66ºÅ",
+                    Address = "No. 66, Industrial Avenue, Foshan, Guangdong",
                     Status = CustomerStatus.Active,
-                    Remark = "»»ÈÈÆ÷ÓÃ¹Ü£¬ÒªÇó¸ß¾«¶È"
+                    Remark = "Heat exchanger tubes, requires high precision"
                 },
                 new CustomerProfile
                 {
                     CustomerCode = "C005",
-                    Salesman = "Ç®Æß",
-                    CustomerUnit = "Ä³Ä³Ê³Æ·»úĞµÓĞÏŞ¹«Ë¾",
+                    Salesman = "Qian Qi",
+                    CustomerUnit = "XX Food Machinery Co., Ltd.",
                     EndCustomer = null,
-                    ContactPerson = "ÖÜ¹¤",
+                    ContactPerson = "Engineer Zhou",
                     ContactPhone = "13800000005",
-                    Address = "ÉÏº£ÊĞÄ³Ä³ÇøÊ³Æ·¹¤ÒµÔ°2ºÅ",
+                    Address = "No. 2, Food Industrial Park, Shanghai",
                     Status = CustomerStatus.Active,
-                    Remark = "Ê³Æ·¼¶²»Ğâ¸Ö¹Ü£¬ÒªÇóÄÚ±ÚÅ×¹â"
+                    Remark = "Food grade stainless steel tubes, requires internal polishing"
                 },
                 new CustomerProfile
                 {
                     CustomerCode = "C006",
-                    Salesman = "ÕÅÈı",
-                    CustomerUnit = "Ä³Ä³»¯¹¤Éè±¸ÓĞÏŞ¹«Ë¾",
-                    EndCustomer = "Ä³Ä³»¯¹¤³§",
-                    ContactPerson = "³Â¹¤",
+                    Salesman = "Zhang San",
+                    CustomerUnit = "XX Chemical Equipment Co., Ltd.",
+                    EndCustomer = "XX Chemical Plant",
+                    ContactPerson = "Engineer Chen",
                     ContactPhone = "13800000006",
-                    Address = "½­ËÕÊ¡ÄÏ¾©ÊĞÄ³Ä³Çø»¯¹¤Ô°5ºÅ",
+                    Address = "No. 5, Chemical Park, Nanjing, Jiangsu",
                     Status = CustomerStatus.Active,
-                    Remark = "»¯¹¤Éè±¸ÓÃ¹Ü"
+                    Remark = "Chemical equipment tubes"
                 },
                 new CustomerProfile
                 {
                     CustomerCode = "C007",
-                    Salesman = "ÀîËÄ",
-                    CustomerUnit = "Ä³Ä³ÖÆÒ©»úĞµÓĞÏŞ¹«Ë¾",
+                    Salesman = "Li Si",
+                    CustomerUnit = "XX Pharmaceutical Machinery Co., Ltd.",
                     EndCustomer = null,
-                    ContactPerson = "Áõ¾­Àí",
+                    ContactPerson = "Manager Liu",
                     ContactPhone = "13800000007",
-                    Address = "ÉÏº£ÊĞÄ³Ä³ÇøÉúÎïÒ½Ò©Ô°10ºÅ",
+                    Address = "No. 10, Biomedical Park, Shanghai",
                     Status = CustomerStatus.Active,
-                    Remark = "ÖÆÒ©»úĞµÓÃ¹Ü"
+                    Remark = "Pharmaceutical machinery tubes"
                 },
                 new CustomerProfile
                 {
                     CustomerCode = "C008",
-                    Salesman = "ÍõÎå",
-                    CustomerUnit = "Ä³Ä³Ôì´¬³§",
-                    EndCustomer = "Ä³Ä³´¬²°ÏîÄ¿",
-                    ContactPerson = "Ğì×Ü",
+                    Salesman = "Wang Wu",
+                    CustomerUnit = "XX Shipyard",
+                    EndCustomer = "XX Vessel Project",
+                    ContactPerson = "Manager Xu",
                     ContactPhone = "13800000008",
-                    Address = "ÁÉÄşÊ¡´óÁ¬ÊĞÄ³Ä³ÇøÔì´¬Â·1ºÅ",
+                    Address = "No. 1, Shipbuilding Road, Dalian, Liaoning",
                     Status = CustomerStatus.Active,
-                    Remark = "Ôì´¬ÓÃ¹Ü"
+                    Remark = "Shipbuilding tubes"
                 },
                 new CustomerProfile
                 {
                     CustomerCode = "C009",
-                    Salesman = "ÕÔÁù",
-                    CustomerUnit = "Ä³Ä³ºËµçÉè±¸ÓĞÏŞ¹«Ë¾",
-                    EndCustomer = "Ä³Ä³ºËµçÕ¾",
-                    ContactPerson = "»Æ¹¤",
+                    Salesman = "Zhao Liu",
+                    CustomerUnit = "XX Nuclear Equipment Co., Ltd.",
+                    EndCustomer = "XX Nuclear Power Plant",
+                    ContactPerson = "Engineer Huang",
                     ContactPhone = "13800000009",
-                    Address = "¹ã¶«Ê¡ÉîÛÚÊĞÄ³Ä³ÇøºËµç´óµÀ88ºÅ",
+                    Address = "No. 88, Nuclear Power Avenue, Shenzhen, Guangdong",
                     Status = CustomerStatus.Active,
-                    Remark = "ºËµçÓÃ¹Ü£¬ÒªÇóÑÏ¸ñ"
+                    Remark = "Nuclear power tubes, requires strict standards"
                 },
                 new CustomerProfile
                 {
                     CustomerCode = "C010",
-                    Salesman = "Ç®Æß",
-                    CustomerUnit = "Ä³Ä³Ò½ÁÆÆ÷ĞµÓĞÏŞ¹«Ë¾",
+                    Salesman = "Qian Qi",
+                    CustomerUnit = "XX Medical Device Co., Ltd.",
                     EndCustomer = null,
-                    ContactPerson = "Öì¾­Àí",
+                    ContactPerson = "Manager Zhu",
                     ContactPhone = "13800000010",
-                    Address = "½­ËÕÊ¡ËÕÖİÊĞÄ³Ä³ÇøÒ½ÁÆÆ÷ĞµÔ°20ºÅ",
+                    Address = "No. 20, Medical Device Park, Suzhou, Jiangsu",
                     Status = CustomerStatus.Active,
-                    Remark = "Ò½ÁÆÆ÷ĞµÓÃ¹Ü"
+                    Remark = "Medical device tubes"
                 }
             };
 

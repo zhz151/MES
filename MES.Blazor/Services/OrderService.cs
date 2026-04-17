@@ -1,13 +1,9 @@
-// 文件路径: MES.Blazor/Services/OrderService.cs
 using System.Net.Http.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
 
-/// <summary>
-/// 订单前端服务实现
-/// </summary>
 public class OrderService : IOrderService
 {
     private readonly HttpClient _http;
@@ -24,11 +20,11 @@ public class OrderService : IOrderService
         {
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<SalesOrderListDto>>>(
                 $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&keyword={Uri.EscapeDataString(query.Keyword ?? "")}&sortBy={query.SortBy}&isDescending={query.IsDescending}");
-            return response ?? ApiResponse<PagedResult<SalesOrderListDto>>.Fail("获取数据失败");
+            return response ?? ApiResponse<PagedResult<SalesOrderListDto>>.Fail("Failed to get data");
         }
         catch (Exception ex)
         {
-            return ApiResponse<PagedResult<SalesOrderListDto>>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<PagedResult<SalesOrderListDto>>.Fail($"Network error: {ex.Message}");
         }
     }
 
@@ -37,11 +33,11 @@ public class OrderService : IOrderService
         try
         {
             var response = await _http.GetFromJsonAsync<ApiResponse<SalesOrderDetailDto>>($"{BaseUrl}/{id}");
-            return response ?? ApiResponse<SalesOrderDetailDto>.Fail("获取订单详情失败");
+            return response ?? ApiResponse<SalesOrderDetailDto>.Fail("Failed to get order details");
         }
         catch (Exception ex)
         {
-            return ApiResponse<SalesOrderDetailDto>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<SalesOrderDetailDto>.Fail($"Network error: {ex.Message}");
         }
     }
 
@@ -51,11 +47,11 @@ public class OrderService : IOrderService
         {
             var response = await _http.PostAsJsonAsync(BaseUrl, request);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<SalesOrderListDto>>();
-            return result ?? ApiResponse<SalesOrderListDto>.Fail("创建订单失败");
+            return result ?? ApiResponse<SalesOrderListDto>.Fail("Failed to create order");
         }
         catch (Exception ex)
         {
-            return ApiResponse<SalesOrderListDto>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<SalesOrderListDto>.Fail($"Network error: {ex.Message}");
         }
     }
 
@@ -65,11 +61,11 @@ public class OrderService : IOrderService
         {
             var response = await _http.PutAsJsonAsync($"{BaseUrl}/{id}", request);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<SalesOrderListDto>>();
-            return result ?? ApiResponse<SalesOrderListDto>.Fail("更新订单失败");
+            return result ?? ApiResponse<SalesOrderListDto>.Fail("Failed to update order");
         }
         catch (Exception ex)
         {
-            return ApiResponse<SalesOrderListDto>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<SalesOrderListDto>.Fail($"Network error: {ex.Message}");
         }
     }
 
@@ -79,11 +75,11 @@ public class OrderService : IOrderService
         {
             var response = await _http.DeleteAsync($"{BaseUrl}/{id}");
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
-            return result ?? ApiResponse<object>.Fail("删除订单失败");
+            return result ?? ApiResponse<object>.Fail("Failed to delete order");
         }
         catch (Exception ex)
         {
-            return ApiResponse<object>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<object>.Fail($"Network error: {ex.Message}");
         }
     }
 }

@@ -41,9 +41,6 @@ public class AuthController : ControllerBase
     }
 }
 
-/// <summary>
-/// 刷新令牌请求
-/// </summary>
 public class RefreshTokenRequest
 {
     public string RefreshToken { get; set; } = string.Empty;

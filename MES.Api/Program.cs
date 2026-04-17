@@ -49,17 +49,17 @@ builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// Swagger 配置（支持 JWT 认证）
+// Swagger configuration (supports JWT authentication)
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "MES API",
         Version = "v1",
-        Description = "MES 制造执行系统 API"
+        Description = "MES Manufacturing Execution System API"
     });
 
-    // 添加 JWT 认证配置
+    // Add JWT authentication configuration
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -67,7 +67,7 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "Bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "请输入 JWT Token，格式：Bearer {your token}"
+        Description = "Please enter JWT Token, format: Bearer {your token}"
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -86,14 +86,14 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// 注册认证服务
+// Register authentication services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 
-// 注册订单服务
+// Register order service
 builder.Services.AddScoped<IOrderService, OrderService>();
 
-// 注册辅助服务
+// Register auxiliary services
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IProductionStandardService, ProductionStandardService>();
 builder.Services.AddScoped<IGradeMappingService, GradeMappingService>();
@@ -127,7 +127,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("AllowBlazor");
 
-// 使用自定义中间件
+// Use custom middleware
 app.UseMiddleware<ExceptionMiddleware>();
 
 app.UseAuthentication();

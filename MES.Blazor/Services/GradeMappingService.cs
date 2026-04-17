@@ -1,13 +1,10 @@
-// 文件路径: MES.Blazor/Services/GradeMappingService.cs
 using System.Net.Http.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
 
-/// <summary>
-/// 牌号对照前端服务实现
-/// </summary>
+
 public class GradeMappingService : IGradeMappingService
 {
     private readonly HttpClient _http;
@@ -42,11 +39,11 @@ public class GradeMappingService : IGradeMappingService
         try
         {
             var response = await _http.GetFromJsonAsync<ApiResponse<StandardGradeMappingDto>>($"{BaseUrl}/{id}");
-            return response ?? ApiResponse<StandardGradeMappingDto>.Fail("获取数据失败");
+            return response ?? ApiResponse<StandardGradeMappingDto>.Fail("Failed to get data");
         }
         catch (Exception ex)
         {
-            return ApiResponse<StandardGradeMappingDto>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<StandardGradeMappingDto>.Fail($"Network error: {ex.Message}");
         }
     }
 
@@ -62,11 +59,11 @@ public class GradeMappingService : IGradeMappingService
         {
             var response = await _http.PostAsJsonAsync(BaseUrl, request);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<StandardGradeMappingDto>>();
-            return result ?? ApiResponse<StandardGradeMappingDto>.Fail("创建失败");
+            return result ?? ApiResponse<StandardGradeMappingDto>.Fail("Create failed");
         }
         catch (Exception ex)
         {
-            return ApiResponse<StandardGradeMappingDto>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<StandardGradeMappingDto>.Fail($"Network error: {ex.Message}");
         }
     }
 
@@ -76,11 +73,11 @@ public class GradeMappingService : IGradeMappingService
         {
             var response = await _http.PutAsJsonAsync($"{BaseUrl}/{id}", request);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<StandardGradeMappingDto>>();
-            return result ?? ApiResponse<StandardGradeMappingDto>.Fail("更新失败");
+            return result ?? ApiResponse<StandardGradeMappingDto>.Fail("Update failed");
         }
         catch (Exception ex)
         {
-            return ApiResponse<StandardGradeMappingDto>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<StandardGradeMappingDto>.Fail($"Network error: {ex.Message}");
         }
     }
 
@@ -90,11 +87,11 @@ public class GradeMappingService : IGradeMappingService
         {
             var response = await _http.DeleteAsync($"{BaseUrl}/{id}");
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
-            return result ?? ApiResponse<object>.Fail("删除失败");
+            return result ?? ApiResponse<object>.Fail("Delete failed");
         }
         catch (Exception ex)
         {
-            return ApiResponse<object>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<object>.Fail($"Network error: {ex.Message}");
         }
     }
 }

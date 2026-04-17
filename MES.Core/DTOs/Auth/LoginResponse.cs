@@ -1,37 +1,36 @@
 namespace MES.Core.DTOs.Auth;
 
 /// <summary>
-/// 登录响应DTO
+/// 鐧诲綍鍝嶅簲DTO
 /// </summary>
 public class LoginResponse
 {
     /// <summary>
-    /// JWT令牌
+    /// JWT浠ょ墝
     /// </summary>
     public string Token { get; set; } = string.Empty;
 
     /// <summary>
-    /// 邮箱
+    /// 閭
     /// </summary>
     public string Email { get; set; } = string.Empty;
 
     /// <summary>
-    /// 用户名
-    /// </summary>
+    /// 鐢ㄦ埛鍚?    /// </summary>
     public string UserName { get; set; } = string.Empty;
 
     /// <summary>
-    /// 角色列表
+    /// 瑙掕壊鍒楄〃
     /// </summary>
     public List<string> Roles { get; set; } = new();
 
     /// <summary>
-    /// 过期时间
+    /// 杩囨湡鏃堕棿
     /// </summary>
     public DateTime Expires { get; set; }
 
     /// <summary>
-    /// 用户全名
+    /// 鐢ㄦ埛鍏ㄥ悕
     /// </summary>
     public string FullName { get; set; } = string.Empty;
 }

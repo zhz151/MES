@@ -1,8 +1,5 @@
 namespace MES.Core.DTOs;
 
-/// <summary>
-/// 订单详情DTO
-/// </summary>
 public class SalesOrderDetailDto
 {
     public int Id { get; set; }

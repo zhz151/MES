@@ -1,13 +1,9 @@
-// 文件路径: MES.Blazor/Services/ProductionStandardService.cs
 using System.Net.Http.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
 
-/// <summary>
-/// 产品标准前端服务实现
-/// </summary>
 public class ProductionStandardService : IProductionStandardService
 {
     private readonly HttpClient _http;
@@ -43,11 +39,11 @@ public class ProductionStandardService : IProductionStandardService
         try
         {
             var response = await _http.GetFromJsonAsync<ApiResponse<ProductionStandardDto>>($"{BaseUrl}/{id}");
-            return response ?? ApiResponse<ProductionStandardDto>.Fail("获取数据失败");
+            return response ?? ApiResponse<ProductionStandardDto>.Fail("Failed to get data");
         }
         catch (Exception ex)
         {
-            return ApiResponse<ProductionStandardDto>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<ProductionStandardDto>.Fail($"Network error: {ex.Message}");
         }
     }
 
@@ -57,11 +53,11 @@ public class ProductionStandardService : IProductionStandardService
         {
             var response = await _http.PostAsJsonAsync(BaseUrl, request);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ProductionStandardDto>>();
-            return result ?? ApiResponse<ProductionStandardDto>.Fail("创建失败");
+            return result ?? ApiResponse<ProductionStandardDto>.Fail("Create failed");
         }
         catch (Exception ex)
         {
-            return ApiResponse<ProductionStandardDto>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<ProductionStandardDto>.Fail($"Network error: {ex.Message}");
         }
     }
 
@@ -71,11 +67,11 @@ public class ProductionStandardService : IProductionStandardService
         {
             var response = await _http.PutAsJsonAsync($"{BaseUrl}/{id}", request);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ProductionStandardDto>>();
-            return result ?? ApiResponse<ProductionStandardDto>.Fail("更新失败");
+            return result ?? ApiResponse<ProductionStandardDto>.Fail("Update failed");
         }
         catch (Exception ex)
         {
-            return ApiResponse<ProductionStandardDto>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<ProductionStandardDto>.Fail($"Network error: {ex.Message}");
         }
     }
 
@@ -85,11 +81,11 @@ public class ProductionStandardService : IProductionStandardService
         {
             var response = await _http.DeleteAsync($"{BaseUrl}/{id}");
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
-            return result ?? ApiResponse<object>.Fail("删除失败");
+            return result ?? ApiResponse<object>.Fail("Delete failed");
         }
         catch (Exception ex)
         {
-            return ApiResponse<object>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<object>.Fail($"Network error: {ex.Message}");
         }
     }
 }

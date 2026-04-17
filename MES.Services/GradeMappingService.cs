@@ -9,7 +9,7 @@ using MES.Data.Entities;
 namespace MES.Services;
 
 /// <summary>
-/// 牌号对照服务实现
+/// Grade mapping service implementation
 /// </summary>
 public class GradeMappingService : IGradeMappingService
 {
@@ -21,7 +21,7 @@ public class GradeMappingService : IGradeMappingService
     }
 
     /// <summary>
-    /// 获取所有牌号对照（用于下拉框）
+    /// Get all grade mappings (for dropdown)
     /// </summary>
     public async Task<List<StandardGradeMappingDto>> GetAllAsync()
     {
@@ -35,7 +35,7 @@ public class GradeMappingService : IGradeMappingService
                 PlantGrade = g.PlantGrade,
                 Density = g.Density,
                 HeatTreatment = g.HeatTreatment,
-                SpecialMaterial = g.SpecialMaterial,  // 直接赋值 bool，不转换
+                SpecialMaterial = g.SpecialMaterial,  // Direct assignment bool, no conversion
                 SpecialNote = g.SpecialNote,
                 Remark = g.Remark
             })
@@ -45,7 +45,7 @@ public class GradeMappingService : IGradeMappingService
     }
 
     /// <summary>
-    /// 根据ID获取牌号对照详情
+    /// Get grade mapping details by ID
     /// </summary>
     public async Task<StandardGradeMappingDto> GetByIdAsync(int id)
     {
@@ -54,7 +54,7 @@ public class GradeMappingService : IGradeMappingService
 
         if (entity == null)
         {
-            throw new BusinessException("牌号对照不存在");
+            throw new BusinessException("Grade mapping does not exist");
         }
 
         return new StandardGradeMappingDto
@@ -64,24 +64,24 @@ public class GradeMappingService : IGradeMappingService
             PlantGrade = entity.PlantGrade,
             Density = entity.Density,
             HeatTreatment = entity.HeatTreatment,
-            SpecialMaterial = entity.SpecialMaterial,  // 直接赋值 bool，不转换
+            SpecialMaterial = entity.SpecialMaterial,  // Direct assignment bool, no conversion
             SpecialNote = entity.SpecialNote,
             Remark = entity.Remark
         };
     }
 
     /// <summary>
-    /// 创建牌号对照
+    /// Create grade mapping
     /// </summary>
     public async Task<StandardGradeMappingDto> CreateAsync(CreateGradeMappingRequest request)
     {
-        // 检查标准牌号唯一性
+        // Check standard grade uniqueness
         var exists = await _context.StandardGradeMappings
             .AnyAsync(g => g.StandardGrade == request.StandardGrade && !g.IsDeleted);
 
         if (exists)
         {
-            throw new BusinessException($"标准牌号 '{request.StandardGrade}' 已存在");
+            throw new BusinessException($"Standard grade '{request.StandardGrade}' already exists");
         }
 
         var entity = new StandardGradeMapping
@@ -90,7 +90,7 @@ public class GradeMappingService : IGradeMappingService
             PlantGrade = request.PlantGrade,
             Density = request.Density,
             HeatTreatment = request.HeatTreatment,
-            SpecialMaterial = request.SpecialMaterial,  // 直接赋值 bool
+            SpecialMaterial = request.SpecialMaterial,  // Direct assignment bool
             SpecialNote = request.SpecialNote,
             Remark = request.Remark
         };
@@ -112,7 +112,7 @@ public class GradeMappingService : IGradeMappingService
     }
 
     /// <summary>
-    /// 更新牌号对照
+    /// Update grade mapping
     /// </summary>
     public async Task<StandardGradeMappingDto> UpdateAsync(int id, UpdateGradeMappingRequest request)
     {
@@ -121,10 +121,10 @@ public class GradeMappingService : IGradeMappingService
 
         if (entity == null)
         {
-            throw new BusinessException("牌号对照不存在");
+            throw new BusinessException("Grade mapping does not exist");
         }
 
-        // 检查标准牌号唯一性（排除自身）
+        // Check standard grade uniqueness (exclude self)
         if (!string.IsNullOrEmpty(request.StandardGrade) && request.StandardGrade != entity.StandardGrade)
         {
             var exists = await _context.StandardGradeMappings
@@ -132,7 +132,7 @@ public class GradeMappingService : IGradeMappingService
 
             if (exists)
             {
-                throw new BusinessException($"标准牌号 '{request.StandardGrade}' 已存在");
+                throw new BusinessException($"Standard grade '{request.StandardGrade}' already exists");
             }
             entity.StandardGrade = request.StandardGrade;
         }
@@ -183,7 +183,7 @@ public class GradeMappingService : IGradeMappingService
     }
 
     /// <summary>
-    /// 删除牌号对照（软删除）
+    /// Delete grade mapping (soft delete)
     /// </summary>
     public async Task DeleteAsync(int id)
     {
@@ -192,7 +192,7 @@ public class GradeMappingService : IGradeMappingService
 
         if (entity == null)
         {
-            throw new BusinessException("牌号对照不存在");
+            throw new BusinessException("Grade mapping does not exist");
         }
 
         entity.IsDeleted = true;

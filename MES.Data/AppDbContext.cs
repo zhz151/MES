@@ -11,7 +11,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
 
-    // 订单上下文实体
     public DbSet<SalesOrder> SalesOrders { get; set; } = null!;
     public DbSet<OrderItem> OrderItems { get; set; } = null!;
     public DbSet<CustomerProfile> CustomerProfiles { get; set; } = null!;
@@ -28,7 +27,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
     {
         base.OnModelCreating(builder);
         
-        // 配置AppUser实体
         builder.Entity<AppUser>(entity =>
         {
             entity.Property(e => e.FullName).HasMaxLength(100);
@@ -36,7 +34,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.LastLoginAt);
         });
         
-        // 配置订单上下文实体
         ConfigureSalesOrder(builder);
         ConfigureOrderItem(builder);
         ConfigureCustomerProfile(builder);
@@ -83,7 +80,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
                     entry.Entity.UpdatedBy = currentUser;
                     break;
                 case EntityState.Deleted:
-                    // 软删除处理
                     entry.State = EntityState.Modified;
                     entry.Entity.IsDeleted = true;
                     entry.Entity.UpdatedTime = now;
@@ -95,39 +91,25 @@ public class AppDbContext : IdentityDbContext<AppUser>
         return await base.SaveChangesAsync(cancellationToken);
     }
 
-    /// <summary>
-    /// 获取当前操作用户
-    /// </summary>
-    /// <returns>用户名</returns>
     private string GetCurrentUser()
     {
-        // 优先从HttpContext获取用户
         var userName = _httpContextAccessor?.HttpContext?.User?.Identity?.Name;
         if (!string.IsNullOrEmpty(userName))
             return userName;
 
-        // 如果HttpContext中无法获取，尝试从Claims中获取
         var emailClaim = _httpContextAccessor?.HttpContext?.User?.FindFirst(ClaimTypes.Email);
         if (emailClaim != null)
             return emailClaim.Value;
-
-        // 后备方案：如果是后台任务等场景，返回系统标识
         return "system";
     }
-
-    // 订单上下文实体配置方法
-
     private static void ConfigureSalesOrder(ModelBuilder builder)
     {
         builder.Entity<SalesOrder>(entity =>
         {
-            // 表名配置
             entity.ToTable("SalesOrder");
             
-            // 主键
             entity.HasKey(e => e.Id);
             
-            // 字段配置
             entity.Property(e => e.OrderNumber)
                 .IsRequired()
                 .HasMaxLength(50);
@@ -146,7 +128,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
                 .IsRequired()
                 .IsRowVersion();
             
-            // 索引配置
+       
             entity.HasIndex(e => e.OrderNumber)
                 .IsUnique()
                 .HasDatabaseName("UK_SalesOrder_OrderNumber");
@@ -160,8 +142,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => e.Status)
                 .HasDatabaseName("IX_SalesOrder_Status");
             
-            // 外键关系
-            entity.HasOne(e => e.Customer)
+             entity.HasOne(e => e.Customer)
                 .WithMany(c => c.SalesOrders)
                 .HasForeignKey(e => e.CustomerId)
                 .OnDelete(DeleteBehavior.Restrict);
@@ -175,8 +156,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.ToTable("OrderItem");
             entity.HasKey(e => e.Id);
             
-            // 字段配置
-            entity.Property(e => e.Sequence)
+               entity.Property(e => e.Sequence)
                 .IsRequired();
             
             entity.Property(e => e.DeliveryDate)
@@ -276,8 +256,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Remark)
                 .HasMaxLength(500);
             
-            // 索引配置
-            entity.HasIndex(e => new { e.SalesOrderId, e.Sequence })
+               entity.HasIndex(e => new { e.SalesOrderId, e.Sequence })
                 .IsUnique()
                 .HasDatabaseName("UK_OrderItem_Sequence");
             
@@ -293,8 +272,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => e.StandardGrade)
                 .HasDatabaseName("IX_OrderItem_StandardGrade");
             
-            // 外键关系
-            entity.HasOne(e => e.SalesOrder)
+              entity.HasOne(e => e.SalesOrder)
                 .WithMany(s => s.OrderItems)
                 .HasForeignKey(e => e.SalesOrderId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -352,7 +330,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Remark)
                 .HasMaxLength(500);
             
-            // 索引
             entity.HasIndex(e => e.CustomerCode)
                 .IsUnique()
                 .HasDatabaseName("UK_CustomerProfile_Code");
@@ -387,7 +364,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
                 .IsRequired()
                 .HasDefaultValue(true);
             
-            // 索引
             entity.HasIndex(e => e.StandardCode)
                 .IsUnique()
                 .HasDatabaseName("UK_ProductionStandard_Code");
@@ -434,7 +410,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.OtherRequirement)
                 .HasMaxLength(1000);
             
-            // 索引
             entity.HasIndex(e => e.OrderItemId)
                 .IsUnique()
                 .HasDatabaseName("UK_ProductRequirement_OrderItemId");
@@ -445,7 +420,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => e.RequirementType)
                 .HasDatabaseName("IX_ProductRequirement_RequirementType");
             
-            // 外键关系
             entity.HasOne(e => e.OrderItem)
                 .WithOne(oi => oi.ProductRequirement)
                 .HasForeignKey<ProductRequirement>(e => e.OrderItemId)
@@ -489,7 +463,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Remark)
                 .HasMaxLength(500);
             
-            // 索引
             entity.HasIndex(e => e.StandardGrade)
                 .IsUnique()
                 .HasDatabaseName("UK_StandardGradeMapping_StandardGrade");

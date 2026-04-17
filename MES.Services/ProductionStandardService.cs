@@ -9,7 +9,7 @@ using MES.Data.Entities;
 namespace MES.Services;
 
 /// <summary>
-/// 产品标准服务实现
+/// Production standard service implementation
 /// </summary>
 public class ProductionStandardService : IProductionStandardService
 {
@@ -21,9 +21,9 @@ public class ProductionStandardService : IProductionStandardService
     }
 
     /// <summary>
-    /// 获取所有产品标准（用于下拉框）
+    /// Get all production standards (for dropdown)
     /// </summary>
-    /// <param name="onlyActive">是否只返回启用的标准，默认true</param>
+    /// <param name="onlyActive">Whether to return only active standards, default true</param>
     public async Task<List<ProductionStandardDto>> GetAllAsync(bool onlyActive = true)
     {
         var query = _context.ProductionStandards
@@ -52,7 +52,7 @@ public class ProductionStandardService : IProductionStandardService
     }
 
     /// <summary>
-    /// 根据ID获取产品标准详情
+    /// Get production standard details by ID
     /// </summary>
     public async Task<ProductionStandardDto> GetByIdAsync(int id)
     {
@@ -61,7 +61,7 @@ public class ProductionStandardService : IProductionStandardService
 
         if (entity == null)
         {
-            throw new BusinessException("产品标准不存在");
+            throw new BusinessException("Production standard does not exist");
         }
 
         return new ProductionStandardDto
@@ -76,17 +76,17 @@ public class ProductionStandardService : IProductionStandardService
     }
 
     /// <summary>
-    /// 创建产品标准
+    /// Create production standard
     /// </summary>
     public async Task<ProductionStandardDto> CreateAsync(CreateProductionStandardRequest request)
     {
-        // 检查标准编码唯一性
+        // Check standard code uniqueness
         var exists = await _context.ProductionStandards
             .AnyAsync(p => p.StandardCode == request.StandardCode && !p.IsDeleted);
 
         if (exists)
         {
-            throw new BusinessException($"标准编码 '{request.StandardCode}' 已存在");
+            throw new BusinessException($"Standard code '{request.StandardCode}' already exists");
         }
 
         var entity = new ProductionStandard
@@ -113,7 +113,7 @@ public class ProductionStandardService : IProductionStandardService
     }
 
     /// <summary>
-    /// 更新产品标准
+    /// Update production standard
     /// </summary>
     public async Task<ProductionStandardDto> UpdateAsync(int id, UpdateProductionStandardRequest request)
     {
@@ -122,10 +122,10 @@ public class ProductionStandardService : IProductionStandardService
 
         if (entity == null)
         {
-            throw new BusinessException("产品标准不存在");
+            throw new BusinessException("Production standard does not exist");
         }
 
-        // 检查标准编码唯一性（排除自身）
+        // Check standard code uniqueness (exclude self)
         if (!string.IsNullOrEmpty(request.StandardCode) && request.StandardCode != entity.StandardCode)
         {
             var exists = await _context.ProductionStandards
@@ -133,7 +133,7 @@ public class ProductionStandardService : IProductionStandardService
 
             if (exists)
             {
-                throw new BusinessException($"标准编码 '{request.StandardCode}' 已存在");
+                throw new BusinessException($"Standard code '{request.StandardCode}' already exists");
             }
             entity.StandardCode = request.StandardCode;
         }
@@ -172,7 +172,7 @@ public class ProductionStandardService : IProductionStandardService
     }
 
     /// <summary>
-    /// 删除产品标准（软删除）
+    /// Delete production standard (soft delete)
     /// </summary>
     public async Task DeleteAsync(int id)
     {
@@ -181,7 +181,7 @@ public class ProductionStandardService : IProductionStandardService
 
         if (entity == null)
         {
-            throw new BusinessException("产品标准不存在");
+            throw new BusinessException("Production standard does not exist");
         }
 
         entity.IsDeleted = true;

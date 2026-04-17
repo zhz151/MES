@@ -1,4 +1,4 @@
-// 文件路径: MES.Services/CustomerService.cs
+// 鏂囦欢璺緞: MES.Services/CustomerService.cs
 using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs;
 using MES.Core.Interfaces;
@@ -11,7 +11,7 @@ using MES.Data.Entities;
 namespace MES.Services;
 
 /// <summary>
-/// 客户档案服务实现
+/// Customer profile service implementation
 /// </summary>
 public class CustomerService : ICustomerService
 {
@@ -23,7 +23,7 @@ public class CustomerService : ICustomerService
     }
 
     /// <summary>
-    /// 分页查询客户列表
+    /// Get paged customer list
     /// </summary>
     public async Task<PagedResult<CustomerProfileDto>> GetPagedAsync(QueryParams query)
     {
@@ -31,7 +31,7 @@ public class CustomerService : ICustomerService
             .Where(c => !c.IsDeleted)
             .AsQueryable();
 
-        // 关键词搜索
+        // Keyword search
         if (!string.IsNullOrEmpty(query.Keyword))
         {
             queryable = queryable.Where(c =>
@@ -40,7 +40,7 @@ public class CustomerService : ICustomerService
                 c.Salesman.Contains(query.Keyword));
         }
 
-        // 排序
+        // Sorting
         queryable = query.SortBy?.ToLower() switch
         {
             "customercode" => query.IsDescending
@@ -86,7 +86,7 @@ public class CustomerService : ICustomerService
     }
 
     /// <summary>
-    /// 根据ID获取客户详情
+    /// Get customer details by ID
     /// </summary>
     public async Task<CustomerProfileDto> GetByIdAsync(int id)
     {
@@ -95,7 +95,7 @@ public class CustomerService : ICustomerService
 
         if (entity == null)
         {
-            throw new BusinessException("客户不存在");
+            throw new BusinessException("Customer does not exist");
         }
 
         return new CustomerProfileDto
@@ -114,20 +114,20 @@ public class CustomerService : ICustomerService
     }
 
     /// <summary>
-    /// 创建客户
+    /// Create customer
     /// </summary>
     public async Task<CustomerProfileDto> CreateAsync(CreateCustomerRequest request)
     {
-        // 检查客户编码唯一性
+        // Check customer code uniqueness
         var exists = await _context.CustomerProfiles
             .AnyAsync(c => c.CustomerCode == request.CustomerCode && !c.IsDeleted);
 
         if (exists)
         {
-            throw new BusinessException($"客户编码 '{request.CustomerCode}' 已存在");
+            throw new BusinessException($"Customer code '{request.CustomerCode}' already exists");
         }
 
-        // 解析状态枚举
+        // Parse status enum
         var status = Enum.TryParse<CustomerStatus>(request.Status, true, out var parsedStatus)
             ? parsedStatus
             : CustomerStatus.Active;
@@ -164,7 +164,7 @@ public class CustomerService : ICustomerService
     }
 
     /// <summary>
-    /// 更新客户
+    /// Update customer
     /// </summary>
     public async Task<CustomerProfileDto> UpdateAsync(int id, UpdateCustomerRequest request)
     {
@@ -173,10 +173,10 @@ public class CustomerService : ICustomerService
 
         if (entity == null)
         {
-            throw new BusinessException("客户不存在");
+            throw new BusinessException("Customer does not exist");
         }
 
-        // 检查客户编码唯一性（排除自身）
+        // Check customer code uniqueness (exclude self)
         if (!string.IsNullOrEmpty(request.CustomerCode) && request.CustomerCode != entity.CustomerCode)
         {
             var exists = await _context.CustomerProfiles
@@ -184,7 +184,7 @@ public class CustomerService : ICustomerService
 
             if (exists)
             {
-                throw new BusinessException($"客户编码 '{request.CustomerCode}' 已存在");
+                throw new BusinessException($"Customer code '{request.CustomerCode}' already exists");
             }
             entity.CustomerCode = request.CustomerCode;
         }
@@ -247,7 +247,7 @@ public class CustomerService : ICustomerService
     }
 
     /// <summary>
-    /// 删除客户（软删除）
+    /// Delete customer (soft delete)
     /// </summary>
     public async Task DeleteAsync(int id)
     {
@@ -256,7 +256,7 @@ public class CustomerService : ICustomerService
 
         if (entity == null)
         {
-            throw new BusinessException("客户不存在");
+            throw new BusinessException("Customer does not exist");
         }
 
         entity.IsDeleted = true;

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     导出 MES 项目完整快照，包括所有代码文件、配置文件、项目文件
 .DESCRIPTION

@@ -90,12 +90,12 @@
         try
         {
             var response = await Http.PostAsJsonAsync("api/auth/login", model);
-            
+
             if (response.IsSuccessStatusCode)
             {
                 // 使用新的统一响应格式解析
                 var authResponse = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
-                
+
                 if (authResponse?.Success == true && authResponse.Data != null)
                 {
                     await LocalStorage.SetItemAsync("authToken", authResponse.Data.Token);
@@ -103,14 +103,14 @@
                     await LocalStorage.SetItemAsync("userName", authResponse.Data.UserName);
                     await LocalStorage.SetItemAsync("userFullName", authResponse.Data.FullName);
                     await LocalStorage.SetItemAsync("userRoles", authResponse.Data.Roles);
-                    
+
                     if (AuthProvider is CustomAuthStateProvider customAuth)
                     {
                         customAuth.MarkUserAsLoggedIn(authResponse.Data.Token);
                     }
-                    
+
                     Snackbar.Add("登录成功！", Severity.Success);
-                    
+
                     await Task.Delay(500); // 显示成功消息的时间
                     Navigation.NavigateTo("/", true);
                 }

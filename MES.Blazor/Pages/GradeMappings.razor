@@ -19,8 +19,8 @@
                 <MudText Typo="Typo.body2" Color="Color.Secondary">标准牌号 ↔ 工厂牌号 映射配置</MudText>
             </CardHeaderContent>
             <CardHeaderActions>
-                <MudButton Variant="Variant.Filled" 
-                           Color="Color.Primary" 
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Add"
                            OnClick="NavigateToCreate">
                     新建牌号
@@ -42,8 +42,8 @@
                                   OnKeyDown="OnSearchKeyDown" />
                 </MudItem>
                 <MudItem xs="12" md="4">
-                    <MudButton Variant="Variant.Outlined" 
-                               Color="Color.Primary" 
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Primary"
                                FullWidth="true"
                                OnClick="Search">
                         搜索
@@ -67,7 +67,7 @@
                     <MudTd>@context.Density.ToString("F4")</MudTd>
                     <MudTd>@context.HeatTreatment</MudTd>
                     <MudTd>
-                        <MudChip Size="Size.Small" Color="@(context.SpecialMaterial ? Color.Warning : Color.Default)">
+                        <MudChip Size="Size.Small" Color="@(context.SpecialMaterial? Color.Warning: Color.Default)">
                             @(context.SpecialMaterial ? "特殊" : "常规")
                         </MudChip>
                     </MudTd>
@@ -114,7 +114,7 @@
 
         if (!string.IsNullOrEmpty(searchKeyword))
         {
-            query = query.Where(x => 
+            query = query.Where(x =>
                 x.StandardGrade.Contains(searchKeyword, StringComparison.OrdinalIgnoreCase) ||
                 x.PlantGrade.Contains(searchKeyword, StringComparison.OrdinalIgnoreCase));
         }
