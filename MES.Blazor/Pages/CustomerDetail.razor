@@ -86,11 +86,7 @@
                                       Disabled="!isEditMode" />
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudSelect T="CustomerStatus?"
-                                   Label="状态"
-                                   @bind-Value="editCustomer.Status"
-                                   Disabled="!isEditMode"
-                                   Required="true">
+                        <MudSelect T="CustomerStatus?" Label="状态" @bind-Value="editCustomer.Status" Disabled="!isEditMode" Required="true">
                             <MudSelectItem Value="@CustomerStatus.Active">启用</MudSelectItem>
                             <MudSelectItem Value="@CustomerStatus.Inactive">停用</MudSelectItem>
                         </MudSelect>
@@ -148,27 +144,39 @@
         isLoading = true;
         StateHasChanged();
 
-        var result = await CustomerService.GetByIdAsync(Id);
-        if (result.Success && result.Data != null)
+        try
         {
-            customer = result.Data;
-
-            editCustomer = new UpdateCustomerRequest
+            var result = await CustomerService.GetByIdAsync(Id);
+            if (result.Success && result.Data != null)
             {
-                CustomerCode = customer.CustomerCode,
-                Salesman = customer.Salesman,
-                CustomerUnit = customer.CustomerUnit,
-                EndCustomer = customer.EndCustomer,
-                ContactPerson = customer.ContactPerson,
-                ContactPhone = customer.ContactPhone,
-                Address = customer.Address,
-                Status = customer.Status,  // 直接赋值枚举，不再需要字符串转换
-                Remark = customer.Remark
-            };
+                customer = result.Data;
+                editCustomer = new UpdateCustomerRequest
+                {
+                    CustomerCode = customer.CustomerCode,
+                    Salesman = customer.Salesman,
+                    CustomerUnit = customer.CustomerUnit,
+                    EndCustomer = customer.EndCustomer,
+                    ContactPerson = customer.ContactPerson,
+                    ContactPhone = customer.ContactPhone,
+                    Address = customer.Address,
+                    Status = customer.Status,
+                    Remark = customer.Remark
+                };
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "加载数据失败", Severity.Error);
+            }
         }
-
-        isLoading = false;
-        StateHasChanged();
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
     private void EnterEditMode()
@@ -178,7 +186,6 @@
 
     private async Task SaveCustomer()
     {
-        // 验证必填字段
         if (string.IsNullOrWhiteSpace(editCustomer.CustomerCode))
         {
             Snackbar.Add("客户编码不能为空", Severity.Warning);
@@ -197,7 +204,6 @@
             return;
         }
 
-        // 验证状态
         if (!editCustomer.Status.HasValue)
         {
             Snackbar.Add("请选择客户状态", Severity.Warning);
@@ -207,19 +213,28 @@
         isSubmitting = true;
         StateHasChanged();
 
-        var result = await CustomerService.UpdateAsync(Id, editCustomer);
-        if (result.Success)
+        try
         {
-            Snackbar.Add("更新成功", Severity.Success);
-            Navigation.NavigateTo($"/customers/{Id}");
+            var result = await CustomerService.UpdateAsync(Id, editCustomer);
+            if (result.Success)
+            {
+                Snackbar.Add("更新成功", Severity.Success);
+                Navigation.NavigateTo($"/customers/{Id}");
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "更新失败", Severity.Error);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Snackbar.Add(result.Message ?? "更新失败", Severity.Error);
+            Snackbar.Add($"更新失败: {ex.Message}", Severity.Error);
         }
-
-        isSubmitting = false;
-        StateHasChanged();
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
     }
 
     private void GoBack()

@@ -20,7 +20,6 @@ public class GradeMappingService : IGradeMappingService
         try
         {
             var response = await _http.GetFromJsonAsync<ApiResponse<List<StandardGradeMappingDto>>>($"{BaseUrl}/list");
-
             if (response != null && response.Success)
             {
                 return response.Data ?? new List<StandardGradeMappingDto>();
@@ -39,11 +38,11 @@ public class GradeMappingService : IGradeMappingService
         try
         {
             var response = await _http.GetFromJsonAsync<ApiResponse<StandardGradeMappingDto>>($"{BaseUrl}/{id}");
-            return response ?? ApiResponse<StandardGradeMappingDto>.Fail("Failed to get data");
+            return response ?? ApiResponse<StandardGradeMappingDto>.Fail("获取数据失败");
         }
         catch (Exception ex)
         {
-            return ApiResponse<StandardGradeMappingDto>.Fail($"Network error: {ex.Message}");
+            return ApiResponse<StandardGradeMappingDto>.Fail($"网络错误: {ex.Message}");
         }
     }
 
@@ -59,11 +58,11 @@ public class GradeMappingService : IGradeMappingService
         {
             var response = await _http.PostAsJsonAsync(BaseUrl, request);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<StandardGradeMappingDto>>();
-            return result ?? ApiResponse<StandardGradeMappingDto>.Fail("Create failed");
+            return result ?? ApiResponse<StandardGradeMappingDto>.Fail("创建失败");
         }
         catch (Exception ex)
         {
-            return ApiResponse<StandardGradeMappingDto>.Fail($"Network error: {ex.Message}");
+            return ApiResponse<StandardGradeMappingDto>.Fail($"网络错误: {ex.Message}");
         }
     }
 
@@ -73,26 +72,26 @@ public class GradeMappingService : IGradeMappingService
         {
             var response = await _http.PutAsJsonAsync($"{BaseUrl}/{id}", request);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<StandardGradeMappingDto>>();
-            return result ?? ApiResponse<StandardGradeMappingDto>.Fail("Update failed");
+            return result ?? ApiResponse<StandardGradeMappingDto>.Fail("更新失败");
         }
         catch (Exception ex)
         {
-            return ApiResponse<StandardGradeMappingDto>.Fail($"Network error: {ex.Message}");
+            return ApiResponse<StandardGradeMappingDto>.Fail($"网络错误: {ex.Message}");
         }
     }
 
-    // 修改：返回类型改为 Task<ApiResponse<object>>
-    public async Task<ApiResponse<object>> DeleteAsync(int id)
+    // 修复：返回 ApiResponse（无泛型），与接口保持一致
+    public async Task<ApiResponse> DeleteAsync(int id)
     {
         try
         {
             var response = await _http.DeleteAsync($"{BaseUrl}/{id}");
-            var result = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
-            return result ?? ApiResponse<object>.Fail("Delete failed");
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse>();
+            return result ?? ApiResponse.Fail("删除失败");
         }
         catch (Exception ex)
         {
-            return ApiResponse<object>.Fail($"Network error: {ex.Message}");
+            return ApiResponse.Fail($"网络错误: {ex.Message}");
         }
     }
 }

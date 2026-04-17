@@ -72,7 +72,7 @@
                     <MudTd>@context.StandardName</MudTd>
                     <MudTd>@context.SortOrder</MudTd>
                     <MudTd>
-                        <MudChip Size="Size.Small" Color="@(context.IsActive? Color.Success: Color.Error)">
+                        <MudChip Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Error)">
                             @(context.IsActive ? "启用" : "停用")
                         </MudChip>
                     </MudTd>
@@ -107,11 +107,20 @@
         isLoading = true;
         StateHasChanged();
 
-        allStandards = await StandardService.GetAllAsync(false);
-        ApplyFilter();
-
-        isLoading = false;
-        StateHasChanged();
+        try
+        {
+            allStandards = await StandardService.GetAllAsync(false);
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
     private void ApplyFilter()
@@ -136,6 +145,7 @@
     private void Search()
     {
         ApplyFilter();
+        StateHasChanged();
     }
 
     private void OnSearchKeyDown(KeyboardEventArgs args)

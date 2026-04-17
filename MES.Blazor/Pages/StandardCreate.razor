@@ -89,19 +89,28 @@
         isSubmitting = true;
         StateHasChanged();
 
-        var result = await StandardService.CreateAsync(standard);
-        if (result != null && result.Success)
+        try
         {
-            Snackbar.Add("创建成功", Severity.Success);
-            Navigation.NavigateTo("/standards");
+            var result = await StandardService.CreateAsync(standard);
+            if (result != null && result.Success)
+            {
+                Snackbar.Add("创建成功", Severity.Success);
+                Navigation.NavigateTo("/standards");
+            }
+            else
+            {
+                Snackbar.Add(result?.Message ?? "创建失败", Severity.Error);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Snackbar.Add(result?.Message ?? "创建失败", Severity.Error);
+            Snackbar.Add($"创建失败: {ex.Message}", Severity.Error);
         }
-
-        isSubmitting = false;
-        StateHasChanged();
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
     }
 
     private void GoBack()

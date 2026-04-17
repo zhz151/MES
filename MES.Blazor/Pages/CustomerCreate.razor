@@ -117,19 +117,28 @@
         isSubmitting = true;
         StateHasChanged();
 
-        var result = await CustomerService.CreateAsync(customer);
-        if (result.Success)
+        try
         {
-            Snackbar.Add("创建成功", Severity.Success);
-            Navigation.NavigateTo("/customers");
+            var result = await CustomerService.CreateAsync(customer);
+            if (result.Success)
+            {
+                Snackbar.Add("创建成功", Severity.Success);
+                Navigation.NavigateTo("/customers");
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "创建失败", Severity.Error);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Snackbar.Add(result.Message ?? "创建失败", Severity.Error);
+            Snackbar.Add($"创建失败: {ex.Message}", Severity.Error);
         }
-
-        isSubmitting = false;
-        StateHasChanged();
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
     }
 
     private void GoBack()

@@ -16,6 +16,6 @@ public interface IGradeMappingService
 
     Task<ApiResponse<StandardGradeMappingDto>> UpdateAsync(int id, UpdateGradeMappingRequest request);
 
-    // 修改：返回类型改为 Task<ApiResponse<object>>
-    Task<ApiResponse<object>> DeleteAsync(int id);
+    // 删除返回 ApiResponse（无泛型）
+    Task<ApiResponse> DeleteAsync(int id);
 }

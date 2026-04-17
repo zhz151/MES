@@ -86,8 +86,6 @@
 @code {
     private CreateGradeMappingRequest gradeMapping = new() { Density = 7.93m, SpecialMaterial = false };
     private bool isSubmitting;
-
-    // 用于绑定密度的局部变量
     private decimal densityValue = 7.93m;
 
     protected override void OnInitialized()
@@ -109,7 +107,6 @@
             return;
         }
 
-        // 将局部变量赋值回 gradeMapping
         gradeMapping.Density = densityValue;
 
         if (gradeMapping.Density <= 0)
@@ -121,19 +118,28 @@
         isSubmitting = true;
         StateHasChanged();
 
-        var result = await GradeMappingService.CreateAsync(gradeMapping);
-        if (result != null && result.Success)
+        try
         {
-            Snackbar.Add("创建成功", Severity.Success);
-            Navigation.NavigateTo("/grade-mappings");
+            var result = await GradeMappingService.CreateAsync(gradeMapping);
+            if (result != null && result.Success)
+            {
+                Snackbar.Add("创建成功", Severity.Success);
+                Navigation.NavigateTo("/grade-mappings");
+            }
+            else
+            {
+                Snackbar.Add(result?.Message ?? "创建失败", Severity.Error);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Snackbar.Add(result?.Message ?? "创建失败", Severity.Error);
+            Snackbar.Add($"创建失败: {ex.Message}", Severity.Error);
         }
-
-        isSubmitting = false;
-        StateHasChanged();
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
     }
 
     private void GoBack()

@@ -14,6 +14,6 @@ public interface IProductionStandardService
 
     Task<ApiResponse<ProductionStandardDto>> UpdateAsync(int id, UpdateProductionStandardRequest request);
 
-    // 修改：返回类型改为 Task<ApiResponse<object>>
-    Task<ApiResponse<object>> DeleteAsync(int id);
+    // 删除返回 ApiResponse（无泛型）
+    Task<ApiResponse> DeleteAsync(int id);
 }

@@ -117,8 +117,6 @@
     private UpdateGradeMappingRequest editGrade = new();
     private bool isLoading = true;
     private bool isSubmitting;
-
-    // 用于解决 decimal? 到 decimal 的绑定问题
     private decimal densityValue;
 
     protected override async Task OnInitializedAsync()
@@ -131,26 +129,38 @@
         isLoading = true;
         StateHasChanged();
 
-        var result = await GradeMappingService.GetByIdAsync(Id);
-        if (result.Success && result.Data != null)
+        try
         {
-            gradeMapping = result.Data;
-            editGrade = new UpdateGradeMappingRequest
+            var result = await GradeMappingService.GetByIdAsync(Id);
+            if (result.Success && result.Data != null)
             {
-                StandardGrade = gradeMapping.StandardGrade,
-                PlantGrade = gradeMapping.PlantGrade,
-                Density = gradeMapping.Density,
-                HeatTreatment = gradeMapping.HeatTreatment,
-                SpecialMaterial = gradeMapping.SpecialMaterial,
-                SpecialNote = gradeMapping.SpecialNote,
-                Remark = gradeMapping.Remark
-            };
-            // 初始化局部变量
-            densityValue = gradeMapping.Density;
+                gradeMapping = result.Data;
+                editGrade = new UpdateGradeMappingRequest
+                {
+                    StandardGrade = gradeMapping.StandardGrade,
+                    PlantGrade = gradeMapping.PlantGrade,
+                    Density = gradeMapping.Density,
+                    HeatTreatment = gradeMapping.HeatTreatment,
+                    SpecialMaterial = gradeMapping.SpecialMaterial,
+                    SpecialNote = gradeMapping.SpecialNote,
+                    Remark = gradeMapping.Remark
+                };
+                densityValue = gradeMapping.Density;
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "加载数据失败", Severity.Error);
+            }
         }
-
-        isLoading = false;
-        StateHasChanged();
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
     private void EnterEditMode()
@@ -172,7 +182,6 @@
             return;
         }
 
-        // 将局部变量赋值回 editGrade
         editGrade.Density = densityValue;
 
         if (editGrade.Density == null || editGrade.Density <= 0)
@@ -184,19 +193,28 @@
         isSubmitting = true;
         StateHasChanged();
 
-        var result = await GradeMappingService.UpdateAsync(Id, editGrade);
-        if (result != null && result.Success)
+        try
         {
-            Snackbar.Add("更新成功", Severity.Success);
-            Navigation.NavigateTo($"/grade-mappings/{Id}");
+            var result = await GradeMappingService.UpdateAsync(Id, editGrade);
+            if (result != null && result.Success)
+            {
+                Snackbar.Add("更新成功", Severity.Success);
+                Navigation.NavigateTo($"/grade-mappings/{Id}");
+            }
+            else
+            {
+                Snackbar.Add(result?.Message ?? "更新失败", Severity.Error);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Snackbar.Add(result?.Message ?? "更新失败", Severity.Error);
+            Snackbar.Add($"更新失败: {ex.Message}", Severity.Error);
         }
-
-        isSubmitting = false;
-        StateHasChanged();
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
     }
 
     private void GoBack()

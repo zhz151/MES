@@ -67,7 +67,7 @@
                     <MudTd>@context.Density.ToString("F4")</MudTd>
                     <MudTd>@context.HeatTreatment</MudTd>
                     <MudTd>
-                        <MudChip Size="Size.Small" Color="@(context.SpecialMaterial? Color.Warning: Color.Default)">
+                        <MudChip Size="Size.Small" Color="@(context.SpecialMaterial ? Color.Warning : Color.Default)">
                             @(context.SpecialMaterial ? "特殊" : "常规")
                         </MudChip>
                     </MudTd>
@@ -101,11 +101,20 @@
         isLoading = true;
         StateHasChanged();
 
-        allGradeMappings = await GradeMappingService.GetAllAsync();
-        ApplyFilter();
-
-        isLoading = false;
-        StateHasChanged();
+        try
+        {
+            allGradeMappings = await GradeMappingService.GetAllAsync();
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
     private void ApplyFilter()
@@ -125,6 +134,7 @@
     private void Search()
     {
         ApplyFilter();
+        StateHasChanged();
     }
 
     private void OnSearchKeyDown(KeyboardEventArgs args)

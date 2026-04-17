@@ -86,6 +86,7 @@ public class ProductionStandardController : ControllerBase
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
     {
         await _service.DeleteAsync(id);
-        return Ok(ApiResponse<object>.Ok(null, "删除成功"));
+        // 修复 CS8625：使用 new object() 代替 null
+        return Ok(ApiResponse<object>.Ok(new object(), "删除成功"));
     }
 }

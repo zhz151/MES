@@ -106,21 +106,30 @@
         isLoading = true;
         StateHasChanged();
 
-        queryParams.Keyword = searchKeyword;
-        var result = await CustomerService.GetPagedAsync(queryParams);
-
-        if (result.Success && result.Data != null)
+        try
         {
-            customers = result.Data.Items;
-            totalCount = result.Data.TotalCount;
-        }
-        else
-        {
-            Snackbar.Add(result.Message ?? "加载数据失败", Severity.Error);
-        }
+            queryParams.Keyword = searchKeyword;
+            var result = await CustomerService.GetPagedAsync(queryParams);
 
-        isLoading = false;
-        StateHasChanged();
+            if (result.Success && result.Data != null)
+            {
+                customers = result.Data.Items;
+                totalCount = result.Data.TotalCount;
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "加载数据失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
     private async Task Search()

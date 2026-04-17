@@ -65,7 +65,6 @@
                                       HelperText="唯一标识，如 GB/T 14976" />
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <!-- 修复 CS1503: 使用局部变量 sortOrderValue 绑定 -->
                         <MudNumericField T="int"
                                          Label="排序序号"
                                          @bind-Value="sortOrderValue"
@@ -102,8 +101,6 @@
     private UpdateProductionStandardRequest editStandard = new();
     private bool isLoading = true;
     private bool isSubmitting;
-
-    // 用于绑定排序序号的局部变量
     private int sortOrderValue;
 
     protected override async Task OnInitializedAsync()
@@ -116,24 +113,36 @@
         isLoading = true;
         StateHasChanged();
 
-        var result = await StandardService.GetByIdAsync(Id);
-        if (result.Success && result.Data != null)
+        try
         {
-            standard = result.Data;
-            editStandard = new UpdateProductionStandardRequest
+            var result = await StandardService.GetByIdAsync(Id);
+            if (result.Success && result.Data != null)
             {
-                StandardCode = standard.StandardCode,
-                StandardName = standard.StandardName,
-                Remark = standard.Remark,
-                SortOrder = standard.SortOrder,
-                IsActive = standard.IsActive
-            };
-            // 修复 CS0019: standard.SortOrder 是 int 类型，直接赋值
-            sortOrderValue = standard.SortOrder;
+                standard = result.Data;
+                editStandard = new UpdateProductionStandardRequest
+                {
+                    StandardCode = standard.StandardCode,
+                    StandardName = standard.StandardName,
+                    Remark = standard.Remark,
+                    SortOrder = standard.SortOrder,
+                    IsActive = standard.IsActive
+                };
+                sortOrderValue = standard.SortOrder;
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "加载数据失败", Severity.Error);
+            }
         }
-
-        isLoading = false;
-        StateHasChanged();
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
     private void EnterEditMode()
@@ -155,25 +164,33 @@
             return;
         }
 
-        // 将局部变量赋值回 editStandard
         editStandard.SortOrder = sortOrderValue;
 
         isSubmitting = true;
         StateHasChanged();
 
-        var result = await StandardService.UpdateAsync(Id, editStandard);
-        if (result != null && result.Success)
+        try
         {
-            Snackbar.Add("更新成功", Severity.Success);
-            Navigation.NavigateTo($"/standards/{Id}");
+            var result = await StandardService.UpdateAsync(Id, editStandard);
+            if (result != null && result.Success)
+            {
+                Snackbar.Add("更新成功", Severity.Success);
+                Navigation.NavigateTo($"/standards/{Id}");
+            }
+            else
+            {
+                Snackbar.Add(result?.Message ?? "更新失败", Severity.Error);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Snackbar.Add(result?.Message ?? "更新失败", Severity.Error);
+            Snackbar.Add($"更新失败: {ex.Message}", Severity.Error);
         }
-
-        isSubmitting = false;
-        StateHasChanged();
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
     }
 
     private void GoBack()
