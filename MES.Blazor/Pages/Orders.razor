@@ -54,7 +54,7 @@
                 </MudItem>
             </MudGrid>
 
-            <!-- 表格 - 不使用复杂组件 -->
+            <!-- 表格 -->
             @if (isLoading)
             {
                 <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
@@ -178,29 +178,31 @@
         }
     }
 
-    private Color GetStatusColor(string status)
+    // 修改：参数类型从 string 改为 SalesOrderStatus
+    private Color GetStatusColor(SalesOrderStatus status)
     {
         return status switch
         {
-            "Pending" => Color.Warning,
-            "Confirmed" => Color.Info,
-            "Processing" => Color.Primary,
-            "Completed" => Color.Success,
-            "Cancelled" => Color.Error,
+            SalesOrderStatus.Pending => Color.Warning,
+            SalesOrderStatus.Confirmed => Color.Info,
+            SalesOrderStatus.Processing => Color.Primary,
+            SalesOrderStatus.Completed => Color.Success,
+            SalesOrderStatus.Cancelled => Color.Error,
             _ => Color.Default
         };
     }
 
-    private string GetStatusText(string status)
+    // 修改：参数类型从 string 改为 SalesOrderStatus
+    private string GetStatusText(SalesOrderStatus status)
     {
         return status switch
         {
-            "Pending" => "待处理",
-            "Confirmed" => "已确认",
-            "Processing" => "处理中",
-            "Completed" => "已完成",
-            "Cancelled" => "已取消",
-            _ => status
+            SalesOrderStatus.Pending => "待处理",
+            SalesOrderStatus.Confirmed => "已确认",
+            SalesOrderStatus.Processing => "处理中",
+            SalesOrderStatus.Completed => "已完成",
+            SalesOrderStatus.Cancelled => "已取消",
+            _ => status.ToString()
         };
     }
 }

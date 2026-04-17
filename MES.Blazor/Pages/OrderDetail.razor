@@ -78,7 +78,6 @@
                                        Disabled="!isEditMode" />
                     </MudItem>
                     <MudItem xs="12" md="4">
-                        <!-- 修复 CS1503: 使用 T="int?" 匹配 editOrder.CustomerId 的 int? 类型 -->
                         <MudSelect T="int?" @bind-Value="editOrder.CustomerId"
                                    Label="客户单位"
                                    Disabled="!isEditMode">
@@ -89,15 +88,23 @@
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="4">
-                        <MudSelect T="string" @bind-Value="editOrder.Status"
+                        <MudSelect T="SalesOrderStatus" @bind-Value="editOrderStatus"
                                    Label="订单状态"
-                                   Disabled="!isEditMode">
-                            <MudSelectItem Value="@("Pending")">待处理</MudSelectItem>
-                            <MudSelectItem Value="@("Confirmed")">已确认</MudSelectItem>
-                            <MudSelectItem Value="@("Processing")">处理中</MudSelectItem>
-                            <MudSelectItem Value="@("Completed")">已完成</MudSelectItem>
-                            <MudSelectItem Value="@("Cancelled")">已取消</MudSelectItem>
+                                   Disabled="!isEditMode"
+                                   Required="true">
+                            <MudSelectItem Value="@SalesOrderStatus.Pending">待处理</MudSelectItem>
+                            <MudSelectItem Value="@SalesOrderStatus.Confirmed">已确认</MudSelectItem>
+                            <MudSelectItem Value="@SalesOrderStatus.Processing">处理中</MudSelectItem>
+                            <MudSelectItem Value="@SalesOrderStatus.Completed">已完成</MudSelectItem>
+                            <MudSelectItem Value="@SalesOrderStatus.Cancelled">已取消</MudSelectItem>
                         </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="8">
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            <MudChip Size="Size.Small" Color="@GetStatusColor(orderDetail.Status)">
+                                当前状态：@GetStatusText(orderDetail.Status)
+                            </MudChip>
+                        </MudText>
                     </MudItem>
                 </MudGrid>
 
@@ -114,7 +121,8 @@
                         <MudTh>项次</MudTh>
                         <MudTh>规格</MudTh>
                         <MudTh>牌号</MudTh>
-                        <MudTh>数量</MudTh>
+                        <MudTh>数量(支)</MudTh>
+                        <MudTh>米数(m)</MudTh>
                         <MudTh>合同重量(kg)</MudTh>
                         <MudTh>理算重量(kg)</MudTh>
                         <MudTh>交货日期</MudTh>
@@ -123,7 +131,8 @@
                         <MudTd>@context.Sequence</MudTd>
                         <MudTd>@context.Specification</MudTd>
                         <MudTd>@context.StandardGrade</MudTd>
-                        <MudTd>@context.Quantity</MudTd>
+                        <MudTd>@(context.Quantity?.ToString() ?? "-")</MudTd>
+                        <MudTd>@(context.Meters?.ToString("F2") ?? "-")</MudTd>
                         <MudTd>@context.ContractWeight.ToString("F2")</MudTd>
                         <MudTd>@context.TheoreticalWeight.ToString("F2")</MudTd>
                         <MudTd>@context.DeliveryDate.ToString("yyyy-MM-dd")</MudTd>
@@ -132,6 +141,18 @@
                         <MudTablePager />
                     </PagerContent>
                 </MudTable>
+
+                <!-- 项次管理按钮（编辑模式下显示） -->
+                @if (isEditMode)
+                {
+                    <MudGrid Class="mt-4">
+                        <MudItem xs="12">
+                            <MudAlert Severity="Severity.Warning">
+                                <strong>提示：</strong> 项次的新增、修改、删除功能请在专门的项次管理页面操作。
+                            </MudAlert>
+                        </MudItem>
+                    </MudGrid>
+                }
             </MudCardContent>
         </MudCard>
     }
@@ -143,6 +164,7 @@
     private bool isEditMode => Navigation.Uri.Contains("/edit");
     private SalesOrderDetailDto? orderDetail;
     private UpdateSalesOrderRequest editOrder = new();
+    private SalesOrderStatus editOrderStatus;
     private List<CustomerProfileDto> customers = new();
     private bool isLoading = true;
     private bool isSubmitting;
@@ -174,9 +196,10 @@
                 OrderNumber = orderDetail.OrderNumber,
                 SignDate = orderDetail.SignDate,
                 CustomerId = orderDetail.CustomerId,
-                Status = orderDetail.Status,
-                RowVersion = new byte[] { }  // 临时占位，实际应从后端获取
+                RowVersion = orderDetail.RowVersion
             };
+            // 用于下拉框绑定的枚举值
+            editOrderStatus = orderDetail.Status;
         }
 
         isLoading = false;
@@ -190,12 +213,36 @@
 
     private async Task SubmitUpdate()
     {
+        // 验证订单号
+        if (!string.IsNullOrEmpty(editOrder.OrderNumber) && editOrder.OrderNumber.Length != 11)
+        {
+            Snackbar.Add("订单号必须为11位字符", Severity.Warning);
+            return;
+        }
+
+        // 验证签订日期
+        if (!editOrder.SignDate.HasValue)
+        {
+            Snackbar.Add("请选择签订日期", Severity.Warning);
+            return;
+        }
+
+        // 验证客户
+        if (!editOrder.CustomerId.HasValue || editOrder.CustomerId == 0)
+        {
+            Snackbar.Add("请选择客户", Severity.Warning);
+            return;
+        }
+
         // 验证 RowVersion 不为空
         if (editOrder.RowVersion == null || editOrder.RowVersion.Length == 0)
         {
             Snackbar.Add("数据版本信息缺失，请刷新页面后重试", Severity.Warning);
             return;
         }
+
+        // 将枚举值转换为字符串用于 API
+        editOrder.Status = editOrderStatus.ToString();
 
         isSubmitting = true;
         StateHasChanged();
@@ -218,5 +265,31 @@
     private void GoBack()
     {
         Navigation.NavigateTo("/orders");
+    }
+
+    private Color GetStatusColor(SalesOrderStatus status)
+    {
+        return status switch
+        {
+            SalesOrderStatus.Pending => Color.Warning,
+            SalesOrderStatus.Confirmed => Color.Info,
+            SalesOrderStatus.Processing => Color.Primary,
+            SalesOrderStatus.Completed => Color.Success,
+            SalesOrderStatus.Cancelled => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private string GetStatusText(SalesOrderStatus status)
+    {
+        return status switch
+        {
+            SalesOrderStatus.Pending => "待处理",
+            SalesOrderStatus.Confirmed => "已确认",
+            SalesOrderStatus.Processing => "处理中",
+            SalesOrderStatus.Completed => "已完成",
+            SalesOrderStatus.Cancelled => "已取消",
+            _ => status.ToString()
+        };
     }
 }

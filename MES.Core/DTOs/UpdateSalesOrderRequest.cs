@@ -1,3 +1,4 @@
+// 文件路径: MES.Core/DTOs/UpdateSalesOrderRequest.cs
 using System.ComponentModel.DataAnnotations;
 
 namespace MES.Core.DTOs;

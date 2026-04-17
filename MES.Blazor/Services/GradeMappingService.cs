@@ -1,9 +1,9 @@
+// 文件路径: MES.Blazor/Services/GradeMappingService.cs
 using System.Net.Http.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
-
 
 public class GradeMappingService : IGradeMappingService
 {
@@ -81,6 +81,7 @@ public class GradeMappingService : IGradeMappingService
         }
     }
 
+    // 修改：返回类型改为 Task<ApiResponse<object>>
     public async Task<ApiResponse<object>> DeleteAsync(int id)
     {
         try

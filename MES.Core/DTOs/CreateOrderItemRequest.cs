@@ -1,4 +1,6 @@
+// 文件路径: MES.Core/DTOs/CreateOrderItemRequest.cs
 using System.ComponentModel.DataAnnotations;
+using MES.Core.Enums;
 
 namespace MES.Core.DTOs;
 
@@ -22,13 +24,13 @@ public class CreateOrderItemRequest
     /// 结算方式
     /// </summary>
     [Required(ErrorMessage = "结算方式不能为空")]
-    public string SettlementMethod { get; set; } = null!;
+    public SettlementMethod SettlementMethod { get; set; }
 
     /// <summary>
     /// 物料名称
     /// </summary>
     [Required(ErrorMessage = "物料名称不能为空")]
-    public string MaterialName { get; set; } = null!;
+    public MaterialName MaterialName { get; set; }
 
     /// <summary>
     /// 产品标准ID
@@ -40,7 +42,7 @@ public class CreateOrderItemRequest
     /// 交货状态
     /// </summary>
     [Required(ErrorMessage = "交货状态不能为空")]
-    public string DeliveryState { get; set; } = null!;
+    public DeliveryState DeliveryState { get; set; }
 
     /// <summary>
     /// 标准牌号
@@ -84,7 +86,7 @@ public class CreateOrderItemRequest
     /// 长度状态
     /// </summary>
     [Required(ErrorMessage = "长度状态不能为空")]
-    public string LengthStatus { get; set; } = null!;
+    public LengthStatus LengthStatus { get; set; }
 
     /// <summary>
     /// 最小长度（Fixed/Range时必填）

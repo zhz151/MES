@@ -1,3 +1,4 @@
+// ÎÄ¼þÂ·¾¶: MES.Api/Controllers/AuthController.cs
 using Microsoft.AspNetCore.Mvc;
 using MES.Auth.Services;
 using MES.Core.Models;
@@ -6,7 +7,7 @@ using MES.Core.DTOs.Auth;
 namespace MES.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/auth")]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;

@@ -2,6 +2,7 @@
 @using MES.Blazor.Services
 @using MES.Core.DTOs
 @using MES.Core.Models
+@using MES.Core.Enums
 @using Microsoft.AspNetCore.Authorization
 @inject ICustomerService CustomerService
 @inject NavigationManager Navigation
@@ -70,8 +71,8 @@
                     <MudTd>@context.ContactPerson</MudTd>
                     <MudTd>@context.ContactPhone</MudTd>
                     <MudTd>
-                        <MudChip Size="Size.Small" Color="@(context.Status == "Active" ? Color.Success : Color.Error)">
-                            @(context.Status == "Active" ? "启用" : "停用")
+                        <MudChip Size="Size.Small" Color="@(context.Status == CustomerStatus.Active ? Color.Success : Color.Error)">
+                            @(context.Status == CustomerStatus.Active ? "启用" : "停用")
                         </MudChip>
                     </MudTd>
                     <MudTd>

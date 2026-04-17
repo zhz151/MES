@@ -71,7 +71,7 @@ public class CustomerService : ICustomerService
                 ContactPerson = c.ContactPerson,
                 ContactPhone = c.ContactPhone,
                 Address = c.Address,
-                Status = c.Status.ToString(),
+                Status = c.Status,  // 直接赋值枚举，不再调用 ToString()
                 Remark = c.Remark
             })
             .ToListAsync();
@@ -108,7 +108,7 @@ public class CustomerService : ICustomerService
             ContactPerson = entity.ContactPerson,
             ContactPhone = entity.ContactPhone,
             Address = entity.Address,
-            Status = entity.Status.ToString(),
+            Status = entity.Status,  // 直接赋值枚举
             Remark = entity.Remark
         };
     }
@@ -127,11 +127,6 @@ public class CustomerService : ICustomerService
             throw new BusinessException($"Customer code '{request.CustomerCode}' already exists");
         }
 
-        // Parse status enum
-        var status = Enum.TryParse<CustomerStatus>(request.Status, true, out var parsedStatus)
-            ? parsedStatus
-            : CustomerStatus.Active;
-
         var entity = new CustomerProfile
         {
             CustomerCode = request.CustomerCode,
@@ -141,7 +136,7 @@ public class CustomerService : ICustomerService
             ContactPerson = request.ContactPerson,
             ContactPhone = request.ContactPhone,
             Address = request.Address,
-            Status = status,
+            Status = request.Status,  // 直接使用枚举
             Remark = request.Remark
         };
 
@@ -158,7 +153,7 @@ public class CustomerService : ICustomerService
             ContactPerson = entity.ContactPerson,
             ContactPhone = entity.ContactPhone,
             Address = entity.Address,
-            Status = entity.Status.ToString(),
+            Status = entity.Status,
             Remark = entity.Remark
         };
     }
@@ -241,7 +236,7 @@ public class CustomerService : ICustomerService
             ContactPerson = entity.ContactPerson,
             ContactPhone = entity.ContactPhone,
             Address = entity.Address,
-            Status = entity.Status.ToString(),
+            Status = entity.Status,
             Remark = entity.Remark
         };
     }

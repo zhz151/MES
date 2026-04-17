@@ -1,3 +1,4 @@
+// 文件路径: MES.Blazor/Services/ProductionStandardService.cs
 using System.Net.Http.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
@@ -75,6 +76,7 @@ public class ProductionStandardService : IProductionStandardService
         }
     }
 
+    // 修改：返回类型改为 Task<ApiResponse<object>>
     public async Task<ApiResponse<object>> DeleteAsync(int id)
     {
         try

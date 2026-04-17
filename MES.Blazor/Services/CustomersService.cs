@@ -24,7 +24,7 @@ public class CustomerService : ICustomerService
     public async Task<ApiResponse<PagedResult<CustomerProfileDto>>> GetPagedAsync(QueryParams query)
     {
         var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<CustomerProfileDto>>>(
-            $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&keyword={query.Keyword}&sortBy={query.SortBy}&isDescending={query.IsDescending}");
+            $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&keyword={Uri.EscapeDataString(query.Keyword ?? "")}&sortBy={query.SortBy}&isDescending={query.IsDescending}");
         return response ?? new ApiResponse<PagedResult<CustomerProfileDto>> { Success = false, Message = "Failed to get data" };
     }
 

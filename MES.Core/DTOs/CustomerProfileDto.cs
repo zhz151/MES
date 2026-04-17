@@ -1,4 +1,7 @@
 // 文件路径: MES.Core/DTOs/CustomerProfileDto.cs
+using MES.Core.Enums;
+using System.Text.Json.Serialization;
+
 namespace MES.Core.DTOs;
 
 /// <summary>
@@ -46,10 +49,9 @@ public class CustomerProfileDto
     /// </summary>
     public string? Address { get; set; }
 
-    /// <summary>
-    /// 客户状态（Active/Inactive）
-    /// </summary>
-    public string Status { get; set; } = string.Empty;
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public CustomerStatus Status { get; set; }
 
     /// <summary>
     /// 备注

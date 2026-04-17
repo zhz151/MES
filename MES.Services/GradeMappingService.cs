@@ -1,7 +1,7 @@
 // 文件路径: MES.Services/GradeMappingService.cs
 using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces;  // 添加这行 - 包含 IGradeMappingService
 using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
@@ -35,7 +35,7 @@ public class GradeMappingService : IGradeMappingService
                 PlantGrade = g.PlantGrade,
                 Density = g.Density,
                 HeatTreatment = g.HeatTreatment,
-                SpecialMaterial = g.SpecialMaterial,  // Direct assignment bool, no conversion
+                SpecialMaterial = g.SpecialMaterial,
                 SpecialNote = g.SpecialNote,
                 Remark = g.Remark
             })
@@ -64,7 +64,7 @@ public class GradeMappingService : IGradeMappingService
             PlantGrade = entity.PlantGrade,
             Density = entity.Density,
             HeatTreatment = entity.HeatTreatment,
-            SpecialMaterial = entity.SpecialMaterial,  // Direct assignment bool, no conversion
+            SpecialMaterial = entity.SpecialMaterial,
             SpecialNote = entity.SpecialNote,
             Remark = entity.Remark
         };
@@ -90,7 +90,7 @@ public class GradeMappingService : IGradeMappingService
             PlantGrade = request.PlantGrade,
             Density = request.Density,
             HeatTreatment = request.HeatTreatment,
-            SpecialMaterial = request.SpecialMaterial,  // Direct assignment bool
+            SpecialMaterial = request.SpecialMaterial,
             SpecialNote = request.SpecialNote,
             Remark = request.Remark
         };

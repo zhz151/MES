@@ -1,5 +1,7 @@
 // 文件路径: MES.Core/DTOs/CreateCustomerRequest.cs
 using System.ComponentModel.DataAnnotations;
+using MES.Core.Enums;
+using System.Text.Json.Serialization;
 
 namespace MES.Core.DTOs;
 
@@ -53,10 +55,8 @@ public class CreateCustomerRequest
     [StringLength(500, ErrorMessage = "联系地址长度不能超过500")]
     public string? Address { get; set; }
 
-    /// <summary>
-    /// 客户状态（默认Active）
-    /// </summary>
-    public string Status { get; set; } = "Active";
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public CustomerStatus Status { get; set; } = CustomerStatus.Active;
 
     /// <summary>
     /// 备注

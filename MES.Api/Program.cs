@@ -1,3 +1,4 @@
+// 文件路径: MES.Api/Program.cs
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,7 @@ using MES.Shared.Settings;
 using MES.Auth.Services;
 using MES.Api.Middlewares;
 using MES.Core.Interfaces;
+using MES.Core.Interfaces.Order;  // 新增：导入订单服务接口命名空间
 using MES.Services.Order;
 using MES.Services;
 
@@ -90,7 +92,7 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 
-// Register order service
+// Register order service (使用正确的接口命名空间)
 builder.Services.AddScoped<IOrderService, OrderService>();
 
 // Register auxiliary services

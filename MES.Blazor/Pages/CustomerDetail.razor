@@ -153,14 +153,6 @@
         {
             customer = result.Data;
 
-            // 将字符串状态转换为枚举
-            var status = customer.Status switch
-            {
-                "Active" => CustomerStatus.Active,
-                "Inactive" => CustomerStatus.Inactive,
-                _ => CustomerStatus.Active
-            };
-
             editCustomer = new UpdateCustomerRequest
             {
                 CustomerCode = customer.CustomerCode,
@@ -170,7 +162,7 @@
                 ContactPerson = customer.ContactPerson,
                 ContactPhone = customer.ContactPhone,
                 Address = customer.Address,
-                Status = status,
+                Status = customer.Status,  // 直接赋值枚举，不再需要字符串转换
                 Remark = customer.Remark
             };
         }
