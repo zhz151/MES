@@ -1,7 +1,8 @@
 // 文件路径: MES.Services/GradeMappingService.cs
 using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs;
-using MES.Core.Interfaces;  // 添加这行 - 包含 IGradeMappingService
+using MES.Core.Interfaces;
+using MES.Core.Models;
 using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
@@ -18,6 +19,63 @@ public class GradeMappingService : IGradeMappingService
     public GradeMappingService(AppDbContext context)
     {
         _context = context;
+    }
+
+    /// <summary>
+    /// 分页查询牌号对照（支持关键字搜索）
+    /// </summary>
+    public async Task<PagedResult<StandardGradeMappingDto>> GetPagedAsync(QueryParams query)
+    {
+        var queryable = _context.StandardGradeMappings
+            .Where(g => !g.IsDeleted)
+            .AsQueryable();
+
+        // 关键字模糊搜索
+        if (!string.IsNullOrEmpty(query.Keyword))
+        {
+            queryable = queryable.Where(g =>
+                g.StandardGrade.Contains(query.Keyword) ||
+                g.PlantGrade.Contains(query.Keyword));
+        }
+
+        // 排序
+        queryable = query.SortBy?.ToLower() switch
+        {
+            "standardgrade" => query.IsDescending
+                ? queryable.OrderByDescending(g => g.StandardGrade)
+                : queryable.OrderBy(g => g.StandardGrade),
+            "plantgrade" => query.IsDescending
+                ? queryable.OrderByDescending(g => g.PlantGrade)
+                : queryable.OrderBy(g => g.PlantGrade),
+            _ => query.IsDescending
+                ? queryable.OrderByDescending(g => g.StandardGrade)
+                : queryable.OrderBy(g => g.StandardGrade)
+        };
+
+        var totalCount = await queryable.CountAsync();
+        var items = await queryable
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .Select(g => new StandardGradeMappingDto
+            {
+                Id = g.Id,
+                StandardGrade = g.StandardGrade,
+                PlantGrade = g.PlantGrade,
+                Density = g.Density,
+                HeatTreatment = g.HeatTreatment,
+                SpecialMaterial = g.SpecialMaterial,
+                SpecialNote = g.SpecialNote,
+                Remark = g.Remark
+            })
+            .ToListAsync();
+
+        return new PagedResult<StandardGradeMappingDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            PageIndex = query.PageIndex,
+            PageSize = query.PageSize
+        };
     }
 
     /// <summary>

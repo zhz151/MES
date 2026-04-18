@@ -24,12 +24,22 @@ public class ProductionStandardController : ControllerBase
     }
 
     /// <summary>
-    /// 获取所有产品标准（用于下拉框）
+    /// 分页查询产品标准列表（支持关键字搜索）- 用于 ServerData 模式
     /// </summary>
-    /// <param name="onlyActive">是否只返回启用的标准，默认 true</param>
     [HttpGet("list")]
     [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<List<ProductionStandardDto>>>> GetList([FromQuery] bool onlyActive = true)
+    public async Task<ActionResult<ApiResponse<PagedResult<ProductionStandardDto>>>> GetPaged([FromQuery] QueryParams query)
+    {
+        var result = await _service.GetPagedAsync(query);
+        return Ok(ApiResponse<PagedResult<ProductionStandardDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 获取所有产品标准（用于下拉框）
+    /// </summary>
+    [HttpGet("all")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<ProductionStandardDto>>>> GetAll([FromQuery] bool onlyActive = true)
     {
         var result = await _service.GetAllAsync(onlyActive);
         return Ok(ApiResponse<List<ProductionStandardDto>>.Ok(result, "查询成功"));
@@ -86,7 +96,6 @@ public class ProductionStandardController : ControllerBase
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
     {
         await _service.DeleteAsync(id);
-        // 修复 CS8625：使用 new object() 代替 null
         return Ok(ApiResponse<object>.Ok(new object(), "删除成功"));
     }
 }

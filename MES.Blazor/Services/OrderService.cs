@@ -1,27 +1,21 @@
 // 文件路径: MES.Blazor/Services/OrderService.cs
-using System.Net.Http.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
 
-/// <summary>
-/// 订单服务实现（前端）
-/// </summary>
-public class OrderService : IOrderService
+public class OrderService
 {
-    private readonly HttpClient _http;
+    private readonly AuthHttpClient _http;
     private const string BaseUrl = "api/order";
 
-    public OrderService(HttpClient http)
+    public OrderService(AuthHttpClient http)
     {
         _http = http;
     }
 
-    // ========== 订单管理实现 ==========
-
     /// <summary>
-    /// 分页查询订单列表
+    /// 分页查询订单列表（支持关键字搜索）
     /// </summary>
     public async Task<ApiResponse<PagedResult<SalesOrderListDto>>> GetPagedAsync(QueryParams query)
     {
@@ -32,7 +26,6 @@ public class OrderService : IOrderService
             {
                 url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
             }
-
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<SalesOrderListDto>>>(url);
             return response ?? ApiResponse<PagedResult<SalesOrderListDto>>.Fail("获取订单列表失败");
         }
@@ -65,22 +58,8 @@ public class OrderService : IOrderService
     {
         try
         {
-            var response = await _http.PostAsJsonAsync(BaseUrl, request);
-            var result = await response.Content.ReadFromJsonAsync<ApiResponse<SalesOrderListDto>>();
-
-            if (response.IsSuccessStatusCode)
-            {
-                // 修复：使用 null 合并运算符，如果 result 为 null 则返回失败响应
-                return result ?? ApiResponse<SalesOrderListDto>.Fail("创建订单失败");
-            }
-
-            // 处理业务错误（如400状态码）
-            if (result != null && !result.Success)
-            {
-                return result;
-            }
-
-            return ApiResponse<SalesOrderListDto>.Fail($"创建订单失败: {response.StatusCode}");
+            var response = await _http.PostAsJsonAsync<CreateSalesOrderRequest, ApiResponse<SalesOrderListDto>>(BaseUrl, request);
+            return response ?? ApiResponse<SalesOrderListDto>.Fail("创建订单失败");
         }
         catch (Exception ex)
         {
@@ -95,21 +74,8 @@ public class OrderService : IOrderService
     {
         try
         {
-            var response = await _http.PutAsJsonAsync($"{BaseUrl}/{id}", request);
-            var result = await response.Content.ReadFromJsonAsync<ApiResponse<SalesOrderListDto>>();
-
-            if (response.IsSuccessStatusCode)
-            {
-                // 修复：使用 null 合并运算符
-                return result ?? ApiResponse<SalesOrderListDto>.Fail("更新订单失败");
-            }
-
-            if (result != null && !result.Success)
-            {
-                return result;
-            }
-
-            return ApiResponse<SalesOrderListDto>.Fail($"更新订单失败: {response.StatusCode}");
+            var response = await _http.PutAsJsonAsync<UpdateSalesOrderRequest, ApiResponse<SalesOrderListDto>>($"{BaseUrl}/{id}", request);
+            return response ?? ApiResponse<SalesOrderListDto>.Fail("更新订单失败");
         }
         catch (Exception ex)
         {
@@ -120,33 +86,18 @@ public class OrderService : IOrderService
     /// <summary>
     /// 删除订单（软删除）
     /// </summary>
-    public async Task<ApiResponse> DeleteAsync(int id)  // 注意：返回 ApiResponse（无泛型）
+    public async Task<ApiResponse<object>> DeleteAsync(int id)
     {
         try
         {
-            var response = await _http.DeleteAsync($"{BaseUrl}/{id}");
-            var result = await response.Content.ReadFromJsonAsync<ApiResponse>();
-
-            if (response.IsSuccessStatusCode)
-            {
-                // 修复：使用 null 合并运算符
-                return result ?? ApiResponse.Ok("删除成功");
-            }
-
-            if (result != null && !result.Success)
-            {
-                return result;
-            }
-
-            return ApiResponse.Fail($"删除订单失败: {response.StatusCode}");
+            var response = await _http.DeleteFromJsonAsync<ApiResponse<object>>($"{BaseUrl}/{id}");
+            return response ?? ApiResponse<object>.Fail("删除订单失败");
         }
         catch (Exception ex)
         {
-            return ApiResponse.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<object>.Fail($"网络错误: {ex.Message}");
         }
     }
-
-    // ========== 项次管理实现 ==========
 
     /// <summary>
     /// 添加订单项次
@@ -155,21 +106,8 @@ public class OrderService : IOrderService
     {
         try
         {
-            var response = await _http.PostAsJsonAsync($"{BaseUrl}/{orderId}/items", request);
-            var result = await response.Content.ReadFromJsonAsync<ApiResponse<OrderItemDto>>();
-
-            if (response.IsSuccessStatusCode)
-            {
-                // 修复：使用 null 合并运算符
-                return result ?? ApiResponse<OrderItemDto>.Fail("添加项次失败");
-            }
-
-            if (result != null && !result.Success)
-            {
-                return result;
-            }
-
-            return ApiResponse<OrderItemDto>.Fail($"添加项次失败: {response.StatusCode}");
+            var response = await _http.PostAsJsonAsync<AddOrderItemRequest, ApiResponse<OrderItemDto>>($"{BaseUrl}/{orderId}/items", request);
+            return response ?? ApiResponse<OrderItemDto>.Fail("添加项次失败");
         }
         catch (Exception ex)
         {
@@ -184,21 +122,8 @@ public class OrderService : IOrderService
     {
         try
         {
-            var response = await _http.PutAsJsonAsync($"{BaseUrl}/{orderId}/items/{itemId}", request);
-            var result = await response.Content.ReadFromJsonAsync<ApiResponse<OrderItemDto>>();
-
-            if (response.IsSuccessStatusCode)
-            {
-                // 修复：使用 null 合并运算符
-                return result ?? ApiResponse<OrderItemDto>.Fail("更新项次失败");
-            }
-
-            if (result != null && !result.Success)
-            {
-                return result;
-            }
-
-            return ApiResponse<OrderItemDto>.Fail($"更新项次失败: {response.StatusCode}");
+            var response = await _http.PutAsJsonAsync<UpdateOrderItemRequest, ApiResponse<OrderItemDto>>($"{BaseUrl}/{orderId}/items/{itemId}", request);
+            return response ?? ApiResponse<OrderItemDto>.Fail("更新项次失败");
         }
         catch (Exception ex)
         {
@@ -209,29 +134,16 @@ public class OrderService : IOrderService
     /// <summary>
     /// 删除订单项次（软删除）
     /// </summary>
-    public async Task<ApiResponse> DeleteItemAsync(int orderId, int itemId)  // 注意：返回 ApiResponse（无泛型）
+    public async Task<ApiResponse<object>> DeleteItemAsync(int orderId, int itemId)
     {
         try
         {
-            var response = await _http.DeleteAsync($"{BaseUrl}/{orderId}/items/{itemId}");
-            var result = await response.Content.ReadFromJsonAsync<ApiResponse>();
-
-            if (response.IsSuccessStatusCode)
-            {
-                // 修复：使用 null 合并运算符
-                return result ?? ApiResponse.Ok("删除项次成功");
-            }
-
-            if (result != null && !result.Success)
-            {
-                return result;
-            }
-
-            return ApiResponse.Fail($"删除项次失败: {response.StatusCode}");
+            var response = await _http.DeleteFromJsonAsync<ApiResponse<object>>($"{BaseUrl}/{orderId}/items/{itemId}");
+            return response ?? ApiResponse<object>.Fail("删除项次失败");
         }
         catch (Exception ex)
         {
-            return ApiResponse.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<object>.Fail($"网络错误: {ex.Message}");
         }
     }
 }

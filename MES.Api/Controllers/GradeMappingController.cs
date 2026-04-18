@@ -24,11 +24,22 @@ public class GradeMappingController : ControllerBase
     }
 
     /// <summary>
-    /// 获取所有牌号对照（用于下拉框）
+    /// 分页查询牌号对照列表（支持关键字搜索）- 用于 ServerData 模式
     /// </summary>
     [HttpGet("list")]
     [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<List<StandardGradeMappingDto>>>> GetList()
+    public async Task<ActionResult<ApiResponse<PagedResult<StandardGradeMappingDto>>>> GetPaged([FromQuery] QueryParams query)
+    {
+        var result = await _service.GetPagedAsync(query);
+        return Ok(ApiResponse<PagedResult<StandardGradeMappingDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 获取所有牌号对照（用于下拉框）
+    /// </summary>
+    [HttpGet("all")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<StandardGradeMappingDto>>>> GetAll()
     {
         var result = await _service.GetAllAsync();
         return Ok(ApiResponse<List<StandardGradeMappingDto>>.Ok(result, "查询成功"));
@@ -85,7 +96,6 @@ public class GradeMappingController : ControllerBase
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
     {
         await _service.DeleteAsync(id);
-        // 修复 CS8625：使用 new object() 代替 null
         return Ok(ApiResponse<object>.Ok(new object(), "删除成功"));
     }
 }

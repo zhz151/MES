@@ -1,7 +1,8 @@
 // 文件路径: MES.Services/ProductionStandardService.cs
 using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs;
-using MES.Core.Interfaces;  
+using MES.Core.Interfaces;
+using MES.Core.Models;
 using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
@@ -18,6 +19,64 @@ public class ProductionStandardService : IProductionStandardService
     public ProductionStandardService(AppDbContext context)
     {
         _context = context;
+    }
+
+    /// <summary>
+    /// 分页查询产品标准（支持关键字搜索）
+    /// </summary>
+    public async Task<PagedResult<ProductionStandardDto>> GetPagedAsync(QueryParams query)
+    {
+        var queryable = _context.ProductionStandards
+            .Where(p => !p.IsDeleted)
+            .AsQueryable();
+
+        // 关键字模糊搜索
+        if (!string.IsNullOrEmpty(query.Keyword))
+        {
+            queryable = queryable.Where(p =>
+                p.StandardCode.Contains(query.Keyword) ||
+                p.StandardName.Contains(query.Keyword));
+        }
+
+        // 排序
+        queryable = query.SortBy?.ToLower() switch
+        {
+            "standardcode" => query.IsDescending
+                ? queryable.OrderByDescending(p => p.StandardCode)
+                : queryable.OrderBy(p => p.StandardCode),
+            "standardname" => query.IsDescending
+                ? queryable.OrderByDescending(p => p.StandardName)
+                : queryable.OrderBy(p => p.StandardName),
+            "sortorder" => query.IsDescending
+                ? queryable.OrderByDescending(p => p.SortOrder)
+                : queryable.OrderBy(p => p.SortOrder),
+            _ => query.IsDescending
+                ? queryable.OrderByDescending(p => p.SortOrder)
+                : queryable.OrderBy(p => p.SortOrder)
+        };
+
+        var totalCount = await queryable.CountAsync();
+        var items = await queryable
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .Select(p => new ProductionStandardDto
+            {
+                Id = p.Id,
+                StandardCode = p.StandardCode,
+                StandardName = p.StandardName,
+                Remark = p.Remark,
+                SortOrder = p.SortOrder,
+                IsActive = p.IsActive
+            })
+            .ToListAsync();
+
+        return new PagedResult<ProductionStandardDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            PageIndex = query.PageIndex,
+            PageSize = query.PageSize
+        };
     }
 
     /// <summary>

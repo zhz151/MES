@@ -2,8 +2,7 @@
 @using MES.Blazor.Services
 @using MES.Core.DTOs
 @using Microsoft.AspNetCore.Authorization
-@using MudBlazor
-@inject IGradeMappingService GradeMappingService
+@inject GradeMappingService GradeMappingService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @attribute [Authorize(Roles = "OrderDirector,Admin")]
@@ -21,14 +20,8 @@
             <CardHeaderActions>
                 <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveGradeMapping" Disabled="@isSubmitting">
-                    @if (isSubmitting)
-                    {
-                        <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
-                    }
-                    else
-                    {
-                        <span>保存</span>
-                    }
+                    @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> }
+                    else { <span>保存</span> }
                 </MudButton>
             </CardHeaderActions>
         </MudCardHeader>
@@ -36,47 +29,25 @@
         <MudCardContent>
             <MudGrid>
                 <MudItem xs="12" md="6">
-                    <MudTextField T="string"
-                                  Label="标准牌号"
-                                  @bind-Value="gradeMapping.StandardGrade"
-                                  Required="true"
-                                  HelperText="如 304, 316L" />
+                    <MudTextField T="string" Label="标准牌号" @bind-Value="gradeMapping.StandardGrade" Required="true" HelperText="如 304, 316L" />
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudTextField T="string"
-                                  Label="工厂牌号"
-                                  @bind-Value="gradeMapping.PlantGrade"
-                                  Required="true"
-                                  HelperText="如 06Cr19Ni10" />
+                    <MudTextField T="string" Label="工厂牌号" @bind-Value="gradeMapping.PlantGrade" Required="true" HelperText="如 06Cr19Ni10" />
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudNumericField T="decimal"
-                                     Label="密度 (g/cm³)"
-                                     @bind-Value="densityValue"
-                                     Required="true"
-                                     Format="F4"
-                                     Min="0" />
+                    <MudNumericField T="decimal" Label="密度 (g/cm³)" @bind-Value="densityValue" Required="true" Format="F4" Min="0" />
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudSwitch @bind-Value="gradeMapping.SpecialMaterial" Label="特殊材料" />
                 </MudItem>
                 <MudItem xs="12" md="12">
-                    <MudTextField T="string"
-                                  Label="热处理工艺"
-                                  @bind-Value="gradeMapping.HeatTreatment"
-                                  HelperText="如：固溶处理 1010-1150℃，快冷" />
+                    <MudTextField T="string" Label="热处理工艺" @bind-Value="gradeMapping.HeatTreatment" HelperText="如：固溶处理 1010-1150℃，快冷" />
                 </MudItem>
                 <MudItem xs="12" md="12">
-                    <MudTextField T="string"
-                                  Label="特殊注意事项"
-                                  @bind-Value="gradeMapping.SpecialNote"
-                                  Style="min-height: 80px;" />
+                    <MudTextField T="string" Label="特殊注意事项" @bind-Value="gradeMapping.SpecialNote" Multiline="true" Lines="2" />
                 </MudItem>
                 <MudItem xs="12" md="12">
-                    <MudTextField T="string"
-                                  Label="备注"
-                                  @bind-Value="gradeMapping.Remark"
-                                  Style="min-height: 80px;" />
+                    <MudTextField T="string" Label="备注" @bind-Value="gradeMapping.Remark" Multiline="true" Lines="3" />
                 </MudItem>
             </MudGrid>
         </MudCardContent>
@@ -88,62 +59,25 @@
     private bool isSubmitting;
     private decimal densityValue = 7.93m;
 
-    protected override void OnInitialized()
-    {
-        densityValue = gradeMapping.Density;
-    }
+    protected override void OnInitialized() => densityValue = gradeMapping.Density;
 
     private async Task SaveGradeMapping()
     {
-        if (string.IsNullOrWhiteSpace(gradeMapping.StandardGrade))
-        {
-            Snackbar.Add("标准牌号不能为空", Severity.Warning);
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(gradeMapping.PlantGrade))
-        {
-            Snackbar.Add("工厂牌号不能为空", Severity.Warning);
-            return;
-        }
-
+        if (string.IsNullOrWhiteSpace(gradeMapping.StandardGrade)) { Snackbar.Add("标准牌号不能为空", Severity.Warning); return; }
+        if (string.IsNullOrWhiteSpace(gradeMapping.PlantGrade)) { Snackbar.Add("工厂牌号不能为空", Severity.Warning); return; }
         gradeMapping.Density = densityValue;
+        if (gradeMapping.Density <= 0) { Snackbar.Add("密度必须大于0", Severity.Warning); return; }
 
-        if (gradeMapping.Density <= 0)
-        {
-            Snackbar.Add("密度必须大于0", Severity.Warning);
-            return;
-        }
-
-        isSubmitting = true;
-        StateHasChanged();
-
+        isSubmitting = true; StateHasChanged();
         try
         {
             var result = await GradeMappingService.CreateAsync(gradeMapping);
-            if (result != null && result.Success)
-            {
-                Snackbar.Add("创建成功", Severity.Success);
-                Navigation.NavigateTo("/grade-mappings");
-            }
-            else
-            {
-                Snackbar.Add(result?.Message ?? "创建失败", Severity.Error);
-            }
+            if (result.Success) { Snackbar.Add("创建成功", Severity.Success); Navigation.NavigateTo("/grade-mappings"); }
+            else { Snackbar.Add(result.Message ?? "创建失败", Severity.Error); }
         }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"创建失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            isSubmitting = false;
-            StateHasChanged();
-        }
+        catch (Exception ex) { Snackbar.Add($"创建失败: {ex.Message}", Severity.Error); }
+        finally { isSubmitting = false; StateHasChanged(); }
     }
 
-    private void GoBack()
-    {
-        Navigation.NavigateTo("/grade-mappings");
-    }
+    private void GoBack() => Navigation.NavigateTo("/grade-mappings");
 }

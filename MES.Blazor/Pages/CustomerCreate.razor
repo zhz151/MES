@@ -3,7 +3,7 @@
 @using MES.Core.DTOs
 @using MES.Core.Enums
 @using Microsoft.AspNetCore.Authorization
-@inject ICustomerService CustomerService
+@inject CustomerService CustomerService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @attribute [Authorize(Roles = "OrderDirector,Admin")]
@@ -21,14 +21,8 @@
             <CardHeaderActions>
                 <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveCustomer" Disabled="@isSubmitting">
-                    @if (isSubmitting)
-                    {
-                        <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
-                    }
-                    else
-                    {
-                        <span>保存</span>
-                    }
+                    @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> }
+                    else { <span>保存</span> }
                 </MudButton>
             </CardHeaderActions>
         </MudCardHeader>
@@ -36,54 +30,34 @@
         <MudCardContent>
             <MudGrid>
                 <MudItem xs="12" md="6">
-                    <MudTextField T="string" 
-                                  Label="客户编码" 
-                                  @bind-Value="customer.CustomerCode" 
-                                  Required="true" />
+                    <MudTextField T="string" Label="客户编码" @bind-Value="customer.CustomerCode" Required="true" />
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudTextField T="string" 
-                                  Label="业务员" 
-                                  @bind-Value="customer.Salesman" 
-                                  Required="true" />
+                    <MudTextField T="string" Label="业务员" @bind-Value="customer.Salesman" Required="true" />
                 </MudItem>
                 <MudItem xs="12" md="12">
-                    <MudTextField T="string" 
-                                  Label="客户单位" 
-                                  @bind-Value="customer.CustomerUnit" 
-                                  Required="true" />
+                    <MudTextField T="string" Label="客户单位" @bind-Value="customer.CustomerUnit" Required="true" />
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudTextField T="string" 
-                                  Label="最终用户" 
-                                  @bind-Value="customer.EndCustomer" />
+                    <MudTextField T="string" Label="最终用户" @bind-Value="customer.EndCustomer" />
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudSelect T="CustomerStatus" Label="状态" @bind-Value="customer.Status">
-                        <MudSelectItem Value="@CustomerStatus.Active">启用</MudSelectItem>
-                        <MudSelectItem Value="@CustomerStatus.Inactive">停用</MudSelectItem>
+                    <MudSelect T="string" Label="状态" @bind-Value="selectedStatusText" Required="true">
+                        <MudSelectItem Value="@CustomerStatus.Active.ToString()">启用</MudSelectItem>
+                        <MudSelectItem Value="@CustomerStatus.Inactive.ToString()">停用</MudSelectItem>
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudTextField T="string" 
-                                  Label="联系人" 
-                                  @bind-Value="customer.ContactPerson" />
+                    <MudTextField T="string" Label="联系人" @bind-Value="customer.ContactPerson" />
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudTextField T="string" 
-                                  Label="联系电话" 
-                                  @bind-Value="customer.ContactPhone" />
+                    <MudTextField T="string" Label="联系电话" @bind-Value="customer.ContactPhone" />
                 </MudItem>
                 <MudItem xs="12" md="12">
-                    <MudTextField T="string" 
-                                  Label="联系地址" 
-                                  @bind-Value="customer.Address" />
+                    <MudTextField T="string" Label="联系地址" @bind-Value="customer.Address" />
                 </MudItem>
                 <MudItem xs="12" md="12">
-                    <MudTextField T="string" 
-                                  Label="备注" 
-                                  @bind-Value="customer.Remark" 
-                                  Multiline="true" />
+                    <MudTextField T="string" Label="备注" @bind-Value="customer.Remark" Multiline="true" />
                 </MudItem>
             </MudGrid>
         </MudCardContent>
@@ -93,6 +67,7 @@
 @code {
     private CreateCustomerRequest customer = new() { Status = CustomerStatus.Active };
     private bool isSubmitting;
+    private string selectedStatusText = CustomerStatus.Active.ToString();
 
     private async Task SaveCustomer()
     {
@@ -101,18 +76,18 @@
             Snackbar.Add("客户编码不能为空", Severity.Warning);
             return;
         }
-
         if (string.IsNullOrWhiteSpace(customer.Salesman))
         {
             Snackbar.Add("业务员不能为空", Severity.Warning);
             return;
         }
-
         if (string.IsNullOrWhiteSpace(customer.CustomerUnit))
         {
             Snackbar.Add("客户单位不能为空", Severity.Warning);
             return;
         }
+
+        customer.Status = selectedStatusText == CustomerStatus.Active.ToString() ? CustomerStatus.Active : CustomerStatus.Inactive;
 
         isSubmitting = true;
         StateHasChanged();
@@ -141,8 +116,5 @@
         }
     }
 
-    private void GoBack()
-    {
-        Navigation.NavigateTo("/customers");
-    }
+    private void GoBack() => Navigation.NavigateTo("/customers");
 }

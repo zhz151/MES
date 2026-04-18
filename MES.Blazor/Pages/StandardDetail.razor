@@ -3,10 +3,10 @@
 @using MES.Blazor.Services
 @using MES.Core.DTOs
 @using Microsoft.AspNetCore.Authorization
-@using MudBlazor
-@inject IProductionStandardService StandardService
+@inject ProductionStandardService StandardService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
@@ -27,23 +27,15 @@
                         <MudIcon Icon="@Icons.Material.Filled.DocumentScanner" Class="mr-2" Color="Color.Primary" />
                         产品标准详情
                     </MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        标准编码：@standard.StandardCode
-                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">标准编码：@standard.StandardCode</MudText>
                 </CardHeaderContent>
                 <CardHeaderActions>
                     <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
                     @if (isEditMode)
                     {
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveStandard" Disabled="@isSubmitting">
-                            @if (isSubmitting)
-                            {
-                                <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
-                            }
-                            else
-                            {
-                                <span>保存</span>
-                            }
+                            @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> }
+                            else { <span>保存</span> }
                         </MudButton>
                     }
                     else
@@ -58,34 +50,19 @@
             <MudCardContent>
                 <MudGrid>
                     <MudItem xs="12" md="6">
-                        <MudTextField T="string"
-                                      Label="标准编码"
-                                      @bind-Value="editStandard.StandardCode"
-                                      Disabled="!isEditMode"
-                                      HelperText="唯一标识，如 GB/T 14976" />
+                        <MudTextField T="string" Label="标准编码" @bind-Value="editStandard.StandardCode" Disabled="!isEditMode" HelperText="唯一标识" />
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudNumericField T="int"
-                                         Label="排序序号"
-                                         @bind-Value="sortOrderValue"
-                                         Disabled="!isEditMode"
-                                         HelperText="数字越小越靠前" />
+                        <MudNumericField T="int" Label="排序序号" @bind-Value="sortOrderValue" Disabled="!isEditMode" HelperText="数字越小越靠前" />
                     </MudItem>
                     <MudItem xs="12" md="12">
-                        <MudTextField T="string"
-                                      Label="标准名称"
-                                      @bind-Value="editStandard.StandardName"
-                                      Disabled="!isEditMode" />
+                        <MudTextField T="string" Label="标准名称" @bind-Value="editStandard.StandardName" Disabled="!isEditMode" />
                     </MudItem>
                     <MudItem xs="12" md="12">
                         <MudSwitch @bind-Value="editStandard.IsActive" Label="启用" Disabled="!isEditMode" />
                     </MudItem>
                     <MudItem xs="12" md="12">
-                        <MudTextField T="string"
-                                      Label="备注"
-                                      @bind-Value="editStandard.Remark"
-                                      Disabled="!isEditMode"
-                                      Style="min-height: 80px;" />
+                        <MudTextField T="string" Label="备注" @bind-Value="editStandard.Remark" Disabled="!isEditMode" Multiline="true" Lines="3" />
                     </MudItem>
                 </MudGrid>
             </MudCardContent>
@@ -95,7 +72,6 @@
 
 @code {
     [Parameter] public int Id { get; set; }
-
     private bool isEditMode => Navigation.Uri.Contains("/edit");
     private ProductionStandardDto? standard;
     private UpdateProductionStandardRequest editStandard = new();
@@ -103,16 +79,12 @@
     private bool isSubmitting;
     private int sortOrderValue;
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadData();
-    }
+    protected override async Task OnInitializedAsync() => await LoadData();
 
     private async Task LoadData()
     {
-        isLoading = true;
-        StateHasChanged();
-
+        if (Id <= 0) { Snackbar.Add("无效的标准ID", Severity.Error); isLoading = false; return; }
+        isLoading = true; StateHasChanged();
         try
         {
             var result = await StandardService.GetByIdAsync(Id);
@@ -129,72 +101,31 @@
                 };
                 sortOrderValue = standard.SortOrder;
             }
-            else
-            {
-                Snackbar.Add(result.Message ?? "加载数据失败", Severity.Error);
-            }
+            else { Snackbar.Add(result.Message ?? "加载失败", Severity.Error); }
         }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
-        }
+        catch (Exception ex) { Snackbar.Add($"加载失败: {ex.Message}", Severity.Error); }
+        finally { isLoading = false; StateHasChanged(); }
     }
 
-    private void EnterEditMode()
-    {
-        Navigation.NavigateTo($"/standards/{Id}/edit");
-    }
+    private void EnterEditMode() => Navigation.NavigateTo($"/standards/{Id}/edit");
 
     private async Task SaveStandard()
     {
-        if (string.IsNullOrWhiteSpace(editStandard.StandardCode))
-        {
-            Snackbar.Add("标准编码不能为空", Severity.Warning);
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(editStandard.StandardName))
-        {
-            Snackbar.Add("标准名称不能为空", Severity.Warning);
-            return;
-        }
+        if (string.IsNullOrWhiteSpace(editStandard.StandardCode)) { Snackbar.Add("标准编码不能为空", Severity.Warning); return; }
+        if (string.IsNullOrWhiteSpace(editStandard.StandardName)) { Snackbar.Add("标准名称不能为空", Severity.Warning); return; }
 
         editStandard.SortOrder = sortOrderValue;
-
-        isSubmitting = true;
-        StateHasChanged();
+        isSubmitting = true; StateHasChanged();
 
         try
         {
             var result = await StandardService.UpdateAsync(Id, editStandard);
-            if (result != null && result.Success)
-            {
-                Snackbar.Add("更新成功", Severity.Success);
-                Navigation.NavigateTo($"/standards/{Id}");
-            }
-            else
-            {
-                Snackbar.Add(result?.Message ?? "更新失败", Severity.Error);
-            }
+            if (result.Success) { Snackbar.Add("更新成功", Severity.Success); Navigation.NavigateTo($"/standards/{Id}"); }
+            else { Snackbar.Add(result.Message ?? "更新失败", Severity.Error); }
         }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"更新失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            isSubmitting = false;
-            StateHasChanged();
-        }
+        catch (Exception ex) { Snackbar.Add($"更新失败: {ex.Message}", Severity.Error); }
+        finally { isSubmitting = false; StateHasChanged(); }
     }
 
-    private void GoBack()
-    {
-        Navigation.NavigateTo("/standards");
-    }
+    private void GoBack() => Navigation.NavigateTo("/standards");
 }

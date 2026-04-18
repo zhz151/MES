@@ -1,4 +1,3 @@
-// 文件路径: MES.Blazor/Program.cs
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MES.Blazor;
@@ -16,13 +15,14 @@ builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
 
-// 注册服务
-builder.Services.AddScoped<ICustomerService, CustomerService>();
-builder.Services.AddScoped<IProductionStandardService, ProductionStandardService>();
-builder.Services.AddScoped<IGradeMappingService, GradeMappingService>();
-builder.Services.AddScoped<IOrderService, OrderService>();
-
-// 配置 HttpClient - 使用正确的 API 地址
+// 注册 AuthHttpClient（替代直接使用 HttpClient）
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7001") });
+builder.Services.AddScoped<AuthHttpClient>();
+
+// 注册服务（使用 AuthHttpClient）
+builder.Services.AddScoped<CustomerService>();
+builder.Services.AddScoped<ProductionStandardService>();
+builder.Services.AddScoped<GradeMappingService>();
+builder.Services.AddScoped<OrderService>();
 
 await builder.Build().RunAsync();

@@ -5,11 +5,11 @@
 @using MES.Core.Models
 @using MES.Core.Enums
 @using Microsoft.AspNetCore.Authorization
-@inject IOrderService OrderService
-@inject ICustomerService CustomerService
+@inject OrderService OrderService
+@inject CustomerService CustomerService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
-@inject IDialogService DialogService
+@inject IJSRuntime JS
 @attribute [Authorize]
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
@@ -30,23 +30,15 @@
                         <MudIcon Icon="@Icons.Material.Filled.Receipt" Class="mr-2" Color="Color.Primary" />
                         订单详情
                     </MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        订单号：@orderDetail.OrderNumber
-                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">订单号：@orderDetail.OrderNumber</MudText>
                 </CardHeaderContent>
                 <CardHeaderActions>
                     <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
                     @if (isEditMode)
                     {
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitUpdate" Disabled="@isSubmitting">
-                            @if (isSubmitting)
-                            {
-                                <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
-                            }
-                            else
-                            {
-                                <span>保存修改</span>
-                            }
+                            @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> }
+                            else { <span>保存修改</span> }
                         </MudButton>
                     }
                     else
@@ -59,28 +51,16 @@
             </MudCardHeader>
 
             <MudCardContent>
-                <!-- 订单基本信息 -->
-                <MudText Typo="Typo.subtitle1" Class="mb-3">
-                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
-                    基本信息
-                </MudText>
+                <MudText Typo="Typo.subtitle1" Class="mb-3"><MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />基本信息</MudText>
                 <MudGrid>
                     <MudItem xs="12" md="4">
-                        <MudTextField T="string"
-                                      Label="订单号"
-                                      @bind-Value="editOrder.OrderNumber"
-                                      Disabled="!isEditMode"
-                                      HelperText="11位字符" />
+                        <MudTextField T="string" Label="订单号" @bind-Value="editOrder.OrderNumber" Disabled="!isEditMode" HelperText="11位字符" />
                     </MudItem>
                     <MudItem xs="12" md="4">
-                        <MudDatePicker @bind-Date="editOrder.SignDate"
-                                       Label="签订日期"
-                                       Disabled="!isEditMode" />
+                        <MudDatePicker @bind-Date="editOrder.SignDate" Label="签订日期" Disabled="!isEditMode" />
                     </MudItem>
                     <MudItem xs="12" md="4">
-                        <MudSelect T="int?" @bind-Value="editOrder.CustomerId"
-                                   Label="客户单位"
-                                   Disabled="!isEditMode">
+                        <MudSelect T="int?" @bind-Value="editOrder.CustomerId" Label="客户单位" Disabled="!isEditMode">
                             @foreach (var customer in customers)
                             {
                                 <MudSelectItem Value="@customer.Id">@customer.CustomerUnit</MudSelectItem>
@@ -88,44 +68,23 @@
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="4">
-                        <MudSelect T="SalesOrderStatus" @bind-Value="editOrderStatus"
-                                   Label="订单状态"
-                                   Disabled="!isEditMode"
-                                   Required="true">
-                            <MudSelectItem Value="@SalesOrderStatus.Pending">待处理</MudSelectItem>
-                            <MudSelectItem Value="@SalesOrderStatus.Confirmed">已确认</MudSelectItem>
-                            <MudSelectItem Value="@SalesOrderStatus.Processing">处理中</MudSelectItem>
-                            <MudSelectItem Value="@SalesOrderStatus.Completed">已完成</MudSelectItem>
-                            <MudSelectItem Value="@SalesOrderStatus.Cancelled">已取消</MudSelectItem>
+                        <MudSelect T="string" @bind-Value="editOrderStatusText" Label="订单状态" Disabled="!isEditMode" Required="true">
+                            <MudSelectItem Value="@SalesOrderStatus.Pending.ToString()">待处理</MudSelectItem>
+                            <MudSelectItem Value="@SalesOrderStatus.Confirmed.ToString()">已确认</MudSelectItem>
+                            <MudSelectItem Value="@SalesOrderStatus.Processing.ToString()">处理中</MudSelectItem>
+                            <MudSelectItem Value="@SalesOrderStatus.Completed.ToString()">已完成</MudSelectItem>
+                            <MudSelectItem Value="@SalesOrderStatus.Cancelled.ToString()">已取消</MudSelectItem>
                         </MudSelect>
-                    </MudItem>
-                    <MudItem xs="12" md="8">
-                        <MudText Typo="Typo.body2" Class="mt-2">
-                            <MudChip Size="Size.Small" Color="@GetStatusColor(orderDetail.Status)">
-                                当前状态：@GetStatusText(orderDetail.Status)
-                            </MudChip>
-                        </MudText>
                     </MudItem>
                 </MudGrid>
 
                 <MudDivider Class="my-4" />
-
-                <!-- 订单项次列表 -->
-                <MudText Typo="Typo.subtitle1" Class="mb-3">
-                    <MudIcon Icon="@Icons.Material.Filled.List" Size="Size.Small" Class="mr-1" />
-                    订单项次
-                </MudText>
+                <MudText Typo="Typo.subtitle1" Class="mb-3"><MudIcon Icon="@Icons.Material.Filled.List" Size="Size.Small" Class="mr-1" />订单项次</MudText>
 
                 <MudTable T="OrderItemDto" Items="@(orderDetail.Items ?? new List<OrderItemDto>())" Dense="true" Hover="true">
                     <HeaderContent>
-                        <MudTh>项次</MudTh>
-                        <MudTh>规格</MudTh>
-                        <MudTh>牌号</MudTh>
-                        <MudTh>数量(支)</MudTh>
-                        <MudTh>米数(m)</MudTh>
-                        <MudTh>合同重量(kg)</MudTh>
-                        <MudTh>理算重量(kg)</MudTh>
-                        <MudTh>交货日期</MudTh>
+                        <MudTh>项次</MudTh><MudTh>规格</MudTh><MudTh>牌号</MudTh><MudTh>数量(支)</MudTh>
+                        <MudTh>米数(m)</MudTh><MudTh>合同重量(kg)</MudTh><MudTh>理算重量(kg)</MudTh><MudTh>交货日期</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.Sequence</MudTd>
@@ -137,22 +96,8 @@
                         <MudTd>@context.TheoreticalWeight.ToString("F2")</MudTd>
                         <MudTd>@context.DeliveryDate.ToString("yyyy-MM-dd")</MudTd>
                     </RowTemplate>
-                    <PagerContent>
-                        <MudTablePager />
-                    </PagerContent>
+                    <PagerContent><MudTablePager /></PagerContent>
                 </MudTable>
-
-                <!-- 项次管理按钮（编辑模式下显示） -->
-                @if (isEditMode)
-                {
-                    <MudGrid Class="mt-4">
-                        <MudItem xs="12">
-                            <MudAlert Severity="Severity.Warning">
-                                <strong>提示：</strong> 项次的新增、修改、删除功能请在专门的项次管理页面操作。
-                            </MudAlert>
-                        </MudItem>
-                    </MudGrid>
-                }
             </MudCardContent>
         </MudCard>
     }
@@ -160,136 +105,69 @@
 
 @code {
     [Parameter] public int Id { get; set; }
-
     private bool isEditMode => Navigation.Uri.Contains("/edit");
     private SalesOrderDetailDto? orderDetail;
     private UpdateSalesOrderRequest editOrder = new();
-    private SalesOrderStatus editOrderStatus;
+    private string editOrderStatusText = SalesOrderStatus.Pending.ToString();
     private List<CustomerProfileDto> customers = new();
     private bool isLoading = true;
     private bool isSubmitting;
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadData();
-    }
+    protected override async Task OnInitializedAsync() => await LoadData();
 
     private async Task LoadData()
     {
+        if (Id <= 0)
+        {
+            Snackbar.Add("无效的订单ID", Severity.Error);
+            isLoading = false;
+            return;
+        }
         isLoading = true;
         StateHasChanged();
-
-        // 加载客户列表
-        var customersResult = await CustomerService.GetPagedAsync(new QueryParams { PageSize = 999 });
-        if (customersResult.Success && customersResult.Data != null)
+        try
         {
-            customers = customersResult.Data.Items;
-        }
+            var customersResult = await CustomerService.GetPagedAsync(new QueryParams { PageSize = 999 });
+            if (customersResult.Success && customersResult.Data != null) { customers = customersResult.Data.Items; }
 
-        // 加载订单详情
-        var result = await OrderService.GetByIdAsync(Id);
-        if (result.Success && result.Data != null)
-        {
-            orderDetail = result.Data;
-            editOrder = new UpdateSalesOrderRequest
+            var result = await OrderService.GetByIdAsync(Id);
+            if (result.Success && result.Data != null)
             {
-                OrderNumber = orderDetail.OrderNumber,
-                SignDate = orderDetail.SignDate,
-                CustomerId = orderDetail.CustomerId,
-                RowVersion = orderDetail.RowVersion
-            };
-            // 用于下拉框绑定的枚举值
-            editOrderStatus = orderDetail.Status;
+                orderDetail = result.Data;
+                editOrder = new UpdateSalesOrderRequest
+                {
+                    OrderNumber = orderDetail.OrderNumber,
+                    SignDate = orderDetail.SignDate,
+                    CustomerId = orderDetail.CustomerId,
+                    RowVersion = orderDetail.RowVersion
+                };
+                editOrderStatusText = orderDetail.Status.ToString();
+            }
+            else { Snackbar.Add(result.Message ?? "加载失败", Severity.Error); }
         }
-
-        isLoading = false;
-        StateHasChanged();
+        catch (Exception ex) { Snackbar.Add($"加载失败: {ex.Message}", Severity.Error); }
+        finally { isLoading = false; StateHasChanged(); }
     }
 
-    private void EnterEditMode()
-    {
-        Navigation.NavigateTo($"/orders/{Id}/edit");
-    }
+    private void EnterEditMode() => Navigation.NavigateTo($"/orders/{Id}/edit");
 
     private async Task SubmitUpdate()
     {
-        // 验证订单号
         if (!string.IsNullOrEmpty(editOrder.OrderNumber) && editOrder.OrderNumber.Length != 11)
-        {
-            Snackbar.Add("订单号必须为11位字符", Severity.Warning);
-            return;
-        }
-
-        // 验证签订日期
-        if (!editOrder.SignDate.HasValue)
-        {
-            Snackbar.Add("请选择签订日期", Severity.Warning);
-            return;
-        }
-
-        // 验证客户
-        if (!editOrder.CustomerId.HasValue || editOrder.CustomerId == 0)
-        {
-            Snackbar.Add("请选择客户", Severity.Warning);
-            return;
-        }
-
-        // 验证 RowVersion 不为空
+        { Snackbar.Add("订单号必须为11位字符", Severity.Warning); return; }
+        if (!editOrder.SignDate.HasValue) { Snackbar.Add("请选择签订日期", Severity.Warning); return; }
+        if (!editOrder.CustomerId.HasValue || editOrder.CustomerId == 0) { Snackbar.Add("请选择客户", Severity.Warning); return; }
         if (editOrder.RowVersion == null || editOrder.RowVersion.Length == 0)
-        {
-            Snackbar.Add("数据版本信息缺失，请刷新页面后重试", Severity.Warning);
-            return;
-        }
+        { Snackbar.Add("数据版本信息缺失，请刷新页面后重试", Severity.Warning); return; }
 
-        // 将枚举值转换为字符串用于 API
-        editOrder.Status = editOrderStatus.ToString();
-
-        isSubmitting = true;
-        StateHasChanged();
+        editOrder.Status = editOrderStatusText;
+        isSubmitting = true; StateHasChanged();
 
         var result = await OrderService.UpdateAsync(Id, editOrder);
-        if (result.Success)
-        {
-            Snackbar.Add("更新成功", Severity.Success);
-            Navigation.NavigateTo($"/orders/{Id}");
-        }
-        else
-        {
-            Snackbar.Add(result.Message ?? "更新失败", Severity.Error);
-        }
-
-        isSubmitting = false;
-        StateHasChanged();
+        if (result.Success) { Snackbar.Add("更新成功", Severity.Success); Navigation.NavigateTo($"/orders/{Id}"); }
+        else { Snackbar.Add(result.Message ?? "更新失败", Severity.Error); }
+        isSubmitting = false; StateHasChanged();
     }
 
-    private void GoBack()
-    {
-        Navigation.NavigateTo("/orders");
-    }
-
-    private Color GetStatusColor(SalesOrderStatus status)
-    {
-        return status switch
-        {
-            SalesOrderStatus.Pending => Color.Warning,
-            SalesOrderStatus.Confirmed => Color.Info,
-            SalesOrderStatus.Processing => Color.Primary,
-            SalesOrderStatus.Completed => Color.Success,
-            SalesOrderStatus.Cancelled => Color.Error,
-            _ => Color.Default
-        };
-    }
-
-    private string GetStatusText(SalesOrderStatus status)
-    {
-        return status switch
-        {
-            SalesOrderStatus.Pending => "待处理",
-            SalesOrderStatus.Confirmed => "已确认",
-            SalesOrderStatus.Processing => "处理中",
-            SalesOrderStatus.Completed => "已完成",
-            SalesOrderStatus.Cancelled => "已取消",
-            _ => status.ToString()
-        };
-    }
+    private void GoBack() => Navigation.NavigateTo("/orders");
 }

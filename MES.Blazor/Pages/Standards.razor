@@ -1,11 +1,12 @@
 @page "/standards"
 @using MES.Blazor.Services
 @using MES.Core.DTOs
+@using MES.Core.Models
 @using Microsoft.AspNetCore.Authorization
-@inject IProductionStandardService StandardService
+@inject ProductionStandardService StandardService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
-@inject IDialogService DialogService
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
@@ -33,33 +34,54 @@
             <MudGrid>
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
-                                  Label="搜索标准编码/名称"
-                                  Immediate="true"
-                                  Adornment="Adornment.End"
-                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Label="模糊搜索 - 标准编码/名称"
+                                  Placeholder="输入关键字进行模糊搜索..."
                                   @bind-Value="searchKeyword"
-                                  @bind-Value:event="oninput"
-                                  OnKeyDown="OnSearchKeyDown" />
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  OnKeyDown="OnSearchKeyDown"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
                 <MudItem xs="12" md="3">
-                    <MudSelect T="bool?" Label="状态筛选" @bind-Value="filterActive">
+                    <MudSelect T="bool?" Label="状态筛选" @bind-Value="filterActive" OnValueChanged="OnFilterChanged">
                         <MudSelectItem Value="@((bool?)null)">全部</MudSelectItem>
                         <MudSelectItem Value="@((bool?)true)">已启用</MudSelectItem>
                         <MudSelectItem Value="@((bool?)false)">已停用</MudSelectItem>
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="3">
-                    <MudButton Variant="Variant.Outlined"
+                    <MudButton Variant="Variant.Filled"
                                Color="Color.Primary"
                                FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Search"
                                OnClick="Search">
                         搜索
                     </MudButton>
                 </MudItem>
             </MudGrid>
 
-            <!-- 表格 -->
-            <MudTable Items="@standards" Loading="@isLoading" Dense="true" Hover="true" Class="mt-4">
+            <!-- 数据表格 -->
+            <MudTable T="ProductionStandardDto"
+                      Items="@standards"
+                      TotalItems="@totalCount"
+                      Loading="@isLoading"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-4"
+                      Elevation="0"
+                      @bind-CurrentPage="currentPage"
+                      @bind-RowsPerPage="pageSize"
+                      RowsPerPageLabel="每页行数:"
+                      OnPageChanged="OnPageChanged"
+                      OnRowsPerPageChanged="OnPageSizeChanged">
+                <ToolBarContent>
+                    <MudText Typo="Typo.body2" Class="ml-auto">
+                        共 @totalCount 条记录
+                    </MudText>
+                </ToolBarContent>
                 <HeaderContent>
                     <MudTh>标准编码</MudTh>
                     <MudTh>标准名称</MudTh>
@@ -77,9 +99,18 @@
                         </MudChip>
                     </MudTd>
                     <MudTd>
-                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info" OnClick="() => ViewStandard(context.Id)">查看</MudButton>
-                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Warning" OnClick="() => EditStandard(context.Id)">编辑</MudButton>
-                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteStandard(context.Id)">删除</MudButton>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                       Color="Color.Info"
+                                       Size="Size.Small"
+                                       OnClick="() => ViewStandard(context.Id)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                       Color="Color.Warning"
+                                       Size="Size.Small"
+                                       OnClick="() => EditStandard(context.Id)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Color="Color.Error"
+                                       Size="Size.Small"
+                                       OnClick="() => DeleteStandard(context)" />
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
@@ -92,10 +123,14 @@
 
 @code {
     private List<ProductionStandardDto> standards = new();
-    private List<ProductionStandardDto> allStandards = new();
     private bool isLoading = true;
     private string searchKeyword = string.Empty;
-    private bool? filterActive = true;
+    private bool? filterActive = null;
+    
+    // 分页相关
+    private int currentPage = 1;
+    private int pageSize = 20;
+    private int totalCount = 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -109,12 +144,41 @@
 
         try
         {
-            allStandards = await StandardService.GetAllAsync(false);
-            ApplyFilter();
+            var queryParams = new QueryParams
+            {
+                PageIndex = currentPage,
+                PageSize = pageSize,
+                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword
+            };
+
+            var result = await StandardService.GetPagedAsync(queryParams);
+            
+            if (result.Success && result.Data != null)
+            {
+                // 根据状态筛选（前端筛选，因为后端 API 不直接支持状态筛选）
+                var items = result.Data.Items;
+                if (filterActive.HasValue)
+                {
+                    items = items.Where(x => x.IsActive == filterActive.Value).ToList();
+                }
+                
+                standards = items;
+                totalCount = result.Data.TotalCount;
+                Console.WriteLine($"加载成功: 第{currentPage}页, {standards.Count}条, 总数: {totalCount}");
+            }
+            else
+            {
+                standards = new List<ProductionStandardDto>();
+                totalCount = 0;
+                Snackbar.Add(result?.Message ?? "加载失败", Severity.Error);
+            }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
+            Console.WriteLine($"加载失败: {ex.Message}");
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+            standards = new List<ProductionStandardDto>();
+            totalCount = 0;
         }
         finally
         {
@@ -123,72 +187,78 @@
         }
     }
 
-    private void ApplyFilter()
+    private async Task Search()
     {
-        var query = allStandards.AsEnumerable();
-
+        currentPage = 1;
+        await LoadData();
+        
         if (!string.IsNullOrEmpty(searchKeyword))
         {
-            query = query.Where(x =>
-                x.StandardCode.Contains(searchKeyword, StringComparison.OrdinalIgnoreCase) ||
-                x.StandardName.Contains(searchKeyword, StringComparison.OrdinalIgnoreCase));
+            Snackbar.Add($"搜索关键字: {searchKeyword}, 找到 {totalCount} 条记录", Severity.Info);
         }
-
-        if (filterActive.HasValue)
-        {
-            query = query.Where(x => x.IsActive == filterActive.Value);
-        }
-
-        standards = query.OrderBy(x => x.SortOrder).ToList();
-    }
-
-    private void Search()
-    {
-        ApplyFilter();
-        StateHasChanged();
     }
 
     private void OnSearchKeyDown(KeyboardEventArgs args)
     {
         if (args.Key == "Enter")
         {
-            Search();
+            _ = Search();
         }
     }
 
-    private void NavigateToCreate()
+    private async Task OnFilterChanged(bool? value)
     {
-        Navigation.NavigateTo("/standards/create");
+        filterActive = value;
+        currentPage = 1;
+        await LoadData();
     }
 
-    private void ViewStandard(int id)
+    private async Task OnPageChanged(int page)
     {
-        Navigation.NavigateTo($"/standards/{id}");
-    }
-
-    private void EditStandard(int id)
-    {
-        Navigation.NavigateTo($"/standards/{id}/edit");
-    }
-
-    private async Task DeleteStandard(int id)
-    {
-        bool? confirmed = await DialogService.ShowMessageBox(
-            "确认删除",
-            "确定要删除该产品标准吗？",
-            yesText: "删除", cancelText: "取消");
-
-        if (confirmed == true)
+        if (currentPage != page)
         {
-            var result = await StandardService.DeleteAsync(id);
-            if (result != null && result.Success)
+            currentPage = page;
+            await LoadData();
+        }
+    }
+
+    private async Task OnPageSizeChanged(int size)
+    {
+        if (pageSize != size)
+        {
+            pageSize = size;
+            currentPage = 1;
+            await LoadData();
+        }
+    }
+
+    private void NavigateToCreate() => Navigation.NavigateTo("/standards/create");
+    private void ViewStandard(int id) => Navigation.NavigateTo($"/standards/{id}");
+    private void EditStandard(int id) => Navigation.NavigateTo($"/standards/{id}/edit");
+
+    private async Task DeleteStandard(ProductionStandardDto standard)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", 
+            $"确定要删除标准 \"{standard.StandardCode}\" 吗？\n\n删除后数据将不可恢复！");
+        
+        if (confirmed)
+        {
+            try
             {
-                Snackbar.Add("删除成功", Severity.Success);
-                await LoadData();
+                var result = await StandardService.DeleteAsync(standard.Id);
+                if (result.Success)
+                {
+                    Snackbar.Add("删除成功", Severity.Success);
+                    await LoadData();
+                }
+                else
+                {
+                    Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                Snackbar.Add(result?.Message ?? "删除失败", Severity.Error);
+                Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
             }
         }
     }

@@ -4,9 +4,10 @@
 @using MES.Core.DTOs
 @using Microsoft.AspNetCore.Authorization
 @using MudBlazor
-@inject IGradeMappingService GradeMappingService
+@inject GradeMappingService GradeMappingService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
@@ -16,7 +17,7 @@
     }
     else if (gradeMapping == null)
     {
-        <MudAlert Severity="Severity.Error">牌号对照不存在</MudAlert>
+        <MudAlert Severity="Severity.Error">牌号对照不存在 (ID: @Id)</MudAlert>
     }
     else
     {
@@ -36,14 +37,8 @@
                     @if (isEditMode)
                     {
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveGradeMapping" Disabled="@isSubmitting">
-                            @if (isSubmitting)
-                            {
-                                <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
-                            }
-                            else
-                            {
-                                <span>保存</span>
-                            }
+                            @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> }
+                            else { <span>保存</span> }
                         </MudButton>
                     }
                     else
@@ -80,7 +75,9 @@
                                          Min="0" />
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudSwitch @bind-Value="editGrade.SpecialMaterial" Label="特殊材料" Disabled="!isEditMode" />
+                        <MudSwitch @bind-Value="editGrade.SpecialMaterial"
+                                   Label="特殊材料"
+                                   Disabled="!isEditMode" />
                     </MudItem>
                     <MudItem xs="12" md="12">
                         <MudTextField T="string"
@@ -94,14 +91,16 @@
                                       Label="特殊注意事项"
                                       @bind-Value="editGrade.SpecialNote"
                                       Disabled="!isEditMode"
-                                      Style="min-height: 80px;" />
+                                      Multiline="true"
+                                      Lines="2" />
                     </MudItem>
                     <MudItem xs="12" md="12">
                         <MudTextField T="string"
                                       Label="备注"
                                       @bind-Value="editGrade.Remark"
                                       Disabled="!isEditMode"
-                                      Style="min-height: 80px;" />
+                                      Multiline="true"
+                                      Lines="3" />
                     </MudItem>
                 </MudGrid>
             </MudCardContent>
@@ -121,6 +120,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (Id <= 0)
+        {
+            Snackbar.Add($"无效的 ID: {Id}", Severity.Error);
+            isLoading = false;
+            return;
+        }
         await LoadData();
     }
 
@@ -149,12 +154,14 @@
             }
             else
             {
-                Snackbar.Add(result.Message ?? "加载数据失败", Severity.Error);
+                Snackbar.Add(result?.Message ?? $"加载失败，ID: {Id} 不存在", Severity.Error);
+                gradeMapping = null;
             }
         }
         catch (Exception ex)
         {
             Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
+            gradeMapping = null;
         }
         finally
         {
@@ -163,10 +170,7 @@
         }
     }
 
-    private void EnterEditMode()
-    {
-        Navigation.NavigateTo($"/grade-mappings/{Id}/edit");
-    }
+    private void EnterEditMode() => Navigation.NavigateTo($"/grade-mappings/{Id}/edit");
 
     private async Task SaveGradeMapping()
     {
@@ -175,7 +179,6 @@
             Snackbar.Add("标准牌号不能为空", Severity.Warning);
             return;
         }
-
         if (string.IsNullOrWhiteSpace(editGrade.PlantGrade))
         {
             Snackbar.Add("工厂牌号不能为空", Severity.Warning);
@@ -183,7 +186,6 @@
         }
 
         editGrade.Density = densityValue;
-
         if (editGrade.Density == null || editGrade.Density <= 0)
         {
             Snackbar.Add("密度必须大于0", Severity.Warning);
@@ -196,14 +198,14 @@
         try
         {
             var result = await GradeMappingService.UpdateAsync(Id, editGrade);
-            if (result != null && result.Success)
+            if (result.Success)
             {
                 Snackbar.Add("更新成功", Severity.Success);
                 Navigation.NavigateTo($"/grade-mappings/{Id}");
             }
             else
             {
-                Snackbar.Add(result?.Message ?? "更新失败", Severity.Error);
+                Snackbar.Add(result.Message ?? "更新失败", Severity.Error);
             }
         }
         catch (Exception ex)
@@ -217,8 +219,5 @@
         }
     }
 
-    private void GoBack()
-    {
-        Navigation.NavigateTo("/grade-mappings");
-    }
+    private void GoBack() => Navigation.NavigateTo("/grade-mappings");
 }

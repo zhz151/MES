@@ -4,10 +4,10 @@
 @using MES.Core.Models
 @using MES.Core.Enums
 @using Microsoft.AspNetCore.Authorization
-@inject IOrderService OrderService
+@inject OrderService OrderService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
-@inject IDialogService DialogService
+@inject IJSRuntime JS
 @attribute [Authorize]
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
@@ -35,70 +35,95 @@
             <MudGrid>
                 <MudItem xs="12" md="8">
                     <MudTextField T="string"
-                                  Label="搜索订单号/客户"
-                                  Placeholder="请输入订单号或客户名称"
-                                  Immediate="true"
-                                  Adornment="Adornment.End"
-                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Label="模糊搜索 - 订单号/客户名称"
+                                  Placeholder="输入订单号或客户名称进行模糊搜索..."
                                   @bind-Value="searchKeyword"
-                                  @bind-Value:event="oninput"
-                                  OnKeyDown="OnSearchKeyDown" />
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  OnKeyDown="OnSearchKeyDown"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
                 <MudItem xs="12" md="4">
-                    <MudButton Variant="Variant.Outlined"
+                    <MudButton Variant="Variant.Filled"
                                Color="Color.Primary"
                                FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Search"
                                OnClick="Search">
                         搜索
                     </MudButton>
                 </MudItem>
             </MudGrid>
 
-            <!-- 表格 -->
-            @if (isLoading)
-            {
-                <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
-            }
-            else
-            {
-                <MudTable T="SalesOrderListDto" Items="@orderList" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Class="mt-4">
-                    <HeaderContent>
-                        <MudTh>订单号</MudTh>
-                        <MudTh>签订日期</MudTh>
-                        <MudTh>客户名称</MudTh>
-                        <MudTh>状态</MudTh>
-                        <MudTh>操作</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="订单号">@context.OrderNumber</MudTd>
-                        <MudTd DataLabel="签订日期">@context.SignDate.ToString("yyyy-MM-dd")</MudTd>
-                        <MudTd DataLabel="客户名称">@context.CustomerName</MudTd>
-                        <MudTd DataLabel="状态">
-                            <MudChip Size="Size.Small" Color="@GetStatusColor(context.Status)">
-                                @GetStatusText(context.Status)
-                            </MudChip>
-                        </MudTd>
-                        <MudTd DataLabel="操作">
-                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info" OnClick="() => ViewOrder(context.Id)">查看</MudButton>
-                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Warning" OnClick="() => EditOrder(context.Id)">编辑</MudButton>
-                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteOrder(context)">删除</MudButton>
-                        </MudTd>
-                    </RowTemplate>
-                    <PagerContent>
-                        <MudTablePager />
-                    </PagerContent>
-                </MudTable>
-            }
+            <!-- 数据表格 -->
+            <MudTable T="SalesOrderListDto"
+                      Items="@orders"
+                      TotalItems="@totalCount"
+                      Loading="@isLoading"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-4"
+                      Elevation="0"
+                      @bind-CurrentPage="currentPage"
+                      @bind-RowsPerPage="pageSize"
+                      RowsPerPageLabel="每页行数:"
+                      OnPageChanged="OnPageChanged"
+                      OnRowsPerPageChanged="OnPageSizeChanged">
+                <ToolBarContent>
+                    <MudText Typo="Typo.body2" Class="ml-auto">
+                        共 @totalCount 条记录
+                    </MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>订单号</MudTh>
+                    <MudTh>签订日期</MudTh>
+                    <MudTh>客户名称</MudTh>
+                    <MudTh>状态</MudTh>
+                    <MudTh>操作</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.OrderNumber</MudTd>
+                    <MudTd>@context.SignDate.ToString("yyyy-MM-dd")</MudTd>
+                    <MudTd>@context.CustomerName</MudTd>
+                    <MudTd>
+                        <MudChip Size="Size.Small" Color="@GetStatusColor(context.Status)">
+                            @GetStatusText(context.Status)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                       Color="Color.Info"
+                                       Size="Size.Small"
+                                       OnClick="() => ViewOrder(context.Id)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                       Color="Color.Warning"
+                                       Size="Size.Small"
+                                       OnClick="() => EditOrder(context.Id)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Color="Color.Error"
+                                       Size="Size.Small"
+                                       OnClick="() => DeleteOrder(context)" />
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
         </MudCardContent>
     </MudCard>
 </MudContainer>
 
 @code {
-    private List<SalesOrderListDto> orderList = new();
-    private int totalCount;
+    private List<SalesOrderListDto> orders = new();
     private bool isLoading = true;
     private string searchKeyword = string.Empty;
-    private QueryParams queryParams = new() { PageSize = 20 };
+    
+    // 分页相关
+    private int currentPage = 1;
+    private int pageSize = 20;
+    private int totalCount = 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -110,27 +135,53 @@
         isLoading = true;
         StateHasChanged();
 
-        queryParams.Keyword = searchKeyword;
-        var result = await OrderService.GetPagedAsync(queryParams);
-
-        if (result.Success && result.Data != null)
+        try
         {
-            orderList = result.Data.Items;
-            totalCount = result.Data.TotalCount;
-        }
-        else
-        {
-            Snackbar.Add(result.Message ?? "加载数据失败", Severity.Error);
-        }
+            var queryParams = new QueryParams
+            {
+                PageIndex = currentPage,
+                PageSize = pageSize,
+                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword
+            };
 
-        isLoading = false;
-        StateHasChanged();
+            var result = await OrderService.GetPagedAsync(queryParams);
+            
+            if (result.Success && result.Data != null)
+            {
+                orders = result.Data.Items;
+                totalCount = result.Data.TotalCount;
+                Console.WriteLine($"加载成功: 第{currentPage}页, {orders.Count}条, 总数: {totalCount}");
+            }
+            else
+            {
+                orders = new List<SalesOrderListDto>();
+                totalCount = 0;
+                Snackbar.Add(result?.Message ?? "加载失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"加载失败: {ex.Message}");
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+            orders = new List<SalesOrderListDto>();
+            totalCount = 0;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
     private async Task Search()
     {
-        queryParams.PageIndex = 1;
+        currentPage = 1;
         await LoadData();
+        
+        if (!string.IsNullOrEmpty(searchKeyword))
+        {
+            Snackbar.Add($"搜索关键字: {searchKeyword}, 找到 {totalCount} 条记录", Severity.Info);
+        }
     }
 
     private void OnSearchKeyDown(KeyboardEventArgs args)
@@ -141,68 +192,73 @@
         }
     }
 
-    private void NavigateToCreate()
+    private async Task OnPageChanged(int page)
     {
-        Navigation.NavigateTo("/orders/create");
+        if (currentPage != page)
+        {
+            currentPage = page;
+            await LoadData();
+        }
     }
 
-    private void ViewOrder(int id)
+    private async Task OnPageSizeChanged(int size)
     {
-        Navigation.NavigateTo($"/orders/{id}");
+        if (pageSize != size)
+        {
+            pageSize = size;
+            currentPage = 1;
+            await LoadData();
+        }
     }
 
-    private void EditOrder(int id)
-    {
-        Navigation.NavigateTo($"/orders/{id}/edit");
-    }
+    private void NavigateToCreate() => Navigation.NavigateTo("/orders/create");
+    private void ViewOrder(int id) => Navigation.NavigateTo($"/orders/{id}");
+    private void EditOrder(int id) => Navigation.NavigateTo($"/orders/{id}/edit");
 
     private async Task DeleteOrder(SalesOrderListDto order)
     {
-        bool? confirmed = await DialogService.ShowMessageBox(
-            "确认删除",
-            $"确定要删除订单 \"{order.OrderNumber}\" 吗？删除后数据将不可恢复！",
-            yesText: "删除", cancelText: "取消");
+        var confirmed = await JS.InvokeAsync<bool>("confirm",
+            $"确定要删除订单 \"{order.OrderNumber}\" 吗？\n\n删除后数据将不可恢复！");
 
-        if (confirmed == true)
+        if (confirmed)
         {
-            var result = await OrderService.DeleteAsync(order.Id);
-            if (result.Success)
+            try
             {
-                Snackbar.Add("删除成功", Severity.Success);
-                await LoadData();
+                var result = await OrderService.DeleteAsync(order.Id);
+                if (result.Success)
+                {
+                    Snackbar.Add("删除成功", Severity.Success);
+                    await LoadData();
+                }
+                else
+                {
+                    Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
+                Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
             }
         }
     }
 
-    // 修改：参数类型从 string 改为 SalesOrderStatus
-    private Color GetStatusColor(SalesOrderStatus status)
+    private Color GetStatusColor(SalesOrderStatus status) => status switch
     {
-        return status switch
-        {
-            SalesOrderStatus.Pending => Color.Warning,
-            SalesOrderStatus.Confirmed => Color.Info,
-            SalesOrderStatus.Processing => Color.Primary,
-            SalesOrderStatus.Completed => Color.Success,
-            SalesOrderStatus.Cancelled => Color.Error,
-            _ => Color.Default
-        };
-    }
+        SalesOrderStatus.Pending => Color.Warning,
+        SalesOrderStatus.Confirmed => Color.Info,
+        SalesOrderStatus.Processing => Color.Primary,
+        SalesOrderStatus.Completed => Color.Success,
+        SalesOrderStatus.Cancelled => Color.Error,
+        _ => Color.Default
+    };
 
-    // 修改：参数类型从 string 改为 SalesOrderStatus
-    private string GetStatusText(SalesOrderStatus status)
+    private string GetStatusText(SalesOrderStatus status) => status switch
     {
-        return status switch
-        {
-            SalesOrderStatus.Pending => "待处理",
-            SalesOrderStatus.Confirmed => "已确认",
-            SalesOrderStatus.Processing => "处理中",
-            SalesOrderStatus.Completed => "已完成",
-            SalesOrderStatus.Cancelled => "已取消",
-            _ => status.ToString()
-        };
-    }
+        SalesOrderStatus.Pending => "待处理",
+        SalesOrderStatus.Confirmed => "已确认",
+        SalesOrderStatus.Processing => "处理中",
+        SalesOrderStatus.Completed => "已完成",
+        SalesOrderStatus.Cancelled => "已取消",
+        _ => status.ToString()
+    };
 }

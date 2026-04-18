@@ -4,10 +4,10 @@
 @using MES.Core.Models
 @using MES.Core.Enums
 @using Microsoft.AspNetCore.Authorization
-@inject ICustomerService CustomerService
+@inject CustomerService CustomerService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
-@inject IDialogService DialogService
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
@@ -35,26 +35,47 @@
             <MudGrid>
                 <MudItem xs="12" md="8">
                     <MudTextField T="string"
-                                  Label="搜索客户编码/单位/业务员"
-                                  Immediate="true"
-                                  Adornment="Adornment.End"
-                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Label="模糊搜索 - 客户编码/单位/业务员"
+                                  Placeholder="输入关键字进行模糊搜索..."
                                   @bind-Value="searchKeyword"
-                                  @bind-Value:event="oninput"
-                                  OnKeyDown="OnSearchKeyDown" />
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  OnKeyDown="OnSearchKeyDown"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
                 <MudItem xs="12" md="4">
-                    <MudButton Variant="Variant.Outlined"
+                    <MudButton Variant="Variant.Filled"
                                Color="Color.Primary"
                                FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Search"
                                OnClick="Search">
                         搜索
                     </MudButton>
                 </MudItem>
             </MudGrid>
 
-            <!-- 表格 -->
-            <MudTable Items="@customers" Loading="@isLoading" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Class="mt-4">
+            <!-- 数据表格 -->
+            <MudTable T="CustomerProfileDto"
+                      Items="@customers"
+                      TotalItems="@totalCount"
+                      Loading="@isLoading"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-4"
+                      Elevation="0"
+                      @bind-CurrentPage="currentPage"
+                      @bind-RowsPerPage="pageSize"
+                      RowsPerPageLabel="每页行数:"
+                      OnPageChanged="OnPageChanged"
+                      OnRowsPerPageChanged="OnPageSizeChanged">
+                <ToolBarContent>
+                    <MudText Typo="Typo.body2" Class="ml-auto">
+                        共 @totalCount 条记录
+                    </MudText>
+                </ToolBarContent>
                 <HeaderContent>
                     <MudTh>客户编码</MudTh>
                     <MudTh>客户单位</MudTh>
@@ -76,9 +97,18 @@
                         </MudChip>
                     </MudTd>
                     <MudTd>
-                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info" OnClick="() => ViewCustomer(context.Id)">查看</MudButton>
-                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Warning" OnClick="() => EditCustomer(context.Id)">编辑</MudButton>
-                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteCustomer(context.Id)">删除</MudButton>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                       Color="Color.Info"
+                                       Size="Size.Small"
+                                       OnClick="() => ViewCustomer(context.Id)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                       Color="Color.Warning"
+                                       Size="Size.Small"
+                                       OnClick="() => EditCustomer(context.Id)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Color="Color.Error"
+                                       Size="Size.Small"
+                                       OnClick="() => DeleteCustomer(context)" />
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
@@ -91,10 +121,13 @@
 
 @code {
     private List<CustomerProfileDto> customers = new();
-    private int totalCount;
     private bool isLoading = true;
     private string searchKeyword = string.Empty;
-    private QueryParams queryParams = new() { PageSize = 20 };
+    
+    // 分页相关
+    private int currentPage = 1;
+    private int pageSize = 20;
+    private int totalCount = 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -108,22 +141,34 @@
 
         try
         {
-            queryParams.Keyword = searchKeyword;
-            var result = await CustomerService.GetPagedAsync(queryParams);
+            var queryParams = new QueryParams
+            {
+                PageIndex = currentPage,
+                PageSize = pageSize,
+                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword
+            };
 
+            var result = await CustomerService.GetPagedAsync(queryParams);
+            
             if (result.Success && result.Data != null)
             {
                 customers = result.Data.Items;
                 totalCount = result.Data.TotalCount;
+                Console.WriteLine($"加载成功: 第{currentPage}页, {customers.Count}条, 总数: {totalCount}");
             }
             else
             {
-                Snackbar.Add(result.Message ?? "加载数据失败", Severity.Error);
+                customers = new List<CustomerProfileDto>();
+                totalCount = 0;
+                Snackbar.Add(result?.Message ?? "加载失败", Severity.Error);
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
+            Console.WriteLine($"加载失败: {ex.Message}");
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+            customers = new List<CustomerProfileDto>();
+            totalCount = 0;
         }
         finally
         {
@@ -134,8 +179,13 @@
 
     private async Task Search()
     {
-        queryParams.PageIndex = 1;
+        currentPage = 1;
         await LoadData();
+        
+        if (!string.IsNullOrEmpty(searchKeyword))
+        {
+            Snackbar.Add($"搜索关键字: {searchKeyword}, 找到 {totalCount} 条记录", Severity.Info);
+        }
     }
 
     private void OnSearchKeyDown(KeyboardEventArgs args)
@@ -146,39 +196,52 @@
         }
     }
 
-    private void NavigateToCreate()
+    private async Task OnPageChanged(int page)
     {
-        Navigation.NavigateTo("/customers/create");
-    }
-
-    private void ViewCustomer(int id)
-    {
-        Navigation.NavigateTo($"/customers/{id}");
-    }
-
-    private void EditCustomer(int id)
-    {
-        Navigation.NavigateTo($"/customers/{id}/edit");
-    }
-
-    private async Task DeleteCustomer(int id)
-    {
-        bool? confirmed = await DialogService.ShowMessageBox(
-            "确认删除",
-            "确定要删除该客户吗？",
-            yesText: "删除", cancelText: "取消");
-
-        if (confirmed == true)
+        if (currentPage != page)
         {
-            var result = await CustomerService.DeleteAsync(id);
-            if (result.Success)
+            currentPage = page;
+            await LoadData();
+        }
+    }
+
+    private async Task OnPageSizeChanged(int size)
+    {
+        if (pageSize != size)
+        {
+            pageSize = size;
+            currentPage = 1;
+            await LoadData();
+        }
+    }
+
+    private void NavigateToCreate() => Navigation.NavigateTo("/customers/create");
+    private void ViewCustomer(int id) => Navigation.NavigateTo($"/customers/{id}");
+    private void EditCustomer(int id) => Navigation.NavigateTo($"/customers/{id}/edit");
+
+    private async Task DeleteCustomer(CustomerProfileDto customer)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm",
+            $"确定要删除客户 \"{customer.CustomerUnit}\" 吗？\n\n删除后数据将不可恢复！");
+
+        if (confirmed)
+        {
+            try
             {
-                Snackbar.Add("删除成功", Severity.Success);
-                await LoadData();
+                var result = await CustomerService.DeleteAsync(customer.Id);
+                if (result.Success)
+                {
+                    Snackbar.Add("删除成功", Severity.Success);
+                    await LoadData();
+                }
+                else
+                {
+                    Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
+                Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
             }
         }
     }

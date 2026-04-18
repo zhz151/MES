@@ -4,9 +4,10 @@
 @using MES.Core.DTOs
 @using MES.Core.Enums
 @using Microsoft.AspNetCore.Authorization
-@inject ICustomerService CustomerService
+@inject CustomerService CustomerService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
@@ -27,23 +28,15 @@
                         <MudIcon Icon="@Icons.Material.Filled.Business" Class="mr-2" Color="Color.Primary" />
                         客户详情
                     </MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        客户编码：@customer.CustomerCode
-                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">客户编码：@customer.CustomerCode</MudText>
                 </CardHeaderContent>
                 <CardHeaderActions>
                     <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
                     @if (isEditMode)
                     {
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveCustomer" Disabled="@isSubmitting">
-                            @if (isSubmitting)
-                            {
-                                <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
-                            }
-                            else
-                            {
-                                <span>保存</span>
-                            }
+                            @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> }
+                            else { <span>保存</span> }
                         </MudButton>
                     }
                     else
@@ -58,66 +51,34 @@
             <MudCardContent>
                 <MudGrid>
                     <MudItem xs="12" md="6">
-                        <MudTextField T="string"
-                                      Label="客户编码"
-                                      @bind-Value="editCustomer.CustomerCode"
-                                      Disabled="!isEditMode"
-                                      Required="true"
-                                      HelperText="唯一标识，不可重复" />
+                        <MudTextField T="string" Label="客户编码" @bind-Value="editCustomer.CustomerCode" Disabled="!isEditMode" Required="true" />
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudTextField T="string"
-                                      Label="业务员"
-                                      @bind-Value="editCustomer.Salesman"
-                                      Disabled="!isEditMode"
-                                      Required="true" />
+                        <MudTextField T="string" Label="业务员" @bind-Value="editCustomer.Salesman" Disabled="!isEditMode" Required="true" />
                     </MudItem>
                     <MudItem xs="12" md="12">
-                        <MudTextField T="string"
-                                      Label="客户单位"
-                                      @bind-Value="editCustomer.CustomerUnit"
-                                      Disabled="!isEditMode"
-                                      Required="true" />
+                        <MudTextField T="string" Label="客户单位" @bind-Value="editCustomer.CustomerUnit" Disabled="!isEditMode" Required="true" />
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudTextField T="string"
-                                      Label="最终用户"
-                                      @bind-Value="editCustomer.EndCustomer"
-                                      Disabled="!isEditMode" />
+                        <MudTextField T="string" Label="最终用户" @bind-Value="editCustomer.EndCustomer" Disabled="!isEditMode" />
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudSelect T="CustomerStatus?" Label="状态" @bind-Value="editCustomer.Status" Disabled="!isEditMode" Required="true">
-                            <MudSelectItem Value="@CustomerStatus.Active">启用</MudSelectItem>
-                            <MudSelectItem Value="@CustomerStatus.Inactive">停用</MudSelectItem>
+                        <MudSelect T="string" Label="状态" @bind-Value="selectedStatusText" Disabled="!isEditMode" Required="true">
+                            <MudSelectItem Value="@CustomerStatus.Active.ToString()">启用</MudSelectItem>
+                            <MudSelectItem Value="@CustomerStatus.Inactive.ToString()">停用</MudSelectItem>
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudTextField T="string"
-                                      Label="联系人"
-                                      @bind-Value="editCustomer.ContactPerson"
-                                      Disabled="!isEditMode" />
+                        <MudTextField T="string" Label="联系人" @bind-Value="editCustomer.ContactPerson" Disabled="!isEditMode" />
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudTextField T="string"
-                                      Label="联系电话"
-                                      @bind-Value="editCustomer.ContactPhone"
-                                      Disabled="!isEditMode" />
+                        <MudTextField T="string" Label="联系电话" @bind-Value="editCustomer.ContactPhone" Disabled="!isEditMode" />
                     </MudItem>
                     <MudItem xs="12" md="12">
-                        <MudTextField T="string"
-                                      Label="联系地址"
-                                      @bind-Value="editCustomer.Address"
-                                      Disabled="!isEditMode"
-                                      Multiline="true"
-                                      Lines="2" />
+                        <MudTextField T="string" Label="联系地址" @bind-Value="editCustomer.Address" Disabled="!isEditMode" Multiline="true" Lines="2" />
                     </MudItem>
                     <MudItem xs="12" md="12">
-                        <MudTextField T="string"
-                                      Label="备注"
-                                      @bind-Value="editCustomer.Remark"
-                                      Disabled="!isEditMode"
-                                      Multiline="true"
-                                      Lines="3" />
+                        <MudTextField T="string" Label="备注" @bind-Value="editCustomer.Remark" Disabled="!isEditMode" Multiline="true" Lines="3" />
                     </MudItem>
                 </MudGrid>
             </MudCardContent>
@@ -127,20 +88,24 @@
 
 @code {
     [Parameter] public int Id { get; set; }
-
     private bool isEditMode => Navigation.Uri.Contains("/edit");
     private CustomerProfileDto? customer;
     private UpdateCustomerRequest editCustomer = new();
     private bool isLoading = true;
     private bool isSubmitting;
+    private string selectedStatusText = CustomerStatus.Active.ToString();
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadData();
-    }
+    protected override async Task OnInitializedAsync() => await LoadData();
 
     private async Task LoadData()
     {
+        if (Id <= 0)
+        {
+            Snackbar.Add("无效的客户ID", Severity.Error);
+            isLoading = false;
+            return;
+        }
+
         isLoading = true;
         StateHasChanged();
 
@@ -162,10 +127,11 @@
                     Status = customer.Status,
                     Remark = customer.Remark
                 };
+                selectedStatusText = customer.Status.ToString();
             }
             else
             {
-                Snackbar.Add(result.Message ?? "加载数据失败", Severity.Error);
+                Snackbar.Add(result?.Message ?? "加载数据失败", Severity.Error);
             }
         }
         catch (Exception ex)
@@ -179,10 +145,7 @@
         }
     }
 
-    private void EnterEditMode()
-    {
-        Navigation.NavigateTo($"/customers/{Id}/edit");
-    }
+    private void EnterEditMode() => Navigation.NavigateTo($"/customers/{Id}/edit");
 
     private async Task SaveCustomer()
     {
@@ -191,24 +154,18 @@
             Snackbar.Add("客户编码不能为空", Severity.Warning);
             return;
         }
-
         if (string.IsNullOrWhiteSpace(editCustomer.Salesman))
         {
             Snackbar.Add("业务员不能为空", Severity.Warning);
             return;
         }
-
         if (string.IsNullOrWhiteSpace(editCustomer.CustomerUnit))
         {
             Snackbar.Add("客户单位不能为空", Severity.Warning);
             return;
         }
 
-        if (!editCustomer.Status.HasValue)
-        {
-            Snackbar.Add("请选择客户状态", Severity.Warning);
-            return;
-        }
+        editCustomer.Status = selectedStatusText == CustomerStatus.Active.ToString() ? CustomerStatus.Active : CustomerStatus.Inactive;
 
         isSubmitting = true;
         StateHasChanged();
@@ -237,8 +194,5 @@
         }
     }
 
-    private void GoBack()
-    {
-        Navigation.NavigateTo("/customers");
-    }
+    private void GoBack() => Navigation.NavigateTo("/customers");
 }

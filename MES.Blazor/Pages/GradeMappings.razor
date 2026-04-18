@@ -1,11 +1,12 @@
 @page "/grade-mappings"
 @using MES.Blazor.Services
 @using MES.Core.DTOs
+@using MES.Core.Models
 @using Microsoft.AspNetCore.Authorization
-@inject IGradeMappingService GradeMappingService
+@inject GradeMappingService GradeMappingService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
-@inject IDialogService DialogService
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
@@ -33,26 +34,47 @@
             <MudGrid>
                 <MudItem xs="12" md="8">
                     <MudTextField T="string"
-                                  Label="搜索标准牌号/工厂牌号"
-                                  Immediate="true"
-                                  Adornment="Adornment.End"
-                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Label="模糊搜索 - 标准牌号/工厂牌号"
+                                  Placeholder="输入关键字进行模糊搜索..."
                                   @bind-Value="searchKeyword"
-                                  @bind-Value:event="oninput"
-                                  OnKeyDown="OnSearchKeyDown" />
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  OnKeyDown="OnSearchKeyDown"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
                 <MudItem xs="12" md="4">
-                    <MudButton Variant="Variant.Outlined"
+                    <MudButton Variant="Variant.Filled"
                                Color="Color.Primary"
                                FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Search"
                                OnClick="Search">
                         搜索
                     </MudButton>
                 </MudItem>
             </MudGrid>
 
-            <!-- 表格 -->
-            <MudTable Items="@gradeMappings" Loading="@isLoading" Dense="true" Hover="true" Class="mt-4">
+            <!-- 数据表格 -->
+            <MudTable T="StandardGradeMappingDto"
+                      Items="@gradeMappings"
+                      TotalItems="@totalCount"
+                      Loading="@isLoading"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-4"
+                      Elevation="0"
+                      @bind-CurrentPage="currentPage"
+                      @bind-RowsPerPage="pageSize"
+                      RowsPerPageLabel="每页行数:"
+                      OnPageChanged="OnPageChanged"
+                      OnRowsPerPageChanged="OnPageSizeChanged">
+                <ToolBarContent>
+                    <MudText Typo="Typo.body2" Class="ml-auto">
+                        共 @totalCount 条记录
+                    </MudText>
+                </ToolBarContent>
                 <HeaderContent>
                     <MudTh>标准牌号</MudTh>
                     <MudTh>工厂牌号</MudTh>
@@ -67,14 +89,23 @@
                     <MudTd>@context.Density.ToString("F4")</MudTd>
                     <MudTd>@context.HeatTreatment</MudTd>
                     <MudTd>
-                        <MudChip Size="Size.Small" Color="@(context.SpecialMaterial ? Color.Warning : Color.Default)">
+                        <MudChip Size="Size.Small" Color="@(context.SpecialMaterial? Color.Warning: Color.Default)">
                             @(context.SpecialMaterial ? "特殊" : "常规")
                         </MudChip>
                     </MudTd>
                     <MudTd>
-                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info" OnClick="() => ViewGradeMapping(context.Id)">查看</MudButton>
-                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Warning" OnClick="() => EditGradeMapping(context.Id)">编辑</MudButton>
-                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteGradeMapping(context.Id)">删除</MudButton>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                       Color="Color.Info"
+                                       Size="Size.Small"
+                                       OnClick="() => ViewGradeMapping(context.Id)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                       Color="Color.Warning"
+                                       Size="Size.Small"
+                                       OnClick="() => EditGradeMapping(context.Id)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Color="Color.Error"
+                                       Size="Size.Small"
+                                       OnClick="() => DeleteGradeMapping(context)" />
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
@@ -87,9 +118,16 @@
 
 @code {
     private List<StandardGradeMappingDto> gradeMappings = new();
-    private List<StandardGradeMappingDto> allGradeMappings = new();
     private bool isLoading = true;
     private string searchKeyword = string.Empty;
+
+    // 分页相关
+    private int currentPage = 1;
+    private int pageSize = 20;
+    private int totalCount = 0;
+
+    // 可选的每页行数选项
+    private readonly int[] pageSizeOptions = { 10, 20, 50, 100 };
 
     protected override async Task OnInitializedAsync()
     {
@@ -103,12 +141,34 @@
 
         try
         {
-            allGradeMappings = await GradeMappingService.GetAllAsync();
-            ApplyFilter();
+            var queryParams = new QueryParams
+            {
+                PageIndex = currentPage,
+                PageSize = pageSize,
+                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword
+            };
+
+            var result = await GradeMappingService.GetPagedAsync(queryParams);
+
+            if (result.Success && result.Data != null)
+            {
+                gradeMappings = result.Data.Items;
+                totalCount = result.Data.TotalCount;
+                Console.WriteLine($"加载成功: 第{currentPage}页, {gradeMappings.Count}条, 总数: {totalCount}");
+            }
+            else
+            {
+                gradeMappings = new List<StandardGradeMappingDto>();
+                totalCount = 0;
+                Snackbar.Add(result?.Message ?? "加载失败", Severity.Error);
+            }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
+            Console.WriteLine($"加载失败: {ex.Message}");
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+            gradeMappings = new List<StandardGradeMappingDto>();
+            totalCount = 0;
         }
         finally
         {
@@ -117,67 +177,71 @@
         }
     }
 
-    private void ApplyFilter()
+    private async Task Search()
     {
-        var query = allGradeMappings.AsEnumerable();
+        currentPage = 1; // 搜索时重置到第一页
+        await LoadData();
 
         if (!string.IsNullOrEmpty(searchKeyword))
         {
-            query = query.Where(x =>
-                x.StandardGrade.Contains(searchKeyword, StringComparison.OrdinalIgnoreCase) ||
-                x.PlantGrade.Contains(searchKeyword, StringComparison.OrdinalIgnoreCase));
+            Snackbar.Add($"搜索关键字: {searchKeyword}, 找到 {totalCount} 条记录", Severity.Info);
         }
-
-        gradeMappings = query.OrderBy(x => x.StandardGrade).ToList();
-    }
-
-    private void Search()
-    {
-        ApplyFilter();
-        StateHasChanged();
     }
 
     private void OnSearchKeyDown(KeyboardEventArgs args)
     {
         if (args.Key == "Enter")
         {
-            Search();
+            _ = Search();
         }
     }
 
-    private void NavigateToCreate()
+    private async Task OnPageChanged(int page)
     {
-        Navigation.NavigateTo("/grade-mappings/create");
-    }
-
-    private void ViewGradeMapping(int id)
-    {
-        Navigation.NavigateTo($"/grade-mappings/{id}");
-    }
-
-    private void EditGradeMapping(int id)
-    {
-        Navigation.NavigateTo($"/grade-mappings/{id}/edit");
-    }
-
-    private async Task DeleteGradeMapping(int id)
-    {
-        bool? confirmed = await DialogService.ShowMessageBox(
-            "确认删除",
-            "确定要删除该牌号对照吗？\n\n如果该牌号已被订单使用，删除后可能导致数据问题！",
-            yesText: "删除", cancelText: "取消");
-
-        if (confirmed == true)
+        if (currentPage != page)
         {
-            var result = await GradeMappingService.DeleteAsync(id);
-            if (result != null && result.Success)
+            currentPage = page;
+            await LoadData();
+        }
+    }
+
+    private async Task OnPageSizeChanged(int size)
+    {
+        if (pageSize != size)
+        {
+            pageSize = size;
+            currentPage = 1; // 改变每页条数时重置到第一页
+            await LoadData();
+        }
+    }
+
+    private void NavigateToCreate() => Navigation.NavigateTo("/grade-mappings/create");
+    private void ViewGradeMapping(int id) => Navigation.NavigateTo($"/grade-mappings/{id}");
+    private void EditGradeMapping(int id) => Navigation.NavigateTo($"/grade-mappings/{id}/edit");
+
+    private async Task DeleteGradeMapping(StandardGradeMappingDto mapping)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm",
+            $"确定要删除牌号对照 \"{mapping.StandardGrade}\" 吗？\n\n如果该牌号已被订单使用，删除后可能导致数据问题！");
+
+        if (confirmed)
+        {
+            try
             {
-                Snackbar.Add("删除成功", Severity.Success);
-                await LoadData();
+                var result = await GradeMappingService.DeleteAsync(mapping.Id);
+                if (result.Success)
+                {
+                    Snackbar.Add("删除成功", Severity.Success);
+                    await LoadData(); // 重新加载当前页数据
+                }
+                else
+                {
+                    Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                Snackbar.Add(result?.Message ?? "删除失败", Severity.Error);
+                Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
             }
         }
     }
