@@ -15,14 +15,15 @@ builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
 
-// 注册 AuthHttpClient（替代直接使用 HttpClient）
+
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7001") });
 builder.Services.AddScoped<AuthHttpClient>();
 
-// 注册服务（使用 AuthHttpClient）
+
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<ProductionStandardService>();
 builder.Services.AddScoped<GradeMappingService>();
 builder.Services.AddScoped<OrderService>();
+builder.Services.AddScoped<ProductRequirementService>();
 
 await builder.Build().RunAsync();

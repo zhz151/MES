@@ -99,6 +99,7 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IProductionStandardService, ProductionStandardService>();
 builder.Services.AddScoped<IGradeMappingService, GradeMappingService>();
+builder.Services.AddScoped<IProductRequirementService, ProductRequirementService>();
 
 builder.Services.AddHttpContextAccessor();
 

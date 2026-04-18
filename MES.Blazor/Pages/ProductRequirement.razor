@@ -1,0 +1,291 @@
+// 文件路径: MES.Blazor/Pages/ProductRequirement.razor
+// 修复：为路由参数指定类型
+
+@page "/orders/{orderId:int}/items/{itemId:int}/requirement"
+@page "/orders/{orderId:int}/items/{itemId:int}/requirement/edit"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Enums
+@using Microsoft.AspNetCore.Authorization
+@inject ProductRequirementService RequirementService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Description" Class="mr-2" Color="Color.Primary" />
+                    技术要求
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    订单项次的技术要求配置
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                <AuthorizeView Roles="OrderDirector,Admin">
+                    @if (isEditMode)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveRequirement" Disabled="@isSubmitting">
+                            @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> }
+                            else { <span>保存</span> }
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑</MudButton>
+                    }
+                </AuthorizeView>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            @if (isLoading)
+            {
+                <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Class="mb-4">
+                    <strong>说明：</strong> 技术要求定义了产品的质量标准和检测要求。
+                    常规要求适用于大多数订单，特殊要求适用于有特殊质量标准的订单。
+                </MudAlert>
+
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="RequirementType" 
+                                   Label="产品要求类型" 
+                                   @bind-Value="editRequirement.RequirementType"
+                                   Disabled="!isEditMode"
+                                   Required="true">
+                            <MudSelectItem Value="@RequirementType.Normal">常规</MudSelectItem>
+                            <MudSelectItem Value="@RequirementType.Special">特殊</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Science" Size="Size.Small" Class="mr-1" />
+                    化学成分要求
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string"
+                                      Label="化学成分要求"
+                                      @bind-Value="editRequirement.ChemicalComposition"
+                                      Disabled="!isEditMode"
+                                      Multiline="true"
+                                      Lines="4"
+                                      HelperText="如：C ≤ 0.08, Si ≤ 1.00, Mn ≤ 2.00, P ≤ 0.045, S ≤ 0.030, Ni: 8.00-11.00, Cr: 18.00-20.00"
+                                      Placeholder="请输入化学成分要求..." />
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.FitnessCenter" Size="Size.Small" Class="mr-1" />
+                    机械性能要求
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string"
+                                      Label="机械性能要求"
+                                      @bind-Value="editRequirement.MechanicalProperty"
+                                      Disabled="!isEditMode"
+                                      Multiline="true"
+                                      Lines="3"
+                                      HelperText="如：抗拉强度 ≥ 520 MPa, 屈服强度 ≥ 205 MPa, 延伸率 ≥ 35%"
+                                      Placeholder="请输入机械性能要求..." />
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Straighten" Size="Size.Small" Class="mr-1" />
+                    尺寸公差要求
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string"
+                                      Label="尺寸公差要求"
+                                      @bind-Value="editRequirement.ToleranceRequirement"
+                                      Disabled="!isEditMode"
+                                      Multiline="true"
+                                      Lines="3"
+                                      HelperText="如：外径公差 ±0.5mm, 壁厚公差 ±0.3mm"
+                                      Placeholder="请输入尺寸公差要求..." />
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Brush" Size="Size.Small" Class="mr-1" />
+                    表面质量要求
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string"
+                                      Label="表面质量要求"
+                                      @bind-Value="editRequirement.SurfaceQuality"
+                                      Disabled="!isEditMode"
+                                      Multiline="true"
+                                      Lines="3"
+                                      HelperText="如：表面无裂纹、无折叠、无结疤、无氧化皮"
+                                      Placeholder="请输入表面质量要求..." />
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Radar" Size="Size.Small" Class="mr-1" />
+                    无损检测要求
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string"
+                                      Label="无损检测要求"
+                                      @bind-Value="editRequirement.NdtRequirement"
+                                      Disabled="!isEditMode"
+                                      Multiline="true"
+                                      Lines="3"
+                                      HelperText="如：100% 涡流探伤，符合 GB/T 7735 标准"
+                                      Placeholder="请输入无损检测要求..." />
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.MoreHoriz" Size="Size.Small" Class="mr-1" />
+                    其他要求
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string"
+                                      Label="其他要求"
+                                      @bind-Value="editRequirement.OtherRequirement"
+                                      Disabled="!isEditMode"
+                                      Multiline="true"
+                                      Lines="3"
+                                      HelperText="其他特殊要求，如包装要求、交货要求等"
+                                      Placeholder="请输入其他要求..." />
+                    </MudItem>
+                </MudGrid>
+
+                @if (requirement != null && !isEditMode)
+                {
+                    <MudAlert Severity="Severity.Success" Class="mt-4">
+                        <strong>提示：</strong> 技术要求已配置，点击"编辑"按钮可修改。
+                    </MudAlert>
+                }
+            }
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    [Parameter] public int orderId { get; set; }
+    [Parameter] public int itemId { get; set; }
+
+    private ProductRequirementDto? requirement;
+    private CreateProductRequirementRequest editRequirement = new();
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private bool isEditMode => Navigation.Uri.Contains("/edit");
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 验证参数有效性
+        if (orderId <= 0 || itemId <= 0)
+        {
+            Snackbar.Add("无效的订单ID或项次ID", Severity.Error);
+            isLoading = false;
+            return;
+        }
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await RequirementService.GetByOrderItemIdAsync(orderId, itemId);
+            if (result.Success && result.Data != null)
+            {
+                requirement = result.Data;
+                editRequirement = new CreateProductRequirementRequest
+                {
+                    RequirementType = requirement.RequirementType,
+                    ChemicalComposition = requirement.ChemicalComposition,
+                    MechanicalProperty = requirement.MechanicalProperty,
+                    ToleranceRequirement = requirement.ToleranceRequirement,
+                    SurfaceQuality = requirement.SurfaceQuality,
+                    NdtRequirement = requirement.NdtRequirement,
+                    OtherRequirement = requirement.OtherRequirement
+                };
+            }
+            else
+            {
+                // 没有技术要求时，使用默认值
+                editRequirement = new CreateProductRequirementRequest
+                {
+                    RequirementType = RequirementType.Normal
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void EnterEditMode() => Navigation.NavigateTo($"/orders/{orderId}/items/{itemId}/requirement/edit");
+
+    private async Task SaveRequirement()
+    {
+        isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await RequirementService.CreateOrUpdateAsync(orderId, itemId, editRequirement);
+            if (result.Success)
+            {
+                Snackbar.Add("技术要求保存成功", Severity.Success);
+                Navigation.NavigateTo($"/orders/{orderId}/items/{itemId}/requirement");
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "保存失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void GoBack() => Navigation.NavigateTo($"/orders/{orderId}");
+}

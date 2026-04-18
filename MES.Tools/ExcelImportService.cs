@@ -1,3 +1,4 @@
+// 文件路径: MES.Tools/ExcelImportService.cs
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 using MES.Data;
@@ -36,63 +37,63 @@ public class ExcelImportService
             await LoadCacheAsync();
             result.Log("缓存加载完成", ImportLogLevel.Success);
 
-            // 1. 产品标准
+            // 1. 产品标准（同步方法）
             var standardFile = Path.Combine(excelFolder, "1产品标准列表.xlsx");
             if (File.Exists(standardFile))
             {
-                var r = await ImportProductStandardsAsync(standardFile);
+                var r = ImportProductStandards(standardFile);
                 result.Merge(r);
                 await _context.SaveChangesAsync();
-                await UpdateStandardCacheAsync();
+                UpdateStandardCache();
                 result.Log("产品标准已保存", ImportLogLevel.Success);
             }
 
-            // 2. 牌号对照
+            // 2. 牌号对照（同步方法）
             var gradeFile = Path.Combine(excelFolder, "1牌号对照表.xlsx");
             if (File.Exists(gradeFile))
             {
-                var r = await ImportGradeMappingsAsync(gradeFile);
+                var r = ImportGradeMappings(gradeFile);
                 result.Merge(r);
                 await _context.SaveChangesAsync();
                 result.Log("牌号对照已保存", ImportLogLevel.Success);
             }
 
-            // 3. 客户档案
+            // 3. 客户档案（同步方法）
             var customerFile = Path.Combine(excelFolder, "2销售员及往来单位.xlsx");
             if (File.Exists(customerFile))
             {
-                var r = await ImportCustomersAsync(customerFile);
+                var r = ImportCustomers(customerFile);
                 result.Merge(r);
                 await _context.SaveChangesAsync();
-                await UpdateCustomerCacheAsync();
+                UpdateCustomerCache();
                 result.Log($"客户档案已保存，共 {_customerCache.Count} 条", ImportLogLevel.Success);
             }
 
-            // 4. 订单主表
+            // 4. 订单主表（同步方法）
             var orderFile = Path.Combine(excelFolder, "3销售订单聚合根.xlsx");
             if (File.Exists(orderFile))
             {
-                var r = await ImportOrdersAsync(orderFile);
+                var r = ImportOrders(orderFile);
                 result.Merge(r);
                 await _context.SaveChangesAsync();
                 result.Log("订单主表已保存", ImportLogLevel.Success);
             }
 
-            // 5. 订单项次
+            // 5. 订单项次（同步方法）
             var itemFile = Path.Combine(excelFolder, "4销售订单实体.xlsx");
             if (File.Exists(itemFile))
             {
-                var r = await ImportOrderItemsAsync(itemFile);
+                var r = ImportOrderItems(itemFile);
                 result.Merge(r);
                 await _context.SaveChangesAsync();
                 result.Log("订单项次已保存", ImportLogLevel.Success);
             }
 
-            // 6. 产品要求
+            // 6. 产品要求（同步方法）
             var requirementFile = Path.Combine(excelFolder, "5技术要求.xlsx");
             if (File.Exists(requirementFile))
             {
-                var r = await ImportProductRequirementsAsync(requirementFile);
+                var r = ImportProductRequirements(requirementFile);
                 result.Merge(r);
                 await _context.SaveChangesAsync();
                 result.Log("产品要求已保存", ImportLogLevel.Success);
@@ -154,21 +155,21 @@ public class ExcelImportService
         Console.WriteLine($"📌 缓存: 客户{_customerCache.Count}条, 标准{_standardCache.Count}条, 牌号{_gradeMappingCache.Count}条, 订单{_importedOrderNumbers.Count}条");
     }
 
-    private async Task UpdateCustomerCacheAsync()
+    private void UpdateCustomerCache()
     {
         _customerCache.Clear();
-        var customers = await _context.CustomerProfiles.Where(c => !c.IsDeleted).ToListAsync();
+        var customers = _context.CustomerProfiles.Where(c => !c.IsDeleted).ToList();
         foreach (var c in customers) _customerCache[c.CustomerUnit] = c.Id;
     }
 
-    private async Task UpdateStandardCacheAsync()
+    private void UpdateStandardCache()
     {
         _standardCache.Clear();
-        var standards = await _context.ProductionStandards.Where(s => !s.IsDeleted).ToListAsync();
+        var standards = _context.ProductionStandards.Where(s => !s.IsDeleted).ToList();
         foreach (var s in standards) _standardCache[s.StandardCode] = s.Id;
     }
 
-    private async Task<ImportResult> ImportProductStandardsAsync(string filePath)
+    private ImportResult ImportProductStandards(string filePath)
     {
         var result = new ImportResult { Section = "产品标准" };
         using var package = new ExcelPackage(new FileInfo(filePath));
@@ -207,7 +208,7 @@ public class ExcelImportService
         return result;
     }
 
-    private async Task<ImportResult> ImportGradeMappingsAsync(string filePath)
+    private ImportResult ImportGradeMappings(string filePath)
     {
         var result = new ImportResult { Section = "牌号对照" };
         using var package = new ExcelPackage(new FileInfo(filePath));
@@ -249,7 +250,7 @@ public class ExcelImportService
         return result;
     }
 
-    private async Task<ImportResult> ImportCustomersAsync(string filePath)
+    private ImportResult ImportCustomers(string filePath)
     {
         var result = new ImportResult { Section = "客户档案" };
         using var package = new ExcelPackage(new FileInfo(filePath));
@@ -299,7 +300,7 @@ public class ExcelImportService
         return result;
     }
 
-    private async Task<ImportResult> ImportOrdersAsync(string filePath)
+    private ImportResult ImportOrders(string filePath)
     {
         var result = new ImportResult { Section = "订单主表" };
         using var package = new ExcelPackage(new FileInfo(filePath));
@@ -376,14 +377,15 @@ public class ExcelImportService
         return result;
     }
 
-    private async Task<ImportResult> ImportOrderItemsAsync(string filePath)
+    private ImportResult ImportOrderItems(string filePath)
     {
         var result = new ImportResult { Section = "订单项次" };
         using var package = new ExcelPackage(new FileInfo(filePath));
         var worksheet = package.Workbook.Worksheets[0];
         var rowCount = worksheet.Dimension.Rows;
 
-        var orders = await _context.SalesOrders.Where(o => !o.IsDeleted).ToListAsync();
+        // 重新加载订单 ID 缓存（确保包含刚刚导入的订单）
+        var orders = _context.SalesOrders.Where(o => !o.IsDeleted).ToList();
         foreach (var o in orders) _orderIdCache[o.OrderNumber] = o.Id;
         
         Console.WriteLine($"\n📌 开始读取订单项次，共 {rowCount} 行数据\n");
@@ -487,17 +489,18 @@ public class ExcelImportService
         return result;
     }
 
-    private async Task<ImportResult> ImportProductRequirementsAsync(string filePath)
+    private ImportResult ImportProductRequirements(string filePath)
     {
         var result = new ImportResult { Section = "产品要求" };
         using var package = new ExcelPackage(new FileInfo(filePath));
         var worksheet = package.Workbook.Worksheets[0];
         var rowCount = worksheet.Dimension.Rows;
 
-        var orderItems = await _context.OrderItems
+        // 获取所有订单项次
+        var orderItems = _context.OrderItems
             .Include(oi => oi.SalesOrder)
             .Where(oi => !oi.IsDeleted)
-            .ToListAsync();
+            .ToList();
         
         var orderItemIdMap = new Dictionary<(string OrderNumber, int Sequence), int>();
         foreach (var oi in orderItems)
@@ -528,8 +531,8 @@ public class ExcelImportService
                     continue;
                 }
                 
-                var exists = await _context.ProductRequirements
-                    .AnyAsync(pr => pr.OrderItemId == orderItemId && !pr.IsDeleted);
+                var exists = _context.ProductRequirements
+                    .Any(pr => pr.OrderItemId == orderItemId && !pr.IsDeleted);
                 
                 if (exists)
                 {

@@ -1,3 +1,4 @@
+// 文件路径: MES.Blazor/Pages/OrderDetail.razor
 @page "/orders/{id:int}"
 @page "/orders/{id:int}/edit"
 @using MES.Blazor.Services
@@ -7,6 +8,7 @@
 @using Microsoft.AspNetCore.Authorization
 @inject OrderService OrderService
 @inject CustomerService CustomerService
+@inject ProductRequirementService RequirementService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -79,25 +81,47 @@
                 </MudGrid>
 
                 <MudDivider Class="my-4" />
-                <MudText Typo="Typo.subtitle1" Class="mb-3"><MudIcon Icon="@Icons.Material.Filled.List" Size="Size.Small" Class="mr-1" />订单项次</MudText>
 
-                <MudTable T="OrderItemDto" Items="@(orderDetail.Items ?? new List<OrderItemDto>())" Dense="true" Hover="true">
-                    <HeaderContent>
-                        <MudTh>项次</MudTh><MudTh>规格</MudTh><MudTh>牌号</MudTh><MudTh>数量(支)</MudTh>
-                        <MudTh>米数(m)</MudTh><MudTh>合同重量(kg)</MudTh><MudTh>理算重量(kg)</MudTh><MudTh>交货日期</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd>@context.Sequence</MudTd>
-                        <MudTd>@context.Specification</MudTd>
-                        <MudTd>@context.StandardGrade</MudTd>
-                        <MudTd>@(context.Quantity?.ToString() ?? "-")</MudTd>
-                        <MudTd>@(context.Meters?.ToString("F2") ?? "-")</MudTd>
-                        <MudTd>@context.ContractWeight.ToString("F2")</MudTd>
-                        <MudTd>@context.TheoreticalWeight.ToString("F2")</MudTd>
-                        <MudTd>@context.DeliveryDate.ToString("yyyy-MM-dd")</MudTd>
-                    </RowTemplate>
-                    <PagerContent><MudTablePager /></PagerContent>
-                </MudTable>
+                <!-- 使用 MudBlazor 的 Tab 组件 -->
+                <MudPaper Elevation="0" Class="pa-0">
+                    <MudText Typo="Typo.subtitle1" Class="mb-3">订单项次列表</MudText>
+                    <MudTable T="OrderItemDto" 
+                              Items="@(orderDetail.Items ?? new List<OrderItemDto>())" 
+                              Dense="true" 
+                              Hover="true"
+                              Elevation="0">
+                        <HeaderContent>
+                            <MudTh>项次</MudTh>
+                            <MudTh>规格</MudTh>
+                            <MudTh>牌号</MudTh>
+                            <MudTh>数量(支)</MudTh>
+                            <MudTh>米数(m)</MudTh>
+                            <MudTh>合同重量(kg)</MudTh>
+                            <MudTh>理算重量(kg)</MudTh>
+                            <MudTh>交货日期</MudTh>
+                            <MudTh>技术要求</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.Sequence</MudTd>
+                            <MudTd>@context.Specification</MudTd>
+                            <MudTd>@context.StandardGrade</MudTd>
+                            <MudTd>@(context.Quantity?.ToString() ?? "-")</MudTd>
+                            <MudTd>@(context.Meters?.ToString("F2") ?? "-")</MudTd>
+                            <MudTd>@context.ContractWeight.ToString("F2")</MudTd>
+                            <MudTd>@context.TheoreticalWeight.ToString("F2")</MudTd>
+                            <MudTd>@context.DeliveryDate.ToString("yyyy-MM-dd")</MudTd>
+                            <MudTd>
+                                <MudIconButton Icon="@Icons.Material.Filled.Description"
+                                               Color="Color.Info"
+                                               Size="Size.Small"
+                                               OnClick="() => ViewRequirement(context.Id)" />
+                            </MudTd>
+                        </RowTemplate>
+                        <PagerContent>
+                            <MudTablePager />
+                        </PagerContent>
+                    </MudTable>
+                </MudPaper>
             </MudCardContent>
         </MudCard>
     }
@@ -170,4 +194,9 @@
     }
 
     private void GoBack() => Navigation.NavigateTo("/orders");
+
+    private void ViewRequirement(int itemId)
+    {
+        Navigation.NavigateTo($"/orders/{Id}/items/{itemId}/requirement");
+    }
 }
