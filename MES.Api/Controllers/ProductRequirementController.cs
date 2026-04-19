@@ -24,8 +24,10 @@ public class ProductRequirementController : ControllerBase
     }
 
     /// <summary>
-    /// 获取订单项次的产品要求
+    /// 获取指定订单项次的产品要求
     /// </summary>
+    /// <param name="orderId">订单ID（仅用于路由，实际未使用）</param>
+    /// <param name="itemId">订单项次ID</param>
     [HttpGet]
     [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<ProductRequirementDto>>> Get(int orderId, int itemId)
@@ -33,20 +35,23 @@ public class ProductRequirementController : ControllerBase
         var result = await _service.GetByOrderItemIdAsync(itemId);
         if (result == null)
         {
-            // 修复：使用 default! 或创建空对象，避免 null 引用警告
-            return Ok(ApiResponse<ProductRequirementDto>.Ok(default!, "暂无技术要求"));
+            // 返回一个空的 DTO 对象而非 null，避免前端序列化问题
+            return Ok(ApiResponse<ProductRequirementDto>.Ok(new ProductRequirementDto(), "暂无技术要求"));
         }
         return Ok(ApiResponse<ProductRequirementDto>.Ok(result, "查询成功"));
     }
 
     /// <summary>
-    /// 创建或更新产品要求
+    /// 创建或更新订单项次的产品要求
     /// </summary>
+    /// <param name="orderId">订单ID（仅用于路由）</param>
+    /// <param name="itemId">订单项次ID</param>
+    /// <param name="request">产品要求请求</param>
     [HttpPost]
     [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<ProductRequirementDto>>> CreateOrUpdate(
-        int orderId, 
-        int itemId, 
+        int orderId,
+        int itemId,
         [FromBody] CreateProductRequirementRequest request)
     {
         if (!ModelState.IsValid)
@@ -59,14 +64,27 @@ public class ProductRequirementController : ControllerBase
     }
 
     /// <summary>
-    /// 删除产品要求
+    /// 删除订单项次的产品要求（软删除）
     /// </summary>
+    /// <param name="orderId">订单ID（仅用于路由）</param>
+    /// <param name="itemId">订单项次ID</param>
     [HttpDelete]
     [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int orderId, int itemId)
     {
         await _service.DeleteAsync(itemId);
-        // 修复：使用空对象而不是 null
         return Ok(ApiResponse<object>.Ok(new object(), "删除成功"));
+    }
+
+    /// <summary>
+    /// 获取订单下所有项次的产品要求列表（包含项次号）
+    /// </summary>
+    /// <param name="orderId">订单ID</param>
+    [HttpGet("~/api/order/{orderId}/requirements")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<ProductRequirementDto>>>> GetByOrderId(int orderId)
+    {
+        var result = await _service.GetByOrderIdAsync(orderId);
+        return Ok(ApiResponse<List<ProductRequirementDto>>.Ok(result, "查询成功"));
     }
 }

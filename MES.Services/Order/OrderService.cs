@@ -605,44 +605,48 @@ public class OrderService : IOrderService
         return trimmed;
     }
 
-    private OrderItemDto MapToOrderItemDto(OrderItem orderItem)
+private OrderItemDto MapToOrderItemDto(OrderItem orderItem)
+{
+    // 确保 ProductionStandard 已加载
+    if (orderItem.ProductionStandard == null && orderItem.ProductionStandardId > 0)
     {
-        if (orderItem.ProductionStandard == null && orderItem.ProductionStandardId > 0)
-        {
-            orderItem.ProductionStandard = _context.ProductionStandards
-                .FirstOrDefault(ps => ps.Id == orderItem.ProductionStandardId);
-        }
-
-        return new OrderItemDto
-        {
-            Id = orderItem.Id,
-            Sequence = orderItem.Sequence,
-            DeliveryDate = orderItem.DeliveryDate,
-            DelayPenalty = orderItem.DelayPenalty,
-            SettlementMethod = orderItem.SettlementMethod,
-            MaterialName = orderItem.MaterialName,
-            ProductionStandardCode = orderItem.ProductionStandard?.StandardCode ?? string.Empty,
-            DeliveryState = orderItem.DeliveryState,
-            StandardGrade = orderItem.StandardGrade,
-            PlantGrade = orderItem.PlantGrade,
-            Density = orderItem.Density,
-            OuterDiameter = orderItem.OuterDiameter,
-            WallThickness = orderItem.WallThickness,
-            Specification = orderItem.Specification,
-            OuterDiameterNegative = orderItem.OuterDiameterNegative,
-            OuterDiameterPositive = orderItem.OuterDiameterPositive,
-            WallThicknessNegative = orderItem.WallThicknessNegative,
-            WallThicknessPositive = orderItem.WallThicknessPositive,
-            LengthStatus = orderItem.LengthStatus,
-            MinLength = orderItem.MinLength,
-            MaxLength = orderItem.MaxLength,
-            Quantity = orderItem.Quantity,
-            Meters = orderItem.Meters,
-            ContractWeight = orderItem.ContractWeight,
-            TheoreticalWeight = orderItem.TheoreticalWeight,
-            Remark = orderItem.Remark
-        };
+        orderItem.ProductionStandard = _context.ProductionStandards
+            .FirstOrDefault(ps => ps.Id == orderItem.ProductionStandardId);
     }
+
+    return new OrderItemDto
+    {
+        Id = orderItem.Id,
+        Sequence = orderItem.Sequence,
+        DeliveryDate = orderItem.DeliveryDate,
+        DelayPenalty = orderItem.DelayPenalty,
+        SettlementMethod = orderItem.SettlementMethod,
+        MaterialName = orderItem.MaterialName,
+        // 使用 null 合并运算符提供默认值
+        ProductionStandardCode = orderItem.ProductionStandard?.StandardCode ?? string.Empty,
+        DeliveryState = orderItem.DeliveryState,
+        StandardGrade = orderItem.StandardGrade,
+        PlantGrade = orderItem.PlantGrade,
+        Density = orderItem.Density,
+        OuterDiameter = orderItem.OuterDiameter,
+        WallThickness = orderItem.WallThickness,
+        Specification = orderItem.Specification,
+        OuterDiameterNegative = orderItem.OuterDiameterNegative,
+        OuterDiameterPositive = orderItem.OuterDiameterPositive,
+        WallThicknessNegative = orderItem.WallThicknessNegative,
+        WallThicknessPositive = orderItem.WallThicknessPositive,
+        LengthStatus = orderItem.LengthStatus,
+        MinLength = orderItem.MinLength,
+        MaxLength = orderItem.MaxLength,
+        Quantity = orderItem.Quantity,
+        Meters = orderItem.Meters,
+        ContractWeight = orderItem.ContractWeight,
+        TheoreticalWeight = orderItem.TheoreticalWeight,
+        Remark = orderItem.Remark,
+        CreatedTime = orderItem.CreatedTime,
+        UpdatedTime = orderItem.UpdatedTime
+    };
+}
 
     private static bool CanTransitionTo(SalesOrderStatus current, SalesOrderStatus target)
     {

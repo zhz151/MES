@@ -9,9 +9,6 @@ using MES.Data.Entities;
 
 namespace MES.Services.Order;
 
-/// <summary>
-/// 产品要求服务实现
-/// </summary>
 public class ProductRequirementService : IProductRequirementService
 {
     private readonly AppDbContext _context;
@@ -21,43 +18,27 @@ public class ProductRequirementService : IProductRequirementService
         _context = context;
     }
 
-    /// <summary>
-    /// 根据订单项次ID获取产品要求
-    /// </summary>
     public async Task<ProductRequirementDto?> GetByOrderItemIdAsync(int orderItemId)
     {
         var entity = await _context.ProductRequirements
             .FirstOrDefaultAsync(pr => pr.OrderItemId == orderItemId && !pr.IsDeleted);
 
-        if (entity == null)
-        {
-            return null;
-        }
-
-        return MapToDto(entity);
+        if (entity == null) return null;
+        return await MapToDtoWithSequence(entity);
     }
 
-    /// <summary>
-    /// 创建或更新产品要求
-    /// </summary>
     public async Task<ProductRequirementDto> CreateOrUpdateAsync(int orderItemId, CreateProductRequirementRequest request)
     {
-        // 验证订单项次是否存在
         var orderItem = await _context.OrderItems
             .FirstOrDefaultAsync(oi => oi.Id == orderItemId && !oi.IsDeleted);
-
         if (orderItem == null)
-        {
             throw new BusinessException("订单项次不存在");
-        }
 
-        // 查找是否已存在产品要求
         var existing = await _context.ProductRequirements
             .FirstOrDefaultAsync(pr => pr.OrderItemId == orderItemId && !pr.IsDeleted);
 
         if (existing != null)
         {
-            // 更新
             existing.RequirementType = request.RequirementType;
             existing.ChemicalComposition = request.ChemicalComposition;
             existing.MechanicalProperty = request.MechanicalProperty;
@@ -67,12 +48,10 @@ public class ProductRequirementService : IProductRequirementService
             existing.OtherRequirement = request.OtherRequirement;
 
             await _context.SaveChangesAsync();
-
-            return MapToDto(existing);
+            return await MapToDtoWithSequence(existing);
         }
         else
         {
-            // 创建
             var entity = new ProductRequirement
             {
                 OrderItemId = orderItemId,
@@ -87,19 +66,14 @@ public class ProductRequirementService : IProductRequirementService
 
             _context.ProductRequirements.Add(entity);
             await _context.SaveChangesAsync();
-
-            return MapToDto(entity);
+            return await MapToDtoWithSequence(entity);
         }
     }
 
-    /// <summary>
-    /// 删除产品要求
-    /// </summary>
     public async Task DeleteAsync(int orderItemId)
     {
         var entity = await _context.ProductRequirements
             .FirstOrDefaultAsync(pr => pr.OrderItemId == orderItemId && !pr.IsDeleted);
-
         if (entity != null)
         {
             entity.IsDeleted = true;
@@ -107,19 +81,73 @@ public class ProductRequirementService : IProductRequirementService
         }
     }
 
-    private static ProductRequirementDto MapToDto(ProductRequirement entity)
+    public async Task<List<ProductRequirementDto>> GetByOrderIdAsync(int orderId)
     {
+        var orderItems = await _context.OrderItems
+            .Where(oi => oi.SalesOrderId == orderId && !oi.IsDeleted)
+            .Include(oi => oi.ProductRequirement)
+            .OrderBy(oi => oi.Sequence)
+            .ToListAsync();
+
+        var result = new List<ProductRequirementDto>();
+        foreach (var item in orderItems)
+        {
+            var requirement = item.ProductRequirement;
+            if (requirement != null && !requirement.IsDeleted)
+            {
+                result.Add(await MapToDtoWithSequence(requirement, item.Sequence));
+            }
+            else
+            {
+                // 没有技术要求时，返回一个空的 DTO（仅包含项次号）
+                result.Add(new ProductRequirementDto
+                {
+                    Id = 0,
+                    OrderItemId = item.Id,
+                    Sequence = item.Sequence,
+                    RequirementType = RequirementType.Normal,
+                    ChemicalComposition = null,
+                    MechanicalProperty = null,
+                    ToleranceRequirement = null,
+                    SurfaceQuality = null,
+                    NdtRequirement = null,
+                    OtherRequirement = null,
+                    CreatedTime = item.CreatedTime,
+                    UpdatedTime = item.UpdatedTime
+                });
+            }
+        }
+        return result;
+    }
+
+    private async Task<ProductRequirementDto> MapToDtoWithSequence(ProductRequirement entity, int? explicitSequence = null)
+    {
+        int sequence;
+        if (explicitSequence.HasValue)
+        {
+            sequence = explicitSequence.Value;
+        }
+        else
+        {
+            var orderItem = await _context.OrderItems
+                .FirstOrDefaultAsync(oi => oi.Id == entity.OrderItemId && !oi.IsDeleted);
+            sequence = orderItem?.Sequence ?? 0;
+        }
+
         return new ProductRequirementDto
         {
             Id = entity.Id,
             OrderItemId = entity.OrderItemId,
+            Sequence = sequence,
             RequirementType = entity.RequirementType,
             ChemicalComposition = entity.ChemicalComposition,
             MechanicalProperty = entity.MechanicalProperty,
             ToleranceRequirement = entity.ToleranceRequirement,
             SurfaceQuality = entity.SurfaceQuality,
             NdtRequirement = entity.NdtRequirement,
-            OtherRequirement = entity.OtherRequirement
+            OtherRequirement = entity.OtherRequirement,
+            CreatedTime = entity.CreatedTime,
+            UpdatedTime = entity.UpdatedTime
         };
     }
 }

@@ -1,4 +1,4 @@
-// 文件路径: MES.Blazor/Shared/MainLayout.razor
+@* 文件路径: MES.Blazor/Shared/MainLayout.razor *@
 @inherits LayoutComponentBase
 @using MES.Blazor.Services
 @inject NavigationManager Navigation
@@ -75,7 +75,9 @@
         </MudNavMenu>
     </MudDrawer>
     <MudMainContent>
-        @Body
+        <MudContainer Fluid="true" Class="pa-0">
+            @Body
+        </MudContainer>
     </MudMainContent>
 </MudLayout>
 

@@ -8,55 +8,31 @@ namespace MES.Core.DTOs;
 /// </summary>
 public class ProductRequirementDto
 {
-    /// <summary>
-    /// ID
-    /// </summary>
     public int Id { get; set; }
-
-    /// <summary>
-    /// 订单项次ID
-    /// </summary>
     public int OrderItemId { get; set; }
-
-    /// <summary>
-    /// 产品要求类型
-    /// </summary>
     public RequirementType RequirementType { get; set; }
-
-    /// <summary>
-    /// 产品要求类型文本
-    /// </summary>
     public string RequirementTypeText => RequirementType.ToString();
-
-    /// <summary>
-    /// 化学成分要求
-    /// </summary>
     public string? ChemicalComposition { get; set; }
-
-    /// <summary>
-    /// 机械性能要求
-    /// </summary>
     public string? MechanicalProperty { get; set; }
-
-    /// <summary>
-    /// 尺寸公差要求
-    /// </summary>
     public string? ToleranceRequirement { get; set; }
-
-    /// <summary>
-    /// 表面质量要求
-    /// </summary>
     public string? SurfaceQuality { get; set; }
-
-    /// <summary>
-    /// 无损检测要求
-    /// </summary>
     public string? NdtRequirement { get; set; }
-
-    /// <summary>
-    /// 其他要求
-    /// </summary>
     public string? OtherRequirement { get; set; }
+    
+    /// <summary>
+    /// 项次号（用于前端展示）
+    /// </summary>
+    public int Sequence { get; set; }
+    
+    /// <summary>
+    /// 创建时间
+    /// </summary>
+    public DateTimeOffset CreatedTime { get; set; }
+    
+    /// <summary>
+    /// 更新时间
+    /// </summary>
+    public DateTimeOffset UpdatedTime { get; set; }
 }
 
 /// <summary>
@@ -64,38 +40,11 @@ public class ProductRequirementDto
 /// </summary>
 public class CreateProductRequirementRequest
 {
-    /// <summary>
-    /// 产品要求类型
-    /// </summary>
     public RequirementType RequirementType { get; set; } = RequirementType.Normal;
-
-    /// <summary>
-    /// 化学成分要求
-    /// </summary>
     public string? ChemicalComposition { get; set; }
-
-    /// <summary>
-    /// 机械性能要求
-    /// </summary>
     public string? MechanicalProperty { get; set; }
-
-    /// <summary>
-    /// 尺寸公差要求
-    /// </summary>
     public string? ToleranceRequirement { get; set; }
-
-    /// <summary>
-    /// 表面质量要求
-    /// </summary>
     public string? SurfaceQuality { get; set; }
-
-    /// <summary>
-    /// 无损检测要求
-    /// </summary>
     public string? NdtRequirement { get; set; }
-
-    /// <summary>
-    /// 其他要求
-    /// </summary>
     public string? OtherRequirement { get; set; }
 }

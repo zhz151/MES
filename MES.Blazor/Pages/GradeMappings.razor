@@ -9,7 +9,7 @@
 @inject IJSRuntime JS
 @attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+<div class="mt-4">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
@@ -109,7 +109,7 @@
             </MudTable>
         </MudCardContent>
     </MudCard>
-</MudContainer>
+</div>
 
 @code {
     private MudTable<StandardGradeMappingDto>? table;

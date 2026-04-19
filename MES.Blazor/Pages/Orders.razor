@@ -10,7 +10,7 @@
 @inject IJSRuntime JS
 @attribute [Authorize]
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+<div class="mt-4">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
@@ -147,7 +147,7 @@
             </MudTable>
         </MudCardContent>
     </MudCard>
-</MudContainer>
+</div>
 
 @code {
     private MudTable<SalesOrderListDto>? table;
@@ -256,7 +256,7 @@
     
     private void EditTechnicalRequirement(int orderId, int itemId)
     {
-        Navigation.NavigateTo($"/orders/{orderId}/items/{itemId}/requirement/edit");
+        Navigation.NavigateTo($"/orders/{orderId}/requirements/edit");
     }
 
     private async Task DeleteOrder(SalesOrderListDto order)

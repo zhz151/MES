@@ -4,9 +4,6 @@ using MES.Core.Models;
 
 namespace MES.Blazor.Services;
 
-/// <summary>
-/// 产品要求服务
-/// </summary>
 public class ProductRequirementService
 {
     private readonly AuthHttpClient _http;
@@ -16,9 +13,6 @@ public class ProductRequirementService
         _http = http;
     }
 
-    /// <summary>
-    /// 获取订单项次的产品要求
-    /// </summary>
     public async Task<ApiResponse<ProductRequirementDto>> GetByOrderItemIdAsync(int orderId, int itemId)
     {
         try
@@ -33,12 +27,9 @@ public class ProductRequirementService
         }
     }
 
-    /// <summary>
-    /// 创建或更新产品要求
-    /// </summary>
     public async Task<ApiResponse<ProductRequirementDto>> CreateOrUpdateAsync(
-        int orderId, 
-        int itemId, 
+        int orderId,
+        int itemId,
         CreateProductRequirementRequest request)
     {
         try
@@ -53,9 +44,6 @@ public class ProductRequirementService
         }
     }
 
-    /// <summary>
-    /// 删除产品要求
-    /// </summary>
     public async Task<ApiResponse<object>> DeleteAsync(int orderId, int itemId)
     {
         try
@@ -67,6 +55,23 @@ public class ProductRequirementService
         catch (Exception ex)
         {
             return ApiResponse<object>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 获取订单下所有项次的产品要求列表
+    /// </summary>
+    public async Task<ApiResponse<List<ProductRequirementDto>>> GetByOrderIdAsync(int orderId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<ProductRequirementDto>>>(
+                $"api/order/{orderId}/requirements");
+            return response ?? ApiResponse<List<ProductRequirementDto>>.Fail("获取技术要求列表失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<ProductRequirementDto>>.Fail($"网络错误: {ex.Message}");
         }
     }
 }
