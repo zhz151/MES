@@ -5,6 +5,7 @@
 @inject AuthenticationStateProvider AuthProvider
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject IJSRuntime JSRuntime
+@implements IDisposable
 
 <MudThemeProvider />
 <MudLayout>
@@ -79,7 +80,30 @@
 </MudLayout>
 
 @code {
-    private bool _drawerOpen = true;
+    private bool _drawerOpen = false;
+    private AuthenticationState? _authenticationState;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        _authenticationState = await AuthProvider.GetAuthenticationStateAsync();
+        _drawerOpen = _authenticationState.User.Identity?.IsAuthenticated ?? false;
+    }
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        await InvokeAsync(async () =>
+        {
+            _authenticationState = await task;
+            _drawerOpen = _authenticationState.User.Identity?.IsAuthenticated ?? false;
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        AuthProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
 
     private void DrawerToggle() => _drawerOpen = !_drawerOpen;
 
@@ -105,7 +129,6 @@
 
             await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken");
             await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "refreshToken");
-
             Navigation.NavigateTo("/", true);
         }
     }

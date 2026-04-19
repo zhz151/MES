@@ -58,19 +58,15 @@
             </MudGrid>
 
             <!-- 数据表格 -->
-            <MudTable T="CustomerProfileDto"
-                      Items="@customers"
-                      TotalItems="@totalCount"
+            <MudTable @ref="table"
+                      T="CustomerProfileDto"
+                      ServerData="OnServerData"
                       Loading="@isLoading"
                       Dense="true"
                       Hover="true"
                       Class="mt-4"
                       Elevation="0"
-                      @bind-CurrentPage="currentPage"
-                      @bind-RowsPerPage="pageSize"
-                      RowsPerPageLabel="每页行数:"
-                      OnPageChanged="OnPageChanged"
-                      OnRowsPerPageChanged="OnPageSizeChanged">
+                      RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
                     <MudText Typo="Typo.body2" Class="ml-auto">
                         共 @totalCount 条记录
@@ -78,19 +74,17 @@
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh>客户编码</MudTh>
-                    <MudTh>客户单位</MudTh>
                     <MudTh>业务员</MudTh>
-                    <MudTh>联系人</MudTh>
-                    <MudTh>联系电话</MudTh>
+                    <MudTh>客户单位</MudTh>
+                    <MudTh>最终客户</MudTh>
                     <MudTh>状态</MudTh>
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd>@context.CustomerCode</MudTd>
-                    <MudTd>@context.CustomerUnit</MudTd>
                     <MudTd>@context.Salesman</MudTd>
-                    <MudTd>@context.ContactPerson</MudTd>
-                    <MudTd>@context.ContactPhone</MudTd>
+                    <MudTd>@context.CustomerUnit</MudTd>
+                    <MudTd>@context.EndCustomer</MudTd>
                     <MudTd>
                         <MudChip Size="Size.Small" Color="@(context.Status == CustomerStatus.Active ? Color.Success : Color.Error)">
                             @(context.Status == CustomerStatus.Active ? "启用" : "停用")
@@ -120,21 +114,13 @@
 </MudContainer>
 
 @code {
+    private MudTable<CustomerProfileDto>? table;
     private List<CustomerProfileDto> customers = new();
-    private bool isLoading = true;
+    private bool isLoading = false;
     private string searchKeyword = string.Empty;
-    
-    // 分页相关
-    private int currentPage = 1;
-    private int pageSize = 20;
     private int totalCount = 0;
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadData();
-    }
-
-    private async Task LoadData()
+    private async Task<TableData<CustomerProfileDto>> OnServerData(TableState state)
     {
         isLoading = true;
         StateHasChanged();
@@ -143,8 +129,8 @@
         {
             var queryParams = new QueryParams
             {
-                PageIndex = currentPage,
-                PageSize = pageSize,
+                PageIndex = state.Page + 1,
+                PageSize = state.PageSize,
                 Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword
             };
 
@@ -154,21 +140,28 @@
             {
                 customers = result.Data.Items;
                 totalCount = result.Data.TotalCount;
-                Console.WriteLine($"加载成功: 第{currentPage}页, {customers.Count}条, 总数: {totalCount}");
+                return new TableData<CustomerProfileDto>
+                {
+                    Items = customers,
+                    TotalItems = totalCount
+                };
             }
-            else
+            
+            return new TableData<CustomerProfileDto>
             {
-                customers = new List<CustomerProfileDto>();
-                totalCount = 0;
-                Snackbar.Add(result?.Message ?? "加载失败", Severity.Error);
-            }
+                Items = new List<CustomerProfileDto>(),
+                TotalItems = 0
+            };
         }
         catch (Exception ex)
         {
             Console.WriteLine($"加载失败: {ex.Message}");
             Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
-            customers = new List<CustomerProfileDto>();
-            totalCount = 0;
+            return new TableData<CustomerProfileDto>
+            {
+                Items = new List<CustomerProfileDto>(),
+                TotalItems = 0
+            };
         }
         finally
         {
@@ -179,12 +172,9 @@
 
     private async Task Search()
     {
-        currentPage = 1;
-        await LoadData();
-        
-        if (!string.IsNullOrEmpty(searchKeyword))
+        if (table != null)
         {
-            Snackbar.Add($"搜索关键字: {searchKeyword}, 找到 {totalCount} 条记录", Severity.Info);
+            await table.ReloadServerData();
         }
     }
 
@@ -193,25 +183,6 @@
         if (args.Key == "Enter")
         {
             _ = Search();
-        }
-    }
-
-    private async Task OnPageChanged(int page)
-    {
-        if (currentPage != page)
-        {
-            currentPage = page;
-            await LoadData();
-        }
-    }
-
-    private async Task OnPageSizeChanged(int size)
-    {
-        if (pageSize != size)
-        {
-            pageSize = size;
-            currentPage = 1;
-            await LoadData();
         }
     }
 
@@ -232,7 +203,7 @@
                 if (result.Success)
                 {
                     Snackbar.Add("删除成功", Severity.Success);
-                    await LoadData();
+                    await Search();
                 }
                 else
                 {

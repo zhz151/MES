@@ -333,19 +333,28 @@ public class ExcelImportService
                     }
                 }
 
-                if (!_customerCache.TryGetValue(excelRow.CustomerUnit, out var customerId))
+                // 安全获取客户单元名称
+                var customerUnit = excelRow.CustomerUnit ?? string.Empty;
+                
+                if (!_customerCache.TryGetValue(customerUnit, out var customerId))
                 {
-                    var matchedCustomer = _customerCache.Keys.FirstOrDefault(c => 
-                        c.Contains(excelRow.CustomerUnit) || excelRow.CustomerUnit.Contains(c));
+                    // 模糊匹配（避免 null 引用）
+customerUnit = customerUnit ?? string.Empty;
+
+var matchedCustomer = _customerCache.Keys
+    .OfType<string>()  // 过滤掉 null 键，并让编译器知道返回的是 string
+    .FirstOrDefault(c => 
+        c.Contains(customerUnit, StringComparison.Ordinal) || 
+        customerUnit.Contains(c, StringComparison.Ordinal));
                     
                     if (matchedCustomer != null)
                     {
                         customerId = _customerCache[matchedCustomer];
-                        Console.WriteLine($"行{row}: 模糊匹配客户 '{excelRow.CustomerUnit}' -> '{matchedCustomer}'");
+                        Console.WriteLine($"行{row}: 模糊匹配客户 '{customerUnit}' -> '{matchedCustomer}'");
                     }
                     else
                     {
-                        result.Log($"客户不存在: {excelRow.CustomerUnit}", ImportLogLevel.Warning);
+                        result.Log($"客户不存在: {customerUnit}", ImportLogLevel.Warning);
                         result.Failed++;
                         continue;
                     }
@@ -547,8 +556,7 @@ public class ExcelImportService
                 var entity = new ProductRequirement
                 {
                     OrderItemId = orderItemId,
-                    StandardId = null,
-                    RequirementType = requirementType,
+                     RequirementType = requirementType,
                     ChemicalComposition = excelRow.ChemicalComposition,
                     MechanicalProperty = excelRow.MechanicalProperty,
                     ToleranceRequirement = excelRow.ToleranceRequirement,
@@ -576,7 +584,7 @@ public class ExcelImportService
         return result;
     }
 
-    private SettlementMethod ParseSettlementMethod(string value) => value switch
+    private static SettlementMethod ParseSettlementMethod(string value) => value switch
     {
         "理算" => SettlementMethod.Theoretical,
         "过磅-负" => SettlementMethod.WeighingNegative,
@@ -584,11 +592,11 @@ public class ExcelImportService
         _ => SettlementMethod.Theoretical
     };
 
-    private MaterialName ParseMaterialName(string value) =>
+    private static MaterialName ParseMaterialName(string value) =>
         string.IsNullOrEmpty(value) ? MaterialName.SeamlessPipe :
         value.Contains("无缝") ? MaterialName.SeamlessPipe : MaterialName.WeldedPipe;
 
-    private DeliveryState ParseDeliveryState(string value) => value switch
+    private static DeliveryState ParseDeliveryState(string value) => value switch
     {
         "固溶酸洗" => DeliveryState.SolutionAnnealedAndPickled,
         "外抛光" => DeliveryState.SolutionAnnealedAndPickledExternalPolished,
@@ -599,7 +607,7 @@ public class ExcelImportService
         _ => DeliveryState.SolutionAnnealedAndPickled
     };
 
-    private LengthStatus ParseLengthStatus(string value) => value switch
+    private static LengthStatus ParseLengthStatus(string value) => value switch
     {
         "Fixed" or "定尺" => LengthStatus.Fixed,
         "Range" or "范围尺" => LengthStatus.Range,

@@ -14,5 +14,4 @@ public class ProductionStandard : BaseEntity
 
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 
-    public ICollection<ProductRequirement> ProductRequirements { get; set; } = new List<ProductRequirement>();
 }

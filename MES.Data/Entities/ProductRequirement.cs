@@ -6,8 +6,6 @@ public class ProductRequirement : BaseEntity
 {
     public int OrderItemId { get; set; }
 
-    public int? StandardId { get; set; }
-
     public RequirementType RequirementType { get; set; }
 
     public string? ChemicalComposition { get; set; }
@@ -22,5 +20,4 @@ public class ProductRequirement : BaseEntity
 
     public OrderItem OrderItem { get; set; } = null!;
 
-    public ProductionStandard? Standard { get; set; }
 }

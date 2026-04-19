@@ -20,14 +20,6 @@ public class OrderItem : BaseEntity
     public int Sequence { get; set; }
 
     /// <summary>
-    /// 工单ID（创建工单后回填）
-    /// 注意：此字段当前标记为 [NotMapped]，表示不映射到数据库。
-    /// 建议根据业务需求确定关系后，移除 [NotMapped] 并创建真正的外键关系。
-    /// </summary>
-    [NotMapped]
-    public int? WorkOrderId { get; set; }
-
-    /// <summary>
     /// 交货日期
     /// </summary>
     public DateTime DeliveryDate { get; set; }
@@ -163,12 +155,6 @@ public class OrderItem : BaseEntity
     /// 牌号对照
     /// </summary>
     public virtual StandardGradeMapping? GradeMapping { get; set; }
-
-    /// <summary>
-    /// 关联的工单（当前为 [NotMapped] 状态）
-    /// </summary>
-    [NotMapped]
-    public virtual WorkOrder? WorkOrder { get; set; }
 
     /// <summary>
     /// 产品要求（一对一关系）

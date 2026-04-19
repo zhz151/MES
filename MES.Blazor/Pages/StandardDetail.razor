@@ -1,3 +1,4 @@
+// 文件路径: MES.Blazor/Pages/StandardDetail.razor
 @page "/standards/{id:int}"
 @page "/standards/{id:int}/edit"
 @using MES.Blazor.Services
@@ -50,19 +51,31 @@
             <MudCardContent>
                 <MudGrid>
                     <MudItem xs="12" md="6">
-                        <MudTextField T="string" Label="标准编码" @bind-Value="editStandard.StandardCode" Disabled="!isEditMode" HelperText="唯一标识" />
+                        <MudTextField T="string" 
+                                      Label="标准编码" 
+                                      @bind-Value="editStandard.StandardCode" 
+                                      Disabled="!isEditMode" 
+                                      HelperText="唯一标识" />
                     </MudItem>
-                    <MudItem xs="12" md="6">
-                        <MudNumericField T="int" Label="排序序号" @bind-Value="sortOrderValue" Disabled="!isEditMode" HelperText="数字越小越靠前" />
+                    <!-- 移除了排序序号字段 -->
+                    <MudItem xs="12" md="12">
+                        <MudTextField T="string" 
+                                      Label="标准名称" 
+                                      @bind-Value="editStandard.StandardName" 
+                                      Disabled="!isEditMode" />
                     </MudItem>
                     <MudItem xs="12" md="12">
-                        <MudTextField T="string" Label="标准名称" @bind-Value="editStandard.StandardName" Disabled="!isEditMode" />
+                        <MudSwitch @bind-Value="editStandard.IsActive" 
+                                   Label="启用" 
+                                   Disabled="!isEditMode" />
                     </MudItem>
                     <MudItem xs="12" md="12">
-                        <MudSwitch @bind-Value="editStandard.IsActive" Label="启用" Disabled="!isEditMode" />
-                    </MudItem>
-                    <MudItem xs="12" md="12">
-                        <MudTextField T="string" Label="备注" @bind-Value="editStandard.Remark" Disabled="!isEditMode" Multiline="true" Lines="3" />
+                        <MudTextField T="string" 
+                                      Label="备注" 
+                                      @bind-Value="editStandard.Remark" 
+                                      Disabled="!isEditMode" 
+                                      Multiline="true" 
+                                      Lines="3" />
                     </MudItem>
                 </MudGrid>
             </MudCardContent>
@@ -77,7 +90,6 @@
     private UpdateProductionStandardRequest editStandard = new();
     private bool isLoading = true;
     private bool isSubmitting;
-    private int sortOrderValue;
 
     protected override async Task OnInitializedAsync() => await LoadData();
 
@@ -96,10 +108,9 @@
                     StandardCode = standard.StandardCode,
                     StandardName = standard.StandardName,
                     Remark = standard.Remark,
-                    SortOrder = standard.SortOrder,
                     IsActive = standard.IsActive
+                    // 移除了 SortOrder
                 };
-                sortOrderValue = standard.SortOrder;
             }
             else { Snackbar.Add(result.Message ?? "加载失败", Severity.Error); }
         }
@@ -114,7 +125,6 @@
         if (string.IsNullOrWhiteSpace(editStandard.StandardCode)) { Snackbar.Add("标准编码不能为空", Severity.Warning); return; }
         if (string.IsNullOrWhiteSpace(editStandard.StandardName)) { Snackbar.Add("标准名称不能为空", Severity.Warning); return; }
 
-        editStandard.SortOrder = sortOrderValue;
         isSubmitting = true; StateHasChanged();
 
         try

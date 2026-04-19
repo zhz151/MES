@@ -1,3 +1,4 @@
+// 文件路径: MES.Blazor/Pages/StandardCreate.razor
 @page "/standards/create"
 @using MES.Blazor.Services
 @using MES.Core.DTOs
@@ -31,9 +32,7 @@
                 <MudItem xs="12" md="6">
                     <MudTextField T="string" Label="标准编码" @bind-Value="standard.StandardCode" Required="true" HelperText="唯一标识，如 GB/T 14976" />
                 </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudNumericField T="int" Label="排序序号" @bind-Value="standard.SortOrder" HelperText="数字越小越靠前" />
-                </MudItem>
+                <!-- 移除了排序序号字段 -->
                 <MudItem xs="12" md="12">
                     <MudTextField T="string" Label="标准名称" @bind-Value="standard.StandardName" Required="true" />
                 </MudItem>
@@ -49,7 +48,7 @@
 </MudContainer>
 
 @code {
-    private CreateProductionStandardRequest standard = new() { IsActive = true, SortOrder = 0 };
+    private CreateProductionStandardRequest standard = new() { IsActive = true };
     private bool isSubmitting;
 
     private async Task SaveStandard()

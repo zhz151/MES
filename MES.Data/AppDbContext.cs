@@ -169,7 +169,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Remark).HasMaxLength(500);
             entity.HasIndex(e => new { e.SalesOrderId, e.Sequence }).IsUnique().HasDatabaseName("UK_OrderItem_Sequence");
             entity.HasIndex(e => e.SalesOrderId).HasDatabaseName("IX_OrderItem_SalesOrderId");
-            entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_OrderItem_WorkOrderId");
             entity.HasIndex(e => e.ProductionStandardId).HasDatabaseName("IX_OrderItem_ProductStandardId");
             entity.HasIndex(e => e.StandardGrade).HasDatabaseName("IX_OrderItem_StandardGrade");
             entity.HasOne(e => e.SalesOrder).WithMany(s => s.OrderItems).HasForeignKey(e => e.SalesOrderId).OnDelete(DeleteBehavior.Cascade);
@@ -230,10 +229,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.NdtRequirement).HasMaxLength(500);
             entity.Property(e => e.OtherRequirement).HasMaxLength(1000);
             entity.HasIndex(e => e.OrderItemId).IsUnique().HasDatabaseName("UK_ProductRequirement_OrderItemId");
-            entity.HasIndex(e => e.StandardId).HasDatabaseName("IX_ProductRequirement_StandardId");
             entity.HasIndex(e => e.RequirementType).HasDatabaseName("IX_ProductRequirement_RequirementType");
             entity.HasOne(e => e.OrderItem).WithOne(oi => oi.ProductRequirement).HasForeignKey<ProductRequirement>(e => e.OrderItemId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(e => e.Standard).WithMany(p => p.ProductRequirements).HasForeignKey(e => e.StandardId).OnDelete(DeleteBehavior.SetNull);
         });
     }
 

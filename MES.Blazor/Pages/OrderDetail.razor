@@ -73,8 +73,6 @@
                         <MudSelect T="string" @bind-Value="editOrderStatusText" Label="订单状态" Disabled="!isEditMode" Required="true">
                             <MudSelectItem Value="@SalesOrderStatus.Pending.ToString()">待处理</MudSelectItem>
                             <MudSelectItem Value="@SalesOrderStatus.Confirmed.ToString()">已确认</MudSelectItem>
-                            <MudSelectItem Value="@SalesOrderStatus.Processing.ToString()">处理中</MudSelectItem>
-                            <MudSelectItem Value="@SalesOrderStatus.Completed.ToString()">已完成</MudSelectItem>
                             <MudSelectItem Value="@SalesOrderStatus.Cancelled.ToString()">已取消</MudSelectItem>
                         </MudSelect>
                     </MudItem>

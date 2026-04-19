@@ -56,20 +56,15 @@
                 </MudItem>
             </MudGrid>
 
-            <!-- 数据表格 -->
-            <MudTable T="StandardGradeMappingDto"
-                      Items="@gradeMappings"
-                      TotalItems="@totalCount"
+            <MudTable @ref="table"
+                      T="StandardGradeMappingDto"
+                      ServerData="OnServerData"
                       Loading="@isLoading"
                       Dense="true"
                       Hover="true"
                       Class="mt-4"
                       Elevation="0"
-                      @bind-CurrentPage="currentPage"
-                      @bind-RowsPerPage="pageSize"
-                      RowsPerPageLabel="每页行数:"
-                      OnPageChanged="OnPageChanged"
-                      OnRowsPerPageChanged="OnPageSizeChanged">
+                      RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
                     <MudText Typo="Typo.body2" Class="ml-auto">
                         共 @totalCount 条记录
@@ -117,24 +112,13 @@
 </MudContainer>
 
 @code {
+    private MudTable<StandardGradeMappingDto>? table;
     private List<StandardGradeMappingDto> gradeMappings = new();
-    private bool isLoading = true;
+    private bool isLoading = false;
     private string searchKeyword = string.Empty;
-
-    // 分页相关
-    private int currentPage = 1;
-    private int pageSize = 20;
     private int totalCount = 0;
 
-    // 可选的每页行数选项
-    private readonly int[] pageSizeOptions = { 10, 20, 50, 100 };
-
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadData();
-    }
-
-    private async Task LoadData()
+    private async Task<TableData<StandardGradeMappingDto>> OnServerData(TableState state)
     {
         isLoading = true;
         StateHasChanged();
@@ -143,8 +127,8 @@
         {
             var queryParams = new QueryParams
             {
-                PageIndex = currentPage,
-                PageSize = pageSize,
+                PageIndex = state.Page + 1,
+                PageSize = state.PageSize,
                 Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword
             };
 
@@ -154,21 +138,28 @@
             {
                 gradeMappings = result.Data.Items;
                 totalCount = result.Data.TotalCount;
-                Console.WriteLine($"加载成功: 第{currentPage}页, {gradeMappings.Count}条, 总数: {totalCount}");
+                return new TableData<StandardGradeMappingDto>
+                {
+                    Items = gradeMappings,
+                    TotalItems = totalCount
+                };
             }
-            else
+            
+            return new TableData<StandardGradeMappingDto>
             {
-                gradeMappings = new List<StandardGradeMappingDto>();
-                totalCount = 0;
-                Snackbar.Add(result?.Message ?? "加载失败", Severity.Error);
-            }
+                Items = new List<StandardGradeMappingDto>(),
+                TotalItems = 0
+            };
         }
         catch (Exception ex)
         {
             Console.WriteLine($"加载失败: {ex.Message}");
             Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
-            gradeMappings = new List<StandardGradeMappingDto>();
-            totalCount = 0;
+            return new TableData<StandardGradeMappingDto>
+            {
+                Items = new List<StandardGradeMappingDto>(),
+                TotalItems = 0
+            };
         }
         finally
         {
@@ -179,12 +170,9 @@
 
     private async Task Search()
     {
-        currentPage = 1; // 搜索时重置到第一页
-        await LoadData();
-
-        if (!string.IsNullOrEmpty(searchKeyword))
+        if (table != null)
         {
-            Snackbar.Add($"搜索关键字: {searchKeyword}, 找到 {totalCount} 条记录", Severity.Info);
+            await table.ReloadServerData();
         }
     }
 
@@ -193,25 +181,6 @@
         if (args.Key == "Enter")
         {
             _ = Search();
-        }
-    }
-
-    private async Task OnPageChanged(int page)
-    {
-        if (currentPage != page)
-        {
-            currentPage = page;
-            await LoadData();
-        }
-    }
-
-    private async Task OnPageSizeChanged(int size)
-    {
-        if (pageSize != size)
-        {
-            pageSize = size;
-            currentPage = 1; // 改变每页条数时重置到第一页
-            await LoadData();
         }
     }
 
@@ -232,7 +201,7 @@
                 if (result.Success)
                 {
                     Snackbar.Add("删除成功", Severity.Success);
-                    await LoadData(); // 重新加载当前页数据
+                    await Search();
                 }
                 else
                 {

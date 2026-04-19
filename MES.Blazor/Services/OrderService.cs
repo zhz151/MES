@@ -1,6 +1,6 @@
-// 文件路径: MES.Blazor/Services/OrderService.cs
 using MES.Core.DTOs;
 using MES.Core.Models;
+using MES.Core.Enums;
 
 namespace MES.Blazor.Services;
 
@@ -14,18 +14,27 @@ public class OrderService
         _http = http;
     }
 
-    /// <summary>
-    /// 分页查询订单列表（支持关键字搜索）
-    /// </summary>
-    public async Task<ApiResponse<PagedResult<SalesOrderListDto>>> GetPagedAsync(QueryParams query)
+    public async Task<ApiResponse<PagedResult<SalesOrderListDto>>> GetPagedAsync(
+        QueryParams query, 
+        bool? hasTechnicalRequirement = null, 
+        List<SalesOrderStatus>? statuses = null)
     {
         try
         {
             var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={Uri.EscapeDataString(query.SortBy)}&isDescending={query.IsDescending}";
+            
             if (!string.IsNullOrEmpty(query.Keyword))
-            {
                 url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
+            
+            if (hasTechnicalRequirement.HasValue)
+                url += $"&technicalStatus={(hasTechnicalRequirement.Value ? "Edited" : "NotEdited")}";
+            
+            if (statuses != null && statuses.Any())
+            {
+                var statusParam = string.Join(",", statuses.Select(s => s.ToString()));
+                url += $"&orderStatus={Uri.EscapeDataString(statusParam)}";
             }
+            
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<SalesOrderListDto>>>(url);
             return response ?? ApiResponse<PagedResult<SalesOrderListDto>>.Fail("获取订单列表失败");
         }
@@ -35,9 +44,6 @@ public class OrderService
         }
     }
 
-    /// <summary>
-    /// 根据ID获取订单详情
-    /// </summary>
     public async Task<ApiResponse<SalesOrderDetailDto>> GetByIdAsync(int id)
     {
         try
@@ -51,9 +57,6 @@ public class OrderService
         }
     }
 
-    /// <summary>
-    /// 创建订单
-    /// </summary>
     public async Task<ApiResponse<SalesOrderListDto>> CreateAsync(CreateSalesOrderRequest request)
     {
         try
@@ -67,9 +70,6 @@ public class OrderService
         }
     }
 
-    /// <summary>
-    /// 更新订单
-    /// </summary>
     public async Task<ApiResponse<SalesOrderListDto>> UpdateAsync(int id, UpdateSalesOrderRequest request)
     {
         try
@@ -83,9 +83,6 @@ public class OrderService
         }
     }
 
-    /// <summary>
-    /// 删除订单（软删除）
-    /// </summary>
     public async Task<ApiResponse<object>> DeleteAsync(int id)
     {
         try
@@ -99,9 +96,6 @@ public class OrderService
         }
     }
 
-    /// <summary>
-    /// 添加订单项次
-    /// </summary>
     public async Task<ApiResponse<OrderItemDto>> AddItemAsync(int orderId, AddOrderItemRequest request)
     {
         try
@@ -115,9 +109,6 @@ public class OrderService
         }
     }
 
-    /// <summary>
-    /// 更新订单项次
-    /// </summary>
     public async Task<ApiResponse<OrderItemDto>> UpdateItemAsync(int orderId, int itemId, UpdateOrderItemRequest request)
     {
         try
@@ -131,9 +122,6 @@ public class OrderService
         }
     }
 
-    /// <summary>
-    /// 删除订单项次（软删除）
-    /// </summary>
     public async Task<ApiResponse<object>> DeleteItemAsync(int orderId, int itemId)
     {
         try

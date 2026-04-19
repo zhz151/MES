@@ -4,6 +4,7 @@ using MES.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MES.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260419145557_RemoveWorkOrderIdColumn")]
+    partial class RemoveWorkOrderIdColumn
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -374,6 +377,9 @@ namespace MES.Data.Migrations
                         .HasColumnType("nvarchar(20)")
                         .HasDefaultValue("Normal");
 
+                    b.Property<int?>("StandardId")
+                        .HasColumnType("int");
+
                     b.Property<string>("SurfaceQuality")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -397,6 +403,9 @@ namespace MES.Data.Migrations
 
                     b.HasIndex("RequirementType")
                         .HasDatabaseName("IX_ProductRequirement_RequirementType");
+
+                    b.HasIndex("StandardId")
+                        .HasDatabaseName("IX_ProductRequirement_StandardId");
 
                     b.ToTable("ProductRequirement", (string)null);
                 });
@@ -771,7 +780,14 @@ namespace MES.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("MES.Data.Entities.ProductionStandard", "Standard")
+                        .WithMany("ProductRequirements")
+                        .HasForeignKey("StandardId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("OrderItem");
+
+                    b.Navigation("Standard");
                 });
 
             modelBuilder.Entity("MES.Data.Entities.SalesOrder", b =>
@@ -849,6 +865,8 @@ namespace MES.Data.Migrations
             modelBuilder.Entity("MES.Data.Entities.ProductionStandard", b =>
                 {
                     b.Navigation("OrderItems");
+
+                    b.Navigation("ProductRequirements");
                 });
 
             modelBuilder.Entity("MES.Data.Entities.SalesOrder", b =>
