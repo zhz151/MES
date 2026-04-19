@@ -1,10 +1,10 @@
 ﻿========================================
    MES 项目完整快照
 ========================================
-生成时间: 2026-04-19 03:38:45
+生成时间: 2026-04-19 11:58:08
 项目路径: E:\MES项目\MES
 解决方案: MES.sln
-文件总数: 123
+文件总数: 129
 
 ========================================
    重建说明
@@ -78,6 +78,7 @@ MES.Tools | Microsoft.Extensions.DependencyInjection | 8.0.0
   MES.Api\Controllers\GradeMappingController.cs
   MES.Api\Controllers\OrderController.cs
   MES.Api\Controllers\ProductionStandardController.cs
+  MES.Api\Controllers\ProductRequirementController.cs
   MES.Api\MES.Api.csproj
   MES.Api\Middlewares\ExceptionMiddleware.cs
   MES.Api\Program.cs
@@ -100,6 +101,7 @@ MES.Tools | Microsoft.Extensions.DependencyInjection | 8.0.0
   MES.Blazor\Pages\OrderCreate.razor
   MES.Blazor\Pages\OrderDetail.razor
   MES.Blazor\Pages\Orders.razor
+  MES.Blazor\Pages\ProductRequirement.razor
   MES.Blazor\Pages\StandardCreate.razor
   MES.Blazor\Pages\StandardDetail.razor
   MES.Blazor\Pages\Standards.razor
@@ -111,6 +113,7 @@ MES.Tools | Microsoft.Extensions.DependencyInjection | 8.0.0
   MES.Blazor\Services\GradeMappingService.cs
   MES.Blazor\Services\OrderService.cs
   MES.Blazor\Services\ProductionStandardService.cs
+  MES.Blazor\Services\ProductRequirementService.cs
   MES.Blazor\Shared\MainLayout.razor
   MES.Blazor\wwwroot\css\app.css
   MES.Blazor\wwwroot\css\bootstrap\bootstrap.min.css
@@ -126,6 +129,7 @@ MES.Tools | Microsoft.Extensions.DependencyInjection | 8.0.0
   MES.Core\DTOs\CustomerProfileDto.cs
   MES.Core\DTOs\OrderItemDto.cs
   MES.Core\DTOs\ProductionStandardDto.cs
+  MES.Core\DTOs\ProductRequirementDto.cs
   MES.Core\DTOs\SalesOrderDetailDto.cs
   MES.Core\DTOs\SalesOrderListDto.cs
   MES.Core\DTOs\StandardGradeMappingDto.cs
@@ -146,6 +150,7 @@ MES.Tools | Microsoft.Extensions.DependencyInjection | 8.0.0
   MES.Core\Interfaces\ICustomerService.cs
   MES.Core\Interfaces\IGradeMappingService.cs
   MES.Core\Interfaces\IProductionStandardService.cs
+  MES.Core\Interfaces\IProductRequirementService.cs
   MES.Core\Interfaces\Order\IOrderService.cs
   MES.Core\MES.Core.csproj
   MES.Core\Models\ApiResponse.cs
@@ -168,6 +173,7 @@ MES.Tools | Microsoft.Extensions.DependencyInjection | 8.0.0
   MES.Services\MES.Services.csproj
   MES.Services\Order\OrderService.cs
   MES.Services\ProductionStandardService.cs
+  MES.Services\ProductRequirementService.cs
   MES.Shared\Constants\Roles.cs
   MES.Shared\MES.Shared.csproj
   MES.Shared\Settings\JwtSettings.cs
@@ -5893,6 +5899,83 @@ public class ProductionStandardController : ControllerBase
 }
 
 ======================================================================
+FILE: MES.Api\Controllers\ProductRequirementController.cs
+======================================================================
+
+// 文件路径: MES.Api/Controllers/ProductRequirementController.cs
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MES.Core.DTOs;
+using MES.Core.Interfaces.Order;
+using MES.Core.Models;
+using MES.Shared.Constants;
+
+namespace MES.Api.Controllers;
+
+/// <summary>
+/// 产品要求控制器
+/// </summary>
+[ApiController]
+[Route("api/order/{orderId}/items/{itemId}/requirement")]
+[Authorize]
+public class ProductRequirementController : ControllerBase
+{
+    private readonly IProductRequirementService _service;
+
+    public ProductRequirementController(IProductRequirementService service)
+    {
+        _service = service;
+    }
+
+    /// <summary>
+    /// 获取订单项次的产品要求
+    /// </summary>
+    [HttpGet]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<ProductRequirementDto>>> Get(int orderId, int itemId)
+    {
+        var result = await _service.GetByOrderItemIdAsync(itemId);
+        if (result == null)
+        {
+            // 修复：使用 default! 或创建空对象，避免 null 引用警告
+            return Ok(ApiResponse<ProductRequirementDto>.Ok(default!, "暂无技术要求"));
+        }
+        return Ok(ApiResponse<ProductRequirementDto>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 创建或更新产品要求
+    /// </summary>
+    [HttpPost]
+    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<ProductRequirementDto>>> CreateOrUpdate(
+        int orderId, 
+        int itemId, 
+        [FromBody] CreateProductRequirementRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ApiResponse<ProductRequirementDto>.Fail("请求参数无效"));
+        }
+
+        var result = await _service.CreateOrUpdateAsync(itemId, request);
+        return Ok(ApiResponse<ProductRequirementDto>.Ok(result, "保存成功"));
+    }
+
+    /// <summary>
+    /// 删除产品要求
+    /// </summary>
+    [HttpDelete]
+    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<object>>> Delete(int orderId, int itemId)
+    {
+        await _service.DeleteAsync(itemId);
+        // 修复：使用空对象而不是 null
+        return Ok(ApiResponse<object>.Ok(new object(), "删除成功"));
+    }
+}
+
+======================================================================
 FILE: MES.Api\MES.Api.csproj
 ======================================================================
 
@@ -6151,6 +6234,7 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IProductionStandardService, ProductionStandardService>();
 builder.Services.AddScoped<IGradeMappingService, GradeMappingService>();
+builder.Services.AddScoped<IProductRequirementService, ProductRequirementService>();
 
 builder.Services.AddHttpContextAccessor();
 
@@ -6211,7 +6295,8 @@ FILE: MES.Api\Properties\launchSettings.json
       "launchUrl": "swagger",
       "applicationUrl": "http://localhost:7000",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_HOSTINGSTARTUPASSEMBLIES": ""
       }
     },
     "https": {
@@ -6221,7 +6306,8 @@ FILE: MES.Api\Properties\launchSettings.json
       "launchUrl": "swagger",
       "applicationUrl": "https://localhost:7001;http://localhost:7000",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_HOSTINGSTARTUPASSEMBLIES": ""
       }
     },
     "IIS Express": {
@@ -6229,7 +6315,8 @@ FILE: MES.Api\Properties\launchSettings.json
       "launchBrowser": true,
       "launchUrl": "swagger",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_HOSTINGSTARTUPASSEMBLIES": ""
       }
     }
   }
@@ -6603,12 +6690,14 @@ FILE: MES.Blazor\MES.Blazor.csproj
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <BlazorWebAssemblyEnableDebugging>true</BlazorWebAssemblyEnableDebugging>
   </PropertyGroup>
 	
-	<PropertyGroup>
-		<StaticWebAssetsEnabled>true</StaticWebAssetsEnabled>
-		<GenerateStaticWebAssetsManifest>true</GenerateStaticWebAssetsManifest>
-	</PropertyGroup>
+  <PropertyGroup>
+	<StaticWebAssetsEnabled>true</StaticWebAssetsEnabled>
+	<GenerateStaticWebAssetsManifest>true</GenerateStaticWebAssetsManifest>
+	<UseBlazorDebugging>true</UseBlazorDebugging>
+  </PropertyGroup>
 	
   <ItemGroup>
     <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
@@ -8234,6 +8323,7 @@ FILE: MES.Blazor\Pages\OrderCreate.razor
 FILE: MES.Blazor\Pages\OrderDetail.razor
 ======================================================================
 
+// 文件路径: MES.Blazor/Pages/OrderDetail.razor
 @page "/orders/{id:int}"
 @page "/orders/{id:int}/edit"
 @using MES.Blazor.Services
@@ -8243,6 +8333,7 @@ FILE: MES.Blazor\Pages\OrderDetail.razor
 @using Microsoft.AspNetCore.Authorization
 @inject OrderService OrderService
 @inject CustomerService CustomerService
+@inject ProductRequirementService RequirementService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -8315,25 +8406,47 @@ FILE: MES.Blazor\Pages\OrderDetail.razor
                 </MudGrid>
 
                 <MudDivider Class="my-4" />
-                <MudText Typo="Typo.subtitle1" Class="mb-3"><MudIcon Icon="@Icons.Material.Filled.List" Size="Size.Small" Class="mr-1" />订单项次</MudText>
 
-                <MudTable T="OrderItemDto" Items="@(orderDetail.Items ?? new List<OrderItemDto>())" Dense="true" Hover="true">
-                    <HeaderContent>
-                        <MudTh>项次</MudTh><MudTh>规格</MudTh><MudTh>牌号</MudTh><MudTh>数量(支)</MudTh>
-                        <MudTh>米数(m)</MudTh><MudTh>合同重量(kg)</MudTh><MudTh>理算重量(kg)</MudTh><MudTh>交货日期</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd>@context.Sequence</MudTd>
-                        <MudTd>@context.Specification</MudTd>
-                        <MudTd>@context.StandardGrade</MudTd>
-                        <MudTd>@(context.Quantity?.ToString() ?? "-")</MudTd>
-                        <MudTd>@(context.Meters?.ToString("F2") ?? "-")</MudTd>
-                        <MudTd>@context.ContractWeight.ToString("F2")</MudTd>
-                        <MudTd>@context.TheoreticalWeight.ToString("F2")</MudTd>
-                        <MudTd>@context.DeliveryDate.ToString("yyyy-MM-dd")</MudTd>
-                    </RowTemplate>
-                    <PagerContent><MudTablePager /></PagerContent>
-                </MudTable>
+                <!-- 使用 MudBlazor 的 Tab 组件 -->
+                <MudPaper Elevation="0" Class="pa-0">
+                    <MudText Typo="Typo.subtitle1" Class="mb-3">订单项次列表</MudText>
+                    <MudTable T="OrderItemDto" 
+                              Items="@(orderDetail.Items ?? new List<OrderItemDto>())" 
+                              Dense="true" 
+                              Hover="true"
+                              Elevation="0">
+                        <HeaderContent>
+                            <MudTh>项次</MudTh>
+                            <MudTh>规格</MudTh>
+                            <MudTh>牌号</MudTh>
+                            <MudTh>数量(支)</MudTh>
+                            <MudTh>米数(m)</MudTh>
+                            <MudTh>合同重量(kg)</MudTh>
+                            <MudTh>理算重量(kg)</MudTh>
+                            <MudTh>交货日期</MudTh>
+                            <MudTh>技术要求</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.Sequence</MudTd>
+                            <MudTd>@context.Specification</MudTd>
+                            <MudTd>@context.StandardGrade</MudTd>
+                            <MudTd>@(context.Quantity?.ToString() ?? "-")</MudTd>
+                            <MudTd>@(context.Meters?.ToString("F2") ?? "-")</MudTd>
+                            <MudTd>@context.ContractWeight.ToString("F2")</MudTd>
+                            <MudTd>@context.TheoreticalWeight.ToString("F2")</MudTd>
+                            <MudTd>@context.DeliveryDate.ToString("yyyy-MM-dd")</MudTd>
+                            <MudTd>
+                                <MudIconButton Icon="@Icons.Material.Filled.Description"
+                                               Color="Color.Info"
+                                               Size="Size.Small"
+                                               OnClick="() => ViewRequirement(context.Id)" />
+                            </MudTd>
+                        </RowTemplate>
+                        <PagerContent>
+                            <MudTablePager />
+                        </PagerContent>
+                    </MudTable>
+                </MudPaper>
             </MudCardContent>
         </MudCard>
     }
@@ -8406,6 +8519,11 @@ FILE: MES.Blazor\Pages\OrderDetail.razor
     }
 
     private void GoBack() => Navigation.NavigateTo("/orders");
+
+    private void ViewRequirement(int itemId)
+    {
+        Navigation.NavigateTo($"/orders/{Id}/items/{itemId}/requirement");
+    }
 }
 
 ======================================================================
@@ -8675,6 +8793,302 @@ FILE: MES.Blazor\Pages\Orders.razor
         SalesOrderStatus.Cancelled => "已取消",
         _ => status.ToString()
     };
+}
+
+======================================================================
+FILE: MES.Blazor\Pages\ProductRequirement.razor
+======================================================================
+
+// 文件路径: MES.Blazor/Pages/ProductRequirement.razor
+// 修复：为路由参数指定类型
+
+@page "/orders/{orderId:int}/items/{itemId:int}/requirement"
+@page "/orders/{orderId:int}/items/{itemId:int}/requirement/edit"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Enums
+@using Microsoft.AspNetCore.Authorization
+@inject ProductRequirementService RequirementService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Description" Class="mr-2" Color="Color.Primary" />
+                    技术要求
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    订单项次的技术要求配置
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                <AuthorizeView Roles="OrderDirector,Admin">
+                    @if (isEditMode)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveRequirement" Disabled="@isSubmitting">
+                            @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> }
+                            else { <span>保存</span> }
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑</MudButton>
+                    }
+                </AuthorizeView>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            @if (isLoading)
+            {
+                <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Class="mb-4">
+                    <strong>说明：</strong> 技术要求定义了产品的质量标准和检测要求。
+                    常规要求适用于大多数订单，特殊要求适用于有特殊质量标准的订单。
+                </MudAlert>
+
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="RequirementType" 
+                                   Label="产品要求类型" 
+                                   @bind-Value="editRequirement.RequirementType"
+                                   Disabled="!isEditMode"
+                                   Required="true">
+                            <MudSelectItem Value="@RequirementType.Normal">常规</MudSelectItem>
+                            <MudSelectItem Value="@RequirementType.Special">特殊</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Science" Size="Size.Small" Class="mr-1" />
+                    化学成分要求
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string"
+                                      Label="化学成分要求"
+                                      @bind-Value="editRequirement.ChemicalComposition"
+                                      Disabled="!isEditMode"
+                                      Multiline="true"
+                                      Lines="4"
+                                      HelperText="如：C ≤ 0.08, Si ≤ 1.00, Mn ≤ 2.00, P ≤ 0.045, S ≤ 0.030, Ni: 8.00-11.00, Cr: 18.00-20.00"
+                                      Placeholder="请输入化学成分要求..." />
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.FitnessCenter" Size="Size.Small" Class="mr-1" />
+                    机械性能要求
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string"
+                                      Label="机械性能要求"
+                                      @bind-Value="editRequirement.MechanicalProperty"
+                                      Disabled="!isEditMode"
+                                      Multiline="true"
+                                      Lines="3"
+                                      HelperText="如：抗拉强度 ≥ 520 MPa, 屈服强度 ≥ 205 MPa, 延伸率 ≥ 35%"
+                                      Placeholder="请输入机械性能要求..." />
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Straighten" Size="Size.Small" Class="mr-1" />
+                    尺寸公差要求
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string"
+                                      Label="尺寸公差要求"
+                                      @bind-Value="editRequirement.ToleranceRequirement"
+                                      Disabled="!isEditMode"
+                                      Multiline="true"
+                                      Lines="3"
+                                      HelperText="如：外径公差 ±0.5mm, 壁厚公差 ±0.3mm"
+                                      Placeholder="请输入尺寸公差要求..." />
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Brush" Size="Size.Small" Class="mr-1" />
+                    表面质量要求
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string"
+                                      Label="表面质量要求"
+                                      @bind-Value="editRequirement.SurfaceQuality"
+                                      Disabled="!isEditMode"
+                                      Multiline="true"
+                                      Lines="3"
+                                      HelperText="如：表面无裂纹、无折叠、无结疤、无氧化皮"
+                                      Placeholder="请输入表面质量要求..." />
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Radar" Size="Size.Small" Class="mr-1" />
+                    无损检测要求
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string"
+                                      Label="无损检测要求"
+                                      @bind-Value="editRequirement.NdtRequirement"
+                                      Disabled="!isEditMode"
+                                      Multiline="true"
+                                      Lines="3"
+                                      HelperText="如：100% 涡流探伤，符合 GB/T 7735 标准"
+                                      Placeholder="请输入无损检测要求..." />
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.MoreHoriz" Size="Size.Small" Class="mr-1" />
+                    其他要求
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string"
+                                      Label="其他要求"
+                                      @bind-Value="editRequirement.OtherRequirement"
+                                      Disabled="!isEditMode"
+                                      Multiline="true"
+                                      Lines="3"
+                                      HelperText="其他特殊要求，如包装要求、交货要求等"
+                                      Placeholder="请输入其他要求..." />
+                    </MudItem>
+                </MudGrid>
+
+                @if (requirement != null && !isEditMode)
+                {
+                    <MudAlert Severity="Severity.Success" Class="mt-4">
+                        <strong>提示：</strong> 技术要求已配置，点击"编辑"按钮可修改。
+                    </MudAlert>
+                }
+            }
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    [Parameter] public int orderId { get; set; }
+    [Parameter] public int itemId { get; set; }
+
+    private ProductRequirementDto? requirement;
+    private CreateProductRequirementRequest editRequirement = new();
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private bool isEditMode => Navigation.Uri.Contains("/edit");
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 验证参数有效性
+        if (orderId <= 0 || itemId <= 0)
+        {
+            Snackbar.Add("无效的订单ID或项次ID", Severity.Error);
+            isLoading = false;
+            return;
+        }
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await RequirementService.GetByOrderItemIdAsync(orderId, itemId);
+            if (result.Success && result.Data != null)
+            {
+                requirement = result.Data;
+                editRequirement = new CreateProductRequirementRequest
+                {
+                    RequirementType = requirement.RequirementType,
+                    ChemicalComposition = requirement.ChemicalComposition,
+                    MechanicalProperty = requirement.MechanicalProperty,
+                    ToleranceRequirement = requirement.ToleranceRequirement,
+                    SurfaceQuality = requirement.SurfaceQuality,
+                    NdtRequirement = requirement.NdtRequirement,
+                    OtherRequirement = requirement.OtherRequirement
+                };
+            }
+            else
+            {
+                // 没有技术要求时，使用默认值
+                editRequirement = new CreateProductRequirementRequest
+                {
+                    RequirementType = RequirementType.Normal
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void EnterEditMode() => Navigation.NavigateTo($"/orders/{orderId}/items/{itemId}/requirement/edit");
+
+    private async Task SaveRequirement()
+    {
+        isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await RequirementService.CreateOrUpdateAsync(orderId, itemId, editRequirement);
+            if (result.Success)
+            {
+                Snackbar.Add("技术要求保存成功", Severity.Success);
+                Navigation.NavigateTo($"/orders/{orderId}/items/{itemId}/requirement");
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "保存失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void GoBack() => Navigation.NavigateTo($"/orders/{orderId}");
 }
 
 ======================================================================
@@ -9181,15 +9595,16 @@ builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
 
-// ע�� AuthHttpClient�����ֱ��ʹ�� HttpClient��
+
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7001") });
 builder.Services.AddScoped<AuthHttpClient>();
 
-// ע�����ʹ�� AuthHttpClient��
+
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<ProductionStandardService>();
 builder.Services.AddScoped<GradeMappingService>();
 builder.Services.AddScoped<OrderService>();
+builder.Services.AddScoped<ProductRequirementService>();
 
 await builder.Build().RunAsync();
 
@@ -9198,14 +9613,6 @@ FILE: MES.Blazor\Properties\launchSettings.json
 ======================================================================
 
 {
-  "iisSettings": {
-    "windowsAuthentication": false,
-    "anonymousAuthentication": true,
-    "iisExpress": {
-      "applicationUrl": "http://localhost:60380",
-      "sslPort": 44380
-    }
-  },
   "profiles": {
     "http": {
       "commandName": "Project",
@@ -9214,15 +9621,8 @@ FILE: MES.Blazor\Properties\launchSettings.json
       "inspectUri": "{wsProtocol}://{url.hostname}:{url.port}/_framework/debug/ws-proxy?browser={browserInspectUri}",
       "applicationUrl": "https://localhost:5001;http://localhost:5000",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    },
-    "IIS Express": {
-      "commandName": "IISExpress",
-      "launchBrowser": true,
-      "inspectUri": "{wsProtocol}://{url.hostname}:{url.port}/_framework/debug/ws-proxy?browser={browserInspectUri}",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_HOSTINGSTARTUPASSEMBLIES": "" // 禁用 Browser Link
       }
     }
   }
@@ -9987,6 +10387,83 @@ public class ProductionStandardService
         {
             var response = await _http.DeleteFromJsonAsync<ApiResponse<object>>($"{BaseUrl}/{id}");
             return response ?? ApiResponse<object>.Fail("删除失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<object>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+}
+
+======================================================================
+FILE: MES.Blazor\Services\ProductRequirementService.cs
+======================================================================
+
+// 文件路径: MES.Blazor/Services/ProductRequirementService.cs
+using MES.Core.DTOs;
+using MES.Core.Models;
+
+namespace MES.Blazor.Services;
+
+/// <summary>
+/// 产品要求服务
+/// </summary>
+public class ProductRequirementService
+{
+    private readonly AuthHttpClient _http;
+
+    public ProductRequirementService(AuthHttpClient http)
+    {
+        _http = http;
+    }
+
+    /// <summary>
+    /// 获取订单项次的产品要求
+    /// </summary>
+    public async Task<ApiResponse<ProductRequirementDto>> GetByOrderItemIdAsync(int orderId, int itemId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<ProductRequirementDto>>(
+                $"api/order/{orderId}/items/{itemId}/requirement");
+            return response ?? ApiResponse<ProductRequirementDto>.Fail("获取产品要求失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<ProductRequirementDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 创建或更新产品要求
+    /// </summary>
+    public async Task<ApiResponse<ProductRequirementDto>> CreateOrUpdateAsync(
+        int orderId, 
+        int itemId, 
+        CreateProductRequirementRequest request)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<CreateProductRequirementRequest, ApiResponse<ProductRequirementDto>>(
+                $"api/order/{orderId}/items/{itemId}/requirement", request);
+            return response ?? ApiResponse<ProductRequirementDto>.Fail("保存产品要求失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<ProductRequirementDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 删除产品要求
+    /// </summary>
+    public async Task<ApiResponse<object>> DeleteAsync(int orderId, int itemId)
+    {
+        try
+        {
+            var response = await _http.DeleteFromJsonAsync<ApiResponse<object>>(
+                $"api/order/{orderId}/items/{itemId}/requirement");
+            return response ?? ApiResponse<object>.Fail("删除产品要求失败");
         }
         catch (Exception ex)
         {
@@ -11041,6 +11518,112 @@ public class ProductionStandardDto
 }
 
 ======================================================================
+FILE: MES.Core\DTOs\ProductRequirementDto.cs
+======================================================================
+
+// 文件路径: MES.Core/DTOs/ProductRequirementDto.cs
+using MES.Core.Enums;
+
+namespace MES.Core.DTOs;
+
+/// <summary>
+/// 产品要求 DTO
+/// </summary>
+public class ProductRequirementDto
+{
+    /// <summary>
+    /// ID
+    /// </summary>
+    public int Id { get; set; }
+
+    /// <summary>
+    /// 订单项次ID
+    /// </summary>
+    public int OrderItemId { get; set; }
+
+    /// <summary>
+    /// 产品要求类型
+    /// </summary>
+    public RequirementType RequirementType { get; set; }
+
+    /// <summary>
+    /// 产品要求类型文本
+    /// </summary>
+    public string RequirementTypeText => RequirementType.ToString();
+
+    /// <summary>
+    /// 化学成分要求
+    /// </summary>
+    public string? ChemicalComposition { get; set; }
+
+    /// <summary>
+    /// 机械性能要求
+    /// </summary>
+    public string? MechanicalProperty { get; set; }
+
+    /// <summary>
+    /// 尺寸公差要求
+    /// </summary>
+    public string? ToleranceRequirement { get; set; }
+
+    /// <summary>
+    /// 表面质量要求
+    /// </summary>
+    public string? SurfaceQuality { get; set; }
+
+    /// <summary>
+    /// 无损检测要求
+    /// </summary>
+    public string? NdtRequirement { get; set; }
+
+    /// <summary>
+    /// 其他要求
+    /// </summary>
+    public string? OtherRequirement { get; set; }
+}
+
+/// <summary>
+/// 创建/更新产品要求请求
+/// </summary>
+public class CreateProductRequirementRequest
+{
+    /// <summary>
+    /// 产品要求类型
+    /// </summary>
+    public RequirementType RequirementType { get; set; } = RequirementType.Normal;
+
+    /// <summary>
+    /// 化学成分要求
+    /// </summary>
+    public string? ChemicalComposition { get; set; }
+
+    /// <summary>
+    /// 机械性能要求
+    /// </summary>
+    public string? MechanicalProperty { get; set; }
+
+    /// <summary>
+    /// 尺寸公差要求
+    /// </summary>
+    public string? ToleranceRequirement { get; set; }
+
+    /// <summary>
+    /// 表面质量要求
+    /// </summary>
+    public string? SurfaceQuality { get; set; }
+
+    /// <summary>
+    /// 无损检测要求
+    /// </summary>
+    public string? NdtRequirement { get; set; }
+
+    /// <summary>
+    /// 其他要求
+    /// </summary>
+    public string? OtherRequirement { get; set; }
+}
+
+======================================================================
 FILE: MES.Core\DTOs\SalesOrderDetailDto.cs
 ======================================================================
 
@@ -11777,6 +12360,40 @@ public interface IProductionStandardService
     
     // 删除
     Task DeleteAsync(int id);
+}
+
+======================================================================
+FILE: MES.Core\Interfaces\IProductRequirementService.cs
+======================================================================
+
+// 文件路径: MES.Core/Interfaces/Order/IProductRequirementService.cs
+using MES.Core.DTOs;
+
+namespace MES.Core.Interfaces.Order;
+
+/// <summary>
+/// 产品要求服务接口
+/// </summary>
+public interface IProductRequirementService
+{
+    /// <summary>
+    /// 根据订单项次ID获取产品要求
+    /// </summary>
+    /// <param name="orderItemId">订单项次ID</param>
+    Task<ProductRequirementDto?> GetByOrderItemIdAsync(int orderItemId);
+
+    /// <summary>
+    /// 创建或更新产品要求
+    /// </summary>
+    /// <param name="orderItemId">订单项次ID</param>
+    /// <param name="request">产品要求请求</param>
+    Task<ProductRequirementDto> CreateOrUpdateAsync(int orderItemId, CreateProductRequirementRequest request);
+
+    /// <summary>
+    /// 删除产品要求
+    /// </summary>
+    /// <param name="orderItemId">订单项次ID</param>
+    Task DeleteAsync(int orderItemId);
 }
 
 ======================================================================
@@ -14637,6 +15254,136 @@ public class ProductionStandardService : IProductionStandardService
 }
 
 ======================================================================
+FILE: MES.Services\ProductRequirementService.cs
+======================================================================
+
+// 文件路径: MES.Services/Order/ProductRequirementService.cs
+using Microsoft.EntityFrameworkCore;
+using MES.Core.DTOs;
+using MES.Core.Enums;
+using MES.Core.Exceptions;
+using MES.Core.Interfaces.Order;
+using MES.Data;
+using MES.Data.Entities;
+
+namespace MES.Services.Order;
+
+/// <summary>
+/// 产品要求服务实现
+/// </summary>
+public class ProductRequirementService : IProductRequirementService
+{
+    private readonly AppDbContext _context;
+
+    public ProductRequirementService(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    /// <summary>
+    /// 根据订单项次ID获取产品要求
+    /// </summary>
+    public async Task<ProductRequirementDto?> GetByOrderItemIdAsync(int orderItemId)
+    {
+        var entity = await _context.ProductRequirements
+            .FirstOrDefaultAsync(pr => pr.OrderItemId == orderItemId && !pr.IsDeleted);
+
+        if (entity == null)
+        {
+            return null;
+        }
+
+        return MapToDto(entity);
+    }
+
+    /// <summary>
+    /// 创建或更新产品要求
+    /// </summary>
+    public async Task<ProductRequirementDto> CreateOrUpdateAsync(int orderItemId, CreateProductRequirementRequest request)
+    {
+        // 验证订单项次是否存在
+        var orderItem = await _context.OrderItems
+            .FirstOrDefaultAsync(oi => oi.Id == orderItemId && !oi.IsDeleted);
+
+        if (orderItem == null)
+        {
+            throw new BusinessException("订单项次不存在");
+        }
+
+        // 查找是否已存在产品要求
+        var existing = await _context.ProductRequirements
+            .FirstOrDefaultAsync(pr => pr.OrderItemId == orderItemId && !pr.IsDeleted);
+
+        if (existing != null)
+        {
+            // 更新
+            existing.RequirementType = request.RequirementType;
+            existing.ChemicalComposition = request.ChemicalComposition;
+            existing.MechanicalProperty = request.MechanicalProperty;
+            existing.ToleranceRequirement = request.ToleranceRequirement;
+            existing.SurfaceQuality = request.SurfaceQuality;
+            existing.NdtRequirement = request.NdtRequirement;
+            existing.OtherRequirement = request.OtherRequirement;
+
+            await _context.SaveChangesAsync();
+
+            return MapToDto(existing);
+        }
+        else
+        {
+            // 创建
+            var entity = new ProductRequirement
+            {
+                OrderItemId = orderItemId,
+                RequirementType = request.RequirementType,
+                ChemicalComposition = request.ChemicalComposition,
+                MechanicalProperty = request.MechanicalProperty,
+                ToleranceRequirement = request.ToleranceRequirement,
+                SurfaceQuality = request.SurfaceQuality,
+                NdtRequirement = request.NdtRequirement,
+                OtherRequirement = request.OtherRequirement
+            };
+
+            _context.ProductRequirements.Add(entity);
+            await _context.SaveChangesAsync();
+
+            return MapToDto(entity);
+        }
+    }
+
+    /// <summary>
+    /// 删除产品要求
+    /// </summary>
+    public async Task DeleteAsync(int orderItemId)
+    {
+        var entity = await _context.ProductRequirements
+            .FirstOrDefaultAsync(pr => pr.OrderItemId == orderItemId && !pr.IsDeleted);
+
+        if (entity != null)
+        {
+            entity.IsDeleted = true;
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    private static ProductRequirementDto MapToDto(ProductRequirement entity)
+    {
+        return new ProductRequirementDto
+        {
+            Id = entity.Id,
+            OrderItemId = entity.OrderItemId,
+            RequirementType = entity.RequirementType,
+            ChemicalComposition = entity.ChemicalComposition,
+            MechanicalProperty = entity.MechanicalProperty,
+            ToleranceRequirement = entity.ToleranceRequirement,
+            SurfaceQuality = entity.SurfaceQuality,
+            NdtRequirement = entity.NdtRequirement,
+            OtherRequirement = entity.OtherRequirement
+        };
+    }
+}
+
+======================================================================
 FILE: MES.Shared\Constants\Roles.cs
 ======================================================================
 
@@ -14863,6 +15610,7 @@ FILE: MES.Tools\appsettings.json
 FILE: MES.Tools\ExcelImportService.cs
 ======================================================================
 
+// 文件路径: MES.Tools/ExcelImportService.cs
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 using MES.Data;
@@ -14901,63 +15649,63 @@ public class ExcelImportService
             await LoadCacheAsync();
             result.Log("缓存加载完成", ImportLogLevel.Success);
 
-            // 1. 产品标准
+            // 1. 产品标准（同步方法）
             var standardFile = Path.Combine(excelFolder, "1产品标准列表.xlsx");
             if (File.Exists(standardFile))
             {
-                var r = await ImportProductStandardsAsync(standardFile);
+                var r = ImportProductStandards(standardFile);
                 result.Merge(r);
                 await _context.SaveChangesAsync();
-                await UpdateStandardCacheAsync();
+                UpdateStandardCache();
                 result.Log("产品标准已保存", ImportLogLevel.Success);
             }
 
-            // 2. 牌号对照
+            // 2. 牌号对照（同步方法）
             var gradeFile = Path.Combine(excelFolder, "1牌号对照表.xlsx");
             if (File.Exists(gradeFile))
             {
-                var r = await ImportGradeMappingsAsync(gradeFile);
+                var r = ImportGradeMappings(gradeFile);
                 result.Merge(r);
                 await _context.SaveChangesAsync();
                 result.Log("牌号对照已保存", ImportLogLevel.Success);
             }
 
-            // 3. 客户档案
+            // 3. 客户档案（同步方法）
             var customerFile = Path.Combine(excelFolder, "2销售员及往来单位.xlsx");
             if (File.Exists(customerFile))
             {
-                var r = await ImportCustomersAsync(customerFile);
+                var r = ImportCustomers(customerFile);
                 result.Merge(r);
                 await _context.SaveChangesAsync();
-                await UpdateCustomerCacheAsync();
+                UpdateCustomerCache();
                 result.Log($"客户档案已保存，共 {_customerCache.Count} 条", ImportLogLevel.Success);
             }
 
-            // 4. 订单主表
+            // 4. 订单主表（同步方法）
             var orderFile = Path.Combine(excelFolder, "3销售订单聚合根.xlsx");
             if (File.Exists(orderFile))
             {
-                var r = await ImportOrdersAsync(orderFile);
+                var r = ImportOrders(orderFile);
                 result.Merge(r);
                 await _context.SaveChangesAsync();
                 result.Log("订单主表已保存", ImportLogLevel.Success);
             }
 
-            // 5. 订单项次
+            // 5. 订单项次（同步方法）
             var itemFile = Path.Combine(excelFolder, "4销售订单实体.xlsx");
             if (File.Exists(itemFile))
             {
-                var r = await ImportOrderItemsAsync(itemFile);
+                var r = ImportOrderItems(itemFile);
                 result.Merge(r);
                 await _context.SaveChangesAsync();
                 result.Log("订单项次已保存", ImportLogLevel.Success);
             }
 
-            // 6. 产品要求
+            // 6. 产品要求（同步方法）
             var requirementFile = Path.Combine(excelFolder, "5技术要求.xlsx");
             if (File.Exists(requirementFile))
             {
-                var r = await ImportProductRequirementsAsync(requirementFile);
+                var r = ImportProductRequirements(requirementFile);
                 result.Merge(r);
                 await _context.SaveChangesAsync();
                 result.Log("产品要求已保存", ImportLogLevel.Success);
@@ -15019,21 +15767,21 @@ public class ExcelImportService
         Console.WriteLine($"📌 缓存: 客户{_customerCache.Count}条, 标准{_standardCache.Count}条, 牌号{_gradeMappingCache.Count}条, 订单{_importedOrderNumbers.Count}条");
     }
 
-    private async Task UpdateCustomerCacheAsync()
+    private void UpdateCustomerCache()
     {
         _customerCache.Clear();
-        var customers = await _context.CustomerProfiles.Where(c => !c.IsDeleted).ToListAsync();
+        var customers = _context.CustomerProfiles.Where(c => !c.IsDeleted).ToList();
         foreach (var c in customers) _customerCache[c.CustomerUnit] = c.Id;
     }
 
-    private async Task UpdateStandardCacheAsync()
+    private void UpdateStandardCache()
     {
         _standardCache.Clear();
-        var standards = await _context.ProductionStandards.Where(s => !s.IsDeleted).ToListAsync();
+        var standards = _context.ProductionStandards.Where(s => !s.IsDeleted).ToList();
         foreach (var s in standards) _standardCache[s.StandardCode] = s.Id;
     }
 
-    private async Task<ImportResult> ImportProductStandardsAsync(string filePath)
+    private ImportResult ImportProductStandards(string filePath)
     {
         var result = new ImportResult { Section = "产品标准" };
         using var package = new ExcelPackage(new FileInfo(filePath));
@@ -15055,7 +15803,7 @@ public class ExcelImportService
                 var entity = new ProductionStandard
                 {
                     StandardCode = excelRow.StandardCode,
-                    StandardName = excelRow.StandardCode,
+                    StandardName = excelRow.StandardName,
                     SortOrder = row,
                     IsActive = true
                 };
@@ -15072,7 +15820,7 @@ public class ExcelImportService
         return result;
     }
 
-    private async Task<ImportResult> ImportGradeMappingsAsync(string filePath)
+    private ImportResult ImportGradeMappings(string filePath)
     {
         var result = new ImportResult { Section = "牌号对照" };
         using var package = new ExcelPackage(new FileInfo(filePath));
@@ -15114,7 +15862,7 @@ public class ExcelImportService
         return result;
     }
 
-    private async Task<ImportResult> ImportCustomersAsync(string filePath)
+    private ImportResult ImportCustomers(string filePath)
     {
         var result = new ImportResult { Section = "客户档案" };
         using var package = new ExcelPackage(new FileInfo(filePath));
@@ -15164,7 +15912,7 @@ public class ExcelImportService
         return result;
     }
 
-    private async Task<ImportResult> ImportOrdersAsync(string filePath)
+    private ImportResult ImportOrders(string filePath)
     {
         var result = new ImportResult { Section = "订单主表" };
         using var package = new ExcelPackage(new FileInfo(filePath));
@@ -15241,14 +15989,15 @@ public class ExcelImportService
         return result;
     }
 
-    private async Task<ImportResult> ImportOrderItemsAsync(string filePath)
+    private ImportResult ImportOrderItems(string filePath)
     {
         var result = new ImportResult { Section = "订单项次" };
         using var package = new ExcelPackage(new FileInfo(filePath));
         var worksheet = package.Workbook.Worksheets[0];
         var rowCount = worksheet.Dimension.Rows;
 
-        var orders = await _context.SalesOrders.Where(o => !o.IsDeleted).ToListAsync();
+        // 重新加载订单 ID 缓存（确保包含刚刚导入的订单）
+        var orders = _context.SalesOrders.Where(o => !o.IsDeleted).ToList();
         foreach (var o in orders) _orderIdCache[o.OrderNumber] = o.Id;
         
         Console.WriteLine($"\n📌 开始读取订单项次，共 {rowCount} 行数据\n");
@@ -15352,17 +16101,18 @@ public class ExcelImportService
         return result;
     }
 
-    private async Task<ImportResult> ImportProductRequirementsAsync(string filePath)
+    private ImportResult ImportProductRequirements(string filePath)
     {
         var result = new ImportResult { Section = "产品要求" };
         using var package = new ExcelPackage(new FileInfo(filePath));
         var worksheet = package.Workbook.Worksheets[0];
         var rowCount = worksheet.Dimension.Rows;
 
-        var orderItems = await _context.OrderItems
+        // 获取所有订单项次
+        var orderItems = _context.OrderItems
             .Include(oi => oi.SalesOrder)
             .Where(oi => !oi.IsDeleted)
-            .ToListAsync();
+            .ToList();
         
         var orderItemIdMap = new Dictionary<(string OrderNumber, int Sequence), int>();
         foreach (var oi in orderItems)
@@ -15393,8 +16143,8 @@ public class ExcelImportService
                     continue;
                 }
                 
-                var exists = await _context.ProductRequirements
-                    .AnyAsync(pr => pr.OrderItemId == orderItemId && !pr.IsDeleted);
+                var exists = _context.ProductRequirements
+                    .Any(pr => pr.OrderItemId == orderItemId && !pr.IsDeleted);
                 
                 if (exists)
                 {
@@ -15517,12 +16267,13 @@ namespace MES.Tools.Models;
 public class ExcelProductStandardRow
 {
     public string StandardCode { get; set; } = string.Empty;
-    
+    public string? StandardName { get; set; }
     public static ExcelProductStandardRow FromExcelRow(ExcelRange row)
     {
         return new ExcelProductStandardRow
         {
-            StandardCode = GetStringValue(row, 1)   // 跳过第1列，取第2列
+            StandardCode = GetStringValue(row, 1),
+            StandardName = GetStringValue(row, 2)  
         };
     }
     
@@ -15870,7 +16621,8 @@ string[] requiredFiles = {
     "1牌号对照表.xlsx",
     "2销售员及往来单位.xlsx",
     "3销售订单聚合根.xlsx",
-    "4销售订单实体.xlsx"
+    "4销售订单实体.xlsx",
+    "5技术要求.xlsx"
 };
 
 Console.WriteLine("📋 检查 Excel 文件:");

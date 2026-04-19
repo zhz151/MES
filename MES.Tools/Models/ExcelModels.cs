@@ -9,12 +9,13 @@ namespace MES.Tools.Models;
 public class ExcelProductStandardRow
 {
     public string StandardCode { get; set; } = string.Empty;
-    
+    public string? StandardName { get; set; }
     public static ExcelProductStandardRow FromExcelRow(ExcelRange row)
     {
         return new ExcelProductStandardRow
         {
-            StandardCode = GetStringValue(row, 1)   // 跳过第1列，取第2列
+            StandardCode = GetStringValue(row, 1),
+            StandardName = GetStringValue(row, 2)  
         };
     }
     

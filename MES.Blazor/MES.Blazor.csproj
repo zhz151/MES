@@ -4,12 +4,14 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <BlazorWebAssemblyEnableDebugging>true</BlazorWebAssemblyEnableDebugging>
   </PropertyGroup>
 	
-	<PropertyGroup>
-		<StaticWebAssetsEnabled>true</StaticWebAssetsEnabled>
-		<GenerateStaticWebAssetsManifest>true</GenerateStaticWebAssetsManifest>
-	</PropertyGroup>
+  <PropertyGroup>
+	<StaticWebAssetsEnabled>true</StaticWebAssetsEnabled>
+	<GenerateStaticWebAssetsManifest>true</GenerateStaticWebAssetsManifest>
+	<UseBlazorDebugging>true</UseBlazorDebugging>
+  </PropertyGroup>
 	
   <ItemGroup>
     <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />

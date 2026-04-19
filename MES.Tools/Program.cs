@@ -30,7 +30,8 @@ string[] requiredFiles = {
     "1牌号对照表.xlsx",
     "2销售员及往来单位.xlsx",
     "3销售订单聚合根.xlsx",
-    "4销售订单实体.xlsx"
+    "4销售订单实体.xlsx",
+    "5技术要求.xlsx"
 };
 
 Console.WriteLine("📋 检查 Excel 文件:");

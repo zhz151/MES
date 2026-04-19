@@ -191,7 +191,7 @@ public class ExcelImportService
                 var entity = new ProductionStandard
                 {
                     StandardCode = excelRow.StandardCode,
-                    StandardName = excelRow.StandardCode,
+                    StandardName = excelRow.StandardName,
                     SortOrder = row,
                     IsActive = true
                 };
