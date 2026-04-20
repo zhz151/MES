@@ -21,11 +21,16 @@ public class CustomerService
     {
         try
         {
-            var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={Uri.EscapeDataString(query.SortBy)}&isDescending={query.IsDescending}";
+            // 使用小写的 true/false
+            var isDescending = query.IsDescending ? "true" : "false";
+            var encodedSortBy = Uri.EscapeDataString(query.SortBy ?? "CreatedTime");
+
+            var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={encodedSortBy}&isDescending={isDescending}";
             if (!string.IsNullOrEmpty(query.Keyword))
             {
                 url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
             }
+
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<CustomerProfileDto>>>(url);
             return response ?? ApiResponse<PagedResult<CustomerProfileDto>>.Fail("获取数据失败");
         }

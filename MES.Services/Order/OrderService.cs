@@ -1,3 +1,4 @@
+// 文件路径: MES.Services/Order/OrderService.cs
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MES.Core.Interfaces.Order;
@@ -23,82 +24,140 @@ public class OrderService : IOrderService
 
     #region 订单管理
 
-    public async Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, bool? hasTechnicalRequirement = null, List<SalesOrderStatus>? statuses = null)
+public async Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, bool? hasTechReq = null, List<SalesOrderStatus>? statuses = null)
+{
+    var queryable = _context.SalesOrders
+        .Where(so => !so.IsDeleted)
+        .AsQueryable();
+
+    // 订单状态筛选
+    if (statuses == null || !statuses.Any())
     {
-        var queryable = _context.SalesOrders
-            .Where(so => !so.IsDeleted)
-            .Include(so => so.Customer)
-            .AsQueryable();
-
-        // 订单状态筛选（默认只显示 Pending, Confirmed, Cancelled）
-        if (statuses == null || !statuses.Any())
-        {
-            statuses = new List<SalesOrderStatus> { SalesOrderStatus.Pending, SalesOrderStatus.Confirmed, SalesOrderStatus.Cancelled };
-        }
-        queryable = queryable.Where(so => statuses.Contains(so.Status));
-
-        // 技术要求状态筛选
-        if (hasTechnicalRequirement.HasValue)
-        {
-            if (hasTechnicalRequirement.Value)
-            {
-                queryable = queryable.Where(so => so.OrderItems.Any(oi => !oi.IsDeleted && oi.ProductRequirement != null && !oi.ProductRequirement.IsDeleted));
-            }
-            else
-            {
-                queryable = queryable.Where(so => !so.OrderItems.Any(oi => !oi.IsDeleted && oi.ProductRequirement != null && !oi.ProductRequirement.IsDeleted));
-            }
-        }
-
-        // 关键字模糊搜索
-        if (!string.IsNullOrEmpty(query.Keyword))
-        {
-            var keyword = query.Keyword;
-            queryable = queryable.Where(so =>
-                so.OrderNumber.Contains(keyword) ||
-                so.Customer.CustomerUnit.Contains(keyword) ||
-                so.Customer.Salesman.Contains(keyword) ||
-                (so.Customer.EndCustomer != null && so.Customer.EndCustomer.Contains(keyword)));
-        }
-
-        // 排序
-        queryable = query.SortBy?.ToLower() switch
-        {
-            "ordernumber" => query.IsDescending ? queryable.OrderByDescending(so => so.OrderNumber) : queryable.OrderBy(so => so.OrderNumber),
-            "signdate" => query.IsDescending ? queryable.OrderByDescending(so => so.SignDate) : queryable.OrderBy(so => so.SignDate),
-            "customername" => query.IsDescending ? queryable.OrderByDescending(so => so.Customer.CustomerUnit) : queryable.OrderBy(so => so.Customer.CustomerUnit),
-            "salesman" => query.IsDescending ? queryable.OrderByDescending(so => so.Customer.Salesman) : queryable.OrderBy(so => so.Customer.Salesman),
-            "status" => query.IsDescending ? queryable.OrderByDescending(so => so.Status) : queryable.OrderBy(so => so.Status),
-            _ => query.IsDescending ? queryable.OrderByDescending(so => so.CreatedTime) : queryable.OrderBy(so => so.CreatedTime)
-        };
-
-        var totalCount = await queryable.CountAsync();
-        var items = await queryable
-            .Skip(query.Skip)
-            .Take(query.PageSize)
-            .Select(so => new SalesOrderListDto
-            {
-                Id = so.Id,
-                OrderNumber = so.OrderNumber,
-                SignDate = so.SignDate,
-                CustomerName = so.Customer.CustomerUnit,
-                Salesman = so.Customer.Salesman,
-                EndCustomer = so.Customer.EndCustomer,
-                Status = so.Status,
-                RowVersion = so.RowVersion,
-                HasTechnicalRequirement = so.OrderItems.Any(oi => !oi.IsDeleted && oi.ProductRequirement != null && !oi.ProductRequirement.IsDeleted),
-                FirstOrderItemId = so.OrderItems.Where(oi => !oi.IsDeleted).Select(oi => (int?)oi.Id).FirstOrDefault()
-            })
-            .ToListAsync();
-
-        return new PagedResult<SalesOrderListDto>
-        {
-            Items = items,
-            TotalCount = totalCount,
-            PageIndex = query.PageIndex,
-            PageSize = query.PageSize
-        };
+        statuses = new List<SalesOrderStatus> { SalesOrderStatus.Pending, SalesOrderStatus.Confirmed, SalesOrderStatus.Cancelled };
     }
+    queryable = queryable.Where(so => statuses.Contains(so.Status));
+
+    // 关键字模糊搜索
+    if (!string.IsNullOrEmpty(query.Keyword))
+    {
+        var keyword = query.Keyword;
+        queryable = queryable.Where(so =>
+            so.OrderNumber.Contains(keyword) ||
+            _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.CustomerUnit.Contains(keyword)) ||
+            _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.Salesman.Contains(keyword)) ||
+            _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.EndCustomer != null && c.EndCustomer.Contains(keyword)));
+    }
+
+    // 获取总数
+    var totalCount = await queryable.CountAsync();
+
+    // 排序
+    if (!string.IsNullOrEmpty(query.SortBy))
+    {
+        switch (query.SortBy.ToLower())
+        {
+            case "ordernumber":
+                queryable = query.IsDescending ? queryable.OrderByDescending(so => so.OrderNumber) : queryable.OrderBy(so => so.OrderNumber);
+                break;
+            case "signdate":
+                queryable = query.IsDescending ? queryable.OrderByDescending(so => so.SignDate) : queryable.OrderBy(so => so.SignDate);
+                break;
+            case "status":
+                queryable = query.IsDescending ? queryable.OrderByDescending(so => so.Status) : queryable.OrderBy(so => so.Status);
+                break;
+            default:
+                queryable = query.IsDescending ? queryable.OrderByDescending(so => so.CreatedTime) : queryable.OrderBy(so => so.CreatedTime);
+                break;
+        }
+    }
+    else
+    {
+        queryable = query.IsDescending ? queryable.OrderByDescending(so => so.CreatedTime) : queryable.OrderBy(so => so.CreatedTime);
+    }
+
+    // 分页查询
+    var salesOrders = await queryable
+        .Skip(query.Skip)
+        .Take(query.PageSize)
+        .ToListAsync();
+
+    var orderIds = salesOrders.Select(so => so.Id).ToList();
+
+    // 获取客户信息
+    var customerIds = salesOrders.Select(so => so.CustomerId).Distinct().ToList();
+    var customers = await _context.CustomerProfiles
+        .Where(c => customerIds.Contains(c.Id) && !c.IsDeleted)
+        .ToDictionaryAsync(c => c.Id, c => c);
+
+    // 获取每个订单的项次总数
+    var orderItemCounts = await _context.OrderItems
+        .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
+        .GroupBy(oi => oi.SalesOrderId)
+        .Select(g => new { OrderId = g.Key, Count = g.Count() })
+        .ToDictionaryAsync(x => x.OrderId, x => x.Count);
+
+    // 获取每个订单有技术要求的项次数量（使用更简单的方式）
+    var orderHasReqCounts = await _context.OrderItems
+        .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
+        .GroupJoin(
+            _context.ProductRequirements.Where(pr => !pr.IsDeleted),
+            oi => oi.Id,
+            pr => pr.OrderItemId,
+            (oi, prs) => new { oi.SalesOrderId, HasReq = prs.Any() }
+        )
+        .Where(x => x.HasReq)
+        .GroupBy(x => x.SalesOrderId)
+        .Select(g => new { OrderId = g.Key, Count = g.Count() })
+        .ToDictionaryAsync(x => x.OrderId, x => x.Count);
+
+    // 获取第一个项次ID
+    var firstOrderItemIds = await _context.OrderItems
+        .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
+        .GroupBy(oi => oi.SalesOrderId)
+        .Select(g => new { OrderId = g.Key, FirstItemId = g.OrderBy(oi => oi.Sequence).Select(oi => (int?)oi.Id).FirstOrDefault() })
+        .ToDictionaryAsync(x => x.OrderId, x => x.FirstItemId);
+
+    var items = new List<SalesOrderListDto>();
+    foreach (var so in salesOrders)
+    {
+        customers.TryGetValue(so.CustomerId, out var customer);
+        
+        var totalItemCount = orderItemCounts.GetValueOrDefault(so.Id);
+        var hasReqCount = orderHasReqCounts.GetValueOrDefault(so.Id);
+        
+        // 方案B：只有当所有项次都有技术要求时，才显示"已编辑"
+        var hasTechnicalRequirement = totalItemCount > 0 && hasReqCount == totalItemCount;
+        
+        items.Add(new SalesOrderListDto
+        {
+            Id = so.Id,
+            OrderNumber = so.OrderNumber,
+            SignDate = so.SignDate,
+            CustomerName = customer?.CustomerUnit ?? string.Empty,
+            Salesman = customer?.Salesman ?? string.Empty,
+            EndCustomer = customer?.EndCustomer,
+            Status = so.Status,
+            RowVersion = so.RowVersion,
+            HasTechnicalRequirement = hasTechnicalRequirement,
+            FirstOrderItemId = firstOrderItemIds.GetValueOrDefault(so.Id)
+        });
+    }
+
+    // 应用技术要求状态筛选
+    if (hasTechReq.HasValue)
+    {
+        items = items.Where(x => x.HasTechnicalRequirement == hasTechReq.Value).ToList();
+        totalCount = items.Count;
+    }
+
+    return new PagedResult<SalesOrderListDto>
+    {
+        Items = items,
+        TotalCount = totalCount,
+        PageIndex = query.PageIndex,
+        PageSize = query.PageSize
+    };
+}
 
     public async Task<SalesOrderDetailDto> GetByIdAsync(int id)
     {
@@ -148,7 +207,9 @@ public class OrderService : IOrderService
                 Meters = oi.Meters,
                 ContractWeight = oi.ContractWeight,
                 TheoreticalWeight = oi.TheoreticalWeight,
-                Remark = oi.Remark
+                Remark = oi.Remark,
+                CreatedTime = oi.CreatedTime,
+                UpdatedTime = oi.UpdatedTime
             }).ToList()
         };
     }
@@ -275,9 +336,9 @@ public class OrderService : IOrderService
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
 
-        // 只有待处理的订单可以删除
-        if (salesOrder.Status != SalesOrderStatus.Pending)
-            throw new BusinessException("只有待处理的订单可以删除");
+        // 已取消的订单不能删除
+        if (salesOrder.Status == SalesOrderStatus.Cancelled)
+            throw new BusinessException("已取消的订单不能删除");
 
         salesOrder.IsDeleted = true;
         foreach (var orderItem in salesOrder.OrderItems.Where(oi => !oi.IsDeleted))
@@ -302,8 +363,9 @@ public class OrderService : IOrderService
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
 
-        if (salesOrder.Status != SalesOrderStatus.Pending)
-            throw new BusinessException("只有待处理的订单可以添加项次");
+        // 已取消的订单不能添加项次
+        if (salesOrder.Status == SalesOrderStatus.Cancelled)
+            throw new BusinessException("已取消的订单不能添加项次");
 
         var maxSequence = salesOrder.OrderItems.Any() ? salesOrder.OrderItems.Max(oi => oi.Sequence) : 0;
         var sequence = request.Sequence ?? maxSequence + 1;
@@ -326,8 +388,9 @@ public class OrderService : IOrderService
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
 
-        if (salesOrder.Status != SalesOrderStatus.Pending)
-            throw new BusinessException("只有待处理的订单可以修改项次");
+        // 已取消的订单不能修改项次
+        if (salesOrder.Status == SalesOrderStatus.Cancelled)
+            throw new BusinessException("已取消的订单不能修改项次");
 
         var orderItem = await _context.OrderItems
             .Include(oi => oi.ProductionStandard)
@@ -352,14 +415,23 @@ public class OrderService : IOrderService
 
         ValidateLengthStatus(request.LengthStatus, request.MinLength, request.MaxLength);
 
+        // 规范化数值（去除末尾多余的0）
+        var normalizedOuterDiameter = NormalizeDecimalValue(request.OuterDiameter);
+        var normalizedWallThickness = NormalizeDecimalValue(request.WallThickness);
+        var normalizedOuterDiameterNegative = NormalizeDecimalValue(request.OuterDiameterNegative);
+        var normalizedOuterDiameterPositive = NormalizeDecimalValue(request.OuterDiameterPositive);
+        var normalizedWallThicknessNegative = NormalizeDecimalValue(request.WallThicknessNegative);
+        var normalizedWallThicknessPositive = NormalizeDecimalValue(request.WallThicknessPositive);
+        var normalizedContractWeight = NormalizeDecimalValue(request.ContractWeight);
+
         var meters = CalculateMeters(request.LengthStatus, request.MinLength, request.MaxLength, request.Quantity, request.Meters);
         var metersValue = meters ?? 0m;
         var theoreticalWeight = CalculateTheoreticalWeight(
             gradeMapping.Density,
-            request.OuterDiameter,
-            request.WallThickness,
-            request.OuterDiameterNegative, request.OuterDiameterPositive,
-            request.WallThicknessNegative, request.WallThicknessPositive,
+            normalizedOuterDiameter,
+            normalizedWallThickness,
+            normalizedOuterDiameterNegative, normalizedOuterDiameterPositive,
+            normalizedWallThicknessNegative, normalizedWallThicknessPositive,
             metersValue);
 
         var productionStandard = await _context.ProductionStandards
@@ -376,19 +448,19 @@ public class OrderService : IOrderService
         orderItem.StandardGrade = request.StandardGrade;
         orderItem.PlantGrade = gradeMapping.PlantGrade;
         orderItem.Density = gradeMapping.Density;
-        orderItem.OuterDiameter = request.OuterDiameter;
-        orderItem.WallThickness = request.WallThickness;
-        orderItem.Specification = $"{NormalizeDecimal(request.OuterDiameter)}*{NormalizeDecimal(request.WallThickness)}";
-        orderItem.OuterDiameterNegative = request.OuterDiameterNegative;
-        orderItem.OuterDiameterPositive = request.OuterDiameterPositive;
-        orderItem.WallThicknessNegative = request.WallThicknessNegative;
-        orderItem.WallThicknessPositive = request.WallThicknessPositive;
+        orderItem.OuterDiameter = normalizedOuterDiameter;
+        orderItem.WallThickness = normalizedWallThickness;
+        orderItem.Specification = $"{normalizedOuterDiameter}*{normalizedWallThickness}";
+        orderItem.OuterDiameterNegative = normalizedOuterDiameterNegative;
+        orderItem.OuterDiameterPositive = normalizedOuterDiameterPositive;
+        orderItem.WallThicknessNegative = normalizedWallThicknessNegative;
+        orderItem.WallThicknessPositive = normalizedWallThicknessPositive;
         orderItem.LengthStatus = request.LengthStatus;
         orderItem.MinLength = request.MinLength;
         orderItem.MaxLength = CalculateMaxLength(request.LengthStatus, request.MinLength, request.MaxLength);
         orderItem.Quantity = request.Quantity;
         orderItem.Meters = meters;
-        orderItem.ContractWeight = request.ContractWeight;
+        orderItem.ContractWeight = normalizedContractWeight;
         orderItem.TheoreticalWeight = theoreticalWeight;
         orderItem.Remark = request.Remark;
 
@@ -405,8 +477,9 @@ public class OrderService : IOrderService
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
 
-        if (salesOrder.Status != SalesOrderStatus.Pending)
-            throw new BusinessException("只有待处理的订单可以删除项次");
+        // 已取消的订单不能删除项次
+        if (salesOrder.Status == SalesOrderStatus.Cancelled)
+            throw new BusinessException("已取消的订单不能删除项次");
 
         var orderItem = await _context.OrderItems
             .FirstOrDefaultAsync(oi => oi.Id == itemId && oi.SalesOrderId == orderId && !oi.IsDeleted);
@@ -436,14 +509,23 @@ public class OrderService : IOrderService
 
         ValidateLengthStatus(request.LengthStatus, request.MinLength, request.MaxLength);
 
+        // 规范化数值（去除末尾多余的0）
+        var normalizedOuterDiameter = NormalizeDecimalValue(request.OuterDiameter);
+        var normalizedWallThickness = NormalizeDecimalValue(request.WallThickness);
+        var normalizedOuterDiameterNegative = NormalizeDecimalValue(request.OuterDiameterNegative);
+        var normalizedOuterDiameterPositive = NormalizeDecimalValue(request.OuterDiameterPositive);
+        var normalizedWallThicknessNegative = NormalizeDecimalValue(request.WallThicknessNegative);
+        var normalizedWallThicknessPositive = NormalizeDecimalValue(request.WallThicknessPositive);
+        var normalizedContractWeight = NormalizeDecimalValue(request.ContractWeight);
+
         var meters = CalculateMeters(request.LengthStatus, request.MinLength, request.MaxLength, request.Quantity, request.Meters);
         var metersValue = meters ?? 0m;
         var theoreticalWeight = CalculateTheoreticalWeight(
             gradeMapping.Density,
-            request.OuterDiameter,
-            request.WallThickness,
-            request.OuterDiameterNegative, request.OuterDiameterPositive,
-            request.WallThicknessNegative, request.WallThicknessPositive,
+            normalizedOuterDiameter,
+            normalizedWallThickness,
+            normalizedOuterDiameterNegative, normalizedOuterDiameterPositive,
+            normalizedWallThicknessNegative, normalizedWallThicknessPositive,
             metersValue);
 
         return new OrderItem
@@ -459,19 +541,19 @@ public class OrderService : IOrderService
             StandardGrade = request.StandardGrade,
             PlantGrade = gradeMapping.PlantGrade,
             Density = gradeMapping.Density,
-            OuterDiameter = request.OuterDiameter,
-            WallThickness = request.WallThickness,
-            Specification = $"{NormalizeDecimal(request.OuterDiameter)}*{NormalizeDecimal(request.WallThickness)}",
-            OuterDiameterNegative = request.OuterDiameterNegative,
-            OuterDiameterPositive = request.OuterDiameterPositive,
-            WallThicknessNegative = request.WallThicknessNegative,
-            WallThicknessPositive = request.WallThicknessPositive,
+            OuterDiameter = normalizedOuterDiameter,
+            WallThickness = normalizedWallThickness,
+            Specification = $"{normalizedOuterDiameter}*{normalizedWallThickness}",
+            OuterDiameterNegative = normalizedOuterDiameterNegative,
+            OuterDiameterPositive = normalizedOuterDiameterPositive,
+            WallThicknessNegative = normalizedWallThicknessNegative,
+            WallThicknessPositive = normalizedWallThicknessPositive,
             LengthStatus = request.LengthStatus,
             MinLength = request.MinLength,
             MaxLength = CalculateMaxLength(request.LengthStatus, request.MinLength, request.MaxLength),
             Quantity = request.Quantity,
             Meters = meters,
-            ContractWeight = request.ContractWeight,
+            ContractWeight = normalizedContractWeight,
             TheoreticalWeight = theoreticalWeight,
             Remark = request.Remark
         };
@@ -491,14 +573,23 @@ public class OrderService : IOrderService
 
         ValidateLengthStatus(request.LengthStatus, request.MinLength, request.MaxLength);
 
+        // 规范化数值（去除末尾多余的0）
+        var normalizedOuterDiameter = NormalizeDecimalValue(request.OuterDiameter);
+        var normalizedWallThickness = NormalizeDecimalValue(request.WallThickness);
+        var normalizedOuterDiameterNegative = NormalizeDecimalValue(request.OuterDiameterNegative);
+        var normalizedOuterDiameterPositive = NormalizeDecimalValue(request.OuterDiameterPositive);
+        var normalizedWallThicknessNegative = NormalizeDecimalValue(request.WallThicknessNegative);
+        var normalizedWallThicknessPositive = NormalizeDecimalValue(request.WallThicknessPositive);
+        var normalizedContractWeight = NormalizeDecimalValue(request.ContractWeight);
+
         var meters = CalculateMeters(request.LengthStatus, request.MinLength, request.MaxLength, request.Quantity, request.Meters);
         var metersValue = meters ?? 0m;
         var theoreticalWeight = CalculateTheoreticalWeight(
             gradeMapping.Density,
-            request.OuterDiameter,
-            request.WallThickness,
-            request.OuterDiameterNegative, request.OuterDiameterPositive,
-            request.WallThicknessNegative, request.WallThicknessPositive,
+            normalizedOuterDiameter,
+            normalizedWallThickness,
+            normalizedOuterDiameterNegative, normalizedOuterDiameterPositive,
+            normalizedWallThicknessNegative, normalizedWallThicknessPositive,
             metersValue);
 
         return new OrderItem
@@ -514,22 +605,31 @@ public class OrderService : IOrderService
             StandardGrade = request.StandardGrade,
             PlantGrade = gradeMapping.PlantGrade,
             Density = gradeMapping.Density,
-            OuterDiameter = request.OuterDiameter,
-            WallThickness = request.WallThickness,
-            Specification = $"{NormalizeDecimal(request.OuterDiameter)}*{NormalizeDecimal(request.WallThickness)}",
-            OuterDiameterNegative = request.OuterDiameterNegative,
-            OuterDiameterPositive = request.OuterDiameterPositive,
-            WallThicknessNegative = request.WallThicknessNegative,
-            WallThicknessPositive = request.WallThicknessPositive,
+            OuterDiameter = normalizedOuterDiameter,
+            WallThickness = normalizedWallThickness,
+            Specification = $"{normalizedOuterDiameter}*{normalizedWallThickness}",
+            OuterDiameterNegative = normalizedOuterDiameterNegative,
+            OuterDiameterPositive = normalizedOuterDiameterPositive,
+            WallThicknessNegative = normalizedWallThicknessNegative,
+            WallThicknessPositive = normalizedWallThicknessPositive,
             LengthStatus = request.LengthStatus,
             MinLength = request.MinLength,
             MaxLength = CalculateMaxLength(request.LengthStatus, request.MinLength, request.MaxLength),
             Quantity = request.Quantity,
             Meters = meters,
-            ContractWeight = request.ContractWeight,
+            ContractWeight = normalizedContractWeight,
             TheoreticalWeight = theoreticalWeight,
             Remark = request.Remark
         };
+    }
+
+    /// <summary>
+    /// 规范化数值（去除末尾多余的0）
+    /// 例如：2.050 → 2.05, 10.000 → 10, 19.00 → 19
+    /// </summary>
+    private static decimal NormalizeDecimalValue(decimal value)
+    {
+        return decimal.Parse(value.ToString("G29"));
     }
 
     private static void ValidateLengthStatus(LengthStatus lengthStatus, decimal? minLength, decimal? maxLength)
@@ -599,63 +699,62 @@ public class OrderService : IOrderService
         return Math.Round(weight, 2);
     }
 
-    private static string NormalizeDecimal(decimal value)
+    private OrderItemDto MapToOrderItemDto(OrderItem orderItem)
     {
-        var trimmed = value.ToString("0.###########").TrimEnd('0').TrimEnd('.');
-        return trimmed;
-    }
+        if (orderItem.ProductionStandard == null && orderItem.ProductionStandardId > 0)
+        {
+            orderItem.ProductionStandard = _context.ProductionStandards
+                .FirstOrDefault(ps => ps.Id == orderItem.ProductionStandardId);
+        }
 
-private OrderItemDto MapToOrderItemDto(OrderItem orderItem)
-{
-    // 确保 ProductionStandard 已加载
-    if (orderItem.ProductionStandard == null && orderItem.ProductionStandardId > 0)
-    {
-        orderItem.ProductionStandard = _context.ProductionStandards
-            .FirstOrDefault(ps => ps.Id == orderItem.ProductionStandardId);
+        return new OrderItemDto
+        {
+            Id = orderItem.Id,
+            Sequence = orderItem.Sequence,
+            DeliveryDate = orderItem.DeliveryDate,
+            DelayPenalty = orderItem.DelayPenalty,
+            SettlementMethod = orderItem.SettlementMethod,
+            MaterialName = orderItem.MaterialName,
+            ProductionStandardCode = orderItem.ProductionStandard?.StandardCode ?? string.Empty,
+            DeliveryState = orderItem.DeliveryState,
+            StandardGrade = orderItem.StandardGrade,
+            PlantGrade = orderItem.PlantGrade,
+            Density = orderItem.Density,
+            OuterDiameter = orderItem.OuterDiameter,
+            WallThickness = orderItem.WallThickness,
+            Specification = orderItem.Specification,
+            OuterDiameterNegative = orderItem.OuterDiameterNegative,
+            OuterDiameterPositive = orderItem.OuterDiameterPositive,
+            WallThicknessNegative = orderItem.WallThicknessNegative,
+            WallThicknessPositive = orderItem.WallThicknessPositive,
+            LengthStatus = orderItem.LengthStatus,
+            MinLength = orderItem.MinLength,
+            MaxLength = orderItem.MaxLength,
+            Quantity = orderItem.Quantity,
+            Meters = orderItem.Meters,
+            ContractWeight = orderItem.ContractWeight,
+            TheoreticalWeight = orderItem.TheoreticalWeight,
+            Remark = orderItem.Remark,
+            CreatedTime = orderItem.CreatedTime,
+            UpdatedTime = orderItem.UpdatedTime
+        };
     }
-
-    return new OrderItemDto
-    {
-        Id = orderItem.Id,
-        Sequence = orderItem.Sequence,
-        DeliveryDate = orderItem.DeliveryDate,
-        DelayPenalty = orderItem.DelayPenalty,
-        SettlementMethod = orderItem.SettlementMethod,
-        MaterialName = orderItem.MaterialName,
-        // 使用 null 合并运算符提供默认值
-        ProductionStandardCode = orderItem.ProductionStandard?.StandardCode ?? string.Empty,
-        DeliveryState = orderItem.DeliveryState,
-        StandardGrade = orderItem.StandardGrade,
-        PlantGrade = orderItem.PlantGrade,
-        Density = orderItem.Density,
-        OuterDiameter = orderItem.OuterDiameter,
-        WallThickness = orderItem.WallThickness,
-        Specification = orderItem.Specification,
-        OuterDiameterNegative = orderItem.OuterDiameterNegative,
-        OuterDiameterPositive = orderItem.OuterDiameterPositive,
-        WallThicknessNegative = orderItem.WallThicknessNegative,
-        WallThicknessPositive = orderItem.WallThicknessPositive,
-        LengthStatus = orderItem.LengthStatus,
-        MinLength = orderItem.MinLength,
-        MaxLength = orderItem.MaxLength,
-        Quantity = orderItem.Quantity,
-        Meters = orderItem.Meters,
-        ContractWeight = orderItem.ContractWeight,
-        TheoreticalWeight = orderItem.TheoreticalWeight,
-        Remark = orderItem.Remark,
-        CreatedTime = orderItem.CreatedTime,
-        UpdatedTime = orderItem.UpdatedTime
-    };
-}
 
     private static bool CanTransitionTo(SalesOrderStatus current, SalesOrderStatus target)
     {
         if (current == target) return true;
+        
+        // 已取消是终态，不能转到任何其他状态
         if (current == SalesOrderStatus.Cancelled) return false;
+        
+        // 待处理可以转为已确认或已取消
         if (current == SalesOrderStatus.Pending)
             return target == SalesOrderStatus.Confirmed || target == SalesOrderStatus.Cancelled;
+        
+        // 已确认可以转为已取消
         if (current == SalesOrderStatus.Confirmed)
             return target == SalesOrderStatus.Cancelled;
+        
         return false;
     }
 

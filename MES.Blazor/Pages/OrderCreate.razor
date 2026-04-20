@@ -1,3 +1,4 @@
+// 文件路径: MES.Blazor/Pages/OrderCreate.razor
 @page "/orders/create"
 @using MES.Blazor.Services
 @using MES.Core.DTOs
@@ -12,116 +13,353 @@
 @inject ISnackbar Snackbar
 @attribute [Authorize(Roles = "OrderDirector,Admin")]
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
-                <MudText Typo="Typo.h5" Class="font-weight-bold">新建订单</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">创建新的销售订单</MudText>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Primary" />
+                    新建订单
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">创建新的销售订单，订单状态将自动设置为"待处理"</MudText>
             </CardHeaderContent>
             <CardHeaderActions>
                 <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitOrder" Disabled="@isSubmitting">
-                    @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> }
-                    else { <span>提交订单</span> }
+                    @if (isSubmitting)
+                    {
+                        <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
+                    }
+                    else
+                    {
+                        <span>提交订单</span>
+                    }
                 </MudButton>
             </CardHeaderActions>
         </MudCardHeader>
 
         <MudCardContent>
-            <MudText Typo="Typo.subtitle1" Class="mb-3">基本信息</MudText>
-            <MudGrid>
-                <MudItem xs="12" md="6">
-                    <MudTextField @bind-Value="orderNumber" Label="订单号" Variant="Variant.Outlined" HelperText="请输入11位订单号" Required="true" />
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudDatePicker @bind-Date="signDate" Label="签订日期" Variant="Variant.Outlined" Required="true" />
-                </MudItem>
-                <MudItem xs="12" md="12">
-                    <MudSelect T="int" @bind-Value="selectedCustomerId" Label="客户单位" Variant="Variant.Outlined" Required="true">
-                        @foreach (var customer in customers) { <MudSelectItem Value="@customer.Id">@customer.CustomerUnit</MudSelectItem> }
-                    </MudSelect>
-                </MudItem>
-            </MudGrid>
-
-            <MudDivider Class="my-4" />
-            <MudText Typo="Typo.subtitle1" Class="mb-3">订单项次</MudText>
-            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddOrderItem" Class="mb-3">添加项次</MudButton>
-
-            @if (orderItemViewModels.Count == 0) { <MudAlert Severity="Severity.Info">请点击上方按钮添加订单项次</MudAlert> }
+            @if (isLoading)
+            {
+                <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+            }
             else
             {
-                @for (int i = 0; i < orderItemViewModels.Count; i++)
+                <!-- ========== 1. 基本信息区域 ========== -->
+                <MudText Typo="Typo.subtitle1" Class="mb-3">基本信息</MudText>
+                <div style="overflow-x: auto;">
+                    <MudTable T="OrderHeaderViewModel" Items="@(new List<OrderHeaderViewModel> { headerData })" Dense="true" Hover="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>订单号</MudTh>
+                            <MudTh>签订日期</MudTh>
+                            <MudTh>客户编号</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="headerData.OrderNumber"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Style="width: 150px;"
+                                              Required="true"
+                                              HelperText="11位字符"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="headerData.SignDateStr"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Style="width: 140px;"
+                                              Required="true"
+                                              Placeholder="yyyy-MM-dd"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="headerData.CustomerCode"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Style="width: 180px;"
+                                              Required="true"
+                                              HelperText="请输入客户编码（需与客户管理中的编码一致）"
+                                              Immediate="true" />
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+
+                <MudDivider Class="my-4" />
+
+                <!-- ========== 2. 订单项次区域 ========== -->
+                <div class="d-flex justify-space-between align-center mb-3">
+                    <MudText Typo="Typo.subtitle1">订单项次</MudText>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddNewItem">添加项次</MudButton>
+                </div>
+
+                @if (editItemViewModels.Count == 0)
                 {
-                    var vm = orderItemViewModels[i];
-                    var index = i;
-                    <MudCard Class="mb-4" Variant="Variant.Outlined">
-                        <MudCardHeader>
-                            <CardHeaderContent><MudText Typo="Typo.subtitle1">项次 @(i + 1)</MudText></CardHeaderContent>
-                            <CardHeaderActions><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => RemoveOrderItem(index)" /></CardHeaderActions>
-                        </MudCardHeader>
-                        <MudCardContent>
-                            <MudGrid>
-                                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="vm.DeliveryDate" Label="交货日期" Variant="Variant.Outlined" Required="true" /></MudItem>
-                                <MudItem xs="12" md="6">
-                                    <MudSelect T="SettlementMethod" @bind-Value="vm.SettlementMethod" Label="结算方式" Variant="Variant.Outlined" Required="true">
-                                        <MudSelectItem Value="@SettlementMethod.Theoretical">理算</MudSelectItem>
-                                        <MudSelectItem Value="@SettlementMethod.Weighing">过磅</MudSelectItem>
-                                        <MudSelectItem Value="@SettlementMethod.WeighingNegative">过磅-负</MudSelectItem>
+                    <MudAlert Severity="Severity.Info">请点击"添加项次"按钮添加订单项次</MudAlert>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Warning" Class="mb-3">每个订单至少需要保留一个项次。删除项次请点击行尾的删除按钮。</MudAlert>
+
+                    <div style="overflow-x: auto;">
+                        <MudTable T="OrderItemViewModel" Items="@editItemViewModels" Dense="true" Hover="true" Elevation="0">
+                            <HeaderContent>
+                                <MudTh>项次</MudTh>
+                                <MudTh>交货日期</MudTh>
+                                <MudTh>延期违约金</MudTh>
+                                <MudTh>结算方式</MudTh>
+                                <MudTh>物料名称</MudTh>
+                                <MudTh>产品标准</MudTh>
+                                <MudTh>交货状态</MudTh>
+                                <MudTh>标准牌号</MudTh>
+                                <MudTh>外径</MudTh>
+                                <MudTh>壁厚</MudTh>
+                                <MudTh>外径下差</MudTh>
+                                <MudTh>外径上差</MudTh>
+                                <MudTh>壁厚下差</MudTh>
+                                <MudTh>壁厚上差</MudTh>
+                                <MudTh>长度状态</MudTh>
+                                <MudTh>最小长度</MudTh>
+                                <MudTh>最大长度</MudTh>
+                                <MudTh>支数</MudTh>
+                                <MudTh>米数</MudTh>
+                                <MudTh>合同重量</MudTh>
+                                <MudTh>理算重量</MudTh>
+                                <MudTh>操作</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="item">
+                                <!-- 项次 - 只读显示 -->
+                                <MudTd>
+                                    <MudText Typo="Typo.body2">@item.Sequence</MudText>
+                                </MudTd>
+
+                                <!-- 交货日期 - 文本输入 -->
+                                <MudTd>
+                                    <MudTextField T="string"
+                                                  @bind-Value="item.DeliveryDateStr"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  Style="width: 120px;"
+                                                  Placeholder="yyyy-MM-dd"
+                                                  Immediate="true" />
+                                </MudTd>
+
+                                <!-- 延期违约金 - 复选框 -->
+                                <MudTd>
+                                    <MudCheckBox @bind-Value="item.DelayPenalty" Dense="true" Size="Size.Small" />
+                                </MudTd>
+
+                                <!-- 结算方式 - 下拉选择 -->
+                                <MudTd>
+                                    <MudSelect T="SettlementMethod" @bind-Value="item.SettlementMethod" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="min-width: 80px;">
+                                        <MudSelectItem Value="SettlementMethod.Theoretical">理算</MudSelectItem>
+                                        <MudSelectItem Value="SettlementMethod.Weighing">过磅</MudSelectItem>
+                                        <MudSelectItem Value="SettlementMethod.WeighingNegative">过磅-负</MudSelectItem>
                                     </MudSelect>
-                                </MudItem>
-                                <MudItem xs="12" md="6">
-                                    <MudSelect T="MaterialName" @bind-Value="vm.MaterialName" Label="物料名称" Variant="Variant.Outlined" Required="true">
-                                        <MudSelectItem Value="@MaterialName.SeamlessPipe">无缝管</MudSelectItem>
-                                        <MudSelectItem Value="@MaterialName.WeldedPipe">焊管</MudSelectItem>
+                                </MudTd>
+
+                                <!-- 物料名称 - 下拉选择 -->
+                                <MudTd>
+                                    <MudSelect T="MaterialName" @bind-Value="item.MaterialName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="min-width: 80px;">
+                                        <MudSelectItem Value="MaterialName.SeamlessPipe">无缝管</MudSelectItem>
+                                        <MudSelectItem Value="MaterialName.WeldedPipe">焊管</MudSelectItem>
                                     </MudSelect>
-                                </MudItem>
-                                <MudItem xs="12" md="6">
-                                    <MudSelect T="int" @bind-Value="vm.ProductionStandardId" Label="产品标准" Variant="Variant.Outlined" Required="true">
-                                        @foreach (var std in productionStandards) { <MudSelectItem Value="@std.Id">@std.StandardCode</MudSelectItem> }
+                                </MudTd>
+
+                                <!-- 产品标准 - 下拉选择 -->
+                                <MudTd>
+                                    <MudSelect T="int" @bind-Value="item.ProductionStandardId" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="min-width: 100px;">
+                                        @foreach (var std in productionStandards)
+                                        {
+                                            <MudSelectItem Value="@std.Id">@std.StandardCode</MudSelectItem>
+                                        }
                                     </MudSelect>
-                                </MudItem>
-                                <MudItem xs="12" md="6">
-                                    <MudSelect T="DeliveryState" @bind-Value="vm.DeliveryState" Label="交货状态" Variant="Variant.Outlined" Required="true">
-                                        <MudSelectItem Value="@DeliveryState.SolutionAnnealedAndPickled">固溶酸洗</MudSelectItem>
-                                        <MudSelectItem Value="@DeliveryState.Bright">光亮</MudSelectItem>
-                                        <MudSelectItem Value="@DeliveryState.Hard">硬态</MudSelectItem>
+                                </MudTd>
+
+                                <!-- 交货状态 - 下拉选择 -->
+                                <MudTd>
+                                    <MudSelect T="DeliveryState" @bind-Value="item.DeliveryState" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="min-width: 100px;">
+                                        <MudSelectItem Value="DeliveryState.SolutionAnnealedAndPickled">固溶酸洗</MudSelectItem>
+                                        <MudSelectItem Value="DeliveryState.Bright">光亮</MudSelectItem>
+                                        <MudSelectItem Value="DeliveryState.Hard">硬态</MudSelectItem>
                                     </MudSelect>
-                                </MudItem>
-                                <MudItem xs="12" md="6">
-                                    <MudSelect T="string" @bind-Value="vm.StandardGrade" Label="标准牌号" Variant="Variant.Outlined" Required="true" OnSelectedValueChanged="(string val) => OnStandardGradeChanged(val, vm)">
-                                        @foreach (var grade in gradeMappings) { <MudSelectItem Value="@grade.StandardGrade">@grade.StandardGrade</MudSelectItem> }
+                                </MudTd>
+
+                                <!-- 标准牌号 - 下拉选择 -->
+                                <MudTd>
+                                    <MudSelect T="string" @bind-Value="item.StandardGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="min-width: 80px;">
+                                        @foreach (var grade in gradeMappings)
+                                        {
+                                            <MudSelectItem Value="@grade.StandardGrade">@grade.StandardGrade</MudSelectItem>
+                                        }
                                     </MudSelect>
-                                </MudItem>
-                                <MudItem xs="12" md="4"><MudNumericField T="decimal" @bind-Value="vm.OuterDiameter" Label="外径" Variant="Variant.Outlined" Format="F3" Required="true" /></MudItem>
-                                <MudItem xs="12" md="4"><MudNumericField T="decimal" @bind-Value="vm.WallThickness" Label="壁厚" Variant="Variant.Outlined" Format="F3" Required="true" /></MudItem>
-                                <MudItem xs="12" md="4"><MudNumericField T="decimal" @bind-Value="vm.ContractWeight" Label="合同重量(kg)" Variant="Variant.Outlined" Format="F3" Required="true" /></MudItem>
-                                <MudItem xs="12" md="4">
-                                    <MudSelect T="LengthStatus" @bind-Value="vm.LengthStatus" Label="长度状态" Variant="Variant.Outlined" Required="true" OnSelectedValueChanged="(LengthStatus val) => OnLengthStatusChanged(val, vm)">
-                                        <MudSelectItem Value="@LengthStatus.Fixed">定尺</MudSelectItem>
-                                        <MudSelectItem Value="@LengthStatus.Range">范围尺</MudSelectItem>
-                                        <MudSelectItem Value="@LengthStatus.NonFixed">非定尺</MudSelectItem>
+                                </MudTd>
+
+                                <!-- 外径 - 文本输入 -->
+                                <MudTd>
+                                    <MudTextField T="string"
+                                                  @bind-Value="item.OuterDiameterStr"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  Style="width: 80px;" />
+                                </MudTd>
+
+                                <!-- 壁厚 - 文本输入 -->
+                                <MudTd>
+                                    <MudTextField T="string"
+                                                  @bind-Value="item.WallThicknessStr"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  Style="width: 80px;" />
+                                </MudTd>
+
+                                <!-- 外径下差 - 文本输入 -->
+                                <MudTd>
+                                    <MudTextField T="string"
+                                                  @bind-Value="item.OuterDiameterNegativeStr"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  Style="width: 70px;" />
+                                </MudTd>
+
+                                <!-- 外径上差 - 文本输入 -->
+                                <MudTd>
+                                    <MudTextField T="string"
+                                                  @bind-Value="item.OuterDiameterPositiveStr"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  Style="width: 70px;" />
+                                </MudTd>
+
+                                <!-- 壁厚下差 - 文本输入 -->
+                                <MudTd>
+                                    <MudTextField T="string"
+                                                  @bind-Value="item.WallThicknessNegativeStr"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  Style="width: 70px;" />
+                                </MudTd>
+
+                                <!-- 壁厚上差 - 文本输入 -->
+                                <MudTd>
+                                    <MudTextField T="string"
+                                                  @bind-Value="item.WallThicknessPositiveStr"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  Style="width: 70px;" />
+                                </MudTd>
+
+                                <!-- 长度状态 - 下拉选择 -->
+                                <MudTd>
+                                    <MudSelect T="LengthStatus" @bind-Value="item.LengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="min-width: 80px;">
+                                        <MudSelectItem Value="LengthStatus.Fixed">定尺</MudSelectItem>
+                                        <MudSelectItem Value="LengthStatus.Range">范围尺</MudSelectItem>
+                                        <MudSelectItem Value="LengthStatus.NonFixed">非定尺</MudSelectItem>
                                     </MudSelect>
-                                </MudItem>
-                                @if (vm.LengthStatus == LengthStatus.Fixed)
-                                {
-                                    <MudItem xs="12" md="4"><MudNumericField T="decimal?" @bind-Value="vm.MinLength" Label="长度(mm)" Variant="Variant.Outlined" Format="F0" Required="true" /></MudItem>
-                                    <MudItem xs="12" md="4"><MudNumericField T="int?" @bind-Value="vm.Quantity" Label="支数" Variant="Variant.Outlined" Format="F0" /></MudItem>
-                                }
-                                else if (vm.LengthStatus == LengthStatus.Range)
-                                {
-                                    <MudItem xs="12" md="4"><MudNumericField T="decimal?" @bind-Value="vm.MinLength" Label="最小长度(mm)" Variant="Variant.Outlined" Format="F0" Required="true" /></MudItem>
-                                    <MudItem xs="12" md="4"><MudNumericField T="decimal?" @bind-Value="vm.MaxLength" Label="最大长度(mm)" Variant="Variant.Outlined" Format="F0" Required="true" /></MudItem>
-                                    <MudItem xs="12" md="4"><MudNumericField T="decimal?" @bind-Value="vm.Meters" Label="米数(m)" Variant="Variant.Outlined" Format="F2" /></MudItem>
-                                }
-                                else if (vm.LengthStatus == LengthStatus.NonFixed)
-                                {
-                                    <MudItem xs="12" md="4"><MudNumericField T="decimal?" @bind-Value="vm.Meters" Label="米数(m)" Variant="Variant.Outlined" Format="F2" /></MudItem>
-                                }
-                                <MudItem xs="12" md="12"><MudTextField @bind-Value="vm.Remark" Label="备注" Variant="Variant.Outlined" Lines="2" /></MudItem>
-                            </MudGrid>
-                        </MudCardContent>
-                    </MudCard>
+                                </MudTd>
+
+                                <!-- 最小长度 - 文本输入 -->
+                                <MudTd>
+                                    <MudTextField T="string"
+                                                  @bind-Value="item.MinLengthStr"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  Style="width: 90px;" />
+                                </MudTd>
+
+                                <!-- 最大长度 - 文本输入 -->
+                                <MudTd>
+                                    <MudTextField T="string"
+                                                  @bind-Value="item.MaxLengthStr"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  Style="width: 90px;" />
+                                </MudTd>
+
+                                <!-- 支数 - 文本输入 -->
+                                <MudTd>
+                                    <MudTextField T="string"
+                                                  @bind-Value="item.QuantityStr"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  Style="width: 70px;" />
+                                </MudTd>
+
+                                <!-- 米数 - 文本输入 + 计算按钮 -->
+                                <MudTd>
+                                    <div style="display: flex; align-items: center; gap: 4px;">
+                                        <MudTextField T="string"
+                                                      @bind-Value="item.MetersStr"
+                                                      Dense="true"
+                                                      Variant="Variant.Outlined"
+                                                      Size="Size.Small"
+                                                      Style="width: 90px;" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Calculate"
+                                                       Color="Color.Primary"
+                                                       Size="Size.Small"
+                                                       OnClick="() => CalculateMetersForItem(item)" />
+                                    </div>
+                                </MudTd>
+
+                                <!-- 合同重量 - 文本输入 -->
+                                <MudTd>
+                                    <MudTextField T="string"
+                                                  @bind-Value="item.ContractWeightStr"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  Style="width: 100px;" />
+                                </MudTd>
+
+                                <!-- 理算重量 - 只读 + 计算按钮 -->
+                                <MudTd>
+                                    <div style="display: flex; align-items: center; gap: 4px;">
+                                        <MudText Typo="Typo.body2">@FormatDecimal(item.TheoreticalWeight)</MudText>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Calculate"
+                                                       Color="Color.Primary"
+                                                       Size="Size.Small"
+                                                       OnClick="() => CalculateTheoreticalWeightForItem(item)" />
+                                    </div>
+                                </MudTd>
+
+                                <!-- 操作 - 删除按钮 -->
+                                <MudTd>
+                                    @if (editItemViewModels.Count > 1)
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                       Color="Color.Error"
+                                                       Size="Size.Small"
+                                                       OnClick="() => RemoveItem(item)" />
+                                    }
+                                    else
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                       Color="Color.Error"
+                                                       Size="Size.Small"
+                                                       Disabled="true"
+                                                       Title="订单至少需要保留一个项次" />
+                                    }
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </div>
                 }
             }
         </MudCardContent>
@@ -129,139 +367,405 @@
 </MudContainer>
 
 @code {
+    // ========== ViewModel 定义 ==========
+
+    private class OrderHeaderViewModel
+    {
+        public string OrderNumber { get; set; } = string.Empty;
+        public string SignDateStr { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
+        public string CustomerCode { get; set; } = string.Empty;
+    }
+
     private class OrderItemViewModel
     {
-        public DateTime? DeliveryDate { get; set; }
-        public SettlementMethod SettlementMethod { get; set; }
-        public MaterialName MaterialName { get; set; }
+        public int Sequence { get; set; }
+        public string DeliveryDateStr { get; set; } = DateTime.Now.AddMonths(1).ToString("yyyy-MM-dd");
+        public bool DelayPenalty { get; set; }
+        public SettlementMethod SettlementMethod { get; set; } = SettlementMethod.Theoretical;
+        public MaterialName MaterialName { get; set; } = MaterialName.SeamlessPipe;
         public int ProductionStandardId { get; set; }
-        public DeliveryState DeliveryState { get; set; }
+        public DeliveryState DeliveryState { get; set; } = DeliveryState.SolutionAnnealedAndPickled;
         public string StandardGrade { get; set; } = string.Empty;
-        public decimal OuterDiameter { get; set; }
-        public decimal WallThickness { get; set; }
-        public decimal ContractWeight { get; set; }
-        public LengthStatus LengthStatus { get; set; }
-        public decimal? MinLength { get; set; }
-        public decimal? MaxLength { get; set; }
-        public int? Quantity { get; set; }
-        public decimal? Meters { get; set; }
+        public LengthStatus LengthStatus { get; set; } = LengthStatus.Fixed;
+
+        // 字符串绑定字段（用于用户输入）
+        public string OuterDiameterStr { get; set; } = string.Empty;
+        public string WallThicknessStr { get; set; } = string.Empty;
+        public string OuterDiameterNegativeStr { get; set; } = "0";
+        public string OuterDiameterPositiveStr { get; set; } = "0";
+        public string WallThicknessNegativeStr { get; set; } = "0";
+        public string WallThicknessPositiveStr { get; set; } = "0";
+        public string MinLengthStr { get; set; } = string.Empty;
+        public string MaxLengthStr { get; set; } = string.Empty;
+        public string QuantityStr { get; set; } = string.Empty;
+        public string MetersStr { get; set; } = string.Empty;
+        public string ContractWeightStr { get; set; } = string.Empty;
+
+        // 计算属性：将字符串转换为数值
+        public decimal OuterDiameter => ParseDecimal(OuterDiameterStr);
+        public decimal WallThickness => ParseDecimal(WallThicknessStr);
+        public decimal OuterDiameterNegative => ParseDecimal(OuterDiameterNegativeStr);
+        public decimal OuterDiameterPositive => ParseDecimal(OuterDiameterPositiveStr);
+        public decimal WallThicknessNegative => ParseDecimal(WallThicknessNegativeStr);
+        public decimal WallThicknessPositive => ParseDecimal(WallThicknessPositiveStr);
+        public decimal? MinLength => ParseNullableDecimal(MinLengthStr);
+        public decimal? MaxLength => ParseNullableDecimal(MaxLengthStr);
+        public int? Quantity => ParseNullableInt(QuantityStr);
+        public decimal? Meters => ParseNullableDecimal(MetersStr);
+        public decimal ContractWeight => ParseDecimal(ContractWeightStr);
+
+        // 理算重量（系统计算，只读）
+        public decimal TheoreticalWeight { get; set; }
+
         public string? Remark { get; set; }
+
+        private static decimal ParseDecimal(string value) => decimal.TryParse(value, out var result) ? result : 0;
+        private static decimal? ParseNullableDecimal(string value) => decimal.TryParse(value, out var result) ? result : null;
+        private static int? ParseNullableInt(string value) => int.TryParse(value, out var result) ? result : null;
     }
 
-    private string orderNumber = string.Empty;
-    private DateTime? signDate = DateTime.Today;
-    private int selectedCustomerId;
-    private List<OrderItemViewModel> orderItemViewModels = new();
-    private List<CustomerProfileDto> customers = new();
+    // ========== 私有字段 ==========
+
+    private OrderHeaderViewModel headerData = new();
+    private List<OrderItemViewModel> editItemViewModels = new();
     private List<ProductionStandardDto> productionStandards = new();
     private List<StandardGradeMappingDto> gradeMappings = new();
-    private bool isSubmitting;
+    private List<CustomerProfileDto> allCustomers = new();
+    private HashSet<string> validCustomerCodes = new();
+    private bool isSubmitting = false;
+    private bool isLoading = true;
 
-    protected override async Task OnInitializedAsync() => await LoadDropdownData();
+    // ========== 辅助方法 ==========
 
-    private async Task LoadDropdownData()
+    private string FormatDecimal(decimal value) => value == 0 ? "" : value.ToString("G29");
+
+    private string FormatNullableDecimal(decimal? value) => value.HasValue && value.Value != 0 ? value.Value.ToString("G29") : "";
+
+    private int? FindCustomerIdByCode(string customerCode)
     {
-        var customersResult = await CustomerService.GetPagedAsync(new QueryParams { PageSize = 999 });
-        if (customersResult.Success && customersResult.Data != null) customers = customersResult.Data.Items;
-        productionStandards = await StandardService.GetAllAsync();
-        gradeMappings = await GradeMappingService.GetAllAsync();
+        if (string.IsNullOrEmpty(customerCode)) return null;
+        var customer = allCustomers.FirstOrDefault(c => c.CustomerCode == customerCode);
+        return customer?.Id;
+    }
+
+    // ========== 项次操作方法 ==========
+
+    private void AddNewItem()
+    {
+        var newSequence = editItemViewModels.Any() ? editItemViewModels.Max(x => x.Sequence) + 1 : 1;
+        editItemViewModels.Add(new OrderItemViewModel
+        {
+            Sequence = newSequence,
+            ProductionStandardId = productionStandards.FirstOrDefault()?.Id ?? 0,
+            StandardGrade = gradeMappings.FirstOrDefault()?.StandardGrade ?? string.Empty
+        });
         StateHasChanged();
     }
 
-    private void AddOrderItem() => orderItemViewModels.Add(new OrderItemViewModel
+    private void RemoveItem(OrderItemViewModel item)
     {
-        DeliveryDate = DateTime.Now.AddMonths(1),
-        SettlementMethod = SettlementMethod.Theoretical,
-        MaterialName = MaterialName.SeamlessPipe,
-        DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
-        LengthStatus = LengthStatus.Fixed,
-        OuterDiameter = 0, WallThickness = 0, ContractWeight = 0, StandardGrade = string.Empty
-    });
-
-    private void RemoveOrderItem(int index) => orderItemViewModels.RemoveAt(index);
-
-    private async Task OnStandardGradeChanged(string selectedGrade, OrderItemViewModel item)
-    {
-        if (string.IsNullOrEmpty(selectedGrade)) return;
-        var gradeExists = gradeMappings.Any(g => g.StandardGrade == selectedGrade);
-        if (!gradeExists)
+        if (editItemViewModels.Count <= 1)
         {
-            Snackbar.Add($"牌号 '{selectedGrade}' 不存在，请重新选择", Severity.Error);
-            item.StandardGrade = string.Empty;
+            Snackbar.Add("订单至少需要保留一个项次", Severity.Warning);
+            return;
+        }
+        editItemViewModels.Remove(item);
+        for (int i = 0; i < editItemViewModels.Count; i++)
+        {
+            editItemViewModels[i].Sequence = i + 1;
+        }
+        StateHasChanged();
+    }
+
+    private void CalculateMetersForItem(OrderItemViewModel item)
+    {
+        if (item.LengthStatus == LengthStatus.Fixed)
+        {
+            if (item.MaxLength.HasValue && item.MaxLength > 0 && item.Quantity.HasValue && item.Quantity > 0)
+            {
+                var meters = Math.Round(item.MaxLength.Value * item.Quantity.Value / 1000m, 2);
+                item.MetersStr = meters.ToString();
+                StateHasChanged();
+                Snackbar.Add($"米数已自动计算为 {meters} 米", Severity.Info);
+            }
+            else
+            {
+                Snackbar.Add("请先填写最大长度和支数", Severity.Warning);
+            }
+        }
+        else
+        {
+            Snackbar.Add("仅在定尺模式下支持自动计算米数", Severity.Info);
+        }
+    }
+
+    private void CalculateTheoreticalWeightForItem(OrderItemViewModel item)
+    {
+        var grade = gradeMappings.FirstOrDefault(g => g.StandardGrade == item.StandardGrade);
+        if (grade == null)
+        {
+            Snackbar.Add($"标准牌号 '{item.StandardGrade}' 不存在", Severity.Warning);
+            return;
+        }
+
+        var meters = item.Meters ?? 0m;
+        if (meters <= 0 && item.LengthStatus == LengthStatus.Fixed && item.MaxLength.HasValue && item.Quantity.HasValue)
+        {
+            meters = item.MaxLength.Value * item.Quantity.Value / 1000m;
+        }
+
+        if (meters <= 0)
+        {
+            Snackbar.Add("请先填写米数或定尺模式下的最大长度和支数", Severity.Warning);
+            return;
+        }
+
+        const decimal pi = 3.1416m;
+        var effectiveWall = item.WallThickness - 0.5m * item.WallThicknessNegative + 0.5m * item.WallThicknessPositive;
+        var effectiveOd = item.OuterDiameter - 0.5m * item.OuterDiameterNegative + 0.5m * item.OuterDiameterPositive;
+        if (effectiveWall < 0) effectiveWall = 0;
+        if (effectiveOd <= effectiveWall) effectiveOd = effectiveWall + 0.001m;
+
+        var weight = grade.Density * pi * effectiveWall * (effectiveOd - effectiveWall) * meters / 1000;
+        item.TheoreticalWeight = Math.Round(weight < 0 ? 0 : weight, 2);
+        StateHasChanged();
+        Snackbar.Add($"理算重量已计算为 {item.TheoreticalWeight} kg", Severity.Info);
+    }
+
+    // ========== 数据加载 ==========
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // 加载客户数据（用于验证客户编码）
+            var customersResult = await CustomerService.GetPagedAsync(new QueryParams { PageSize = 1000 });
+            if (customersResult.Success && customersResult.Data != null)
+            {
+                allCustomers = customersResult.Data.Items;
+                validCustomerCodes.Clear();
+                foreach (var customer in allCustomers)
+                {
+                    if (!string.IsNullOrEmpty(customer.CustomerCode))
+                    {
+                        validCustomerCodes.Add(customer.CustomerCode);
+                    }
+                }
+                Console.WriteLine($"加载到 {allCustomers.Count} 个客户，有效客户编码 {validCustomerCodes.Count} 个");
+            }
+
+            // 加载产品标准和牌号对照
+            productionStandards = await StandardService.GetAllAsync();
+            gradeMappings = await GradeMappingService.GetAllAsync();
+
+            // 添加一个默认项次
+            AddNewItem();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"加载数据异常: {ex.Message}");
+            Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
             StateHasChanged();
         }
-        await Task.CompletedTask;
     }
 
-    private void OnLengthStatusChanged(LengthStatus newStatus, OrderItemViewModel item)
-    {
-        item.MinLength = null; item.MaxLength = null; item.Quantity = null; item.Meters = null;
-        StateHasChanged();
-    }
+    // ========== 提交订单 ==========
 
     private async Task SubmitOrder()
     {
-        if (orderItemViewModels.Count == 0) { Snackbar.Add("请至少添加一个订单项次", Severity.Warning); return; }
-        if (string.IsNullOrEmpty(orderNumber)) { Snackbar.Add("订单号不能为空", Severity.Warning); return; }
-        if (orderNumber.Length != 11) { Snackbar.Add("订单号必须为11位字符", Severity.Warning); return; }
-        if (!signDate.HasValue) { Snackbar.Add("请选择签订日期", Severity.Warning); return; }
-        if (selectedCustomerId == 0) { Snackbar.Add("请选择客户", Severity.Warning); return; }
+        if (isSubmitting) return;
 
-        for (int i = 0; i < orderItemViewModels.Count; i++)
+        var errors = new List<string>();
+
+        // 1. 验证基本信息
+        if (string.IsNullOrEmpty(headerData.OrderNumber))
         {
-            var vm = orderItemViewModels[i];
-            var itemNumber = i + 1;
-            if (string.IsNullOrEmpty(vm.StandardGrade)) { Snackbar.Add($"项次 {itemNumber} 的标准牌号不能为空", Severity.Warning); return; }
-            if (vm.OuterDiameter <= 0) { Snackbar.Add($"项次 {itemNumber} 的外径必须大于0", Severity.Warning); return; }
-            if (vm.WallThickness <= 0) { Snackbar.Add($"项次 {itemNumber} 的壁厚必须大于0", Severity.Warning); return; }
-            if (vm.ContractWeight <= 0) { Snackbar.Add($"项次 {itemNumber} 的合同重量必须大于0", Severity.Warning); return; }
-            switch (vm.LengthStatus)
+            errors.Add("订单号不能为空");
+        }
+        else if (headerData.OrderNumber.Length != 11)
+        {
+            errors.Add("订单号必须为11位字符");
+        }
+
+        if (string.IsNullOrEmpty(headerData.SignDateStr))
+        {
+            errors.Add("请填写签订日期");
+        }
+        else if (!DateTime.TryParse(headerData.SignDateStr, out var signDate))
+        {
+            errors.Add("签订日期格式无效，请使用 yyyy-MM-dd 格式");
+        }
+
+        if (string.IsNullOrEmpty(headerData.CustomerCode))
+        {
+            errors.Add("客户编号不能为空");
+        }
+        else if (!validCustomerCodes.Contains(headerData.CustomerCode))
+        {
+            errors.Add($"客户编号 '{headerData.CustomerCode}' 不存在，请先在客户管理中创建");
+        }
+
+        var customerId = FindCustomerIdByCode(headerData.CustomerCode);
+
+        // 2. 验证项次
+        if (editItemViewModels.Count == 0)
+        {
+            errors.Add("请至少添加一个订单项次");
+        }
+
+        for (int i = 0; i < editItemViewModels.Count; i++)
+        {
+            var item = editItemViewModels[i];
+            var seq = i + 1;
+
+            // 交货日期验证
+            if (string.IsNullOrEmpty(item.DeliveryDateStr))
+            {
+                errors.Add($"项次 {seq}: 交货日期不能为空");
+            }
+            else if (!DateTime.TryParse(item.DeliveryDateStr, out _))
+            {
+                errors.Add($"项次 {seq}: 交货日期格式无效，请使用 yyyy-MM-dd");
+            }
+
+            // 标准牌号验证
+            if (string.IsNullOrEmpty(item.StandardGrade))
+            {
+                errors.Add($"项次 {seq}: 标准牌号不能为空");
+            }
+            else if (!gradeMappings.Any(g => g.StandardGrade == item.StandardGrade))
+            {
+                errors.Add($"项次 {seq}: 标准牌号 '{item.StandardGrade}' 不存在");
+            }
+
+            // 数值验证
+            if (item.OuterDiameter <= 0)
+            {
+                errors.Add($"项次 {seq}: 外径必须大于0");
+            }
+            if (item.WallThickness <= 0)
+            {
+                errors.Add($"项次 {seq}: 壁厚必须大于0");
+            }
+            if (item.ContractWeight <= 0)
+            {
+                errors.Add($"项次 {seq}: 合同重量必须大于0");
+            }
+
+            // 长度状态验证
+            switch (item.LengthStatus)
             {
                 case LengthStatus.Fixed:
-                    if (!vm.MinLength.HasValue || vm.MinLength <= 0) { Snackbar.Add($"项次 {itemNumber} 定尺时必须填写长度", Severity.Warning); return; }
+                    if (string.IsNullOrEmpty(item.MinLengthStr) || item.MinLength <= 0)
+                    {
+                        errors.Add($"项次 {seq}: 定尺时必须填写长度");
+                    }
                     break;
                 case LengthStatus.Range:
-                    if (!vm.MinLength.HasValue || vm.MinLength <= 0 || !vm.MaxLength.HasValue || vm.MaxLength <= 0 || vm.MaxLength <= vm.MinLength)
-                    { Snackbar.Add($"项次 {itemNumber} 范围尺时必须填写最小长度和最大长度，且最大长度必须大于最小长度", Severity.Warning); return; }
+                    if (string.IsNullOrEmpty(item.MinLengthStr) || item.MinLength <= 0 ||
+                        string.IsNullOrEmpty(item.MaxLengthStr) || item.MaxLength <= 0 ||
+                        item.MaxLength <= item.MinLength)
+                    {
+                        errors.Add($"项次 {seq}: 范围尺时必须填写最小长度和最大长度，且最大长度必须大于最小长度");
+                    }
                     break;
             }
         }
 
-        var items = orderItemViewModels.Select(vm => new CreateOrderItemRequest
+        // 如果有错误，一次性显示所有错误
+        if (errors.Any())
         {
-            DeliveryDate = vm.DeliveryDate ?? DateTime.Now,
-            SettlementMethod = vm.SettlementMethod,
-            MaterialName = vm.MaterialName,
-            ProductionStandardId = vm.ProductionStandardId,
-            DeliveryState = vm.DeliveryState,
-            StandardGrade = vm.StandardGrade,
-            OuterDiameter = vm.OuterDiameter,
-            WallThickness = vm.WallThickness,
-            OuterDiameterNegative = 0, OuterDiameterPositive = 0,
-            WallThicknessNegative = 0, WallThicknessPositive = 0,
-            ContractWeight = vm.ContractWeight,
-            LengthStatus = vm.LengthStatus,
-            MinLength = vm.MinLength,
-            MaxLength = vm.MaxLength,
-            Quantity = vm.Quantity,
-            Meters = vm.Meters,
-            Remark = vm.Remark
-        }).ToList();
+            Snackbar.Add(string.Join("\n", errors), Severity.Error, options =>
+            {
+                options.VisibleStateDuration = 10000;
+                options.ShowCloseIcon = true;
+            });
+            return;
+        }
+
+        // 3. 构建请求
+        var items = new List<CreateOrderItemRequest>();
+        foreach (var item in editItemViewModels)
+        {
+            // 计算米数
+            var meters = item.Meters ?? 0m;
+            if (item.LengthStatus == LengthStatus.Fixed && item.MaxLength.HasValue && item.Quantity.HasValue)
+            {
+                meters = item.MaxLength.Value * item.Quantity.Value / 1000m;
+            }
+
+            items.Add(new CreateOrderItemRequest
+            {
+                DeliveryDate = DateTime.Parse(item.DeliveryDateStr),
+                DelayPenalty = item.DelayPenalty,
+                SettlementMethod = item.SettlementMethod,
+                MaterialName = item.MaterialName,
+                ProductionStandardId = item.ProductionStandardId,
+                DeliveryState = item.DeliveryState,
+                StandardGrade = item.StandardGrade,
+                OuterDiameter = item.OuterDiameter,
+                WallThickness = item.WallThickness,
+                OuterDiameterNegative = item.OuterDiameterNegative,
+                OuterDiameterPositive = item.OuterDiameterPositive,
+                WallThicknessNegative = item.WallThicknessNegative,
+                WallThicknessPositive = item.WallThicknessPositive,
+                LengthStatus = item.LengthStatus,
+                MinLength = item.MinLength,
+                MaxLength = item.MaxLength,
+                Quantity = item.Quantity,
+                Meters = Math.Round(meters, 2),
+                ContractWeight = item.ContractWeight,
+                Remark = item.Remark
+            });
+        }
 
         var request = new CreateSalesOrderRequest
         {
-            OrderNumber = orderNumber,
-            SignDate = signDate.Value,
-            CustomerId = selectedCustomerId,
+            OrderNumber = headerData.OrderNumber,
+            SignDate = DateTime.Parse(headerData.SignDateStr),
+            CustomerId = customerId!.Value,
             Items = items
         };
 
-        isSubmitting = true; StateHasChanged();
-        var result = await OrderService.CreateAsync(request);
-        if (result.Success && result.Data != null)
-        { Snackbar.Add($"订单创建成功！订单号：{result.Data.OrderNumber}", Severity.Success); Navigation.NavigateTo("/orders"); }
-        else { Snackbar.Add(result.Message ?? "创建订单失败", Severity.Error); }
-        isSubmitting = false; StateHasChanged();
+        // 4. 提交订单
+        isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await OrderService.CreateAsync(request);
+            if (result.Success && result.Data != null)
+            {
+                Snackbar.Add($"订单创建成功！订单号：{result.Data.OrderNumber}，状态：待处理", Severity.Success);
+                await Task.Delay(500);
+                Navigation.NavigateTo("/orders");
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "创建订单失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"创建失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
     }
 
     private void GoBack() => Navigation.NavigateTo("/orders");

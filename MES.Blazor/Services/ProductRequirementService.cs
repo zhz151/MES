@@ -13,6 +13,9 @@ public class ProductRequirementService
         _http = http;
     }
 
+    /// <summary>
+    /// 根据订单项次ID获取产品要求
+    /// </summary>
     public async Task<ApiResponse<ProductRequirementDto>> GetByOrderItemIdAsync(int orderId, int itemId)
     {
         try
@@ -27,6 +30,9 @@ public class ProductRequirementService
         }
     }
 
+    /// <summary>
+    /// 创建或更新产品要求
+    /// </summary>
     public async Task<ApiResponse<ProductRequirementDto>> CreateOrUpdateAsync(
         int orderId,
         int itemId,
@@ -44,6 +50,9 @@ public class ProductRequirementService
         }
     }
 
+    /// <summary>
+    /// 删除产品要求
+    /// </summary>
     public async Task<ApiResponse<object>> DeleteAsync(int orderId, int itemId)
     {
         try
@@ -67,6 +76,12 @@ public class ProductRequirementService
         {
             var response = await _http.GetFromJsonAsync<ApiResponse<List<ProductRequirementDto>>>(
                 $"api/order/{orderId}/requirements");
+            
+            if (response != null && response.Success && response.Data == null)
+            {
+                response.Data = new List<ProductRequirementDto>();
+            }
+            
             return response ?? ApiResponse<List<ProductRequirementDto>>.Fail("获取技术要求列表失败");
         }
         catch (Exception ex)

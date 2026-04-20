@@ -39,6 +39,7 @@ public class ProductRequirementService : IProductRequirementService
 
         if (existing != null)
         {
+            // 更新现有技术要求
             existing.RequirementType = request.RequirementType;
             existing.ChemicalComposition = request.ChemicalComposition;
             existing.MechanicalProperty = request.MechanicalProperty;
@@ -52,6 +53,7 @@ public class ProductRequirementService : IProductRequirementService
         }
         else
         {
+            // 只有用户主动保存时才创建新记录
             var entity = new ProductRequirement
             {
                 OrderItemId = orderItemId,
@@ -81,42 +83,50 @@ public class ProductRequirementService : IProductRequirementService
         }
     }
 
+    /// <summary>
+    /// 根据订单ID获取所有项次的产品要求列表
+    /// 注意：只返回真正存在的技术要求，不自动创建空对象
+    /// </summary>
     public async Task<List<ProductRequirementDto>> GetByOrderIdAsync(int orderId)
     {
+        // 获取订单的所有项次
         var orderItems = await _context.OrderItems
             .Where(oi => oi.SalesOrderId == orderId && !oi.IsDeleted)
-            .Include(oi => oi.ProductRequirement)
             .OrderBy(oi => oi.Sequence)
             .ToListAsync();
 
+        // 获取所有存在的技术要求
+        var orderItemIds = orderItems.Select(oi => oi.Id).ToList();
+        var existingRequirements = await _context.ProductRequirements
+            .Where(pr => orderItemIds.Contains(pr.OrderItemId) && !pr.IsDeleted)
+            .ToDictionaryAsync(pr => pr.OrderItemId, pr => pr);
+
         var result = new List<ProductRequirementDto>();
+        
         foreach (var item in orderItems)
         {
-            var requirement = item.ProductRequirement;
-            if (requirement != null && !requirement.IsDeleted)
+            if (existingRequirements.TryGetValue(item.Id, out var requirement))
             {
-                result.Add(await MapToDtoWithSequence(requirement, item.Sequence));
-            }
-            else
-            {
-                // 没有技术要求时，返回一个空的 DTO（仅包含项次号）
+                // 有技术要求，添加到结果
                 result.Add(new ProductRequirementDto
                 {
-                    Id = 0,
-                    OrderItemId = item.Id,
+                    Id = requirement.Id,
+                    OrderItemId = requirement.OrderItemId,
                     Sequence = item.Sequence,
-                    RequirementType = RequirementType.Normal,
-                    ChemicalComposition = null,
-                    MechanicalProperty = null,
-                    ToleranceRequirement = null,
-                    SurfaceQuality = null,
-                    NdtRequirement = null,
-                    OtherRequirement = null,
-                    CreatedTime = item.CreatedTime,
-                    UpdatedTime = item.UpdatedTime
+                    RequirementType = requirement.RequirementType,
+                    ChemicalComposition = requirement.ChemicalComposition,
+                    MechanicalProperty = requirement.MechanicalProperty,
+                    ToleranceRequirement = requirement.ToleranceRequirement,
+                    SurfaceQuality = requirement.SurfaceQuality,
+                    NdtRequirement = requirement.NdtRequirement,
+                    OtherRequirement = requirement.OtherRequirement,
+                    CreatedTime = requirement.CreatedTime,
+                    UpdatedTime = requirement.UpdatedTime
                 });
             }
+            // 没有技术要求：不添加到结果，保持 null/不存在状态
         }
+        
         return result;
     }
 

@@ -12,15 +12,17 @@ namespace MES.Api.Controllers;
 /// 客户控制器
 /// </summary>
 [ApiController]
-[Route("api/customer")]
+[Route("api/[controller]")]
 [Authorize]
 public class CustomerController : ControllerBase
 {
     private readonly ICustomerService _customerService;
+    private readonly ILogger<CustomerController> _logger;
 
-    public CustomerController(ICustomerService customerService)
+    public CustomerController(ICustomerService customerService, ILogger<CustomerController> logger)
     {
         _customerService = customerService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -28,8 +30,25 @@ public class CustomerController : ControllerBase
     /// </summary>
     [HttpGet("list")]
     [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<PagedResult<CustomerProfileDto>>>> GetPaged([FromQuery] QueryParams query)
+    public async Task<ActionResult<ApiResponse<PagedResult<CustomerProfileDto>>>> GetPaged(
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? keyword = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool isDescending = true)
     {
+        // 限制最大每页数量
+        if (pageSize > 5000) pageSize = 5000;
+
+        var query = new QueryParams
+        {
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy,
+            IsDescending = isDescending
+        };
+
         var result = await _customerService.GetPagedAsync(query);
         return Ok(ApiResponse<PagedResult<CustomerProfileDto>>.Ok(result, "查询成功"));
     }

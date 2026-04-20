@@ -1,3 +1,4 @@
+// 文件路径: MES.Blazor/Pages/ProductRequirement.razor
 @page "/orders/{orderId:int}/requirements"
 @page "/orders/{orderId:int}/requirements/edit"
 @using MES.Blazor.Services
@@ -25,21 +26,37 @@
                         技术要求
                     </MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary">订单号：@orderNumber</MudText>
+                    @if (orderStatus == SalesOrderStatus.Cancelled)
+                    {
+                        <MudChip Size="Size.Small" Color="Color.Error" Class="ml-2">已取消</MudChip>
+                    }
                 </CardHeaderContent>
                 <CardHeaderActions>
                     <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
                     @if (isEditMode)
                     {
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAllRequirements" Disabled="@isSubmitting">
-                            @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> }
-                            else { <span>保存修改</span> }
-                        </MudButton>
+                        @if (orderStatus != SalesOrderStatus.Cancelled)
+                        {
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAllRequirements" Disabled="@isSubmitting">
+                                @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> }
+                                else { <span>保存修改</span> }
+                            </MudButton>
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Info" Class="mb-0" Style="padding: 4px 12px;">
+                                已取消的订单无法编辑技术要求
+                            </MudAlert>
+                        }
                     }
                     else
                     {
-                        <AuthorizeView Roles="OrderDirector,Admin">
-                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑技术要求</MudButton>
-                        </AuthorizeView>
+                        @if (orderStatus != SalesOrderStatus.Cancelled)
+                        {
+                            <AuthorizeView Roles="OrderDirector,Admin">
+                                <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑技术要求</MudButton>
+                            </AuthorizeView>
+                        }
                     }
                 </CardHeaderActions>
             </MudCardHeader>
@@ -68,7 +85,7 @@
                             </HeaderContent>
                             <RowTemplate>
                                 <MudTd>@context.Sequence.ToString()</MudTd>
-                                <MudTd>@context.RequirementType.ToString()</MudTd>
+                                <MudTd>@GetRequirementTypeText(context.RequirementType)</MudTd>
                                 <MudTd>@context.ChemicalComposition</MudTd>
                                 <MudTd>@context.MechanicalProperty</MudTd>
                                 <MudTd>@context.ToleranceRequirement</MudTd>
@@ -80,51 +97,116 @@
                             </RowTemplate>
                         </MudTable>
                     </div>
+                    
+                    @if (requirements.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Class="mt-3">
+                            暂无技术要求数据，请点击"编辑技术要求"进行配置
+                        </MudAlert>
+                    }
                 }
                 else
                 {
-                    <!-- 编辑模式：每个项次一个卡片，可编辑 -->
-                    <MudAlert Severity="Severity.Warning" Class="mb-3">修改后请点击右上角“保存修改”按钮。</MudAlert>
-                    @for (int i = 0; i < requirements.Count; i++)
+                    <!-- 编辑模式：表格内联编辑 -->
+                    @if (orderStatus == SalesOrderStatus.Cancelled)
                     {
-                        var req = requirements[i];
-                        var index = i;
-                        <MudCard Class="mb-4" Variant="Variant.Outlined">
-                            <MudCardHeader>
-                                <CardHeaderContent>
-                                    <MudText Typo="Typo.subtitle1">项次 @req.Sequence</MudText>
-                                </CardHeaderContent>
-                            </MudCardHeader>
-                            <MudCardContent>
-                                <MudGrid>
-                                    <MudItem xs="12" md="6">
-                                        <MudSelect T="RequirementType" Label="要求类型" @bind-Value="req.RequirementType">
-                                            <MudSelectItem Value="@RequirementType.Normal">常规</MudSelectItem>
-                                            <MudSelectItem Value="@RequirementType.Special">特殊</MudSelectItem>
-                                        </MudSelect>
-                                    </MudItem>
-                                    <MudItem xs="12" md="12">
-                                        <MudTextField T="string" Label="化学成分要求" @bind-Value="req.ChemicalComposition" Multiline="true" Lines="3" />
-                                    </MudItem>
-                                    <MudItem xs="12" md="12">
-                                        <MudTextField T="string" Label="机械性能要求" @bind-Value="req.MechanicalProperty" Multiline="true" Lines="3" />
-                                    </MudItem>
-                                    <MudItem xs="12" md="12">
-                                        <MudTextField T="string" Label="尺寸公差要求" @bind-Value="req.ToleranceRequirement" Multiline="true" Lines="3" />
-                                    </MudItem>
-                                    <MudItem xs="12" md="12">
-                                        <MudTextField T="string" Label="表面质量要求" @bind-Value="req.SurfaceQuality" Multiline="true" Lines="3" />
-                                    </MudItem>
-                                    <MudItem xs="12" md="12">
-                                        <MudTextField T="string" Label="无损检测要求" @bind-Value="req.NdtRequirement" Multiline="true" Lines="3" />
-                                    </MudItem>
-                                    <MudItem xs="12" md="12">
-                                        <MudTextField T="string" Label="其他要求" @bind-Value="req.OtherRequirement" Multiline="true" Lines="3" />
-                                    </MudItem>
-                                </MudGrid>
-                            </MudCardContent>
-                        </MudCard>
+                        <MudAlert Severity="Severity.Warning" Class="mb-3">
+                            已取消的订单无法编辑技术要求。
+                        </MudAlert>
                     }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info" Class="mb-3">
+                            技术要求配置：点击保存后，当前订单所有项次的技术要求状态将被标记为"已编辑"。
+                            如需删除已有技术要求，请清空所有字段后保存。
+                        </MudAlert>
+                    }
+                    
+                    <div style="overflow-x: auto;">
+                        <MudTable T="OrderItemWithRequirement" 
+                                  Items="@orderItemsWithRequirement" 
+                                  Dense="true" 
+                                  Hover="true"
+                                  Elevation="0">
+                            <HeaderContent>
+                                <MudTh>项次</MudTh>
+                                <MudTh>要求类型</MudTh>
+                                <MudTh>化学成分</MudTh>
+                                <MudTh>机械性能</MudTh>
+                                <MudTh>尺寸公差</MudTh>
+                                <MudTh>表面质量</MudTh>
+                                <MudTh>无损检测</MudTh>
+                                <MudTh>其他要求</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="item">
+                                <MudTd>@item.Sequence.ToString()</MudTd>
+                                <MudTd>
+                                    <MudSelect T="RequirementType" 
+                                               @bind-Value="item.RequirementType"
+                                               Dense="true"
+                                               Variant="Variant.Outlined"
+                                               Size="Size.Small">
+                                        <MudSelectItem Value="@RequirementType.Normal">常规</MudSelectItem>
+                                        <MudSelectItem Value="@RequirementType.Special">特殊</MudSelectItem>
+                                    </MudSelect>
+                                </MudTd>
+                                <MudTd>
+                                    <MudTextField T="string" 
+                                                  @bind-Value="item.ChemicalComposition"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  FullWidth="true"
+                                                  Placeholder="如：C≤0.08, Si≤1.00, Mn≤2.00" />
+                                </MudTd>
+                                <MudTd>
+                                    <MudTextField T="string" 
+                                                  @bind-Value="item.MechanicalProperty"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  FullWidth="true"
+                                                  Placeholder="如：抗拉强度≥520MPa，屈服强度≥205MPa" />
+                                </MudTd>
+                                <MudTd>
+                                    <MudTextField T="string" 
+                                                  @bind-Value="item.ToleranceRequirement"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  FullWidth="true"
+                                                  Placeholder="如：外径±0.5mm，壁厚±0.3mm" />
+                                </MudTd>
+                                <MudTd>
+                                    <MudTextField T="string" 
+                                                  @bind-Value="item.SurfaceQuality"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  FullWidth="true"
+                                                  Placeholder="如：无裂纹、无结疤、无折叠" />
+                                </MudTd>
+                                <MudTd>
+                                    <MudTextField T="string" 
+                                                  @bind-Value="item.NdtRequirement"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  FullWidth="true"
+                                                  Placeholder="如：100%涡流探伤，水压试验" />
+                                </MudTd>
+                                <MudTd>
+                                    <MudTextField T="string" 
+                                                  @bind-Value="item.OtherRequirement"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  FullWidth="true"
+                                                  Placeholder="其他特殊要求" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </div>
                 }
             </MudCardContent>
         </MudCard>
@@ -135,14 +217,40 @@
     [Parameter] public int orderId { get; set; }
     private bool isEditMode => Navigation.Uri.Contains("/edit");
     private string orderNumber = string.Empty;
+    private SalesOrderStatus orderStatus = SalesOrderStatus.Pending;
     private List<ProductRequirementDto> requirements = new();
+    private List<OrderItemWithRequirement> orderItemsWithRequirement = new();
     private bool isLoading = true;
     private bool isSubmitting;
+
+    /// <summary>
+    /// 项次技术要求视图模型（用于编辑）
+    /// </summary>
+    private class OrderItemWithRequirement
+    {
+        public int OrderItemId { get; set; }
+        public int Sequence { get; set; }
+        public bool HasExisting { get; set; }  // 是否已有技术要求记录
+        public RequirementType RequirementType { get; set; } = RequirementType.Normal;
+        public string? ChemicalComposition { get; set; }
+        public string? MechanicalProperty { get; set; }
+        public string? ToleranceRequirement { get; set; }
+        public string? SurfaceQuality { get; set; }
+        public string? NdtRequirement { get; set; }
+        public string? OtherRequirement { get; set; }
+    }
 
     private string FormatDateTime(DateTimeOffset dt)
     {
         return dt == DateTimeOffset.MinValue ? "-" : dt.ToString("yyyy-MM-dd HH:mm");
     }
+
+    private string GetRequirementTypeText(RequirementType type) => type switch
+    {
+        RequirementType.Normal => "常规",
+        RequirementType.Special => "特殊",
+        _ => type.ToString()
+    };
 
     protected override async Task OnInitializedAsync() => await LoadData();
 
@@ -162,6 +270,7 @@
             if (orderResult.Success && orderResult.Data != null)
             {
                 orderNumber = orderResult.Data.OrderNumber;
+                orderStatus = orderResult.Data.Status;
             }
             else
             {
@@ -169,11 +278,37 @@
                 return;
             }
 
+            // 获取所有项次
+            var allItems = orderResult.Data?.Items ?? new List<OrderItemDto>();
+            
+            // 获取已存在的技术要求
             var reqResult = await RequirementService.GetByOrderIdAsync(orderId);
+            var existingReqs = new Dictionary<int, ProductRequirementDto>();
             if (reqResult.Success && reqResult.Data != null)
             {
-                requirements = reqResult.Data.OrderBy(r => r.Sequence).ToList();
+                foreach (var req in reqResult.Data)
+                {
+                    existingReqs[req.OrderItemId] = req;
+                }
             }
+            
+            // 构建编辑列表：所有项次都显示
+            orderItemsWithRequirement = allItems.OrderBy(i => i.Sequence).Select(i => new OrderItemWithRequirement
+            {
+                OrderItemId = i.Id,
+                Sequence = i.Sequence,
+                HasExisting = existingReqs.ContainsKey(i.Id),
+                RequirementType = existingReqs.ContainsKey(i.Id) ? existingReqs[i.Id].RequirementType : RequirementType.Normal,
+                ChemicalComposition = existingReqs.ContainsKey(i.Id) ? existingReqs[i.Id].ChemicalComposition : null,
+                MechanicalProperty = existingReqs.ContainsKey(i.Id) ? existingReqs[i.Id].MechanicalProperty : null,
+                ToleranceRequirement = existingReqs.ContainsKey(i.Id) ? existingReqs[i.Id].ToleranceRequirement : null,
+                SurfaceQuality = existingReqs.ContainsKey(i.Id) ? existingReqs[i.Id].SurfaceQuality : null,
+                NdtRequirement = existingReqs.ContainsKey(i.Id) ? existingReqs[i.Id].NdtRequirement : null,
+                OtherRequirement = existingReqs.ContainsKey(i.Id) ? existingReqs[i.Id].OtherRequirement : null
+            }).ToList();
+            
+            // 查看模式：只显示有技术要求的项次
+            requirements = existingReqs.Values.OrderBy(r => r.Sequence).ToList();
         }
         catch (Exception ex)
         {
@@ -186,34 +321,61 @@
         }
     }
 
-    private void EnterEditMode() => Navigation.NavigateTo($"/orders/{orderId}/requirements/edit");
+    private void EnterEditMode()
+    {
+        if (orderStatus == SalesOrderStatus.Cancelled)
+        {
+            Snackbar.Add("已取消的订单无法编辑技术要求", Severity.Warning);
+            return;
+        }
+        Navigation.NavigateTo($"/orders/{orderId}/requirements/edit");
+    }
 
     private async Task SaveAllRequirements()
     {
+        if (orderStatus == SalesOrderStatus.Cancelled)
+        {
+            Snackbar.Add("已取消的订单无法保存技术要求", Severity.Warning);
+            return;
+        }
+
         isSubmitting = true;
         StateHasChanged();
+        
         try
         {
-            foreach (var req in requirements)
+            var savedCount = 0;
+            
+            // 为每个项次保存技术要求（即使内容为空）
+            foreach (var item in orderItemsWithRequirement)
             {
                 var request = new CreateProductRequirementRequest
                 {
-                    RequirementType = req.RequirementType,
-                    ChemicalComposition = req.ChemicalComposition,
-                    MechanicalProperty = req.MechanicalProperty,
-                    ToleranceRequirement = req.ToleranceRequirement,
-                    SurfaceQuality = req.SurfaceQuality,
-                    NdtRequirement = req.NdtRequirement,
-                    OtherRequirement = req.OtherRequirement
+                    RequirementType = item.RequirementType,
+                    ChemicalComposition = item.ChemicalComposition,
+                    MechanicalProperty = item.MechanicalProperty,
+                    ToleranceRequirement = item.ToleranceRequirement,
+                    SurfaceQuality = item.SurfaceQuality,
+                    NdtRequirement = item.NdtRequirement,
+                    OtherRequirement = item.OtherRequirement
                 };
-                var result = await RequirementService.CreateOrUpdateAsync(orderId, req.OrderItemId, request);
-                if (!result.Success)
+                
+                var result = await RequirementService.CreateOrUpdateAsync(orderId, item.OrderItemId, request);
+                if (result.Success)
                 {
-                    Snackbar.Add($"保存项次 {req.Sequence} 技术要求失败: {result.Message}", Severity.Error);
+                    savedCount++;
+                }
+                else
+                {
+                    Snackbar.Add($"保存项次 {item.Sequence} 技术要求失败: {result.Message}", Severity.Error);
                     return;
                 }
             }
-            Snackbar.Add("所有技术要求保存成功", Severity.Success);
+            
+            Snackbar.Add($"保存成功，已保存 {savedCount} 个项次的技术要求", Severity.Success);
+            
+            // 重新加载数据
+            await LoadData();
             Navigation.NavigateTo($"/orders/{orderId}/requirements");
         }
         catch (Exception ex)
