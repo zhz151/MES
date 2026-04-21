@@ -1,4 +1,7 @@
-/* 原有基础样式 */
+/* ============================================================
+   原有基础样式
+   ============================================================ */
+
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
@@ -103,29 +106,23 @@ code {
     color: #c02d76;
 }
 
-/* ===== 新增全局表格样式 ===== */
-/* 表格容器强制允许水平滚动（当列宽总和超出容器时显示滚动条） */
+/* ============================================================
+   表格基础样式
+   ============================================================ */
+
 .mud-table-container {
     overflow-x: auto !important;
 }
 
-/* 表格占满父容器宽度，使用自动列宽布局 */
 .mud-table {
     width: 100%;
     table-layout: auto;
 }
 
-/* 强制所有表格单元格内容不换行（保证每行数据在一行显示） */
-.mud-table-cell {
-    white-space: nowrap !important;
-}
-
-/* 表头单元格也不换行 */
 .mud-table-header-cell {
     white-space: nowrap !important;
 }
 
-/* 移除 MudBlazor 响应式表格在小屏幕下的折叠行为（覆盖默认样式） */
 @media (max-width: 959px) {
     .mud-table .mud-table-row .mud-table-cell {
         display: table-cell !important;
@@ -134,4 +131,280 @@ code {
     .mud-table .mud-table-row {
         border-bottom: 1px solid var(--mud-palette-table-lines);
     }
+}
+
+/* ============================================================
+   表格内联编辑样式 - 无边框
+   ============================================================ */
+
+.mud-table .mud-input-outlined .mud-input-outlined-border {
+    border-color: transparent !important;
+    transition: border-color 0.2s ease;
+}
+
+.mud-table .mud-input-outlined:hover .mud-input-outlined-border {
+    border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+.mud-table .mud-input-outlined:focus-within .mud-input-outlined-border {
+    border-color: var(--mud-palette-primary) !important;
+    border-width: 1px !important;
+}
+
+/* ============================================================
+   输入框字体和高度统一
+   ============================================================ */
+
+.mud-table .mud-input {
+    font-size: 0.875rem !important;
+    font-family: inherit !important;
+}
+
+.mud-table .mud-input,
+.mud-table .mud-select,
+.mud-table .mud-numeric-field {
+    height: 32px !important;
+    min-height: 32px !important;
+}
+
+.mud-table .mud-input input,
+.mud-table .mud-select input {
+    padding: 0 0 0 8px !important;
+    line-height: 32px !important;
+}
+
+/* ============================================================
+   隐藏数值输入框上下箭头 - 强制生效
+   ============================================================ */
+
+/* 方法1：通过 MudBlazor 类名 */
+.mud-numeric-field .mud-input-adornment {
+    display: none !important;
+}
+
+/* 方法2：直接作用于 input 元素 */
+.mud-numeric-field input {
+    -moz-appearance: textfield !important;
+    appearance: textfield !important;
+}
+
+.mud-numeric-field input::-webkit-outer-spin-button,
+.mud-numeric-field input::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+    display: none !important;
+}
+
+/* 方法3：全局强制隐藏所有 number 类型输入框的箭头 */
+input[type="number"] {
+    -moz-appearance: textfield !important;
+    appearance: textfield !important;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+    display: none !important;
+}
+
+/* ============================================================
+   下拉选择框样式
+   ============================================================ */
+
+.mud-table .mud-select {
+    min-width: 80px !important;
+}
+
+.mud-table .mud-select .mud-input {
+    padding-right: 24px !important;
+}
+
+.mud-table .mud-select .mud-select-arrow {
+    right: 4px !important;
+}
+
+.mud-table .mud-select .mud-input input {
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+}
+
+.mud-select-item {
+    white-space: normal !important;
+    word-break: break-word !important;
+}
+
+/* ============================================================
+   复选框居中
+   ============================================================ */
+
+.mud-table .mud-checkbox {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.mud-table .mud-checkbox .mud-icon-button {
+    width: 32px !important;
+    height: 32px !important;
+    padding: 4px !important;
+}
+
+/* ============================================================
+   操作按钮
+   ============================================================ */
+
+.mud-table .mud-icon-button {
+    width: 32px !important;
+    height: 32px !important;
+    padding: 4px !important;
+}
+
+/* ============================================================
+   表格单元格文字截断样式
+   ============================================================ */
+
+.table-cell-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+    white-space: normal !important;
+    cursor: help;
+}
+
+.table-cell-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+    white-space: normal !important;
+    cursor: help;
+}
+
+/* 隐藏箭头容器 */
+.mud-numeric-field .mud-input-adornment {
+    display: none !important;
+}
+
+/* 针对各种可能的情况 */
+.mud-numeric-field .mud-icon-button {
+    display: none !important;
+}
+
+.mud-numeric-field button {
+    display: none !important;
+}
+
+/* 隐藏所有数值输入框的箭头 - 全局强制 */
+input[type="number"] {
+    -moz-appearance: textfield !important;
+    appearance: textfield !important;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+}
+
+/* 方法1：隐藏箭头容器 */
+.mud-numeric-field .mud-input-adornment {
+    display: none !important;
+}
+
+/* 方法2：直接隐藏按钮 */
+.mud-numeric-field button {
+    display: none !important;
+}
+
+/* 方法3：针对上下箭头图标 */
+.mud-numeric-field .mud-icon-button {
+    display: none !important;
+}
+
+/* 方法4：隐藏所有可能的箭头元素 */
+button[mud:type="numeric-up"],
+button[mud:type="numeric-down"],
+button[aria-label*="increment"],
+button[aria-label*="decrement"],
+button[aria-label*="Increase"],
+button[aria-label*="Decrease"] {
+    display: none !important;
+}
+
+/* 确保输入框正常显示 */
+.mud-numeric-field input {
+    display: block !important;
+    visibility: visible !important;
+}
+
+/* 隐藏减少按钮的 SVG 图标 */
+svg[aria-label="Decrement"],
+svg[aria-label="Increment"] {
+    display: none !important;
+}
+
+/* 隐藏整个按钮容器 */
+.mud-numeric-field button {
+    display: none !important;
+}
+
+/* 确保输入框正常显示 */
+.mud-numeric-field input {
+    display: block !important;
+    visibility: visible !important;
+}
+
+/* ============================================================
+   表单验证样式 - 红色边框和错误提示
+   ============================================================ */
+
+/* 无效输入框的红色边框 */
+.mud-input-error .mud-input-outlined-border {
+    border-color: var(--mud-palette-error) !important;
+    border-width: 1px !important;
+}
+
+.mud-input-error.mud-input-outlined:focus-within .mud-input-outlined-border {
+    border-color: var(--mud-palette-error) !important;
+    border-width: 2px !important;
+}
+
+/* 必填字段的星号标记 */
+.mud-input-required .mud-input-label::after {
+    content: " *";
+    color: var(--mud-palette-error);
+}
+
+/* 错误提示文字样式 */
+.mud-helper-text.mud-invalid {
+    color: var(--mud-palette-error) !important;
+    font-size: 0.7rem;
+    margin-top: 2px;
+}
+
+/* 表格内联编辑的验证样式 */
+.mud-table .mud-input-error .mud-input-outlined-border {
+    border-color: var(--mud-palette-error) !important;
+}
+
+/* 下拉选择框验证样式 */
+.mud-select.mud-input-error .mud-input-outlined-border {
+    border-color: var(--mud-palette-error) !important;
+}
+
+/* 数值输入框验证样式 */
+.mud-numeric-field.mud-input-error .mud-input-outlined-border {
+    border-color: var(--mud-palette-error) !important;
+}
+
+/* 日期选择器验证样式 */
+.mud-datepicker.mud-input-error .mud-input-outlined-border {
+    border-color: var(--mud-palette-error) !important;
 }

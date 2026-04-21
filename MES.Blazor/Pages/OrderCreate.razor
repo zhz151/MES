@@ -11,6 +11,7 @@
 @inject GradeMappingService GradeMappingService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "OrderDirector,Admin")]
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
@@ -687,11 +688,8 @@
         // 如果有错误，一次性显示所有错误
         if (errors.Any())
         {
-            Snackbar.Add(string.Join("\n", errors), Severity.Error, options =>
-            {
-                options.VisibleStateDuration = 10000;
-                options.ShowCloseIcon = true;
-            });
+            var errorMsg = string.Join("\n", errors);
+            await JS.InvokeVoidAsync("alert", errorMsg);
             return;
         }
 

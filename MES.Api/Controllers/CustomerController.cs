@@ -100,7 +100,7 @@ public class CustomerController : ControllerBase
     /// 删除客户（软删除）
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _customerService.DeleteAsync(id);

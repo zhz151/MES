@@ -92,7 +92,7 @@ public class ProductionStandardController : ControllerBase
     /// 删除产品标准
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
     {
         await _service.DeleteAsync(id);

@@ -72,16 +72,11 @@ public class ProductRequirementService : IProductRequirementService
         }
     }
 
-    public async Task DeleteAsync(int orderItemId)
-    {
-        var entity = await _context.ProductRequirements
-            .FirstOrDefaultAsync(pr => pr.OrderItemId == orderItemId && !pr.IsDeleted);
-        if (entity != null)
-        {
-            entity.IsDeleted = true;
-            await _context.SaveChangesAsync();
-        }
-    }
+public async Task DeleteAsync(int orderItemId)
+{
+    // ProductRequirement 不允许单独删除，必须随 OrderItem 级联删除
+    throw new BusinessException("技术要求不允许单独删除，请删除对应的订单项次");
+}
 
     /// <summary>
     /// 根据订单ID获取所有项次的产品要求列表

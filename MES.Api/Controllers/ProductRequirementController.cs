@@ -64,19 +64,6 @@ public class ProductRequirementController : ControllerBase
     }
 
     /// <summary>
-    /// 删除订单项次的产品要求（软删除）
-    /// </summary>
-    /// <param name="orderId">订单ID（仅用于路由）</param>
-    /// <param name="itemId">订单项次ID</param>
-    [HttpDelete]
-    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<object>>> Delete(int orderId, int itemId)
-    {
-        await _service.DeleteAsync(itemId);
-        return Ok(ApiResponse<object>.Ok(new object(), "删除成功"));
-    }
-
-    /// <summary>
     /// 获取订单下所有项次的产品要求列表（包含项次号）
     /// </summary>
     /// <param name="orderId">订单ID</param>

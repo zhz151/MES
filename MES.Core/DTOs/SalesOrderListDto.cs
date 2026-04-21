@@ -16,14 +16,19 @@ public class SalesOrderListDto
     public SalesOrderStatus Status { get; set; }
     public string StatusText => Status.ToString();
     public byte[]? RowVersion { get; set; }
-    
+
     /// <summary>
     /// 订单下是否存在技术要求（任何项次有产品要求）
     /// </summary>
     public bool HasTechnicalRequirement { get; set; }
-    
+
     /// <summary>
     /// 订单下第一个项次的ID（用于跳转编辑技术要求）
     /// </summary>
     public int? FirstOrderItemId { get; set; }
+
+    /// <summary>
+    /// 最后变更日期（项次最后一次更新时间）
+    /// </summary>
+    public DateTime? LastChangeDate { get; set; }
 }

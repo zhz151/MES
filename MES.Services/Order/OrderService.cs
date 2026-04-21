@@ -24,140 +24,171 @@ public class OrderService : IOrderService
 
     #region 订单管理
 
-public async Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, bool? hasTechReq = null, List<SalesOrderStatus>? statuses = null)
-{
-    var queryable = _context.SalesOrders
-        .Where(so => !so.IsDeleted)
-        .AsQueryable();
-
-    // 订单状态筛选
-    if (statuses == null || !statuses.Any())
+    public async Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, bool? hasTechReq = null, List<SalesOrderStatus>? statuses = null)
     {
-        statuses = new List<SalesOrderStatus> { SalesOrderStatus.Pending, SalesOrderStatus.Confirmed, SalesOrderStatus.Cancelled };
-    }
-    queryable = queryable.Where(so => statuses.Contains(so.Status));
+        var queryable = _context.SalesOrders
+            .Where(so => !so.IsDeleted)
+            .AsQueryable();
 
-    // 关键字模糊搜索
-    if (!string.IsNullOrEmpty(query.Keyword))
-    {
-        var keyword = query.Keyword;
-        queryable = queryable.Where(so =>
-            so.OrderNumber.Contains(keyword) ||
-            _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.CustomerUnit.Contains(keyword)) ||
-            _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.Salesman.Contains(keyword)) ||
-            _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.EndCustomer != null && c.EndCustomer.Contains(keyword)));
-    }
-
-    // 获取总数
-    var totalCount = await queryable.CountAsync();
-
-    // 排序
-    if (!string.IsNullOrEmpty(query.SortBy))
-    {
-        switch (query.SortBy.ToLower())
+        // 订单状态筛选
+        if (statuses == null || !statuses.Any())
         {
-            case "ordernumber":
-                queryable = query.IsDescending ? queryable.OrderByDescending(so => so.OrderNumber) : queryable.OrderBy(so => so.OrderNumber);
-                break;
-            case "signdate":
-                queryable = query.IsDescending ? queryable.OrderByDescending(so => so.SignDate) : queryable.OrderBy(so => so.SignDate);
-                break;
-            case "status":
-                queryable = query.IsDescending ? queryable.OrderByDescending(so => so.Status) : queryable.OrderBy(so => so.Status);
-                break;
-            default:
-                queryable = query.IsDescending ? queryable.OrderByDescending(so => so.CreatedTime) : queryable.OrderBy(so => so.CreatedTime);
-                break;
+            statuses = new List<SalesOrderStatus> { SalesOrderStatus.Pending, SalesOrderStatus.Confirmed, SalesOrderStatus.Cancelled };
         }
-    }
-    else
-    {
-        queryable = query.IsDescending ? queryable.OrderByDescending(so => so.CreatedTime) : queryable.OrderBy(so => so.CreatedTime);
-    }
+        queryable = queryable.Where(so => statuses.Contains(so.Status));
 
-    // 分页查询
-    var salesOrders = await queryable
-        .Skip(query.Skip)
-        .Take(query.PageSize)
-        .ToListAsync();
-
-    var orderIds = salesOrders.Select(so => so.Id).ToList();
-
-    // 获取客户信息
-    var customerIds = salesOrders.Select(so => so.CustomerId).Distinct().ToList();
-    var customers = await _context.CustomerProfiles
-        .Where(c => customerIds.Contains(c.Id) && !c.IsDeleted)
-        .ToDictionaryAsync(c => c.Id, c => c);
-
-    // 获取每个订单的项次总数
-    var orderItemCounts = await _context.OrderItems
-        .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
-        .GroupBy(oi => oi.SalesOrderId)
-        .Select(g => new { OrderId = g.Key, Count = g.Count() })
-        .ToDictionaryAsync(x => x.OrderId, x => x.Count);
-
-    // 获取每个订单有技术要求的项次数量（使用更简单的方式）
-    var orderHasReqCounts = await _context.OrderItems
-        .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
-        .GroupJoin(
-            _context.ProductRequirements.Where(pr => !pr.IsDeleted),
-            oi => oi.Id,
-            pr => pr.OrderItemId,
-            (oi, prs) => new { oi.SalesOrderId, HasReq = prs.Any() }
-        )
-        .Where(x => x.HasReq)
-        .GroupBy(x => x.SalesOrderId)
-        .Select(g => new { OrderId = g.Key, Count = g.Count() })
-        .ToDictionaryAsync(x => x.OrderId, x => x.Count);
-
-    // 获取第一个项次ID
-    var firstOrderItemIds = await _context.OrderItems
-        .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
-        .GroupBy(oi => oi.SalesOrderId)
-        .Select(g => new { OrderId = g.Key, FirstItemId = g.OrderBy(oi => oi.Sequence).Select(oi => (int?)oi.Id).FirstOrDefault() })
-        .ToDictionaryAsync(x => x.OrderId, x => x.FirstItemId);
-
-    var items = new List<SalesOrderListDto>();
-    foreach (var so in salesOrders)
-    {
-        customers.TryGetValue(so.CustomerId, out var customer);
-        
-        var totalItemCount = orderItemCounts.GetValueOrDefault(so.Id);
-        var hasReqCount = orderHasReqCounts.GetValueOrDefault(so.Id);
-        
-        // 方案B：只有当所有项次都有技术要求时，才显示"已编辑"
-        var hasTechnicalRequirement = totalItemCount > 0 && hasReqCount == totalItemCount;
-        
-        items.Add(new SalesOrderListDto
+        // 关键字模糊搜索
+        if (!string.IsNullOrEmpty(query.Keyword))
         {
-            Id = so.Id,
-            OrderNumber = so.OrderNumber,
-            SignDate = so.SignDate,
-            CustomerName = customer?.CustomerUnit ?? string.Empty,
-            Salesman = customer?.Salesman ?? string.Empty,
-            EndCustomer = customer?.EndCustomer,
-            Status = so.Status,
-            RowVersion = so.RowVersion,
-            HasTechnicalRequirement = hasTechnicalRequirement,
-            FirstOrderItemId = firstOrderItemIds.GetValueOrDefault(so.Id)
-        });
-    }
+            var keyword = query.Keyword;
+            queryable = queryable.Where(so =>
+                so.OrderNumber.Contains(keyword) ||
+                _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.CustomerUnit.Contains(keyword)) ||
+                _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.Salesman.Contains(keyword)) ||
+                _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.EndCustomer != null && c.EndCustomer.Contains(keyword)));
+        }
 
-    // 应用技术要求状态筛选
-    if (hasTechReq.HasValue)
-    {
-        items = items.Where(x => x.HasTechnicalRequirement == hasTechReq.Value).ToList();
-        totalCount = items.Count;
-    }
+        // ========== 新增：技术要求状态筛选（在数据库层面） ==========
+        if (hasTechReq.HasValue)
+        {
+            // 子查询：判断订单的所有项次是否都有技术要求
+            if (hasTechReq.Value)
+            {
+                // 已编辑：订单下所有项次都有技术要求
+                queryable = queryable.Where(so =>
+                    !_context.OrderItems.Any(oi => oi.SalesOrderId == so.Id && !oi.IsDeleted) ||
+                    !_context.OrderItems.Any(oi => oi.SalesOrderId == so.Id && !oi.IsDeleted &&
+                        !_context.ProductRequirements.Any(pr => pr.OrderItemId == oi.Id && !pr.IsDeleted)));
+            }
+            else
+            {
+                // 未编辑：至少有一个项次没有技术要求
+                queryable = queryable.Where(so =>
+                    _context.OrderItems.Any(oi => oi.SalesOrderId == so.Id && !oi.IsDeleted) &&
+                    _context.OrderItems.Any(oi => oi.SalesOrderId == so.Id && !oi.IsDeleted &&
+                        !_context.ProductRequirements.Any(pr => pr.OrderItemId == oi.Id && !pr.IsDeleted)));
+            }
+        }
 
-    return new PagedResult<SalesOrderListDto>
-    {
-        Items = items,
-        TotalCount = totalCount,
-        PageIndex = query.PageIndex,
-        PageSize = query.PageSize
-    };
-}
+        // 获取总数（现在总数是正确的了）
+        var totalCount = await queryable.CountAsync();
+
+        // 排序
+        if (!string.IsNullOrEmpty(query.SortBy))
+        {
+            switch (query.SortBy.ToLower())
+            {
+                case "ordernumber":
+                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.OrderNumber) : queryable.OrderBy(so => so.OrderNumber);
+                    break;
+                case "signdate":
+                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.SignDate) : queryable.OrderBy(so => so.SignDate);
+                    break;
+                case "status":
+                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.Status) : queryable.OrderBy(so => so.Status);
+                    break;
+                default:
+                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.CreatedTime) : queryable.OrderBy(so => so.CreatedTime);
+                    break;
+            }
+        }
+        else
+        {
+            queryable = query.IsDescending ? queryable.OrderByDescending(so => so.CreatedTime) : queryable.OrderBy(so => so.CreatedTime);
+        }
+
+        // 分页查询
+        var salesOrders = await queryable
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .ToListAsync();
+
+        var orderIds = salesOrders.Select(so => so.Id).ToList();
+
+        // 获取客户信息
+        var customerIds = salesOrders.Select(so => so.CustomerId).Distinct().ToList();
+        var customers = await _context.CustomerProfiles
+            .Where(c => customerIds.Contains(c.Id) && !c.IsDeleted)
+            .ToDictionaryAsync(c => c.Id, c => c);
+
+        // 获取每个订单的项次总数
+        var orderItemCounts = await _context.OrderItems
+            .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
+            .GroupBy(oi => oi.SalesOrderId)
+            .Select(g => new { OrderId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.OrderId, x => x.Count);
+
+        // 获取每个订单有技术要求的项次数量
+        var orderHasReqCounts = await _context.OrderItems
+            .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
+            .GroupJoin(
+                _context.ProductRequirements.Where(pr => !pr.IsDeleted),
+                oi => oi.Id,
+                pr => pr.OrderItemId,
+                (oi, prs) => new { oi.SalesOrderId, HasReq = prs.Any() }
+            )
+            .Where(x => x.HasReq)
+            .GroupBy(x => x.SalesOrderId)
+            .Select(g => new { OrderId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.OrderId, x => x.Count);
+
+        // 获取第一个项次ID
+        var firstOrderItemIds = await _context.OrderItems
+            .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
+            .GroupBy(oi => oi.SalesOrderId)
+            .Select(g => new { OrderId = g.Key, FirstItemId = g.OrderBy(oi => oi.Sequence).Select(oi => (int?)oi.Id).FirstOrDefault() })
+            .ToDictionaryAsync(x => x.OrderId, x => x.FirstItemId);
+
+        // ========== 获取变更信息（简化版：只要有项次更新时间与订单创建时间不一致，就算有变更） ==========
+        var orderItemMaxUpdate = await _context.OrderItems
+            .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
+            .GroupBy(oi => oi.SalesOrderId)
+            .Select(g => new { OrderId = g.Key, MaxUpdate = g.Max(oi => oi.UpdatedTime) })
+            .ToDictionaryAsync(x => x.OrderId, x => x.MaxUpdate);
+
+        var items = new List<SalesOrderListDto>();
+        foreach (var so in salesOrders)
+        {
+            customers.TryGetValue(so.CustomerId, out var customer);
+
+            var totalItemCount = orderItemCounts.GetValueOrDefault(so.Id);
+            var hasReqCount = orderHasReqCounts.GetValueOrDefault(so.Id);
+
+            // 只有当所有项次都有技术要求时，才显示"已编辑"
+            var hasTechnicalRequirement = totalItemCount > 0 && hasReqCount == totalItemCount;
+
+            // ========== 计算变更信息（简化版） ==========
+            DateTime? lastChangeDate = null;
+
+            if (orderItemMaxUpdate.TryGetValue(so.Id, out var maxUpdate) && maxUpdate > so.CreatedTime)
+            {
+                lastChangeDate = maxUpdate.LocalDateTime;
+            }
+
+            items.Add(new SalesOrderListDto
+            {
+                Id = so.Id,
+                OrderNumber = so.OrderNumber,
+                SignDate = so.SignDate,
+                CustomerName = customer?.CustomerUnit ?? string.Empty,
+                Salesman = customer?.Salesman ?? string.Empty,
+                EndCustomer = customer?.EndCustomer,
+                Status = so.Status,
+                RowVersion = so.RowVersion,
+                HasTechnicalRequirement = hasTechnicalRequirement,
+                FirstOrderItemId = firstOrderItemIds.GetValueOrDefault(so.Id),
+                LastChangeDate = lastChangeDate  // 只有存在变更时有值，否则为 null
+            });
+        }
+
+        return new PagedResult<SalesOrderListDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            PageIndex = query.PageIndex,
+            PageSize = query.PageSize
+        };
+    }
 
     public async Task<SalesOrderDetailDto> GetByIdAsync(int id)
     {
@@ -327,28 +358,35 @@ public async Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams quer
         };
     }
 
-    public async Task DeleteAsync(int id)
+public async Task DeleteAsync(int id)
+{
+    var salesOrder = await _context.SalesOrders
+        .Include(so => so.OrderItems)
+            .ThenInclude(oi => oi.ProductRequirement)  // 添加这一行：加载 ProductRequirement
+        .FirstOrDefaultAsync(so => so.Id == id && !so.IsDeleted);
+
+    if (salesOrder == null)
+        throw new BusinessException("订单不存在");
+
+    // 已取消的订单不能删除
+    if (salesOrder.Status == SalesOrderStatus.Cancelled)
+        throw new BusinessException("已取消的订单不能删除");
+
+    salesOrder.IsDeleted = true;
+    foreach (var orderItem in salesOrder.OrderItems.Where(oi => !oi.IsDeleted))
     {
-        var salesOrder = await _context.SalesOrders
-            .Include(so => so.OrderItems)
-            .FirstOrDefaultAsync(so => so.Id == id && !so.IsDeleted);
-
-        if (salesOrder == null)
-            throw new BusinessException("订单不存在");
-
-        // 已取消的订单不能删除
-        if (salesOrder.Status == SalesOrderStatus.Cancelled)
-            throw new BusinessException("已取消的订单不能删除");
-
-        salesOrder.IsDeleted = true;
-        foreach (var orderItem in salesOrder.OrderItems.Where(oi => !oi.IsDeleted))
+        orderItem.IsDeleted = true;
+        
+        // 级联软删除 ProductRequirement
+        if (orderItem.ProductRequirement != null && !orderItem.ProductRequirement.IsDeleted)
         {
-            orderItem.IsDeleted = true;
+            orderItem.ProductRequirement.IsDeleted = true;
         }
-        await _context.SaveChangesAsync();
-
-        _logger.LogInformation("删除订单成功: 订单号 {OrderNumber}", salesOrder.OrderNumber);
     }
+    await _context.SaveChangesAsync();
+
+    _logger.LogInformation("删除订单成功: 订单号 {OrderNumber}", salesOrder.OrderNumber);
+}
 
     #endregion
 
@@ -363,15 +401,19 @@ public async Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams quer
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
 
-        // 已取消的订单不能添加项次
-        if (salesOrder.Status == SalesOrderStatus.Cancelled)
-            throw new BusinessException("已取消的订单不能添加项次");
+        // 获取所有项次号（包括已删除的），用于检查唯一性
+        var allSequences = await _context.OrderItems
+            .Where(oi => oi.SalesOrderId == orderId)
+            .Select(oi => oi.Sequence)
+            .ToListAsync();
 
+        // 获取最大项次号（只考虑未删除的，用于自动生成）
         var maxSequence = salesOrder.OrderItems.Any() ? salesOrder.OrderItems.Max(oi => oi.Sequence) : 0;
         var sequence = request.Sequence ?? maxSequence + 1;
 
-        if (salesOrder.OrderItems.Any(oi => oi.Sequence == sequence))
-            throw new BusinessException($"项次号 {sequence} 已存在");
+        // 检查项次号是否已存在（包括已删除的）
+        if (allSequences.Contains(sequence))
+            throw new BusinessException($"项次号 {sequence} 已存在，请使用其他项次号");
 
         var orderItem = await CreateOrderItemFromAddRequestAsync(request, salesOrder.Id, sequence);
         _context.OrderItems.Add(orderItem);
@@ -469,27 +511,35 @@ public async Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams quer
         return MapToOrderItemDto(orderItem);
     }
 
-    public async Task DeleteItemAsync(int orderId, int itemId)
+public async Task DeleteItemAsync(int orderId, int itemId)
+{
+    var salesOrder = await _context.SalesOrders
+        .FirstOrDefaultAsync(so => so.Id == orderId && !so.IsDeleted);
+
+    if (salesOrder == null)
+        throw new BusinessException("订单不存在");
+
+    // 已取消的订单不能删除项次
+    if (salesOrder.Status == SalesOrderStatus.Cancelled)
+        throw new BusinessException("已取消的订单不能删除项次");
+
+    var orderItem = await _context.OrderItems
+        .Include(oi => oi.ProductRequirement)  // 添加这一行：加载 ProductRequirement
+        .FirstOrDefaultAsync(oi => oi.Id == itemId && oi.SalesOrderId == orderId && !oi.IsDeleted);
+
+    if (orderItem == null)
+        throw new BusinessException("订单项次不存在");
+
+    orderItem.IsDeleted = true;
+    
+    // 级联软删除 ProductRequirement
+    if (orderItem.ProductRequirement != null && !orderItem.ProductRequirement.IsDeleted)
     {
-        var salesOrder = await _context.SalesOrders
-            .FirstOrDefaultAsync(so => so.Id == orderId && !so.IsDeleted);
-
-        if (salesOrder == null)
-            throw new BusinessException("订单不存在");
-
-        // 已取消的订单不能删除项次
-        if (salesOrder.Status == SalesOrderStatus.Cancelled)
-            throw new BusinessException("已取消的订单不能删除项次");
-
-        var orderItem = await _context.OrderItems
-            .FirstOrDefaultAsync(oi => oi.Id == itemId && oi.SalesOrderId == orderId && !oi.IsDeleted);
-
-        if (orderItem == null)
-            throw new BusinessException("订单项次不存在");
-
-        orderItem.IsDeleted = true;
-        await _context.SaveChangesAsync();
+        orderItem.ProductRequirement.IsDeleted = true;
     }
+    
+    await _context.SaveChangesAsync();
+}
 
     #endregion
 

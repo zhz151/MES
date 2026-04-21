@@ -60,7 +60,6 @@
                         <MudSelectItem Value="@("All")">全部</MudSelectItem>
                         <MudSelectItem Value="@("Pending")">待处理</MudSelectItem>
                         <MudSelectItem Value="@("Confirmed")">已确认</MudSelectItem>
-                        <MudSelectItem Value="@("Cancelled")">已取消</MudSelectItem>
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="2">
@@ -97,6 +96,7 @@
                     <MudTh>最终客户</MudTh>
                     <MudTh>技术要求</MudTh>
                     <MudTh>状态</MudTh>
+                    <MudTh>变更日期</MudTh>      <!-- 只保留变更日期 -->
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="order">
@@ -114,13 +114,10 @@
                         {
                             <div class="d-flex align-center">
                                 <MudChip Size="Size.Small" Color="Color.Error">未编辑</MudChip>
-                                @if (order.FirstOrderItemId.HasValue && order.Status != SalesOrderStatus.Cancelled)
-                                {
-                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                                   Size="Size.Small"
-                                                   Color="Color.Warning"
-                                                   OnClick="() => EditTechnicalRequirement(order.Id, order.FirstOrderItemId.Value)" />
-                                }
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                               Size="Size.Small"
+                                               Color="Color.Warning"
+                                               OnClick="() => EditTechnicalRequirement(order.Id, order.FirstOrderItemId.Value)" />
                             </div>
                         }
                     </MudTd>
@@ -129,15 +126,19 @@
                             @GetStatusText(order.Status)
                         </MudChip>
                     </MudTd>
+                    <!-- 变更日期：有变更时显示日期，无变更时显示"-" -->
+                    <MudTd>
+                        @(order.LastChangeDate?.ToString("yyyy-MM-dd HH:mm") ?? "-")
+                    </MudTd>
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Visibility"
                                        Color="Color.Info"
                                        Size="Size.Small"
                                        OnClick="() => ViewOrder(order.Id)" />
-                        
+
                         @if (order.Status == SalesOrderStatus.Pending)
                         {
-                            <AuthorizeView Roles="OrderDirector,Admin" Context="authContext">
+                            <AuthorizeView Roles="OrderDirector,Admin">
                                 <MudIconButton Icon="@Icons.Material.Filled.CheckCircle"
                                                Color="Color.Success"
                                                Size="Size.Small"
@@ -145,25 +146,19 @@
                                                Title="确认订单" />
                             </AuthorizeView>
                         }
-                        
-                        @if (order.Status != SalesOrderStatus.Cancelled)
-                        {
-                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                           Color="Color.Warning"
+
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                       Color="Color.Warning"
+                                       Size="Size.Small"
+                                       OnClick="() => EditOrder(order.Id)" />
+
+                        <AuthorizeView Roles="OrderDirector,Admin">
+                            <MudIconButton Icon="@Icons.Material.Filled.Cancel"
+                                           Color="Color.Error"
                                            Size="Size.Small"
-                                           OnClick="() => EditOrder(order.Id)" />
-                        }
-                        
-                        @if (order.Status != SalesOrderStatus.Cancelled)
-                        {
-                            <AuthorizeView Roles="Admin" Context="authContext">
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                               Color="Color.Error"
-                                               Size="Size.Small"
-                                               OnClick="() => CancelOrder(order)"
-                                               Title="取消订单" />
-                            </AuthorizeView>
-                        }
+                                           OnClick="() => CancelOrder(order)"
+                                           Title="取消订单" />
+                        </AuthorizeView>
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
@@ -196,8 +191,7 @@
         {
             "Pending" => new List<SalesOrderStatus> { SalesOrderStatus.Pending },
             "Confirmed" => new List<SalesOrderStatus> { SalesOrderStatus.Confirmed },
-            "Cancelled" => new List<SalesOrderStatus> { SalesOrderStatus.Cancelled },
-            "All" => null,
+            "All" => new List<SalesOrderStatus> { SalesOrderStatus.Pending, SalesOrderStatus.Confirmed },
             _ => null
         };
     }
@@ -216,7 +210,6 @@
                 Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword
             };
 
-            // 直接调用服务端，服务端已经计算好了 HasTechnicalRequirement 和 FirstOrderItemId
             var result = await OrderService.GetPagedAsync(queryParams, GetHasTechnicalRequirement(), GetOrderStatuses());
             
             if (result.Success && result.Data != null)
@@ -320,24 +313,17 @@
         }
     }
 
+    // 取消订单 = 软删除
     private async Task CancelOrder(SalesOrderListDto order)
     {
-        var statusText = order.Status == SalesOrderStatus.Pending ? "待处理" : "已确认";
         var confirmed = await JS.InvokeAsync<bool>("confirm",
-            $"确定要取消订单 \"{order.OrderNumber}\" 吗？\n\n当前状态：{statusText}\n取消后订单将变为\"已取消\"状态，不可恢复！");
+            $"确定要取消订单 \"{order.OrderNumber}\" 吗？\n\n取消后订单将不可见，数据将保留但不可恢复！");
 
         if (!confirmed) return;
 
         try
         {
-            var updateRequest = new UpdateSalesOrderRequest
-            {
-                Status = "Cancelled",
-                RowVersion = order.RowVersion ?? Array.Empty<byte>()
-            };
-
-            var result = await OrderService.UpdateAsync(order.Id, updateRequest);
-            
+            var result = await OrderService.DeleteAsync(order.Id);
             if (result.Success)
             {
                 Snackbar.Add($"订单 \"{order.OrderNumber}\" 已取消", Severity.Success);
@@ -358,7 +344,6 @@
     {
         SalesOrderStatus.Pending => Color.Warning,
         SalesOrderStatus.Confirmed => Color.Success,
-        SalesOrderStatus.Cancelled => Color.Error,
         _ => Color.Default
     };
 
@@ -366,7 +351,6 @@
     {
         SalesOrderStatus.Pending => "待处理",
         SalesOrderStatus.Confirmed => "已确认",
-        SalesOrderStatus.Cancelled => "已取消",
         _ => status.ToString()
     };
-}
+ }
