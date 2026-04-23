@@ -1,0 +1,410 @@
+@page "/workorders/generate"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using Microsoft.AspNetCore.Authorization
+@inject WorkOrderService WorkOrderService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = "WorkOrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    @if (isLoading)
+    {
+        <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+    }
+    else
+    {
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">
+                        <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Primary" />
+                        生成工单
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">订单号：@salesOrderNo</MudText>
+                    @if (workOrderStatus == "Pending")
+                    {
+                        <MudChip Size="Size.Small" Color="Color.Warning" Class="ml-2">待修正（全新生成）</MudChip>
+                    }
+                    else if (workOrderStatus == "Confirmed" && isRegenerate)
+                    {
+                        <MudChip Size="Size.Small" Color="Color.Success" Class="ml-2">重新生成（保留原编号）</MudChip>
+                    }
+                    else if (workOrderStatus == "NotGenerated")
+                    {
+                        <MudChip Size="Size.Small" Color="Color.Default" Class="ml-2">首次生成</MudChip>
+                    }
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitWorkOrders" Disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
+                        }
+                        else
+                        {
+                            <span>生成工单</span>
+                        }
+                    </MudButton>
+                </CardHeaderActions>
+            </MudCardHeader>
+
+            <MudCardContent>
+                @if (orderItems == null || !orderItems.Any())
+                {
+                    <MudAlert Severity="Severity.Warning">该订单没有有效的项次，无法生成工单。</MudAlert>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info" Class="mb-3">
+                        <strong>说明：</strong>
+                        <ul class="mt-2 mb-0" style="margin-left: 20px;">
+                            <li>相同规格参数的项次会自动合并为同一主号（系统已按规则预分组）</li>
+                            <li>主号可以手动修改，但同一主号下的项次必须满足合并规则</li>
+                            <li>定尺模式下次号必填（格式：C + 两位数字）</li>
+                            <li>范围尺/非定尺模式下次号无需填写</li>
+                            @if (workOrderStatus == "Confirmed" && isRegenerate)
+                            {
+                                <li><strong>重新生成模式：将保留原主号/次号，可手动修改后提交</strong></li>
+                            }
+                            @if (workOrderStatus == "Pending")
+                            {
+                                <li><strong>待修正模式：订单项次已变更，将全新生成工单（不保留原编号）</strong></li>
+                            }
+                        </ul>
+                    </MudAlert>
+
+                    <div style="overflow-x: auto;">
+                        <MudTable T="OrderItemForWorkOrderDto"
+                                  Items="@orderItems"
+                                  Dense="true"
+                                  Hover="true"
+                                  Elevation="0">
+                            <HeaderContent>
+                                <MudTh>项次</MudTh>
+                                <MudTh>物料名称</MudTh>
+                                <MudTh>交货日期</MudTh>
+                                <MudTh>交货状态</MudTh>
+                                <MudTh>工厂牌号</MudTh>
+                                <MudTh>规格</MudTh>
+                                <MudTh>长度状态</MudTh>
+                                <MudTh>最小长度</MudTh>
+                                <MudTh>最大长度</MudTh>
+                                <MudTh>数量(支)</MudTh>
+                                <MudTh>米数</MudTh>
+                                <MudTh>合同重量</MudTh>
+                                <MudTh>主号</MudTh>
+                                <MudTh>次号</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="item">
+                                <MudTd>@item.Sequence</MudTd>
+                                <MudTd>@GetMaterialNameText(item.MaterialName)</MudTd>
+                                <MudTd>@item.DeliveryDate.ToString("yyyy-MM-dd")</MudTd>
+                                <MudTd>@GetDeliveryStateText(item.DeliveryState)</MudTd>
+                                <MudTd>@item.PlantGrade</MudTd>
+                                <MudTd>@FormatSpecification(item.Specification)</MudTd>
+                                <MudTd>@GetLengthStatusText(item.LengthStatus)</MudTd>
+                                <MudTd>@FormatNullableDecimal(item.MinLength)</MudTd>
+                                <MudTd>@FormatNullableDecimal(item.MaxLength)</MudTd>
+                                <MudTd>@item.Quantity</MudTd>
+                                <MudTd>@FormatNullableDecimal(item.Meters)</MudTd>
+                                <MudTd>@FormatDecimal(item.ContractWeight)</MudTd>
+                                <MudTd>
+                                    <MudTextField T="string"
+                                                  @bind-Value="item.SuggestedMainNo"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  Style="width: 80px;"
+                                                  Immediate="true" />
+                                </MudTd>
+                                <MudTd>
+                                    <MudTextField T="string"
+                                                  @bind-Value="subNoMap[item.Id]"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  Style="width: 80px;"
+                                                  Placeholder="定尺时必填"
+                                                  Immediate="true" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </div>
+                }
+            </MudCardContent>
+        </MudCard>
+    }
+</MudContainer>
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? salesOrderNo { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? status { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public bool isRegenerate { get; set; }
+
+    private string workOrderStatus => status ?? "NotGenerated";
+    private List<OrderItemForWorkOrderDto>? orderItems;
+    private Dictionary<int, string> subNoMap = new();
+    private bool isLoading = true;
+    private bool isSubmitting;
+
+    private string FormatDecimal(decimal value) => value.ToString("G29");
+    private string FormatNullableDecimal(decimal? value) => value?.ToString("G29") ?? "";
+
+    private string FormatSpecification(string specification)
+    {
+        if (string.IsNullOrEmpty(specification)) return "";
+        var parts = specification.Split('*');
+        if (parts.Length != 2) return specification;
+        var od = decimal.TryParse(parts[0], out var odValue) ? odValue.ToString("G29") : parts[0];
+        var wt = decimal.TryParse(parts[1], out var wtValue) ? wtValue.ToString("G29") : parts[1];
+        return $"{od}*{wt}";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        if (string.IsNullOrEmpty(salesOrderNo))
+        {
+            Snackbar.Add("订单号不能为空", Severity.Error);
+            Navigation.NavigateTo("/workorders");
+            return;
+        }
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await WorkOrderService.GetOrderItemsForWorkOrderAsync(salesOrderNo);
+            if (result.Success && result.Data != null && result.Data.Any())
+            {
+                orderItems = result.Data;
+                foreach (var item in orderItems)
+                {
+                    subNoMap[item.Id] = string.Empty;
+
+                    // 覆盖生成（重新生成）时，预填原主号/次号
+                    if (isRegenerate && !string.IsNullOrEmpty(item.OriginalMainNo))
+                    {
+                        item.SuggestedMainNo = item.OriginalMainNo;
+                        if (!string.IsNullOrEmpty(item.OriginalSubNo))
+                        {
+                            subNoMap[item.Id] = item.OriginalSubNo;
+                        }
+                    }
+                    // 待修正生成不预填，保持系统建议主号
+                }
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "获取订单项次失败", Severity.Error);
+                Navigation.NavigateTo("/workorders");
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+            Navigation.NavigateTo("/workorders");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetMergeKey(OrderItemForWorkOrderDto item)
+    {
+        return $"{item.DeliveryDate:yyyy-MM-dd}|{item.DelayPenalty}|{item.MaterialName}|{item.SettlementMethod}|" +
+               $"{item.StandardCode}|{item.DeliveryState}|{item.PlantGrade}|{item.Specification}|" +
+               $"{item.OuterDiameterMinus}|{item.OuterDiameterPlus}|{item.WallThicknessMinus}|" +
+               $"{item.WallThicknessPlus}|{item.LengthStatus}";
+    }
+
+    private async Task SubmitWorkOrders()
+    {
+        if (orderItems == null || !orderItems.Any())
+        {
+            Snackbar.Add("没有可生成的工单项次", Severity.Warning);
+            return;
+        }
+
+        var errors = new List<string>();
+
+        // 按主号分组
+        var groups = new Dictionary<string, List<OrderItemForWorkOrderDto>>();
+        foreach (var item in orderItems)
+        {
+            var mainNo = item.SuggestedMainNo;
+            if (string.IsNullOrEmpty(mainNo))
+            {
+                errors.Add($"项次 {item.Sequence} 的主号不能为空");
+                continue;
+            }
+            if (!groups.ContainsKey(mainNo))
+                groups[mainNo] = new List<OrderItemForWorkOrderDto>();
+            groups[mainNo].Add(item);
+        }
+
+        if (errors.Any())
+        {
+            await JS.InvokeVoidAsync("alert", string.Join("\n", errors));
+            return;
+        }
+
+        // 验证每个分组内的合并字段一致性
+        foreach (var group in groups)
+        {
+            var mainNo = group.Key;
+            var itemsInGroup = group.Value;
+            if (itemsInGroup.Count <= 1) continue;
+
+            var baseMergeKey = GetMergeKey(itemsInGroup.First());
+            var inconsistentItems = new List<int>();
+            foreach (var item in itemsInGroup.Skip(1))
+            {
+                if (GetMergeKey(item) != baseMergeKey)
+                    inconsistentItems.Add(item.Sequence);
+            }
+            if (inconsistentItems.Any())
+            {
+                errors.Add($"主号 {mainNo} 下的项次 {string.Join(",", inconsistentItems)} 与组内其他项次规格参数不一致，不能合并到同一主号");
+            }
+        }
+
+        // 验证次号
+        foreach (var item in orderItems)
+        {
+            var lengthStatus = item.LengthStatus;
+            var subNo = subNoMap.GetValueOrDefault(item.Id);
+            if (lengthStatus == "Fixed" && string.IsNullOrEmpty(subNo))
+            {
+                errors.Add($"项次 {item.Sequence} 为定尺模式，次号不能为空（格式：C+两位数字）");
+            }
+            else if (lengthStatus == "Fixed" && !string.IsNullOrEmpty(subNo) && !System.Text.RegularExpressions.Regex.IsMatch(subNo, @"^C\d{2}$"))
+            {
+                errors.Add($"项次 {item.Sequence} 的次号格式错误，应为 C+两位数字（如 C01）");
+            }
+            else if (lengthStatus != "Fixed" && !string.IsNullOrEmpty(subNo))
+            {
+                errors.Add($"项次 {item.Sequence} 为{GetLengthStatusText(lengthStatus)}模式，不需要填写次号");
+            }
+        }
+
+        if (errors.Any())
+        {
+            await JS.InvokeVoidAsync("alert", string.Join("\n", errors));
+            return;
+        }
+
+        var workOrderGroups = new List<WorkOrderItemGroup>();
+        foreach (var group in groups)
+        {
+            string? subNo = null;
+            foreach (var item in group.Value)
+            {
+                var tempSubNo = subNoMap.GetValueOrDefault(item.Id);
+                if (!string.IsNullOrEmpty(tempSubNo))
+                {
+                    subNo = tempSubNo;
+                    break;
+                }
+            }
+            workOrderGroups.Add(new WorkOrderItemGroup
+            {
+                ProductionMainNo = group.Key,
+                ProductionSubNo = subNo,
+                OrderItemIds = group.Value.Select(x => x.Id).ToList()
+            });
+        }
+
+        var request = new CreateWorkOrderRequest
+        {
+            SalesOrderNo = salesOrderNo!,
+            WorkOrders = workOrderGroups,
+            IsRegenerate = isRegenerate
+        };
+
+        isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await WorkOrderService.GenerateWorkOrdersAsync(request);
+            if (result.Success && result.Data != null && result.Data.Any())
+            {
+                Snackbar.Add($"成功生成 {result.Data.Count} 个工单", Severity.Success);
+                Navigation.NavigateTo("/workorders");
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "生成工单失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"生成失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/workorders");
+
+    private string GetMaterialNameText(string materialName)
+    {
+        return materialName switch
+        {
+            "SeamlessPipe" => "无缝管",
+            "WeldedPipe" => "焊管",
+            _ => materialName
+        };
+    }
+
+    private string GetLengthStatusText(string lengthStatus)
+    {
+        return lengthStatus switch
+        {
+            "Fixed" => "定尺",
+            "Range" => "范围尺",
+            "NonFixed" => "非定尺",
+            _ => lengthStatus
+        };
+    }
+
+    private string GetDeliveryStateText(string deliveryState)
+    {
+        return deliveryState switch
+        {
+            "SolutionAnnealedAndPickled" => "固溶酸洗",
+            "SolutionAnnealedAndPickledUTube" => "固溶酸洗-U型管",
+            "SolutionAnnealedAndPickledExternalPolished" => "固溶酸洗-外抛光",
+            "SolutionAnnealedAndPickledInternalPolished" => "固溶酸洗-内抛光",
+            "SolutionAnnealedAndPickledBothPolished" => "固溶酸洗-内外抛光",
+            "SolutionAnnealedAndPickledCoiled" => "固溶酸洗-盘管",
+            "Bright" => "光亮",
+            "BrightUTube" => "光亮-U型管",
+            "BrightCoiled" => "光亮-盘管",
+            "Hard" => "硬态",
+            _ => deliveryState
+        };
+    }
+}

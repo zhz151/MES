@@ -72,9 +72,8 @@ public class ProductRequirementService : IProductRequirementService
         }
     }
 
-public async Task DeleteAsync(int orderItemId)
+public Task DeleteAsync(int orderItemId)
 {
-    // ProductRequirement 不允许单独删除，必须随 OrderItem 级联删除
     throw new BusinessException("技术要求不允许单独删除，请删除对应的订单项次");
 }
 

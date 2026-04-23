@@ -35,30 +35,32 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<ProductionStandard> ProductionStandards { get; set; } = null!;
     public DbSet<ProductRequirement> ProductRequirements { get; set; } = null!;
     public DbSet<StandardGradeMapping> StandardGradeMappings { get; set; } = null!;
+    public DbSet<WorkOrder> WorkOrders { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
-        
+
         builder.Entity<AppUser>(entity =>
         {
             entity.Property(e => e.FullName).HasMaxLength(100);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.LastLoginAt);
         });
-        
+
         ConfigureSalesOrder(builder);
         ConfigureOrderItem(builder);
         ConfigureCustomerProfile(builder);
         ConfigureProductionStandard(builder);
         ConfigureProductRequirement(builder);
         ConfigureStandardGradeMapping(builder);
-        
+        ConfigureWorkOrder(builder);
+
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
             if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
             {
-                var method = typeof(AppDbContext).GetMethod(nameof(SetSoftDeleteFilter), 
+                var method = typeof(AppDbContext).GetMethod(nameof(SetSoftDeleteFilter),
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
                     ?.MakeGenericMethod(entityType.ClrType);
                 method?.Invoke(null, new object[] { builder });
@@ -108,7 +110,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     {
         if (_httpContextAccessor == null)
             return "system";
-            
+
         var userName = _httpContextAccessor?.HttpContext?.User?.Identity?.Name;
         if (!string.IsNullOrEmpty(userName))
             return userName;
@@ -250,6 +252,56 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => e.StandardGrade).IsUnique().HasDatabaseName("UK_StandardGradeMapping_StandardGrade");
             entity.HasIndex(e => e.PlantGrade).HasDatabaseName("IX_StandardGradeMapping_PlantGrade");
             entity.HasIndex(e => e.SpecialMaterial).HasDatabaseName("IX_StandardGradeMapping_SpecialMaterial");
+        });
+    }
+
+    private static void ConfigureWorkOrder(ModelBuilder builder)
+    {
+        builder.Entity<WorkOrder>(entity =>
+        {
+            entity.ToTable("WorkOrder");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.WorkOrderNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.SalesOrderNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ProductionMainNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ProductionSubNo).HasMaxLength(50);
+            entity.Property(e => e.OrderItemIds).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Status).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.RowVersion).IsRequired().IsRowVersion();
+            entity.Property(e => e.SignDate).IsRequired().HasColumnType("datetime");
+            entity.Property(e => e.Salesman).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.EndCustomer).HasMaxLength(200);
+            entity.Property(e => e.DeliveryDate).IsRequired().HasColumnType("datetime");
+            entity.Property(e => e.MaterialName).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.SettlementMethod).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.StandardCode).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DeliveryState).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Specification).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.OuterDiameterMinus).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0);
+            entity.Property(e => e.OuterDiameterPlus).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0);
+            entity.Property(e => e.WallThicknessMinus).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0);
+            entity.Property(e => e.WallThicknessPlus).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0);
+            entity.Property(e => e.LengthStatus).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.MinLength).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.MaxLength).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.TotalQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.TotalMeters).IsRequired().HasColumnType("decimal(18,2)").HasDefaultValue(0);
+            entity.Property(e => e.TotalWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0);
+            entity.Property(e => e.TotalItemCount).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.ItemDetails).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.TechnicalRequirements).IsRequired().HasMaxLength(20).HasDefaultValue("Normal");
+
+            // 索引
+            entity.HasIndex(e => e.WorkOrderNo).IsUnique().HasDatabaseName("UK_WorkOrder_WorkOrderNo");
+            entity.HasIndex(e => new { e.SalesOrderNo, e.ProductionMainNo, e.ProductionSubNo })
+                .IsUnique()
+                .HasDatabaseName("UK_WorkOrder_MainSub");
+            entity.HasIndex(e => e.SalesOrderNo).HasDatabaseName("IX_WorkOrder_SalesOrderNo");
+            entity.HasIndex(e => e.Status).HasDatabaseName("IX_WorkOrder_Status");
+            entity.HasIndex(e => e.DeliveryDate).HasDatabaseName("IX_WorkOrder_DeliveryDate");
+            entity.HasIndex(e => e.MaterialName).HasDatabaseName("IX_WorkOrder_MaterialName");
+            entity.HasIndex(e => e.Specification).HasDatabaseName("IX_WorkOrder_Specification");
         });
     }
 }

@@ -96,7 +96,7 @@
                     <MudTh>最终客户</MudTh>
                     <MudTh>技术要求</MudTh>
                     <MudTh>状态</MudTh>
-                    <MudTh>变更日期</MudTh>      <!-- 只保留变更日期 -->
+                    <MudTh>变更日期</MudTh>
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="order">
@@ -114,10 +114,13 @@
                         {
                             <div class="d-flex align-center">
                                 <MudChip Size="Size.Small" Color="Color.Error">未编辑</MudChip>
-                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                               Size="Size.Small"
-                                               Color="Color.Warning"
-                                               OnClick="() => EditTechnicalRequirement(order.Id, order.FirstOrderItemId.Value)" />
+@if (order.FirstOrderItemId.HasValue)
+{
+    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                   Size="Size.Small"
+                   Color="Color.Warning"
+                   OnClick="() => EditTechnicalRequirement(order.Id, order.FirstOrderItemId.Value)" />
+}
                             </div>
                         }
                     </MudTd>

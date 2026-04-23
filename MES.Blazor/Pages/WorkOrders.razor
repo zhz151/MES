@@ -1,0 +1,362 @@
+@page "/workorders"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using Microsoft.AspNetCore.Authorization
+@inject WorkOrderService WorkOrderService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <!-- 订单已取消-工单待删除区域 -->
+    @if (cancelledOrders.Any())
+    {
+        <MudCard Class="mb-4" Style="border-left: 4px solid var(--mud-palette-error);">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.subtitle1" Color="Color.Error">
+                        <MudIcon Icon="@Icons.Material.Filled.Warning" Class="mr-2" Size="Size.Small" />
+                        订单已取消-工单待删除
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        以下订单已取消，但关联的工单尚未删除，请点击订单号进行软删除
+                    </MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudGrid>
+                    @foreach (var item in cancelledOrders)
+                    {
+                        <MudItem xs="12" md="6" lg="4">
+                            <MudPaper Class="pa-3 d-flex justify-space-between align-center" Elevation="0" Style="background-color: #fff3f3;">
+                                <div>
+                                    <MudText Typo="Typo.body2">
+                                        <strong>订单号：</strong>
+                                        <MudLink Typo="Typo.body2" Color="Color.Error" Underline="Underline.Always"
+                                                 OnClick="() => SoftDeleteWorkOrder(item.WorkOrderId, item.OrderNumber)">
+                                            @item.OrderNumber
+                                        </MudLink>
+                                    </MudText>
+                                    <MudText Typo="Typo.body2">签订日期：@item.SignDate.ToString("yyyy-MM-dd")</MudText>
+                                    <MudText Typo="Typo.body2">业务员：@item.Salesman</MudText>
+                                    <MudText Typo="Typo.body2">客户名称：@item.CustomerName</MudText>
+                                </div>
+                                <MudChip Size="Size.Small" Color="Color.Error">待删除</MudChip>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudCardContent>
+        </MudCard>
+    }
+
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" Color="Color.Primary" />
+                    工单管理
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">订单状态监控与工单生成</MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="Search">
+                    刷新
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <!-- 筛选栏 -->
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  Label="搜索 - 订单号/客户名称/业务员"
+                                  Placeholder="输入关键字进行模糊搜索..."
+                                  @bind-Value="searchKeyword"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  OnKeyDown="OnSearchKeyDown"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudSelect T="string" Label="工单状态" @bind-Value="selectedStatus">
+                        <MudSelectItem Value="@(null as string)">全部</MudSelectItem>
+                        <MudSelectItem Value="@("NotGenerated")">未编制</MudSelectItem>
+                        <MudSelectItem Value="@("Confirmed")">已确定</MudSelectItem>
+                        <MudSelectItem Value="@("Pending")">待修正</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Search"
+                               OnClick="Search">
+                        搜索
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+
+            <!-- 数据表格 -->
+            <MudTable @ref="table"
+                      T="OrderWorkOrderStatusDto"
+                      ServerData="OnServerData"
+                      Loading="@isLoading"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-4"
+                      Elevation="0"
+                      RowsPerPageLabel="每页行数:">
+                <ToolBarContent>
+                    <MudText Typo="Typo.body2" Class="ml-auto">
+                        共 @totalCount 条记录
+                    </MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>订单号</MudTh>
+                    <MudTh>签订日期</MudTh>
+                    <MudTh>业务员</MudTh>
+                    <MudTh>客户名称</MudTh>
+                    <MudTh>工单状态</MudTh>
+                    <MudTh>操作</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="order">
+                    <MudTd>@order.OrderNumber</MudTd>
+                    <MudTd>@order.SignDate.ToString("yyyy-MM-dd")</MudTd>
+                    <MudTd>@order.Salesman</MudTd>
+                    <MudTd class="table-cell-clamp-2" title="@order.CustomerName">@order.CustomerName</MudTd>
+                    <MudTd>
+                        <!-- 可点击的状态筛选按钮 -->
+                        <MudChip Size="Size.Small" 
+                                 Color="@GetStatusColor(order.WorkOrderStatus)"
+                                 Clickable="true"
+                                 OnClick="() => FilterByStatus(order.WorkOrderStatus)">
+                            @order.WorkOrderStatusText
+                        </MudChip>
+                    </MudTd>
+<MudTd>
+    <!-- 查看按钮 -->
+    <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                   Color="Color.Info"
+                   Size="Size.Small"
+                   OnClick="() => ViewWorkOrder(order.WorkOrderId!.Value)" />
+
+    <!-- 追溯按钮 -->
+    <MudIconButton Icon="@Icons.Material.Filled.Link"
+                   Color="Color.Primary"
+                   Size="Size.Small"
+                   OnClick="() => NavigateToTrace(order.OrderNumber)"
+                   Title="工单项次追溯" />
+
+    <!-- 生成/重新生成按钮（根据状态显示） -->
+    @if (order.WorkOrderStatus == "NotGenerated")
+    {
+        <MudButton Variant="Variant.Text"
+                   Color="Color.Primary"
+                   Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="() => NavigateToGenerate(order.OrderNumber, order.WorkOrderStatus)">
+            生成工单
+        </MudButton>
+    }
+    else if (order.WorkOrderStatus == "Confirmed")
+    {
+        <MudButton Variant="Variant.Text"
+                   Color="Color.Warning"
+                   Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Refresh"
+                   OnClick="() => NavigateToRegenerate(order.OrderNumber, order.WorkOrderStatus)">
+            重新生成
+        </MudButton>
+    }
+    else if (order.WorkOrderStatus == "Pending")
+    {
+        <MudButton Variant="Variant.Text"
+                   Color="Color.Primary"
+                   Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="() => NavigateToGenerate(order.OrderNumber, order.WorkOrderStatus)">
+            生成工单
+        </MudButton>
+    }
+</MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private MudTable<OrderWorkOrderStatusDto>? table;
+    private List<OrderWorkOrderStatusDto> orders = new();
+    private List<CancelledOrderDto> cancelledOrders = new();
+    private bool isLoading = false;
+    private string searchKeyword = string.Empty;
+    private string selectedStatus = string.Empty;
+    private int totalCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCancelledOrders();
+        await base.OnInitializedAsync();
+    }
+
+    private async Task LoadCancelledOrders()
+    {
+        try
+        {
+            var result = await WorkOrderService.GetCancelledOrdersAsync();
+            if (result.Success && result.Data != null)
+            {
+                cancelledOrders = result.Data;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"加载待删除订单失败: {ex.Message}");
+        }
+    }
+
+    private async Task<TableData<OrderWorkOrderStatusDto>> OnServerData(TableState state)
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var queryParams = new WorkOrderQueryParams
+            {
+                PageIndex = state.Page + 1,
+                PageSize = state.PageSize,
+                SortBy = "SignDate",
+                IsDescending = true,
+                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                // 将选中的状态传递给后端，让后端在数据库层面筛选
+                WorkOrderStatus = string.IsNullOrWhiteSpace(selectedStatus) ? null : selectedStatus
+            };
+
+            var result = await WorkOrderService.GetOrderWorkOrderStatusPageAsync(queryParams);
+
+            if (result.Success && result.Data != null)
+            {
+                orders = result.Data.Items;
+                totalCount = result.Data.TotalCount;
+            }
+            else
+            {
+                orders = new List<OrderWorkOrderStatusDto>();
+                totalCount = 0;
+            }
+
+            return new TableData<OrderWorkOrderStatusDto>
+            {
+                Items = orders,
+                TotalItems = totalCount
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"加载失败: {ex.Message}");
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+            return new TableData<OrderWorkOrderStatusDto>
+            {
+                Items = new List<OrderWorkOrderStatusDto>(),
+                TotalItems = 0
+            };
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Search()
+    {
+        if (table != null)
+            await table.ReloadServerData();
+        await LoadCancelledOrders();
+    }
+
+    private void OnSearchKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+            _ = Search();
+    }
+
+    private async Task FilterByStatus(string status)
+    {
+        selectedStatus = status;
+        await Search();
+    }
+
+    private Color GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "NotGenerated" => Color.Default,
+            "Confirmed" => Color.Success,
+            "Pending" => Color.Warning,
+            _ => Color.Default
+        };
+    }
+
+    private void ViewWorkOrder(int workOrderId)
+    {
+        Navigation.NavigateTo($"/workorders/{workOrderId}");
+    }
+
+    private void NavigateToGenerate(string salesOrderNo, string workOrderStatus)
+    {
+        Navigation.NavigateTo($"/workorders/generate?salesOrderNo={Uri.EscapeDataString(salesOrderNo)}&status={workOrderStatus}");
+    }
+
+    private void NavigateToRegenerate(string salesOrderNo, string workOrderStatus)
+    {
+        Navigation.NavigateTo($"/workorders/generate?salesOrderNo={Uri.EscapeDataString(salesOrderNo)}&status={workOrderStatus}&regenerate=true");
+    }
+
+    private async Task SoftDeleteWorkOrder(int workOrderId, string orderNumber)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm",
+            $"确定要删除订单 \"{orderNumber}\" 关联的工单吗？\n\n删除后数据将不可恢复！");
+
+        if (!confirmed) return;
+
+        try
+        {
+            var result = await WorkOrderService.SoftDeleteAsync(workOrderId);
+            if (result.Success)
+            {
+                Snackbar.Add($"工单已删除", Severity.Success);
+                await LoadCancelledOrders();
+                await Search();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void NavigateToTrace(string orderNumber)
+{
+    Navigation.NavigateTo($"/workorders/relation?salesOrderNo={Uri.EscapeDataString(orderNumber)}");
+}
+}

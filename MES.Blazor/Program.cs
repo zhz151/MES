@@ -11,7 +11,7 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// ÅäÖÃ MudBlazor ·þÎñ - Snackbar ÏÔÊ¾ÔÚ¶¥²¿
+// ï¿½ï¿½ï¿½ï¿½ MudBlazor ï¿½ï¿½ï¿½ï¿½ - Snackbar ï¿½ï¿½Ê¾ï¿½Ú¶ï¿½ï¿½ï¿½
 builder.Services.AddMudServices(config =>
 {
     config.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.TopCenter;
@@ -35,5 +35,6 @@ builder.Services.AddScoped<ProductionStandardService>();
 builder.Services.AddScoped<GradeMappingService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ProductRequirementService>();
+builder.Services.AddScoped<WorkOrderService>(); 
 
 await builder.Build().RunAsync();

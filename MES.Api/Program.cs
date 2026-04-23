@@ -1,22 +1,50 @@
 // 文件路径: MES.Api/Program.cs
+
+using Hangfire;
+using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using MES.Api.Middlewares;
+using MES.Api.Services;
+using MES.Api.Utils;
+using MES.Auth.Services;
+using MES.Core.Interfaces;
+using MES.Core.Interfaces.Order;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Seed;
-using MES.Shared.Settings;
-using MES.Auth.Services;
-using MES.Api.Middlewares;
-using MES.Core.Interfaces;
-using MES.Core.Interfaces.Order;  // 新增：导入订单服务接口命名空间
-using MES.Services.Order;
 using MES.Services;
+using MES.Services.Order;
+using MES.Shared.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ========== Hangfire 配置 ==========
+builder.Services.AddHangfire(configuration => configuration
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(builder.Configuration.GetConnectionString("Default"), new SqlServerStorageOptions
+    {
+        CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+        QueuePollInterval = TimeSpan.Zero,
+        UseRecommendedIsolationLevel = true,
+        DisableGlobalLocks = true
+    }));
+
+builder.Services.AddHangfireServer(options =>
+{
+    options.ServerName = $"MES.Server.{Environment.MachineName}";
+    options.WorkerCount = 1; // 定时任务专用，减少并发
+});
+
+// 注册 Hangfire 定时任务服务
+builder.Services.AddScoped<HangfireJobService>();
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
@@ -92,7 +120,7 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 
-// Register order service (使用正确的接口命名空间)
+// Register order service
 builder.Services.AddScoped<IOrderService, OrderService>();
 
 // Register auxiliary services
@@ -100,6 +128,8 @@ builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IProductionStandardService, ProductionStandardService>();
 builder.Services.AddScoped<IGradeMappingService, GradeMappingService>();
 builder.Services.AddScoped<IProductRequirementService, ProductRequirementService>();
+
+builder.Services.AddScoped<IWorkOrderService, WorkOrderService>();
 
 builder.Services.AddHttpContextAccessor();
 
@@ -116,16 +146,40 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// ========== 初始化数据库 ==========
 using (var scope = app.Services.CreateScope())
 {
     await DbInitializer.InitializeAsync(scope.ServiceProvider);
 }
 
+// ========== 中间件配置 ==========
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// 启用 Hangfire 面板（必须在 UseHangfireServer 之后）
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new HangfireCustomBasicAuthorizationFilter() }
+});
+
+// ========== 注册定时任务（必须在 UseHangfireDashboard 之后） ==========
+// 使用 IApplicationBuilder 的扩展方法注册定时任务
+var jobOptions = new RecurringJobOptions
+{
+    TimeZone = TimeZoneInfo.Local
+};
+
+// 使用 BackgroundJob 的静态方法需要先确保 JobStorage 已初始化
+// 通过 IApplicationBuilder 的 ApplicationServices 获取服务
+var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+recurringJobManager.AddOrUpdate<HangfireJobService>(
+    "check-order-change",
+    service => service.CheckOrderChangeJob(),
+    "*/2 * * * *",
+    jobOptions);
 
 app.UseHttpsRedirection();
 app.UseCors("AllowBlazor");
@@ -136,4 +190,5 @@ app.UseMiddleware<ExceptionMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
 app.Run();

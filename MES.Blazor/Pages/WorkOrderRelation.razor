@@ -1,0 +1,259 @@
+@page "/workorders/relation"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using Microsoft.AspNetCore.Authorization
+@inject WorkOrderService WorkOrderService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+@attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    @if (isLoading)
+    {
+        <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+    }
+    else if (relation == null)
+    {
+        <MudAlert Severity="Severity.Error">未找到订单信息</MudAlert>
+    }
+    else
+    {
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">
+                        <MudIcon Icon="@Icons.Material.Filled.Link" Class="mr-2" Color="Color.Primary" />
+                        工单项次追溯
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        订单号：@relation.OrderNumber | 客户：@relation.CustomerName
+                    </MudText>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                </CardHeaderActions>
+            </MudCardHeader>
+
+            <MudCardContent>
+                <!-- 订单基本信息卡片 -->
+                <MudPaper Class="pa-4 mb-4" Elevation="0" Style="background-color: #f5f5f5;">
+                    <MudGrid>
+                        <MudItem xs="12" md="3">
+                            <MudText Typo="Typo.body2"><strong>订单号：</strong>@relation.OrderNumber</MudText>
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudText Typo="Typo.body2"><strong>签订日期：</strong>@relation.SignDate.ToString("yyyy-MM-dd")</MudText>
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudText Typo="Typo.body2"><strong>业务员：</strong>@relation.Salesman</MudText>
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudText Typo="Typo.body2"><strong>客户名称：</strong>@relation.CustomerName</MudText>
+                        </MudItem>
+                        @if (!string.IsNullOrEmpty(relation.EndCustomer))
+                        {
+                            <MudItem xs="12" md="3">
+                                <MudText Typo="Typo.body2"><strong>最终用户：</strong>@relation.EndCustomer</MudText>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                </MudPaper>
+
+                @if (!relation.WorkOrders.Any())
+                {
+                    <MudAlert Severity="Severity.Info">该订单下没有工单。</MudAlert>
+                }
+                else
+                {
+                    foreach (var workOrder in relation.WorkOrders)
+                    {
+                        <MudCard Class="mb-4" Style="border-left: 4px solid var(--mud-palette-primary);">
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <div>
+                                        <MudText Typo="Typo.subtitle1">
+                                            <MudLink Typo="Typo.subtitle1" Color="Color.Primary" 
+                                                     Underline="Underline.Always" 
+                                                     OnClick="() => NavigateToWorkOrder(workOrder.WorkOrderId)">
+                                                工单号：@workOrder.WorkOrderNo
+                                            </MudLink>
+                                        </MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                            主号：@workOrder.ProductionMainNo | 次号：@(workOrder.ProductionSubNo ?? "-")
+                                        </MudText>
+                                    </div>
+                                </CardHeaderContent>
+                                <CardHeaderActions>
+                                    <MudChip Size="Size.Small" Color="@GetStatusColor(workOrder.Status)">
+                                        @workOrder.StatusText
+                                    </MudChip>
+                                </CardHeaderActions>
+                            </MudCardHeader>
+
+                            <MudCardContent>
+                                <MudGrid>
+                                    <MudItem xs="12" md="3">
+                                        <MudText Typo="Typo.body2"><strong>物料名称：</strong>@GetMaterialNameText(workOrder.MaterialName)</MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudText Typo="Typo.body2"><strong>规格：</strong>@FormatSpecification(workOrder.Specification)</MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudText Typo="Typo.body2"><strong>交货日期：</strong>@workOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudText Typo="Typo.body2"><strong>总支数/总重量：</strong>@workOrder.TotalQuantity 支 / @FormatDecimal(workOrder.TotalWeight) kg</MudText>
+                                    </MudItem>
+                                </MudGrid>
+
+                                <MudDivider Class="my-3" />
+
+                                <MudText Typo="Typo.subtitle2" Class="mb-2">包含的原始订单项次：</MudText>
+
+                                @if (!workOrder.OrderItems.Any())
+                                {
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">无项次明细</MudText>
+                                }
+                                else
+                                {
+                                    <MudTable T="OrderItemBriefDto" Items="@workOrder.OrderItems" Dense="true" Hover="true" Elevation="0">
+                                        <HeaderContent>
+                                            <MudTh>项次号</MudTh>
+                                            <MudTh>规格</MudTh>
+                                            <MudTh>长度状态</MudTh>
+                                            <MudTh>最小长度(mm)</MudTh>
+                                            <MudTh>最大长度(mm)</MudTh>
+                                            <MudTh>支数</MudTh>
+                                            <MudTh>米数</MudTh>
+                                            <MudTh>合同重量(kg)</MudTh>
+                                            <MudTh>理算重量(kg)</MudTh>
+                                        </HeaderContent>
+                                        <RowTemplate>
+                                            <MudTd>@context.Sequence</MudTd>
+                                            <MudTd>@FormatSpecification(context.Specification)</MudTd>
+                                            <MudTd>@GetLengthStatusText(context.LengthStatus)</MudTd>
+                                            <MudTd>@FormatNullableDecimal(context.MinLength)</MudTd>
+                                            <MudTd>@FormatNullableDecimal(context.MaxLength)</MudTd>
+                                            <MudTd>@context.Quantity</MudTd>
+                                            <MudTd>@FormatNullableDecimal(context.Meters)</MudTd>
+                                            <MudTd>@FormatDecimal(context.ContractWeight)</MudTd>
+                                            <MudTd>@FormatDecimal(context.TheoreticalWeight)</MudTd>
+                                        </RowTemplate>
+                                    </MudTable>
+                                }
+                            </MudCardContent>
+                        </MudCard>
+                    }
+                }
+            </MudCardContent>
+        </MudCard>
+    }
+</MudContainer>
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? salesOrderNo { get; set; }
+
+    private OrderWorkOrderRelationDto? relation;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        if (string.IsNullOrEmpty(salesOrderNo))
+        {
+            Snackbar.Add("订单号不能为空", Severity.Error);
+            Navigation.NavigateTo("/workorders");
+            return;
+        }
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await WorkOrderService.GetOrderWorkOrderRelationAsync(salesOrderNo);
+            if (result.Success && result.Data != null)
+            {
+                relation = result.Data;
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "获取数据失败", Severity.Error);
+                Navigation.NavigateTo("/workorders");
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+            Navigation.NavigateTo("/workorders");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void NavigateToWorkOrder(int workOrderId)
+    {
+        Navigation.NavigateTo($"/workorders/{workOrderId}");
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/workorders");
+    }
+
+    private string FormatDecimal(decimal value) => value.ToString("G29");
+    private string FormatNullableDecimal(decimal? value) => value?.ToString("G29") ?? "";
+
+    private string FormatSpecification(string specification)
+    {
+        if (string.IsNullOrEmpty(specification)) return "";
+        var parts = specification.Split('*');
+        if (parts.Length != 2) return specification;
+        var od = decimal.TryParse(parts[0], out var odValue) ? odValue.ToString("G29") : parts[0];
+        var wt = decimal.TryParse(parts[1], out var wtValue) ? wtValue.ToString("G29") : parts[1];
+        return $"{od}*{wt}";
+    }
+
+    private Color GetStatusColor(int status)
+    {
+        return status switch
+        {
+            0 => Color.Default,
+            1 => Color.Success,
+            2 => Color.Warning,
+            3 => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private string GetMaterialNameText(string materialName)
+    {
+        return materialName switch
+        {
+            "SeamlessPipe" => "无缝管",
+            "WeldedPipe" => "焊管",
+            _ => materialName
+        };
+    }
+
+    private string GetLengthStatusText(string lengthStatus)
+    {
+        return lengthStatus switch
+        {
+            "Fixed" => "定尺",
+            "Range" => "范围尺",
+            "NonFixed" => "非定尺",
+            _ => lengthStatus
+        };
+    }
+}
