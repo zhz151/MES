@@ -8,6 +8,8 @@ using MES.Core.Enums;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Core.Exceptions;
+using MES.Core.Enums;
+using MES.Core.Interfaces;
 
 namespace MES.Services.Order;
 
@@ -362,7 +364,7 @@ public async Task DeleteAsync(int id)
 {
     var salesOrder = await _context.SalesOrders
         .Include(so => so.OrderItems)
-            .ThenInclude(oi => oi.ProductRequirement)  // 添加这一行：加载 ProductRequirement
+            .ThenInclude(oi => oi.ProductRequirement)
         .FirstOrDefaultAsync(so => so.Id == id && !so.IsDeleted);
 
     if (salesOrder == null)
@@ -372,20 +374,44 @@ public async Task DeleteAsync(int id)
     if (salesOrder.Status == SalesOrderStatus.Cancelled)
         throw new BusinessException("已取消的订单不能删除");
 
+    // 1. 软删除订单本身
     salesOrder.IsDeleted = true;
+
+    // 2. 级联软删除订单项次和产品要求
     foreach (var orderItem in salesOrder.OrderItems.Where(oi => !oi.IsDeleted))
     {
         orderItem.IsDeleted = true;
-        
-        // 级联软删除 ProductRequirement
         if (orderItem.ProductRequirement != null && !orderItem.ProductRequirement.IsDeleted)
-        {
             orderItem.ProductRequirement.IsDeleted = true;
-        }
     }
-    await _context.SaveChangesAsync();
 
-    _logger.LogInformation("删除订单成功: 订单号 {OrderNumber}", salesOrder.OrderNumber);
+    // 3. 软删除所有关联的工单
+    var workOrders = await _context.WorkOrders
+        .Where(wo => wo.SalesOrderNo == salesOrder.OrderNumber && !wo.IsDeleted)
+        .ToListAsync();
+
+    foreach (var wo in workOrders)
+    {
+        wo.IsDeleted = true;
+        // 注意：Status 保持不变，不改为 Cancelled
+    }
+
+    // 4. 若有工单被清理，生成通知
+    if (workOrders.Any())
+    {
+        var notification = new OrderChangeNotification
+        {
+            OrderNumber = salesOrder.OrderNumber,
+            ChangeType = (int)NotificationChangeType.Deleted,
+            WorkOrderCount = workOrders.Count,
+            IsRead = false
+        };
+        _context.OrderChangeNotifications.Add(notification);
+    }
+
+    await _context.SaveChangesAsync();
+    _logger.LogInformation("订单 {OrderNumber} 已被删除，同时自动清理了 {Count} 个关联工单",
+        salesOrder.OrderNumber, workOrders.Count);
 }
 
     #endregion
@@ -420,6 +446,8 @@ public async Task DeleteAsync(int id)
         await _context.SaveChangesAsync();
 
         return MapToOrderItemDto(orderItem);
+        await CreateItemChangedNotificationIfNeededAsync(orderId);
+
     }
 
     public async Task<OrderItemDto> UpdateItemAsync(int orderId, int itemId, UpdateOrderItemRequest request)
@@ -509,6 +537,7 @@ public async Task DeleteAsync(int id)
         await _context.SaveChangesAsync();
 
         return MapToOrderItemDto(orderItem);
+        await CreateItemChangedNotificationIfNeededAsync(orderId);
     }
 
 public async Task DeleteItemAsync(int orderId, int itemId)
@@ -539,6 +568,7 @@ public async Task DeleteItemAsync(int orderId, int itemId)
     }
     
     await _context.SaveChangesAsync();
+    await CreateItemChangedNotificationIfNeededAsync(orderId);
 }
 
     #endregion
@@ -815,6 +845,36 @@ public async Task DeleteItemAsync(int orderId, int itemId)
         SalesOrderStatus.Cancelled => "已取消",
         _ => status.ToString()
     };
+    private async Task CreateItemChangedNotificationIfNeededAsync(int salesOrderId)
+{
+    var salesOrder = await _context.SalesOrders
+        .FirstOrDefaultAsync(so => so.Id == salesOrderId && !so.IsDeleted);
+    if (salesOrder == null || salesOrder.Status != SalesOrderStatus.Confirmed)
+        return;
+
+    // 去重：5分钟内已存在未读的项次变更通知则不再生成
+    var hasRecent = await _notificationService.HasRecentItemChangedNotificationAsync(salesOrder.OrderNumber, 5);
+    if (hasRecent) return;
+
+    var notification = new OrderChangeNotification
+    {
+        OrderNumber = salesOrder.OrderNumber,
+        ChangeType = (int)NotificationChangeType.ItemChanged,
+        WorkOrderCount = 0,
+        IsRead = false
+    };
+    _context.OrderChangeNotifications.Add(notification);
+    await _context.SaveChangesAsync();
+}
+
+private readonly INotificationService _notificationService;
+
+public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService)
+{
+    _context = context;
+    _logger = logger;
+    _notificationService = notificationService;
+}
 
     #endregion
 }

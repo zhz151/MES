@@ -36,6 +36,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<ProductRequirement> ProductRequirements { get; set; } = null!;
     public DbSet<StandardGradeMapping> StandardGradeMappings { get; set; } = null!;
     public DbSet<WorkOrder> WorkOrders { get; set; } = null!;
+    public DbSet<OrderChangeNotification> OrderChangeNotifications { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -55,6 +56,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureProductRequirement(builder);
         ConfigureStandardGradeMapping(builder);
         ConfigureWorkOrder(builder);
+        ConfigureOrderChangeNotification(builder);
 
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
@@ -302,6 +304,22 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => e.DeliveryDate).HasDatabaseName("IX_WorkOrder_DeliveryDate");
             entity.HasIndex(e => e.MaterialName).HasDatabaseName("IX_WorkOrder_MaterialName");
             entity.HasIndex(e => e.Specification).HasDatabaseName("IX_WorkOrder_Specification");
+        });
+    }
+
+    private static void ConfigureOrderChangeNotification(ModelBuilder builder)
+    {
+        builder.Entity<OrderChangeNotification>(entity =>
+        {
+            entity.ToTable("OrderChangeNotification");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OrderNumber).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ChangeType).IsRequired();
+            entity.Property(e => e.WorkOrderCount).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.IsRead).IsRequired().HasDefaultValue(false);
+            entity.HasIndex(e => e.CreatedTime).HasDatabaseName("IX_OrderChangeNotification_CreatedTime");
+            entity.HasIndex(e => e.IsRead).HasDatabaseName("IX_OrderChangeNotification_IsRead");
+            entity.HasIndex(e => e.OrderNumber).HasDatabaseName("IX_OrderChangeNotification_OrderNumber");
         });
     }
 }

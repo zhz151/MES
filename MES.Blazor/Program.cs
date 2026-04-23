@@ -35,6 +35,6 @@ builder.Services.AddScoped<ProductionStandardService>();
 builder.Services.AddScoped<GradeMappingService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ProductRequirementService>();
-builder.Services.AddScoped<WorkOrderService>(); 
-
+builder.Services.AddScoped<WorkOrderService>();
+builder.Services.AddScoped<NotificationService>();
 await builder.Build().RunAsync();

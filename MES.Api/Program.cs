@@ -122,7 +122,7 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 
 // Register order service
 builder.Services.AddScoped<IOrderService, OrderService>();
-
+builder.Services.AddScoped<INotificationService, NotificationService>();
 // Register auxiliary services
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IProductionStandardService, ProductionStandardService>();
@@ -180,6 +180,11 @@ recurringJobManager.AddOrUpdate<HangfireJobService>(
     service => service.CheckOrderChangeJob(),
     "*/2 * * * *",
     jobOptions);
+    
+recurringJobManager.AddOrUpdate<HangfireJobService>(
+    "cleanup-old-notifications",
+    service => service.CleanupOldNotificationsJob(),
+    "0 2 * * *");  // 每天凌晨2点执行
 
 app.UseHttpsRedirection();
 app.UseCors("AllowBlazor");
