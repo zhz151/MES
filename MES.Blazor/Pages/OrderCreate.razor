@@ -513,6 +513,7 @@
         if (meters <= 0 && item.LengthStatus == LengthStatus.Fixed && item.MaxLength.HasValue && item.Quantity.HasValue)
         {
             meters = item.MaxLength.Value * item.Quantity.Value / 1000m;
+            item.MetersStr = meters.ToString();
         }
 
         if (meters <= 0)
@@ -529,6 +530,13 @@
 
         var weight = grade.Density * pi * effectiveWall * (effectiveOd - effectiveWall) * meters / 1000;
         item.TheoreticalWeight = Math.Round(weight < 0 ? 0 : weight, 2);
+        
+        // 定尺模式下设置最大长度等于最小长度
+        if (item.LengthStatus == LengthStatus.Fixed && item.MinLength.HasValue)
+        {
+            item.MaxLengthStr = item.MinLengthStr;
+        }
+        
         StateHasChanged();
         Snackbar.Add($"理算重量已计算为 {item.TheoreticalWeight} kg", Severity.Info);
     }
@@ -589,6 +597,7 @@
         if (isSubmitting) return;
 
         var errors = new List<string>();
+        var warnings = new List<string>();
 
         // 1. 验证基本信息
         if (string.IsNullOrEmpty(headerData.OrderNumber))
@@ -669,9 +678,18 @@
             switch (item.LengthStatus)
             {
                 case LengthStatus.Fixed:
+                    // 定尺：必须有长度
                     if (string.IsNullOrEmpty(item.MinLengthStr) || item.MinLength <= 0)
                     {
                         errors.Add($"项次 {seq}: 定尺时必须填写长度");
+                    }
+                    else
+                    {
+                        // 定尺：最小长度必须等于最大长度
+                        if (item.MaxLength == null || item.MaxLength != item.MinLength)
+                        {
+                            errors.Add($"项次 {seq}: 定尺模式下最小长度必须等于最大长度");
+                        }
                     }
                     break;
                 case LengthStatus.Range:
@@ -683,9 +701,35 @@
                     }
                     break;
             }
+
+            // 理算重量验证（定尺模式需要计算）
+            if (item.LengthStatus == LengthStatus.Fixed)
+            {
+                // 检查理算重量是否已计算
+                if (item.TheoreticalWeight <= 0)
+                {
+                    errors.Add($"项次 {seq}: 请先计算理算重量");
+                }
+                else
+                {
+                    // 计算合同重量与理算重量的比值
+                    var ratio = item.ContractWeight / item.TheoreticalWeight;
+                    var lowerBound = 0.94m;   // 94%
+                    var upperBound = 1.06m;   // 106%
+                    
+                    if (ratio < lowerBound)
+                    {
+                        warnings.Add($"项次 {seq}: 合同重量 {item.ContractWeight:F2} kg 低于理算重量 {item.TheoreticalWeight:F2} kg 的94%，可能亏损，是否继续？");
+                    }
+                    else if (ratio > upperBound)
+                    {
+                        warnings.Add($"项次 {seq}: 合同重量 {item.ContractWeight:F2} kg 高于理算重量 {item.TheoreticalWeight:F2} kg 的106%，请确认");
+                    }
+                }
+            }
         }
 
-        // 如果有错误，一次性显示所有错误
+        // 3. 如果有错误，一次性显示所有错误
         if (errors.Any())
         {
             var errorMsg = string.Join("\n", errors);
@@ -693,7 +737,16 @@
             return;
         }
 
-        // 3. 构建请求
+        // 4. 如果有警告，需要用户确认
+        if (warnings.Any())
+        {
+            var warningMsg = string.Join("\n\n", warnings);
+            warningMsg += "\n\n是否继续提交？";
+            var confirmed = await JS.InvokeAsync<bool>("confirm", warningMsg);
+            if (!confirmed) return;
+        }
+
+        // 5. 构建请求
         var items = new List<CreateOrderItemRequest>();
         foreach (var item in editItemViewModels)
         {
@@ -737,7 +790,7 @@
             Items = items
         };
 
-        // 4. 提交订单
+        // 6. 提交订单
         isSubmitting = true;
         StateHasChanged();
 

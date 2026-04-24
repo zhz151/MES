@@ -45,19 +45,20 @@ public class WorkOrderDetailDto
     /// <summary>
     /// 工单状态文本
     /// </summary>
-    public string StatusText
+public string StatusText
+{
+    get
     {
-        get
+        return Status switch
         {
-            return Status switch
-            {
-                0 => "待处理",
-                1 => "已确定",
-                2 => "已取消",
-                _ => "未知"
-            };
-        }
+            0 => "未编制",
+            1 => "已确定",
+            2 => "待修正",
+            3 => "已取消",
+            _ => "未知"
+        };
     }
+}
 
     /// <summary>
     /// 签订日期

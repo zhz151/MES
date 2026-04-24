@@ -54,12 +54,14 @@ public class CreateOrderItemRequest
     /// 外径
     /// </summary>
     [Required(ErrorMessage = "外径不能为空")]
+    [Range(0.01, double.MaxValue, ErrorMessage = "外径必须大于0")]
     public decimal OuterDiameter { get; set; }
 
     /// <summary>
     /// 壁厚
     /// </summary>
     [Required(ErrorMessage = "壁厚不能为空")]
+    [Range(0.01, double.MaxValue, ErrorMessage = "壁厚必须大于0")]
     public decimal WallThickness { get; set; }
 
     /// <summary>
@@ -94,7 +96,7 @@ public class CreateOrderItemRequest
     public decimal? MinLength { get; set; }
 
     /// <summary>
-    /// 最大长度（Range时必填）
+    /// 最大长度（Range时必填，Fixed时自动等于MinLength）
     /// </summary>
     public decimal? MaxLength { get; set; }
 
@@ -112,6 +114,7 @@ public class CreateOrderItemRequest
     /// 合同重量
     /// </summary>
     [Required(ErrorMessage = "合同重量不能为空")]
+    [Range(0.01, double.MaxValue, ErrorMessage = "合同重量必须大于0")]
     public decimal ContractWeight { get; set; }
 
     /// <summary>

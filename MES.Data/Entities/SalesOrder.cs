@@ -12,6 +12,7 @@ public class SalesOrder : BaseEntity
     public SalesOrderStatus Status { get; set; }
 
     public byte[] RowVersion { get; set; } = null!;
+    public DateTimeOffset? LastItemChangeTime { get; set; }
     public CustomerProfile Customer { get; set; } = null!;
 
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();

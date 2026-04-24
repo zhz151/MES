@@ -58,10 +58,18 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureWorkOrder(builder);
         ConfigureOrderChangeNotification(builder);
 
+        // 软删除过滤：只为需要软删除的实体添加（排除 WorkOrder 和 OrderChangeNotification）
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
             if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
             {
+                // 工单和通知不应用软删除过滤（使用物理删除）
+                if (entityType.ClrType == typeof(WorkOrder) || 
+                    entityType.ClrType == typeof(OrderChangeNotification))
+                {
+                    continue;
+                }
+
                 var method = typeof(AppDbContext).GetMethod(nameof(SetSoftDeleteFilter),
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
                     ?.MakeGenericMethod(entityType.ClrType);
@@ -92,11 +100,20 @@ public class AppDbContext : IdentityDbContext<AppUser>
                     entry.Entity.UpdatedBy = currentUser;
                     entry.Entity.IsDeleted = false;
                     break;
+
                 case EntityState.Modified:
                     entry.Entity.UpdatedTime = now;
                     entry.Entity.UpdatedBy = currentUser;
                     break;
+
                 case EntityState.Deleted:
+                    // 工单和通知：物理删除，保持 Deleted 状态
+                    if (entry.Entity is WorkOrder || entry.Entity is OrderChangeNotification)
+                    {
+                        // 保持 Deleted 状态，让 EF Core 执行物理删除
+                        break;
+                    }
+                    // 其他实体：软删除
                     entry.State = EntityState.Modified;
                     entry.Entity.IsDeleted = true;
                     entry.Entity.UpdatedTime = now;
@@ -171,7 +188,10 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.ContractWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
             entity.Property(e => e.TheoreticalWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
             entity.Property(e => e.Remark).HasMaxLength(500);
-            entity.HasIndex(e => new { e.SalesOrderId, e.Sequence }).IsUnique().HasDatabaseName("UK_OrderItem_Sequence");
+            entity.HasIndex(e => new { e.SalesOrderId, e.Sequence })
+                .HasDatabaseName("UK_OrderItem_Sequence_Active")
+                .HasFilter("[IsDeleted] = 0")
+                .IsUnique();
             entity.HasIndex(e => e.SalesOrderId).HasDatabaseName("IX_OrderItem_SalesOrderId");
             entity.HasIndex(e => e.ProductionStandardId).HasDatabaseName("IX_OrderItem_ProductStandardId");
             entity.HasIndex(e => e.StandardGrade).HasDatabaseName("IX_OrderItem_StandardGrade");
@@ -294,7 +314,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.ItemDetails).HasColumnType("nvarchar(max)");
             entity.Property(e => e.TechnicalRequirements).IsRequired().HasMaxLength(20).HasDefaultValue("Normal");
 
-            // 索引
+            // 索引（不包含 IsDeleted 条件，因为工单使用物理删除）
             entity.HasIndex(e => e.WorkOrderNo).IsUnique().HasDatabaseName("UK_WorkOrder_WorkOrderNo");
             entity.HasIndex(e => new { e.SalesOrderNo, e.ProductionMainNo, e.ProductionSubNo })
                 .IsUnique()

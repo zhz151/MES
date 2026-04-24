@@ -22,15 +22,15 @@ public class NotificationService : INotificationService
 
     public async Task<int> GetUnreadCountAsync()
     {
+        // 通知使用物理删除，不需要 IsDeleted 条件
         return await _context.OrderChangeNotifications
-            .Where(n => !n.IsRead && !n.IsDeleted)
+            .Where(n => !n.IsRead)
             .CountAsync();
     }
 
     public async Task<PagedResult<OrderChangeNotificationDto>> GetPagedNotificationsAsync(int pageIndex, int pageSize)
     {
         var query = _context.OrderChangeNotifications
-            .Where(n => !n.IsDeleted)
             .OrderByDescending(n => n.CreatedTime);
 
         var totalCount = await query.CountAsync();
@@ -60,7 +60,7 @@ public class NotificationService : INotificationService
     public async Task MarkAsReadAsync(int id)
     {
         var notification = await _context.OrderChangeNotifications
-            .FirstOrDefaultAsync(n => n.Id == id && !n.IsDeleted);
+            .FirstOrDefaultAsync(n => n.Id == id);
         if (notification != null && !notification.IsRead)
         {
             notification.IsRead = true;
@@ -72,7 +72,7 @@ public class NotificationService : INotificationService
     public async Task MarkAllAsReadAsync()
     {
         var unreadNotifications = await _context.OrderChangeNotifications
-            .Where(n => !n.IsRead && !n.IsDeleted)
+            .Where(n => !n.IsRead)
             .ToListAsync();
         foreach (var n in unreadNotifications)
         {
@@ -89,7 +89,6 @@ public class NotificationService : INotificationService
             .AnyAsync(n => n.OrderNumber == orderNumber &&
                            n.ChangeType == (int)NotificationChangeType.ItemChanged &&
                            !n.IsRead &&
-                           !n.IsDeleted &&
                            n.CreatedTime >= cutoff);
     }
 }

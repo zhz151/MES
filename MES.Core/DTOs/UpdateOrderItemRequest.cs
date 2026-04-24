@@ -61,12 +61,14 @@ public class UpdateOrderItemRequest
     /// 外径
     /// </summary>
     [Required(ErrorMessage = "外径不能为空")]
+    [Range(0.01, double.MaxValue, ErrorMessage = "外径必须大于0")]
     public decimal OuterDiameter { get; set; }
 
     /// <summary>
     /// 壁厚
     /// </summary>
     [Required(ErrorMessage = "壁厚不能为空")]
+    [Range(0.01, double.MaxValue, ErrorMessage = "壁厚必须大于0")]
     public decimal WallThickness { get; set; }
 
     /// <summary>
@@ -119,6 +121,7 @@ public class UpdateOrderItemRequest
     /// 合同重量
     /// </summary>
     [Required(ErrorMessage = "合同重量不能为空")]
+    [Range(0.01, double.MaxValue, ErrorMessage = "合同重量必须大于0")]
     public decimal ContractWeight { get; set; }
 
     /// <summary>

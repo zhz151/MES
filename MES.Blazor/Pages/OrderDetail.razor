@@ -1,4 +1,3 @@
-// 文件路径: MES.Blazor/Pages/OrderDetail.razor
 @page "/orders/{Id:int}"
 @page "/orders/{Id:int}/edit"
 @using MES.Blazor.Services
@@ -47,7 +46,6 @@
                 </CardHeaderContent>
                 <CardHeaderActions>
                     <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
-
                     @if (isEditMode)
                     {
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAllChanges" Disabled="@isSubmitting">
@@ -177,9 +175,16 @@
                                 <MudTh>操作</MudTh>
                             </HeaderContent>
                             <RowTemplate Context="item">
-                                <!-- 项次号（只读） -->
+                                <!-- 项次号（只读，新增未保存时显示"--"） -->
                                 <MudTd>
-                                    <MudText Typo="Typo.body2">@item.Sequence</MudText>
+                                    @if (item.Sequence == 0)
+                                    {
+                                        <MudText Typo="Typo.body2" Style="color: #888;">(--)</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.body2">@item.Sequence</MudText>
+                                    }
                                 </MudTd>
 
                                 <!-- 交货日期（文本输入） -->
@@ -346,7 +351,7 @@
                                     </MudSelect>
                                 </MudTd>
 
-                                <!-- 最小长度（数值输入 - 使用可空类型） -->
+                                <!-- 最小长度（可空数值） -->
                                 <MudTd>
                                     <MudNumericField T="decimal?"
                                                      @bind-Value="item.MinLength"
@@ -357,7 +362,7 @@
                                                      Style="width: 90px;" />
                                 </MudTd>
 
-                                <!-- 最大长度（数值输入 - 使用可空类型） -->
+                                <!-- 最大长度（可空数值） -->
                                 <MudTd>
                                     <MudNumericField T="decimal?"
                                                      @bind-Value="item.MaxLength"
@@ -368,7 +373,7 @@
                                                      Style="width: 90px;" />
                                 </MudTd>
 
-                                <!-- 支数（整数输入 - 使用可空类型） -->
+                                <!-- 支数（可空整数） -->
                                 <MudTd>
                                     <MudNumericField T="int?"
                                                      @bind-Value="item.Quantity"
@@ -379,7 +384,7 @@
                                                      Style="width: 70px;" />
                                 </MudTd>
 
-                                <!-- 米数（数值输入 - 使用可空类型） -->
+                                <!-- 米数（可空数值 + 计算按钮） -->
                                 <MudTd>
                                     <div style="display: flex; align-items: center; gap: 4px;">
                                         <MudNumericField T="decimal?"
@@ -430,7 +435,7 @@
                                         </MudTd>
                                     </AuthorizeView>
                                 }
-                                else if (editItemViewModels.Count == 1)
+                                else
                                 {
                                     <MudTd>
                                         <MudIconButton Icon="@Icons.Material.Filled.Delete"
@@ -501,48 +506,32 @@
     private bool isSubmitting;
 
     // ========== 格式化方法 ==========
-
-    /// <summary>
-    /// 格式化数值（去掉末尾多余的0）
-    /// 例如：10.000 → 10, 19.050 → 19.05
-    /// </summary>
     private string FormatDecimal(decimal value) => value.ToString("G29");
-
     private string FormatNullableDecimal(decimal? value) => value?.ToString("G29") ?? "";
 
-    /// <summary>
-    /// 格式化规格（去掉末尾多余的0）
-    /// 例如：323.900*9.530 → 323.9*9.53
-    /// </summary>
     private string FormatSpecification(string specification)
     {
         if (string.IsNullOrEmpty(specification)) return "";
-
         var parts = specification.Split('*');
         if (parts.Length != 2) return specification;
-
         var od = decimal.TryParse(parts[0], out var odValue) ? odValue.ToString("G29") : parts[0];
         var wt = decimal.TryParse(parts[1], out var wtValue) ? wtValue.ToString("G29") : parts[1];
-
         return $"{od}*{wt}";
     }
 
     // ========== 枚举显示 ==========
-
     private Color GetStatusColor(SalesOrderStatus status) => status switch
     {
         SalesOrderStatus.Pending => Color.Warning,
         SalesOrderStatus.Confirmed => Color.Success,
         _ => Color.Default
     };
-
     private string GetOrderStatusText(SalesOrderStatus status) => status switch
     {
         SalesOrderStatus.Pending => "待处理",
         SalesOrderStatus.Confirmed => "已确认",
         _ => status.ToString()
     };
-
     private string GetSettlementMethodText(SettlementMethod method) => method switch
     {
         SettlementMethod.Theoretical => "理算",
@@ -550,7 +539,6 @@
         SettlementMethod.WeighingNegative => "过磅-负",
         _ => method.ToString()
     };
-
     private string GetLengthStatusText(LengthStatus status) => status switch
     {
         LengthStatus.Fixed => "定尺",
@@ -558,7 +546,6 @@
         LengthStatus.NonFixed => "非定尺",
         _ => status.ToString()
     };
-
     private string GetDeliveryStateText(DeliveryState state) => state switch
     {
         DeliveryState.SolutionAnnealedAndPickled => "固溶酸洗",
@@ -566,7 +553,6 @@
         DeliveryState.Hard => "硬态",
         _ => state.ToString()
     };
-
     private string GetMaterialNameText(MaterialName name) => name switch
     {
         MaterialName.SeamlessPipe => "无缝管",
@@ -575,29 +561,15 @@
     };
 
     // ========== 项次操作 ==========
-
-    private int GetNextSequence()
-    {
-        if (!editItemViewModels.Any()) return 1;
-        var existing = editItemViewModels.Select(vm => vm.Sequence).OrderBy(x => x).ToList();
-        var next = 1;
-        foreach (var seq in existing)
-        {
-            if (seq == next) next++;
-            else if (seq > next) break;
-        }
-        return next;
-    }
-
     private void AddNewItem()
     {
         var defaultStandard = productionStandards.FirstOrDefault();
         var defaultGrade = gradeMappings.FirstOrDefault();
-        
+
         editItemViewModels.Add(new OrderItemViewModel
         {
             Id = null,
-            Sequence = GetNextSequence(),
+            Sequence = 0,   // 临时占位，保存后由后端分配
             DeliveryDate = DateTime.Now.AddMonths(1),
             SettlementMethod = SettlementMethod.Theoretical,
             MaterialName = MaterialName.SeamlessPipe,
@@ -627,24 +599,15 @@
 
     private async Task RemoveItem(OrderItemViewModel item)
     {
-        if (editItemViewModels.Count <= 1)
-        {
-            Snackbar.Add("订单至少需要保留一个项次", Severity.Warning);
-            return;
-        }
-        
-        var confirmed = await JS.InvokeAsync<bool>("confirm", 
+        var confirmed = await JS.InvokeAsync<bool>("confirm",
             $"确定要删除项次 {item.Sequence} 吗？\n\n删除后数据将不可恢复！");
-        
         if (!confirmed) return;
-        
+
         if (item.Id.HasValue && item.Id.Value > 0)
             itemsToDelete.Add(item.Id.Value);
         editItemViewModels.Remove(item);
-
-        var sorted = editItemViewModels.OrderBy(x => x.Sequence).ToList();
-        for (int i = 0; i < sorted.Count; i++)
-            sorted[i].Sequence = i + 1;
+        // 注意：不要重新排序！保留原有项次的序号不变。
+        // 删除后序号会出现空缺，这是允许的。
         StateHasChanged();
     }
 
@@ -694,7 +657,6 @@
     }
 
     // ========== 数据加载 ==========
-
     protected override async Task OnInitializedAsync() => await LoadData();
 
     private async Task LoadData()
@@ -763,182 +725,249 @@
         }
     }
 
-    private void EnterEditMode()
-    {
-        Navigation.NavigateTo($"/orders/{Id}/edit");
-    }
+    private void EnterEditMode() => Navigation.NavigateTo($"/orders/{Id}/edit");
 
     // ========== 保存 ==========
-
-    private async Task SaveAllChanges()
+private async Task SaveAllChanges()
+{
+    if (!editItemViewModels.Any())
     {
-        if (!editItemViewModels.Any())
+        Snackbar.Add("订单至少需要包含一个项次", Severity.Warning);
+        return;
+    }
+
+    // 收集所有验证错误
+    var errors = new List<string>();
+    var warnings = new List<string>();
+
+    foreach (var item in editItemViewModels)
+    {
+        // 长度验证
+        switch (item.LengthStatus)
         {
-            Snackbar.Add("订单至少需要包含一个项次", Severity.Warning);
-            return;
-        }
-
-        // 收集所有验证错误
-        var errors = new List<string>();
-
-        foreach (var item in editItemViewModels)
-        {
-            // 长度验证
-            switch (item.LengthStatus)
-            {
-                case LengthStatus.Fixed:
-                    if (!item.MinLength.HasValue || item.MinLength <= 0)
-                        errors.Add($"项次 {item.Sequence}: 定尺时必须填写长度");
-                    break;
-                case LengthStatus.Range:
-                    if (!item.MinLength.HasValue || item.MinLength <= 0 ||
-                        !item.MaxLength.HasValue || item.MaxLength <= 0 ||
-                        item.MaxLength <= item.MinLength)
-                        errors.Add($"项次 {item.Sequence}: 范围尺时必须填写最小长度和最大长度，且最大长度必须大于最小长度");
-                    break;
-            }
-
-            // 牌号验证
-            if (string.IsNullOrEmpty(item.StandardGrade))
-                errors.Add($"项次 {item.Sequence}: 标准牌号不能为空");
-            else if (!gradeMappings.Any(g => g.StandardGrade == item.StandardGrade))
-                errors.Add($"项次 {item.Sequence}: 标准牌号 '{item.StandardGrade}' 不存在");
-
-            // 数值验证
-            if (item.OuterDiameter <= 0)
-                errors.Add($"项次 {item.Sequence}: 外径必须大于0");
-            if (item.WallThickness <= 0)
-                errors.Add($"项次 {item.Sequence}: 壁厚必须大于0");
-            if (item.ContractWeight <= 0)
-                errors.Add($"项次 {item.Sequence}: 合同重量必须大于0");
-        }
-
-        // 一次性显示所有错误
-        if (errors.Any())
-        {
-            var errorMsg = string.Join("\n", errors);
-            await JS.InvokeVoidAsync("alert", errorMsg);
-            return;
-        }
-
-        isSubmitting = true;
-        StateHasChanged();
-
-        try
-        {
-            // 删除标记的项次
-            foreach (var itemId in itemsToDelete)
-            {
-                var result = await OrderService.DeleteItemAsync(Id, itemId);
-                if (!result.Success)
+            case LengthStatus.Fixed:
+                if (!item.MinLength.HasValue || item.MinLength <= 0)
                 {
-                    Snackbar.Add($"删除项次失败: {result.Message}", Severity.Error);
-                    return;
-                }
-            }
-
-            // 保存每个项次
-            foreach (var item in editItemViewModels)
-            {
-                var grade = gradeMappings.First(g => g.StandardGrade == item.StandardGrade);
-
-                // 计算米数
-                var meters = item.Meters ?? 0m;
-                if (item.LengthStatus == LengthStatus.Fixed && item.MaxLength.HasValue && item.Quantity.HasValue)
-                {
-                    meters = item.MaxLength.Value * item.Quantity.Value / 1000m;
-                    item.Meters = Math.Round(meters, 2);
-                }
-
-                // 计算理算重量
-                const decimal pi = 3.1416m;
-                var effectiveWall = item.WallThickness - 0.5m * item.WallThicknessNegative + 0.5m * item.WallThicknessPositive;
-                var effectiveOd = item.OuterDiameter - 0.5m * item.OuterDiameterNegative + 0.5m * item.OuterDiameterPositive;
-                if (effectiveWall < 0) effectiveWall = 0;
-                if (effectiveOd <= effectiveWall) effectiveOd = effectiveWall + 0.001m;
-                var weight = grade.Density * pi * effectiveWall * (effectiveOd - effectiveWall) * meters / 1000;
-                item.TheoreticalWeight = Math.Round(weight < 0 ? 0 : weight, 2);
-
-                if (item.Id.HasValue && item.Id.Value > 0)
-                {
-                    var result = await OrderService.UpdateItemAsync(Id, item.Id.Value, new UpdateOrderItemRequest
-                    {
-                        Sequence = item.Sequence,
-                        DeliveryDate = item.DeliveryDate,
-                        DelayPenalty = item.DelayPenalty,
-                        SettlementMethod = item.SettlementMethod,
-                        MaterialName = item.MaterialName,
-                        ProductionStandardId = item.ProductionStandardId,
-                        DeliveryState = item.DeliveryState,
-                        StandardGrade = item.StandardGrade,
-                        OuterDiameter = item.OuterDiameter,
-                        WallThickness = item.WallThickness,
-                        OuterDiameterNegative = item.OuterDiameterNegative,
-                        OuterDiameterPositive = item.OuterDiameterPositive,
-                        WallThicknessNegative = item.WallThicknessNegative,
-                        WallThicknessPositive = item.WallThicknessPositive,
-                        LengthStatus = item.LengthStatus,
-                        MinLength = item.MinLength,
-                        MaxLength = item.MaxLength,
-                        Quantity = item.Quantity,
-                        Meters = item.Meters,
-                        ContractWeight = item.ContractWeight,
-                        Remark = item.Remark
-                    });
-                    if (!result.Success)
-                    {
-                        Snackbar.Add($"更新项次 {item.Sequence} 失败: {result.Message}", Severity.Error);
-                        return;
-                    }
+                    errors.Add($"项次 {item.Sequence}: 定尺时必须填写长度");
                 }
                 else
                 {
-                    var result = await OrderService.AddItemAsync(Id, new AddOrderItemRequest
+                    // 定尺：最小长度必须等于最大长度
+                    if (item.MaxLength == null || item.MaxLength != item.MinLength)
                     {
-                        Sequence = item.Sequence,
-                        DeliveryDate = item.DeliveryDate,
-                        DelayPenalty = item.DelayPenalty,
-                        SettlementMethod = item.SettlementMethod,
-                        MaterialName = item.MaterialName,
-                        ProductionStandardId = item.ProductionStandardId,
-                        DeliveryState = item.DeliveryState,
-                        StandardGrade = item.StandardGrade,
-                        OuterDiameter = item.OuterDiameter,
-                        WallThickness = item.WallThickness,
-                        OuterDiameterNegative = item.OuterDiameterNegative,
-                        OuterDiameterPositive = item.OuterDiameterPositive,
-                        WallThicknessNegative = item.WallThicknessNegative,
-                        WallThicknessPositive = item.WallThicknessPositive,
-                        LengthStatus = item.LengthStatus,
-                        MinLength = item.MinLength,
-                        MaxLength = item.MaxLength,
-                        Quantity = item.Quantity,
-                        Meters = item.Meters,
-                        ContractWeight = item.ContractWeight,
-                        Remark = item.Remark
-                    });
-                    if (!result.Success)
-                    {
-                        Snackbar.Add($"添加项次失败: {result.Message}", Severity.Error);
-                        return;
+                        errors.Add($"项次 {item.Sequence}: 定尺模式下最小长度必须等于最大长度");
                     }
                 }
-            }
+                break;
+            case LengthStatus.Range:
+                if (!item.MinLength.HasValue || item.MinLength <= 0 ||
+                    !item.MaxLength.HasValue || item.MaxLength <= 0 ||
+                    item.MaxLength <= item.MinLength)
+                {
+                    errors.Add($"项次 {item.Sequence}: 范围尺时必须填写最小长度和最大长度，且最大长度必须大于最小长度");
+                }
+                break;
+        }
 
-            Snackbar.Add("保存成功", Severity.Success);
-            await LoadData();
-            Navigation.NavigateTo($"/orders/{Id}");
-        }
-        catch (Exception ex)
+        // 牌号验证
+        if (string.IsNullOrEmpty(item.StandardGrade))
         {
-            Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
+            errors.Add($"项次 {item.Sequence}: 标准牌号不能为空");
         }
-        finally
+        else if (!gradeMappings.Any(g => g.StandardGrade == item.StandardGrade))
         {
-            isSubmitting = false;
-            StateHasChanged();
+            errors.Add($"项次 {item.Sequence}: 标准牌号 '{item.StandardGrade}' 不存在");
+        }
+
+        // 数值验证
+        if (item.OuterDiameter <= 0)
+        {
+            errors.Add($"项次 {item.Sequence}: 外径必须大于0");
+        }
+        if (item.WallThickness <= 0)
+        {
+            errors.Add($"项次 {item.Sequence}: 壁厚必须大于0");
+        }
+        if (item.ContractWeight <= 0)
+        {
+            errors.Add($"项次 {item.Sequence}: 合同重量必须大于0");
+        }
+
+        // 理算重量验证（定尺模式需要计算）
+        if (item.LengthStatus == LengthStatus.Fixed)
+        {
+            // 检查理算重量是否已计算
+            if (item.TheoreticalWeight <= 0)
+            {
+                errors.Add($"项次 {item.Sequence}: 请先计算理算重量");
+            }
+            else
+            {
+                // 计算合同重量与理算重量的比值
+                var ratio = item.ContractWeight / item.TheoreticalWeight;
+                var lowerBound = 0.94m;   // 94%
+                var upperBound = 1.06m;   // 106%
+                
+                if (ratio < lowerBound)
+                {
+                    warnings.Add($"项次 {item.Sequence}: 合同重量 {item.ContractWeight:F2} kg 低于理算重量 {item.TheoreticalWeight:F2} kg 的94%，可能亏损，是否继续？");
+                }
+                else if (ratio > upperBound)
+                {
+                    warnings.Add($"项次 {item.Sequence}: 合同重量 {item.ContractWeight:F2} kg 高于理算重量 {item.TheoreticalWeight:F2} kg 的106%，请确认");
+                }
+            }
         }
     }
+
+    // 如果有错误，一次性显示所有错误
+    if (errors.Any())
+    {
+        var errorMsg = string.Join("\n", errors);
+        await JS.InvokeVoidAsync("alert", errorMsg);
+        return;
+    }
+
+    // 如果有警告，需要用户确认
+    if (warnings.Any())
+    {
+        var warningMsg = string.Join("\n\n", warnings);
+        warningMsg += "\n\n是否继续提交？";
+        var confirmed = await JS.InvokeAsync<bool>("confirm", warningMsg);
+        if (!confirmed) return;
+    }
+
+    isSubmitting = true;
+    StateHasChanged();
+
+    try
+    {
+        // 1. 删除标记的项次
+        foreach (var itemId in itemsToDelete)
+        {
+            var result = await OrderService.DeleteItemAsync(Id, itemId);
+            if (!result.Success)
+            {
+                Snackbar.Add($"删除项次失败: {result.Message}", Severity.Error);
+                return;
+            }
+        }
+
+        // 2. 保存每个项次（新增或更新）
+        foreach (var item in editItemViewModels)
+        {
+            var grade = gradeMappings.First(g => g.StandardGrade == item.StandardGrade);
+
+            // 计算米数（定尺模式自动计算）
+            var meters = item.Meters ?? 0m;
+            if (item.LengthStatus == LengthStatus.Fixed && item.MaxLength.HasValue && item.Quantity.HasValue)
+            {
+                meters = item.MaxLength.Value * item.Quantity.Value / 1000m;
+                item.Meters = Math.Round(meters, 2);
+            }
+
+            // 计算理算重量
+            const decimal pi = 3.1416m;
+            var effectiveWall = item.WallThickness - 0.5m * item.WallThicknessNegative + 0.5m * item.WallThicknessPositive;
+            var effectiveOd = item.OuterDiameter - 0.5m * item.OuterDiameterNegative + 0.5m * item.OuterDiameterPositive;
+            if (effectiveWall < 0) effectiveWall = 0;
+            if (effectiveOd <= effectiveWall) effectiveOd = effectiveWall + 0.001m;
+            var weight = grade.Density * pi * effectiveWall * (effectiveOd - effectiveWall) * meters / 1000;
+            item.TheoreticalWeight = Math.Round(weight < 0 ? 0 : weight, 2);
+
+            // 定尺模式下确保最大长度等于最小长度
+            if (item.LengthStatus == LengthStatus.Fixed && item.MinLength.HasValue)
+            {
+                item.MaxLength = item.MinLength;
+            }
+
+            // 保存（新增或更新）
+            if (!item.Id.HasValue || item.Id.Value == 0)
+            {
+                // 新增项次：不传 Sequence，由后端自动分配
+                var addRequest = new AddOrderItemRequest
+                {
+                    DeliveryDate = item.DeliveryDate,
+                    DelayPenalty = item.DelayPenalty,
+                    SettlementMethod = item.SettlementMethod,
+                    MaterialName = item.MaterialName,
+                    ProductionStandardId = item.ProductionStandardId,
+                    DeliveryState = item.DeliveryState,
+                    StandardGrade = item.StandardGrade,
+                    OuterDiameter = item.OuterDiameter,
+                    WallThickness = item.WallThickness,
+                    OuterDiameterNegative = item.OuterDiameterNegative,
+                    OuterDiameterPositive = item.OuterDiameterPositive,
+                    WallThicknessNegative = item.WallThicknessNegative,
+                    WallThicknessPositive = item.WallThicknessPositive,
+                    LengthStatus = item.LengthStatus,
+                    MinLength = item.MinLength,
+                    MaxLength = item.MaxLength,
+                    Quantity = item.Quantity,
+                    Meters = item.Meters,
+                    ContractWeight = item.ContractWeight,
+                    Remark = item.Remark
+                };
+                var result = await OrderService.AddItemAsync(Id, addRequest);
+                if (!result.Success)
+                {
+                    Snackbar.Add($"添加项次失败: {result.Message}", Severity.Error);
+                    return;
+                }
+                // 更新本地 ViewModel 的 Id 和 Sequence
+                item.Id = result.Data.Id;
+                item.Sequence = result.Data.Sequence;
+            }
+            else
+            {
+                // 更新现有项次
+                var updateRequest = new UpdateOrderItemRequest
+                {
+                    Sequence = item.Sequence,
+                    DeliveryDate = item.DeliveryDate,
+                    DelayPenalty = item.DelayPenalty,
+                    SettlementMethod = item.SettlementMethod,
+                    MaterialName = item.MaterialName,
+                    ProductionStandardId = item.ProductionStandardId,
+                    DeliveryState = item.DeliveryState,
+                    StandardGrade = item.StandardGrade,
+                    OuterDiameter = item.OuterDiameter,
+                    WallThickness = item.WallThickness,
+                    OuterDiameterNegative = item.OuterDiameterNegative,
+                    OuterDiameterPositive = item.OuterDiameterPositive,
+                    WallThicknessNegative = item.WallThicknessNegative,
+                    WallThicknessPositive = item.WallThicknessPositive,
+                    LengthStatus = item.LengthStatus,
+                    MinLength = item.MinLength,
+                    MaxLength = item.MaxLength,
+                    Quantity = item.Quantity,
+                    Meters = item.Meters,
+                    ContractWeight = item.ContractWeight,
+                    Remark = item.Remark
+                };
+                var result = await OrderService.UpdateItemAsync(Id, item.Id.Value, updateRequest);
+                if (!result.Success)
+                {
+                    Snackbar.Add($"更新项次失败: {result.Message}", Severity.Error);
+                    return;
+                }
+            }
+        }
+
+        Snackbar.Add("保存成功", Severity.Success);
+        await LoadData();               // 重新加载最新数据
+        Navigation.NavigateTo($"/orders/{Id}"); // 返回查看模式
+    }
+    catch (Exception ex)
+    {
+        Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
+    }
+    finally
+    {
+        isSubmitting = false;
+        StateHasChanged();
+    }
+}
 
     private void NavigateToRequirements() => Navigation.NavigateTo($"/orders/{Id}/requirements");
     private void GoBack() => Navigation.NavigateTo("/orders");

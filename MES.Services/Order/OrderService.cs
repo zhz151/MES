@@ -1,15 +1,14 @@
 // 文件路径: MES.Services/Order/OrderService.cs
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.Interfaces.Order;
 using MES.Core.DTOs;
-using MES.Core.Models;
 using MES.Core.Enums;
+using MES.Core.Exceptions;
+using MES.Core.Interfaces;
+using MES.Core.Interfaces.Order;
+using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
-using MES.Core.Exceptions;
-using MES.Core.Enums;
-using MES.Core.Interfaces;
 
 namespace MES.Services.Order;
 
@@ -17,11 +16,13 @@ public class OrderService : IOrderService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<OrderService> _logger;
+    private readonly INotificationService _notificationService;
 
-    public OrderService(AppDbContext context, ILogger<OrderService> logger)
+    public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService)
     {
         _context = context;
         _logger = logger;
+        _notificationService = notificationService;
     }
 
     #region 订单管理
@@ -50,10 +51,9 @@ public class OrderService : IOrderService
                 _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.EndCustomer != null && c.EndCustomer.Contains(keyword)));
         }
 
-        // ========== 新增：技术要求状态筛选（在数据库层面） ==========
+        // 技术要求状态筛选
         if (hasTechReq.HasValue)
         {
-            // 子查询：判断订单的所有项次是否都有技术要求
             if (hasTechReq.Value)
             {
                 // 已编辑：订单下所有项次都有技术要求
@@ -72,7 +72,6 @@ public class OrderService : IOrderService
             }
         }
 
-        // 获取总数（现在总数是正确的了）
         var totalCount = await queryable.CountAsync();
 
         // 排序
@@ -99,28 +98,23 @@ public class OrderService : IOrderService
             queryable = query.IsDescending ? queryable.OrderByDescending(so => so.CreatedTime) : queryable.OrderBy(so => so.CreatedTime);
         }
 
-        // 分页查询
         var salesOrders = await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
             .ToListAsync();
 
         var orderIds = salesOrders.Select(so => so.Id).ToList();
-
-        // 获取客户信息
         var customerIds = salesOrders.Select(so => so.CustomerId).Distinct().ToList();
         var customers = await _context.CustomerProfiles
             .Where(c => customerIds.Contains(c.Id) && !c.IsDeleted)
             .ToDictionaryAsync(c => c.Id, c => c);
 
-        // 获取每个订单的项次总数
         var orderItemCounts = await _context.OrderItems
             .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
             .GroupBy(oi => oi.SalesOrderId)
             .Select(g => new { OrderId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.OrderId, x => x.Count);
 
-        // 获取每个订单有技术要求的项次数量
         var orderHasReqCounts = await _context.OrderItems
             .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
             .GroupJoin(
@@ -134,14 +128,12 @@ public class OrderService : IOrderService
             .Select(g => new { OrderId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.OrderId, x => x.Count);
 
-        // 获取第一个项次ID
         var firstOrderItemIds = await _context.OrderItems
             .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
             .GroupBy(oi => oi.SalesOrderId)
             .Select(g => new { OrderId = g.Key, FirstItemId = g.OrderBy(oi => oi.Sequence).Select(oi => (int?)oi.Id).FirstOrDefault() })
             .ToDictionaryAsync(x => x.OrderId, x => x.FirstItemId);
 
-        // ========== 获取变更信息（简化版：只要有项次更新时间与订单创建时间不一致，就算有变更） ==========
         var orderItemMaxUpdate = await _context.OrderItems
             .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
             .GroupBy(oi => oi.SalesOrderId)
@@ -152,16 +144,10 @@ public class OrderService : IOrderService
         foreach (var so in salesOrders)
         {
             customers.TryGetValue(so.CustomerId, out var customer);
-
             var totalItemCount = orderItemCounts.GetValueOrDefault(so.Id);
             var hasReqCount = orderHasReqCounts.GetValueOrDefault(so.Id);
-
-            // 只有当所有项次都有技术要求时，才显示"已编辑"
             var hasTechnicalRequirement = totalItemCount > 0 && hasReqCount == totalItemCount;
-
-            // ========== 计算变更信息（简化版） ==========
             DateTime? lastChangeDate = null;
-
             if (orderItemMaxUpdate.TryGetValue(so.Id, out var maxUpdate) && maxUpdate > so.CreatedTime)
             {
                 lastChangeDate = maxUpdate.LocalDateTime;
@@ -179,7 +165,7 @@ public class OrderService : IOrderService
                 RowVersion = so.RowVersion,
                 HasTechnicalRequirement = hasTechnicalRequirement,
                 FirstOrderItemId = firstOrderItemIds.GetValueOrDefault(so.Id),
-                LastChangeDate = lastChangeDate  // 只有存在变更时有值，否则为 null
+                LastChangeDate = lastChangeDate
             });
         }
 
@@ -299,11 +285,9 @@ public class OrderService : IOrderService
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
 
-        // 已取消的订单不能修改
         if (salesOrder.Status == SalesOrderStatus.Cancelled)
             throw new BusinessException("已取消的订单不能修改");
 
-        // 更新订单号
         if (!string.IsNullOrEmpty(request.OrderNumber) && request.OrderNumber != salesOrder.OrderNumber)
         {
             if (await _context.SalesOrders.AnyAsync(so => so.OrderNumber == request.OrderNumber && so.Id != id && !so.IsDeleted))
@@ -322,7 +306,6 @@ public class OrderService : IOrderService
             salesOrder.CustomerId = request.CustomerId.Value;
         }
 
-        // 更新状态
         if (!string.IsNullOrEmpty(request.Status))
         {
             if (!Enum.TryParse<SalesOrderStatus>(request.Status, true, out var newStatus))
@@ -370,14 +353,13 @@ public async Task DeleteAsync(int id)
     if (salesOrder == null)
         throw new BusinessException("订单不存在");
 
-    // 已取消的订单不能删除
     if (salesOrder.Status == SalesOrderStatus.Cancelled)
         throw new BusinessException("已取消的订单不能删除");
 
-    // 1. 软删除订单本身
+    // 1. 软删除订单
     salesOrder.IsDeleted = true;
 
-    // 2. 级联软删除订单项次和产品要求
+    // 2. 软删除订单项次和产品要求
     foreach (var orderItem in salesOrder.OrderItems.Where(oi => !oi.IsDeleted))
     {
         orderItem.IsDeleted = true;
@@ -385,33 +367,37 @@ public async Task DeleteAsync(int id)
             orderItem.ProductRequirement.IsDeleted = true;
     }
 
-    // 3. 软删除所有关联的工单
+    // 3. 物理删除关联工单
     var workOrders = await _context.WorkOrders
-        .Where(wo => wo.SalesOrderNo == salesOrder.OrderNumber && !wo.IsDeleted)
+        .Where(wo => wo.SalesOrderNo == salesOrder.OrderNumber)
         .ToListAsync();
 
-    foreach (var wo in workOrders)
+    var workOrderCount = workOrders.Count;
+
+    if (workOrderCount > 0)
     {
-        wo.IsDeleted = true;
-        // 注意：Status 保持不变，不改为 Cancelled
+        _context.WorkOrders.RemoveRange(workOrders);
     }
 
-    // 4. 若有工单被清理，生成通知
-    if (workOrders.Any())
+    // 4. 保存更改
+    await _context.SaveChangesAsync();
+
+    // 5. 生成通知（告知已自动清理工单）
+    if (workOrderCount > 0)
     {
         var notification = new OrderChangeNotification
         {
             OrderNumber = salesOrder.OrderNumber,
             ChangeType = (int)NotificationChangeType.Deleted,
-            WorkOrderCount = workOrders.Count,
+            WorkOrderCount = workOrderCount,
             IsRead = false
         };
         _context.OrderChangeNotifications.Add(notification);
+        await _context.SaveChangesAsync();
     }
 
-    await _context.SaveChangesAsync();
     _logger.LogInformation("订单 {OrderNumber} 已被删除，同时自动清理了 {Count} 个关联工单",
-        salesOrder.OrderNumber, workOrders.Count);
+        salesOrder.OrderNumber, workOrderCount);
 }
 
     #endregion
@@ -427,27 +413,43 @@ public async Task DeleteAsync(int id)
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
 
-        // 获取所有项次号（包括已删除的），用于检查唯一性
         var allSequences = await _context.OrderItems
             .Where(oi => oi.SalesOrderId == orderId)
             .Select(oi => oi.Sequence)
             .ToListAsync();
 
-        // 获取最大项次号（只考虑未删除的，用于自动生成）
-        var maxSequence = salesOrder.OrderItems.Any() ? salesOrder.OrderItems.Max(oi => oi.Sequence) : 0;
-        var sequence = request.Sequence ?? maxSequence + 1;
-
-        // 检查项次号是否已存在（包括已删除的）
-        if (allSequences.Contains(sequence))
-            throw new BusinessException($"项次号 {sequence} 已存在，请使用其他项次号");
+        int sequence;
+        if (request.Sequence.HasValue && request.Sequence.Value > 0)
+        {
+            sequence = request.Sequence.Value;
+            if (allSequences.Contains(sequence))
+                throw new BusinessException($"项次号 {sequence} 已存在");
+        }
+        else
+        {
+            sequence = 1;
+            while (allSequences.Contains(sequence))
+                sequence++;
+        }
 
         var orderItem = await CreateOrderItemFromAddRequestAsync(request, salesOrder.Id, sequence);
         _context.OrderItems.Add(orderItem);
+        
+        // 更新订单的最后项次变更时间
+        salesOrder.LastItemChangeTime = DateTimeOffset.Now;
+        _context.Entry(salesOrder).Property(x => x.LastItemChangeTime).IsModified = true;
+        
         await _context.SaveChangesAsync();
 
-        return MapToOrderItemDto(orderItem);
+        if (orderItem.ProductionStandard == null && orderItem.ProductionStandardId > 0)
+        {
+            orderItem.ProductionStandard = await _context.ProductionStandards
+                .FirstOrDefaultAsync(ps => ps.Id == orderItem.ProductionStandardId);
+        }
+
         await CreateItemChangedNotificationIfNeededAsync(orderId);
 
+        return MapToOrderItemDto(orderItem);
     }
 
     public async Task<OrderItemDto> UpdateItemAsync(int orderId, int itemId, UpdateOrderItemRequest request)
@@ -458,7 +460,6 @@ public async Task DeleteAsync(int id)
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
 
-        // 已取消的订单不能修改项次
         if (salesOrder.Status == SalesOrderStatus.Cancelled)
             throw new BusinessException("已取消的订单不能修改项次");
 
@@ -485,7 +486,6 @@ public async Task DeleteAsync(int id)
 
         ValidateLengthStatus(request.LengthStatus, request.MinLength, request.MaxLength);
 
-        // 规范化数值（去除末尾多余的0）
         var normalizedOuterDiameter = NormalizeDecimalValue(request.OuterDiameter);
         var normalizedWallThickness = NormalizeDecimalValue(request.WallThickness);
         var normalizedOuterDiameterNegative = NormalizeDecimalValue(request.OuterDiameterNegative);
@@ -534,42 +534,45 @@ public async Task DeleteAsync(int id)
         orderItem.TheoreticalWeight = theoreticalWeight;
         orderItem.Remark = request.Remark;
 
+        // 更新订单的最后项次变更时间
+        salesOrder.LastItemChangeTime = DateTimeOffset.Now;
+        _context.Entry(salesOrder).Property(x => x.LastItemChangeTime).IsModified = true;
+
         await _context.SaveChangesAsync();
+        await CreateItemChangedNotificationIfNeededAsync(orderId);
 
         return MapToOrderItemDto(orderItem);
+    }
+
+    public async Task DeleteItemAsync(int orderId, int itemId)
+    {
+        var salesOrder = await _context.SalesOrders
+            .FirstOrDefaultAsync(so => so.Id == orderId && !so.IsDeleted);
+
+        if (salesOrder == null)
+            throw new BusinessException("订单不存在");
+
+        if (salesOrder.Status == SalesOrderStatus.Cancelled)
+            throw new BusinessException("已取消的订单不能删除项次");
+
+        var orderItem = await _context.OrderItems
+            .Include(oi => oi.ProductRequirement)
+            .FirstOrDefaultAsync(oi => oi.Id == itemId && oi.SalesOrderId == orderId && !oi.IsDeleted);
+
+        if (orderItem == null)
+            throw new BusinessException("订单项次不存在");
+
+        orderItem.IsDeleted = true;
+        if (orderItem.ProductRequirement != null && !orderItem.ProductRequirement.IsDeleted)
+            orderItem.ProductRequirement.IsDeleted = true;
+
+        // 更新订单的最后项次变更时间
+        salesOrder.LastItemChangeTime = DateTimeOffset.Now;
+        _context.Entry(salesOrder).Property(x => x.LastItemChangeTime).IsModified = true;
+
+        await _context.SaveChangesAsync();
         await CreateItemChangedNotificationIfNeededAsync(orderId);
     }
-
-public async Task DeleteItemAsync(int orderId, int itemId)
-{
-    var salesOrder = await _context.SalesOrders
-        .FirstOrDefaultAsync(so => so.Id == orderId && !so.IsDeleted);
-
-    if (salesOrder == null)
-        throw new BusinessException("订单不存在");
-
-    // 已取消的订单不能删除项次
-    if (salesOrder.Status == SalesOrderStatus.Cancelled)
-        throw new BusinessException("已取消的订单不能删除项次");
-
-    var orderItem = await _context.OrderItems
-        .Include(oi => oi.ProductRequirement)  // 添加这一行：加载 ProductRequirement
-        .FirstOrDefaultAsync(oi => oi.Id == itemId && oi.SalesOrderId == orderId && !oi.IsDeleted);
-
-    if (orderItem == null)
-        throw new BusinessException("订单项次不存在");
-
-    orderItem.IsDeleted = true;
-    
-    // 级联软删除 ProductRequirement
-    if (orderItem.ProductRequirement != null && !orderItem.ProductRequirement.IsDeleted)
-    {
-        orderItem.ProductRequirement.IsDeleted = true;
-    }
-    
-    await _context.SaveChangesAsync();
-    await CreateItemChangedNotificationIfNeededAsync(orderId);
-}
 
     #endregion
 
@@ -589,7 +592,6 @@ public async Task DeleteItemAsync(int orderId, int itemId)
 
         ValidateLengthStatus(request.LengthStatus, request.MinLength, request.MaxLength);
 
-        // 规范化数值（去除末尾多余的0）
         var normalizedOuterDiameter = NormalizeDecimalValue(request.OuterDiameter);
         var normalizedWallThickness = NormalizeDecimalValue(request.WallThickness);
         var normalizedOuterDiameterNegative = NormalizeDecimalValue(request.OuterDiameterNegative);
@@ -607,6 +609,12 @@ public async Task DeleteItemAsync(int orderId, int itemId)
             normalizedOuterDiameterNegative, normalizedOuterDiameterPositive,
             normalizedWallThicknessNegative, normalizedWallThicknessPositive,
             metersValue);
+
+        // 验证合同重量与理算重量的关系
+        if (request.LengthStatus == LengthStatus.Fixed && theoreticalWeight > 0)
+        {
+            ValidateContractWeightAgainstTheoreticalWeight(normalizedContractWeight, theoreticalWeight);
+        }
 
         return new OrderItem
         {
@@ -653,7 +661,6 @@ public async Task DeleteItemAsync(int orderId, int itemId)
 
         ValidateLengthStatus(request.LengthStatus, request.MinLength, request.MaxLength);
 
-        // 规范化数值（去除末尾多余的0）
         var normalizedOuterDiameter = NormalizeDecimalValue(request.OuterDiameter);
         var normalizedWallThickness = NormalizeDecimalValue(request.WallThickness);
         var normalizedOuterDiameterNegative = NormalizeDecimalValue(request.OuterDiameterNegative);
@@ -671,6 +678,12 @@ public async Task DeleteItemAsync(int orderId, int itemId)
             normalizedOuterDiameterNegative, normalizedOuterDiameterPositive,
             normalizedWallThicknessNegative, normalizedWallThicknessPositive,
             metersValue);
+
+        // 验证合同重量与理算重量的关系
+        if (request.LengthStatus == LengthStatus.Fixed && theoreticalWeight > 0)
+        {
+            ValidateContractWeightAgainstTheoreticalWeight(normalizedContractWeight, theoreticalWeight);
+        }
 
         return new OrderItem
         {
@@ -703,15 +716,14 @@ public async Task DeleteItemAsync(int orderId, int itemId)
         };
     }
 
-    /// <summary>
-    /// 规范化数值（去除末尾多余的0）
-    /// 例如：2.050 → 2.05, 10.000 → 10, 19.00 → 19
-    /// </summary>
     private static decimal NormalizeDecimalValue(decimal value)
     {
         return decimal.Parse(value.ToString("G29"));
     }
 
+    /// <summary>
+    /// 验证长度状态
+    /// </summary>
     private static void ValidateLengthStatus(LengthStatus lengthStatus, decimal? minLength, decimal? maxLength)
     {
         switch (lengthStatus)
@@ -719,11 +731,38 @@ public async Task DeleteItemAsync(int orderId, int itemId)
             case LengthStatus.Fixed:
                 if (!minLength.HasValue || minLength <= 0)
                     throw new BusinessException("定尺时必须填写长度");
+                
+                // 新增：定尺模式下最小长度必须等于最大长度
+                if (!maxLength.HasValue || maxLength.Value != minLength.Value)
+                    throw new BusinessException("定尺模式下最小长度必须等于最大长度");
                 break;
+                
             case LengthStatus.Range:
                 if (!minLength.HasValue || minLength <= 0 || !maxLength.HasValue || maxLength <= 0 || maxLength <= minLength)
                     throw new BusinessException("范围尺时必须填写最小长度和最大长度，且最大长度必须大于最小长度");
                 break;
+        }
+    }
+
+    /// <summary>
+    /// 验证合同重量与理算重量的关系
+    /// </summary>
+    private static void ValidateContractWeightAgainstTheoreticalWeight(decimal contractWeight, decimal theoreticalWeight)
+    {
+        if (theoreticalWeight <= 0) return;
+        
+        var ratio = contractWeight / theoreticalWeight;
+        var lowerBound = 0.94m;   // 94%
+        var upperBound = 1.06m;   // 106%
+        
+        if (ratio < lowerBound)
+        {
+            throw new BusinessException($"合同重量 {contractWeight:F2} kg 低于理算重量 {theoreticalWeight:F2} kg 的94%，可能亏损");
+        }
+        
+        if (ratio > upperBound)
+        {
+            throw new BusinessException($"合同重量 {contractWeight:F2} kg 高于理算重量 {theoreticalWeight:F2} kg 的106%");
         }
     }
 
@@ -823,18 +862,11 @@ public async Task DeleteItemAsync(int orderId, int itemId)
     private static bool CanTransitionTo(SalesOrderStatus current, SalesOrderStatus target)
     {
         if (current == target) return true;
-        
-        // 已取消是终态，不能转到任何其他状态
         if (current == SalesOrderStatus.Cancelled) return false;
-        
-        // 待处理可以转为已确认或已取消
         if (current == SalesOrderStatus.Pending)
             return target == SalesOrderStatus.Confirmed || target == SalesOrderStatus.Cancelled;
-        
-        // 已确认可以转为已取消
         if (current == SalesOrderStatus.Confirmed)
             return target == SalesOrderStatus.Cancelled;
-        
         return false;
     }
 
@@ -845,36 +877,27 @@ public async Task DeleteItemAsync(int orderId, int itemId)
         SalesOrderStatus.Cancelled => "已取消",
         _ => status.ToString()
     };
+
     private async Task CreateItemChangedNotificationIfNeededAsync(int salesOrderId)
-{
-    var salesOrder = await _context.SalesOrders
-        .FirstOrDefaultAsync(so => so.Id == salesOrderId && !so.IsDeleted);
-    if (salesOrder == null || salesOrder.Status != SalesOrderStatus.Confirmed)
-        return;
-
-    // 去重：5分钟内已存在未读的项次变更通知则不再生成
-    var hasRecent = await _notificationService.HasRecentItemChangedNotificationAsync(salesOrder.OrderNumber, 5);
-    if (hasRecent) return;
-
-    var notification = new OrderChangeNotification
     {
-        OrderNumber = salesOrder.OrderNumber,
-        ChangeType = (int)NotificationChangeType.ItemChanged,
-        WorkOrderCount = 0,
-        IsRead = false
-    };
-    _context.OrderChangeNotifications.Add(notification);
-    await _context.SaveChangesAsync();
-}
+        var salesOrder = await _context.SalesOrders
+            .FirstOrDefaultAsync(so => so.Id == salesOrderId && !so.IsDeleted);
+        if (salesOrder == null || salesOrder.Status != SalesOrderStatus.Confirmed)
+            return;
 
-private readonly INotificationService _notificationService;
+        var hasRecent = await _notificationService.HasRecentItemChangedNotificationAsync(salesOrder.OrderNumber, 5);
+        if (hasRecent) return;
 
-public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService)
-{
-    _context = context;
-    _logger = logger;
-    _notificationService = notificationService;
-}
+        var notification = new OrderChangeNotification
+        {
+            OrderNumber = salesOrder.OrderNumber,
+            ChangeType = (int)NotificationChangeType.ItemChanged,
+            WorkOrderCount = 0,
+            IsRead = false
+        };
+        _context.OrderChangeNotifications.Add(notification);
+        await _context.SaveChangesAsync();
+    }
 
     #endregion
 }

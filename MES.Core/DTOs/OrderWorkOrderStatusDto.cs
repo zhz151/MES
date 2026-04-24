@@ -52,7 +52,7 @@ public class OrderWorkOrderStatusDto
             return WorkOrderStatus switch
             {
                 "NotGenerated" => "未编制",
-                "Pending" => "待处理",
+                "Pending" => "待修正",
                 "Confirmed" => "已确定",
                 "Cancelled" => "已取消",
                 _ => "未知"

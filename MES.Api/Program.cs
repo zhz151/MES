@@ -178,7 +178,7 @@ var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>(
 recurringJobManager.AddOrUpdate<HangfireJobService>(
     "check-order-change",
     service => service.CheckOrderChangeJob(),
-    "*/2 * * * *",
+    "*/10 * * * *",
     jobOptions);
     
 recurringJobManager.AddOrUpdate<HangfireJobService>(
