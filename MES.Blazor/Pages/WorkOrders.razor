@@ -148,9 +148,24 @@
                         </MudChip>
                     </MudTd>
                     <MudTd>
-                        @if (order.WorkOrderStatus == "NotGenerated")
+                        <MudIconButton Icon="@Icons.Material.Filled.Link"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       OnClick="() => NavigateToTrace(order.OrderNumber)"
+                                       Title="工单项次追溯" />
+
+                        @if (order.WorkOrderStatus == "Confirmed")
                         {
-                            <!-- 未编制：只显示生成工单按钮 -->
+                            <MudButton Variant="Variant.Text"
+                                       Color="Color.Warning"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Refresh"
+                                       OnClick="() => NavigateToRegenerate(order.OrderNumber, order.WorkOrderStatus)">
+                                重新生成
+                            </MudButton>
+                        }
+                        else if (order.WorkOrderStatus == "Pending")
+                        {
                             <MudButton Variant="Variant.Text"
                                        Color="Color.Primary"
                                        Size="Size.Small"
@@ -158,45 +173,6 @@
                                        OnClick="() => NavigateToGenerate(order.OrderNumber, order.WorkOrderStatus)">
                                 生成工单
                             </MudButton>
-                        }
-                        else
-                        {
-                            <!-- 查看按钮（确保 WorkOrderId 有值） -->
-                            @if (order.WorkOrderId.HasValue)
-                            {
-                                <MudIconButton Icon="@Icons.Material.Filled.Visibility"
-                                               Color="Color.Info"
-                                               Size="Size.Small"
-                                               OnClick="() => ViewWorkOrder(order.WorkOrderId.Value)" />
-                            }
-
-                            <!-- 追溯按钮 -->
-                            <MudIconButton Icon="@Icons.Material.Filled.Link"
-                                           Color="Color.Primary"
-                                           Size="Size.Small"
-                                           OnClick="() => NavigateToTrace(order.OrderNumber)"
-                                           Title="工单项次追溯" />
-
-                            @if (order.WorkOrderStatus == "Confirmed")
-                            {
-                                <MudButton Variant="Variant.Text"
-                                           Color="Color.Warning"
-                                           Size="Size.Small"
-                                           StartIcon="@Icons.Material.Filled.Refresh"
-                                           OnClick="() => NavigateToRegenerate(order.OrderNumber, order.WorkOrderStatus)">
-                                    重新生成
-                                </MudButton>
-                            }
-                            else if (order.WorkOrderStatus == "Pending")
-                            {
-                                <MudButton Variant="Variant.Text"
-                                           Color="Color.Primary"
-                                           Size="Size.Small"
-                                           StartIcon="@Icons.Material.Filled.Add"
-                                           OnClick="() => NavigateToGenerate(order.OrderNumber, order.WorkOrderStatus)">
-                                    生成工单
-                                </MudButton>
-                            }
                         }
                     </MudTd>
                 </RowTemplate>
@@ -441,11 +417,6 @@
             "Pending" => Color.Warning,
             _ => Color.Default
         };
-    }
-
-    private void ViewWorkOrder(int workOrderId)
-    {
-        Navigation.NavigateTo($"/workorders/{workOrderId}");
     }
 
     private void NavigateToGenerate(string salesOrderNo, string workOrderStatus)

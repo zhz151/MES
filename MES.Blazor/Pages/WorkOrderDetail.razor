@@ -63,9 +63,6 @@
                                        OnClick="GoToNext"
                                        Title="下一个工单" />
                     </div>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.ListAlt" OnClick="NavigateToItems">
-                        查看项次明细
-                    </MudButton>
                     <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
                 </CardHeaderActions>
             </MudCardHeader>
@@ -317,11 +314,6 @@
             var nextWorkOrder = siblingWorkOrders[currentIndex + 1];
             Navigation.NavigateTo($"/workorders/{nextWorkOrder.Id}");
         }
-    }
-
-    private void NavigateToItems()
-    {
-        Navigation.NavigateTo($"/workorders/{Id}/items");
     }
 
     private void GoBack() => Navigation.NavigateTo("/workorders");

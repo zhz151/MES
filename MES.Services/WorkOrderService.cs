@@ -1061,36 +1061,40 @@ public class WorkOrderService : IWorkOrderService
             {
                 if (orderItems.TryGetValue(itemId, out var item))
                 {
-                    workOrderItems.Add(new OrderItemBriefDto
-                    {
-                        Sequence = item.Sequence,
-                        Specification = item.Specification,
-                        LengthStatus = item.LengthStatus.ToString(),
-                        MinLength = item.MinLength,
-                        MaxLength = item.MaxLength,
-                        Quantity = item.Quantity,
-                        Meters = item.Meters,
-                        ContractWeight = item.ContractWeight,
-                        TheoreticalWeight = item.TheoreticalWeight
-                    });
+workOrderItems.Add(new OrderItemBriefDto
+{
+    Sequence = item.Sequence,
+    StandardGrade = item.StandardGrade, 
+    Specification = item.Specification,
+    LengthStatus = item.LengthStatus.ToString(),
+    MinLength = item.MinLength,
+    MaxLength = item.MaxLength,
+    Quantity = item.Quantity,
+    Meters = item.Meters,
+    ContractWeight = item.ContractWeight,
+    TheoreticalWeight = item.TheoreticalWeight
+});
                 }
             }
 
-            result.WorkOrders.Add(new WorkOrderRelationDto
-            {
-                WorkOrderId = wo.Id,
-                WorkOrderNo = wo.WorkOrderNo,
-                ProductionMainNo = wo.ProductionMainNo,
-                ProductionSubNo = wo.ProductionSubNo,
-                Status = wo.Status,
-                StatusText = GetStatusText(wo.Status),
-                MaterialName = wo.MaterialName,
-                Specification = wo.Specification,
-                DeliveryDate = wo.DeliveryDate,
-                TotalQuantity = wo.TotalQuantity,
-                TotalWeight = wo.TotalWeight,
-                OrderItems = workOrderItems
-            });
+result.WorkOrders.Add(new WorkOrderRelationDto
+{
+    WorkOrderId = wo.Id,
+    WorkOrderNo = wo.WorkOrderNo,
+    ProductionMainNo = wo.ProductionMainNo,
+    ProductionSubNo = wo.ProductionSubNo,
+    Status = wo.Status,
+    StatusText = GetStatusText(wo.Status),
+    MaterialName = wo.MaterialName,
+    PlantGrade = wo.PlantGrade,           
+    Specification = wo.Specification,
+    DeliveryState = wo.DeliveryState,     
+    LengthStatus = wo.LengthStatus,       
+    DeliveryDate = wo.DeliveryDate,
+    TotalQuantity = wo.TotalQuantity,
+    TotalWeight = wo.TotalWeight,
+    OrderItems = workOrderItems
+});
         }
 
         return result;

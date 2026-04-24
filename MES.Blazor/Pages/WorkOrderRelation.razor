@@ -92,9 +92,14 @@
                             </MudCardHeader>
 
                             <MudCardContent>
+                                <!-- 工单基本信息区域 -->
+                                <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">工单基本信息</MudText>
                                 <MudGrid>
                                     <MudItem xs="12" md="3">
                                         <MudText Typo="Typo.body2"><strong>物料名称：</strong>@GetMaterialNameText(workOrder.MaterialName)</MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudText Typo="Typo.body2"><strong>工厂牌号：</strong>@workOrder.PlantGrade</MudText>
                                     </MudItem>
                                     <MudItem xs="12" md="3">
                                         <MudText Typo="Typo.body2"><strong>规格：</strong>@FormatSpecification(workOrder.Specification)</MudText>
@@ -103,13 +108,22 @@
                                         <MudText Typo="Typo.body2"><strong>交货日期：</strong>@workOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText>
                                     </MudItem>
                                     <MudItem xs="12" md="3">
-                                        <MudText Typo="Typo.body2"><strong>总支数/总重量：</strong>@workOrder.TotalQuantity 支 / @FormatDecimal(workOrder.TotalWeight) kg</MudText>
+                                        <MudText Typo="Typo.body2"><strong>交货状态：</strong>@GetDeliveryStateText(workOrder.DeliveryState)</MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudText Typo="Typo.body2"><strong>长度状态：</strong>@GetLengthStatusText(workOrder.LengthStatus)</MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudText Typo="Typo.body2"><strong>总支数：</strong>@workOrder.TotalQuantity 支</MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudText Typo="Typo.body2"><strong>总重量：</strong>@FormatDecimal(workOrder.TotalWeight) kg</MudText>
                                     </MudItem>
                                 </MudGrid>
 
                                 <MudDivider Class="my-3" />
 
-                                <MudText Typo="Typo.subtitle2" Class="mb-2">包含的原始订单项次：</MudText>
+                                <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">包含的原始订单项次：</MudText>
 
                                 @if (!workOrder.OrderItems.Any())
                                 {
@@ -120,6 +134,7 @@
                                     <MudTable T="OrderItemBriefDto" Items="@workOrder.OrderItems" Dense="true" Hover="true" Elevation="0">
                                         <HeaderContent>
                                             <MudTh>项次号</MudTh>
+                                            <MudTh>标准牌号</MudTh>
                                             <MudTh>规格</MudTh>
                                             <MudTh>长度状态</MudTh>
                                             <MudTh>最小长度(mm)</MudTh>
@@ -131,6 +146,7 @@
                                         </HeaderContent>
                                         <RowTemplate>
                                             <MudTd>@context.Sequence</MudTd>
+                                            <MudTd>@context.StandardGrade</MudTd>
                                             <MudTd>@FormatSpecification(context.Specification)</MudTd>
                                             <MudTd>@GetLengthStatusText(context.LengthStatus)</MudTd>
                                             <MudTd>@FormatNullableDecimal(context.MinLength)</MudTd>
@@ -254,6 +270,24 @@
             "Range" => "范围尺",
             "NonFixed" => "非定尺",
             _ => lengthStatus
+        };
+    }
+
+    private string GetDeliveryStateText(string deliveryState)
+    {
+        return deliveryState switch
+        {
+            "SolutionAnnealedAndPickled" => "固溶酸洗",
+            "SolutionAnnealedAndPickledUTube" => "固溶酸洗-U型管",
+            "SolutionAnnealedAndPickledExternalPolished" => "固溶酸洗-外抛光",
+            "SolutionAnnealedAndPickledInternalPolished" => "固溶酸洗-内抛光",
+            "SolutionAnnealedAndPickledBothPolished" => "固溶酸洗-内外抛光",
+            "SolutionAnnealedAndPickledCoiled" => "固溶酸洗-盘管",
+            "Bright" => "光亮",
+            "BrightUTube" => "光亮-U型管",
+            "BrightCoiled" => "光亮-盘管",
+            "Hard" => "硬态",
+            _ => deliveryState
         };
     }
 }

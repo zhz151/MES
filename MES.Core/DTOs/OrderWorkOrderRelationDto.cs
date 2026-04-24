@@ -85,9 +85,24 @@ public class WorkOrderRelationDto
     public string MaterialName { get; set; } = null!;
 
     /// <summary>
+    /// 工厂牌号
+    /// </summary>
+    public string PlantGrade { get; set; } = null!;
+
+    /// <summary>
     /// 规格
     /// </summary>
     public string Specification { get; set; } = null!;
+
+    /// <summary>
+    /// 交货状态
+    /// </summary>
+    public string DeliveryState { get; set; } = null!;
+
+    /// <summary>
+    /// 长度状态
+    /// </summary>
+    public string LengthStatus { get; set; } = null!;
 
     /// <summary>
     /// 交货日期
@@ -119,6 +134,11 @@ public class OrderItemBriefDto
     /// 项次号
     /// </summary>
     public int Sequence { get; set; }
+
+    /// <summary>
+    /// 标准牌号
+    /// </summary>
+    public string StandardGrade { get; set; } = null!;
 
     /// <summary>
     /// 规格
