@@ -544,17 +544,17 @@ public class WorkOrderService : IWorkOrderService
                     EndCustomer = salesOrderCustomer?.EndCustomer,
                     DeliveryDate = firstItem.DeliveryDate,
                     DelayPenalty = firstItem.DelayPenalty,
-                    MaterialName = firstItem.MaterialName.ToString(),
-                    SettlementMethod = firstItem.SettlementMethod.ToString(),
+                    MaterialName = firstItem.MaterialName,
+                    SettlementMethod = firstItem.SettlementMethod,
                     StandardCode = psDict.GetValueOrDefault(firstItem.ProductionStandardId)?.StandardCode ?? string.Empty,
-                    DeliveryState = firstItem.DeliveryState.ToString(),
+                    DeliveryState = firstItem.DeliveryState,
                     PlantGrade = firstItem.PlantGrade,
                     Specification = firstItem.Specification,
                     OuterDiameterNegative = firstItem.OuterDiameterNegative,
                     OuterDiameterPositive = firstItem.OuterDiameterPositive,
                     WallThicknessNegative = firstItem.WallThicknessNegative,
                     WallThicknessPositive = firstItem.WallThicknessPositive,
-                    LengthStatus = firstItem.LengthStatus.ToString(),
+                    LengthStatus = firstItem.LengthStatus,
                     MinLength = minLength,
                     MaxLength = finalMaxLength,
                     TotalQuantity = totalQuantity,
@@ -610,7 +610,7 @@ public class WorkOrderService : IWorkOrderService
     }
 
     private (decimal? MinLength, decimal? MaxLength, int TotalQuantity, decimal TotalMeters,
-             decimal TotalWeight, string? ItemDetails, string TechnicalRequirements)
+             decimal TotalWeight, string? ItemDetails, RequirementType TechnicalRequirements)
         CalculateAggregates(List<OrderItem> items, LengthStatus lengthStatus)
     {
         decimal? minLength = null;
@@ -652,7 +652,7 @@ public class WorkOrderService : IWorkOrderService
             }
         }
 
-        var technicalRequirements = hasSpecialRequirement ? "Special" : "Normal";
+        var technicalRequirements = hasSpecialRequirement ? RequirementType.Special : RequirementType.Normal;
 
         return (minLength, maxLength, totalQuantity, totalMeters, totalWeight,
                 itemDetailsBuilder.Length > 0 ? itemDetailsBuilder.ToString() : null, technicalRequirements);
@@ -676,7 +676,10 @@ public class WorkOrderService : IWorkOrderService
         if (query.Status.HasValue)
             workOrderQuery = workOrderQuery.Where(wo => wo.Status == (WorkOrderStatus)query.Status.Value);
         if (!string.IsNullOrEmpty(query.MaterialName))
-            workOrderQuery = workOrderQuery.Where(wo => wo.MaterialName.Contains(query.MaterialName));
+        {
+            if (Enum.TryParse<MaterialName>(query.MaterialName, out var materialName))
+                workOrderQuery = workOrderQuery.Where(wo => wo.MaterialName == materialName);
+        }
         if (!string.IsNullOrEmpty(query.Specification))
             workOrderQuery = workOrderQuery.Where(wo => wo.Specification.Contains(query.Specification));
         if (!string.IsNullOrEmpty(query.PlantGrade))
@@ -697,7 +700,6 @@ public class WorkOrderService : IWorkOrderService
                 wo.SalesOrderNo.Contains(keyword) ||
                 wo.ProductionMainNo.Contains(keyword) ||
                 (wo.ProductionSubNo != null && wo.ProductionSubNo.Contains(keyword)) ||
-                wo.MaterialName.Contains(keyword) ||
                 wo.Specification.Contains(keyword));
         }
 
@@ -741,7 +743,7 @@ public class WorkOrderService : IWorkOrderService
             SalesOrderNo = wo.SalesOrderNo,
             ProductionMainNo = wo.ProductionMainNo,
             ProductionSubNo = wo.ProductionSubNo,
-            MaterialName = wo.MaterialName,
+            MaterialName = wo.MaterialName.ToString(),
             Specification = wo.Specification,
             DeliveryDate = wo.DeliveryDate,
             TotalQuantity = wo.TotalQuantity,
@@ -780,17 +782,17 @@ public class WorkOrderService : IWorkOrderService
             EndCustomer = workOrder.EndCustomer,
             DeliveryDate = workOrder.DeliveryDate,
             DelayPenalty = workOrder.DelayPenalty,
-            MaterialName = workOrder.MaterialName,
-            SettlementMethod = workOrder.SettlementMethod,
+            MaterialName = workOrder.MaterialName.ToString(),
+            SettlementMethod = workOrder.SettlementMethod.ToString(),
             StandardCode = workOrder.StandardCode,
-            DeliveryState = workOrder.DeliveryState,
+            DeliveryState = workOrder.DeliveryState.ToString(),
             PlantGrade = workOrder.PlantGrade,
             Specification = workOrder.Specification,
             OuterDiameterNegative = workOrder.OuterDiameterNegative,
             OuterDiameterPositive = workOrder.OuterDiameterPositive,
             WallThicknessNegative = workOrder.WallThicknessNegative,
             WallThicknessPositive = workOrder.WallThicknessPositive,
-            LengthStatus = workOrder.LengthStatus,
+            LengthStatus = workOrder.LengthStatus.ToString(),
             MinLength = workOrder.MinLength,
             MaxLength = workOrder.MaxLength,
             TotalQuantity = workOrder.TotalQuantity,
@@ -798,7 +800,7 @@ public class WorkOrderService : IWorkOrderService
             TotalWeight = workOrder.TotalWeight,
             TotalItemCount = workOrder.TotalItemCount,
             ItemDetails = workOrder.ItemDetails,
-            TechnicalRequirements = workOrder.TechnicalRequirements,
+            TechnicalRequirements = workOrder.TechnicalRequirements.ToString(),
             RowVersion = workOrder.RowVersion,
             CreatedTime = workOrder.CreatedTime,
             CreatedBy = workOrder.CreatedBy,
@@ -822,7 +824,7 @@ public class WorkOrderService : IWorkOrderService
             SalesOrderNo = wo.SalesOrderNo,
             ProductionMainNo = wo.ProductionMainNo,
             ProductionSubNo = wo.ProductionSubNo,
-            MaterialName = wo.MaterialName,
+            MaterialName = wo.MaterialName.ToString(),
             Specification = wo.Specification,
             DeliveryDate = wo.DeliveryDate,
             TotalQuantity = wo.TotalQuantity,
@@ -1030,11 +1032,11 @@ result.WorkOrders.Add(new WorkOrderRelationDto
     ProductionSubNo = wo.ProductionSubNo,
     Status = (int)wo.Status,
     StatusText = GetStatusText(wo.Status),
-    MaterialName = wo.MaterialName,
-    PlantGrade = wo.PlantGrade,           
+    MaterialName = wo.MaterialName.ToString(),
+    PlantGrade = wo.PlantGrade,
     Specification = wo.Specification,
-    DeliveryState = wo.DeliveryState,     
-    LengthStatus = wo.LengthStatus,       
+    DeliveryState = wo.DeliveryState.ToString(),
+    LengthStatus = wo.LengthStatus.ToString(),
     DeliveryDate = wo.DeliveryDate,
     TotalQuantity = wo.TotalQuantity,
     TotalWeight = wo.TotalWeight,

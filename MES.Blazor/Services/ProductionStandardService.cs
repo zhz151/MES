@@ -17,7 +17,7 @@ public class ProductionStandardService
     /// <summary>
     /// 分页查询产品标准列表（支持关键字搜索）
     /// </summary>
-    public async Task<ApiResponse<PagedResult<ProductionStandardDto>>> GetPagedAsync(QueryParams query)
+    public async Task<ApiResponse<PagedResult<ProductionStandardDto>>> GetPagedAsync(QueryParams query, bool? isActive = null)
     {
         try
         {
@@ -25,6 +25,10 @@ public class ProductionStandardService
             if (!string.IsNullOrEmpty(query.Keyword))
             {
                 url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
+            }
+            if (isActive.HasValue)
+            {
+                url += $"&isActive={isActive.Value}";
             }
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<ProductionStandardDto>>>(url);
             return response ?? ApiResponse<PagedResult<ProductionStandardDto>>.Fail("获取数据失败");

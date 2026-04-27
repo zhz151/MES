@@ -28,9 +28,9 @@ public class ProductionStandardController : ControllerBase
     /// </summary>
     [HttpGet("list")]
     [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<PagedResult<ProductionStandardDto>>>> GetPaged([FromQuery] QueryParams query)
+    public async Task<ActionResult<ApiResponse<PagedResult<ProductionStandardDto>>>> GetPaged([FromQuery] QueryParams query, [FromQuery] bool? isActive = null)
     {
-        var result = await _service.GetPagedAsync(query);
+        var result = await _service.GetPagedAsync(query, isActive);
         return Ok(ApiResponse<PagedResult<ProductionStandardDto>>.Ok(result, "查询成功"));
     }
 

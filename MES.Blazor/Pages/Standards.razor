@@ -136,17 +136,12 @@
                 Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword
             };
 
-            var result = await StandardService.GetPagedAsync(queryParams);
-            
+            var result = await StandardService.GetPagedAsync(queryParams, filterActive);
+
             if (result.Success && result.Data != null)
             {
-                var items = result.Data.Items;
-                if (filterActive.HasValue)
-                {
-                    items = items.Where(x => x.IsActive == filterActive.Value).ToList();
-                }
-                standards = items;
-                totalCount = filterActive.HasValue ? standards.Count : result.Data.TotalCount;
+                standards = result.Data.Items;
+                totalCount = result.Data.TotalCount;
                 return new TableData<ProductionStandardDto>
                 {
                     Items = standards,

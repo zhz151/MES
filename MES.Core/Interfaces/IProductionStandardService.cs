@@ -6,7 +6,7 @@ namespace MES.Core.Interfaces;
 public interface IProductionStandardService
 {
     // 分页查询（用于 ServerData 模式）
-    Task<PagedResult<ProductionStandardDto>> GetPagedAsync(QueryParams query);
+    Task<PagedResult<ProductionStandardDto>> GetPagedAsync(QueryParams query, bool? isActive = null);
     
     // 获取所有（用于下拉框）
     Task<List<ProductionStandardDto>> GetAllAsync(bool onlyActive = true);

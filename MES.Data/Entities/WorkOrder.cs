@@ -79,12 +79,12 @@ public class WorkOrder : BaseEntity
     /// <summary>
     /// 物料名称
     /// </summary>
-    public string MaterialName { get; set; } = null!;
+    public MaterialName MaterialName { get; set; }
 
     /// <summary>
     /// 结算方式
     /// </summary>
-    public string SettlementMethod { get; set; } = null!;
+    public SettlementMethod SettlementMethod { get; set; }
 
     /// <summary>
     /// 产品标准编码
@@ -94,7 +94,7 @@ public class WorkOrder : BaseEntity
     /// <summary>
     /// 交货状态
     /// </summary>
-    public string DeliveryState { get; set; } = null!;
+    public DeliveryState DeliveryState { get; set; }
 
     /// <summary>
     /// 工厂牌号
@@ -129,7 +129,7 @@ public class WorkOrder : BaseEntity
     /// <summary>
     /// 长度状态
     /// </summary>
-    public string LengthStatus { get; set; } = null!;
+    public LengthStatus LengthStatus { get; set; }
 
     // ========== 长度与汇总字段 ==========
 
@@ -173,5 +173,5 @@ public class WorkOrder : BaseEntity
     /// <summary>
     /// 技术要求（Special=特殊，Normal=常规）
     /// </summary>
-    public string TechnicalRequirements { get; set; } = "Normal";
+    public RequirementType TechnicalRequirements { get; set; } = RequirementType.Normal;
 }

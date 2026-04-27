@@ -24,7 +24,7 @@ public class ProductionStandardService : IProductionStandardService
     /// <summary>
     /// 分页查询产品标准（支持关键字搜索）
     /// </summary>
-    public async Task<PagedResult<ProductionStandardDto>> GetPagedAsync(QueryParams query)
+    public async Task<PagedResult<ProductionStandardDto>> GetPagedAsync(QueryParams query, bool? isActive = null)
     {
         var queryable = _context.ProductionStandards
             .Where(p => !p.IsDeleted)
@@ -36,6 +36,12 @@ public class ProductionStandardService : IProductionStandardService
             queryable = queryable.Where(p =>
                 p.StandardCode.Contains(query.Keyword) ||
                 p.StandardName.Contains(query.Keyword));
+        }
+
+        // 状态筛选（在服务端执行，确保分页总数正确）
+        if (isActive.HasValue)
+        {
+            queryable = queryable.Where(p => p.IsActive == isActive.Value);
         }
 
         // 排序

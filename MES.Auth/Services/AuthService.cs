@@ -1,9 +1,11 @@
 // 文件路径: MES.Auth/Services/AuthService.cs
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using MES.Data.Entities;
 using MES.Core.DTOs.Auth;
@@ -88,9 +90,12 @@ public class AuthService : IAuthService
         var jwtSettings = _configuration.GetSection("JwtSettings").Get<JwtSettings>();
 
         // Return login response
+        var refreshToken = await GenerateAndStoreRefreshTokenAsync(user.Id);
         var loginResponse = new LoginResponse
         {
             Token = token,
+            RefreshToken = refreshToken.Token,
+            RefreshTokenExpires = refreshToken.Expires,
             Email = user.Email ?? string.Empty,
             UserName = user.UserName ?? string.Empty,
             Roles = roles.ToList(),
@@ -102,13 +107,40 @@ public class AuthService : IAuthService
     }
 
     /// <summary>
+    /// Generate and store a refresh token
+    /// </summary>
+    private async Task<RefreshToken> GenerateAndStoreRefreshTokenAsync(string userId)
+    {
+        // Revoke old tokens for this user
+        var oldTokens = await _context.RefreshTokens
+            .Where(rt => rt.UserId == userId && !rt.IsRevoked)
+            .ToListAsync();
+        foreach (var old in oldTokens)
+        {
+            old.IsRevoked = true;
+        }
+
+        // Generate new refresh token
+        var refreshToken = new RefreshToken
+        {
+            Token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64)),
+            UserId = userId,
+            Expires = DateTime.UtcNow.AddDays(7),
+            IsRevoked = false
+        };
+
+        _context.RefreshTokens.Add(refreshToken);
+        await _context.SaveChangesAsync();
+
+        return refreshToken;
+    }
+
+    /// <summary>
     /// Get current user information
     /// </summary>
     public async Task<ApiResponse<UserInfoResponse>> GetCurrentUserAsync()
     {
-        // TODO: Get current user from HttpContext
         await Task.CompletedTask;
-
         return ApiResponse<UserInfoResponse>.Fail("Get current user information feature to be implemented");
     }
 
@@ -132,10 +164,58 @@ public class AuthService : IAuthService
             return ApiResponse<LoginResponse>.Fail("Refresh token cannot be empty");
         }
 
-        // TODO: Implement refresh token logic
-        await Task.CompletedTask;
+        // Find the stored refresh token
+        var storedToken = await _context.RefreshTokens
+            .FirstOrDefaultAsync(rt => rt.Token == refreshToken && !rt.IsRevoked);
 
-        return ApiResponse<LoginResponse>.Fail("Refresh token feature to be implemented");
+        if (storedToken == null)
+        {
+            return ApiResponse<LoginResponse>.Fail("Invalid refresh token");
+        }
+
+        if (storedToken.Expires < DateTime.UtcNow)
+        {
+            storedToken.IsRevoked = true;
+            await _context.SaveChangesAsync();
+            return ApiResponse<LoginResponse>.Fail("Refresh token has expired, please login again");
+        }
+
+        // Revoke the current refresh token (rotation)
+        storedToken.IsRevoked = true;
+
+        // Find user
+        var user = await _userManager.FindByIdAsync(storedToken.UserId);
+        if (user == null || !user.IsActive)
+        {
+            await _context.SaveChangesAsync();
+            return ApiResponse<LoginResponse>.Fail("User account does not exist or has been disabled");
+        }
+
+        // Get user roles
+        var roles = await _userManager.GetRolesAsync(user);
+
+        // Generate new access token
+        var token = await _jwtService.GenerateTokenAsync(user, roles);
+
+        // Get JWT settings
+        var jwtSettings = _configuration.GetSection("JwtSettings").Get<JwtSettings>();
+
+        // Generate new refresh token
+        var newRefreshToken = await GenerateAndStoreRefreshTokenAsync(user.Id);
+
+        var loginResponse = new LoginResponse
+        {
+            Token = token,
+            RefreshToken = newRefreshToken.Token,
+            RefreshTokenExpires = newRefreshToken.Expires,
+            Email = user.Email ?? string.Empty,
+            UserName = user.UserName ?? string.Empty,
+            Roles = roles.ToList(),
+            Expires = DateTime.UtcNow.AddMinutes(jwtSettings?.ExpireMinutes ?? 480),
+            FullName = user.FullName ?? string.Empty
+        };
+
+        return ApiResponse<LoginResponse>.Ok(loginResponse);
     }
 }
 

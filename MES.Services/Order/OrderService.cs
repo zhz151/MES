@@ -464,16 +464,16 @@ public async Task DeleteAsync(int id)
 
         var orderItem = await CreateOrderItemFromAddRequestAsync(request, salesOrder.Id, sequence);
         _context.OrderItems.Add(orderItem);
-        
+
         // 更新订单的最后项次变更时间
         salesOrder.LastItemChangeTime = DateTimeOffset.Now;
         _context.Entry(salesOrder).Property(x => x.LastItemChangeTime).IsModified = true;
-        
-        await _context.SaveChangesAsync();
 
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
+            await _context.SaveChangesAsync();
+
             if (orderItem.ProductionStandard == null && orderItem.ProductionStandardId > 0)
             {
                 orderItem.ProductionStandard = await _context.ProductionStandards

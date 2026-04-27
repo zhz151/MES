@@ -37,6 +37,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<StandardGradeMapping> StandardGradeMappings { get; set; } = null!;
     public DbSet<WorkOrder> WorkOrders { get; set; } = null!;
     public DbSet<OrderChangeNotification> OrderChangeNotifications { get; set; } = null!;
+    public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -57,15 +58,17 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureStandardGradeMapping(builder);
         ConfigureWorkOrder(builder);
         ConfigureOrderChangeNotification(builder);
+        ConfigureRefreshToken(builder);
 
         // 软删除过滤：只为需要软删除的实体添加（排除 WorkOrder 和 OrderChangeNotification）
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
             if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
             {
-                // 工单和通知不应用软删除过滤（使用物理删除）
-                if (entityType.ClrType == typeof(WorkOrder) || 
-                    entityType.ClrType == typeof(OrderChangeNotification))
+                // 工单、通知、刷新令牌不应用软删除过滤（使用物理删除）
+                if (entityType.ClrType == typeof(WorkOrder) ||
+                    entityType.ClrType == typeof(OrderChangeNotification) ||
+                    entityType.ClrType == typeof(RefreshToken))
                 {
                     continue;
                 }
@@ -107,8 +110,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
                     break;
 
                 case EntityState.Deleted:
-                    // 工单和通知：物理删除，保持 Deleted 状态
-                    if (entry.Entity is WorkOrder || entry.Entity is OrderChangeNotification)
+                    // 工单、通知、刷新令牌：物理删除，保持 Deleted 状态
+                    if (entry.Entity is WorkOrder || entry.Entity is OrderChangeNotification || entry.Entity is RefreshToken)
                     {
                         // 保持 Deleted 状态，让 EF Core 执行物理删除
                         break;
@@ -294,17 +297,17 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Salesman).IsRequired().HasMaxLength(50);
             entity.Property(e => e.EndCustomer).HasMaxLength(200);
             entity.Property(e => e.DeliveryDate).IsRequired().HasColumnType("datetime");
-            entity.Property(e => e.MaterialName).IsRequired().HasMaxLength(20);
-            entity.Property(e => e.SettlementMethod).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.MaterialName).IsRequired().HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.SettlementMethod).IsRequired().HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.StandardCode).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.DeliveryState).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DeliveryState).IsRequired().HasConversion<string>().HasMaxLength(50);
             entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Specification).IsRequired().HasMaxLength(50);
             entity.Property(e => e.OuterDiameterNegative).HasColumnName("OuterDiameterMinus").IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0);
             entity.Property(e => e.OuterDiameterPositive).HasColumnName("OuterDiameterPlus").IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0);
             entity.Property(e => e.WallThicknessNegative).HasColumnName("WallThicknessMinus").IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0);
             entity.Property(e => e.WallThicknessPositive).HasColumnName("WallThicknessPlus").IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0);
-            entity.Property(e => e.LengthStatus).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.LengthStatus).IsRequired().HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.MinLength).HasColumnType("decimal(18,2)");
             entity.Property(e => e.MaxLength).HasColumnType("decimal(18,2)");
             entity.Property(e => e.TotalQuantity).IsRequired().HasDefaultValue(0);
@@ -312,7 +315,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.TotalWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0);
             entity.Property(e => e.TotalItemCount).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.ItemDetails).HasColumnType("nvarchar(max)");
-            entity.Property(e => e.TechnicalRequirements).IsRequired().HasMaxLength(20).HasDefaultValue("Normal");
+            entity.Property(e => e.TechnicalRequirements).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(RequirementType.Normal);
 
             // 索引（不包含 IsDeleted 条件，因为工单使用物理删除）
             entity.HasIndex(e => e.WorkOrderNo).IsUnique().HasDatabaseName("UK_WorkOrder_WorkOrderNo");
@@ -340,6 +343,22 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => e.CreatedTime).HasDatabaseName("IX_OrderChangeNotification_CreatedTime");
             entity.HasIndex(e => e.IsRead).HasDatabaseName("IX_OrderChangeNotification_IsRead");
             entity.HasIndex(e => e.OrderNumber).HasDatabaseName("IX_OrderChangeNotification_OrderNumber");
+        });
+    }
+
+    private static void ConfigureRefreshToken(ModelBuilder builder)
+    {
+        builder.Entity<RefreshToken>(entity =>
+        {
+            entity.ToTable("RefreshToken");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Token).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Expires).IsRequired();
+            entity.Property(e => e.IsRevoked).IsRequired().HasDefaultValue(false);
+            entity.HasIndex(e => e.Token).IsUnique().HasDatabaseName("UK_RefreshToken_Token");
+            entity.HasIndex(e => e.UserId).HasDatabaseName("IX_RefreshToken_UserId");
+            entity.HasIndex(e => e.Expires).HasDatabaseName("IX_RefreshToken_Expires");
         });
     }
 }
