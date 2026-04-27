@@ -31,6 +31,7 @@ public class OrderService : IOrderService
     {
         var queryable = _context.SalesOrders
             .Where(so => !so.IsDeleted)
+            .AsNoTracking()
             .AsQueryable();
 
         // 订单状态筛选
@@ -182,6 +183,7 @@ public class OrderService : IOrderService
     {
         // 先查询订单（不 Include 导航属性，避免全局软删除过滤器将 LEFT JOIN 转为 INNER JOIN）
         var salesOrder = await _context.SalesOrders
+            .AsNoTracking()
             .Include(so => so.OrderItems.Where(oi => !oi.IsDeleted))
             .FirstOrDefaultAsync(so => so.Id == id && !so.IsDeleted);
 

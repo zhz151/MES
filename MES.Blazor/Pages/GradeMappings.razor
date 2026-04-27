@@ -3,10 +3,11 @@
 @using MES.Core.DTOs
 @using MES.Core.Models
 @using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
 @inject GradeMappingService GradeMappingService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
-@inject IJSRuntime JS
+@inject IDialogService DialogService
 @attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
 
 <div class="mt-4">
@@ -190,10 +191,14 @@
 
     private async Task DeleteGradeMapping(StandardGradeMappingDto mapping)
     {
-        var confirmed = await JS.InvokeAsync<bool>("confirm",
-            $"确定要删除牌号对照 \"{mapping.StandardGrade}\" 吗？\n\n如果该牌号已被订单使用，删除后可能导致数据问题！");
-
-        if (confirmed)
+        var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
+        {
+            ["ContentText"] = $"确定要删除牌号对照 \"{mapping.StandardGrade}\" 吗？\n\n如果该牌号已被订单使用，删除后可能导致数据问题！",
+            ["ConfirmText"] = "确认删除",
+            ["Color"] = Color.Error
+        });
+        var dialogResult = await dialog.Result;
+        if (!dialogResult.Canceled)
         {
             try
             {

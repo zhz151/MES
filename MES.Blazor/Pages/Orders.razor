@@ -5,11 +5,12 @@
 @using MES.Core.Models
 @using MES.Core.Enums
 @using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
 @inject OrderService OrderService
 @inject ProductRequirementService RequirementService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
-@inject IJSRuntime JS
+@inject IDialogService DialogService
 @attribute [Authorize]
 
 <div class="mt-4">
@@ -285,10 +286,14 @@
 
     private async Task ConfirmOrder(SalesOrderListDto order)
     {
-        var confirmed = await JS.InvokeAsync<bool>("confirm",
-            $"确定要将订单 \"{order.OrderNumber}\" 确认为正式合同吗？\n\n确认后状态将变为\"已确认\"。");
-
-        if (!confirmed) return;
+        var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
+        {
+            ["ContentText"] = $"确定要将订单 \"{order.OrderNumber}\" 确认为正式合同吗？\n\n确认后状态将变为\"已确认\"。",
+            ["ConfirmText"] = "确认",
+            ["Color"] = Color.Primary
+        });
+        var dialogResult = await dialog.Result;
+        if (dialogResult.Canceled) return;
 
         try
         {
@@ -316,13 +321,16 @@
         }
     }
 
-    // 取消订单 = 软删除
     private async Task CancelOrder(SalesOrderListDto order)
     {
-        var confirmed = await JS.InvokeAsync<bool>("confirm",
-            $"确定要取消订单 \"{order.OrderNumber}\" 吗？\n\n取消后订单将不可见，数据将保留但不可恢复！");
-
-        if (!confirmed) return;
+        var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
+        {
+            ["ContentText"] = $"确定要取消订单 \"{order.OrderNumber}\" 吗？\n\n取消后订单将不可见，数据将保留但不可恢复！",
+            ["ConfirmText"] = "确认取消",
+            ["Color"] = Color.Error
+        });
+        var dialogResult = await dialog.Result;
+        if (dialogResult.Canceled) return;
 
         try
         {

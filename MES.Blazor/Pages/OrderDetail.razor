@@ -9,11 +9,12 @@
 @inject OrderService OrderService
 @inject CustomerService CustomerService
 @inject ProductRequirementService RequirementService
+@using MES.Blazor.Shared
 @inject ProductionStandardService StandardService
 @inject GradeMappingService GradeMappingService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
-@inject IJSRuntime JS
+@inject IDialogService DialogService
 @attribute [Authorize]
 
 <div class="mt-4">
@@ -598,9 +599,14 @@
 
     private async Task RemoveItem(OrderItemViewModel item)
     {
-        var confirmed = await JS.InvokeAsync<bool>("confirm",
-            $"确定要删除项次 {item.Sequence} 吗？\n\n删除后数据将不可恢复！");
-        if (!confirmed) return;
+        var deleteDialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
+        {
+            ["ContentText"] = $"确定要删除项次 {item.Sequence} 吗？\n\n删除后数据将不可恢复！",
+            ["ConfirmText"] = "确认删除",
+            ["Color"] = Color.Error
+        });
+        var deleteResult = await deleteDialog.Result;
+        if (deleteResult.Canceled) return;
 
         if (item.Id.HasValue && item.Id.Value > 0)
             itemsToDelete.Add(item.Id.Value);
@@ -825,8 +831,7 @@ private async Task SaveAllChanges()
     // 如果有错误，一次性显示所有错误
     if (errors.Any())
     {
-        var errorMsg = string.Join("\n", errors);
-        await JS.InvokeVoidAsync("alert", errorMsg);
+        Snackbar.Add(string.Join("；", errors), Severity.Error);
         return;
     }
 
@@ -835,8 +840,14 @@ private async Task SaveAllChanges()
     {
         var warningMsg = string.Join("\n\n", warnings);
         warningMsg += "\n\n是否继续提交？";
-        var confirmed = await JS.InvokeAsync<bool>("confirm", warningMsg);
-        if (!confirmed) return;
+        var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
+        {
+            ["ContentText"] = warningMsg,
+            ["ConfirmText"] = "继续提交",
+            ["Color"] = Color.Warning
+        });
+        var dialogResult = await dialog.Result;
+        if (dialogResult.Canceled) return;
     }
 
     isSubmitting = true;

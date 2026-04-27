@@ -6,6 +6,7 @@ using MES.Core.Models;
 using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Mapping;
 
 namespace MES.Services;
 
@@ -122,6 +123,7 @@ public class ProductionStandardService : IProductionStandardService
     public async Task<ProductionStandardDto> GetByIdAsync(int id)
     {
         var entity = await _context.ProductionStandards
+            .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
 
         if (entity == null)
@@ -129,15 +131,7 @@ public class ProductionStandardService : IProductionStandardService
             throw new BusinessException("Production standard does not exist");
         }
 
-        return new ProductionStandardDto
-        {
-            Id = entity.Id,
-            StandardCode = entity.StandardCode,
-            StandardName = entity.StandardName,
-            Remark = entity.Remark,
-            SortOrder = entity.SortOrder,
-            IsActive = entity.IsActive
-        };
+        return entity.ToDto();
     }
 
     /// <summary>
@@ -166,15 +160,7 @@ public class ProductionStandardService : IProductionStandardService
         _context.ProductionStandards.Add(entity);
         await _context.SaveChangesAsync();
 
-        return new ProductionStandardDto
-        {
-            Id = entity.Id,
-            StandardCode = entity.StandardCode,
-            StandardName = entity.StandardName,
-            Remark = entity.Remark,
-            SortOrder = entity.SortOrder,
-            IsActive = entity.IsActive
-        };
+        return entity.ToDto();
     }
 
     /// <summary>
@@ -225,15 +211,7 @@ public class ProductionStandardService : IProductionStandardService
 
         await _context.SaveChangesAsync();
 
-        return new ProductionStandardDto
-        {
-            Id = entity.Id,
-            StandardCode = entity.StandardCode,
-            StandardName = entity.StandardName,
-            Remark = entity.Remark,
-            SortOrder = entity.SortOrder,
-            IsActive = entity.IsActive
-        };
+        return entity.ToDto();
     }
 
     /// <summary>

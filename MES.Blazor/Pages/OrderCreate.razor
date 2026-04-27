@@ -9,10 +9,11 @@
 @inject OrderService OrderService
 @inject CustomerService CustomerService
 @inject ProductionStandardService StandardService
+@using MES.Blazor.Shared
 @inject GradeMappingService GradeMappingService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
-@inject IJSRuntime JS
+@inject IDialogService DialogService
 @attribute [Authorize(Roles = "OrderDirector,Admin")]
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
@@ -733,8 +734,7 @@
         // 3. 如果有错误，一次性显示所有错误
         if (errors.Any())
         {
-            var errorMsg = string.Join("\n", errors);
-            await JS.InvokeVoidAsync("alert", errorMsg);
+            Snackbar.Add(string.Join("；", errors), Severity.Error);
             return;
         }
 
@@ -743,8 +743,14 @@
         {
             var warningMsg = string.Join("\n\n", warnings);
             warningMsg += "\n\n是否继续提交？";
-            var confirmed = await JS.InvokeAsync<bool>("confirm", warningMsg);
-            if (!confirmed) return;
+            var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
+            {
+                ["ContentText"] = warningMsg,
+                ["ConfirmText"] = "继续提交",
+                ["Color"] = Color.Warning
+            });
+            var dialogResult = await dialog.Result;
+            if (dialogResult.Canceled) return;
         }
 
         // 5. 构建请求

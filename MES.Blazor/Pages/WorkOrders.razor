@@ -3,11 +3,12 @@
 @using MES.Core.DTOs
 @using MES.Core.Models
 @using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
 @inject WorkOrderService WorkOrderService
 @inject NotificationService NotificationService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
-@inject IJSRuntime JS
+@inject IDialogService DialogService
 @attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
@@ -448,9 +449,14 @@ else if (order.WorkOrderStatus == "Pending")
 
     private async Task SoftDeleteWorkOrder(int workOrderId, string orderNumber)
     {
-        var confirmed = await JS.InvokeAsync<bool>("confirm",
-            $"确定要删除订单 \"{orderNumber}\" 关联的工单吗？\n\n删除后数据将不可恢复！");
-        if (!confirmed) return;
+        var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
+        {
+            ["ContentText"] = $"确定要删除订单 \"{orderNumber}\" 关联的工单吗？\n\n删除后数据将不可恢复！",
+            ["ConfirmText"] = "确认删除",
+            ["Color"] = Color.Error
+        });
+        var dialogResult = await dialog.Result;
+        if (dialogResult.Canceled) return;
 
         try
         {

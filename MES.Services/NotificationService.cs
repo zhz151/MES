@@ -5,6 +5,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Mapping;
 
 namespace MES.Services;
 

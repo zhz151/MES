@@ -7,6 +7,7 @@ using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Mapping;
 
 namespace MES.Services;
 
@@ -91,6 +92,7 @@ public class CustomerService : ICustomerService
     public async Task<CustomerProfileDto> GetByIdAsync(int id)
     {
         var entity = await _context.CustomerProfiles
+            .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
 
         if (entity == null)
@@ -98,19 +100,7 @@ public class CustomerService : ICustomerService
             throw new BusinessException("Customer does not exist");
         }
 
-        return new CustomerProfileDto
-        {
-            Id = entity.Id,
-            CustomerCode = entity.CustomerCode,
-            Salesman = entity.Salesman,
-            CustomerUnit = entity.CustomerUnit,
-            EndCustomer = entity.EndCustomer,
-            ContactPerson = entity.ContactPerson,
-            ContactPhone = entity.ContactPhone,
-            Address = entity.Address,
-            Status = entity.Status,  // 直接赋值枚举
-            Remark = entity.Remark
-        };
+        return entity.ToDto();
     }
 
     /// <summary>
@@ -143,19 +133,7 @@ public class CustomerService : ICustomerService
         _context.CustomerProfiles.Add(entity);
         await _context.SaveChangesAsync();
 
-        return new CustomerProfileDto
-        {
-            Id = entity.Id,
-            CustomerCode = entity.CustomerCode,
-            Salesman = entity.Salesman,
-            CustomerUnit = entity.CustomerUnit,
-            EndCustomer = entity.EndCustomer,
-            ContactPerson = entity.ContactPerson,
-            ContactPhone = entity.ContactPhone,
-            Address = entity.Address,
-            Status = entity.Status,
-            Remark = entity.Remark
-        };
+        return entity.ToDto();
     }
 
     /// <summary>
@@ -233,19 +211,7 @@ public class CustomerService : ICustomerService
             throw new BusinessException("客户信息已被其他用户修改，请刷新后重试");
         }
 
-        return new CustomerProfileDto
-        {
-            Id = entity.Id,
-            CustomerCode = entity.CustomerCode,
-            Salesman = entity.Salesman,
-            CustomerUnit = entity.CustomerUnit,
-            EndCustomer = entity.EndCustomer,
-            ContactPerson = entity.ContactPerson,
-            ContactPhone = entity.ContactPhone,
-            Address = entity.Address,
-            Status = entity.Status,
-            Remark = entity.Remark
-        };
+        return entity.ToDto();
     }
 
     /// <summary>

@@ -7,6 +7,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Mapping;
 
 namespace MES.Services;
 
@@ -207,6 +208,7 @@ public class WorkOrderService : IWorkOrderService
         }
 
         var orderItems = await _context.OrderItems
+            .AsNoTracking()
             .Include(oi => oi.ProductRequirement)
             .Where(oi => oi.SalesOrderId == salesOrder.Id && !oi.IsDeleted)
             .OrderBy(oi => oi.Sequence)
@@ -732,25 +734,12 @@ public class WorkOrderService : IWorkOrderService
         }
 
         var workOrders = await workOrderQuery
+            .AsNoTracking()
             .Skip(query.Skip)
             .Take(query.PageSize)
             .ToListAsync();
 
-        var items = workOrders.Select(wo => new WorkOrderListDto
-        {
-            Id = wo.Id,
-            WorkOrderNo = wo.WorkOrderNo,
-            SalesOrderNo = wo.SalesOrderNo,
-            ProductionMainNo = wo.ProductionMainNo,
-            ProductionSubNo = wo.ProductionSubNo,
-            MaterialName = wo.MaterialName.ToString(),
-            Specification = wo.Specification,
-            DeliveryDate = wo.DeliveryDate,
-            TotalQuantity = wo.TotalQuantity,
-            TotalWeight = wo.TotalWeight,
-            Status = (int)wo.Status,
-            CreatedTime = wo.CreatedTime
-        }).ToList();
+        var items = workOrders.Select(wo => wo.ToListDto()).ToList();
 
         return new PagedResult<WorkOrderListDto>
         {
@@ -764,74 +753,24 @@ public class WorkOrderService : IWorkOrderService
     public async Task<WorkOrderDetailDto> GetByIdAsync(int id)
     {
         var workOrder = await _context.WorkOrders
+            .AsNoTracking()
             .FirstOrDefaultAsync(wo => wo.Id == id);
         if (workOrder == null)
             throw new BusinessException("工单不存在");
 
-        return new WorkOrderDetailDto
-        {
-            Id = workOrder.Id,
-            WorkOrderNo = workOrder.WorkOrderNo,
-            SalesOrderNo = workOrder.SalesOrderNo,
-            ProductionMainNo = workOrder.ProductionMainNo,
-            ProductionSubNo = workOrder.ProductionSubNo,
-            OrderItemIds = workOrder.OrderItemIds,
-            Status = (int)workOrder.Status,
-            SignDate = workOrder.SignDate,
-            Salesman = workOrder.Salesman,
-            EndCustomer = workOrder.EndCustomer,
-            DeliveryDate = workOrder.DeliveryDate,
-            DelayPenalty = workOrder.DelayPenalty,
-            MaterialName = workOrder.MaterialName.ToString(),
-            SettlementMethod = workOrder.SettlementMethod.ToString(),
-            StandardCode = workOrder.StandardCode,
-            DeliveryState = workOrder.DeliveryState.ToString(),
-            PlantGrade = workOrder.PlantGrade,
-            Specification = workOrder.Specification,
-            OuterDiameterNegative = workOrder.OuterDiameterNegative,
-            OuterDiameterPositive = workOrder.OuterDiameterPositive,
-            WallThicknessNegative = workOrder.WallThicknessNegative,
-            WallThicknessPositive = workOrder.WallThicknessPositive,
-            LengthStatus = workOrder.LengthStatus.ToString(),
-            MinLength = workOrder.MinLength,
-            MaxLength = workOrder.MaxLength,
-            TotalQuantity = workOrder.TotalQuantity,
-            TotalMeters = workOrder.TotalMeters,
-            TotalWeight = workOrder.TotalWeight,
-            TotalItemCount = workOrder.TotalItemCount,
-            ItemDetails = workOrder.ItemDetails,
-            TechnicalRequirements = workOrder.TechnicalRequirements.ToString(),
-            RowVersion = workOrder.RowVersion,
-            CreatedTime = workOrder.CreatedTime,
-            CreatedBy = workOrder.CreatedBy,
-            UpdatedTime = workOrder.UpdatedTime,
-            UpdatedBy = workOrder.UpdatedBy
-        };
+        return workOrder.ToDetailDto();
     }
 
     public async Task<List<WorkOrderListDto>> GetBySalesOrderNoAsync(string salesOrderNo)
     {
         var workOrders = await _context.WorkOrders
+            .AsNoTracking()
             .Where(wo => wo.SalesOrderNo == salesOrderNo)
             .OrderBy(wo => wo.ProductionMainNo)
             .ThenBy(wo => wo.ProductionSubNo)
             .ToListAsync();
 
-        return workOrders.Select(wo => new WorkOrderListDto
-        {
-            Id = wo.Id,
-            WorkOrderNo = wo.WorkOrderNo,
-            SalesOrderNo = wo.SalesOrderNo,
-            ProductionMainNo = wo.ProductionMainNo,
-            ProductionSubNo = wo.ProductionSubNo,
-            MaterialName = wo.MaterialName.ToString(),
-            Specification = wo.Specification,
-            DeliveryDate = wo.DeliveryDate,
-            TotalQuantity = wo.TotalQuantity,
-            TotalWeight = wo.TotalWeight,
-            Status = (int)wo.Status,
-            CreatedTime = wo.CreatedTime
-        }).ToList();
+        return workOrders.Select(wo => wo.ToListDto()).ToList();
     }
 
     public async Task<UpdateWorkOrderStatusResponseDto> UpdateStatusAsync(int id, UpdateWorkOrderStatusRequest request)
@@ -964,6 +903,7 @@ public class WorkOrderService : IWorkOrderService
 
         // 2. 获取该订单下的所有工单（状态不为已取消的工单）
         var workOrders = await _context.WorkOrders
+            .AsNoTracking()
             .Where(wo => wo.SalesOrderNo == salesOrderNo && wo.Status != WorkOrderStatus.Cancelled)
             .OrderBy(wo => wo.ProductionMainNo)
             .ThenBy(wo => wo.ProductionSubNo)

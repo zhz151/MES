@@ -6,7 +6,6 @@
 @inject WorkOrderService WorkOrderService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
-@inject IJSRuntime JS
 
 @attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
 
@@ -190,19 +189,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // 纯 WASM 下 [SupplyParameterFromQuery] 在客户端导航时可能无法绑定，
-        // 使用 JS 直接从浏览器地址栏解析查询参数
-        try
+        // 从 NavigationManager 解析查询参数
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (!string.IsNullOrEmpty(uri.Query))
         {
-            var search = await JS.InvokeAsync<string>("window.location.search");
-            if (!string.IsNullOrEmpty(search))
-            {
-                var query = System.Web.HttpUtility.ParseQueryString(search.TrimStart('?'));
-                if (string.IsNullOrEmpty(salesOrderNo))
-                    salesOrderNo = query["salesOrderNo"] ?? salesOrderNo;
-            }
+            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+            if (string.IsNullOrEmpty(salesOrderNo))
+                salesOrderNo = query["salesOrderNo"] ?? salesOrderNo;
         }
-        catch { /* 忽略 JS 调用失败 */ }
 
         await LoadData();
     }

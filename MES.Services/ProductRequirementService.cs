@@ -6,6 +6,7 @@ using MES.Core.Exceptions;
 using MES.Core.Interfaces.Order;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Mapping;
 
 namespace MES.Services.Order;
 
@@ -21,10 +22,11 @@ public class ProductRequirementService : IProductRequirementService
     public async Task<ProductRequirementDto?> GetByOrderItemIdAsync(int orderItemId)
     {
         var entity = await _context.ProductRequirements
+            .AsNoTracking()
             .FirstOrDefaultAsync(pr => pr.OrderItemId == orderItemId && !pr.IsDeleted);
 
         if (entity == null) return null;
-        return await MapToDtoWithSequence(entity);
+        return await MapToDtoWithSequenceAsync(entity);
     }
 
     public async Task<ProductRequirementDto> CreateOrUpdateAsync(int orderItemId, CreateProductRequirementRequest request)
@@ -49,7 +51,7 @@ public class ProductRequirementService : IProductRequirementService
             existing.OtherRequirement = request.OtherRequirement;
 
             await _context.SaveChangesAsync();
-            return await MapToDtoWithSequence(existing, orderItem.Sequence);
+            return await MapToDtoWithSequenceAsync(existing, orderItem.Sequence);
         }
         else
         {
@@ -68,7 +70,7 @@ public class ProductRequirementService : IProductRequirementService
 
             _context.ProductRequirements.Add(entity);
             await _context.SaveChangesAsync();
-            return await MapToDtoWithSequence(entity, orderItem.Sequence);
+            return await MapToDtoWithSequenceAsync(entity, orderItem.Sequence);
         }
     }
 
@@ -102,21 +104,7 @@ public Task DeleteAsync(int orderItemId)
             if (existingRequirements.TryGetValue(item.Id, out var requirement))
             {
                 // 有技术要求，添加到结果
-                result.Add(new ProductRequirementDto
-                {
-                    Id = requirement.Id,
-                    OrderItemId = requirement.OrderItemId,
-                    Sequence = item.Sequence,
-                    RequirementType = requirement.RequirementType,
-                    ChemicalComposition = requirement.ChemicalComposition,
-                    MechanicalProperty = requirement.MechanicalProperty,
-                    ToleranceRequirement = requirement.ToleranceRequirement,
-                    SurfaceQuality = requirement.SurfaceQuality,
-                    NdtRequirement = requirement.NdtRequirement,
-                    OtherRequirement = requirement.OtherRequirement,
-                    CreatedTime = requirement.CreatedTime,
-                    UpdatedTime = requirement.UpdatedTime
-                });
+                result.Add(requirement.ToDto(item.Sequence));
             }
             // 没有技术要求：不添加到结果，保持 null/不存在状态
         }
@@ -124,7 +112,7 @@ public Task DeleteAsync(int orderItemId)
         return result;
     }
 
-    private async Task<ProductRequirementDto> MapToDtoWithSequence(ProductRequirement entity, int? explicitSequence = null)
+    private async Task<ProductRequirementDto> MapToDtoWithSequenceAsync(ProductRequirement entity, int? explicitSequence = null)
     {
         int sequence;
         if (explicitSequence.HasValue)
@@ -138,20 +126,6 @@ public Task DeleteAsync(int orderItemId)
             sequence = orderItem?.Sequence ?? 0;
         }
 
-        return new ProductRequirementDto
-        {
-            Id = entity.Id,
-            OrderItemId = entity.OrderItemId,
-            Sequence = sequence,
-            RequirementType = entity.RequirementType,
-            ChemicalComposition = entity.ChemicalComposition,
-            MechanicalProperty = entity.MechanicalProperty,
-            ToleranceRequirement = entity.ToleranceRequirement,
-            SurfaceQuality = entity.SurfaceQuality,
-            NdtRequirement = entity.NdtRequirement,
-            OtherRequirement = entity.OtherRequirement,
-            CreatedTime = entity.CreatedTime,
-            UpdatedTime = entity.UpdatedTime
-        };
+        return entity.ToDto(sequence);
     }
 }

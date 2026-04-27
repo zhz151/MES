@@ -6,6 +6,7 @@ using MES.Core.Models;
 using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Mapping;
 
 namespace MES.Services;
 
@@ -108,6 +109,7 @@ public class GradeMappingService : IGradeMappingService
     public async Task<StandardGradeMappingDto> GetByIdAsync(int id)
     {
         var entity = await _context.StandardGradeMappings
+            .AsNoTracking()
             .FirstOrDefaultAsync(g => g.Id == id && !g.IsDeleted);
 
         if (entity == null)
@@ -115,17 +117,7 @@ public class GradeMappingService : IGradeMappingService
             throw new BusinessException("Grade mapping does not exist");
         }
 
-        return new StandardGradeMappingDto
-        {
-            Id = entity.Id,
-            StandardGrade = entity.StandardGrade,
-            PlantGrade = entity.PlantGrade,
-            Density = entity.Density,
-            HeatTreatment = entity.HeatTreatment,
-            SpecialMaterial = entity.SpecialMaterial,
-            SpecialNote = entity.SpecialNote,
-            Remark = entity.Remark
-        };
+        return entity.ToDto();
     }
 
     /// <summary>
@@ -156,17 +148,7 @@ public class GradeMappingService : IGradeMappingService
         _context.StandardGradeMappings.Add(entity);
         await _context.SaveChangesAsync();
 
-        return new StandardGradeMappingDto
-        {
-            Id = entity.Id,
-            StandardGrade = entity.StandardGrade,
-            PlantGrade = entity.PlantGrade,
-            Density = entity.Density,
-            HeatTreatment = entity.HeatTreatment,
-            SpecialMaterial = entity.SpecialMaterial,
-            SpecialNote = entity.SpecialNote,
-            Remark = entity.Remark
-        };
+        return entity.ToDto();
     }
 
     /// <summary>
@@ -227,17 +209,7 @@ public class GradeMappingService : IGradeMappingService
 
         await _context.SaveChangesAsync();
 
-        return new StandardGradeMappingDto
-        {
-            Id = entity.Id,
-            StandardGrade = entity.StandardGrade,
-            PlantGrade = entity.PlantGrade,
-            Density = entity.Density,
-            HeatTreatment = entity.HeatTreatment,
-            SpecialMaterial = entity.SpecialMaterial,
-            SpecialNote = entity.SpecialNote,
-            Remark = entity.Remark
-        };
+        return entity.ToDto();
     }
 
     /// <summary>
