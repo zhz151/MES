@@ -108,36 +108,29 @@ code {
 
 /* ============================================================
    表格基础样式 - 全局单行截断 + 横向滚动
+   ============================================================
+   关键说明：
+   - table-layout: fixed 是让 text-overflow: ellipsis
+     在 <td>/<th> 上生效的前提条件（display:table-cell 本身
+     不支持 overflow/ellipsis）。
+   - 各列宽度由 MudBlazor 按内容比例分配，列数过多时
+     mud-table-container（overflow-x:auto）自动出现横向滚动条。
    ============================================================ */
 
 .mud-table-container {
     overflow-x: auto !important;
+    max-width: 100%;
 }
 
 .mud-table {
     width: 100%;
-    table-layout: auto;
+    table-layout: fixed;
 }
 
-/*
-   所有表格单元格（表头+数据）统一单行不换行。
-   MudBlazor 的 <MudTh> 和 <MudTd> 均渲染为 class="mud-table-cell"。
-   当列数过多或内容过宽时，mud-table-container 的横向滚动条自动出现。
-*/
 .mud-table-cell {
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-}
-
-@media (max-width: 959px) {
-    .mud-table .mud-table-row .mud-table-cell {
-        display: table-cell !important;
-        width: auto !important;
-    }
-    .mud-table .mud-table-row {
-        border-bottom: 1px solid var(--mud-palette-table-lines);
-    }
 }
 
 /* ============================================================
