@@ -12,6 +12,7 @@ public class ExcelImportService
 {
     private readonly AppDbContext _context;
     private readonly bool _skipExistingOrders;
+    private readonly string _excelFolder;
     
     private readonly Dictionary<string, int> _customerCache = new();
     private readonly Dictionary<string, int> _standardCache = new();
@@ -21,14 +22,15 @@ public class ExcelImportService
     
     private int _maxCustomerCodeSeq = 0;
 
-    public ExcelImportService(AppDbContext context, bool skipExistingOrders = true)
+    public ExcelImportService(AppDbContext context, bool skipExistingOrders, string excelFolder)
     {
         _context = context;
         _skipExistingOrders = skipExistingOrders;
+        _excelFolder = excelFolder;
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
     }
 
-    public async Task<ImportResult> ImportAllAsync(string excelFolder)
+    public async Task<ImportResult> ImportAllAsync()
     {
         var result = new ImportResult { Section = "完整导入" };
 
@@ -37,8 +39,8 @@ public class ExcelImportService
             await LoadCacheAsync();
             result.Log("缓存加载完成", ImportLogLevel.Success);
 
-            // 1. 产品标准（同步方法）
-            var standardFile = Path.Combine(excelFolder, "1产品标准列表.xlsx");
+            // 1. 产品标准
+            var standardFile = Path.Combine(_excelFolder, "产品标准.xlsx");
             if (File.Exists(standardFile))
             {
                 var r = ImportProductStandards(standardFile);
@@ -47,9 +49,13 @@ public class ExcelImportService
                 UpdateStandardCache();
                 result.Log("产品标准已保存", ImportLogLevel.Success);
             }
+            else
+            {
+                result.Log($"文件不存在: 产品标准.xlsx", ImportLogLevel.Warning);
+            }
 
-            // 2. 牌号对照（同步方法）
-            var gradeFile = Path.Combine(excelFolder, "1牌号对照表.xlsx");
+            // 2. 牌号对照
+            var gradeFile = Path.Combine(_excelFolder, "牌号对照.xlsx");
             if (File.Exists(gradeFile))
             {
                 var r = ImportGradeMappings(gradeFile);
@@ -57,9 +63,13 @@ public class ExcelImportService
                 await _context.SaveChangesAsync();
                 result.Log("牌号对照已保存", ImportLogLevel.Success);
             }
+            else
+            {
+                result.Log($"文件不存在: 牌号对照.xlsx", ImportLogLevel.Warning);
+            }
 
-            // 3. 客户档案（同步方法）
-            var customerFile = Path.Combine(excelFolder, "2销售员及往来单位.xlsx");
+            // 3. 客户档案
+            var customerFile = Path.Combine(_excelFolder, "客户档案.xlsx");
             if (File.Exists(customerFile))
             {
                 var r = ImportCustomers(customerFile);
@@ -68,9 +78,13 @@ public class ExcelImportService
                 UpdateCustomerCache();
                 result.Log($"客户档案已保存，共 {_customerCache.Count} 条", ImportLogLevel.Success);
             }
+            else
+            {
+                result.Log($"文件不存在: 客户档案.xlsx", ImportLogLevel.Warning);
+            }
 
-            // 4. 订单主表（同步方法）
-            var orderFile = Path.Combine(excelFolder, "3销售订单聚合根.xlsx");
+            // 4. 订单主表
+            var orderFile = Path.Combine(_excelFolder, "销售单.xlsx");
             if (File.Exists(orderFile))
             {
                 var r = ImportOrders(orderFile);
@@ -78,9 +92,13 @@ public class ExcelImportService
                 await _context.SaveChangesAsync();
                 result.Log("订单主表已保存", ImportLogLevel.Success);
             }
+            else
+            {
+                result.Log($"文件不存在: 销售单.xlsx", ImportLogLevel.Warning);
+            }
 
-            // 5. 订单项次（同步方法）
-            var itemFile = Path.Combine(excelFolder, "4销售订单实体.xlsx");
+            // 5. 订单项次
+            var itemFile = Path.Combine(_excelFolder, "销售项次.xlsx");
             if (File.Exists(itemFile))
             {
                 var r = ImportOrderItems(itemFile);
@@ -88,15 +106,23 @@ public class ExcelImportService
                 await _context.SaveChangesAsync();
                 result.Log("订单项次已保存", ImportLogLevel.Success);
             }
+            else
+            {
+                result.Log($"文件不存在: 销售项次.xlsx", ImportLogLevel.Warning);
+            }
 
-            // 6. 产品要求（同步方法）
-            var requirementFile = Path.Combine(excelFolder, "5技术要求.xlsx");
+            // 6. 产品要求
+            var requirementFile = Path.Combine(_excelFolder, "技术要求.xlsx");
             if (File.Exists(requirementFile))
             {
                 var r = ImportProductRequirements(requirementFile);
                 result.Merge(r);
                 await _context.SaveChangesAsync();
                 result.Log("产品要求已保存", ImportLogLevel.Success);
+            }
+            else
+            {
+                result.Log($"文件不存在: 技术要求.xlsx", ImportLogLevel.Warning);
             }
 
             result.Log("所有数据导入完成", ImportLogLevel.Success);
@@ -176,7 +202,7 @@ public class ExcelImportService
         var worksheet = package.Workbook.Worksheets[0];
         var rowCount = worksheet.Dimension.Rows;
 
-        for (int row = 1; row <= rowCount; row++)
+        for (int row = 2; row <= rowCount; row++)  // 从第2行开始（跳过标题）
         {
             try
             {
@@ -191,8 +217,8 @@ public class ExcelImportService
                 var entity = new ProductionStandard
                 {
                     StandardCode = excelRow.StandardCode,
-                    StandardName = excelRow.StandardName,
-                    SortOrder = row,
+                    StandardName = excelRow.StandardName ?? string.Empty,
+                    SortOrder = row - 1,
                     IsActive = true
                 };
                 _context.ProductionStandards.Add(entity);
@@ -215,7 +241,7 @@ public class ExcelImportService
         var worksheet = package.Workbook.Worksheets[0];
         var rowCount = worksheet.Dimension.Rows;
 
-        for (int row = 1; row <= rowCount; row++)
+        for (int row = 2; row <= rowCount; row++)
         {
             try
             {
@@ -260,7 +286,7 @@ public class ExcelImportService
         
         var nextSeq = _maxCustomerCodeSeq + 1;
 
-        for (int row = 1; row <= rowCount; row++)
+        for (int row = 2; row <= rowCount; row++)
         {
             try
             {
@@ -275,8 +301,12 @@ public class ExcelImportService
                     continue; 
                 }
 
-                var customerCode = $"KH{nextSeq:D5}";
+                var customerCode = string.IsNullOrEmpty(excelRow.CustomerCode) 
+                    ? $"KH{nextSeq:D5}" 
+                    : excelRow.CustomerCode;
                 nextSeq++;
+                
+                var status = excelRow.Status == "停用" ? CustomerStatus.Inactive : CustomerStatus.Active;
                 
                 var entity = new CustomerProfile
                 {
@@ -284,7 +314,11 @@ public class ExcelImportService
                     CustomerUnit = excelRow.CustomerUnit,
                     Salesman = string.IsNullOrEmpty(excelRow.Salesman) ? "系统导入" : excelRow.Salesman,
                     EndCustomer = excelRow.EndCustomer,
-                    Status = CustomerStatus.Active
+                    ContactPerson = excelRow.ContactPerson,
+                    ContactPhone = excelRow.ContactPhone,
+                    Address = excelRow.Address,
+                    Status = status,
+                    Remark = excelRow.Remark
                 };
                 _context.CustomerProfiles.Add(entity);
                 result.Inserted++;
@@ -309,20 +343,13 @@ public class ExcelImportService
 
         Console.WriteLine($"\n📌 开始读取订单主表，共 {rowCount} 行数据\n");
 
-        for (int row = 1; row <= rowCount; row++)
+        for (int row = 2; row <= rowCount; row++)
         {
             try
             {
                 var excelRow = ExcelOrderRow.FromExcelRow(worksheet.Cells[row, 1]);
                 
                 if (string.IsNullOrEmpty(excelRow.OrderNumber)) continue;
-
-                if (!excelRow.OrderNumber.StartsWith("D"))
-                {
-                    result.Log($"行{row}: 订单号格式异常 '{excelRow.OrderNumber}'，跳过", ImportLogLevel.Warning);
-                    result.Skipped++;
-                    continue;
-                }
 
                 if (_importedOrderNumbers.Contains(excelRow.OrderNumber))
                 {
@@ -333,19 +360,14 @@ public class ExcelImportService
                     }
                 }
 
-                // 安全获取客户单元名称
                 var customerUnit = excelRow.CustomerUnit ?? string.Empty;
                 
                 if (!_customerCache.TryGetValue(customerUnit, out var customerId))
                 {
-                    // 模糊匹配（避免 null 引用）
-customerUnit = customerUnit ?? string.Empty;
-
-var matchedCustomer = _customerCache.Keys
-    .OfType<string>()  // 过滤掉 null 键，并让编译器知道返回的是 string
-    .FirstOrDefault(c => 
-        c.Contains(customerUnit, StringComparison.Ordinal) || 
-        customerUnit.Contains(c, StringComparison.Ordinal));
+                    var matchedCustomer = _customerCache.Keys
+                        .FirstOrDefault(c => 
+                            c.Contains(customerUnit, StringComparison.Ordinal) || 
+                            customerUnit.Contains(c, StringComparison.Ordinal));
                     
                     if (matchedCustomer != null)
                     {
@@ -360,12 +382,17 @@ var matchedCustomer = _customerCache.Keys
                     }
                 }
 
+                // 根据状态设置订单状态
+                var orderStatus = excelRow.Status == "已确认" 
+                    ? SalesOrderStatus.Confirmed 
+                    : (excelRow.IsDeleted ? SalesOrderStatus.Cancelled : SalesOrderStatus.Pending);
+
                 var entity = new SalesOrder
                 {
                     OrderNumber = excelRow.OrderNumber,
                     SignDate = excelRow.SignDate,
                     CustomerId = customerId,
-                    Status = excelRow.IsDeleted ? SalesOrderStatus.Cancelled : SalesOrderStatus.Pending
+                    Status = orderStatus
                 };
                 _context.SalesOrders.Add(entity);
                 _importedOrderNumbers.Add(excelRow.OrderNumber);
@@ -393,13 +420,13 @@ var matchedCustomer = _customerCache.Keys
         var worksheet = package.Workbook.Worksheets[0];
         var rowCount = worksheet.Dimension.Rows;
 
-        // 重新加载订单 ID 缓存（确保包含刚刚导入的订单）
+        // 重新加载订单 ID 缓存
         var orders = _context.SalesOrders.Where(o => !o.IsDeleted).ToList();
         foreach (var o in orders) _orderIdCache[o.OrderNumber] = o.Id;
         
         Console.WriteLine($"\n📌 开始读取订单项次，共 {rowCount} 行数据\n");
 
-        for (int row = 1; row <= rowCount; row++)
+        for (int row = 2; row <= rowCount; row++)
         {
             try
             {
@@ -478,7 +505,8 @@ var matchedCustomer = _customerCache.Keys
                     Quantity = excelRow.Quantity,
                     Meters = meters,
                     ContractWeight = excelRow.ContractWeight,
-                    TheoreticalWeight = excelRow.CalculatedWeight > 0 ? excelRow.CalculatedWeight : excelRow.ContractWeight
+                    TheoreticalWeight = excelRow.CalculatedWeight > 0 ? excelRow.CalculatedWeight : excelRow.ContractWeight,
+                    Remark = excelRow.Remark
                 };
                 _context.OrderItems.Add(entity);
                 result.Inserted++;
@@ -526,7 +554,7 @@ var matchedCustomer = _customerCache.Keys
         var skippedCount = 0;
         var notFoundCount = 0;
 
-        for (int row = 1; row <= rowCount; row++)
+        for (int row = 2; row <= rowCount; row++)
         {
             try
             {
@@ -556,7 +584,7 @@ var matchedCustomer = _customerCache.Keys
                 var entity = new ProductRequirement
                 {
                     OrderItemId = orderItemId,
-                     RequirementType = requirementType,
+                    RequirementType = requirementType,
                     ChemicalComposition = excelRow.ChemicalComposition,
                     MechanicalProperty = excelRow.MechanicalProperty,
                     ToleranceRequirement = excelRow.ToleranceRequirement,
@@ -583,6 +611,8 @@ var matchedCustomer = _customerCache.Keys
         result.Log($"完成: 新增{result.Inserted}, 跳过{skippedCount}, 项次不存在{notFoundCount}, 失败{result.Failed}", ImportLogLevel.Success);
         return result;
     }
+
+    // ========== 辅助方法 ==========
 
     private static SettlementMethod ParseSettlementMethod(string value) => value switch
     {

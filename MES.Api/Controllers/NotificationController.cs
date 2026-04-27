@@ -26,41 +26,41 @@ public class NotificationController : ControllerBase
     /// 获取未读通知数量
     /// </summary>
     [HttpGet("unread-count")]
-    public async Task<ApiResponse<int>> GetUnreadCount()
+    public async Task<ActionResult<ApiResponse<int>>> GetUnreadCount()
     {
         var count = await _notificationService.GetUnreadCountAsync();
-        return ApiResponse<int>.Ok(count);
+        return Ok(ApiResponse<int>.Ok(count));
     }
 
     /// <summary>
     /// 分页获取通知列表
     /// </summary>
-    [HttpGet("paged")]
-    public async Task<ApiResponse<PagedResult<OrderChangeNotificationDto>>> GetPaged(
+    [HttpGet("list")]
+    public async Task<ActionResult<ApiResponse<PagedResult<OrderChangeNotificationDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20)
     {
         var result = await _notificationService.GetPagedNotificationsAsync(pageIndex, pageSize);
-        return ApiResponse<PagedResult<OrderChangeNotificationDto>>.Ok(result);
+        return Ok(ApiResponse<PagedResult<OrderChangeNotificationDto>>.Ok(result));
     }
 
     /// <summary>
     /// 标记单条通知为已读
     /// </summary>
     [HttpPost("{id}/read")]
-    public async Task<ApiResponse> MarkAsRead(int id)
+    public async Task<ActionResult<ApiResponse>> MarkAsRead(int id)
     {
         await _notificationService.MarkAsReadAsync(id);
-        return ApiResponse.Ok("已标记为已读");
+        return Ok(ApiResponse.Ok("已标记为已读"));
     }
 
     /// <summary>
     /// 标记所有通知为已读
     /// </summary>
     [HttpPost("read-all")]
-    public async Task<ApiResponse> MarkAllAsRead()
+    public async Task<ActionResult<ApiResponse>> MarkAllAsRead()
     {
         await _notificationService.MarkAllAsReadAsync();
-        return ApiResponse.Ok("已全部标记为已读");
+        return Ok(ApiResponse.Ok("已全部标记为已读"));
     }
 }

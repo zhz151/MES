@@ -135,10 +135,10 @@
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="order">
-                    <MudTd>@order.OrderNumber</MudTd>
-                    <MudTd>@order.SignDate.ToString("yyyy-MM-dd")</MudTd>
-                    <MudTd>@order.Salesman</MudTd>
-                    <MudTd class="table-cell-clamp-2" title="@order.CustomerName">@order.CustomerName</MudTd>
+                    <MudTd class="table-cell-clamp-1" title="@order.OrderNumber">@order.OrderNumber</MudTd>
+                    <MudTd class="table-cell-clamp-1">@order.SignDate.ToString("yyyy-MM-dd")</MudTd>
+                    <MudTd class="table-cell-clamp-1" title="@order.Salesman">@order.Salesman</MudTd>
+                    <MudTd class="table-cell-clamp-2" title="@order.CustomerName"><span class="clamp-inner">@order.CustomerName</span></MudTd>
                     <MudTd>
                         <MudChip Size="Size.Small" 
                                  Color="@GetStatusColor(order.WorkOrderStatus)"
@@ -154,26 +154,36 @@
                                        OnClick="() => NavigateToTrace(order.OrderNumber)"
                                        Title="工单项次追溯" />
 
-                        @if (order.WorkOrderStatus == "Confirmed")
-                        {
-                            <MudButton Variant="Variant.Text"
-                                       Color="Color.Warning"
-                                       Size="Size.Small"
-                                       StartIcon="@Icons.Material.Filled.Refresh"
-                                       OnClick="() => NavigateToRegenerate(order.OrderNumber, order.WorkOrderStatus)">
-                                重新生成
-                            </MudButton>
-                        }
-                        else if (order.WorkOrderStatus == "Pending")
-                        {
-                            <MudButton Variant="Variant.Text"
-                                       Color="Color.Primary"
-                                       Size="Size.Small"
-                                       StartIcon="@Icons.Material.Filled.Add"
-                                       OnClick="() => NavigateToGenerate(order.OrderNumber, order.WorkOrderStatus)">
-                                生成工单
-                            </MudButton>
-                        }
+@if (order.WorkOrderStatus == "NotGenerated")
+{
+    <MudButton Variant="Variant.Text"
+               Color="Color.Primary"
+               Size="Size.Small"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="() => NavigateToGenerate(order.OrderNumber, order.WorkOrderStatus)">
+        生成工单
+    </MudButton>
+}
+else if (order.WorkOrderStatus == "Confirmed")
+{
+    <MudButton Variant="Variant.Text"
+               Color="Color.Warning"
+               Size="Size.Small"
+               StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="() => NavigateToRegenerate(order.OrderNumber, order.WorkOrderStatus)">
+        重新生成
+    </MudButton>
+}
+else if (order.WorkOrderStatus == "Pending")
+{
+    <MudButton Variant="Variant.Text"
+               Color="Color.Primary"
+               Size="Size.Small"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="() => NavigateToGenerate(order.OrderNumber, order.WorkOrderStatus)">
+        生成工单
+    </MudButton>
+}
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
@@ -295,7 +305,8 @@
         var result = await NotificationService.MarkAsReadAsync(id);
         if (result.Success)
         {
-            await notificationTable?.ReloadServerData();
+            if (notificationTable != null)
+                await notificationTable.ReloadServerData();
             await LoadUnreadCount();
             Snackbar.Add("已标记为已读", Severity.Success);
         }
@@ -310,7 +321,8 @@
         var result = await NotificationService.MarkAllAsReadAsync();
         if (result.Success)
         {
-            await notificationTable?.ReloadServerData();
+            if (notificationTable != null)
+                await notificationTable.ReloadServerData();
             await LoadUnreadCount();
             Snackbar.Add("已全部标记为已读", Severity.Success);
         }

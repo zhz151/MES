@@ -3,19 +3,20 @@ using OfficeOpenXml;
 namespace MES.Tools.Models;
 
 /// <summary>
-/// 产品标准行 (1产品标准列表.xlsx)
-/// 注意：第1列是ID序号，第2列才是标准编码，所以 offset=1
+/// 产品标准行 (产品标准.xlsx)
+/// 列：StandardCode, StandardName, Remark, SortOrder, IsActive
 /// </summary>
 public class ExcelProductStandardRow
 {
     public string StandardCode { get; set; } = string.Empty;
     public string? StandardName { get; set; }
+    
     public static ExcelProductStandardRow FromExcelRow(ExcelRange row)
     {
         return new ExcelProductStandardRow
         {
-            StandardCode = GetStringValue(row, 1),
-            StandardName = GetStringValue(row, 2)  
+            StandardCode = GetStringValue(row, 0),
+            StandardName = GetStringValue(row, 1)
         };
     }
     
@@ -23,8 +24,8 @@ public class ExcelProductStandardRow
 }
 
 /// <summary>
-/// 牌号对照行 (1牌号对照表.xlsx)
-/// 数据从第1列开始，offset 从 0 开始
+/// 牌号对照行 (牌号对照.xlsx)
+/// 列：StandardGrade, PlantGrade, Density, HeatTreatment, SpecialMaterial, SpecialNote, Remark
 /// </summary>
 public class ExcelGradeMappingRow
 {
@@ -37,16 +38,16 @@ public class ExcelGradeMappingRow
     
     public static ExcelGradeMappingRow FromExcelRow(ExcelRange row)
     {
-        var specialMaterialText = GetStringValue(row, 5);
+        var specialMaterialText = GetStringValue(row, 4);
         
         return new ExcelGradeMappingRow
         {
-            StandardGrade = GetStringValue(row, 1),
-            PlantGrade = GetStringValue(row, 2),
-            Density = GetDecimalValue(row, 3),
-            HeatTreatment = GetStringValue(row, 4),
+            StandardGrade = GetStringValue(row, 0),
+            PlantGrade = GetStringValue(row, 1),
+            Density = GetDecimalValue(row, 2),
+            HeatTreatment = GetStringValue(row, 3),
             SpecialMaterial = specialMaterialText == "是" || specialMaterialText == "1",
-            SpecialNote = GetStringValue(row, 6)
+            SpecialNote = GetStringValue(row, 5)
         };
     }
     
@@ -55,22 +56,34 @@ public class ExcelGradeMappingRow
 }
 
 /// <summary>
-/// 客户行 (2销售员及往来单位.xlsx)
-/// 数据从第1列开始，offset 从 0 开始
+/// 客户行 (客户档案.xlsx)
+/// 列：CustomerCode, Salesman, CustomerUnit, EndCustomer, ContactPerson, ContactPhone, Address, Status, Remark
 /// </summary>
 public class ExcelCustomerRow
 {
+    public string CustomerCode { get; set; } = string.Empty;
     public string Salesman { get; set; } = string.Empty;
     public string CustomerUnit { get; set; } = string.Empty;
     public string? EndCustomer { get; set; }
+    public string? ContactPerson { get; set; }
+    public string? ContactPhone { get; set; }
+    public string? Address { get; set; }
+    public string Status { get; set; } = string.Empty;  // Active/Inactive
+    public string? Remark { get; set; }
     
     public static ExcelCustomerRow FromExcelRow(ExcelRange row)
     {
         return new ExcelCustomerRow
         {
+            CustomerCode = GetStringValue(row, 0),
             Salesman = GetStringValue(row, 1),
             CustomerUnit = GetStringValue(row, 2),
-            EndCustomer = GetStringValue(row, 3)
+            EndCustomer = GetStringValue(row, 3),
+            ContactPerson = GetStringValue(row, 4),
+            ContactPhone = GetStringValue(row, 5),
+            Address = GetStringValue(row, 6),
+            Status = GetStringValue(row, 7),
+            Remark = GetStringValue(row, 8)
         };
     }
     
@@ -78,8 +91,8 @@ public class ExcelCustomerRow
 }
 
 /// <summary>
-/// 订单主表行 (3销售订单聚合根.xlsx)
-/// 数据从第1列开始，offset 从 0 开始
+/// 订单主表行 (销售单.xlsx)
+/// 列：OrderNumber, SignDate, Salesman, CustomerUnit, EndCustomer, Status
 /// </summary>
 public class ExcelOrderRow
 {
@@ -88,18 +101,23 @@ public class ExcelOrderRow
     public string Salesman { get; set; } = string.Empty;
     public string CustomerUnit { get; set; } = string.Empty;
     public string? EndCustomer { get; set; }
-    public bool IsDeleted { get; set; }
+    public string Status { get; set; } = string.Empty;  // 订单状态：已确认/待处理/已取消
+    
+    /// <summary>
+    /// 转换为 IsDeleted 标记（订单取消时 IsDeleted = true）
+    /// </summary>
+    public bool IsDeleted => Status == "已取消";
     
     public static ExcelOrderRow FromExcelRow(ExcelRange row)
     {
         var orderNumber = GetStringValue(row, 0);
         var signDateStr = GetStringValue(row, 1);
         var customerUnit = GetStringValue(row, 3);
-        var isDeletedText = GetStringValue(row, 10);
+        var status = GetStringValue(row, 5);
         
         if (row.Start.Row <= 6)
         {
-            Console.WriteLine($"📌 [订单行{row.Start.Row}] 订单号='{orderNumber}', 签订日期='{signDateStr}', 客户='{customerUnit}'");
+            Console.WriteLine($"📌 [订单行{row.Start.Row}] 订单号='{orderNumber}', 签订日期='{signDateStr}', 客户='{customerUnit}', 状态='{status}'");
         }
         
         return new ExcelOrderRow
@@ -109,7 +127,7 @@ public class ExcelOrderRow
             Salesman = GetStringValue(row, 2),
             CustomerUnit = customerUnit,
             EndCustomer = GetStringValue(row, 4),
-            IsDeleted = isDeletedText == "1"
+            Status = status
         };
     }
     
@@ -124,8 +142,12 @@ public class ExcelOrderRow
 }
 
 /// <summary>
-/// 订单项次行 (4销售订单实体.xlsx)
-/// 数据从第1列开始，offset 从 0 开始
+/// 订单项次行 (销售项次.xlsx)
+/// 列：OrderNumber, Sequence, DeliveryDate, DelayPenalty, SettlementMethod, MaterialName, 
+///     StandardCode, DeliveryState, StandardGrade, PlantGrade, Density, OuterDiameter, 
+///     WallThickness, Specification, OuterDiameterNegative, OuterDiameterPositive, 
+///     WallThicknessNegative, WallThicknessPositive, LengthStatus, MinLength, MaxLength, 
+///     Quantity, Meters, ContractWeight, TheoreticalWeight, Remark
 /// </summary>
 public class ExcelOrderItemRow
 {
@@ -154,7 +176,12 @@ public class ExcelOrderItemRow
     public decimal? Meters { get; set; }
     public decimal ContractWeight { get; set; }
     public decimal CalculatedWeight { get; set; }
-    public bool IsDeleted { get; set; }
+    public string? Remark { get; set; }
+    
+    /// <summary>
+    /// 所有项次都是有效数据，没有 IsDeleted 标记
+    /// </summary>
+    public bool IsDeleted => false;
     
     public static ExcelOrderItemRow FromExcelRow(ExcelRange row)
     {
@@ -193,7 +220,7 @@ public class ExcelOrderItemRow
             Meters = GetNullableDecimalValue(row, 22),
             ContractWeight = GetDecimalValue(row, 23),
             CalculatedWeight = GetDecimalValue(row, 24),
-            IsDeleted = GetIntValue(row, 25) == 1
+            Remark = GetStringValue(row, 25)
         };
     }
     
@@ -206,15 +233,15 @@ public class ExcelOrderItemRow
 }
 
 /// <summary>
-/// 产品要求行 (5技术要求.xlsx)
-/// 数据从第1列开始，offset 从 0 开始
+/// 产品要求行 (技术要求.xlsx)
+/// 列：OrderNumber, Sequence, RequirementType, ChemicalComposition, MechanicalProperty, 
+///     ToleranceRequirement, SurfaceQuality, NdtRequirement, OtherRequirement
 /// </summary>
 public class ExcelProductRequirementRow
 {
     public string OrderNumber { get; set; } = string.Empty;
     public int Sequence { get; set; }
-    public string StandardCode { get; set; } = string.Empty;
-    public int RequirementTypeValue { get; set; }
+    public int RequirementTypeValue { get; set; }  // 0=普通, 1=特殊
     public string? ChemicalComposition { get; set; }
     public string? MechanicalProperty { get; set; }
     public string? ToleranceRequirement { get; set; }
@@ -226,7 +253,10 @@ public class ExcelProductRequirementRow
     {
         var orderNumber = GetStringValue(row, 0);
         var sequence = GetIntValue(row, 1);
-        var requirementTypeVal = GetIntValue(row, 3);
+        var requirementTypeText = GetStringValue(row, 2);  // 第3列：特殊/普通
+        
+        // 转换：特殊→1, 普通→0
+        var requirementTypeVal = requirementTypeText == "特殊" ? 1 : 0;
         
         if (row.Start.Row <= 6 && !string.IsNullOrEmpty(orderNumber))
         {
@@ -237,14 +267,13 @@ public class ExcelProductRequirementRow
         {
             OrderNumber = orderNumber,
             Sequence = sequence,
-            StandardCode = GetStringValue(row, 2),
             RequirementTypeValue = requirementTypeVal,
-            ChemicalComposition = GetStringValue(row, 4),
-            MechanicalProperty = GetStringValue(row, 5),
-            ToleranceRequirement = GetStringValue(row, 6),
-            SurfaceQuality = GetStringValue(row, 7),
-            NdtRequirement = GetStringValue(row, 8),
-            OtherRequirement = GetStringValue(row, 9)
+            ChemicalComposition = GetStringValue(row, 3),
+            MechanicalProperty = GetStringValue(row, 4),
+            ToleranceRequirement = GetStringValue(row, 5),
+            SurfaceQuality = GetStringValue(row, 6),
+            NdtRequirement = GetStringValue(row, 7),
+            OtherRequirement = GetStringValue(row, 8)
         };
     }
     

@@ -1,3 +1,4 @@
+// 文件路径: MES.Tools/Program.cs
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,17 +26,19 @@ Console.WriteLine($"🔗 数据库: {connectionString?.Split(';').FirstOrDefault
 Console.WriteLine($"⏭️ 跳过已存在订单: {(skipExisting ? "是" : "否")}");
 Console.WriteLine();
 
-string[] requiredFiles = {
-    "1产品标准列表.xlsx",
-    "1牌号对照表.xlsx",
-    "2销售员及往来单位.xlsx",
-    "3销售订单聚合根.xlsx",
-    "4销售订单实体.xlsx",
-    "5技术要求.xlsx"
+// ========== 修改：使用新的文件名 ==========
+var requiredFiles = new Dictionary<string, string>
+{
+    { "产品标准.xlsx", "ProductStandard" },
+    { "牌号对照.xlsx", "GradeMapping" },
+    { "客户档案.xlsx", "Customer" },
+    { "销售单.xlsx", "SalesOrder" },
+    { "销售项次.xlsx", "OrderItem" },
+    { "技术要求.xlsx", "ProductRequirement" }
 };
 
 Console.WriteLine("📋 检查 Excel 文件:");
-foreach (var file in requiredFiles)
+foreach (var file in requiredFiles.Keys)
 {
     var fullPath = Path.Combine(excelFolder, file);
     Console.WriteLine($"   {(File.Exists(fullPath) ? "✅" : "❌")} {file}");
@@ -55,7 +58,8 @@ services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 services.AddScoped(sp => new ExcelImportService(
     sp.GetRequiredService<AppDbContext>(), 
-    skipExisting));
+    skipExisting,
+    excelFolder));  // 传入文件夹路径
 
 var serviceProvider = services.BuildServiceProvider();
 using var scope = serviceProvider.CreateScope();
@@ -64,7 +68,7 @@ var importService = scope.ServiceProvider.GetRequiredService<ExcelImportService>
 try
 {
     Console.WriteLine("🚀 开始导入数据...\n");
-    var result = await importService.ImportAllAsync(excelFolder);
+    var result = await importService.ImportAllAsync();
     
     Console.WriteLine();
     result.PrintSummary();

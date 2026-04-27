@@ -49,7 +49,7 @@ public class ProductRequirementService : IProductRequirementService
             existing.OtherRequirement = request.OtherRequirement;
 
             await _context.SaveChangesAsync();
-            return await MapToDtoWithSequence(existing);
+            return await MapToDtoWithSequence(existing, orderItem.Sequence);
         }
         else
         {
@@ -68,7 +68,7 @@ public class ProductRequirementService : IProductRequirementService
 
             _context.ProductRequirements.Add(entity);
             await _context.SaveChangesAsync();
-            return await MapToDtoWithSequence(entity);
+            return await MapToDtoWithSequence(entity, orderItem.Sequence);
         }
     }
 

@@ -87,7 +87,7 @@ public class NotificationService : INotificationService
         var cutoff = DateTimeOffset.Now.AddMinutes(-minutes);
         return await _context.OrderChangeNotifications
             .AnyAsync(n => n.OrderNumber == orderNumber &&
-                           n.ChangeType == (int)NotificationChangeType.ItemChanged &&
+                           n.ChangeType == NotificationChangeType.ItemChanged &&
                            !n.IsRead &&
                            n.CreatedTime >= cutoff);
     }

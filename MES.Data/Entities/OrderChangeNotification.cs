@@ -1,4 +1,4 @@
-using System;
+using MES.Core.Enums;
 
 namespace MES.Data.Entities;
 
@@ -13,9 +13,9 @@ public class OrderChangeNotification : BaseEntity
     public string OrderNumber { get; set; } = null!;
 
     /// <summary>
-    /// 变更类型（0=删除，1=项次变更）
+    /// 变更类型
     /// </summary>
-    public int ChangeType { get; set; }
+    public NotificationChangeType ChangeType { get; set; }
 
     /// <summary>
     /// 清理工单数量（仅删除类型有效）

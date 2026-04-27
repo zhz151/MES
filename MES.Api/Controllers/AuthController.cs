@@ -1,4 +1,5 @@
-// ÎÄ¼þÂ·¾¶: MES.Api/Controllers/AuthController.cs
+// ï¿½Ä¼ï¿½Â·ï¿½ï¿½: MES.Api/Controllers/AuthController.cs
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Auth.Services;
 using MES.Core.Models;
@@ -8,6 +9,7 @@ namespace MES.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
+[Authorize]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
@@ -17,28 +19,35 @@ public class AuthController : ControllerBase
         _authService = authService;
     }
 
+    [AllowAnonymous]
     [HttpPost("login")]
-    public async Task<ApiResponse<LoginResponse>> Login([FromBody] LoginRequest request)
+    public async Task<ActionResult<ApiResponse<LoginResponse>>> Login([FromBody] LoginRequest request)
     {
-        return await _authService.LoginAsync(request);
+        var result = await _authService.LoginAsync(request);
+        return Ok(result);
     }
 
+    [AllowAnonymous]
     [HttpPost("logout")]
-    public async Task<ApiResponse<object>> Logout()
+    public async Task<ActionResult<ApiResponse<object>>> Logout()
     {
-        return await _authService.LogoutAsync();
+        var result = await _authService.LogoutAsync();
+        return Ok(result);
     }
 
+    [AllowAnonymous]
     [HttpPost("refresh-token")]
-    public async Task<ApiResponse<LoginResponse>> RefreshToken([FromBody] RefreshTokenRequest request)
+    public async Task<ActionResult<ApiResponse<LoginResponse>>> RefreshToken([FromBody] RefreshTokenRequest request)
     {
-        return await _authService.RefreshTokenAsync(request.RefreshToken);
+        var result = await _authService.RefreshTokenAsync(request.RefreshToken);
+        return Ok(result);
     }
 
     [HttpGet("current-user")]
-    public async Task<ApiResponse<UserInfoResponse>> GetCurrentUser()
+    public async Task<ActionResult<ApiResponse<UserInfoResponse>>> GetCurrentUser()
     {
-        return await _authService.GetCurrentUserAsync();
+        var result = await _authService.GetCurrentUserAsync();
+        return Ok(result);
     }
 }
 

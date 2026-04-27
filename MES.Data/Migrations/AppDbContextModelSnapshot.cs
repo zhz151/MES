@@ -299,12 +299,14 @@ namespace MES.Data.Migrations
                     b.Property<decimal>("OuterDiameterNegative")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
+                        .HasDefaultValue(0m)
+                        .HasColumnName("OuterDiameterMinus");
 
                     b.Property<decimal>("OuterDiameterPositive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
+                        .HasDefaultValue(0m)
+                        .HasColumnName("OuterDiameterPlus");
 
                     b.Property<string>("PlantGrade")
                         .IsRequired()
@@ -362,12 +364,14 @@ namespace MES.Data.Migrations
                     b.Property<decimal>("WallThicknessNegative")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
+                        .HasDefaultValue(0m)
+                        .HasColumnName("WallThicknessMinus");
 
                     b.Property<decimal>("WallThicknessPositive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
+                        .HasDefaultValue(0m)
+                        .HasColumnName("WallThicknessPlus");
 
                     b.HasKey("Id");
 
@@ -720,15 +724,17 @@ namespace MES.Data.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<decimal>("OuterDiameterMinus")
+                    b.Property<decimal>("OuterDiameterNegative")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
+                        .HasDefaultValue(0m)
+                        .HasColumnName("OuterDiameterMinus");
 
-                    b.Property<decimal>("OuterDiameterPlus")
+                    b.Property<decimal>("OuterDiameterPositive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
+                        .HasDefaultValue(0m)
+                        .HasColumnName("OuterDiameterPlus");
 
                     b.Property<string>("PlantGrade")
                         .IsRequired()
@@ -817,15 +823,17 @@ namespace MES.Data.Migrations
                     b.Property<DateTimeOffset>("UpdatedTime")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<decimal>("WallThicknessMinus")
+                    b.Property<decimal>("WallThicknessNegative")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
+                        .HasDefaultValue(0m)
+                        .HasColumnName("WallThicknessMinus");
 
-                    b.Property<decimal>("WallThicknessPlus")
+                    b.Property<decimal>("WallThicknessPositive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
+                        .HasDefaultValue(0m)
+                        .HasColumnName("WallThicknessPlus");
 
                     b.Property<string>("WorkOrderNo")
                         .IsRequired()

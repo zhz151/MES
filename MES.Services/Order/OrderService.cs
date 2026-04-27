@@ -58,7 +58,7 @@ public class OrderService : IOrderService
             {
                 // 已编辑：订单下所有项次都有技术要求
                 queryable = queryable.Where(so =>
-                    !_context.OrderItems.Any(oi => oi.SalesOrderId == so.Id && !oi.IsDeleted) ||
+                    _context.OrderItems.Any(oi => oi.SalesOrderId == so.Id && !oi.IsDeleted) &&
                     !_context.OrderItems.Any(oi => oi.SalesOrderId == so.Id && !oi.IsDeleted &&
                         !_context.ProductRequirements.Any(pr => pr.OrderItemId == oi.Id && !pr.IsDeleted)));
             }
@@ -180,14 +180,29 @@ public class OrderService : IOrderService
 
     public async Task<SalesOrderDetailDto> GetByIdAsync(int id)
     {
+        // 先查询订单（不 Include 导航属性，避免全局软删除过滤器将 LEFT JOIN 转为 INNER JOIN）
         var salesOrder = await _context.SalesOrders
-            .Include(so => so.Customer)
             .Include(so => so.OrderItems.Where(oi => !oi.IsDeleted))
-                .ThenInclude(oi => oi.ProductionStandard)
             .FirstOrDefaultAsync(so => so.Id == id && !so.IsDeleted);
 
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
+
+        // 单独加载 Customer（避免全局软删除过滤器冲突）
+        var customer = await _context.CustomerProfiles
+            .FirstOrDefaultAsync(c => c.Id == salesOrder.CustomerId);
+
+        // 单独加载 ProductionStandard（避免全局软删除过滤器冲突）
+        var psIds = salesOrder.OrderItems
+            .Where(oi => oi.ProductionStandardId > 0)
+            .Select(oi => oi.ProductionStandardId)
+            .Distinct()
+            .ToList();
+        var psDict = psIds.Any()
+            ? await _context.ProductionStandards
+                .Where(ps => psIds.Contains(ps.Id))
+                .ToDictionaryAsync(ps => ps.Id, ps => ps)
+            : new Dictionary<int, ProductionStandard>();
 
         return new SalesOrderDetailDto
         {
@@ -195,40 +210,44 @@ public class OrderService : IOrderService
             OrderNumber = salesOrder.OrderNumber,
             SignDate = salesOrder.SignDate,
             CustomerId = salesOrder.CustomerId,
-            CustomerName = salesOrder.Customer.CustomerUnit,
-            Salesman = salesOrder.Customer.Salesman,
+            CustomerName = customer?.CustomerUnit ?? "未知客户",
+            Salesman = customer?.Salesman ?? string.Empty,
             Status = salesOrder.Status,
             RowVersion = salesOrder.RowVersion,
-            Items = salesOrder.OrderItems.Select(oi => new OrderItemDto
+            Items = salesOrder.OrderItems.Select(oi =>
             {
-                Id = oi.Id,
-                Sequence = oi.Sequence,
-                DeliveryDate = oi.DeliveryDate,
-                DelayPenalty = oi.DelayPenalty,
-                SettlementMethod = oi.SettlementMethod,
-                MaterialName = oi.MaterialName,
-                ProductionStandardCode = oi.ProductionStandard.StandardCode,
-                DeliveryState = oi.DeliveryState,
-                StandardGrade = oi.StandardGrade,
-                PlantGrade = oi.PlantGrade,
-                Density = oi.Density,
-                OuterDiameter = oi.OuterDiameter,
-                WallThickness = oi.WallThickness,
-                Specification = oi.Specification,
-                OuterDiameterNegative = oi.OuterDiameterNegative,
-                OuterDiameterPositive = oi.OuterDiameterPositive,
-                WallThicknessNegative = oi.WallThicknessNegative,
-                WallThicknessPositive = oi.WallThicknessPositive,
-                LengthStatus = oi.LengthStatus,
-                MinLength = oi.MinLength,
-                MaxLength = oi.MaxLength,
-                Quantity = oi.Quantity,
-                Meters = oi.Meters,
-                ContractWeight = oi.ContractWeight,
-                TheoreticalWeight = oi.TheoreticalWeight,
-                Remark = oi.Remark,
-                CreatedTime = oi.CreatedTime,
-                UpdatedTime = oi.UpdatedTime
+                psDict.TryGetValue(oi.ProductionStandardId, out var ps);
+                return new OrderItemDto
+                {
+                    Id = oi.Id,
+                    Sequence = oi.Sequence,
+                    DeliveryDate = oi.DeliveryDate,
+                    DelayPenalty = oi.DelayPenalty,
+                    SettlementMethod = oi.SettlementMethod,
+                    MaterialName = oi.MaterialName,
+                    ProductionStandardCode = ps?.StandardCode ?? string.Empty,
+                    DeliveryState = oi.DeliveryState,
+                    StandardGrade = oi.StandardGrade,
+                    PlantGrade = oi.PlantGrade,
+                    Density = oi.Density,
+                    OuterDiameter = oi.OuterDiameter,
+                    WallThickness = oi.WallThickness,
+                    Specification = oi.Specification,
+                    OuterDiameterNegative = oi.OuterDiameterNegative,
+                    OuterDiameterPositive = oi.OuterDiameterPositive,
+                    WallThicknessNegative = oi.WallThicknessNegative,
+                    WallThicknessPositive = oi.WallThicknessPositive,
+                    LengthStatus = oi.LengthStatus,
+                    MinLength = oi.MinLength,
+                    MaxLength = oi.MaxLength,
+                    Quantity = oi.Quantity,
+                    Meters = oi.Meters,
+                    ContractWeight = oi.ContractWeight,
+                    TheoreticalWeight = oi.TheoreticalWeight,
+                    Remark = oi.Remark,
+                    CreatedTime = oi.CreatedTime,
+                    UpdatedTime = oi.UpdatedTime
+                };
             }).ToList()
         };
     }
@@ -379,25 +398,36 @@ public async Task DeleteAsync(int id)
         _context.WorkOrders.RemoveRange(workOrders);
     }
 
-    // 4. 保存更改
-    await _context.SaveChangesAsync();
-
-    // 5. 生成通知（告知已自动清理工单）
-    if (workOrderCount > 0)
+    // 4. 使用事务确保数据一致性
+    using var transaction = await _context.Database.BeginTransactionAsync();
+    try
     {
-        var notification = new OrderChangeNotification
-        {
-            OrderNumber = salesOrder.OrderNumber,
-            ChangeType = (int)NotificationChangeType.Deleted,
-            WorkOrderCount = workOrderCount,
-            IsRead = false
-        };
-        _context.OrderChangeNotifications.Add(notification);
         await _context.SaveChangesAsync();
-    }
 
-    _logger.LogInformation("订单 {OrderNumber} 已被删除，同时自动清理了 {Count} 个关联工单",
-        salesOrder.OrderNumber, workOrderCount);
+        // 5. 生成通知（告知已自动清理工单）
+        if (workOrderCount > 0)
+        {
+            var notification = new OrderChangeNotification
+            {
+                OrderNumber = salesOrder.OrderNumber,
+                ChangeType = NotificationChangeType.Deleted,
+                WorkOrderCount = workOrderCount,
+                IsRead = false
+            };
+            _context.OrderChangeNotifications.Add(notification);
+            await _context.SaveChangesAsync();
+        }
+
+        await transaction.CommitAsync();
+
+        _logger.LogInformation("订单 {OrderNumber} 已被删除，同时自动清理了 {Count} 个关联工单",
+            salesOrder.OrderNumber, workOrderCount);
+    }
+    catch
+    {
+        await transaction.RollbackAsync();
+        throw;
+    }
 }
 
     #endregion
@@ -441,15 +471,25 @@ public async Task DeleteAsync(int id)
         
         await _context.SaveChangesAsync();
 
-        if (orderItem.ProductionStandard == null && orderItem.ProductionStandardId > 0)
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
         {
-            orderItem.ProductionStandard = await _context.ProductionStandards
-                .FirstOrDefaultAsync(ps => ps.Id == orderItem.ProductionStandardId);
+            if (orderItem.ProductionStandard == null && orderItem.ProductionStandardId > 0)
+            {
+                orderItem.ProductionStandard = await _context.ProductionStandards
+                    .FirstOrDefaultAsync(ps => ps.Id == orderItem.ProductionStandardId) ?? null!;
+            }
+
+            await CreateItemChangedNotificationIfNeededAsync(orderId);
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
         }
 
-        await CreateItemChangedNotificationIfNeededAsync(orderId);
-
-        return MapToOrderItemDto(orderItem);
+        return await MapToOrderItemDto(orderItem);
     }
 
     public async Task<OrderItemDto> UpdateItemAsync(int orderId, int itemId, UpdateOrderItemRequest request)
@@ -538,10 +578,20 @@ public async Task DeleteAsync(int id)
         salesOrder.LastItemChangeTime = DateTimeOffset.Now;
         _context.Entry(salesOrder).Property(x => x.LastItemChangeTime).IsModified = true;
 
-        await _context.SaveChangesAsync();
-        await CreateItemChangedNotificationIfNeededAsync(orderId);
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+            await CreateItemChangedNotificationIfNeededAsync(orderId);
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
 
-        return MapToOrderItemDto(orderItem);
+        return await MapToOrderItemDto(orderItem);
     }
 
     public async Task DeleteItemAsync(int orderId, int itemId)
@@ -570,8 +620,18 @@ public async Task DeleteAsync(int id)
         salesOrder.LastItemChangeTime = DateTimeOffset.Now;
         _context.Entry(salesOrder).Property(x => x.LastItemChangeTime).IsModified = true;
 
-        await _context.SaveChangesAsync();
-        await CreateItemChangedNotificationIfNeededAsync(orderId);
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+            await CreateItemChangedNotificationIfNeededAsync(orderId);
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     #endregion
@@ -818,12 +878,12 @@ public async Task DeleteAsync(int id)
         return Math.Round(weight, 2);
     }
 
-    private OrderItemDto MapToOrderItemDto(OrderItem orderItem)
+    private async Task<OrderItemDto> MapToOrderItemDto(OrderItem orderItem)
     {
         if (orderItem.ProductionStandard == null && orderItem.ProductionStandardId > 0)
         {
-            orderItem.ProductionStandard = _context.ProductionStandards
-                .FirstOrDefault(ps => ps.Id == orderItem.ProductionStandardId);
+            orderItem.ProductionStandard = await _context.ProductionStandards
+                .FirstOrDefaultAsync(ps => ps.Id == orderItem.ProductionStandardId) ?? null!;
         }
 
         return new OrderItemDto
@@ -891,7 +951,7 @@ public async Task DeleteAsync(int id)
         var notification = new OrderChangeNotification
         {
             OrderNumber = salesOrder.OrderNumber,
-            ChangeType = (int)NotificationChangeType.ItemChanged,
+            ChangeType = NotificationChangeType.ItemChanged,
             WorkOrderCount = 0,
             IsRead = false
         };

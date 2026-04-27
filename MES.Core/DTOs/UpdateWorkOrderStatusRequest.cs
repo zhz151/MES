@@ -10,10 +10,10 @@ namespace MES.Core.DTOs;
 public class UpdateWorkOrderStatusRequest
 {
     /// <summary>
-    /// 工单状态（0=待处理，1=已确定，2=已取消）
+    /// 工单状态（0=未编制，1=已确定，2=待修正，3=已取消）
     /// </summary>
     [Required(ErrorMessage = "状态不能为空")]
-    [Range(0, 2, ErrorMessage = "状态值必须在0-2之间")]
+    [Range(0, 3, ErrorMessage = "状态值必须在0-3之间")]
     public int Status { get; set; }
 
     /// <summary>
@@ -47,9 +47,10 @@ public class UpdateWorkOrderStatusResponseDto
         {
             return Status switch
             {
-                0 => "待处理",
+                0 => "未编制",
                 1 => "已确定",
-                2 => "已取消",
+                2 => "待修正",
+                3 => "已取消",
                 _ => "未知"
             };
         }

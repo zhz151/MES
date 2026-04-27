@@ -44,11 +44,6 @@ public interface IWorkOrderService
     Task<List<WorkOrderListDto>> GetBySalesOrderNoAsync(string salesOrderNo);
 
     /// <summary>
-    /// 获取工单包含的原始订单项次列表（用于追溯页面）
-    /// </summary>
-    Task<List<OrderItemForWorkOrderDto>> GetWorkOrderItemsAsync(int workOrderId);
-
-    /// <summary>
     /// 更新工单状态
     /// </summary>
     Task<UpdateWorkOrderStatusResponseDto> UpdateStatusAsync(int id, UpdateWorkOrderStatusRequest request);

@@ -92,7 +92,7 @@ public class GradeMappingController : ControllerBase
     /// 删除牌号对照
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Admin)]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
     {
         await _service.DeleteAsync(id);

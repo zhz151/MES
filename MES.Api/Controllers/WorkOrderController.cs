@@ -46,7 +46,7 @@ public class WorkOrderController : ControllerBase
     #region 工单生成
 
     [HttpGet("items-for-generation")]
-    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<OrderItemForWorkOrderDto>>>> GetOrderItemsForWorkOrder(
         [FromQuery] string salesOrderNo)
     {
@@ -58,7 +58,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpPost("generate")]
-    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<GeneratedWorkOrderDto>>>> GenerateWorkOrders(
         [FromBody] CreateWorkOrderRequest request)
     {
@@ -88,14 +88,6 @@ public class WorkOrderController : ControllerBase
     {
         var result = await _workOrderService.GetByIdAsync(id);
         return Ok(ApiResponse<WorkOrderDetailDto>.Ok(result, "查询成功"));
-    }
-
-    [HttpGet("{id}/order-items")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<List<OrderItemForWorkOrderDto>>>> GetOrderItems(int id)
-    {
-        var result = await _workOrderService.GetWorkOrderItemsAsync(id);
-        return Ok(ApiResponse<List<OrderItemForWorkOrderDto>>.Ok(result, "查询成功"));
     }
 
     [HttpGet("by-order/{salesOrderNo}")]
@@ -134,7 +126,7 @@ public class WorkOrderController : ControllerBase
     public async Task<ActionResult<ApiResponse>> SoftDelete(int id)
     {
         await _workOrderService.SoftDeleteAsync(id);
-        return Ok(ApiResponse.Ok("工单已软删除"));
+        return Ok(ApiResponse.Ok("工单已删除"));
     }
 
     #endregion

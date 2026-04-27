@@ -1,4 +1,5 @@
 @page "/workorders/{Id:int}"
+@using MES.Blazor.Helpers
 @using MES.Blazor.Services
 @using MES.Core.DTOs
 @using Microsoft.AspNetCore.Authorization
@@ -113,7 +114,7 @@
                         <MudText Typo="Typo.body2"><strong>交货日期：</strong>@workOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText>
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>延期违约金：</strong>@(workOrder.DelayPenalty ? "是" : "否")</MudText>
+                        <MudText Typo="Typo.body2"><strong>延期罚款：</strong>@(workOrder.DelayPenalty ? "是" : "否")</MudText>
                     </MudItem>
                     <MudItem xs="12" md="3">
                         <MudText Typo="Typo.body2"><strong>物料名称：</strong>@GetMaterialNameText(workOrder.MaterialName)</MudText>
@@ -125,25 +126,25 @@
                         <MudText Typo="Typo.body2"><strong>产品标准：</strong>@workOrder.StandardCode</MudText>
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>交货状态：</strong>@GetDeliveryStateText(workOrder.DeliveryState)</MudText>
+                        <MudText Typo="Typo.body2"><strong>交货状态：</strong>@DisplayHelper.GetDeliveryStateText(workOrder.DeliveryState)</MudText>
                     </MudItem>
                     <MudItem xs="12" md="3">
                         <MudText Typo="Typo.body2"><strong>工厂牌号：</strong>@workOrder.PlantGrade</MudText>
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>规格：</strong>@FormatSpecification(workOrder.Specification)</MudText>
+                        <MudText Typo="Typo.body2"><strong>规格：</strong>@DisplayHelper.FormatSpecification(workOrder.Specification)</MudText>
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>外径公差：</strong>@FormatDecimal(workOrder.OuterDiameterMinus) / @FormatDecimal(workOrder.OuterDiameterPlus)</MudText>
+                        <MudText Typo="Typo.body2"><strong>外径公差：</strong>@DisplayHelper.FormatDecimal(workOrder.OuterDiameterNegative) / @DisplayHelper.FormatDecimal(workOrder.OuterDiameterPositive)</MudText>
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>壁厚公差：</strong>@FormatDecimal(workOrder.WallThicknessMinus) / @FormatDecimal(workOrder.WallThicknessPlus)</MudText>
+                        <MudText Typo="Typo.body2"><strong>壁厚公差：</strong>@DisplayHelper.FormatDecimal(workOrder.WallThicknessNegative) / @DisplayHelper.FormatDecimal(workOrder.WallThicknessPositive)</MudText>
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>长度状态：</strong>@GetLengthStatusText(workOrder.LengthStatus)</MudText>
+                        <MudText Typo="Typo.body2"><strong>长度状态：</strong>@DisplayHelper.GetLengthStatusText(workOrder.LengthStatus)</MudText>
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>长度范围：</strong>@FormatNullableDecimal(workOrder.MinLength) / @FormatNullableDecimal(workOrder.MaxLength)</MudText>
+                        <MudText Typo="Typo.body2"><strong>长度范围：</strong>@DisplayHelper.FormatNullableDecimal(workOrder.MinLength) / @DisplayHelper.FormatNullableDecimal(workOrder.MaxLength)</MudText>
                     </MudItem>
 
                     <!-- 汇总信息 -->
@@ -155,10 +156,10 @@
                         <MudText Typo="Typo.body2"><strong>总支数：</strong>@workOrder.TotalQuantity</MudText>
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>总米数：</strong>@FormatDecimal(workOrder.TotalMeters)</MudText>
+                        <MudText Typo="Typo.body2"><strong>总米数：</strong>@DisplayHelper.FormatDecimal(workOrder.TotalMeters)</MudText>
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>总重量：</strong>@FormatDecimal(workOrder.TotalWeight)</MudText>
+                        <MudText Typo="Typo.body2"><strong>总重量：</strong>@DisplayHelper.FormatDecimal(workOrder.TotalWeight)</MudText>
                     </MudItem>
                     <MudItem xs="12" md="3">
                         <MudText Typo="Typo.body2"><strong>总项次数：</strong>@workOrder.TotalItemCount</MudText>
@@ -208,19 +209,6 @@
 
     private bool hasPrevious => currentIndex > 0;
     private bool hasNext => currentIndex >= 0 && currentIndex < siblingWorkOrders.Count - 1;
-
-    private string FormatDecimal(decimal value) => value.ToString("G29");
-    private string FormatNullableDecimal(decimal? value) => value?.ToString("G29") ?? "";
-
-    private string FormatSpecification(string specification)
-    {
-        if (string.IsNullOrEmpty(specification)) return "";
-        var parts = specification.Split('*');
-        if (parts.Length != 2) return specification;
-        var od = decimal.TryParse(parts[0], out var odValue) ? odValue.ToString("G29") : parts[0];
-        var wt = decimal.TryParse(parts[1], out var wtValue) ? wtValue.ToString("G29") : parts[1];
-        return $"{od}*{wt}";
-    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -351,32 +339,4 @@
         };
     }
 
-    private string GetDeliveryStateText(string state)
-    {
-        return state switch
-        {
-            "SolutionAnnealedAndPickled" => "固溶酸洗",
-            "SolutionAnnealedAndPickledUTube" => "固溶酸洗-U型管",
-            "SolutionAnnealedAndPickledExternalPolished" => "固溶酸洗-外抛光",
-            "SolutionAnnealedAndPickledInternalPolished" => "固溶酸洗-内抛光",
-            "SolutionAnnealedAndPickledBothPolished" => "固溶酸洗-内外抛光",
-            "SolutionAnnealedAndPickledCoiled" => "固溶酸洗-盘管",
-            "Bright" => "光亮",
-            "BrightUTube" => "光亮-U型管",
-            "BrightCoiled" => "光亮-盘管",
-            "Hard" => "硬态",
-            _ => state
-        };
-    }
-
-    private string GetLengthStatusText(string status)
-    {
-        return status switch
-        {
-            "Fixed" => "定尺",
-            "Range" => "范围尺",
-            "NonFixed" => "非定尺",
-            _ => status
-        };
-    }
 }

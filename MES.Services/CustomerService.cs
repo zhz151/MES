@@ -224,7 +224,14 @@ public class CustomerService : ICustomerService
             entity.Remark = request.Remark;
         }
 
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new BusinessException("客户信息已被其他用户修改，请刷新后重试");
+        }
 
         return new CustomerProfileDto
         {

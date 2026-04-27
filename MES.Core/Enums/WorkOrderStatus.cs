@@ -21,7 +21,7 @@ public enum WorkOrderStatus
     Pending = 2,
     
     /// <summary>
-    /// 已取消（工单已软删除）
+    /// 已取消（工单已物理删除）
     /// </summary>
     Cancelled = 3
 }

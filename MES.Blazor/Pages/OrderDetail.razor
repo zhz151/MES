@@ -1,5 +1,6 @@
 @page "/orders/{Id:int}"
 @page "/orders/{Id:int}/edit"
+@using MES.Blazor.Helpers
 @using MES.Blazor.Services
 @using MES.Core.DTOs
 @using MES.Core.Models
@@ -22,7 +23,19 @@
     }
     else if (orderDetail == null)
     {
-        <MudAlert Severity="Severity.Error">订单不存在</MudAlert>
+        <MudAlert Severity="Severity.Error">
+            @if (!string.IsNullOrEmpty(loadErrorMessage))
+            {
+                <strong>加载失败：</strong>@loadErrorMessage
+            }
+            else
+            {
+                <span>订单不存在</span>
+            }
+            <div class="mt-3">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="GoBack">返回订单列表</MudButton>
+            </div>
+        </MudAlert>
     }
     else
     {
@@ -73,52 +86,51 @@
                                   Dense="true"
                                   Hover="true"
                                   Elevation="0"
-                                  Breakpoint="Breakpoint.Sm"
                                   RowsPerPage="10"
                                   RowsPerPageLabel="每页行数:">
                             <HeaderContent>
-                                <MudTh>项次</MudTh>
-                                <MudTh>交货日期</MudTh>
-                                <MudTh>延期违约金</MudTh>
-                                <MudTh>结算方式</MudTh>
-                                <MudTh>物料名称</MudTh>
-                                <MudTh>产品标准</MudTh>
-                                <MudTh>交货状态</MudTh>
-                                <MudTh>标准牌号</MudTh>
-                                <MudTh>规格</MudTh>
-                                <MudTh>外径下差</MudTh>
-                                <MudTh>外径上差</MudTh>
-                                <MudTh>壁厚下差</MudTh>
-                                <MudTh>壁厚上差</MudTh>
-                                <MudTh>长度状态</MudTh>
-                                <MudTh>最小长度</MudTh>
-                                <MudTh>最大长度</MudTh>
-                                <MudTh>支数</MudTh>
-                                <MudTh>米数</MudTh>
-                                <MudTh>合同重量</MudTh>
-                                <MudTh>理算重量</MudTh>
+                                <MudTh class="table-cell-clamp-1">项次</MudTh>
+                                <MudTh class="table-cell-clamp-1">交货日期</MudTh>
+                                <MudTh class="table-cell-clamp-1">延期罚款</MudTh>
+                                <MudTh class="table-cell-clamp-1">结算方式</MudTh>
+                                <MudTh class="table-cell-clamp-1">物料名称</MudTh>
+                                <MudTh class="table-cell-clamp-1">产品标准</MudTh>
+                                <MudTh class="table-cell-clamp-1">交货状态</MudTh>
+                                <MudTh class="table-cell-clamp-1">标准牌号</MudTh>
+                                <MudTh class="table-cell-clamp-1">规格</MudTh>
+                                <MudTh class="table-cell-clamp-1">外径下差</MudTh>
+                                <MudTh class="table-cell-clamp-1">外径上差</MudTh>
+                                <MudTh class="table-cell-clamp-1">壁厚下差</MudTh>
+                                <MudTh class="table-cell-clamp-1">壁厚上差</MudTh>
+                                <MudTh class="table-cell-clamp-1">长度状态</MudTh>
+                                <MudTh class="table-cell-clamp-1">最小长度</MudTh>
+                                <MudTh class="table-cell-clamp-1">最大长度</MudTh>
+                                <MudTh class="table-cell-clamp-1">支数</MudTh>
+                                <MudTh class="table-cell-clamp-1">米数</MudTh>
+                                <MudTh class="table-cell-clamp-1">合同重量</MudTh>
+                                <MudTh class="table-cell-clamp-1">理算重量</MudTh>
                             </HeaderContent>
                             <RowTemplate>
-                                <MudTd>@context.Sequence</MudTd>
-                                <MudTd>@context.DeliveryDate.ToString("yyyy-MM-dd")</MudTd>
+                                <MudTd class="table-cell-clamp-1">@context.Sequence</MudTd>
+                                <MudTd class="table-cell-clamp-1">@context.DeliveryDate.ToString("yyyy-MM-dd")</MudTd>
                                 <MudTd>@(context.DelayPenalty ? "是" : "否")</MudTd>
-                                <MudTd>@GetSettlementMethodText(context.SettlementMethod)</MudTd>
-                                <MudTd>@GetMaterialNameText(context.MaterialName)</MudTd>
-                                <MudTd>@context.ProductionStandardCode</MudTd>
-                                <MudTd>@GetDeliveryStateText(context.DeliveryState)</MudTd>
-                                <MudTd>@context.StandardGrade</MudTd>
-                                <MudTd>@FormatSpecification(context.Specification)</MudTd>
-                                <MudTd>@FormatDecimal(context.OuterDiameterNegative)</MudTd>
-                                <MudTd>@FormatDecimal(context.OuterDiameterPositive)</MudTd>
-                                <MudTd>@FormatDecimal(context.WallThicknessNegative)</MudTd>
-                                <MudTd>@FormatDecimal(context.WallThicknessPositive)</MudTd>
-                                <MudTd>@GetLengthStatusText(context.LengthStatus)</MudTd>
-                                <MudTd>@FormatNullableDecimal(context.MinLength)</MudTd>
-                                <MudTd>@FormatNullableDecimal(context.MaxLength)</MudTd>
-                                <MudTd>@context.Quantity</MudTd>
-                                <MudTd>@FormatNullableDecimal(context.Meters)</MudTd>
-                                <MudTd>@FormatDecimal(context.ContractWeight)</MudTd>
-                                <MudTd>@FormatDecimal(context.TheoreticalWeight)</MudTd>
+                                <MudTd class="table-cell-clamp-1">@GetSettlementMethodText(context.SettlementMethod)</MudTd>
+                                <MudTd class="table-cell-clamp-1">@GetMaterialNameText(context.MaterialName)</MudTd>
+                                <MudTd class="table-cell-clamp-1" title="@context.ProductionStandardCode">@context.ProductionStandardCode</MudTd>
+                                <MudTd class="table-cell-clamp-2" title="@GetDeliveryStateText(context.DeliveryState)"><span class="clamp-inner">@GetDeliveryStateText(context.DeliveryState)</span></MudTd>
+                                <MudTd class="table-cell-clamp-1" title="@context.StandardGrade">@context.StandardGrade</MudTd>
+                                <MudTd class="table-cell-clamp-1" title="@DisplayHelper.FormatSpecification(context.Specification)">@DisplayHelper.FormatSpecification(context.Specification)</MudTd>
+                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatDecimal(context.OuterDiameterNegative)</MudTd>
+                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatDecimal(context.OuterDiameterPositive)</MudTd>
+                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatDecimal(context.WallThicknessNegative)</MudTd>
+                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatDecimal(context.WallThicknessPositive)</MudTd>
+                                <MudTd class="table-cell-clamp-1">@GetLengthStatusText(context.LengthStatus)</MudTd>
+                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatNullableDecimal(context.MinLength)</MudTd>
+                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatNullableDecimal(context.MaxLength)</MudTd>
+                                <MudTd class="table-cell-clamp-1">@context.Quantity</MudTd>
+                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatNullableDecimal(context.Meters)</MudTd>
+                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatDecimal(context.ContractWeight)</MudTd>
+                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatDecimal(context.TheoreticalWeight)</MudTd>
                             </RowTemplate>
                             <PagerContent>
                                 <MudTablePager />
@@ -151,28 +163,28 @@
                                   Hover="true"
                                   Elevation="0">
                             <HeaderContent>
-                                <MudTh>项次</MudTh>
-                                <MudTh>交货日期</MudTh>
-                                <MudTh>延期违约金</MudTh>
-                                <MudTh>结算方式</MudTh>
-                                <MudTh>物料名称</MudTh>
-                                <MudTh>产品标准</MudTh>
-                                <MudTh>交货状态</MudTh>
-                                <MudTh>标准牌号</MudTh>
-                                <MudTh>外径</MudTh>
-                                <MudTh>壁厚</MudTh>
-                                <MudTh>外径下差</MudTh>
-                                <MudTh>外径上差</MudTh>
-                                <MudTh>壁厚下差</MudTh>
-                                <MudTh>壁厚上差</MudTh>
-                                <MudTh>长度状态</MudTh>
-                                <MudTh>最小长度</MudTh>
-                                <MudTh>最大长度</MudTh>
-                                <MudTh>支数</MudTh>
-                                <MudTh>米数</MudTh>
-                                <MudTh>合同重量</MudTh>
-                                <MudTh>理算重量</MudTh>
-                                <MudTh>操作</MudTh>
+                                <MudTh class="table-cell-clamp-1">项次</MudTh>
+                                <MudTh class="table-cell-clamp-1">交货日期</MudTh>
+                                <MudTh class="table-cell-clamp-1">延期罚款</MudTh>
+                                <MudTh class="table-cell-clamp-1">结算方式</MudTh>
+                                <MudTh class="table-cell-clamp-1">物料名称</MudTh>
+                                <MudTh class="table-cell-clamp-1">产品标准</MudTh>
+                                <MudTh class="table-cell-clamp-1">交货状态</MudTh>
+                                <MudTh class="table-cell-clamp-1">标准牌号</MudTh>
+                                <MudTh class="table-cell-clamp-1">外径</MudTh>
+                                <MudTh class="table-cell-clamp-1">壁厚</MudTh>
+                                <MudTh class="table-cell-clamp-1">外径下差</MudTh>
+                                <MudTh class="table-cell-clamp-1">外径上差</MudTh>
+                                <MudTh class="table-cell-clamp-1">壁厚下差</MudTh>
+                                <MudTh class="table-cell-clamp-1">壁厚上差</MudTh>
+                                <MudTh class="table-cell-clamp-1">长度状态</MudTh>
+                                <MudTh class="table-cell-clamp-1">最小长度</MudTh>
+                                <MudTh class="table-cell-clamp-1">最大长度</MudTh>
+                                <MudTh class="table-cell-clamp-1">支数</MudTh>
+                                <MudTh class="table-cell-clamp-1">米数</MudTh>
+                                <MudTh class="table-cell-clamp-1">合同重量</MudTh>
+                                <MudTh class="table-cell-clamp-1">理算重量</MudTh>
+                                <MudTh class="table-cell-clamp-1">操作</MudTh>
                             </HeaderContent>
                             <RowTemplate Context="item">
                                 <!-- 项次号（只读，新增未保存时显示"--"） -->
@@ -199,7 +211,7 @@
                                                   Style="width: 120px;" />
                                 </MudTd>
 
-                                <!-- 延期违约金（复选框） -->
+                                <!-- 延期罚款（复选框） -->
                                 <MudTd>
                                     <MudCheckBox @bind-Value="item.DelayPenalty"
                                                  Dense="true"
@@ -504,20 +516,7 @@
     private List<StandardGradeMappingDto> gradeMappings = new();
     private bool isLoading = true;
     private bool isSubmitting;
-
-    // ========== 格式化方法 ==========
-    private string FormatDecimal(decimal value) => value.ToString("G29");
-    private string FormatNullableDecimal(decimal? value) => value?.ToString("G29") ?? "";
-
-    private string FormatSpecification(string specification)
-    {
-        if (string.IsNullOrEmpty(specification)) return "";
-        var parts = specification.Split('*');
-        if (parts.Length != 2) return specification;
-        var od = decimal.TryParse(parts[0], out var odValue) ? odValue.ToString("G29") : parts[0];
-        var wt = decimal.TryParse(parts[1], out var wtValue) ? wtValue.ToString("G29") : parts[1];
-        return $"{od}*{wt}";
-    }
+    private string loadErrorMessage = string.Empty;
 
     // ========== 枚举显示 ==========
     private Color GetStatusColor(SalesOrderStatus status) => status switch
@@ -657,7 +656,10 @@
     }
 
     // ========== 数据加载 ==========
-    protected override async Task OnInitializedAsync() => await LoadData();
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
 
     private async Task LoadData()
     {
@@ -711,12 +713,12 @@
             }
             else
             {
-                Snackbar.Add(result.Message ?? "加载失败", Severity.Error);
+                loadErrorMessage = result.Message ?? "加载失败";
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+            loadErrorMessage = $"加载失败: {ex.Message}";
         }
         finally
         {
@@ -915,6 +917,7 @@ private async Task SaveAllChanges()
                     return;
                 }
                 // 更新本地 ViewModel 的 Id 和 Sequence
+                if (result.Data == null) return;
                 item.Id = result.Data.Id;
                 item.Sequence = result.Data.Sequence;
             }

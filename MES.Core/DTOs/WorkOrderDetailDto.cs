@@ -81,7 +81,7 @@ public string StatusText
     public DateTime DeliveryDate { get; set; }
 
     /// <summary>
-    /// 是否延期违约金
+    /// 是否延期罚款
     /// </summary>
     public bool DelayPenalty { get; set; }
 
@@ -118,22 +118,22 @@ public string StatusText
     /// <summary>
     /// 外径-外径负公差
     /// </summary>
-    public decimal OuterDiameterMinus { get; set; }
+    public decimal OuterDiameterNegative { get; set; }
 
     /// <summary>
     /// 外径+外径正公差
     /// </summary>
-    public decimal OuterDiameterPlus { get; set; }
+    public decimal OuterDiameterPositive { get; set; }
 
     /// <summary>
     /// 壁厚-壁厚负公差
     /// </summary>
-    public decimal WallThicknessMinus { get; set; }
+    public decimal WallThicknessNegative { get; set; }
 
     /// <summary>
     /// 壁厚+壁厚正公差
     /// </summary>
-    public decimal WallThicknessPlus { get; set; }
+    public decimal WallThicknessPositive { get; set; }
 
     /// <summary>
     /// 长度状态

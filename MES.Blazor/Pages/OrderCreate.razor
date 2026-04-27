@@ -1,5 +1,6 @@
 // 文件路径: MES.Blazor/Pages/OrderCreate.razor
 @page "/orders/create"
+@using MES.Blazor.Helpers
 @using MES.Blazor.Services
 @using MES.Core.DTOs
 @using MES.Core.Models
@@ -114,7 +115,7 @@
                             <HeaderContent>
                                 <MudTh>项次</MudTh>
                                 <MudTh>交货日期</MudTh>
-                                <MudTh>延期违约金</MudTh>
+                                <MudTh>延期罚款</MudTh>
                                 <MudTh>结算方式</MudTh>
                                 <MudTh>物料名称</MudTh>
                                 <MudTh>产品标准</MudTh>
@@ -153,7 +154,7 @@
                                                   Immediate="true" />
                                 </MudTd>
 
-                                <!-- 延期违约金 - 复选框 -->
+                                <!-- 延期罚款 - 复选框 -->
                                 <MudTd>
                                     <MudCheckBox @bind-Value="item.DelayPenalty" Dense="true" Size="Size.Small" />
                                 </MudTd>
@@ -332,7 +333,7 @@
                                 <!-- 理算重量 - 只读 + 计算按钮 -->
                                 <MudTd>
                                     <div style="display: flex; align-items: center; gap: 4px;">
-                                        <MudText Typo="Typo.body2">@FormatDecimal(item.TheoreticalWeight)</MudText>
+                                        <MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(item.TheoreticalWeight)</MudText>
                                         <MudIconButton Icon="@Icons.Material.Filled.Calculate"
                                                        Color="Color.Primary"
                                                        Size="Size.Small"

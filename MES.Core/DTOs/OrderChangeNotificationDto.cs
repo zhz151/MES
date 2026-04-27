@@ -1,4 +1,4 @@
-using System;
+using MES.Core.Enums;
 
 namespace MES.Core.DTOs;
 
@@ -18,9 +18,9 @@ public class OrderChangeNotificationDto
     public string OrderNumber { get; set; } = null!;
 
     /// <summary>
-    /// 变更类型（0=删除，1=项次变更）
+    /// 变更类型
     /// </summary>
-    public int ChangeType { get; set; }
+    public NotificationChangeType ChangeType { get; set; }
 
     /// <summary>
     /// 变更类型文本
@@ -31,8 +31,8 @@ public class OrderChangeNotificationDto
         {
             return ChangeType switch
             {
-                0 => "订单删除",
-                1 => "项次变更",
+                NotificationChangeType.Deleted => "订单删除",
+                NotificationChangeType.ItemChanged => "项次变更",
                 _ => "未知"
             };
         }

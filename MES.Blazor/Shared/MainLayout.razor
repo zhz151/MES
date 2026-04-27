@@ -97,12 +97,19 @@
 
     private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
     {
-        await InvokeAsync(async () =>
+        try
         {
-            _authenticationState = await task;
-            _drawerOpen = _authenticationState.User.Identity?.IsAuthenticated ?? false;
-            StateHasChanged();
-        });
+            await InvokeAsync(async () =>
+            {
+                _authenticationState = await task;
+                _drawerOpen = _authenticationState.User.Identity?.IsAuthenticated ?? false;
+                StateHasChanged();
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"身份验证状态变更异常: {ex.Message}");
+        }
     }
 
     public void Dispose()

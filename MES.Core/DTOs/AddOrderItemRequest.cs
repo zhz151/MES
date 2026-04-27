@@ -21,7 +21,7 @@ public class AddOrderItemRequest
     public DateTime DeliveryDate { get; set; }
 
     /// <summary>
-    /// 是否延期违约金（默认false）
+    /// 是否延期罚款（默认false）
     /// </summary>
     public bool DelayPenalty { get; set; }
 

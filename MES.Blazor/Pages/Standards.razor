@@ -84,8 +84,8 @@
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd>@context.StandardCode</MudTd>
-                    <MudTd>@context.StandardName</MudTd>
+                    <MudTd class="table-cell-clamp-1" title="@context.StandardCode">@context.StandardCode</MudTd>
+                    <MudTd class="table-cell-clamp-2" title="@context.StandardName"><span class="clamp-inner">@context.StandardName</span></MudTd>
                     <MudTd>
                         <MudChip Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Error)">
                             @(context.IsActive ? "启用" : "停用")
@@ -146,7 +146,7 @@
                     items = items.Where(x => x.IsActive == filterActive.Value).ToList();
                 }
                 standards = items;
-                totalCount = result.Data.TotalCount;
+                totalCount = filterActive.HasValue ? standards.Count : result.Data.TotalCount;
                 return new TableData<ProductionStandardDto>
                 {
                     Items = standards,

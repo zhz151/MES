@@ -15,7 +15,7 @@ public class SalesOrderListDto
     public string? EndCustomer { get; set; }
     public SalesOrderStatus Status { get; set; }
     public string StatusText => Status.ToString();
-    public byte[]? RowVersion { get; set; }
+    public byte[] RowVersion { get; set; } = null!;
 
     /// <summary>
     /// 订单下是否存在技术要求（任何项次有产品要求）

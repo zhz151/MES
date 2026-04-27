@@ -264,24 +264,25 @@ input[type="number"]::-webkit-outer-spin-button {
    表格单元格文字截断样式
    ============================================================ */
 
+/* 单行截断 - 保持 display:table-cell 不破坏表格布局 */
 .table-cell-clamp-1 {
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
+    white-space: nowrap !important;
     overflow: hidden;
-    word-break: break-word;
-    white-space: normal !important;
+    text-overflow: ellipsis;
     cursor: help;
 }
 
+/* 双行截断 - 使用内部包装器，不影响 td 的 table-cell 布局 */
 .table-cell-clamp-2 {
+    cursor: help;
+}
+
+.table-cell-clamp-2 > .clamp-inner {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     word-break: break-word;
-    white-space: normal !important;
-    cursor: help;
 }
 
 /* 隐藏箭头容器 */

@@ -100,11 +100,11 @@
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="order">
-                    <MudTd>@order.OrderNumber</MudTd>
-                    <MudTd>@order.SignDate.ToString("yyyy-MM-dd")</MudTd>
-                    <MudTd>@order.Salesman</MudTd>
-                    <MudTd>@order.CustomerName</MudTd>
-                    <MudTd>@order.EndCustomer</MudTd>
+                    <MudTd class="table-cell-clamp-1" title="@order.OrderNumber">@order.OrderNumber</MudTd>
+                    <MudTd class="table-cell-clamp-1">@order.SignDate.ToString("yyyy-MM-dd")</MudTd>
+                    <MudTd class="table-cell-clamp-1" title="@order.Salesman">@order.Salesman</MudTd>
+                    <MudTd class="table-cell-clamp-2" title="@order.CustomerName"><span class="clamp-inner">@order.CustomerName</span></MudTd>
+                    <MudTd class="table-cell-clamp-2" title="@order.EndCustomer"><span class="clamp-inner">@order.EndCustomer</span></MudTd>
                     <MudTd>
                         @if (order.HasTechnicalRequirement)
                         {
@@ -130,7 +130,7 @@
                         </MudChip>
                     </MudTd>
                     <!-- 变更日期：有变更时显示日期，无变更时显示"-" -->
-                    <MudTd>
+                    <MudTd class="table-cell-clamp-1">
                         @(order.LastChangeDate?.ToString("yyyy-MM-dd HH:mm") ?? "-")
                     </MudTd>
                     <MudTd>

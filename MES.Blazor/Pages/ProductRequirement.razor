@@ -16,6 +16,15 @@
     {
         <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
     }
+    else if (!string.IsNullOrEmpty(loadErrorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">
+            <strong>加载失败：</strong>@loadErrorMessage
+            <div class="mt-3">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="GoBack">返回</MudButton>
+            </div>
+        </MudAlert>
+    }
     else
     {
         <MudCard>
@@ -86,12 +95,12 @@
                             <RowTemplate>
                                 <MudTd>@context.Sequence.ToString()</MudTd>
                                 <MudTd>@GetRequirementTypeText(context.RequirementType)</MudTd>
-                                <MudTd>@context.ChemicalComposition</MudTd>
-                                <MudTd>@context.MechanicalProperty</MudTd>
-                                <MudTd>@context.ToleranceRequirement</MudTd>
-                                <MudTd>@context.SurfaceQuality</MudTd>
-                                <MudTd>@context.NdtRequirement</MudTd>
-                                <MudTd>@context.OtherRequirement</MudTd>
+                                <MudTd class="table-cell-clamp-2" title="@context.ChemicalComposition"><span class="clamp-inner">@context.ChemicalComposition</span></MudTd>
+                                <MudTd class="table-cell-clamp-2" title="@context.MechanicalProperty"><span class="clamp-inner">@context.MechanicalProperty</span></MudTd>
+                                <MudTd class="table-cell-clamp-2" title="@context.ToleranceRequirement"><span class="clamp-inner">@context.ToleranceRequirement</span></MudTd>
+                                <MudTd class="table-cell-clamp-2" title="@context.SurfaceQuality"><span class="clamp-inner">@context.SurfaceQuality</span></MudTd>
+                                <MudTd class="table-cell-clamp-2" title="@context.NdtRequirement"><span class="clamp-inner">@context.NdtRequirement</span></MudTd>
+                                <MudTd class="table-cell-clamp-2" title="@context.OtherRequirement"><span class="clamp-inner">@context.OtherRequirement</span></MudTd>
                                 <MudTd>@FormatDateTime(context.CreatedTime)</MudTd>
                                 <MudTd>@FormatDateTime(context.UpdatedTime)</MudTd>
                             </RowTemplate>
@@ -222,6 +231,7 @@
     private List<OrderItemWithRequirement> orderItemsWithRequirement = new();
     private bool isLoading = true;
     private bool isSubmitting;
+    private string loadErrorMessage = string.Empty;
 
     /// <summary>
     /// 项次技术要求视图模型（用于编辑）
@@ -274,7 +284,7 @@
             }
             else
             {
-                Snackbar.Add("无法获取订单信息", Severity.Error);
+                loadErrorMessage = orderResult.Message ?? "无法获取订单信息";
                 return;
             }
 

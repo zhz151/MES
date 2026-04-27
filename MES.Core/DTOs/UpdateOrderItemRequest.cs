@@ -23,7 +23,7 @@ public class UpdateOrderItemRequest
     public DateTime DeliveryDate { get; set; }
 
     /// <summary>
-    /// 是否延期违约金
+    /// 是否延期罚款
     /// </summary>
     public bool DelayPenalty { get; set; }
 
