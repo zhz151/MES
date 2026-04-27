@@ -99,6 +99,7 @@
                 if (authResponse?.Success == true && authResponse.Data != null)
                 {
                     await LocalStorage.SetItemAsync("authToken", authResponse.Data.Token);
+                    await LocalStorage.SetItemAsync("refreshToken", authResponse.Data.RefreshToken);
                     await LocalStorage.SetItemAsync("userEmail", authResponse.Data.Email);
                     await LocalStorage.SetItemAsync("userName", authResponse.Data.UserName);
                     await LocalStorage.SetItemAsync("userFullName", authResponse.Data.FullName);

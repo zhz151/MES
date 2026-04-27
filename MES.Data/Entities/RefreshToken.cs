@@ -6,7 +6,7 @@ namespace MES.Data.Entities;
 public class RefreshToken : BaseEntity
 {
     /// <summary>
-    /// 刷新令牌值（GUID字符串）
+    /// 刷新令牌值（64字节随机令牌，Base64编码）
     /// </summary>
     public string Token { get; set; } = null!;
 

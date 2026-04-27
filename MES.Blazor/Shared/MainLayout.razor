@@ -92,9 +92,16 @@
 
     protected override async Task OnInitializedAsync()
     {
-        AuthProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
-        _authenticationState = await AuthProvider.GetAuthenticationStateAsync();
-        _drawerOpen = _authenticationState.User.Identity?.IsAuthenticated ?? false;
+        try
+        {
+            AuthProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+            _authenticationState = await AuthProvider.GetAuthenticationStateAsync();
+            _drawerOpen = _authenticationState.User.Identity?.IsAuthenticated ?? false;
+        }
+        catch
+        {
+            _drawerOpen = false;
+        }
     }
 
     private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)

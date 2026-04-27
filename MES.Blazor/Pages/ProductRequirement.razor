@@ -95,12 +95,12 @@
                             <RowTemplate>
                                 <MudTd>@context.Sequence.ToString()</MudTd>
                                 <MudTd>@GetRequirementTypeText(context.RequirementType)</MudTd>
-                                <MudTd class="table-cell-clamp-2" title="@context.ChemicalComposition"><span class="clamp-inner">@context.ChemicalComposition</span></MudTd>
-                                <MudTd class="table-cell-clamp-2" title="@context.MechanicalProperty"><span class="clamp-inner">@context.MechanicalProperty</span></MudTd>
-                                <MudTd class="table-cell-clamp-2" title="@context.ToleranceRequirement"><span class="clamp-inner">@context.ToleranceRequirement</span></MudTd>
-                                <MudTd class="table-cell-clamp-2" title="@context.SurfaceQuality"><span class="clamp-inner">@context.SurfaceQuality</span></MudTd>
-                                <MudTd class="table-cell-clamp-2" title="@context.NdtRequirement"><span class="clamp-inner">@context.NdtRequirement</span></MudTd>
-                                <MudTd class="table-cell-clamp-2" title="@context.OtherRequirement"><span class="clamp-inner">@context.OtherRequirement</span></MudTd>
+                                <MudTd title="@context.ChemicalComposition">@context.ChemicalComposition</MudTd>
+                                <MudTd title="@context.MechanicalProperty">@context.MechanicalProperty</MudTd>
+                                <MudTd title="@context.ToleranceRequirement">@context.ToleranceRequirement</MudTd>
+                                <MudTd title="@context.SurfaceQuality">@context.SurfaceQuality</MudTd>
+                                <MudTd title="@context.NdtRequirement">@context.NdtRequirement</MudTd>
+                                <MudTd title="@context.OtherRequirement">@context.OtherRequirement</MudTd>
                                 <MudTd>@FormatDateTime(context.CreatedTime)</MudTd>
                                 <MudTd>@FormatDateTime(context.UpdatedTime)</MudTd>
                             </RowTemplate>

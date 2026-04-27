@@ -80,10 +80,10 @@
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd class="table-cell-clamp-1" title="@context.StandardGrade">@context.StandardGrade</MudTd>
-                    <MudTd class="table-cell-clamp-1" title="@context.PlantGrade">@context.PlantGrade</MudTd>
-                    <MudTd class="table-cell-clamp-1">@context.Density.ToString("F4")</MudTd>
-                    <MudTd class="table-cell-clamp-1" title="@context.HeatTreatment">@context.HeatTreatment</MudTd>
+                    <MudTd  title="@context.StandardGrade">@context.StandardGrade</MudTd>
+                    <MudTd  title="@context.PlantGrade">@context.PlantGrade</MudTd>
+                    <MudTd >@context.Density.ToString("F4")</MudTd>
+                    <MudTd  title="@context.HeatTreatment">@context.HeatTreatment</MudTd>
                     <MudTd>
                         <MudChip Size="Size.Small" Color="@(context.SpecialMaterial? Color.Warning: Color.Default)">
                             @(context.SpecialMaterial ? "特殊" : "常规")

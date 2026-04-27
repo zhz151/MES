@@ -85,8 +85,8 @@
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd class="table-cell-clamp-1" title="@context.StandardCode">@context.StandardCode</MudTd>
-                    <MudTd class="table-cell-clamp-2" title="@context.StandardName"><span class="clamp-inner">@context.StandardName</span></MudTd>
+                    <MudTd  title="@context.StandardCode">@context.StandardCode</MudTd>
+                    <MudTd title="@context.StandardName">@context.StandardName</MudTd>
                     <MudTd>
                         <MudChip Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Error)">
                             @(context.IsActive ? "启用" : "停用")

@@ -29,6 +29,7 @@ public class CustomerService : ICustomerService
     public async Task<PagedResult<CustomerProfileDto>> GetPagedAsync(QueryParams query)
     {
         var queryable = _context.CustomerProfiles
+            .AsNoTracking()
             .Where(c => !c.IsDeleted)
             .AsQueryable();
 
@@ -97,7 +98,7 @@ public class CustomerService : ICustomerService
 
         if (entity == null)
         {
-            throw new BusinessException("Customer does not exist");
+            throw new BusinessException("客户不存在");
         }
 
         return entity.ToDto();
@@ -146,7 +147,7 @@ public class CustomerService : ICustomerService
 
         if (entity == null)
         {
-            throw new BusinessException("Customer does not exist");
+            throw new BusinessException("客户不存在");
         }
 
         // Check customer code uniqueness (exclude self)
@@ -157,7 +158,7 @@ public class CustomerService : ICustomerService
 
             if (exists)
             {
-                throw new BusinessException($"Customer code '{request.CustomerCode}' already exists");
+                throw new BusinessException($"客户代码'{request.CustomerCode}'已存在");
             }
             entity.CustomerCode = request.CustomerCode;
         }
@@ -224,7 +225,7 @@ public class CustomerService : ICustomerService
 
         if (entity == null)
         {
-            throw new BusinessException("Customer does not exist");
+            throw new BusinessException("客户不存在");
         }
 
         entity.IsDeleted = true;

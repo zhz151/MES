@@ -3,21 +3,31 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Blazored.LocalStorage;
+using Microsoft.AspNetCore.Components;
+using MES.Core.Models;
+using MES.Core.DTOs.Auth;
 
 namespace MES.Blazor.Services;
 
 /// <summary>
-/// 带认证功能的 HTTP 客户端
+/// 带认证功能的 HTTP 客户端，支持 401 自动刷新 Token
 /// </summary>
 public class AuthHttpClient
 {
     private readonly HttpClient _http;
     private readonly ILocalStorageService _localStorage;
+    private readonly NavigationManager _navigation;
 
-    public AuthHttpClient(HttpClient http, ILocalStorageService localStorage)
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
+    public AuthHttpClient(HttpClient http, ILocalStorageService localStorage, NavigationManager navigation)
     {
         _http = http;
         _localStorage = localStorage;
+        _navigation = navigation;
     }
 
     /// <summary>
@@ -33,150 +43,160 @@ public class AuthHttpClient
     }
 
     /// <summary>
-    /// GET 请求
+    /// 尝试刷新 Token，返回 true 表示刷新成功
     /// </summary>
-    public async Task<HttpResponseMessage> GetAsync(string url)
+    private async Task<bool> TryRefreshTokenAsync()
     {
-        await AddAuthHeaderAsync();
-        return await _http.GetAsync(url);
+        var refreshToken = await _localStorage.GetItemAsync<string>("refreshToken");
+        if (string.IsNullOrEmpty(refreshToken))
+            return false;
+
+        // 清除旧的 Authorization header，避免干扰刷新请求
+        _http.DefaultRequestHeaders.Authorization = null;
+
+        try
+        {
+            var response = await _http.PostAsJsonAsync("api/auth/refresh-token", new { refreshToken });
+            if (!response.IsSuccessStatusCode)
+                return false;
+
+            var json = await response.Content.ReadAsStringAsync();
+            var authResponse = JsonSerializer.Deserialize<ApiResponse<LoginResponse>>(json, JsonOptions);
+            if (authResponse?.Success != true || authResponse.Data == null)
+                return false;
+
+            // 存储新的 Token 和 RefreshToken
+            await _localStorage.SetItemAsync("authToken", authResponse.Data.Token);
+            await _localStorage.SetItemAsync("refreshToken", authResponse.Data.RefreshToken);
+            await _localStorage.SetItemAsync("userEmail", authResponse.Data.Email);
+            await _localStorage.SetItemAsync("userName", authResponse.Data.UserName);
+            await _localStorage.SetItemAsync("userFullName", authResponse.Data.FullName);
+            await _localStorage.SetItemAsync("userRoles", authResponse.Data.Roles);
+
+            // 更新当前请求的 Authorization header
+            _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authResponse.Data.Token);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>
-    /// GET 请求并反序列化为 T（含非2xx响应的JSON反序列化，保留业务错误消息）
+    /// 清除认证信息并跳转到登录页
     /// </summary>
-    public async Task<T?> GetFromJsonAsync<T>(string url)
+    private async Task ClearAuthAndRedirectAsync()
+    {
+        await _localStorage.RemoveItemAsync("authToken");
+        await _localStorage.RemoveItemAsync("refreshToken");
+        await _localStorage.RemoveItemAsync("userEmail");
+        await _localStorage.RemoveItemAsync("userName");
+        await _localStorage.RemoveItemAsync("userFullName");
+        await _localStorage.RemoveItemAsync("userRoles");
+        _http.DefaultRequestHeaders.Authorization = null;
+        _navigation.NavigateTo("/login", true);
+    }
+
+    /// <summary>
+    /// 执行请求并在 401 时自动刷新 Token 重试
+    /// </summary>
+    private async Task<HttpResponseMessage> SendWithRefreshAsync(Func<Task<HttpResponseMessage>> sendFunc)
     {
         await AddAuthHeaderAsync();
-        var response = await _http.GetAsync(url);
-        var json = await response.Content.ReadAsStringAsync();
+        var response = await sendFunc();
 
-        if (!string.IsNullOrEmpty(json))
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
-            try
+            var refreshed = await TryRefreshTokenAsync();
+            if (refreshed)
             {
-                return JsonSerializer.Deserialize<T>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+                response = await sendFunc();
             }
-            catch
+            else
             {
-                if (response.IsSuccessStatusCode)
-                    throw;
+                await ClearAuthAndRedirectAsync();
             }
         }
 
-        return default;
+        return response;
     }
+
+    /// <summary>
+    /// 执行请求，反序列化响应，并在 401 时自动刷新 Token 重试
+    /// </summary>
+    private async Task<T?> SendAndDeserializeAsync<T>(Func<Task<HttpResponseMessage>> sendFunc)
+    {
+        var response = await SendWithRefreshAsync(sendFunc);
+        return await DeserializeResponseAsync<T>(response);
+    }
+
+    /// <summary>
+    /// 反序列化响应内容
+    /// </summary>
+    private static async Task<T?> DeserializeResponseAsync<T>(HttpResponseMessage response)
+    {
+        var json = await response.Content.ReadAsStringAsync();
+        if (string.IsNullOrEmpty(json))
+            return default;
+
+        try
+        {
+            return JsonSerializer.Deserialize<T>(json, JsonOptions);
+        }
+        catch
+        {
+            if (response.IsSuccessStatusCode)
+                throw;
+            return default;
+        }
+    }
+
+    /// <summary>
+    /// GET 请求
+    /// </summary>
+    public Task<HttpResponseMessage> GetAsync(string url)
+        => SendWithRefreshAsync(() => _http.GetAsync(url));
+
+    /// <summary>
+    /// GET 请求并反序列化为 T
+    /// </summary>
+    public Task<T?> GetFromJsonAsync<T>(string url)
+        => SendAndDeserializeAsync<T>(() => _http.GetAsync(url));
 
     /// <summary>
     /// POST 请求
     /// </summary>
-    public async Task<HttpResponseMessage> PostAsJsonAsync<T>(string url, T data)
-    {
-        await AddAuthHeaderAsync();
-        return await _http.PostAsJsonAsync(url, data);
-    }
+    public Task<HttpResponseMessage> PostAsJsonAsync<T>(string url, T data)
+        => SendWithRefreshAsync(() => _http.PostAsJsonAsync(url, data));
 
     /// <summary>
-    /// POST 请求并反序列化响应（含非2xx响应的JSON反序列化，保留业务错误消息）
+    /// POST 请求并反序列化响应
     /// </summary>
-    public async Task<TResponse?> PostAsJsonAsync<TRequest, TResponse>(string url, TRequest data)
-    {
-        await AddAuthHeaderAsync();
-        var response = await _http.PostAsJsonAsync(url, data);
-        var json = await response.Content.ReadAsStringAsync();
-
-        if (!string.IsNullOrEmpty(json))
-        {
-            try
-            {
-                return JsonSerializer.Deserialize<TResponse>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-            }
-            catch
-            {
-                if (response.IsSuccessStatusCode)
-                    throw;
-            }
-        }
-
-        return default;
-    }
+    public Task<TResponse?> PostAsJsonAsync<TRequest, TResponse>(string url, TRequest data)
+        => SendAndDeserializeAsync<TResponse>(() => _http.PostAsJsonAsync(url, data));
 
     /// <summary>
     /// PUT 请求
     /// </summary>
-    public async Task<HttpResponseMessage> PutAsJsonAsync<T>(string url, T data)
-    {
-        await AddAuthHeaderAsync();
-        return await _http.PutAsJsonAsync(url, data);
-    }
+    public Task<HttpResponseMessage> PutAsJsonAsync<T>(string url, T data)
+        => SendWithRefreshAsync(() => _http.PutAsJsonAsync(url, data));
 
     /// <summary>
-    /// PUT 请求并反序列化响应（含非2xx响应的JSON反序列化，保留业务错误消息）
+    /// PUT 请求并反序列化响应
     /// </summary>
-    public async Task<TResponse?> PutAsJsonAsync<TRequest, TResponse>(string url, TRequest data)
-    {
-        await AddAuthHeaderAsync();
-        var response = await _http.PutAsJsonAsync(url, data);
-        var json = await response.Content.ReadAsStringAsync();
-
-        if (!string.IsNullOrEmpty(json))
-        {
-            try
-            {
-                return JsonSerializer.Deserialize<TResponse>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-            }
-            catch
-            {
-                if (response.IsSuccessStatusCode)
-                    throw;
-            }
-        }
-
-        return default;
-    }
+    public Task<TResponse?> PutAsJsonAsync<TRequest, TResponse>(string url, TRequest data)
+        => SendAndDeserializeAsync<TResponse>(() => _http.PutAsJsonAsync(url, data));
 
     /// <summary>
     /// DELETE 请求
     /// </summary>
-    public async Task<HttpResponseMessage> DeleteAsync(string url)
-    {
-        await AddAuthHeaderAsync();
-        return await _http.DeleteAsync(url);
-    }
+    public Task<HttpResponseMessage> DeleteAsync(string url)
+        => SendWithRefreshAsync(() => _http.DeleteAsync(url));
 
     /// <summary>
-    /// DELETE 请求并反序列化响应（含非2xx响应的JSON反序列化，保留业务错误消息）
+    /// DELETE 请求并反序列化响应
     /// </summary>
-    public async Task<T?> DeleteFromJsonAsync<T>(string url)
-    {
-        await AddAuthHeaderAsync();
-        var response = await _http.DeleteAsync(url);
-        var json = await response.Content.ReadAsStringAsync();
-
-        if (!string.IsNullOrEmpty(json))
-        {
-            try
-            {
-                return JsonSerializer.Deserialize<T>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-            }
-            catch
-            {
-                if (response.IsSuccessStatusCode)
-                    throw;
-            }
-        }
-
-        return default;
-    }
+    public Task<T?> DeleteFromJsonAsync<T>(string url)
+        => SendAndDeserializeAsync<T>(() => _http.DeleteAsync(url));
 }

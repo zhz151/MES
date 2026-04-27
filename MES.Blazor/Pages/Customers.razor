@@ -82,10 +82,10 @@
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd class="table-cell-clamp-1" title="@context.CustomerCode">@context.CustomerCode</MudTd>
-                    <MudTd class="table-cell-clamp-1" title="@context.Salesman">@context.Salesman</MudTd>
-                    <MudTd class="table-cell-clamp-2" title="@context.CustomerUnit"><span class="clamp-inner">@context.CustomerUnit</span></MudTd>
-                    <MudTd class="table-cell-clamp-2" title="@context.EndCustomer"><span class="clamp-inner">@context.EndCustomer</span></MudTd>
+                    <MudTd  title="@context.CustomerCode">@context.CustomerCode</MudTd>
+                    <MudTd  title="@context.Salesman">@context.Salesman</MudTd>
+                    <MudTd title="@context.CustomerUnit">@context.CustomerUnit</MudTd>
+                    <MudTd title="@context.EndCustomer">@context.EndCustomer</MudTd>
                     <MudTd>
                         <MudChip Size="Size.Small" Color="@(context.Status == CustomerStatus.Active ? Color.Success : Color.Error)">
                             @(context.Status == CustomerStatus.Active ? "启用" : "停用")

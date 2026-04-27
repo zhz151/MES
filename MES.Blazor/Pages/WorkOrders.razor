@@ -136,10 +136,10 @@
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="order">
-                    <MudTd class="table-cell-clamp-1" title="@order.OrderNumber">@order.OrderNumber</MudTd>
-                    <MudTd class="table-cell-clamp-1">@order.SignDate.ToString("yyyy-MM-dd")</MudTd>
-                    <MudTd class="table-cell-clamp-1" title="@order.Salesman">@order.Salesman</MudTd>
-                    <MudTd class="table-cell-clamp-2" title="@order.CustomerName"><span class="clamp-inner">@order.CustomerName</span></MudTd>
+                    <MudTd  title="@order.OrderNumber">@order.OrderNumber</MudTd>
+                    <MudTd >@order.SignDate.ToString("yyyy-MM-dd")</MudTd>
+                    <MudTd  title="@order.Salesman">@order.Salesman</MudTd>
+                    <MudTd title="@order.CustomerName">@order.CustomerName</MudTd>
                     <MudTd>
                         <MudChip Size="Size.Small" 
                                  Color="@GetStatusColor(order.WorkOrderStatus)"
@@ -264,16 +264,30 @@ else if (order.WorkOrderStatus == "Pending")
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadUnreadCount();
+        try
+        {
+            await LoadUnreadCount();
+        }
+        catch
+        {
+            // 通知未读数加载失败不影响主页面
+        }
         await LoadCancelledOrders();
         await base.OnInitializedAsync();
     }
 
     private async Task LoadUnreadCount()
     {
-        var result = await NotificationService.GetUnreadCountAsync();
-        if (result.Success)
-            unreadCount = result.Data;
+        try
+        {
+            var result = await NotificationService.GetUnreadCountAsync();
+            if (result.Success)
+                unreadCount = result.Data;
+        }
+        catch
+        {
+            unreadCount = 0;
+        }
     }
 
     private async Task<TableData<OrderChangeNotificationDto>> LoadNotifications(TableState state)

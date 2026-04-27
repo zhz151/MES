@@ -28,6 +28,7 @@ public class GradeMappingService : IGradeMappingService
     public async Task<PagedResult<StandardGradeMappingDto>> GetPagedAsync(QueryParams query)
     {
         var queryable = _context.StandardGradeMappings
+            .AsNoTracking()
             .Where(g => !g.IsDeleted)
             .AsQueryable();
 
@@ -85,6 +86,7 @@ public class GradeMappingService : IGradeMappingService
     public async Task<List<StandardGradeMappingDto>> GetAllAsync()
     {
         var items = await _context.StandardGradeMappings
+            .AsNoTracking()
             .Where(g => !g.IsDeleted)
             .OrderBy(g => g.StandardGrade)
             .Select(g => new StandardGradeMappingDto

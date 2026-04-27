@@ -90,48 +90,48 @@
                                   RowsPerPage="10"
                                   RowsPerPageLabel="每页行数:">
                             <HeaderContent>
-                                <MudTh class="table-cell-clamp-1">项次</MudTh>
-                                <MudTh class="table-cell-clamp-1">交货日期</MudTh>
-                                <MudTh class="table-cell-clamp-1">延期罚款</MudTh>
-                                <MudTh class="table-cell-clamp-1">结算方式</MudTh>
-                                <MudTh class="table-cell-clamp-1">物料名称</MudTh>
-                                <MudTh class="table-cell-clamp-1">产品标准</MudTh>
-                                <MudTh class="table-cell-clamp-1">交货状态</MudTh>
-                                <MudTh class="table-cell-clamp-1">标准牌号</MudTh>
-                                <MudTh class="table-cell-clamp-1">规格</MudTh>
-                                <MudTh class="table-cell-clamp-1">外径下差</MudTh>
-                                <MudTh class="table-cell-clamp-1">外径上差</MudTh>
-                                <MudTh class="table-cell-clamp-1">壁厚下差</MudTh>
-                                <MudTh class="table-cell-clamp-1">壁厚上差</MudTh>
-                                <MudTh class="table-cell-clamp-1">长度状态</MudTh>
-                                <MudTh class="table-cell-clamp-1">最小长度</MudTh>
-                                <MudTh class="table-cell-clamp-1">最大长度</MudTh>
-                                <MudTh class="table-cell-clamp-1">支数</MudTh>
-                                <MudTh class="table-cell-clamp-1">米数</MudTh>
-                                <MudTh class="table-cell-clamp-1">合同重量</MudTh>
-                                <MudTh class="table-cell-clamp-1">理算重量</MudTh>
+                                <MudTh >项次</MudTh>
+                                <MudTh >交货日期</MudTh>
+                                <MudTh >延期罚款</MudTh>
+                                <MudTh >结算方式</MudTh>
+                                <MudTh >物料名称</MudTh>
+                                <MudTh >产品标准</MudTh>
+                                <MudTh >交货状态</MudTh>
+                                <MudTh >标准牌号</MudTh>
+                                <MudTh >规格</MudTh>
+                                <MudTh >外径下差</MudTh>
+                                <MudTh >外径上差</MudTh>
+                                <MudTh >壁厚下差</MudTh>
+                                <MudTh >壁厚上差</MudTh>
+                                <MudTh >长度状态</MudTh>
+                                <MudTh >最小长度</MudTh>
+                                <MudTh >最大长度</MudTh>
+                                <MudTh >支数</MudTh>
+                                <MudTh >米数</MudTh>
+                                <MudTh >合同重量</MudTh>
+                                <MudTh >理算重量</MudTh>
                             </HeaderContent>
                             <RowTemplate>
-                                <MudTd class="table-cell-clamp-1">@context.Sequence</MudTd>
-                                <MudTd class="table-cell-clamp-1">@context.DeliveryDate.ToString("yyyy-MM-dd")</MudTd>
+                                <MudTd >@context.Sequence</MudTd>
+                                <MudTd >@context.DeliveryDate.ToString("yyyy-MM-dd")</MudTd>
                                 <MudTd>@(context.DelayPenalty ? "是" : "否")</MudTd>
-                                <MudTd class="table-cell-clamp-1">@GetSettlementMethodText(context.SettlementMethod)</MudTd>
-                                <MudTd class="table-cell-clamp-1">@GetMaterialNameText(context.MaterialName)</MudTd>
-                                <MudTd class="table-cell-clamp-1" title="@context.ProductionStandardCode">@context.ProductionStandardCode</MudTd>
-                                <MudTd class="table-cell-clamp-2" title="@GetDeliveryStateText(context.DeliveryState)"><span class="clamp-inner">@GetDeliveryStateText(context.DeliveryState)</span></MudTd>
-                                <MudTd class="table-cell-clamp-1" title="@context.StandardGrade">@context.StandardGrade</MudTd>
-                                <MudTd class="table-cell-clamp-1" title="@DisplayHelper.FormatSpecification(context.Specification)">@DisplayHelper.FormatSpecification(context.Specification)</MudTd>
-                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatDecimal(context.OuterDiameterNegative)</MudTd>
-                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatDecimal(context.OuterDiameterPositive)</MudTd>
-                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatDecimal(context.WallThicknessNegative)</MudTd>
-                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatDecimal(context.WallThicknessPositive)</MudTd>
-                                <MudTd class="table-cell-clamp-1">@GetLengthStatusText(context.LengthStatus)</MudTd>
-                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatNullableDecimal(context.MinLength)</MudTd>
-                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatNullableDecimal(context.MaxLength)</MudTd>
-                                <MudTd class="table-cell-clamp-1">@context.Quantity</MudTd>
-                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatNullableDecimal(context.Meters)</MudTd>
-                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatDecimal(context.ContractWeight)</MudTd>
-                                <MudTd class="table-cell-clamp-1">@DisplayHelper.FormatDecimal(context.TheoreticalWeight)</MudTd>
+                                <MudTd >@GetSettlementMethodText(context.SettlementMethod)</MudTd>
+                                <MudTd >@GetMaterialNameText(context.MaterialName)</MudTd>
+                                <MudTd  title="@context.ProductionStandardCode">@context.ProductionStandardCode</MudTd>
+                                <MudTd title="@GetDeliveryStateText(context.DeliveryState)">@GetDeliveryStateText(context.DeliveryState)</MudTd>
+                                <MudTd  title="@context.StandardGrade">@context.StandardGrade</MudTd>
+                                <MudTd  title="@DisplayHelper.FormatSpecification(context.Specification)">@DisplayHelper.FormatSpecification(context.Specification)</MudTd>
+                                <MudTd >@DisplayHelper.FormatDecimal(context.OuterDiameterNegative)</MudTd>
+                                <MudTd >@DisplayHelper.FormatDecimal(context.OuterDiameterPositive)</MudTd>
+                                <MudTd >@DisplayHelper.FormatDecimal(context.WallThicknessNegative)</MudTd>
+                                <MudTd >@DisplayHelper.FormatDecimal(context.WallThicknessPositive)</MudTd>
+                                <MudTd >@GetLengthStatusText(context.LengthStatus)</MudTd>
+                                <MudTd >@DisplayHelper.FormatNullableDecimal(context.MinLength)</MudTd>
+                                <MudTd >@DisplayHelper.FormatNullableDecimal(context.MaxLength)</MudTd>
+                                <MudTd >@context.Quantity</MudTd>
+                                <MudTd >@DisplayHelper.FormatNullableDecimal(context.Meters)</MudTd>
+                                <MudTd >@DisplayHelper.FormatDecimal(context.ContractWeight)</MudTd>
+                                <MudTd >@DisplayHelper.FormatDecimal(context.TheoreticalWeight)</MudTd>
                             </RowTemplate>
                             <PagerContent>
                                 <MudTablePager />
@@ -164,28 +164,28 @@
                                   Hover="true"
                                   Elevation="0">
                             <HeaderContent>
-                                <MudTh class="table-cell-clamp-1">项次</MudTh>
-                                <MudTh class="table-cell-clamp-1">交货日期</MudTh>
-                                <MudTh class="table-cell-clamp-1">延期罚款</MudTh>
-                                <MudTh class="table-cell-clamp-1">结算方式</MudTh>
-                                <MudTh class="table-cell-clamp-1">物料名称</MudTh>
-                                <MudTh class="table-cell-clamp-1">产品标准</MudTh>
-                                <MudTh class="table-cell-clamp-1">交货状态</MudTh>
-                                <MudTh class="table-cell-clamp-1">标准牌号</MudTh>
-                                <MudTh class="table-cell-clamp-1">外径</MudTh>
-                                <MudTh class="table-cell-clamp-1">壁厚</MudTh>
-                                <MudTh class="table-cell-clamp-1">外径下差</MudTh>
-                                <MudTh class="table-cell-clamp-1">外径上差</MudTh>
-                                <MudTh class="table-cell-clamp-1">壁厚下差</MudTh>
-                                <MudTh class="table-cell-clamp-1">壁厚上差</MudTh>
-                                <MudTh class="table-cell-clamp-1">长度状态</MudTh>
-                                <MudTh class="table-cell-clamp-1">最小长度</MudTh>
-                                <MudTh class="table-cell-clamp-1">最大长度</MudTh>
-                                <MudTh class="table-cell-clamp-1">支数</MudTh>
-                                <MudTh class="table-cell-clamp-1">米数</MudTh>
-                                <MudTh class="table-cell-clamp-1">合同重量</MudTh>
-                                <MudTh class="table-cell-clamp-1">理算重量</MudTh>
-                                <MudTh class="table-cell-clamp-1">操作</MudTh>
+                                <MudTh >项次</MudTh>
+                                <MudTh >交货日期</MudTh>
+                                <MudTh >延期罚款</MudTh>
+                                <MudTh >结算方式</MudTh>
+                                <MudTh >物料名称</MudTh>
+                                <MudTh >产品标准</MudTh>
+                                <MudTh >交货状态</MudTh>
+                                <MudTh >标准牌号</MudTh>
+                                <MudTh >外径</MudTh>
+                                <MudTh >壁厚</MudTh>
+                                <MudTh >外径下差</MudTh>
+                                <MudTh >外径上差</MudTh>
+                                <MudTh >壁厚下差</MudTh>
+                                <MudTh >壁厚上差</MudTh>
+                                <MudTh >长度状态</MudTh>
+                                <MudTh >最小长度</MudTh>
+                                <MudTh >最大长度</MudTh>
+                                <MudTh >支数</MudTh>
+                                <MudTh >米数</MudTh>
+                                <MudTh >合同重量</MudTh>
+                                <MudTh >理算重量</MudTh>
+                                <MudTh >操作</MudTh>
                             </HeaderContent>
                             <RowTemplate Context="item">
                                 <!-- 项次号（只读，新增未保存时显示"--"） -->

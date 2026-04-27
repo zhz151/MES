@@ -291,7 +291,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.ProductionMainNo).IsRequired().HasMaxLength(50);
             entity.Property(e => e.ProductionSubNo).HasMaxLength(50);
             entity.Property(e => e.OrderItemIds).IsRequired().HasMaxLength(500);
-            entity.Property(e => e.Status).IsRequired().HasDefaultValue(WorkOrderStatus.NotGenerated);
+            entity.Property(e => e.Status).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(WorkOrderStatus.NotGenerated);
             entity.Property(e => e.RowVersion).IsRequired().IsRowVersion();
             entity.Property(e => e.SignDate).IsRequired().HasColumnType("datetime");
             entity.Property(e => e.Salesman).IsRequired().HasMaxLength(50);
@@ -337,7 +337,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.ToTable("OrderChangeNotification");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.OrderNumber).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.ChangeType).IsRequired();
+            entity.Property(e => e.ChangeType).IsRequired().HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.WorkOrderCount).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.IsRead).IsRequired().HasDefaultValue(false);
             entity.HasIndex(e => e.CreatedTime).HasDatabaseName("IX_OrderChangeNotification_CreatedTime");

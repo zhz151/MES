@@ -377,33 +377,33 @@ public async Task DeleteAsync(int id)
     if (salesOrder.Status == SalesOrderStatus.Cancelled)
         throw new BusinessException("已取消的订单不能删除");
 
-    // 1. 软删除订单
-    salesOrder.IsDeleted = true;
-
-    // 2. 软删除订单项次和产品要求
-    foreach (var orderItem in salesOrder.OrderItems.Where(oi => !oi.IsDeleted))
-    {
-        orderItem.IsDeleted = true;
-        if (orderItem.ProductRequirement != null && !orderItem.ProductRequirement.IsDeleted)
-            orderItem.ProductRequirement.IsDeleted = true;
-    }
-
-    // 3. 物理删除关联工单
-    var workOrders = await _context.WorkOrders
-        .Where(wo => wo.SalesOrderNo == salesOrder.OrderNumber)
-        .ToListAsync();
-
-    var workOrderCount = workOrders.Count;
-
-    if (workOrderCount > 0)
-    {
-        _context.WorkOrders.RemoveRange(workOrders);
-    }
-
-    // 4. 使用事务确保数据一致性
+    // 1. 使用事务确保数据一致性（包含查询和写入）
     using var transaction = await _context.Database.BeginTransactionAsync();
     try
     {
+        // 2. 软删除订单
+        salesOrder.IsDeleted = true;
+
+        // 3. 软删除订单项次和产品要求
+        foreach (var orderItem in salesOrder.OrderItems.Where(oi => !oi.IsDeleted))
+        {
+            orderItem.IsDeleted = true;
+            if (orderItem.ProductRequirement != null && !orderItem.ProductRequirement.IsDeleted)
+                orderItem.ProductRequirement.IsDeleted = true;
+        }
+
+        // 4. 物理删除关联工单（在事务内查询和删除，避免并发窗口）
+        var workOrders = await _context.WorkOrders
+            .Where(wo => wo.SalesOrderNo == salesOrder.OrderNumber)
+            .ToListAsync();
+
+        var workOrderCount = workOrders.Count;
+
+        if (workOrderCount > 0)
+        {
+            _context.WorkOrders.RemoveRange(workOrders);
+        }
+
         await _context.SaveChangesAsync();
 
         // 5. 生成通知（告知已自动清理工单）
@@ -551,30 +551,31 @@ public async Task DeleteAsync(int id)
         if (productionStandard == null)
             throw new BusinessException("产品标准不存在");
 
-        orderItem.DeliveryDate = request.DeliveryDate;
-        orderItem.DelayPenalty = request.DelayPenalty;
-        orderItem.SettlementMethod = request.SettlementMethod;
-        orderItem.MaterialName = request.MaterialName;
-        orderItem.ProductionStandardId = request.ProductionStandardId;
-        orderItem.DeliveryState = request.DeliveryState;
-        orderItem.StandardGrade = request.StandardGrade;
-        orderItem.PlantGrade = gradeMapping.PlantGrade;
-        orderItem.Density = gradeMapping.Density;
-        orderItem.OuterDiameter = normalizedOuterDiameter;
-        orderItem.WallThickness = normalizedWallThickness;
-        orderItem.Specification = $"{normalizedOuterDiameter}*{normalizedWallThickness}";
-        orderItem.OuterDiameterNegative = normalizedOuterDiameterNegative;
-        orderItem.OuterDiameterPositive = normalizedOuterDiameterPositive;
-        orderItem.WallThicknessNegative = normalizedWallThicknessNegative;
-        orderItem.WallThicknessPositive = normalizedWallThicknessPositive;
-        orderItem.LengthStatus = request.LengthStatus;
-        orderItem.MinLength = request.MinLength;
-        orderItem.MaxLength = CalculateMaxLength(request.LengthStatus, request.MinLength, request.MaxLength);
-        orderItem.Quantity = request.Quantity;
-        orderItem.Meters = meters;
-        orderItem.ContractWeight = normalizedContractWeight;
-        orderItem.TheoreticalWeight = theoreticalWeight;
-        orderItem.Remark = request.Remark;
+        SetOrderItemFields(orderItem,
+            deliveryDate: request.DeliveryDate,
+            delayPenalty: request.DelayPenalty,
+            settlementMethod: request.SettlementMethod,
+            materialName: request.MaterialName,
+            productionStandardId: request.ProductionStandardId,
+            deliveryState: request.DeliveryState,
+            standardGrade: request.StandardGrade,
+            plantGrade: gradeMapping.PlantGrade,
+            density: gradeMapping.Density,
+            outerDiameter: normalizedOuterDiameter,
+            wallThickness: normalizedWallThickness,
+            specification: $"{normalizedOuterDiameter}*{normalizedWallThickness}",
+            outerDiameterNegative: normalizedOuterDiameterNegative,
+            outerDiameterPositive: normalizedOuterDiameterPositive,
+            wallThicknessNegative: normalizedWallThicknessNegative,
+            wallThicknessPositive: normalizedWallThicknessPositive,
+            lengthStatus: request.LengthStatus,
+            minLength: request.MinLength,
+            maxLength: CalculateMaxLength(request.LengthStatus, request.MinLength, request.MaxLength),
+            quantity: request.Quantity,
+            meters: meters,
+            contractWeight: normalizedContractWeight,
+            theoreticalWeight: theoreticalWeight,
+            remark: request.Remark);
 
         // 更新订单的最后项次变更时间
         salesOrder.LastItemChangeTime = DateTimeOffset.Now;
@@ -678,35 +679,33 @@ public async Task DeleteAsync(int id)
             ValidateContractWeightAgainstTheoreticalWeight(normalizedContractWeight, theoreticalWeight);
         }
 
-        return new OrderItem
-        {
-            SalesOrderId = salesOrderId,
-            Sequence = sequence,
-            DeliveryDate = request.DeliveryDate,
-            DelayPenalty = request.DelayPenalty,
-            SettlementMethod = request.SettlementMethod,
-            MaterialName = request.MaterialName,
-            ProductionStandardId = request.ProductionStandardId,
-            DeliveryState = request.DeliveryState,
-            StandardGrade = request.StandardGrade,
-            PlantGrade = gradeMapping.PlantGrade,
-            Density = gradeMapping.Density,
-            OuterDiameter = normalizedOuterDiameter,
-            WallThickness = normalizedWallThickness,
-            Specification = $"{normalizedOuterDiameter}*{normalizedWallThickness}",
-            OuterDiameterNegative = normalizedOuterDiameterNegative,
-            OuterDiameterPositive = normalizedOuterDiameterPositive,
-            WallThicknessNegative = normalizedWallThicknessNegative,
-            WallThicknessPositive = normalizedWallThicknessPositive,
-            LengthStatus = request.LengthStatus,
-            MinLength = request.MinLength,
-            MaxLength = CalculateMaxLength(request.LengthStatus, request.MinLength, request.MaxLength),
-            Quantity = request.Quantity,
-            Meters = meters,
-            ContractWeight = normalizedContractWeight,
-            TheoreticalWeight = theoreticalWeight,
-            Remark = request.Remark
-        };
+        var item = new OrderItem { SalesOrderId = salesOrderId, Sequence = sequence };
+        SetOrderItemFields(item,
+            deliveryDate: request.DeliveryDate,
+            delayPenalty: request.DelayPenalty,
+            settlementMethod: request.SettlementMethod,
+            materialName: request.MaterialName,
+            productionStandardId: request.ProductionStandardId,
+            deliveryState: request.DeliveryState,
+            standardGrade: request.StandardGrade,
+            plantGrade: gradeMapping.PlantGrade,
+            density: gradeMapping.Density,
+            outerDiameter: normalizedOuterDiameter,
+            wallThickness: normalizedWallThickness,
+            specification: $"{normalizedOuterDiameter}*{normalizedWallThickness}",
+            outerDiameterNegative: normalizedOuterDiameterNegative,
+            outerDiameterPositive: normalizedOuterDiameterPositive,
+            wallThicknessNegative: normalizedWallThicknessNegative,
+            wallThicknessPositive: normalizedWallThicknessPositive,
+            lengthStatus: request.LengthStatus,
+            minLength: request.MinLength,
+            maxLength: CalculateMaxLength(request.LengthStatus, request.MinLength, request.MaxLength),
+            quantity: request.Quantity,
+            meters: meters,
+            contractWeight: normalizedContractWeight,
+            theoreticalWeight: theoreticalWeight,
+            remark: request.Remark);
+        return item;
     }
 
     private async Task<OrderItem> CreateOrderItemFromAddRequestAsync(AddOrderItemRequest request, int salesOrderId, int sequence)
@@ -747,35 +746,33 @@ public async Task DeleteAsync(int id)
             ValidateContractWeightAgainstTheoreticalWeight(normalizedContractWeight, theoreticalWeight);
         }
 
-        return new OrderItem
-        {
-            SalesOrderId = salesOrderId,
-            Sequence = sequence,
-            DeliveryDate = request.DeliveryDate,
-            DelayPenalty = request.DelayPenalty,
-            SettlementMethod = request.SettlementMethod,
-            MaterialName = request.MaterialName,
-            ProductionStandardId = request.ProductionStandardId,
-            DeliveryState = request.DeliveryState,
-            StandardGrade = request.StandardGrade,
-            PlantGrade = gradeMapping.PlantGrade,
-            Density = gradeMapping.Density,
-            OuterDiameter = normalizedOuterDiameter,
-            WallThickness = normalizedWallThickness,
-            Specification = $"{normalizedOuterDiameter}*{normalizedWallThickness}",
-            OuterDiameterNegative = normalizedOuterDiameterNegative,
-            OuterDiameterPositive = normalizedOuterDiameterPositive,
-            WallThicknessNegative = normalizedWallThicknessNegative,
-            WallThicknessPositive = normalizedWallThicknessPositive,
-            LengthStatus = request.LengthStatus,
-            MinLength = request.MinLength,
-            MaxLength = CalculateMaxLength(request.LengthStatus, request.MinLength, request.MaxLength),
-            Quantity = request.Quantity,
-            Meters = meters,
-            ContractWeight = normalizedContractWeight,
-            TheoreticalWeight = theoreticalWeight,
-            Remark = request.Remark
-        };
+        var item = new OrderItem { SalesOrderId = salesOrderId, Sequence = sequence };
+        SetOrderItemFields(item,
+            deliveryDate: request.DeliveryDate,
+            delayPenalty: request.DelayPenalty,
+            settlementMethod: request.SettlementMethod,
+            materialName: request.MaterialName,
+            productionStandardId: request.ProductionStandardId,
+            deliveryState: request.DeliveryState,
+            standardGrade: request.StandardGrade,
+            plantGrade: gradeMapping.PlantGrade,
+            density: gradeMapping.Density,
+            outerDiameter: normalizedOuterDiameter,
+            wallThickness: normalizedWallThickness,
+            specification: $"{normalizedOuterDiameter}*{normalizedWallThickness}",
+            outerDiameterNegative: normalizedOuterDiameterNegative,
+            outerDiameterPositive: normalizedOuterDiameterPositive,
+            wallThicknessNegative: normalizedWallThicknessNegative,
+            wallThicknessPositive: normalizedWallThicknessPositive,
+            lengthStatus: request.LengthStatus,
+            minLength: request.MinLength,
+            maxLength: CalculateMaxLength(request.LengthStatus, request.MinLength, request.MaxLength),
+            quantity: request.Quantity,
+            meters: meters,
+            contractWeight: normalizedContractWeight,
+            theoreticalWeight: theoreticalWeight,
+            remark: request.Remark);
+        return item;
     }
 
     private static decimal NormalizeDecimalValue(decimal value)
@@ -878,6 +875,40 @@ public async Task DeleteAsync(int id)
         var weight = density * pi * effectiveWallThickness * (effectiveOuterDiameter - effectiveWallThickness) * meters / 1000;
         if (weight < 0) weight = 0;
         return Math.Round(weight, 2);
+    }
+
+    private static void SetOrderItemFields(OrderItem item,
+        DateTime deliveryDate, bool delayPenalty, SettlementMethod settlementMethod, MaterialName materialName,
+        int productionStandardId, DeliveryState deliveryState, string standardGrade, string plantGrade,
+        decimal density, decimal outerDiameter, decimal wallThickness, string specification,
+        decimal outerDiameterNegative, decimal outerDiameterPositive, decimal wallThicknessNegative,
+        decimal wallThicknessPositive, LengthStatus lengthStatus, decimal? minLength, decimal? maxLength,
+        int? quantity, decimal? meters, decimal contractWeight, decimal theoreticalWeight, string? remark)
+    {
+        item.DeliveryDate = deliveryDate;
+        item.DelayPenalty = delayPenalty;
+        item.SettlementMethod = settlementMethod;
+        item.MaterialName = materialName;
+        item.ProductionStandardId = productionStandardId;
+        item.DeliveryState = deliveryState;
+        item.StandardGrade = standardGrade;
+        item.PlantGrade = plantGrade;
+        item.Density = density;
+        item.OuterDiameter = outerDiameter;
+        item.WallThickness = wallThickness;
+        item.Specification = specification;
+        item.OuterDiameterNegative = outerDiameterNegative;
+        item.OuterDiameterPositive = outerDiameterPositive;
+        item.WallThicknessNegative = wallThicknessNegative;
+        item.WallThicknessPositive = wallThicknessPositive;
+        item.LengthStatus = lengthStatus;
+        item.MinLength = minLength;
+        item.MaxLength = maxLength;
+        item.Quantity = quantity;
+        item.Meters = meters;
+        item.ContractWeight = contractWeight;
+        item.TheoreticalWeight = theoreticalWeight;
+        item.Remark = remark;
     }
 
     private async Task<OrderItemDto> MapToOrderItemDto(OrderItem orderItem)

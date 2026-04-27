@@ -28,6 +28,7 @@ public class ProductionStandardService : IProductionStandardService
     public async Task<PagedResult<ProductionStandardDto>> GetPagedAsync(QueryParams query, bool? isActive = null)
     {
         var queryable = _context.ProductionStandards
+            .AsNoTracking()
             .Where(p => !p.IsDeleted)
             .AsQueryable();
 
@@ -93,6 +94,7 @@ public class ProductionStandardService : IProductionStandardService
     public async Task<List<ProductionStandardDto>> GetAllAsync(bool onlyActive = true)
     {
         var query = _context.ProductionStandards
+            .AsNoTracking()
             .Where(p => !p.IsDeleted);
 
         if (onlyActive)
