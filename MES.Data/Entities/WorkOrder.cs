@@ -174,4 +174,16 @@ public class WorkOrder : BaseEntity
     /// 技术要求（Special=特殊，Normal=常规）
     /// </summary>
     public RequirementType TechnicalRequirements { get; set; } = RequirementType.Normal;
+
+    // ========== 用料计划状态 ==========
+
+    /// <summary>
+    /// 用料计划状态（0=未计划 1=部分 2=理论满足 3=满足 4=超量）
+    /// </summary>
+    public MaterialPlanStatus MaterialPlanStatus { get; set; } = MaterialPlanStatus.NotPlanned;
+
+    /// <summary>
+    /// 用料计划满足率(%)
+    /// </summary>
+    public decimal MaterialPlanRate { get; set; }
 }

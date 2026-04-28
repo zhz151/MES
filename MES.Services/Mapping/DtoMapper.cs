@@ -61,12 +61,15 @@ public static class DtoMapper
         SalesOrderNo = entity.SalesOrderNo,
         ProductionMainNo = entity.ProductionMainNo,
         ProductionSubNo = entity.ProductionSubNo,
+        PlantGrade = entity.PlantGrade,
         MaterialName = entity.MaterialName.ToString(),
         Specification = entity.Specification,
         DeliveryDate = entity.DeliveryDate,
         TotalQuantity = entity.TotalQuantity,
         TotalWeight = entity.TotalWeight,
         Status = (int)entity.Status,
+        MaterialPlanStatus = (int)entity.MaterialPlanStatus,
+        MaterialPlanRate = entity.MaterialPlanRate,
         CreatedTime = entity.CreatedTime
     };
 
@@ -107,7 +110,9 @@ public static class DtoMapper
         CreatedTime = entity.CreatedTime,
         CreatedBy = entity.CreatedBy,
         UpdatedTime = entity.UpdatedTime,
-        UpdatedBy = entity.UpdatedBy
+        UpdatedBy = entity.UpdatedBy,
+        MaterialPlanStatus = (int)entity.MaterialPlanStatus,
+        MaterialPlanRate = entity.MaterialPlanRate
     };
 
     public static ProductRequirementDto ToDto(this ProductRequirement entity, int sequence) => new()

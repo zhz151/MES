@@ -129,6 +129,8 @@ public class WorkOrderService
                 url += $"&deliveryDateStart={query.DeliveryDateStart.Value:yyyy-MM-dd}";
             if (query.DeliveryDateEnd.HasValue)
                 url += $"&deliveryDateEnd={query.DeliveryDateEnd.Value:yyyy-MM-dd}";
+            if (query.MaterialPlanStatus.HasValue)
+                url += $"&materialPlanStatus={query.MaterialPlanStatus.Value}";
 
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<WorkOrderListDto>>>(url);
             return response ?? ApiResponse<PagedResult<WorkOrderListDto>>.Fail("获取数据失败");

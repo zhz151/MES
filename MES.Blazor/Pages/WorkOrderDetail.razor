@@ -175,6 +175,42 @@
                         </MudItem>
                     }
 
+                    <!-- 用料计划 -->
+                    <MudItem xs="12">
+                        <MudDivider Class="my-3" />
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">用料计划</MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudText Typo="Typo.body2">
+                            <strong>用料计划状态：</strong>
+                            <MudChip Size="Size.Small" Color="@GetMaterialPlanColor(workOrder.MaterialPlanStatus)" Class="ml-1">
+                                @GetMaterialPlanStatusText(workOrder.MaterialPlanStatus)
+                            </MudChip>
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudText Typo="Typo.body2">
+                            <strong>满足率：</strong>@workOrder.MaterialPlanRate.ToString("G29")%
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="4" Class="d-flex align-center justify-end">
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Inventory2"
+                                   OnClick="NavigateToSemiPlan"
+                                   Class="mr-2">
+                            原料采购计划
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Checklist"
+                                   OnClick="NavigateToFinishPlan">
+                            成品采购计划
+                        </MudButton>
+                    </MudItem>
+
                     <!-- 技术要求 -->
                     <MudItem xs="12">
                         <MudDivider Class="my-3" />
@@ -339,4 +375,37 @@
         };
     }
 
+    private void NavigateToSemiPlan()
+    {
+        Navigation.NavigateTo($"/workorders/{Id}/material-plan");
+    }
+
+    private void NavigateToFinishPlan()
+    {
+        Navigation.NavigateTo($"/workorders/{Id}/finish-plan");
+    }
+
+    private Color GetMaterialPlanColor(int status)
+    {
+        return status switch
+        {
+            0 => Color.Default,
+            1 => Color.Warning,
+            2 => Color.Success,
+            3 => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private string GetMaterialPlanStatusText(int status)
+    {
+        return status switch
+        {
+            0 => "未计划",
+            1 => "部分",
+            2 => "满足",
+            3 => "超量",
+            _ => "未知"
+        };
+    }
 }

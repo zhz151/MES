@@ -1,5 +1,3 @@
-// 文件路径: MES.Blazor/Helpers/DisplayHelper.cs
-
 using MudBlazor;
 
 namespace MES.Blazor.Helpers;

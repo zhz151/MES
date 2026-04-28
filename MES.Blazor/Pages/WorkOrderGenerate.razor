@@ -273,48 +273,7 @@
 
         var errors = new List<string>();
 
-        // 按主号分组
-        var groups = new Dictionary<string, List<OrderItemForWorkOrderDto>>();
-        foreach (var item in orderItems)
-        {
-            var mainNo = item.SuggestedMainNo;
-            if (string.IsNullOrEmpty(mainNo))
-            {
-                errors.Add($"项次 {item.Sequence} 的主号不能为空");
-                continue;
-            }
-            if (!groups.ContainsKey(mainNo))
-                groups[mainNo] = new List<OrderItemForWorkOrderDto>();
-            groups[mainNo].Add(item);
-        }
-
-        if (errors.Any())
-        {
-            Snackbar.Add(string.Join("；", errors), Severity.Error);
-            return;
-        }
-
-        // 验证每个分组内的合并字段一致性
-        foreach (var group in groups)
-        {
-            var mainNo = group.Key;
-            var itemsInGroup = group.Value;
-            if (itemsInGroup.Count <= 1) continue;
-
-            var baseMergeKey = GetMergeKey(itemsInGroup.First());
-            var inconsistentItems = new List<int>();
-            foreach (var item in itemsInGroup.Skip(1))
-            {
-                if (GetMergeKey(item) != baseMergeKey)
-                    inconsistentItems.Add(item.Sequence);
-            }
-            if (inconsistentItems.Any())
-            {
-                errors.Add($"主号 {mainNo} 下的项次 {string.Join(",", inconsistentItems)} 与组内其他项次规格参数不一致，不能合并到同一主号");
-            }
-        }
-
-        // 验证次号
+        // 验证次号（先验证，后分组）
         foreach (var item in orderItems)
         {
             var lengthStatus = item.LengthStatus;
@@ -339,23 +298,64 @@
             return;
         }
 
+        // 按主号+次号分组（三者相同：订单号+主号+次号，才合并为一个工单）
+        var groups = new Dictionary<(string mainNo, string subNo), List<OrderItemForWorkOrderDto>>();
+        foreach (var item in orderItems)
+        {
+            var mainNo = item.SuggestedMainNo;
+            if (string.IsNullOrEmpty(mainNo))
+            {
+                errors.Add($"项次 {item.Sequence} 的主号不能为空");
+                continue;
+            }
+            var subNo = subNoMap.GetValueOrDefault(item.Id) ?? "";
+            var key = (mainNo, subNo);
+            if (!groups.ContainsKey(key))
+                groups[key] = new List<OrderItemForWorkOrderDto>();
+            groups[key].Add(item);
+        }
+
+        if (errors.Any())
+        {
+            Snackbar.Add(string.Join("；", errors), Severity.Error);
+            return;
+        }
+
+        // 验证每个分组内的合并字段一致性
+        foreach (var group in groups)
+        {
+            var (mainNo, subNo) = group.Key;
+            var itemsInGroup = group.Value;
+            if (itemsInGroup.Count <= 1) continue;
+
+            var baseMergeKey = GetMergeKey(itemsInGroup.First());
+            var inconsistentItems = new List<int>();
+            foreach (var item in itemsInGroup.Skip(1))
+            {
+                if (GetMergeKey(item) != baseMergeKey)
+                    inconsistentItems.Add(item.Sequence);
+            }
+            if (inconsistentItems.Any())
+            {
+                var subDesc = string.IsNullOrEmpty(subNo) ? "" : $"/次号{subNo}";
+                errors.Add($"主号 {mainNo}{subDesc} 下的项次 {string.Join(",", inconsistentItems)} 与组内其他项次规格参数不一致，不能合并到同一工单");
+            }
+        }
+
+        if (errors.Any())
+        {
+            Snackbar.Add(string.Join("；", errors), Severity.Error);
+            return;
+        }
+
         var workOrderGroups = new List<WorkOrderItemGroup>();
         foreach (var group in groups)
         {
-            string? subNo = null;
-            foreach (var item in group.Value)
-            {
-                var tempSubNo = subNoMap.GetValueOrDefault(item.Id);
-                if (!string.IsNullOrEmpty(tempSubNo))
-                {
-                    subNo = tempSubNo;
-                    break;
-                }
-            }
+            var (mainNo, subNo) = group.Key;
             workOrderGroups.Add(new WorkOrderItemGroup
             {
-                ProductionMainNo = group.Key,
-                ProductionSubNo = subNo,
+                ProductionMainNo = mainNo,
+                ProductionSubNo = string.IsNullOrEmpty(subNo) ? null : subNo,
                 OrderItemIds = group.Value.Select(x => x.Id).ToList()
             });
         }

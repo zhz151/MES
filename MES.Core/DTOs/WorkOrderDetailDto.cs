@@ -186,6 +186,16 @@ public string StatusText
     public byte[] RowVersion { get; set; } = null!;
 
     /// <summary>
+    /// 用料计划状态
+    /// </summary>
+    public int MaterialPlanStatus { get; set; }
+
+    /// <summary>
+    /// 用料计划满足率(%)
+    /// </summary>
+    public decimal MaterialPlanRate { get; set; }
+
+    /// <summary>
     /// 创建时间
     /// </summary>
     public DateTimeOffset CreatedTime { get; set; }

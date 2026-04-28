@@ -69,4 +69,9 @@ public class WorkOrderQueryParams : QueryParams
     /// 是否包含已取消订单（用于待删除区域）
     /// </summary>
     public bool IncludeCancelled { get; set; }
+
+    /// <summary>
+    /// 用料计划状态筛选（0=未计划，1=部分，2=满足，3=超量）
+    /// </summary>
+    public int? MaterialPlanStatus { get; set; }
 }

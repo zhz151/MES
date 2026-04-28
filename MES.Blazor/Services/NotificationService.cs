@@ -39,7 +39,7 @@ public class NotificationService
     {
         try
         {
-            var url = $"{BaseUrl}/paged?pageIndex={pageIndex}&pageSize={pageSize}";
+            var url = $"{BaseUrl}/list?pageIndex={pageIndex}&pageSize={pageSize}";
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<OrderChangeNotificationDto>>>(url);
             return response ?? ApiResponse<PagedResult<OrderChangeNotificationDto>>.Fail("获取通知列表失败");
         }

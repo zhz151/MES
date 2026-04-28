@@ -705,6 +705,9 @@ public class WorkOrderService : IWorkOrderService
                 wo.Specification.Contains(keyword));
         }
 
+        if (query.MaterialPlanStatus.HasValue)
+            workOrderQuery = workOrderQuery.Where(wo => (int)wo.MaterialPlanStatus == query.MaterialPlanStatus.Value);
+
         var totalCount = await workOrderQuery.CountAsync();
 
         if (!string.IsNullOrEmpty(query.SortBy))
@@ -741,6 +744,12 @@ public class WorkOrderService : IWorkOrderService
 
         var items = workOrders.Select(wo => wo.ToListDto()).ToList();
 
+        // 计算主号级和订单级聚合（用于用料计划总览三级展示）
+        if (items.Any())
+        {
+            await EnrichWithAggregatedStatusAsync(items);
+        }
+
         return new PagedResult<WorkOrderListDto>
         {
             Items = items,
@@ -749,6 +758,149 @@ public class WorkOrderService : IWorkOrderService
             PageSize = query.PageSize
         };
     }
+
+    #region 用料计划三级聚合
+
+    /// <summary>
+    /// 为工单列表补充主号级和订单级聚合状态
+    /// </summary>
+    private async Task EnrichWithAggregatedStatusAsync(List<WorkOrderListDto> items)
+    {
+        var orderNos = items.Select(i => i.SalesOrderNo).Distinct().ToList();
+
+        var allWorkOrdersInOrders = await _context.WorkOrders
+            .Where(wo => orderNos.Contains(wo.SalesOrderNo))
+            .ToListAsync();
+
+        var allWorkOrderIds = allWorkOrdersInOrders.Select(wo => wo.Id).ToList();
+
+        var allSemiPlans = await _context.PurchaseSemiPlans
+            .Where(p => allWorkOrderIds.Contains(p.WorkOrderId))
+            .ToListAsync();
+
+        var allFinishPlans = await _context.PurchaseFinishedPlans
+            .Where(p => allWorkOrderIds.Contains(p.WorkOrderId))
+            .ToListAsync();
+
+        // 1. 主号级聚合
+        var mainNoKeys = items
+            .Select(i => new { i.SalesOrderNo, MainNo = i.ProductionMainNo })
+            .Distinct()
+            .ToList();
+
+        foreach (var key in mainNoKeys)
+        {
+            var groupWorkOrders = allWorkOrdersInOrders
+                .Where(wo => wo.SalesOrderNo == key.SalesOrderNo && wo.ProductionMainNo == key.MainNo)
+                .ToList();
+
+            var groupIds = groupWorkOrders.Select(wo => wo.Id).ToHashSet();
+            var groupSemiPlans = allSemiPlans.Where(p => groupIds.Contains(p.WorkOrderId)).ToList();
+            var groupFinishPlans = allFinishPlans.Where(p => groupIds.Contains(p.WorkOrderId)).ToList();
+
+            var (rate, status) = CalculateMainNoAggregation(groupWorkOrders, groupSemiPlans, groupFinishPlans);
+
+            foreach (var item in items.Where(i =>
+                i.SalesOrderNo == key.SalesOrderNo && i.ProductionMainNo == key.MainNo))
+            {
+                item.MainNoMaterialPlanRate = rate;
+                item.MainNoMaterialPlanStatus = (int)status;
+            }
+        }
+
+        // 2. 订单级聚合：只要该订单下所有主号都没有"部分"和"未计划"，即为全部满足
+        foreach (var orderNo in orderNos)
+        {
+            var orderItems = items.Where(i => i.SalesOrderNo == orderNo).ToList();
+            var hasPartialOrNotPlanned = orderItems.Any(i =>
+                i.MainNoMaterialPlanStatus == (int)MaterialPlanStatus.Partial ||
+                i.MainNoMaterialPlanStatus == (int)MaterialPlanStatus.NotPlanned);
+
+            var orderStatus = hasPartialOrNotPlanned
+                ? MaterialPlanStatus.Partial
+                : MaterialPlanStatus.Satisfied;
+
+            foreach (var item in orderItems)
+                item.OrderMaterialPlanStatus = (int)orderStatus;
+        }
+    }
+
+    /// <summary>
+    /// 计算主号级聚合（使用原始标准，不含"理论满足"）
+    /// </summary>
+    private (decimal rate, MaterialPlanStatus status) CalculateMainNoAggregation(
+        List<WorkOrder> workOrders,
+        List<PurchaseSemiPlan> semiPlans,
+        List<PurchaseFinishedPlan> finishPlans)
+    {
+        var fixedOrders = workOrders.Where(wo => wo.LengthStatus == LengthStatus.Fixed).ToList();
+        var nonFixedOrders = workOrders.Where(wo => wo.LengthStatus != LengthStatus.Fixed).ToList();
+
+        decimal totalDemand = 0;
+        decimal totalEffective = 0;
+
+        // 定尺：按支数
+        if (fixedOrders.Any())
+        {
+            var fixedIds = fixedOrders.Select(wo => wo.Id).ToHashSet();
+            totalDemand += fixedOrders.Sum(wo => wo.TotalQuantity);
+
+            var fixedSemi = semiPlans.Where(p => fixedIds.Contains(p.WorkOrderId)).ToList();
+            var fixedFinish = finishPlans.Where(p => fixedIds.Contains(p.WorkOrderId)).ToList();
+
+            var semiPieces = fixedSemi.Sum(p => p.RequiredPieces ?? 0);
+            if (semiPieces > 0 && fixedSemi.Any())
+            {
+                var avgMultiple = fixedSemi.Average(p => p.InputMultiple);
+                var avgQualified = fixedSemi.Average(p => p.QualifiedRate) / 100m;
+                totalEffective += semiPieces * (decimal)avgMultiple * avgQualified * 1.02m;
+            }
+
+            totalEffective += fixedFinish.Sum(p => p.RequiredPiece ?? 0) * 1.02m;
+        }
+
+        // 范围尺/非定尺：按重量
+        if (nonFixedOrders.Any())
+        {
+            var nonFixedIds = nonFixedOrders.Select(wo => wo.Id).ToHashSet();
+            totalDemand += nonFixedOrders.Sum(wo => wo.TotalWeight);
+
+            var nonFixedSemi = semiPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
+            var nonFixedFinish = finishPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
+
+            totalEffective += nonFixedSemi.Sum(p => p.RequiredWeight) * 1.05m;
+            totalEffective += nonFixedFinish.Sum(p => p.RequiredWeight) * 1.05m;
+        }
+
+        if (totalDemand <= 0) return (0, MaterialPlanStatus.NotPlanned);
+
+        var rate = Math.Round(totalEffective / totalDemand * 100m, 2);
+
+        // 使用原始标准（不含理论满足）
+        var status = CalculateMainNoStatus(rate, fixedOrders.Any());
+        return (rate, status);
+    }
+
+    /// <summary>
+    /// 主号级状态判定（原标准，无"理论满足"）
+    /// </summary>
+    private static MaterialPlanStatus CalculateMainNoStatus(decimal rate, bool isFixed)
+    {
+        if (isFixed)
+        {
+            if (rate < 102m) return MaterialPlanStatus.Partial;
+            if (rate <= 110m) return MaterialPlanStatus.Satisfied;
+            return MaterialPlanStatus.Excess;
+        }
+        else
+        {
+            if (rate < 105m) return MaterialPlanStatus.Partial;
+            if (rate <= 120m) return MaterialPlanStatus.Satisfied;
+            return MaterialPlanStatus.Excess;
+        }
+    }
+
+    #endregion
 
     public async Task<WorkOrderDetailDto> GetByIdAsync(int id)
     {

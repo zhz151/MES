@@ -1,0 +1,480 @@
+@page "/workorders/{WorkOrderId:int}/material-plan/create"
+@using System.Text.Json
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Enums
+@using MES.Blazor.Shared
+@using MES.Blazor.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inject MaterialPlanService MaterialPlanService
+@inject WorkOrderService WorkOrderService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-2">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Inventory2" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">新增原料采购计划</MudText>
+                </div>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            @if (isLoadingWorkOrder)
+            {
+                <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+            }
+            else if (workOrder != null)
+            {
+                <!-- ===== 工单基本信息 ===== -->
+                <MudPaper Class="pa-3 mb-3" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background-color:var(--mud-palette-info-hover);">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-1">
+                        <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" Class="mr-1" />工单基本信息
+                    </MudText>
+                    <MudGrid>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">工单号</MudText>
+                            <MudText Typo="Typo.body2" Class="font-weight-bold">@workOrder.WorkOrderNo</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">订单号/主号/次号</MudText>
+                            <MudText Typo="Typo.body2">@GetOrderNo()</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">物料名称</MudText>
+                            <MudText Typo="Typo.body2">@DisplayHelper.GetMaterialNameText(workOrder.MaterialName)</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">结算方式</MudText>
+                            <MudText Typo="Typo.body2">@DisplayHelper.GetSettlementMethodText(workOrder.SettlementMethod)</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">交货状态</MudText>
+                            <MudText Typo="Typo.body2">@DisplayHelper.GetDeliveryStateText(workOrder.DeliveryState)</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">延期罚款</MudText>
+                            <MudText Typo="Typo.body2">@(workOrder.DelayPenalty ? "是" : "否")</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">交货日期</MudText>
+                            <MudText Typo="Typo.body2">@workOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">工厂牌号</MudText>
+                            <MudText Typo="Typo.body2">@workOrder.PlantGrade</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">规格</MudText>
+                            <MudText Typo="Typo.body2">@workOrder.Specification</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">外径公差(mm)</MudText>
+                            <MudText Typo="Typo.body2">@GetToleranceText(workOrder.OuterDiameterNegative, workOrder.OuterDiameterPositive)</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">壁厚公差(mm)</MudText>
+                            <MudText Typo="Typo.body2">@GetToleranceText(workOrder.WallThicknessNegative, workOrder.WallThicknessPositive)</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">长度状态</MudText>
+                            <MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(workOrder.LengthStatus) @(workOrder.MaxLength.HasValue ? $"(最长{(int)workOrder.MaxLength.Value}mm)" : "")</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">总数</MudText>
+                            <MudText Typo="Typo.body2">@workOrder.TotalQuantity 支 / @workOrder.TotalWeight.ToString("G29") kg</MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+
+                <!-- ===== 采购计划表单 ===== -->
+                <MudGrid>
+                    <!-- 采购信息 -->
+                    <MudItem xs="12" md="3">
+                        <MudTextField T="string" Label="计划日期" @bind-Value="planDateStr" Required="true" Placeholder="yyyy-MM-dd" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect T="string" Label="原料类型" @bind-Value="editForm.RawMaterialType" Required="true">
+                            <MudSelectItem Value="@("SemiFinished")">荒管</MudSelectItem>
+                            <MudSelectItem Value="@("SemiProduct")">半成品</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField T="string" Label="原料规格" @bind-Value="editForm.RawMaterialSpec" Required="true" Placeholder="如：73*5.5" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField T="string" Label="要求到货日期" @bind-Value="requiredDateStr" Placeholder="yyyy-MM-dd" />
+                    </MudItem>
+
+                    <!-- 备注栏针对原料，放置在原料处 -->
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="备注" @bind-Value="editForm.Remark" Lines="1" />
+                    </MudItem>
+
+                    <!-- 测算参数 -->
+                    <MudItem xs="12">
+                        <MudDivider Class="my-1" />
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary">测算参数</MudText>
+                    </MudItem>
+
+                    <MudItem xs="12" md="2">
+                        <MudNumericField T="decimal"
+                                         Label="调整成品壁厚(mm)"
+                                         @bind-Value="editForm.AdjustedWallThickness"
+                                         Required="true"
+                                         Min="0" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudNumericField T="decimal"
+                                         Label="成材率(%)"
+                                         @bind-Value="editForm.YieldRate"
+                                         Required="true"
+                                         Min="0"
+                                         Max="100" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudNumericField T="decimal"
+                                         Label="正品率(%)"
+                                         @bind-Value="editForm.QualifiedRate"
+                                         Required="true"
+                                         Min="0"
+                                         Max="100" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudNumericField T="int"
+                                         Label="原料每支产成(支)"
+                                         @bind-Value="editForm.InputMultiple"
+                                         Required="true"
+                                         Min="1" />
+                    </MudItem>
+                    <MudItem xs="12" md="2" Class="d-flex align-center">
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Info"
+                                   StartIcon="@Icons.Material.Filled.Calculate"
+                                   OnClick="Calculate"
+                                   FullWidth="true">
+                            测算
+                        </MudButton>
+                    </MudItem>
+
+                    <!-- 非定尺人工填写 -->
+                    @if (isNonFixedLength)
+                    {
+                        <MudItem xs="12">
+                            <MudAlert Severity="Severity.Info" Class="my-1">
+                                该工单为非定尺/范围长度，请先测算，然后手动填写支数和重量
+                            </MudAlert>
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudNumericField T="int?" Label="人工填写支数" @bind-Value="editForm.ManualPieces" Min="0" />
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudNumericField T="decimal?" Label="人工填写重量(kg)" @bind-Value="editForm.ManualWeight" Min="0" />
+                        </MudItem>
+                    }
+
+                    <!-- 测算结果 -->
+                    @if (calcResult != null)
+                    {
+                        <MudItem xs="12">
+                            <MudPaper Class="pa-2" Elevation="0" Style="background-color: var(--mud-palette-info-hover); border-radius: 8px;">
+                                <MudGrid>
+                                    <MudItem xs="12">
+                                        <MudText Typo="Typo.subtitle2" Color="Color.Info">测算结果</MudText>
+                                    </MudItem>
+                                    <MudItem xs="6" md="2">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">密度(g/cm³)</MudText>
+                                        <MudText Typo="Typo.body2">@calcResult.Density.ToString("G29")</MudText>
+                                    </MudItem>
+                                    <MudItem xs="6" md="2">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">单米重量(kg/m)</MudText>
+                                        <MudText Typo="Typo.body2">@calcResult.UnitWeightPerMeter.ToString("G29")</MudText>
+                                    </MudItem>
+                                    <MudItem xs="6" md="2">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">成品单重(kg/支)</MudText>
+                                        <MudText Typo="Typo.body2">@(calcResult.UnitWeight?.ToString("G29") ?? "-")</MudText>
+                                    </MudItem>
+                                    <MudItem xs="6" md="2">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">原料单重(kg/支)</MudText>
+                                        <MudText Typo="Typo.body2">@(calcResult.RawUnitWeight?.ToString("G29") ?? "-")</MudText>
+                                    </MudItem>
+                                    <MudItem xs="6" md="2">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">原料支数</MudText>
+                                        <MudText Typo="Typo.body2">@(calcResult.RequiredPieces?.ToString() ?? "-")</MudText>
+                                    </MudItem>
+                                    <MudItem xs="6" md="2">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">原料重量(kg)</MudText>
+                                        <MudText Typo="Typo.body2">@(calcResult.RequiredWeight?.ToString("G29") ?? "-")</MudText>
+                                    </MudItem>
+                                </MudGrid>
+                            </MudPaper>
+                        </MudItem>
+                    }
+
+                    <!-- 荒管工艺路线（横向输入） -->
+                    <MudItem xs="12">
+                        <MudDivider Class="my-1" />
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary">荒管工艺路线</MudText>
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudGrid>
+                            @for (int i = 0; i < processSpecs.Count; i++)
+                            {
+                                var idx = i;
+                                <MudItem xs="12" md="2">
+                                    <div class="d-flex align-center">
+                                        <MudText Typo="Typo.body2" Class="mr-1" Style="white-space: nowrap;">工序@(idx + 1)</MudText>
+                                        <MudTextField T="string"
+                                                      @bind-Value="processSpecs[idx]"
+                                                      Placeholder="规格"
+                                                      Dense="true"
+                                                      Immediate="true"
+                                                      Class="flex-grow-1" />
+                                        @if (processSpecs.Count > 1)
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline"
+                                                           Size="Size.Small"
+                                                           Color="Color.Error"
+                                                           OnClick="() => RemoveProcessStep(idx)"
+                                                           Title="删除" />
+                                        }
+                                    </div>
+                                </MudItem>
+                            }
+                            <MudItem xs="12" md="1" Class="d-flex align-center">
+                                <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline"
+                                               Size="Size.Small"
+                                               Color="Color.Primary"
+                                               OnClick="AddProcessStep"
+                                               Title="添加工序" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudItem>
+                </MudGrid>
+
+                <!-- 验证消息 -->
+                @if (!string.IsNullOrEmpty(validationMessage))
+                {
+                    <MudAlert Severity="Severity.Warning" Class="mt-2">@validationMessage</MudAlert>
+                }
+
+                <!-- 操作按钮 -->
+                <div class="d-flex justify-end mt-2">
+                    <MudButton Variant="Variant.Text" OnClick="GoBack" Class="mr-2">取消</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Loading="@isSaving">
+                        保存
+                    </MudButton>
+                </div>
+            }
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    [Parameter] public int WorkOrderId { get; set; }
+
+    private WorkOrderDetailDto? workOrder;
+    private bool isLoadingWorkOrder = true;
+    private bool isSaving = false;
+    private string validationMessage = string.Empty;
+    private MaterialCalculateResult? calcResult;
+    private bool isNonFixedLength = false;
+    private string requiredDateStr = string.Empty;
+    private string planDateStr = string.Empty;
+
+    private CreatePurchaseSemiPlanRequest editForm = new();
+    private List<string> processSpecs = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWorkOrder();
+    }
+
+    private async Task LoadWorkOrder()
+    {
+        isLoadingWorkOrder = true;
+        try
+        {
+            var woResult = await WorkOrderService.GetByIdAsync(WorkOrderId);
+            if (woResult.Success && woResult.Data != null)
+            {
+                workOrder = woResult.Data;
+                isNonFixedLength = workOrder.LengthStatus != "Fixed";
+                planDateStr = DateTime.Today.ToString("yyyy-MM-dd");
+                editForm = new CreatePurchaseSemiPlanRequest
+                {
+                    WorkOrderId = WorkOrderId,
+                    PlanDate = DateTime.Today,
+                    RawMaterialType = "SemiFinished",
+                    RawMaterialSpec = string.Empty,
+                    AdjustedWallThickness = 0,
+                    YieldRate = 0,
+                    InputMultiple = 1,
+                    QualifiedRate = 0
+                };
+                processSpecs = new List<string> { "" };
+            }
+            else
+            {
+                Snackbar.Add("工单不存在", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载工单失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoadingWorkOrder = false;
+        }
+    }
+
+    private async Task Calculate()
+    {
+        validationMessage = string.Empty;
+
+        if (editForm.AdjustedWallThickness <= 0)
+        {
+            validationMessage = "请输入调整成品壁厚";
+            return;
+        }
+        if (editForm.YieldRate <= 0)
+        {
+            validationMessage = "请输入成材率";
+            return;
+        }
+        if (editForm.QualifiedRate <= 0)
+        {
+            validationMessage = "请输入正品率";
+            return;
+        }
+
+        try
+        {
+            var request = new MaterialCalculateRequest
+            {
+                WorkOrderId = WorkOrderId,
+                AdjustedWallThickness = editForm.AdjustedWallThickness,
+                YieldRate = editForm.YieldRate,
+                InputMultiple = editForm.InputMultiple,
+                QualifiedRate = editForm.QualifiedRate
+            };
+
+            var result = await MaterialPlanService.CalculateAsync(request);
+            if (result.Success && result.Data != null)
+            {
+                calcResult = result.Data;
+                Snackbar.Add("测算完成", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "测算失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"测算失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void AddProcessStep()
+    {
+        processSpecs.Add("");
+    }
+
+    private void RemoveProcessStep(int index)
+    {
+        if (processSpecs.Count <= 1) return;
+        processSpecs.RemoveAt(index);
+    }
+
+    private async Task Save()
+    {
+        validationMessage = string.Empty;
+
+        var errors = new List<string>();
+        if (string.IsNullOrWhiteSpace(planDateStr) || !DateTime.TryParse(planDateStr, out _))
+            errors.Add("请选择计划日期");
+        if (string.IsNullOrWhiteSpace(editForm.RawMaterialType))
+            errors.Add("请选择原料类型");
+        if (string.IsNullOrWhiteSpace(editForm.RawMaterialSpec))
+            errors.Add("请输入原料规格");
+        if (editForm.AdjustedWallThickness <= 0)
+            errors.Add("请输入调整成品壁厚");
+        if (editForm.YieldRate <= 0)
+            errors.Add("请输入成材率");
+        if (editForm.QualifiedRate <= 0)
+            errors.Add("请输入正品率");
+        if (editForm.InputMultiple < 1)
+            errors.Add("原料每支产成数不能小于1");
+
+        if (!string.IsNullOrWhiteSpace(planDateStr) && DateTime.TryParse(planDateStr, out var parsedPlanDate))
+            editForm.PlanDate = parsedPlanDate;
+
+        if (!string.IsNullOrWhiteSpace(requiredDateStr) && DateTime.TryParse(requiredDateStr, out var parsedDate))
+            editForm.RequiredDate = parsedDate;
+        else
+            editForm.RequiredDate = null;
+
+        if (errors.Any())
+        {
+            validationMessage = string.Join("\n", errors);
+            return;
+        }
+
+        // 工艺路线：转换为 JSON 格式
+        var validSteps = processSpecs
+            .Select((spec, idx) => new { spec = spec?.Trim() ?? "" })
+            .Where(s => !string.IsNullOrWhiteSpace(s.spec))
+            .Select((s, idx) => new { step = idx + 1, spec = s.spec })
+            .ToList();
+        editForm.ProcessPlan = validSteps.Any() ? JsonSerializer.Serialize(validSteps) : null;
+
+        isSaving = true;
+        try
+        {
+            var result = await MaterialPlanService.CreateSemiPlanAsync(editForm);
+            if (result.Success)
+            {
+                Snackbar.Add("创建成功", Severity.Success);
+                Navigation.NavigateTo($"/workorders/{WorkOrderId}/material-plan");
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "创建失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/material-plan-overview");
+    }
+
+    private string GetOrderNo()
+    {
+        var subNo = string.IsNullOrEmpty(workOrder?.ProductionSubNo) ? "" : $"/{workOrder.ProductionSubNo}";
+        return $"{workOrder?.SalesOrderNo}/{workOrder?.ProductionMainNo}{subNo}";
+    }
+
+    private string GetToleranceText(decimal negative, decimal positive)
+    {
+        return $"{negative.ToString("G29")}~+{positive.ToString("G29")}";
+    }
+}

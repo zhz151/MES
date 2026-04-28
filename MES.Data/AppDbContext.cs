@@ -38,6 +38,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<WorkOrder> WorkOrders { get; set; } = null!;
     public DbSet<OrderChangeNotification> OrderChangeNotifications { get; set; } = null!;
     public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
+    public DbSet<PurchaseSemiPlan> PurchaseSemiPlans { get; set; } = null!;
+    public DbSet<PurchaseFinishedPlan> PurchaseFinishedPlans { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -59,16 +61,20 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureWorkOrder(builder);
         ConfigureOrderChangeNotification(builder);
         ConfigureRefreshToken(builder);
+        ConfigurePurchaseSemiPlan(builder);
+        ConfigurePurchaseFinishedPlan(builder);
 
         // 软删除过滤：只为需要软删除的实体添加（排除 WorkOrder 和 OrderChangeNotification）
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
             if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
             {
-                // 工单、通知、刷新令牌不应用软删除过滤（使用物理删除）
+                // 工单、通知、刷新令牌、采购计划不应用软删除过滤（使用物理删除）
                 if (entityType.ClrType == typeof(WorkOrder) ||
                     entityType.ClrType == typeof(OrderChangeNotification) ||
-                    entityType.ClrType == typeof(RefreshToken))
+                    entityType.ClrType == typeof(RefreshToken) ||
+                    entityType.ClrType == typeof(PurchaseSemiPlan) ||
+                    entityType.ClrType == typeof(PurchaseFinishedPlan))
                 {
                     continue;
                 }
@@ -110,8 +116,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
                     break;
 
                 case EntityState.Deleted:
-                    // 工单、通知、刷新令牌：物理删除，保持 Deleted 状态
-                    if (entry.Entity is WorkOrder || entry.Entity is OrderChangeNotification || entry.Entity is RefreshToken)
+                    // 工单、通知、刷新令牌、采购计划：物理删除，保持 Deleted 状态
+                    if (entry.Entity is WorkOrder || entry.Entity is OrderChangeNotification || entry.Entity is RefreshToken ||
+                        entry.Entity is PurchaseSemiPlan || entry.Entity is PurchaseFinishedPlan)
                     {
                         // 保持 Deleted 状态，让 EF Core 执行物理删除
                         break;
@@ -317,6 +324,10 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.ItemDetails).HasColumnType("nvarchar(max)");
             entity.Property(e => e.TechnicalRequirements).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(RequirementType.Normal);
 
+            // 用料计划状态
+            entity.Property(e => e.MaterialPlanStatus).IsRequired().HasDefaultValue(MaterialPlanStatus.NotPlanned);
+            entity.Property(e => e.MaterialPlanRate).IsRequired().HasColumnType("decimal(5,2)").HasDefaultValue(0m);
+
             // 索引（不包含 IsDeleted 条件，因为工单使用物理删除）
             entity.HasIndex(e => e.WorkOrderNo).IsUnique().HasDatabaseName("UK_WorkOrder_WorkOrderNo");
             entity.HasIndex(e => new { e.SalesOrderNo, e.ProductionMainNo, e.ProductionSubNo })
@@ -359,6 +370,49 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => e.Token).IsUnique().HasDatabaseName("UK_RefreshToken_Token");
             entity.HasIndex(e => e.UserId).HasDatabaseName("IX_RefreshToken_UserId");
             entity.HasIndex(e => e.Expires).HasDatabaseName("IX_RefreshToken_Expires");
+        });
+    }
+
+    private static void ConfigurePurchaseSemiPlan(ModelBuilder builder)
+    {
+        builder.Entity<PurchaseSemiPlan>(entity =>
+        {
+            entity.ToTable("PurchaseSemiPlan");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.WorkOrderId).IsRequired();
+            entity.Property(e => e.PlanDate).IsRequired().HasColumnType("date");
+            entity.Property(e => e.AdjustedWallThickness).IsRequired().HasColumnType("decimal(18,3)");
+            entity.Property(e => e.YieldRate).IsRequired().HasColumnType("decimal(5,2)");
+            entity.Property(e => e.InputMultiple).IsRequired().HasDefaultValue(1);
+            entity.Property(e => e.QualifiedRate).IsRequired().HasColumnType("decimal(5,2)");
+            entity.Property(e => e.Density).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.UnitWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.RawUnitWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.RequiredPieces);
+            entity.Property(e => e.RequiredWeight).IsRequired().HasColumnType("decimal(18,3)");
+            entity.Property(e => e.RawMaterialType).IsRequired().HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.RawMaterialSpec).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.RequiredDate).HasColumnType("date");
+            entity.Property(e => e.ProcessPlan).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_PurchaseSemiPlan_WorkOrderId");
+        });
+    }
+
+    private static void ConfigurePurchaseFinishedPlan(ModelBuilder builder)
+    {
+        builder.Entity<PurchaseFinishedPlan>(entity =>
+        {
+            entity.ToTable("PurchaseFinishedPlan");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.WorkOrderId).IsRequired();
+            entity.Property(e => e.PlanDate).IsRequired().HasColumnType("date");
+            entity.Property(e => e.ProductType).IsRequired().HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.RequiredPiece);
+            entity.Property(e => e.RequiredWeight).IsRequired().HasColumnType("decimal(18,3)");
+            entity.Property(e => e.RequiredDate).HasColumnType("date");
+            entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_PurchaseFinishedPlan_WorkOrderId");
         });
     }
 }

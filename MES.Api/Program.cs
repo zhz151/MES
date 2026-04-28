@@ -130,6 +130,7 @@ builder.Services.AddScoped<IGradeMappingService, GradeMappingService>();
 builder.Services.AddScoped<IProductRequirementService, ProductRequirementService>();
 
 builder.Services.AddScoped<IWorkOrderService, WorkOrderService>();
+builder.Services.AddScoped<IMaterialPlanService, MaterialPlanService>();
 
 builder.Services.AddHttpContextAccessor();
 

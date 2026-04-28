@@ -1,0 +1,304 @@
+@page "/material-plan-overview"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using MES.Core.Enums
+@using MES.Blazor.Shared
+@using Microsoft.AspNetCore.Authorization
+@inject WorkOrderService WorkOrderService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">用料计划总览</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="ml-4">查看所有工单的用料计划状态</MudText>
+                </div>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Info"
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="ReloadData"
+                           Size="Size.Small">
+                    刷新
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <!-- 错误提示 -->
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-4" Variant="Variant.Filled">
+                    @errorMessage
+                </MudAlert>
+            }
+
+            @if (isLoading)
+            {
+                <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+            }
+            else
+            {
+                <!-- 筛选栏 -->
+                <MudGrid>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string"
+                                      Label="搜索 - 工单号/订单号/规格"
+                                      @bind-Value="searchKeyword"
+                                      Immediate="true"
+                                      DebounceInterval="500"
+                                      Clearable="true"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@Icons.Material.Filled.Search" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect T="int?" Label="用料计划状态" @bind-Value="selectedStatus">
+                            <MudSelectItem Value="@((int?)null)">全部</MudSelectItem>
+                            <MudSelectItem Value="@((int?)0)">未计划</MudSelectItem>
+                            <MudSelectItem Value="@((int?)1)">部分</MudSelectItem>
+                            <MudSelectItem Value="@((int?)2)">理论满足</MudSelectItem>
+                            <MudSelectItem Value="@((int?)3)">满足</MudSelectItem>
+                            <MudSelectItem Value="@((int?)4)">超量</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect T="int?" Label="工单状态" @bind-Value="selectedWorkOrderStatus">
+                            <MudSelectItem Value="@((int?)null)">全部</MudSelectItem>
+                            <MudSelectItem Value="@((int?)0)">未编制</MudSelectItem>
+                            <MudSelectItem Value="@((int?)1)">已确定</MudSelectItem>
+                            <MudSelectItem Value="@((int?)2)">待修正</MudSelectItem>
+                            <MudSelectItem Value="@((int?)3)">已取消</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.Search"
+                                   OnClick="ReloadData">
+                            搜索
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+
+                <!-- 数据表格 -->
+                <MudTable Items="@workOrders"
+                          Dense="true"
+                          Hover="true"
+                          Elevation="0"
+                          Class="mt-4"
+                          RowsPerPageLabel="每页行数:">
+                    <HeaderContent>
+                        <MudTh>工单号</MudTh>
+                        <MudTh>订单号</MudTh>
+                        <MudTh>主号</MudTh>
+                        <MudTh>次号</MudTh>
+                        <MudTh>工厂牌号</MudTh>
+                        <MudTh>规格</MudTh>
+                        <MudTh>总支数</MudTh>
+                        <MudTh>总重量(kg)</MudTh>
+                        <MudTh>工单用料计划状态</MudTh>
+                        <MudTh>工单满足率</MudTh>
+                        <MudTh>关联主号用料状态</MudTh>
+                        <MudTh>主号满足率</MudTh>
+                        <MudTh>关联订单用料状态</MudTh>
+                        <MudTh>操作</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="wo">
+                        <MudTd title="@wo.WorkOrderNo">
+                            <MudLink Typo="Typo.body2" OnClick="() => NavigateToDetail(wo.Id)">
+                                @wo.WorkOrderNo
+                            </MudLink>
+                        </MudTd>
+                        <MudTd title="@wo.SalesOrderNo">@wo.SalesOrderNo</MudTd>
+                        <MudTd title="@wo.ProductionMainNo">@wo.ProductionMainNo</MudTd>
+                        <MudTd title="@wo.ProductionSubNo">@wo.ProductionSubNo</MudTd>
+                        <MudTd title="@wo.PlantGrade">@wo.PlantGrade</MudTd>
+                        <MudTd title="@wo.Specification">@wo.Specification</MudTd>
+                        <MudTd>@wo.TotalQuantity</MudTd>
+                        <MudTd>@wo.TotalWeight.ToString("G29")</MudTd>
+                        <MudTd>
+                            <MudChip Size="Size.Small" Color="@GetStatusColor(wo.MaterialPlanStatus)">
+                                @GetStatusText(wo.MaterialPlanStatus)
+                            </MudChip>
+                        </MudTd>
+                        <MudTd>@wo.MaterialPlanRate.ToString("G29")%</MudTd>
+                        <MudTd>
+                            <MudChip Size="Size.Small" Color="@GetStatusColor(wo.MainNoMaterialPlanStatus)">
+                                @GetStatusText(wo.MainNoMaterialPlanStatus)
+                            </MudChip>
+                        </MudTd>
+                        <MudTd>@wo.MainNoMaterialPlanRate.ToString("G29")%</MudTd>
+                        <MudTd>
+                            <MudChip Size="Size.Small" Color="@GetOrderStatusColor(wo.OrderMaterialPlanStatus)">
+                                @GetOrderStatusText(wo.OrderMaterialPlanStatus)
+                            </MudChip>
+                        </MudTd>
+                        <MudTd>
+                            <MudIconButton Icon="@Icons.Material.Filled.Inventory2"
+                                           Size="Size.Small"
+                                           Color="Color.Primary"
+                                           OnClick="() => NavigateToSemiPlan(wo.Id)"
+                                           Title="原料采购计划" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Checklist"
+                                           Size="Size.Small"
+                                           Color="Color.Primary"
+                                           OnClick="() => NavigateToFinishPlan(wo.Id)"
+                                           Title="成品采购计划" />
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Class="d-flex justify-center pa-4" Color="Color.Secondary">暂无工单数据</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+
+                @if (workOrders.Any())
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                        共 @workOrders.Count 条记录
+                    </MudText>
+                }
+            }
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private List<WorkOrderListDto> workOrders = new();
+    private bool isLoading = false;
+    private string errorMessage = string.Empty;
+    private string searchKeyword = string.Empty;
+    private int? selectedStatus;
+    private int? selectedWorkOrderStatus;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var queryParams = new WorkOrderQueryParams
+            {
+                PageIndex = 1,
+                PageSize = 100,
+                SortBy = "CreatedTime",
+                IsDescending = true,
+                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                Status = selectedWorkOrderStatus,
+                MaterialPlanStatus = selectedStatus
+            };
+
+            Console.WriteLine($"正在查询工单列表: PageIndex={queryParams.PageIndex}, PageSize={queryParams.PageSize}, Status={selectedWorkOrderStatus}, MaterialPlanStatus={selectedStatus}, Keyword={searchKeyword}");
+
+            var result = await WorkOrderService.GetPagedAsync(queryParams);
+
+            if (result.Success && result.Data != null)
+            {
+                workOrders = result.Data.Items.ToList();
+                Console.WriteLine($"查询成功: 返回 {workOrders.Count} 条记录, 总数 {result.Data.TotalCount}");
+            }
+            else
+            {
+                errorMessage = result.Message ?? "查询失败，未返回数据";
+                workOrders = new List<WorkOrderListDto>();
+                Console.WriteLine($"查询失败: {result.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"加载异常: {ex.Message}";
+            workOrders = new List<WorkOrderListDto>();
+            Console.WriteLine($"加载异常: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ReloadData()
+    {
+        await LoadData();
+    }
+
+    private void NavigateToDetail(int id)
+    {
+        Navigation.NavigateTo($"/workorders/{id}");
+    }
+
+    private void NavigateToSemiPlan(int id)
+    {
+        Navigation.NavigateTo($"/workorders/{id}/material-plan");
+    }
+
+    private void NavigateToFinishPlan(int id)
+    {
+        Navigation.NavigateTo($"/workorders/{id}/finish-plan");
+    }
+
+    private Color GetStatusColor(int status)
+    {
+        return status switch
+        {
+            0 => Color.Default,
+            1 => Color.Warning,
+            2 => Color.Info,
+            3 => Color.Success,
+            4 => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private string GetStatusText(int status)
+    {
+        return status switch
+        {
+            0 => "未计划",
+            1 => "部分",
+            2 => "理论满足",
+            3 => "满足",
+            4 => "超量",
+            _ => "未知"
+        };
+    }
+
+    /// <summary>
+    /// 订单级状态颜色（仅"全部满足"或"未满足"，不含理论满足）
+    /// </summary>
+    private Color GetOrderStatusColor(int status)
+    {
+        return status switch
+        {
+            0 => Color.Default,   // 未计划（不应出现）
+            1 => Color.Warning,   // 有"部分"或"未计划"
+            3 => Color.Success,   // 全部满足
+            _ => Color.Default
+        };
+    }
+
+    private string GetOrderStatusText(int status)
+    {
+        return status switch
+        {
+            0 => "未计划",
+            1 => "部分",
+            3 => "全部满足",
+            _ => "未知"
+        };
+    }
+}

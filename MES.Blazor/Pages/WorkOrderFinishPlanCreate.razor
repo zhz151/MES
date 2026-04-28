@@ -1,0 +1,256 @@
+@page "/workorders/{WorkOrderId:int}/finish-plan/create"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Blazor.Shared
+@using MES.Blazor.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inject MaterialPlanService MaterialPlanService
+@inject WorkOrderService WorkOrderService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-2">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Checklist" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">新增成品采购计划</MudText>
+                </div>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            @if (isLoadingWorkOrder)
+            {
+                <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+            }
+            else if (workOrder != null)
+            {
+                <!-- ===== 工单基本信息 ===== -->
+                <MudPaper Class="pa-3 mb-3" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background-color:var(--mud-palette-info-hover);">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-1">
+                        <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" Class="mr-1" />工单基本信息
+                    </MudText>
+                    <MudGrid>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">工单号</MudText>
+                            <MudText Typo="Typo.body2" Class="font-weight-bold">@workOrder.WorkOrderNo</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">订单号/主号/次号</MudText>
+                            <MudText Typo="Typo.body2">@GetOrderNo()</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">物料名称</MudText>
+                            <MudText Typo="Typo.body2">@DisplayHelper.GetMaterialNameText(workOrder.MaterialName)</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">结算方式</MudText>
+                            <MudText Typo="Typo.body2">@DisplayHelper.GetSettlementMethodText(workOrder.SettlementMethod)</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">交货状态</MudText>
+                            <MudText Typo="Typo.body2">@DisplayHelper.GetDeliveryStateText(workOrder.DeliveryState)</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">延期罚款</MudText>
+                            <MudText Typo="Typo.body2">@(workOrder.DelayPenalty ? "是" : "否")</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">交货日期</MudText>
+                            <MudText Typo="Typo.body2">@workOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">工厂牌号</MudText>
+                            <MudText Typo="Typo.body2">@workOrder.PlantGrade</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">规格</MudText>
+                            <MudText Typo="Typo.body2">@workOrder.Specification</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">外径公差(mm)</MudText>
+                            <MudText Typo="Typo.body2">@GetToleranceText(workOrder.OuterDiameterNegative, workOrder.OuterDiameterPositive)</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">壁厚公差(mm)</MudText>
+                            <MudText Typo="Typo.body2">@GetToleranceText(workOrder.WallThicknessNegative, workOrder.WallThicknessPositive)</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">长度状态</MudText>
+                            <MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(workOrder.LengthStatus) @(workOrder.MaxLength.HasValue ? $"(最长{(int)workOrder.MaxLength.Value}mm)" : "")</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">总数</MudText>
+                            <MudText Typo="Typo.body2">@workOrder.TotalQuantity 支 / @workOrder.TotalWeight.ToString("G29") kg</MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+
+                <!-- ===== 采购计划表单 ===== -->
+                <MudGrid>
+                    <MudItem xs="12" md="3">
+                        <MudTextField T="string" Label="计划日期" @bind-Value="planDateStr" Required="true" Placeholder="yyyy-MM-dd" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect T="string" Label="成品类型" @bind-Value="editForm.ProductType" Required="true">
+                            <MudSelectItem Value="@("Critical")">临界成品（需回厂复检）</MudSelectItem>
+                            <MudSelectItem Value="@("Order")">订单成品（不需再检验）</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudNumericField T="int?" Label="需用支数" @bind-Value="editForm.RequiredPiece" Min="0" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudNumericField T="decimal"
+                                         Label="需用重量(kg)"
+                                         @bind-Value="editForm.RequiredWeight"
+                                         Required="true"
+                                         Min="0" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField T="string" Label="要求到货日期" @bind-Value="requiredDateStr" Placeholder="yyyy-MM-dd" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="备注" @bind-Value="editForm.Remark" Lines="2" />
+                    </MudItem>
+                </MudGrid>
+
+                @if (!string.IsNullOrEmpty(validationMessage))
+                {
+                    <MudAlert Severity="Severity.Warning" Class="mt-2">@validationMessage</MudAlert>
+                }
+
+                <div class="d-flex justify-end mt-2">
+                    <MudButton Variant="Variant.Text" OnClick="GoBack" Class="mr-2">取消</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Loading="@isSaving">
+                        保存
+                    </MudButton>
+                </div>
+            }
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    [Parameter] public int WorkOrderId { get; set; }
+
+    private WorkOrderDetailDto? workOrder;
+    private bool isLoadingWorkOrder = true;
+    private bool isSaving = false;
+    private string validationMessage = string.Empty;
+    private string requiredDateStr = string.Empty;
+    private string planDateStr = string.Empty;
+
+    private CreatePurchaseFinishedPlanRequest editForm = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWorkOrder();
+    }
+
+    private async Task LoadWorkOrder()
+    {
+        isLoadingWorkOrder = true;
+        try
+        {
+            var woResult = await WorkOrderService.GetByIdAsync(WorkOrderId);
+            if (woResult.Success && woResult.Data != null)
+            {
+                workOrder = woResult.Data;
+                planDateStr = DateTime.Today.ToString("yyyy-MM-dd");
+                editForm = new CreatePurchaseFinishedPlanRequest
+                {
+                    WorkOrderId = WorkOrderId,
+                    PlanDate = DateTime.Today,
+                    ProductType = "Order",
+                    RequiredWeight = 0
+                };
+            }
+            else
+            {
+                Snackbar.Add("工单不存在", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载工单失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoadingWorkOrder = false;
+        }
+    }
+
+    private async Task Save()
+    {
+        validationMessage = string.Empty;
+
+        var errors = new List<string>();
+        if (string.IsNullOrWhiteSpace(planDateStr) || !DateTime.TryParse(planDateStr, out _))
+            errors.Add("请选择计划日期");
+        if (string.IsNullOrWhiteSpace(editForm.ProductType))
+            errors.Add("请选择成品类型");
+        if (editForm.RequiredWeight <= 0)
+            errors.Add("请输入需用重量");
+
+        if (!string.IsNullOrWhiteSpace(planDateStr) && DateTime.TryParse(planDateStr, out var parsedPlanDate))
+            editForm.PlanDate = parsedPlanDate;
+
+        if (!string.IsNullOrWhiteSpace(requiredDateStr) && DateTime.TryParse(requiredDateStr, out var parsedDate))
+            editForm.RequiredDate = parsedDate;
+        else
+            editForm.RequiredDate = null;
+
+        if (errors.Any())
+        {
+            validationMessage = string.Join("\n", errors);
+            return;
+        }
+
+        isSaving = true;
+        try
+        {
+            var result = await MaterialPlanService.CreateFinishedPlanAsync(editForm);
+            if (result.Success)
+            {
+                Snackbar.Add("创建成功", Severity.Success);
+                Navigation.NavigateTo($"/workorders/{WorkOrderId}/finish-plan");
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "创建失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/material-plan-overview");
+    }
+
+    private string GetOrderNo()
+    {
+        var subNo = string.IsNullOrEmpty(workOrder?.ProductionSubNo) ? "" : $"/{workOrder.ProductionSubNo}";
+        return $"{workOrder?.SalesOrderNo}/{workOrder?.ProductionMainNo}{subNo}";
+    }
+
+    private string GetToleranceText(decimal negative, decimal positive)
+    {
+        return $"{negative.ToString("G29")}~+{positive.ToString("G29")}";
+    }
+
+}

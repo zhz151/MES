@@ -1,0 +1,85 @@
+using MES.Core.DTOs;
+using MES.Core.Models;
+
+namespace MES.Core.Interfaces;
+
+/// <summary>
+/// 用料计划服务接口
+/// </summary>
+public interface IMaterialPlanService
+{
+    // ========== 原料采购计划 ==========
+
+    /// <summary>
+    /// 获取工单的原料采购计划列表
+    /// </summary>
+    Task<List<PurchaseSemiPlanDto>> GetSemiPlansAsync(int workOrderId);
+
+    /// <summary>
+    /// 获取单个原料采购计划详情
+    /// </summary>
+    Task<PurchaseSemiPlanDto> GetSemiPlanByIdAsync(int id);
+
+    /// <summary>
+    /// 创建原料采购计划（含测算）
+    /// </summary>
+    Task<PurchaseSemiPlanDto> CreateSemiPlanAsync(CreatePurchaseSemiPlanRequest request);
+
+    /// <summary>
+    /// 删除原料采购计划
+    /// </summary>
+    Task DeleteSemiPlanAsync(int id);
+
+    // ========== 成品采购计划 ==========
+
+    /// <summary>
+    /// 获取工单的成品采购计划列表
+    /// </summary>
+    Task<List<PurchaseFinishedPlanDto>> GetFinishedPlansAsync(int workOrderId);
+
+    /// <summary>
+    /// 获取单个成品采购计划详情
+    /// </summary>
+    Task<PurchaseFinishedPlanDto> GetFinishedPlanByIdAsync(int id);
+
+    /// <summary>
+    /// 创建成品采购计划
+    /// </summary>
+    Task<PurchaseFinishedPlanDto> CreateFinishedPlanAsync(CreatePurchaseFinishedPlanRequest request);
+
+    /// <summary>
+    /// 删除成品采购计划
+    /// </summary>
+    Task DeleteFinishedPlanAsync(int id);
+
+    // ========== 用料测算 ==========
+
+    /// <summary>
+    /// 执行用料测算（前端传参，后端计算）
+    /// </summary>
+    Task<MaterialCalculateResult> CalculateAsync(MaterialCalculateRequest request);
+
+    // ========== 计划状态 ==========
+
+    /// <summary>
+    /// 获取工单的用料计划汇总
+    /// </summary>
+    Task<WorkOrderMaterialPlanDto> GetWorkOrderMaterialPlanAsync(int workOrderId);
+
+    /// <summary>
+    /// 刷新工单用料计划状态
+    /// </summary>
+    Task UpdateMaterialPlanStatusAsync(int workOrderId);
+
+    // ========== 打印 ==========
+
+    /// <summary>
+    /// 生成原料采购申请单PDF（返回byte[]）
+    /// </summary>
+    Task<byte[]> PrintSemiPlanAsync(int planId);
+
+    /// <summary>
+    /// 生成成品采购申请单PDF（返回byte[]）
+    /// </summary>
+    Task<byte[]> PrintFinishedPlanAsync(int planId);
+}

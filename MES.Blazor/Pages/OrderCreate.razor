@@ -558,7 +558,7 @@
         try
         {
             // 加载客户数据（用于验证客户编码）
-            var customersResult = await CustomerService.GetPagedAsync(new QueryParams { PageSize = 1000 });
+            var customersResult = await CustomerService.GetPagedAsync(new QueryParams { PageSize = 100 });
             if (customersResult.Success && customersResult.Data != null)
             {
                 allCustomers = customersResult.Data.Items;
