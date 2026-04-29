@@ -402,5 +402,48 @@ public static class DbInitializer
             await context.CustomerProfiles.AddRangeAsync(customers);
             await context.SaveChangesAsync();
         }
+
+        // ========== 6. Initialize Warehouses ==========
+        if (!context.Warehouses.Any())
+        {
+            var warehouses = new List<Warehouse>
+            {
+                new Warehouse
+                {
+                    Code = "RAW",
+                    Name = "原料库",
+                    SortOrder = 1,
+                    IsActive = true,
+                    Remark = "原料（荒管/圆钢）存放"
+                },
+                new Warehouse
+                {
+                    Code = "FG",
+                    Name = "成品库",
+                    SortOrder = 2,
+                    IsActive = true,
+                    Remark = "成品管存放"
+                },
+                new Warehouse
+                {
+                    Code = "DEFECT",
+                    Name = "次品库",
+                    SortOrder = 3,
+                    IsActive = true,
+                    Remark = "次品/不合格品存放"
+                },
+                new Warehouse
+                {
+                    Code = "WIP",
+                    Name = "在制品库",
+                    SortOrder = 4,
+                    IsActive = true,
+                    Remark = "在制品/半成品存放"
+                }
+            };
+
+            await context.Warehouses.AddRangeAsync(warehouses);
+            await context.SaveChangesAsync();
+        }
     }
 }

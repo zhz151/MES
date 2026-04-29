@@ -48,9 +48,9 @@
             {
                 <!-- 筛选栏 -->
                 <MudGrid>
-                    <MudItem xs="12" md="4">
+                    <MudItem xs="12" md="3">
                         <MudTextField T="string"
-                                      Label="搜索 - 工单号/订单号/规格"
+                                      Label="搜索 - 工单号/订单号/主号/次号"
                                       @bind-Value="searchKeyword"
                                       Immediate="true"
                                       DebounceInterval="500"
@@ -58,8 +58,8 @@
                                       Adornment="Adornment.End"
                                       AdornmentIcon="@Icons.Material.Filled.Search" />
                     </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudSelect T="int?" Label="用料计划状态" @bind-Value="selectedStatus">
+                    <MudItem xs="12" md="2">
+                        <MudSelect T="int?" Label="工单用料计划状态" @bind-Value="selectedStatus">
                             <MudSelectItem Value="@((int?)null)">全部</MudSelectItem>
                             <MudSelectItem Value="@((int?)0)">未计划</MudSelectItem>
                             <MudSelectItem Value="@((int?)1)">部分</MudSelectItem>
@@ -68,16 +68,24 @@
                             <MudSelectItem Value="@((int?)4)">超量</MudSelectItem>
                         </MudSelect>
                     </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudSelect T="int?" Label="工单状态" @bind-Value="selectedWorkOrderStatus">
+                    <MudItem xs="12" md="2">
+                        <MudSelect T="int?" Label="关联主号用料" @bind-Value="selectedMainNoStatus">
                             <MudSelectItem Value="@((int?)null)">全部</MudSelectItem>
-                            <MudSelectItem Value="@((int?)0)">未编制</MudSelectItem>
-                            <MudSelectItem Value="@((int?)1)">已确定</MudSelectItem>
-                            <MudSelectItem Value="@((int?)2)">待修正</MudSelectItem>
-                            <MudSelectItem Value="@((int?)3)">已取消</MudSelectItem>
+                            <MudSelectItem Value="@((int?)0)">未计划</MudSelectItem>
+                            <MudSelectItem Value="@((int?)1)">部分</MudSelectItem>
+                            <MudSelectItem Value="@((int?)3)">满足</MudSelectItem>
+                            <MudSelectItem Value="@((int?)4)">超量</MudSelectItem>
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="2">
+                        <MudSelect T="int?" Label="关联订单用料" @bind-Value="selectedOrderStatus">
+                            <MudSelectItem Value="@((int?)null)">全部</MudSelectItem>
+                            <MudSelectItem Value="@((int?)0)">未计划</MudSelectItem>
+                            <MudSelectItem Value="@((int?)1)">部分</MudSelectItem>
+                            <MudSelectItem Value="@((int?)3)">全部满足</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
                         <MudButton Variant="Variant.Filled"
                                    Color="Color.Primary"
                                    FullWidth="true"
@@ -89,26 +97,23 @@
                 </MudGrid>
 
                 <!-- 数据表格 -->
-                <MudTable Items="@workOrders"
+                <MudTable Items="@allWorkOrders"
                           Dense="true"
                           Hover="true"
                           Elevation="0"
                           Class="mt-4"
+                          RowsPerPage="10"
                           RowsPerPageLabel="每页行数:">
                     <HeaderContent>
                         <MudTh>工单号</MudTh>
                         <MudTh>订单号</MudTh>
                         <MudTh>主号</MudTh>
                         <MudTh>次号</MudTh>
-                        <MudTh>工厂牌号</MudTh>
-                        <MudTh>规格</MudTh>
-                        <MudTh>总支数</MudTh>
-                        <MudTh>总重量(kg)</MudTh>
-                        <MudTh>工单用料计划状态</MudTh>
+                        <MudTh>工单用料计划</MudTh>
                         <MudTh>工单满足率</MudTh>
-                        <MudTh>关联主号用料状态</MudTh>
+                        <MudTh>关联主号用料</MudTh>
                         <MudTh>主号满足率</MudTh>
-                        <MudTh>关联订单用料状态</MudTh>
+                        <MudTh>关联订单用料</MudTh>
                         <MudTh>操作</MudTh>
                     </HeaderContent>
                     <RowTemplate Context="wo">
@@ -120,10 +125,6 @@
                         <MudTd title="@wo.SalesOrderNo">@wo.SalesOrderNo</MudTd>
                         <MudTd title="@wo.ProductionMainNo">@wo.ProductionMainNo</MudTd>
                         <MudTd title="@wo.ProductionSubNo">@wo.ProductionSubNo</MudTd>
-                        <MudTd title="@wo.PlantGrade">@wo.PlantGrade</MudTd>
-                        <MudTd title="@wo.Specification">@wo.Specification</MudTd>
-                        <MudTd>@wo.TotalQuantity</MudTd>
-                        <MudTd>@wo.TotalWeight.ToString("G29")</MudTd>
                         <MudTd>
                             <MudChip Size="Size.Small" Color="@GetStatusColor(wo.MaterialPlanStatus)">
                                 @GetStatusText(wo.MaterialPlanStatus)
@@ -157,12 +158,15 @@
                     <NoRecordsContent>
                         <MudText Class="d-flex justify-center pa-4" Color="Color.Secondary">暂无工单数据</MudText>
                     </NoRecordsContent>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
                 </MudTable>
 
-                @if (workOrders.Any())
+                @if (allWorkOrders.Any())
                 {
                     <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
-                        共 @workOrders.Count 条记录
+                        共 @allWorkOrders.Count 条记录
                     </MudText>
                 }
             }
@@ -171,12 +175,13 @@
 </MudContainer>
 
 @code {
-    private List<WorkOrderListDto> workOrders = new();
+    private List<WorkOrderListDto> allWorkOrders = new();
     private bool isLoading = false;
     private string errorMessage = string.Empty;
     private string searchKeyword = string.Empty;
     private int? selectedStatus;
-    private int? selectedWorkOrderStatus;
+    private int? selectedMainNoStatus;
+    private int? selectedOrderStatus;
 
     protected override async Task OnInitializedAsync()
     {
@@ -194,35 +199,36 @@
             var queryParams = new WorkOrderQueryParams
             {
                 PageIndex = 1,
-                PageSize = 100,
+                PageSize = 10000,
                 SortBy = "CreatedTime",
                 IsDescending = true,
                 Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
-                Status = selectedWorkOrderStatus,
                 MaterialPlanStatus = selectedStatus
             };
-
-            Console.WriteLine($"正在查询工单列表: PageIndex={queryParams.PageIndex}, PageSize={queryParams.PageSize}, Status={selectedWorkOrderStatus}, MaterialPlanStatus={selectedStatus}, Keyword={searchKeyword}");
 
             var result = await WorkOrderService.GetPagedAsync(queryParams);
 
             if (result.Success && result.Data != null)
             {
-                workOrders = result.Data.Items.ToList();
-                Console.WriteLine($"查询成功: 返回 {workOrders.Count} 条记录, 总数 {result.Data.TotalCount}");
+                var items = result.Data.Items.ToList();
+
+                if (selectedMainNoStatus.HasValue)
+                    items = items.Where(wo => wo.MainNoMaterialPlanStatus == selectedMainNoStatus.Value).ToList();
+                if (selectedOrderStatus.HasValue)
+                    items = items.Where(wo => wo.OrderMaterialPlanStatus == selectedOrderStatus.Value).ToList();
+
+                allWorkOrders = items;
             }
             else
             {
                 errorMessage = result.Message ?? "查询失败，未返回数据";
-                workOrders = new List<WorkOrderListDto>();
-                Console.WriteLine($"查询失败: {result.Message}");
+                allWorkOrders = new List<WorkOrderListDto>();
             }
         }
         catch (Exception ex)
         {
             errorMessage = $"加载异常: {ex.Message}";
-            workOrders = new List<WorkOrderListDto>();
-            Console.WriteLine($"加载异常: {ex}");
+            allWorkOrders = new List<WorkOrderListDto>();
         }
         finally
         {
@@ -284,9 +290,9 @@
     {
         return status switch
         {
-            0 => Color.Default,   // 未计划（不应出现）
-            1 => Color.Warning,   // 有"部分"或"未计划"
-            3 => Color.Success,   // 全部满足
+            0 => Color.Default,
+            1 => Color.Warning,
+            3 => Color.Success,
             _ => Color.Default
         };
     }

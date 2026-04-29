@@ -1,0 +1,63 @@
+namespace MES.Core.DTOs;
+
+/// <summary>
+/// 库存批次 DTO
+/// </summary>
+public class InventoryBatchDto
+{
+    public int Id { get; set; }
+    public string BatchNo { get; set; } = string.Empty;
+
+    // 仓库
+    public int WarehouseId { get; set; }
+    public string? WarehouseName { get; set; }
+
+    // 物料
+    public string MaterialType { get; set; } = string.Empty;
+    public string PlantGrade { get; set; } = string.Empty;
+    public string Specification { get; set; } = string.Empty;
+
+    // 来源
+    public string InboundSource { get; set; } = string.Empty;
+    public string SourceName { get; set; } = string.Empty;
+    public DateTime InboundDate { get; set; }
+
+    // 炉号/批号/长度
+    public string? HeatNo { get; set; }
+    public string? ProductionBatchNo { get; set; }
+    public string? LengthStatus { get; set; }
+    public decimal? MinLength { get; set; }
+    public decimal? MaxLength { get; set; }
+
+    // 数量重量
+    public int InitialQuantity { get; set; }
+    public decimal InitialWeight { get; set; }
+    public decimal? UnitWeight { get; set; }
+    public decimal? Meters { get; set; }
+    public int RemainingQuantity { get; set; }
+    public decimal RemainingWeight { get; set; }
+
+    // 实际规格
+    public string? ActualSpecification { get; set; }
+    public decimal? ActualOuterDiameter { get; set; }
+    public decimal? ActualWallThickness { get; set; }
+
+    // 位置状态
+    public string? SurfaceCondition { get; set; }
+    public string? LocationArea { get; set; }
+    public string? LocationRack { get; set; }
+    public string? Remark { get; set; }
+
+    // 次品
+    public string? DefectReason { get; set; }
+    public string? LiabilityType { get; set; }
+    public string? OriginalSupplier { get; set; }
+    public string? TagNo { get; set; }
+    public string? DefectRemark { get; set; }
+
+    // 工单关联
+    public bool IsLinkedToWorkOrder { get; set; }
+    public string? WorkOrderNo { get; set; }
+    public string? SalesOrderNo { get; set; }
+    public string? OrderItemIds { get; set; }
+}

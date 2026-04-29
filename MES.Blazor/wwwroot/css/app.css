@@ -385,3 +385,76 @@ svg[aria-label="Increment"] {
 .mud-datepicker.mud-input-error .mud-input-outlined-border {
     border-color: var(--mud-palette-error) !important;
 }
+
+/* ============================================================
+   表头筛选输入框 - 紧凑风格
+   ============================================================ */
+
+.mud-table .filter-input {
+    width: 100%;
+    min-width: 50px;
+}
+
+.mud-table .filter-input .mud-input {
+    font-size: 0.7rem !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    margin-top: 2px;
+}
+
+.mud-table .filter-input .mud-input input {
+    padding: 0 4px !important;
+    line-height: 24px !important;
+}
+
+.mud-table .filter-input .mud-input-outlined-border {
+    border-width: 1px !important;
+}
+
+.mud-table .filter-input .mud-input-label {
+    font-size: 0.65rem !important;
+    top: 2px !important;
+}
+
+/* 表头文字与筛选框之间的间距 */
+.mud-table .mud-th {
+    vertical-align: top;
+    padding: 4px 6px !important;
+}
+
+/* 表头列名文字 */
+.mud-table .th-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    display: block;
+    margin-bottom: 1px;
+}
+
+/* 批量出库对话框 - 选中条目列表 */
+.outbound-item-row td {
+    padding: 4px 8px;
+    vertical-align: middle;
+    font-size: 0.85rem;
+}
+
+.outbound-item-row .qty-input {
+    max-width: 100px;
+}
+
+.outbound-item-row .qty-input .mud-input {
+    height: 32px !important;
+    min-height: 32px !important;
+    font-size: 0.85rem !important;
+}
+
+.outbound-summary {
+    border-top: 2px solid var(--mud-palette-primary);
+    padding-top: 12px;
+    margin-top: 8px;
+}
+
+/* ============================================================
+   入库公共字段 - 两行 TABLE 样式
+   ============================================================ */
+

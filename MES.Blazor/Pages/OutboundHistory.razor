@@ -1,0 +1,343 @@
+@page "/warehouse/outbound-history"
+@page "/warehouse/outbound-history/{Code}"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using Microsoft.AspNetCore.Authorization
+@inject InventoryService InventoryService
+@inject WarehouseService WarehouseService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+@attribute [Authorize]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-2" Color="Color.Warning" />
+                    出库历史记录查询及更正
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="GoBack">返回</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <!-- 筛选栏 -->
+            <MudGrid Class="mb-4">
+                <MudItem xs="12" md="3">
+                    <MudSelect T="string" Label="出库类型" @bind-Value="_filterType"
+                               Variant="Variant.Outlined" Dense="true">
+                        <MudSelectItem Value="@_allTypeOption">全部</MudSelectItem>
+                        <MudSelectItem Value="@("ProductionPick")">生产领用</MudSelectItem>
+                        <MudSelectItem Value="@("SalesOut")">销售出库</MudSelectItem>
+                        <MudSelectItem Value="@("ReturnOut")">退货出库</MudSelectItem>
+                        <MudSelectItem Value="@("SubcontractOut")">委外出库</MudSelectItem>
+                        <MudSelectItem Value="@("ScrapOut")">报废出库</MudSelectItem>
+                        <MudSelectItem Value="@("TransferOut")">移库出库</MudSelectItem>
+                        <MudSelectItem Value="@("SampleOut")">取样出库</MudSelectItem>
+                        <MudSelectItem Value="@("OtherOut")">其他出库</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string" Label="开始日期" @bind-Value="_filterStartDateText"
+                                  Placeholder="yyyy-MM-dd" Variant="Variant.Outlined" Dense="true" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string" Label="结束日期" @bind-Value="_filterEndDateText"
+                                  Placeholder="yyyy-MM-dd" Variant="Variant.Outlined" Dense="true" />
+                </MudItem>
+                <MudItem xs="12" md="3" Class="d-flex align-center">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               OnClick="DoFilter" Size="Size.Small" FullWidth="true">
+                        查询
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+
+            <!-- 表格 -->
+            <MudTable @ref="_table" T="OutboundRecordDto" ServerData="OnServerData"
+                      Loading="_isLoading" Dense="true" Hover="true"
+                      Elevation="0" Striped="true" RowsPerPageLabel="每页行数:">
+                <HeaderContent>
+                    <MudTh>出库日期</MudTh>
+                    <MudTh>批次号</MudTh>
+                    <MudTh>仓库</MudTh>
+                    <MudTh>出库类型</MudTh>
+                    <MudTh>目标单位</MudTh>
+                    <MudTh>出库支数</MudTh>
+                    <MudTh>出库重量</MudTh>
+                    <MudTh>操作人</MudTh>
+                    <MudTh Style="width:120px;">操作</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="item">
+                    <MudTd><small>@item.OutboundDate.ToString("yyyy-MM-dd")</small></MudTd>
+                    <MudTd><small>@item.BatchNo</small></MudTd>
+                    <MudTd><small>@item.WarehouseName</small></MudTd>
+                    <MudTd><MudChip Size="Size.Small" Color="Color.Warning">@GetOutboundTypeText(item.OutboundType)</MudChip></MudTd>
+                    <MudTd><span class="table-cell-clamp-1">@item.TargetCompany</span></MudTd>
+                    <MudTd Class="text-right">@item.OutboundQuantity</MudTd>
+                    <MudTd Class="text-right">@item.OutboundWeight.ToString("G29")</MudTd>
+                    <MudTd><small>@item.Operator</small></MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                                       Size="Size.Small" Title="更正"
+                                       OnClick="() => OpenEdit(item)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Error"
+                                       Size="Size.Small" Title="物理删除"
+                                       OnClick="() => ConfirmDelete(item)" />
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+                <NoRecordsContent>
+                    <MudText Class="d-flex justify-center pa-4" Color="Color.Secondary">暂无出库记录</MudText>
+                </NoRecordsContent>
+            </MudTable>
+
+            @* ===== 内联编辑面板 ===== *@
+            @if (_editingItem != null)
+            {
+                <MudPaper Class="pa-4 mt-4" Elevation="1">
+                    <MudText Typo="Typo.h6" Class="mb-4">
+                        <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" Color="Color.Primary" />
+                        更正出库记录 — @_editingItem.BatchNo
+                    </MudText>
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudSelect T="string" Label="出库类型" @bind-Value="_editOutboundType"
+                                        Variant="Variant.Outlined" Dense="true">
+                                <MudSelectItem Value="@("ProductionPick")">生产领用</MudSelectItem>
+                                <MudSelectItem Value="@("SalesOut")">销售出库</MudSelectItem>
+                                <MudSelectItem Value="@("ReturnOut")">退货出库</MudSelectItem>
+                                <MudSelectItem Value="@("SubcontractOut")">委外出库</MudSelectItem>
+                                <MudSelectItem Value="@("ScrapOut")">报废出库</MudSelectItem>
+                                <MudSelectItem Value="@("TransferOut")">移库出库</MudSelectItem>
+                                <MudSelectItem Value="@("SampleOut")">取样出库</MudSelectItem>
+                                <MudSelectItem Value="@("OtherOut")">其他出库</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField T="string" Label="出库日期 (yyyy-MM-dd)" @bind-Value="_editOutboundDateText"
+                                          Variant="Variant.Outlined" Dense="true" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField T="string" Label="目标单位" @bind-Value="_editTargetCompany"
+                                          Variant="Variant.Outlined" Dense="true" />
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudNumericField T="int" Label="出库支数" @bind-Value="_editQuantity"
+                                             Variant="Variant.Outlined" Dense="true" HideSpinButtons="true" />
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudNumericField T="decimal" Label="出库重量(kg)" @bind-Value="_editWeight"
+                                             Variant="Variant.Outlined" Dense="true" HideSpinButtons="true" />
+                        </MudItem>
+                        <MudItem xs="12" md="12">
+                            <MudTextField T="string" Label="备注" @bind-Value="_editRemark"
+                                          Variant="Variant.Outlined" Dense="true" />
+                        </MudItem>
+                    </MudGrid>
+                    @if (!string.IsNullOrEmpty(_editError))
+                    {
+                        <MudAlert Severity="Severity.Error" Class="mt-4">@_editError</MudAlert>
+                    }
+                    <MudGrid Class="mt-4">
+                        <MudItem xs="12" Class="d-flex justify-end">
+                            <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CancelEdit" Class="mr-2">取消</MudButton>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                       OnClick="SubmitEdit" Loading="_isEditing">保存</MudButton>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            }
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    [Parameter]
+    public string? Code { get; set; }
+
+    private int? _filterWarehouseId;
+    private readonly string _allTypeOption = string.Empty;
+    private string _filterType = string.Empty;
+    private string _filterStartDateText = string.Empty;
+    private string _filterEndDateText = string.Empty;
+    private bool _isLoading;
+    private MudTable<OutboundRecordDto>? _table;
+
+    // 编辑状态
+    private OutboundRecordDto? _editingItem;
+    private string _editOutboundType = "ProductionPick";
+    private string _editOutboundDateText = string.Empty;
+    private string _editTargetCompany = string.Empty;
+    private int _editQuantity;
+    private decimal _editWeight;
+    private string _editRemark = string.Empty;
+    private string _editError = string.Empty;
+    private bool _isEditing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrEmpty(Code))
+        {
+            var result = await WarehouseService.GetAllAsync(true);
+            if (result.Success && result.Data != null)
+            {
+                var wh = result.Data.FirstOrDefault(w => w.Code.Equals(Code, StringComparison.OrdinalIgnoreCase));
+                if (wh != null)
+                    _filterWarehouseId = wh.Id;
+            }
+        }
+    }
+
+    private async Task<TableData<OutboundRecordDto>> OnServerData(TableState state)
+    {
+        _isLoading = true;
+        try
+        {
+            var query = new OutboundQueryParams
+            {
+                PageIndex = state.Page + 1,
+                PageSize = state.PageSize,
+                SortBy = "OutboundDate",
+                IsDescending = true,
+                WarehouseId = _filterWarehouseId,
+                OutboundType = string.IsNullOrEmpty(_filterType) ? null : _filterType,
+            };
+
+            if (DateTime.TryParse(_filterStartDateText, out var startDate)) query.StartDate = startDate;
+            if (DateTime.TryParse(_filterEndDateText, out var endDate)) query.EndDate = endDate;
+
+            var result = await InventoryService.GetOutboundRecordsAsync(query);
+            if (result.Success && result.Data != null)
+            {
+                return new TableData<OutboundRecordDto>
+                {
+                    Items = result.Data.Items,
+                    TotalItems = result.Data.TotalCount
+                };
+            }
+            return new TableData<OutboundRecordDto> { Items = new List<OutboundRecordDto>() };
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task DoFilter()
+    {
+        if (_table != null) await _table.ReloadServerData();
+    }
+
+    private void OpenEdit(OutboundRecordDto item)
+    {
+        _editingItem = item;
+        _editOutboundType = item.OutboundType;
+        _editOutboundDateText = item.OutboundDate.ToString("yyyy-MM-dd");
+        _editTargetCompany = item.TargetCompany ?? "";
+        _editQuantity = item.OutboundQuantity;
+        _editWeight = item.OutboundWeight;
+        _editRemark = item.Remark ?? "";
+        _editError = string.Empty;
+    }
+
+    private void CancelEdit()
+    {
+        _editingItem = null;
+    }
+
+    private async Task SubmitEdit()
+    {
+        if (_editingItem == null) return;
+        _editError = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_editOutboundDateText)) { _editError = "出库日期不能为空"; return; }
+        if (!DateTime.TryParse(_editOutboundDateText, out var parsedDate)) { _editError = "出库日期无效，请按 yyyy-MM-dd 格式输入"; return; }
+        if (_editQuantity < 1) { _editError = "出库支数必须大于0"; return; }
+        if (_editWeight <= 0) { _editError = "出库重量必须大于0"; return; }
+
+        _isEditing = true;
+        StateHasChanged();
+
+        try
+        {
+            var request = new UpdateOutboundRecordRequest
+            {
+                OutboundType = _editOutboundType,
+                OutboundDate = parsedDate,
+                TargetCompany = string.IsNullOrEmpty(_editTargetCompany) ? null : _editTargetCompany,
+                OutboundQuantity = _editQuantity,
+                OutboundWeight = _editWeight,
+                Remark = string.IsNullOrEmpty(_editRemark) ? null : _editRemark,
+            };
+
+            var result = await InventoryService.UpdateOutboundRecordAsync(_editingItem.Id, request);
+            if (result.Success)
+            {
+                Snackbar.Add("更新成功", Severity.Success);
+                _editingItem = null;
+                await DoFilter();
+            }
+            else
+            {
+                _editError = result.Message ?? "更新失败";
+            }
+        }
+        catch (Exception ex)
+        {
+            _editError = $"网络错误: {ex.Message}";
+        }
+        finally
+        {
+            _isEditing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ConfirmDelete(OutboundRecordDto item)
+    {
+        var confirmed = await JsRuntime.InvokeAsync<bool>("confirm", $"确认物理删除出库记录（批次：{item.BatchNo}，日期：{item.OutboundDate:yyyy-MM-dd}）？\n此操作不可恢复！");
+        if (!confirmed) return;
+
+        try
+        {
+            var result = await InventoryService.HardDeleteOutboundRecordAsync(item.Id);
+            if (result.Success)
+            {
+                Snackbar.Add("出库记录已删除", Severity.Success);
+                await DoFilter();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"网络错误: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static string GetOutboundTypeText(string type) => type switch
+    {
+        "ProductionPick" => "生产领用",
+        "SalesOut" => "销售出库",
+        "ReturnOut" => "退货出库",
+        "SubcontractOut" => "委外出库",
+        "ScrapOut" => "报废出库",
+        "TransferOut" => "移库出库",
+        "InventoryLoss" => "盘亏出库",
+        "SampleOut" => "取样出库",
+        "OtherOut" => "其他出库",
+        _ => type
+    };
+
+    private void GoBack() => Navigation.NavigateTo(!string.IsNullOrEmpty(Code) ? $"/warehouse/{Code.ToLowerInvariant()}" : "/warehouse");
+}

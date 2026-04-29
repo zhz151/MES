@@ -131,6 +131,8 @@ builder.Services.AddScoped<IProductRequirementService, ProductRequirementService
 
 builder.Services.AddScoped<IWorkOrderService, WorkOrderService>();
 builder.Services.AddScoped<IMaterialPlanService, MaterialPlanService>();
+builder.Services.AddScoped<IWarehouseService, WarehouseService>();
+builder.Services.AddScoped<IInventoryService, InventoryService>();
 
 builder.Services.AddHttpContextAccessor();
 

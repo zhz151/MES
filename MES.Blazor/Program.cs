@@ -38,4 +38,8 @@ builder.Services.AddScoped<ProductRequirementService>();
 builder.Services.AddScoped<WorkOrderService>();
 builder.Services.AddScoped<MaterialPlanService>();
 builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<WarehouseService>();
+builder.Services.AddScoped<InventoryService>();
+builder.Services.AddScoped<ColumnPrefsService>();
+builder.Services.AddScoped<OutboundStateService>();
 await builder.Build().RunAsync();

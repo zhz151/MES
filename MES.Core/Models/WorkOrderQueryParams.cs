@@ -71,7 +71,7 @@ public class WorkOrderQueryParams : QueryParams
     public bool IncludeCancelled { get; set; }
 
     /// <summary>
-    /// 用料计划状态筛选（0=未计划，1=部分，2=满足，3=超量）
+    /// 用料计划状态筛选（0=未计划，1=部分，2=理论满足，3=满足，4=超量）
     /// </summary>
     public int? MaterialPlanStatus { get; set; }
 }

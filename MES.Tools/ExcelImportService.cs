@@ -19,6 +19,10 @@ public class ExcelImportService
     private readonly Dictionary<string, StandardGradeMapping> _gradeMappingCache = new();
     private readonly Dictionary<string, int> _orderIdCache = new();
     private readonly HashSet<string> _importedOrderNumbers = new();
+
+    // 仓库缓存
+    private Dictionary<string, int> _warehouseNameCache = new();
+    private readonly Dictionary<string, int> _batchNoSeqByDate = new();
     
     private int _maxCustomerCodeSeq = 0;
 
@@ -123,6 +127,20 @@ public class ExcelImportService
             else
             {
                 result.Log($"文件不存在: 技术要求.xlsx", ImportLogLevel.Warning);
+            }
+
+            // 7. 仓库入库
+            var warehouseFile = Path.Combine(_excelFolder, "仓库入库.xlsx");
+            if (File.Exists(warehouseFile))
+            {
+                var r = await ImportWarehouseInboundAsync(warehouseFile);
+                result.Merge(r);
+                if (r.Success)
+                    result.Log("仓库入库已保存", ImportLogLevel.Success);
+            }
+            else
+            {
+                result.Log($"文件不存在: 仓库入库.xlsx", ImportLogLevel.Warning);
             }
 
             result.Log("所有数据导入完成", ImportLogLevel.Success);
@@ -643,4 +661,226 @@ public class ExcelImportService
         "Range" or "范围尺" => LengthStatus.Range,
         _ => LengthStatus.NonFixed
     };
+
+    // ================================================================
+    //                    仓库入库导入
+    // ================================================================
+
+    /// <summary>
+    /// 导入仓库入库.xlsx
+    /// </summary>
+    public async Task<ImportResult> ImportWarehouseInboundAsync(string? filePath = null)
+    {
+        var result = new ImportResult { Section = "仓库入库" };
+
+        try
+        {
+            filePath ??= Path.Combine(_excelFolder, "仓库入库.xlsx");
+            if (!File.Exists(filePath))
+            {
+                result.Log($"文件不存在: {filePath}", ImportLogLevel.Warning);
+                return result;
+            }
+
+            await LoadWarehouseCacheAsync();
+            await InitBatchNoSequenceAsync();
+            result.Log($"缓存: 仓库{_warehouseNameCache.Count}个, 已有批次号日期数={_batchNoSeqByDate.Count}", ImportLogLevel.Success);
+
+            using var package = new ExcelPackage(new FileInfo(filePath));
+            var worksheet = package.Workbook.Worksheets[0];
+            var rowCount = worksheet.Dimension.Rows;
+            result.Log($"共 {rowCount - 1} 行数据", ImportLogLevel.Info);
+
+            var batchList = new List<InventoryBatch>();
+            var today = DateTime.Now;
+
+            for (int row = 2; row <= rowCount; row++)
+            {
+                try
+                {
+                    var excelRow = ExcelWarehouseInboundRow.FromExcelRow(worksheet.Cells[row, 1]);
+
+                    if (string.IsNullOrEmpty(excelRow.MaterialType) || string.IsNullOrEmpty(excelRow.PlantGrade))
+                    {
+                        result.Skipped++;
+                        continue;
+                    }
+
+                    // 仓库类别 → WarehouseId
+                    if (!_warehouseNameCache.TryGetValue(excelRow.WarehouseCategory, out var warehouseId))
+                    {
+                        // 尝试按名称前缀匹配
+                        var matched = _warehouseNameCache.Keys
+                            .FirstOrDefault(k => excelRow.WarehouseCategory.Contains(k) || k.Contains(excelRow.WarehouseCategory));
+                        if (matched == null)
+                        {
+                            result.Log($"行{row}: 仓库类别 '{excelRow.WarehouseCategory}' 未匹配到仓库", ImportLogLevel.Warning);
+                            result.Failed++;
+                            continue;
+                        }
+                        warehouseId = _warehouseNameCache[matched];
+                    }
+
+                    // 入库来源映射（中文 → 枚举值）
+                    var inboundSource = MapInboundSource(excelRow.InboundSource);
+
+                    // 生成批次号
+                    var batchNo = GenerateNextBatchNo(excelRow.InboundDate);
+
+                    var entity = new InventoryBatch
+                    {
+                        BatchNo = batchNo,
+                        WarehouseId = warehouseId,
+                        MaterialType = excelRow.MaterialType,
+                        PlantGrade = excelRow.PlantGrade,
+                        Specification = excelRow.Specification,
+                        InboundSource = inboundSource,
+                        SourceName = string.IsNullOrEmpty(excelRow.SourceName) ? "系统导入" : excelRow.SourceName,
+                        InboundDate = excelRow.InboundDate,
+                        HeatNo = excelRow.HeatNo,
+                        ProductionBatchNo = excelRow.ProductionBatchNo,
+                        LengthStatus = excelRow.LengthStatus,
+                        MinLength = excelRow.MinLength,
+                        MaxLength = excelRow.MaxLength,
+                        InitialQuantity = excelRow.Quantity,
+                        InitialWeight = excelRow.Weight,
+                        UnitWeight = excelRow.UnitWeight,
+                        Meters = excelRow.Meters,
+                        RemainingQuantity = excelRow.Quantity,
+                        RemainingWeight = excelRow.Weight,
+                        ActualSpecification = excelRow.ActualSpecification,
+                        ActualOuterDiameter = excelRow.ActualOuterDiameter,
+                        ActualWallThickness = excelRow.ActualWallThickness,
+                        SurfaceCondition = excelRow.SurfaceCondition,
+                        LocationArea = excelRow.LocationArea,
+                        LocationRack = excelRow.LocationRack,
+                        Remark = excelRow.Remark,
+                        DefectReason = excelRow.DefectReason,
+                        LiabilityType = excelRow.LiabilityType,
+                        OriginalSupplier = excelRow.OriginalSupplier,
+                        TagNo = excelRow.TagNo,
+                        DefectRemark = excelRow.DefectRemark,
+                        IsLinkedToWorkOrder = excelRow.IsLinkedToWorkOrder,
+                        WorkOrderNo = excelRow.WorkOrderNo,
+                        SalesOrderNo = excelRow.SalesOrderNo,
+                        OrderItemIds = excelRow.OrderItemIds
+                    };
+
+                    batchList.Add(entity);
+                    result.Inserted++;
+
+                    if (batchList.Count >= 100)
+                    {
+                        _context.InventoryBatches.AddRange(batchList);
+                        await _context.SaveChangesAsync();
+                        batchList.Clear();
+                        Console.WriteLine($"   已写入 {result.Inserted} 条...");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.Failed++;
+                    result.Log($"行{row}错误: {ex.Message}", ImportLogLevel.Error);
+                }
+            }
+
+            // 写入剩余批次
+            if (batchList.Count > 0)
+            {
+                _context.InventoryBatches.AddRange(batchList);
+                await _context.SaveChangesAsync();
+            }
+
+            result.Log($"完成: 新增{result.Inserted}, 跳过{result.Skipped}, 失败{result.Failed}", ImportLogLevel.Success);
+        }
+        catch (Exception ex)
+        {
+            result.Log($"导入仓库入库失败: {ex.Message}", ImportLogLevel.Error);
+            if (ex.InnerException != null)
+                result.Log($"内部错误: {ex.InnerException.Message}", ImportLogLevel.Error);
+            result.Success = false;
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 加载仓库缓存
+    /// </summary>
+    private async Task LoadWarehouseCacheAsync()
+    {
+        _warehouseNameCache.Clear();
+        var warehouses = await _context.Warehouses.Where(w => !w.IsDeleted).ToListAsync();
+        foreach (var w in warehouses)
+        {
+            // 按名称和代码同时缓存
+            _warehouseNameCache[w.Name] = w.Id;
+            _warehouseNameCache[w.Code] = w.Id;
+        }
+    }
+
+    /// <summary>
+    /// 初始化批次号序列（从数据库获取每个日期的最大流水号）
+    /// </summary>
+    private async Task InitBatchNoSequenceAsync()
+    {
+        _batchNoSeqByDate.Clear();
+        var allBatches = await _context.InventoryBatches
+            .AsNoTracking()
+            .Where(b => b.BatchNo.StartsWith("STK") && b.BatchNo.Length >= 16)
+            .Select(b => b.BatchNo)
+            .ToListAsync();
+
+        foreach (var batchNo in allBatches)
+        {
+            var date = batchNo[3..11];
+            if (int.TryParse(batchNo[^4..], out var seq))
+            {
+                if (!_batchNoSeqByDate.TryGetValue(date, out var current) || seq > current)
+                {
+                    _batchNoSeqByDate[date] = seq;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 生成下一个批次号（按日期独立流水，支持日期乱序）
+    /// </summary>
+    private string GenerateNextBatchNo(DateTime inboundDate)
+    {
+        var date = inboundDate.ToString("yyyyMMdd");
+
+        if (_batchNoSeqByDate.TryGetValue(date, out var seq))
+        {
+            seq++;
+        }
+        else
+        {
+            seq = 1;
+        }
+
+        _batchNoSeqByDate[date] = seq;
+        return $"STK{date}{seq:D4}";
+    }
+
+    /// <summary>
+    /// 入库来源中文 → 枚举值映射
+    /// </summary>
+    private static string MapInboundSource(string source)
+    {
+        if (string.IsNullOrEmpty(source)) return "Purchase";
+
+        return source switch
+        {
+            "外购" => "Purchase",
+            "委外穿孔" => "SubcontractPiercing",
+            "自产" => "SelfProduced",
+            "检验入库" => "InspectionInbound",
+            "生产入库" => "ProductionInbound",
+            "移库入库" => "TransferIn",
+            "退货入库" => "ReturnIn",
+            _ => source // 可能是英文枚举值，直接返回
+        };
+    }
 }

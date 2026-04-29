@@ -1,0 +1,786 @@
+@page "/warehouse"
+@page "/warehouse/{Code}"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using Microsoft.AspNetCore.Authorization
+@inject WarehouseService WarehouseService
+@inject InventoryService InventoryService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject ColumnPrefsService ColumnPrefs
+@inject OutboundStateService OutboundState
+@attribute [Authorize]
+
+@if (string.IsNullOrEmpty(Code))
+{
+    @* ======== 仓库首页：4个仓库卡片入口 ======== *@
+    <div class="mt-4">
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">
+                        <MudIcon Icon="@Icons.Material.Filled.Warehouse" Class="mr-2" Color="Color.Primary" />
+                        仓库管理
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">选择仓库查看库存批次</MudText>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.AddCircleOutline"
+                               OnClick="NavigateToInboundFromHome">
+                        入库
+                    </MudButton>
+                </CardHeaderActions>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudGrid>
+                    @foreach (var wh in warehouses)
+                    {
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudCard Class="warehouse-card" Style="@GetCardStyle(wh.IsActive)"
+                                     OnClick="() => NavigateToWarehouse(wh.Code)">
+                                <MudCardContent Class="text-center pa-6">
+                                    <MudIcon Icon="@GetWarehouseIcon(wh.Code)" Size="Size.Large" Color="Color.Primary" Class="mb-4" />
+                                    <MudText Typo="Typo.h6" Class="font-weight-bold">@wh.Name</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@wh.Code</MudText>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudCardContent>
+        </MudCard>
+    </div>
+}
+else
+{
+    @* ======== 单个仓库详情页 ======== *@
+    <div class="mt-4">
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">
+                        <MudIcon Icon="@GetWarehouseIcon(warehouseCode)" Class="mr-2" Color="Color.Primary" />
+                        @warehouseName
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">库存批次列表</MudText>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Variant="Variant.Text" Color="Color.Primary"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.History"
+                               OnClick="NavigateToInboundHistory">
+                        入库历史
+                    </MudButton>
+                    <MudButton Variant="Variant.Text" Color="Color.Warning"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.History"
+                               OnClick="NavigateToOutboundHistory">
+                        出库历史
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.AddCircleOutline"
+                               OnClick="NavigateToInbound">
+                        入库
+                    </MudButton>
+                </CardHeaderActions>
+            </MudCardHeader>
+
+            <MudCardContent>
+                <!-- 顶部：模糊搜索 + 出库筛选切换 -->
+                <MudGrid Class="mb-2">
+                    <MudItem xs="12" md="5">
+                        <MudGrid>
+                            <MudItem xs="8">
+                                <MudTextField T="string"
+                                              @bind-Value="_keyword"
+                                              Placeholder="模糊搜索（物料 工厂牌号 规格 炉号...，多词空格分隔）"
+                                              Variant="Variant.Outlined"
+                                              Dense="true"
+                                              Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.Search"
+                                              OnKeyDown="HandleKeywordKeyDown" />
+                            </MudItem>
+                            <MudItem xs="4">
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           OnClick="DoKeywordSearch"
+                                           Size="Size.Small"
+                                           FullWidth="true">
+                                    搜索
+                                </MudButton>
+                            </MudItem>
+                        </MudGrid>
+                    </MudItem>
+                    <MudItem xs="12" md="7" Class="d-flex align-center justify-end">
+                        <MudButton Variant="@(_outboundMode ? Variant.Filled : Variant.Outlined)"
+                                   Color="Color.Warning"
+                                   StartIcon="@Icons.Material.Filled.FilterList"
+                                   OnClick="ToggleOutboundMode"
+                                   Size="Size.Small"
+                                   Class="mr-2">
+                            @if (_outboundMode)
+                            {
+                                <span>退出筛选</span>
+                            }
+                            else
+                            {
+                                <span>出库筛选</span>
+                            }
+                        </MudButton>
+                        @if (_outboundMode)
+                        {
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Warning"
+                                       StartIcon="@Icons.Material.Filled.ExitToApp"
+                                       Disabled="@(_selectedItems.Count == 0)"
+                                       OnClick="NavigateToOutbound"
+                                       Size="Size.Small">
+                                批量出库 (@_selectedItems.Count)
+                            </MudButton>
+                        }
+                    </MudItem>
+                </MudGrid>
+
+                <!-- 数据表格 -->
+                <MudTable @ref="table"
+                          T="InventoryBatchDto"
+                          ServerData="OnServerData"
+                          Loading="@isLoading"
+                          Dense="true"
+                          Hover="true"
+                          Class="mt-1"
+                          Elevation="0"
+                          RowsPerPageLabel="每页行数:"
+                          Striped="true"
+                          MultiSelection="_outboundMode"
+                          @bind-SelectedItems="_selectedItems">
+                    <ToolBarContent>
+                        <MudText Typo="Typo.body2" Class="mr-4 d-flex align-center">
+                            共 @totalCount 条记录
+                        </MudText>
+                        @if (_outboundMode)
+                        {
+                            <MudText Typo="Typo.body2" Class="d-flex align-center" Style="color: var(--mud-palette-warning);">
+                                已选 @_selectedItems.Count 项
+                            </MudText>
+                        }
+                        <MudSpacer />
+                        <MudMenu>
+                            <ActivatorContent>
+                                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                                           Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.ViewColumn">
+                                    列选择
+                                </MudButton>
+                            </ActivatorContent>
+                            <ChildContent>
+                                <MudPaper Class="pa-4" Elevation="8" Style="max-height:400px; overflow-y:auto; min-width:260px;">
+                                    @* 适用列 *@
+                                    <MudText Typo="Typo.body2" Class="font-weight-bold mb-2" Color="Color.Primary">适用字段</MudText>
+                                    @foreach (var col in _allColumns.Where(c => c.IsApplicable))
+                                    {
+                                        <MudGrid Class="d-flex align-center" Style="flex-wrap:nowrap;">
+                                            <MudItem>
+                                                <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowUp"
+                                                               Size="Size.Small"
+                                                               Disabled="@(_allColumns.IndexOf(col) == 0)"
+                                                               OnClick="@(() => MoveColumnUp(col))" />
+                                            </MudItem>
+                                            <MudItem>
+                                                <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowDown"
+                                                               Size="Size.Small"
+                                                               Disabled="@(_allColumns.IndexOf(col) == _allColumns.Count - 1)"
+                                                               OnClick="@(() => MoveColumnDown(col))" />
+                                            </MudItem>
+                                            <MudItem>
+                                                <MudSwitch T="bool" Value="col.Visible"
+                                                           ValueChanged="@((bool v) => OnColumnToggle(col, v))"
+                                                           Color="Color.Primary" Dense="true">
+                                                    @col.Label
+                                                </MudSwitch>
+                                            </MudItem>
+                                        </MudGrid>
+                                    }
+                                    @* 分隔线 *@
+                                    <MudDivider Class="my-2" />
+                                    @* 不适用列 *@
+                                    <MudText Typo="Typo.body2" Class="font-weight-bold mb-2" Color="Color.Error">不适用字段</MudText>
+                                    @foreach (var col in _allColumns.Where(c => !c.IsApplicable))
+                                    {
+                                        <MudGrid Class="d-flex align-center" Style="flex-wrap:nowrap;opacity:0.5;">
+                                            <MudItem>
+                                                <MudIconButton Icon="@Icons.Material.Filled.Block"
+                                                               Size="Size.Small"
+                                                               Disabled="true"
+                                                               Color="Color.Error" />
+                                            </MudItem>
+                                            <MudItem Style="pointer-events:none;">
+                                                <MudSwitch T="bool" Value="false" Disabled="true" Color="Color.Error" Dense="true">
+                                                    @col.Label
+                                                </MudSwitch>
+                                            </MudItem>
+                                        </MudGrid>
+                                    }
+                                </MudPaper>
+                            </ChildContent>
+                        </MudMenu>
+                    </ToolBarContent>
+                    <HeaderContent>
+                        @foreach (var col in _visibleColumns)
+                        {
+                            <MudTh><span class="th-label">@col.Label</span></MudTh>
+                        }
+                    </HeaderContent>
+                    <RowTemplate Context="item">
+                        @foreach (var col in _visibleColumns)
+                        {
+                            <MudTd>@RenderCell(item, col)</MudTd>
+                        }
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                    <NoRecordsContent>
+                        <MudText Class="d-flex justify-center pa-4" Color="Color.Secondary">暂无数据</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+            </MudCardContent>
+        </MudCard>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string? Code { get; set; }
+
+    private MudTable<InventoryBatchDto>? table;
+    private List<InventoryBatchDto> items = new();
+    private List<WarehouseDto> warehouses = new();
+    private bool isLoading = false;
+    private int totalCount = 0;
+
+    // 当前仓库信息
+    private string warehouseCode = string.Empty;
+    private string warehouseName = string.Empty;
+    private int warehouseId;
+
+    // 出库模式
+    private bool _outboundMode;
+
+    // 关键字搜索
+    private string? _keyword;
+
+    // 列定义
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns =>
+        _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
+
+    // 多选
+    private HashSet<InventoryBatchDto> _selectedItems = new();
+
+    // ========== 列定义 ==========
+
+    private static List<ColumnDef> GetAllColumnDefs() => new()
+    {
+        // 通用列（默认全显示）
+        new() { Key = "BatchNo",             Label = "批次号" },
+        new() { Key = "MaterialType",        Label = "物料" },
+        new() { Key = "InboundSource",       Label = "来源" },
+        new() { Key = "SourceName",          Label = "来料单位" },
+        new() { Key = "InboundDate",         Label = "入库日期" },
+        new() { Key = "HeatNo",              Label = "炉号" },
+        new() { Key = "PlantGrade",          Label = "工厂牌号" },
+        new() { Key = "Specification",       Label = "名义规格" },
+        new() { Key = "RemainingQuantity",   Label = "剩余支数" },
+        new() { Key = "RemainingWeight",     Label = "剩余重量" },
+        new() { Key = "UnitWeight",          Label = "单支重" },
+        new() { Key = "LocationRack",        Label = "框架" },
+        new() { Key = "Remark",              Label = "备注" },
+        // 长度相关
+        new() { Key = "LengthStatus",        Label = "长度状态" },
+        new() { Key = "MinLength",           Label = "最小长度" },
+        new() { Key = "MaxLength",           Label = "最大长度" },
+        // 数量重量
+        new() { Key = "InitialQuantity",     Label = "支数" },
+        new() { Key = "InitialWeight",       Label = "重量(kg)" },
+        new() { Key = "Meters",              Label = "米数" },
+        // 实际规格
+        new() { Key = "ActualSpecification", Label = "实际规格" },
+        new() { Key = "ActualOuterDiameter", Label = "外径" },
+        new() { Key = "ActualWallThickness", Label = "壁厚" },
+        // 位置
+        new() { Key = "SurfaceCondition",    Label = "物料状态" },
+        new() { Key = "LocationArea",        Label = "区域" },
+        // 次品
+        new() { Key = "DefectReason",        Label = "次品原因" },
+        new() { Key = "LiabilityType",       Label = "责任类型" },
+        new() { Key = "OriginalSupplier",    Label = "原始来料" },
+        new() { Key = "TagNo",               Label = "挂牌号" },
+        new() { Key = "DefectRemark",        Label = "次品备注" },
+        // 生产
+        new() { Key = "ProductionBatchNo",   Label = "生产批号" },
+        // 工单
+        new() { Key = "IsLinkedToWorkOrder", Label = "关联工单" },
+        new() { Key = "WorkOrderNo",         Label = "工单号" },
+        new() { Key = "SalesOrderNo",        Label = "订单号" },
+        new() { Key = "OrderItemIds",        Label = "项次" },
+    };
+
+    private static void ApplyWarehouseDefaults(List<ColumnDef> cols, string whCode)
+    {
+        // 先全部重置为适用+可见
+        foreach (var c in cols)
+        {
+            c.IsApplicable = true;
+            c.Visible = true;
+        }
+
+        switch (whCode)
+        {
+            case "RAW":
+                // 原料库模板不含：最小长度、最大长度、米数、实际规格、外径、壁厚、生产批号、次品相关
+                SetNotApplicable(cols, "MinLength");
+                SetNotApplicable(cols, "MaxLength");
+                SetNotApplicable(cols, "Meters");
+                SetNotApplicable(cols, "ActualSpecification");
+                SetNotApplicable(cols, "ActualOuterDiameter");
+                SetNotApplicable(cols, "ActualWallThickness");
+                SetNotApplicable(cols, "ProductionBatchNo");
+                SetNotApplicable(cols, "DefectReason");
+                SetNotApplicable(cols, "LiabilityType");
+                SetNotApplicable(cols, "OriginalSupplier");
+                SetNotApplicable(cols, "TagNo");
+                SetNotApplicable(cols, "DefectRemark");
+                break;
+            case "FG":
+                // 成品库模板不含：次品相关
+                SetNotApplicable(cols, "DefectReason");
+                SetNotApplicable(cols, "LiabilityType");
+                SetNotApplicable(cols, "OriginalSupplier");
+                SetNotApplicable(cols, "TagNo");
+                SetNotApplicable(cols, "DefectRemark");
+                break;
+            case "DEFECT":
+                // 次品库模板不含：米数、实际规格、外径、壁厚
+                SetNotApplicable(cols, "Meters");
+                SetNotApplicable(cols, "ActualSpecification");
+                SetNotApplicable(cols, "ActualOuterDiameter");
+                SetNotApplicable(cols, "ActualWallThickness");
+                break;
+            case "WIP":
+                // 在制品库模板不含：工单关联、次品相关、米数
+                SetNotApplicable(cols, "IsLinkedToWorkOrder");
+                SetNotApplicable(cols, "WorkOrderNo");
+                SetNotApplicable(cols, "SalesOrderNo");
+                SetNotApplicable(cols, "OrderItemIds");
+                SetNotApplicable(cols, "DefectReason");
+                SetNotApplicable(cols, "LiabilityType");
+                SetNotApplicable(cols, "OriginalSupplier");
+                SetNotApplicable(cols, "TagNo");
+                SetNotApplicable(cols, "DefectRemark");
+                SetNotApplicable(cols, "Meters");
+                break;
+        }
+    }
+
+    private static void SetVisible(List<ColumnDef> cols, string key, bool visible)
+    {
+        var c = cols.FirstOrDefault(x => x.Key == key);
+        if (c != null) c.Visible = visible;
+    }
+
+    private static void SetNotApplicable(List<ColumnDef> cols, string key)
+    {
+        var c = cols.FirstOrDefault(x => x.Key == key);
+        if (c != null)
+        {
+            c.IsApplicable = false;
+            c.Visible = false;
+        }
+    }
+
+    // ========== 单元格渲染 ==========
+
+    private RenderFragment RenderCell(InventoryBatchDto item, ColumnDef col) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "BatchNo":
+                if (!string.IsNullOrEmpty(item.BatchNo))
+                    builder.AddContent(0, item.BatchNo);
+                break;
+            case "MaterialType":
+                builder.AddContent(0, item.MaterialType);
+                break;
+            case "InboundSource":
+                builder.AddContent(0, GetInboundSourceDisplay(item.InboundSource));
+                break;
+            case "SourceName":
+                builder.AddContent(0, TruncateSourceName(item.SourceName));
+                break;
+            case "InboundDate":
+                builder.AddContent(0, item.InboundDate.ToString("yyyy-MM-dd"));
+                break;
+            case "HeatNo":
+                builder.AddContent(0, item.HeatNo);
+                break;
+            case "PlantGrade":
+                builder.AddContent(0, item.PlantGrade);
+                break;
+            case "Specification":
+                builder.AddContent(0, item.Specification);
+                break;
+            case "LengthStatus":
+                builder.AddContent(0, item.LengthStatus);
+                break;
+            case "MinLength":
+                if (item.MinLength.HasValue)
+                    builder.AddContent(0, item.MinLength.Value.ToString("G29"));
+                break;
+            case "MaxLength":
+                if (item.MaxLength.HasValue)
+                    builder.AddContent(0, item.MaxLength.Value.ToString("G29"));
+                break;
+            case "InitialQuantity":
+                builder.AddContent(0, item.InitialQuantity);
+                break;
+            case "InitialWeight":
+                builder.AddContent(0, item.InitialWeight.ToString("G29"));
+                break;
+            case "Meters":
+                if (item.Meters.HasValue)
+                    builder.AddContent(0, item.Meters.Value.ToString("G29"));
+                break;
+            case "RemainingQuantity":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", item.RemainingQuantity > 0 ? Color.Success : Color.Default);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.RemainingQuantity)));
+                builder.CloseComponent();
+                break;
+            case "RemainingWeight":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", item.RemainingWeight > 0 ? Color.Success : Color.Default);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.RemainingWeight.ToString("G29"))));
+                builder.CloseComponent();
+                break;
+            case "UnitWeight":
+                if (item.UnitWeight.HasValue)
+                    builder.AddContent(0, item.UnitWeight.Value.ToString("G29"));
+                break;
+            case "ActualSpecification":
+                builder.AddContent(0, item.ActualSpecification);
+                break;
+            case "ActualOuterDiameter":
+                if (item.ActualOuterDiameter.HasValue)
+                    builder.AddContent(0, item.ActualOuterDiameter.Value.ToString("G29"));
+                break;
+            case "ActualWallThickness":
+                if (item.ActualWallThickness.HasValue)
+                    builder.AddContent(0, item.ActualWallThickness.Value.ToString("G29"));
+                break;
+            case "SurfaceCondition":
+                builder.AddContent(0, item.SurfaceCondition);
+                break;
+            case "LocationArea":
+                builder.AddContent(0, TruncateSourceName(item.LocationArea));
+                break;
+            case "LocationRack":
+                builder.AddContent(0, item.LocationRack);
+                break;
+            case "Remark":
+                builder.AddContent(0, item.Remark);
+                break;
+            case "DefectReason":
+                builder.AddContent(0, item.DefectReason);
+                break;
+            case "LiabilityType":
+                builder.AddContent(0, item.LiabilityType);
+                break;
+            case "OriginalSupplier":
+                builder.AddContent(0, item.OriginalSupplier);
+                break;
+            case "TagNo":
+                builder.AddContent(0, item.TagNo);
+                break;
+            case "DefectRemark":
+                builder.AddContent(0, item.DefectRemark);
+                break;
+            case "ProductionBatchNo":
+                builder.AddContent(0, item.ProductionBatchNo);
+                break;
+            case "IsLinkedToWorkOrder":
+                if (item.IsLinkedToWorkOrder)
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", Color.Success);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "是")));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", Color.Default);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "否")));
+                    builder.CloseComponent();
+                }
+                break;
+            case "WorkOrderNo":
+                builder.AddContent(0, item.WorkOrderNo);
+                break;
+            case "SalesOrderNo":
+                builder.AddContent(0, item.SalesOrderNo);
+                break;
+            case "OrderItemIds":
+                builder.AddContent(0, item.OrderItemIds);
+                break;
+        }
+    };
+
+    // ========== 入库来源中文映射 ==========
+    private static string GetInboundSourceDisplay(string? source) => source switch
+    {
+        "Purchase" => "外购",
+        "ProductionInbound" => "生产入库",
+        "InspectionInbound" => "检验入库",
+        "SubcontractPiercing" => "委外穿孔",
+        "SelfProduced" => "自产",
+        "TransferIn" => "移库入库",
+        "ReturnIn" => "退货入库",
+        _ => source ?? ""
+    };
+
+    // ========== 来料单位截断 ==========
+    private static string TruncateSourceName(string? name)
+    {
+        if (string.IsNullOrEmpty(name)) return "";
+        return name.Length > 4 ? name[..4] + "…" : name;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await WarehouseService.GetAllAsync(true);
+        if (result.Success && result.Data != null)
+            warehouses = result.Data;
+
+        if (!string.IsNullOrEmpty(Code))
+        {
+            await ResolveWarehouse();
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(Code))
+        {
+            await ResolveWarehouse();
+            if (table != null)
+                await table.ReloadServerData();
+        }
+    }
+
+    private async Task ResolveWarehouse()
+    {
+        _keyword = null;
+        _outboundMode = false;
+
+        warehouseCode = Code!.ToUpperInvariant();
+        var wh = warehouses.FirstOrDefault(w => w.Code.Equals(warehouseCode, StringComparison.OrdinalIgnoreCase));
+        if (wh != null)
+        {
+            warehouseId = wh.Id;
+            warehouseName = wh.Name;
+        }
+        else
+        {
+            warehouseName = Code;
+        }
+
+        // 初始化列定义
+        _allColumns = GetAllColumnDefs();
+        ApplyWarehouseDefaults(_allColumns, warehouseCode);
+
+        // 加载用户自定义列偏好 → 覆盖默认值
+        var saved = await ColumnPrefs.LoadAsync("inventory", warehouseCode);
+        if (saved.Count > 0)
+        {
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
+            }
+        }
+
+        // 不适用列强制隐藏（防止旧数据干扰）
+        foreach (var c in _allColumns)
+        {
+            if (!c.IsApplicable) c.Visible = false;
+        }
+    }
+
+    // ========== 列管理 ==========
+
+    private async Task OnColumnToggle(ColumnDef col, bool visible)
+    {
+        col.Visible = visible;
+        await SaveColumnPrefs();
+    }
+
+    private async Task SaveColumnPrefs()
+    {
+        await ColumnPrefs.SaveAsync("inventory", warehouseCode, _allColumns);
+    }
+
+    private async Task MoveColumnUp(ColumnDef col)
+    {
+        var idx = _allColumns.IndexOf(col);
+        if (idx > 0)
+        {
+            (_allColumns[idx], _allColumns[idx - 1]) = (_allColumns[idx - 1], _allColumns[idx]);
+            await SaveColumnPrefs();
+        }
+    }
+
+    private async Task MoveColumnDown(ColumnDef col)
+    {
+        var idx = _allColumns.IndexOf(col);
+        if (idx < _allColumns.Count - 1)
+        {
+            (_allColumns[idx], _allColumns[idx + 1]) = (_allColumns[idx + 1], _allColumns[idx]);
+            await SaveColumnPrefs();
+        }
+    }
+
+    // ========== 服务端数据 ==========
+
+    private async Task<TableData<InventoryBatchDto>> OnServerData(TableState state)
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var queryParams = new InventoryQueryParams
+            {
+                PageIndex = state.Page + 1,
+                PageSize = state.PageSize,
+                SortBy = "InboundDate",
+                IsDescending = true,
+                Keyword = string.IsNullOrWhiteSpace(_keyword) ? null : _keyword,
+                WarehouseId = warehouseId,
+                OnlyWithStock = true
+            };
+
+            var result = await InventoryService.GetPagedAsync(queryParams);
+
+            if (result.Success && result.Data != null)
+            {
+                items = result.Data.Items;
+                totalCount = result.Data.TotalCount;
+
+                _selectedItems.RemoveWhere(i => !items.Any(x => x.Id == i.Id));
+
+                return new TableData<InventoryBatchDto>
+                {
+                    Items = items,
+                    TotalItems = totalCount
+                };
+            }
+
+            return new TableData<InventoryBatchDto>
+            {
+                Items = new List<InventoryBatchDto>(),
+                TotalItems = 0
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"加载失败: {ex.Message}");
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+            return new TableData<InventoryBatchDto>
+            {
+                Items = new List<InventoryBatchDto>(),
+                TotalItems = 0
+            };
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // ========== 关键字搜索 ==========
+    private async Task DoKeywordSearch()
+    {
+        await OnFilterChanged();
+    }
+
+    private async Task HandleKeywordKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await DoKeywordSearch();
+        }
+    }
+
+    private async Task OnFilterChanged()
+    {
+        if (table != null)
+            await table.ReloadServerData();
+    }
+
+    // ========== 出库模式切换 ==========
+    private void ToggleOutboundMode()
+    {
+        _outboundMode = !_outboundMode;
+        if (!_outboundMode)
+        {
+            _selectedItems.Clear();
+        }
+    }
+
+    // ========== 跳转到出库页面 ==========
+    private void NavigateToOutbound()
+    {
+        if (_selectedItems.Count == 0) return;
+
+        OutboundState.SelectedItems = _selectedItems.ToList();
+        OutboundState.WarehouseCode = warehouseCode;
+        OutboundState.WarehouseName = warehouseName;
+        OutboundState.WarehouseId = warehouseId;
+
+        _outboundMode = false;
+        _selectedItems.Clear();
+
+        Navigation.NavigateTo("/warehouse/outbound");
+    }
+
+    // ========== 导航 ==========
+    private void NavigateToInboundFromHome() => Navigation.NavigateTo("/warehouse/inbound");
+    private void NavigateToInbound() => Navigation.NavigateTo($"/warehouse/inbound/{warehouseCode.ToLowerInvariant()}");
+
+    private void NavigateToWarehouse(string code) => Navigation.NavigateTo($"/warehouse/{code.ToLowerInvariant()}");
+
+    private void NavigateToInboundHistory() => Navigation.NavigateTo(string.IsNullOrEmpty(Code) ? "/warehouse/inbound-history" : $"/warehouse/inbound-history/{warehouseCode.ToLowerInvariant()}");
+    private void NavigateToOutboundHistory() => Navigation.NavigateTo(string.IsNullOrEmpty(Code) ? "/warehouse/outbound-history" : $"/warehouse/outbound-history/{warehouseCode.ToLowerInvariant()}");
+
+    private static string GetCardStyle(bool isActive) => isActive ? "cursor:pointer;" : "cursor:pointer;opacity:0.5;";
+
+    private static string GetWarehouseIcon(string code) => code.ToUpperInvariant() switch
+    {
+        "RAW" => Icons.Material.Filled.Inventory2,
+        "FG" => Icons.Material.Filled.Inventory,
+        "DEFECT" => Icons.Material.Filled.ErrorOutline,
+        "WIP" => Icons.Material.Filled.PrecisionManufacturing,
+        _ => Icons.Material.Filled.Warehouse
+    };
+}

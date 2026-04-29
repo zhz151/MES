@@ -280,3 +280,97 @@ public class ExcelProductRequirementRow
     private static string GetStringValue(ExcelRange cell, int offset) => cell.Offset(0, offset).Text?.Trim() ?? string.Empty;
     private static int GetIntValue(ExcelRange cell, int offset) => int.TryParse(cell.Offset(0, offset).Text, out var val) ? val : 0;
 }
+
+/// <summary>
+/// 仓库入库行 (仓库入库.xlsx)
+/// 32列：仓库类别, 物料名称, 入库来源, 来料单位或部门, 入库日期, 炉号,
+///       厂内钢种, 名义规格, 长度状态, 最小长度, 最大长度, 支数, 米数, 重量,
+///       理论单支重, 物料状态, 放置区域, 放置框架, 物料备注, 次品原因,
+///       责任类型, 原始来料单位, 挂牌号, 次品备注, 关联工单, 工单号,
+///       订单号, 项次ID列表, 生产批号, 实际规格, 实际外径, 实际壁厚
+/// </summary>
+public class ExcelWarehouseInboundRow
+{
+    public string WarehouseCategory { get; set; } = string.Empty;  // 仓库类别
+    public string MaterialType { get; set; } = string.Empty;       // 物料名称
+    public string InboundSource { get; set; } = string.Empty;      // 入库来源
+    public string SourceName { get; set; } = string.Empty;         // 来料单位或部门
+    public DateTime InboundDate { get; set; }                      // 入库日期
+    public string? HeatNo { get; set; }                            // 炉号
+    public string PlantGrade { get; set; } = string.Empty;         // 厂内钢种
+    public string Specification { get; set; } = string.Empty;      // 名义规格
+    public string? LengthStatus { get; set; }                      // 长度状态
+    public decimal? MinLength { get; set; }                        // 最小长度
+    public decimal? MaxLength { get; set; }                        // 最大长度
+    public int Quantity { get; set; }                              // 支数
+    public decimal? Meters { get; set; }                           // 米数
+    public decimal Weight { get; set; }                            // 重量
+    public decimal? UnitWeight { get; set; }                       // 理论单支重
+    public string? SurfaceCondition { get; set; }                  // 物料状态
+    public string? LocationArea { get; set; }                      // 放置区域
+    public string? LocationRack { get; set; }                      // 放置框架
+    public string? Remark { get; set; }                            // 物料备注
+    public string? DefectReason { get; set; }                      // 次品原因
+    public string? LiabilityType { get; set; }                     // 责任类型
+    public string? OriginalSupplier { get; set; }                  // 原始来料单位
+    public string? TagNo { get; set; }                             // 挂牌号
+    public string? DefectRemark { get; set; }                      // 次品备注
+    public bool IsLinkedToWorkOrder { get; set; }                  // 关联工单
+    public string? WorkOrderNo { get; set; }                       // 工单号
+    public string? SalesOrderNo { get; set; }                      // 订单号
+    public string? OrderItemIds { get; set; }                      // 项次ID列表
+    public string? ProductionBatchNo { get; set; }                 // 生产批号
+    public string? ActualSpecification { get; set; }               // 实际规格
+    public decimal? ActualOuterDiameter { get; set; }              // 实际外径
+    public decimal? ActualWallThickness { get; set; }              // 实际壁厚
+
+    public static ExcelWarehouseInboundRow FromExcelRow(ExcelRange row)
+    {
+        return new ExcelWarehouseInboundRow
+        {
+            WarehouseCategory = GetStringValue(row, 0),
+            MaterialType = GetStringValue(row, 1),
+            InboundSource = GetStringValue(row, 2),
+            SourceName = GetStringValue(row, 3),
+            InboundDate = GetDateTimeValue(row, 4),
+            HeatNo = GetStringOrNull(row, 5),
+            PlantGrade = GetStringValue(row, 6),
+            Specification = GetStringValue(row, 7),
+            LengthStatus = GetStringOrNull(row, 8),
+            MinLength = GetNullableDecimalValue(row, 9),
+            MaxLength = GetNullableDecimalValue(row, 10),
+            Quantity = GetIntValue(row, 11),
+            Meters = GetNullableDecimalValue(row, 12),
+            Weight = GetDecimalValue(row, 13),
+            UnitWeight = GetNullableDecimalValue(row, 14),
+            SurfaceCondition = GetStringOrNull(row, 15),
+            LocationArea = GetStringOrNull(row, 16),
+            LocationRack = GetStringOrNull(row, 17),
+            Remark = GetStringOrNull(row, 18),
+            DefectReason = GetStringOrNull(row, 19),
+            LiabilityType = GetStringOrNull(row, 20),
+            OriginalSupplier = GetStringOrNull(row, 21),
+            TagNo = GetStringOrNull(row, 22),
+            DefectRemark = GetStringOrNull(row, 23),
+            IsLinkedToWorkOrder = GetStringValue(row, 24) == "是",
+            WorkOrderNo = GetStringOrNull(row, 25),
+            SalesOrderNo = GetStringOrNull(row, 26),
+            OrderItemIds = GetStringOrNull(row, 27),
+            ProductionBatchNo = GetStringOrNull(row, 28),
+            ActualSpecification = GetStringOrNull(row, 29),
+            ActualOuterDiameter = GetNullableDecimalValue(row, 30),
+            ActualWallThickness = GetNullableDecimalValue(row, 31)
+        };
+    }
+
+    private static string GetStringValue(ExcelRange cell, int offset) => cell.Offset(0, offset).Text?.Trim() ?? string.Empty;
+    private static string? GetStringOrNull(ExcelRange cell, int offset)
+    {
+        var val = cell.Offset(0, offset).Text?.Trim();
+        return string.IsNullOrEmpty(val) ? null : val;
+    }
+    private static int GetIntValue(ExcelRange cell, int offset) => int.TryParse(cell.Offset(0, offset).Text, out var val) ? val : 0;
+    private static decimal GetDecimalValue(ExcelRange cell, int offset) => decimal.TryParse(cell.Offset(0, offset).Text, out var val) ? val : 0;
+    private static DateTime GetDateTimeValue(ExcelRange cell, int offset) => DateTime.TryParse(cell.Offset(0, offset).Text, out var val) ? val : DateTime.Now;
+    private static decimal? GetNullableDecimalValue(ExcelRange cell, int offset) => decimal.TryParse(cell.Offset(0, offset).Text, out var val) ? val : null;
+}

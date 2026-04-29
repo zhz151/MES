@@ -130,4 +130,70 @@ public static class DtoMapper
         CreatedTime = entity.CreatedTime,
         UpdatedTime = entity.UpdatedTime
     };
+
+    // ========== 仓库上下文 Mapping ==========
+
+    public static WarehouseDto ToDto(this Warehouse entity) => new()
+    {
+        Id = entity.Id,
+        Code = entity.Code,
+        Name = entity.Name,
+        SortOrder = entity.SortOrder,
+        IsActive = entity.IsActive,
+        Remark = entity.Remark
+    };
+
+    public static InventoryBatchDto ToDto(this InventoryBatch entity) => new()
+    {
+        Id = entity.Id,
+        BatchNo = entity.BatchNo,
+        WarehouseId = entity.WarehouseId,
+        MaterialType = entity.MaterialType,
+        PlantGrade = entity.PlantGrade,
+        Specification = entity.Specification,
+        InboundSource = entity.InboundSource,
+        SourceName = entity.SourceName,
+        InboundDate = entity.InboundDate,
+        HeatNo = entity.HeatNo,
+        ProductionBatchNo = entity.ProductionBatchNo,
+        LengthStatus = entity.LengthStatus,
+        MinLength = entity.MinLength,
+        MaxLength = entity.MaxLength,
+        InitialQuantity = entity.InitialQuantity,
+        InitialWeight = entity.InitialWeight,
+        UnitWeight = entity.UnitWeight,
+        Meters = entity.Meters,
+        RemainingQuantity = entity.RemainingQuantity,
+        RemainingWeight = entity.RemainingWeight,
+        ActualSpecification = entity.ActualSpecification,
+        ActualOuterDiameter = entity.ActualOuterDiameter,
+        ActualWallThickness = entity.ActualWallThickness,
+        SurfaceCondition = entity.SurfaceCondition,
+        LocationArea = entity.LocationArea,
+        LocationRack = entity.LocationRack,
+        Remark = entity.Remark,
+        DefectReason = entity.DefectReason,
+        LiabilityType = entity.LiabilityType,
+        OriginalSupplier = entity.OriginalSupplier,
+        TagNo = entity.TagNo,
+        DefectRemark = entity.DefectRemark,
+        IsLinkedToWorkOrder = entity.IsLinkedToWorkOrder,
+        WorkOrderNo = entity.WorkOrderNo,
+        SalesOrderNo = entity.SalesOrderNo,
+        OrderItemIds = entity.OrderItemIds
+    };
+
+    public static OutboundRecordDto ToDto(this OutboundRecord entity) => new()
+    {
+        Id = entity.Id,
+        InventoryBatchId = entity.InventoryBatchId,
+        OutboundType = entity.OutboundType,
+        TargetCompany = entity.TargetCompany,
+        OutboundQuantity = entity.OutboundQuantity,
+        OutboundWeight = entity.OutboundWeight,
+        OutboundDate = entity.OutboundDate,
+        Operator = entity.Operator,
+        Remark = entity.Remark,
+        CreatedTime = entity.CreatedTime
+    };
 }

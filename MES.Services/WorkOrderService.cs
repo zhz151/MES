@@ -701,8 +701,7 @@ public class WorkOrderService : IWorkOrderService
                 wo.WorkOrderNo.Contains(keyword) ||
                 wo.SalesOrderNo.Contains(keyword) ||
                 wo.ProductionMainNo.Contains(keyword) ||
-                (wo.ProductionSubNo != null && wo.ProductionSubNo.Contains(keyword)) ||
-                wo.Specification.Contains(keyword));
+                (wo.ProductionSubNo != null && wo.ProductionSubNo.Contains(keyword)));
         }
 
         if (query.MaterialPlanStatus.HasValue)
@@ -815,10 +814,16 @@ public class WorkOrderService : IWorkOrderService
             var hasPartialOrNotPlanned = orderItems.Any(i =>
                 i.MainNoMaterialPlanStatus == (int)MaterialPlanStatus.Partial ||
                 i.MainNoMaterialPlanStatus == (int)MaterialPlanStatus.NotPlanned);
+            var allNotPlanned = orderItems.All(i =>
+                i.MainNoMaterialPlanStatus == (int)MaterialPlanStatus.NotPlanned);
 
-            var orderStatus = hasPartialOrNotPlanned
-                ? MaterialPlanStatus.Partial
-                : MaterialPlanStatus.Satisfied;
+            MaterialPlanStatus orderStatus;
+            if (allNotPlanned)
+                orderStatus = MaterialPlanStatus.NotPlanned;
+            else if (hasPartialOrNotPlanned)
+                orderStatus = MaterialPlanStatus.Partial;
+            else
+                orderStatus = MaterialPlanStatus.Satisfied;
 
             foreach (var item in orderItems)
                 item.OrderMaterialPlanStatus = (int)orderStatus;
@@ -886,6 +891,8 @@ public class WorkOrderService : IWorkOrderService
     /// </summary>
     private static MaterialPlanStatus CalculateMainNoStatus(decimal rate, bool isFixed)
     {
+        if (rate <= 0) return MaterialPlanStatus.NotPlanned;
+
         if (isFixed)
         {
             if (rate < 102m) return MaterialPlanStatus.Partial;

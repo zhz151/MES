@@ -16,7 +16,7 @@ public class QueryParams
     /// <summary>
     /// 每页条数
     /// </summary>
-    [Range(1, 100, ErrorMessage = "每页条数必须在1-100之间")]
+    [Range(1, 10000, ErrorMessage = "每页条数必须在1-10000之间")]
     public int PageSize { get; set; } = 20;
 
     /// <summary>

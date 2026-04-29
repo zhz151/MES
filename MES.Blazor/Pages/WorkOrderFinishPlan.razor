@@ -212,6 +212,7 @@
     private List<PurchaseFinishedPlanDto> finishedPlans = new();
     private WorkOrderMaterialPlanDto? summary;
     private bool isLoading = true;
+    private int previousWorkOrderId;
 
     // 同订单工单导航
     private List<WorkOrderListDto> siblingWorkOrders = new();
@@ -222,6 +223,15 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (previousWorkOrderId != 0 && previousWorkOrderId != WorkOrderId)
+        {
+            await LoadData();
+        }
+        previousWorkOrderId = WorkOrderId;
     }
 
     private async Task LoadData()
