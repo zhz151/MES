@@ -4,12 +4,10 @@
 @using MES.Core.DTOs
 @using MES.Core.Models
 @using Microsoft.AspNetCore.Authorization
-@using MES.Blazor.Shared
 @inject WarehouseService WarehouseService
 @inject InventoryService InventoryService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
-@inject IDialogService DialogService
 @inject ColumnPrefsService ColumnPrefs
 @attribute [Authorize]
 
@@ -153,7 +151,7 @@
                             <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                            Color="Color.Primary" Size="Size.Small"
                                            Title="编辑"
-                                           OnClick="async () => await OpenEditDialog(r, _rows.IndexOf(r))" />
+                                           OnClick="() => StartInlineEdit(r, _rows.IndexOf(r))" />
                             @if (_rows.IndexOf(r) > 0)
                             {
                                 <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
@@ -182,6 +180,35 @@
                         </MudTd>
                     </FooterContent>
                 </MudTable>
+            }
+
+            @* ===== 内联编辑面板 ===== *@
+            @if (_editingRow != null)
+            {
+                <MudPaper Class="pa-4 mt-4" Elevation="1">
+                    <MudText Typo="Typo.h6" Class="mb-4">
+                        <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" Color="Color.Primary" />
+                        编辑入库明细 — 第 @(_editingIndex + 1) 行
+                    </MudText>
+                    <MudGrid>
+                        @foreach (var col in _allColumns.Where(c => c.IsApplicable))
+                        {
+                            @if (col.Key is "WorkOrderNo" or "SalesOrderNo" or "OrderItemIds" && !_editingRow.IsLinkedToWorkOrder)
+                            {
+                                continue;
+                            }
+                            <MudItem xs="12" md="@GetEditFieldMd(col.Key)">
+                                @RenderEditField(_editingRow, col)
+                            </MudItem>
+                        }
+                    </MudGrid>
+                    <MudGrid Class="mt-4">
+                        <MudItem xs="12" Class="d-flex justify-end">
+                            <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CancelInlineEdit" Class="mr-2">取消</MudButton>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ConfirmInlineEdit">确定</MudButton>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
             }
 
             @if (!string.IsNullOrEmpty(_errorMessage))
@@ -222,13 +249,17 @@
     private List<InboundRowModel> _rows = new();
 
     // ========== 列定义 ==========
-    private List<InboundEditDialog.ColumnDef> _allColumns = new();
-    private List<InboundEditDialog.ColumnDef> _visibleColumns =>
+    private List<EditColumnDef> _allColumns = new();
+    private List<EditColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
     // ========== 状态 ==========
     private bool _isSubmitting;
     private string _errorMessage = string.Empty;
+
+    // ========== 内联编辑 ==========
+    private InboundRowModel? _editingRow;
+    private int _editingIndex;
 
     // ========== 行模型 ==========
 
@@ -268,9 +299,55 @@
         public string? DefectRemark { get; set; }
     }
 
+    // ========== 列定义 ==========
+
+    private class EditColumnDef
+    {
+        public string Key { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string Type { get; set; } = "text";
+        public bool Visible { get; set; } = true;
+        public bool IsApplicable { get; set; } = true;
+    }
+
+    private class EditRowData
+    {
+        public string? MaterialType { get; set; }
+        public string? InboundSource { get; set; }
+        public string? SourceName { get; set; }
+        public string? InboundDateStr { get; set; }
+        public string? HeatNo { get; set; }
+        public string? PlantGrade { get; set; }
+        public string? Specification { get; set; }
+        public string? LengthStatus { get; set; }
+        public int InitialQuantity { get; set; } = 1;
+        public decimal InitialWeight { get; set; }
+        public decimal? UnitWeight { get; set; }
+        public string? SurfaceCondition { get; set; }
+        public string? LocationArea { get; set; }
+        public string? LocationRack { get; set; }
+        public string? Remark { get; set; }
+        public bool IsLinkedToWorkOrder { get; set; }
+        public string? WorkOrderNo { get; set; }
+        public string? SalesOrderNo { get; set; }
+        public string? OrderItemIds { get; set; }
+        public decimal? MinLength { get; set; }
+        public decimal? MaxLength { get; set; }
+        public decimal? Meters { get; set; }
+        public string? ActualSpecification { get; set; }
+        public decimal? ActualOuterDiameter { get; set; }
+        public decimal? ActualWallThickness { get; set; }
+        public string? ProductionBatchNo { get; set; }
+        public string? DefectReason { get; set; }
+        public string? LiabilityType { get; set; }
+        public string? OriginalSupplier { get; set; }
+        public string? TagNo { get; set; }
+        public string? DefectRemark { get; set; }
+    }
+
     // ========== 列定义初始化 ==========
 
-    private static List<InboundEditDialog.ColumnDef> GetAllColumnDefs() => new()
+    private static List<EditColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "MaterialType",        Label = "物料名称",       Type = "text",   Visible = true },
         new() { Key = "InboundSource",       Label = "入库来源",       Type = "select", Visible = false },
@@ -309,6 +386,24 @@
         new() { Key = "DefectRemark",        Label = "次品备注",       Type = "text",   Visible = false },
     };
 
+    private readonly List<(string Value, string Text)> _inboundSourceOptions = new()
+    {
+        ("Purchase", "外购"),
+        ("ProductionInbound", "生产入库"),
+        ("InspectionInbound", "检验入库"),
+        ("SubcontractPiercing", "委外穿孔"),
+        ("SelfProduced", "自产"),
+        ("TransferIn", "移库入库"),
+        ("ReturnIn", "退货入库"),
+    };
+
+    private readonly List<(string Value, string Text)> _lengthStatusOptions = new()
+    {
+        ("定尺", "定尺"),
+        ("范围尺", "范围尺"),
+        ("不定尺", "不定尺"),
+    };
+
     private static int GetColWidth(string key) => key switch
     {
         "InitialQuantity" => 70,
@@ -328,7 +423,7 @@
 
     // ========== 仓库模板默认列 ==========
 
-    private static void ApplyWarehouseDefaults(List<InboundEditDialog.ColumnDef> cols, string whCode)
+    private static void ApplyWarehouseDefaults(List<EditColumnDef> cols, string whCode)
     {
         // 先全部重置为适用
         foreach (var c in cols)
@@ -382,7 +477,7 @@
         }
     }
 
-    private static void SetNotApplicable(List<InboundEditDialog.ColumnDef> cols, string key)
+    private static void SetNotApplicable(List<EditColumnDef> cols, string key)
     {
         var c = cols.FirstOrDefault(x => x.Key == key);
         if (c != null)
@@ -394,7 +489,7 @@
 
     // ========== 列管理 ==========
 
-    private async Task MoveColumnUp(InboundEditDialog.ColumnDef col)
+    private async Task MoveColumnUp(EditColumnDef col)
     {
         var idx = _allColumns.IndexOf(col);
         if (idx > 0)
@@ -405,7 +500,7 @@
         }
     }
 
-    private async Task MoveColumnDown(InboundEditDialog.ColumnDef col)
+    private async Task MoveColumnDown(EditColumnDef col)
     {
         var idx = _allColumns.IndexOf(col);
         if (idx < _allColumns.Count - 1)
@@ -416,7 +511,7 @@
         }
     }
 
-    private async Task OnColumnToggle(InboundEditDialog.ColumnDef col, bool visible)
+    private async Task OnColumnToggle(EditColumnDef col, bool visible)
     {
         col.Visible = visible;
         await SaveColumnPrefs();
@@ -436,7 +531,7 @@
                 }
             }
             // 恢复顺序：将saved中存在的列按saved顺序重排，新列追加在末尾
-            var reordered = new List<InboundEditDialog.ColumnDef>();
+            var reordered = new List<EditColumnDef>();
             foreach (var s in saved)
             {
                 var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
@@ -557,7 +652,7 @@
 
     // ========== 表格单元格渲染 ==========
 
-    private RenderFragment RenderCell(InboundRowModel row, InboundEditDialog.ColumnDef col) => builder =>
+    private RenderFragment RenderCell(InboundRowModel row, EditColumnDef col) => builder =>
     {
         switch (col.Key)
         {
@@ -685,7 +780,7 @@
         }
     };
 
-    private RenderFragment RenderFooter(InboundEditDialog.ColumnDef col) => builder =>
+    private RenderFragment RenderFooter(EditColumnDef col) => builder =>
     {
         switch (col.Key)
         {
@@ -714,96 +809,205 @@
         _ => value
     };
 
-    // ========== 弹窗编辑 ==========
+    // ========== 内联编辑 ==========
 
-    private async Task OpenEditDialog(InboundRowModel row, int index)
+    private void StartInlineEdit(InboundRowModel row, int index)
     {
-        var data = new InboundEditDialog.InboundRowEditData
-        {
-            MaterialType = row.MaterialType,
-            InboundSource = row.InboundSource,
-            SourceName = row.SourceName,
-            InboundDateStr = row.InboundDateStr,
-            HeatNo = row.HeatNo,
-            PlantGrade = row.PlantGrade,
-            Specification = row.Specification,
-            LengthStatus = row.LengthStatus,
-            InitialQuantity = row.InitialQuantity,
-            InitialWeight = row.InitialWeight,
-            UnitWeight = row.UnitWeight,
-            SurfaceCondition = row.SurfaceCondition,
-            LocationArea = row.LocationArea,
-            LocationRack = row.LocationRack,
-            Remark = row.Remark,
-            IsLinkedToWorkOrder = row.IsLinkedToWorkOrder,
-            WorkOrderNo = row.WorkOrderNo,
-            SalesOrderNo = row.SalesOrderNo,
-            OrderItemIds = row.OrderItemIds,
-            MinLength = row.MinLength,
-            MaxLength = row.MaxLength,
-            Meters = row.Meters,
-            ActualSpecification = row.ActualSpecification,
-            ActualOuterDiameter = row.ActualOuterDiameter,
-            ActualWallThickness = row.ActualWallThickness,
-            ProductionBatchNo = row.ProductionBatchNo,
-            DefectReason = row.DefectReason,
-            LiabilityType = row.LiabilityType,
-            OriginalSupplier = row.OriginalSupplier,
-            TagNo = row.TagNo,
-            DefectRemark = row.DefectRemark,
-        };
+        _editingRow = row;
+        _editingIndex = index;
+    }
 
-        var parameters = new DialogParameters
-        {
-            ["Data"] = data,
-            ["EditingIndex"] = index,
-            ["ColumnDefs"] = _allColumns,
-        };
+    private void CancelInlineEdit()
+    {
+        _editingRow = null;
+    }
 
-        var options = new DialogOptions
-        {
-            MaxWidth = MaxWidth.Medium,
-            FullWidth = true,
-            CloseButton = false,
-            DisableBackdropClick = true,
-        };
+    private void ConfirmInlineEdit()
+    {
+        _editingRow = null;
+    }
 
-        var dialog = DialogService.Show<InboundEditDialog>("", parameters, options);
-        var result = await dialog.Result;
+    private static int GetEditFieldMd(string key) => key switch
+    {
+        "Remark" => 12,
+        "IsLinkedToWorkOrder" => 12,
+        _ => 4
+    };
 
-        if (!result.Canceled && data != null)
+    private RenderFragment RenderEditField(InboundRowModel row, EditColumnDef col) => builder =>
+    {
+        switch (col.Type)
         {
-            row.MaterialType = data.MaterialType;
-            row.InboundSource = data.InboundSource;
-            row.SourceName = data.SourceName;
-            row.InboundDateStr = data.InboundDateStr;
-            row.HeatNo = data.HeatNo;
-            row.PlantGrade = data.PlantGrade;
-            row.Specification = data.Specification;
-            row.LengthStatus = data.LengthStatus;
-            row.InitialQuantity = data.InitialQuantity;
-            row.InitialWeight = data.InitialWeight;
-            row.UnitWeight = data.UnitWeight;
-            row.SurfaceCondition = data.SurfaceCondition;
-            row.LocationArea = data.LocationArea;
-            row.LocationRack = data.LocationRack;
-            row.Remark = data.Remark;
-            row.IsLinkedToWorkOrder = data.IsLinkedToWorkOrder;
-            row.WorkOrderNo = data.WorkOrderNo;
-            row.SalesOrderNo = data.SalesOrderNo;
-            row.OrderItemIds = data.OrderItemIds;
-            row.MinLength = data.MinLength;
-            row.MaxLength = data.MaxLength;
-            row.Meters = data.Meters;
-            row.ActualSpecification = data.ActualSpecification;
-            row.ActualOuterDiameter = data.ActualOuterDiameter;
-            row.ActualWallThickness = data.ActualWallThickness;
-            row.ProductionBatchNo = data.ProductionBatchNo;
-            row.DefectReason = data.DefectReason;
-            row.LiabilityType = data.LiabilityType;
-            row.OriginalSupplier = data.OriginalSupplier;
-            row.TagNo = data.TagNo;
-            row.DefectRemark = data.DefectRemark;
+            case "select":
+                var options = col.Key == "LengthStatus" ? _lengthStatusOptions : _inboundSourceOptions;
+                var selVal = GetRowStringValue(row, col.Key);
+                builder.OpenComponent<MudSelect<string>>(0);
+                builder.AddAttribute(1, "Label", col.Label);
+                builder.AddAttribute(2, "Dense", true);
+                builder.AddAttribute(3, "Variant", Variant.Outlined);
+                builder.AddAttribute(4, "Value", selVal);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => SetRowStringValue(row, col.Key, v)));
+                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b2 =>
+                {
+                    b2.OpenComponent<MudSelectItem<string>>(0);
+                    b2.AddAttribute(1, "Value", (string?)null);
+                    b2.CloseComponent();
+                    foreach (var opt in options)
+                    {
+                        b2.OpenComponent<MudSelectItem<string>>(0);
+                        b2.AddAttribute(1, "Value", opt.Value);
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Text)));
+                        b2.CloseComponent();
+                    }
+                }));
+                builder.CloseComponent();
+                break;
+
+            case "int":
+                builder.OpenComponent<MudNumericField<int>>(0);
+                builder.AddAttribute(1, "Label", col.Label);
+                builder.AddAttribute(2, "Dense", true);
+                builder.AddAttribute(3, "Variant", Variant.Outlined);
+                builder.AddAttribute(4, "HideSpinButtons", true);
+                builder.AddAttribute(5, "Value", row.InitialQuantity);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int>(this, v => row.InitialQuantity = v));
+                builder.CloseComponent();
+                break;
+
+            case "decimal":
+                if (col.Key is "UnitWeight" or "MinLength" or "MaxLength" or "Meters" or "ActualOuterDiameter" or "ActualWallThickness")
+                {
+                    builder.OpenComponent<MudNumericField<decimal?>>(0);
+                    builder.AddAttribute(1, "Label", col.Label);
+                    builder.AddAttribute(2, "Dense", true);
+                    builder.AddAttribute(3, "Variant", Variant.Outlined);
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.AddAttribute(5, "Value", GetRowNullableDecimal(row, col.Key));
+                    builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => SetRowNullableDecimal(row, col.Key, v)));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.OpenComponent<MudNumericField<decimal>>(0);
+                    builder.AddAttribute(1, "Label", col.Label);
+                    builder.AddAttribute(2, "Dense", true);
+                    builder.AddAttribute(3, "Variant", Variant.Outlined);
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.AddAttribute(5, "Value", row.InitialWeight);
+                    builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<decimal>(this, v => row.InitialWeight = v));
+                    builder.CloseComponent();
+                }
+                break;
+
+            case "bool":
+                builder.OpenComponent<MudSwitch<bool>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Color", Color.Primary);
+                builder.AddAttribute(3, "Value", row.IsLinkedToWorkOrder);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, v =>
+                {
+                    row.IsLinkedToWorkOrder = v;
+                    if (!v)
+                    {
+                        row.WorkOrderNo = null;
+                        row.SalesOrderNo = null;
+                        row.OrderItemIds = null;
+                    }
+                }));
+                builder.AddAttribute(5, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, col.Label)));
+                builder.CloseComponent();
+                break;
+
+            default: // text
+                var txtVal = GetRowStringValue(row, col.Key);
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Label", col.Label);
+                builder.AddAttribute(2, "Dense", true);
+                builder.AddAttribute(3, "Variant", Variant.Outlined);
+                builder.AddAttribute(4, "Value", txtVal);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => SetRowStringValue(row, col.Key, v)));
+                builder.CloseComponent();
+                break;
+        }
+    };
+
+    private string? GetRowStringValue(InboundRowModel row, string key) => key switch
+    {
+        "MaterialType" => row.MaterialType,
+        "InboundSource" => row.InboundSource,
+        "SourceName" => row.SourceName,
+        "InboundDateStr" => row.InboundDateStr,
+        "HeatNo" => row.HeatNo,
+        "PlantGrade" => row.PlantGrade,
+        "Specification" => row.Specification,
+        "LengthStatus" => row.LengthStatus,
+        "SurfaceCondition" => row.SurfaceCondition,
+        "LocationArea" => row.LocationArea,
+        "LocationRack" => row.LocationRack,
+        "Remark" => row.Remark,
+        "WorkOrderNo" => row.WorkOrderNo,
+        "SalesOrderNo" => row.SalesOrderNo,
+        "OrderItemIds" => row.OrderItemIds,
+        "ActualSpecification" => row.ActualSpecification,
+        "ProductionBatchNo" => row.ProductionBatchNo,
+        "DefectReason" => row.DefectReason,
+        "LiabilityType" => row.LiabilityType,
+        "OriginalSupplier" => row.OriginalSupplier,
+        "TagNo" => row.TagNo,
+        "DefectRemark" => row.DefectRemark,
+        _ => null
+    };
+
+    private void SetRowStringValue(InboundRowModel row, string key, string? value)
+    {
+        switch (key)
+        {
+            case "MaterialType": row.MaterialType = value; break;
+            case "InboundSource": row.InboundSource = value; break;
+            case "SourceName": row.SourceName = value; break;
+            case "InboundDateStr": row.InboundDateStr = value; break;
+            case "HeatNo": row.HeatNo = value; break;
+            case "PlantGrade": row.PlantGrade = value; break;
+            case "Specification": row.Specification = value; break;
+            case "LengthStatus": row.LengthStatus = value; break;
+            case "SurfaceCondition": row.SurfaceCondition = value; break;
+            case "LocationArea": row.LocationArea = value; break;
+            case "LocationRack": row.LocationRack = value; break;
+            case "Remark": row.Remark = value; break;
+            case "WorkOrderNo": row.WorkOrderNo = value; break;
+            case "SalesOrderNo": row.SalesOrderNo = value; break;
+            case "OrderItemIds": row.OrderItemIds = value; break;
+            case "ActualSpecification": row.ActualSpecification = value; break;
+            case "ProductionBatchNo": row.ProductionBatchNo = value; break;
+            case "DefectReason": row.DefectReason = value; break;
+            case "LiabilityType": row.LiabilityType = value; break;
+            case "OriginalSupplier": row.OriginalSupplier = value; break;
+            case "TagNo": row.TagNo = value; break;
+            case "DefectRemark": row.DefectRemark = value; break;
+        }
+    }
+
+    private decimal? GetRowNullableDecimal(InboundRowModel row, string key) => key switch
+    {
+        "UnitWeight" => row.UnitWeight,
+        "MinLength" => row.MinLength,
+        "MaxLength" => row.MaxLength,
+        "Meters" => row.Meters,
+        "ActualOuterDiameter" => row.ActualOuterDiameter,
+        "ActualWallThickness" => row.ActualWallThickness,
+        _ => null
+    };
+
+    private void SetRowNullableDecimal(InboundRowModel row, string key, decimal? value)
+    {
+        switch (key)
+        {
+            case "UnitWeight": row.UnitWeight = value; break;
+            case "MinLength": row.MinLength = value; break;
+            case "MaxLength": row.MaxLength = value; break;
+            case "Meters": row.Meters = value; break;
+            case "ActualOuterDiameter": row.ActualOuterDiameter = value; break;
+            case "ActualWallThickness": row.ActualWallThickness = value; break;
         }
     }
 

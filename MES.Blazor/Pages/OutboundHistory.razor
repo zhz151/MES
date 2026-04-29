@@ -4,11 +4,12 @@
 @using MES.Core.DTOs
 @using MES.Core.Models
 @using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
 @inject InventoryService InventoryService
 @inject WarehouseService WarehouseService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
-@inject IJSRuntime JsRuntime
+@inject IDialogService DialogService
 @attribute [Authorize]
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
@@ -142,10 +143,6 @@
                                           Variant="Variant.Outlined" Dense="true" />
                         </MudItem>
                     </MudGrid>
-                    @if (!string.IsNullOrEmpty(_editError))
-                    {
-                        <MudAlert Severity="Severity.Error" Class="mt-4">@_editError</MudAlert>
-                    }
                     <MudGrid Class="mt-4">
                         <MudItem xs="12" Class="d-flex justify-end">
                             <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CancelEdit" Class="mr-2">取消</MudButton>
@@ -179,7 +176,6 @@
     private int _editQuantity;
     private decimal _editWeight;
     private string _editRemark = string.Empty;
-    private string _editError = string.Empty;
     private bool _isEditing;
 
     protected override async Task OnInitializedAsync()
@@ -245,7 +241,6 @@
         _editQuantity = item.OutboundQuantity;
         _editWeight = item.OutboundWeight;
         _editRemark = item.Remark ?? "";
-        _editError = string.Empty;
     }
 
     private void CancelEdit()
@@ -256,12 +251,18 @@
     private async Task SubmitEdit()
     {
         if (_editingItem == null) return;
-        _editError = string.Empty;
 
-        if (string.IsNullOrWhiteSpace(_editOutboundDateText)) { _editError = "出库日期不能为空"; return; }
-        if (!DateTime.TryParse(_editOutboundDateText, out var parsedDate)) { _editError = "出库日期无效，请按 yyyy-MM-dd 格式输入"; return; }
-        if (_editQuantity < 1) { _editError = "出库支数必须大于0"; return; }
-        if (_editWeight <= 0) { _editError = "出库重量必须大于0"; return; }
+        var errors = new List<string>();
+        if (string.IsNullOrWhiteSpace(_editOutboundDateText)) errors.Add("出库日期不能为空");
+        if (!DateTime.TryParse(_editOutboundDateText, out var parsedDate)) errors.Add("出库日期无效，请按 yyyy-MM-dd 格式输入");
+        if (_editQuantity < 1) errors.Add("出库支数必须大于0");
+        if (_editWeight <= 0) errors.Add("出库重量必须大于0");
+
+        if (errors.Any())
+        {
+            Snackbar.Add(string.Join("\n", errors), Severity.Error);
+            return;
+        }
 
         _isEditing = true;
         StateHasChanged();
@@ -287,12 +288,12 @@
             }
             else
             {
-                _editError = result.Message ?? "更新失败";
+                Snackbar.Add(result.Message ?? "更新失败", Severity.Error);
             }
         }
         catch (Exception ex)
         {
-            _editError = $"网络错误: {ex.Message}";
+            Snackbar.Add($"网络错误: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -303,8 +304,15 @@
 
     private async Task ConfirmDelete(OutboundRecordDto item)
     {
-        var confirmed = await JsRuntime.InvokeAsync<bool>("confirm", $"确认物理删除出库记录（批次：{item.BatchNo}，日期：{item.OutboundDate:yyyy-MM-dd}）？\n此操作不可恢复！");
-        if (!confirmed) return;
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认删除",
+            new DialogParameters
+            {
+                { "ContentText", $"确认物理删除出库记录（批次：{item.BatchNo}，日期：{item.OutboundDate:yyyy-MM-dd}）？\n此操作不可恢复！" },
+                { "ConfirmText", "删除" },
+                { "Color", Color.Error }
+            });
+        var dialogResult = await dialog.Result;
+        if (dialogResult.Canceled) return;
 
         try
         {

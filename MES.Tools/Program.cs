@@ -87,13 +87,23 @@ var serviceProvider = services.BuildServiceProvider();
 using var scope = serviceProvider.CreateScope();
 var importService = scope.ServiceProvider.GetRequiredService<ExcelImportService>();
 
-// ========== 清空仓库入库数据 ==========
+// ========== 清空仓库关联数据 ==========
 if (clearWarehouse)
 {
-    Console.WriteLine("🗑️ 清空 InventoryBatch 表数据...");
+    Console.WriteLine("🗑️ 清空仓库关联数据...");
     var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    // 按外键约束顺序删除
+    Console.WriteLine("  删除 OutboundRecord...");
+    await ctx.Database.ExecuteSqlRawAsync("DELETE FROM OutboundRecord");
+
+    Console.WriteLine("  删除 InventoryBatchDeleteLog...");
+    await ctx.Database.ExecuteSqlRawAsync("DELETE FROM InventoryBatchDeleteLog");
+
+    Console.WriteLine("  删除 InventoryBatch...");
     await ctx.Database.ExecuteSqlRawAsync("DELETE FROM InventoryBatch");
-    Console.WriteLine("✅ 已清空");
+
+    Console.WriteLine("✅ 仓库关联数据已全部清空");
     Console.WriteLine("\n按任意键退出...");
     Console.ReadKey();
     return;
@@ -139,4 +149,4 @@ catch (Exception ex)
 }
 
 Console.WriteLine("\n按任意键退出...");
-Console.ReadKey();
+try { Console.ReadKey(); } catch { /* 非交互环境 */ }
