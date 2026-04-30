@@ -1,8 +1,16 @@
 namespace MES.Data.Entities;
 
 /// <summary>
-/// 出库记录（不使用BaseEntity，因Id为bigint）
+/// 出库记录
 /// </summary>
+/// <remarks>
+/// 不使用 BaseEntity，原因：
+/// 1. Id 为 bigint (long)，出库记录量大需要更大范围的主键
+/// 2. BaseEntity 使用 int Id，无法满足需求
+/// 3. 审计字段手动声明，与 BaseEntity 保持一致的字段名和行为
+/// 4. AppDbContext.SaveChangesAsync 对非 BaseEntity 的实体不走自动审计，
+///    由 Service 层在创建时手动填充 CreatedTime/CreatedBy 等字段
+/// </remarks>
 public class OutboundRecord
 {
     /// <summary>

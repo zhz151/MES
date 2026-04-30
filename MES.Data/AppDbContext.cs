@@ -48,6 +48,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<OutboundRecord> OutboundRecords { get; set; } = null!;
     public DbSet<Notification> Notifications { get; set; } = null!;
     public DbSet<InventoryBatchDeleteLog> InventoryBatchDeleteLogs { get; set; } = null!;
+    public DbSet<InventoryPlan> InventoryPlans { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -71,6 +72,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureRefreshToken(builder);
         ConfigurePurchaseSemiPlan(builder);
         ConfigurePurchaseFinishedPlan(builder);
+        ConfigureInventoryPlan(builder);
 
         // ========== 仓库上下文 ==========
         ConfigureWarehouse(builder);
@@ -89,7 +91,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
                     entityType.ClrType == typeof(OrderChangeNotification) ||
                     entityType.ClrType == typeof(RefreshToken) ||
                     entityType.ClrType == typeof(PurchaseSemiPlan) ||
-                    entityType.ClrType == typeof(PurchaseFinishedPlan))
+                    entityType.ClrType == typeof(PurchaseFinishedPlan) ||
+                    entityType.ClrType == typeof(InventoryPlan))
                 {
                     continue;
                 }
@@ -133,7 +136,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
                 case EntityState.Deleted:
                     // 工单、通知、刷新令牌、采购计划：物理删除，保持 Deleted 状态
                     if (entry.Entity is WorkOrder || entry.Entity is OrderChangeNotification || entry.Entity is RefreshToken ||
-                        entry.Entity is PurchaseSemiPlan || entry.Entity is PurchaseFinishedPlan)
+                        entry.Entity is PurchaseSemiPlan || entry.Entity is PurchaseFinishedPlan || entry.Entity is InventoryPlan)
                     {
                         // 保持 Deleted 状态，让 EF Core 执行物理删除
                         break;
@@ -577,6 +580,33 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.DeletedTime).IsRequired().HasColumnType("datetime");
             entity.Property(e => e.BatchData).IsRequired().HasColumnType("nvarchar(max)");
             entity.Property(e => e.Reason).HasMaxLength(500);
+        });
+    }
+
+    private static void ConfigureInventoryPlan(ModelBuilder builder)
+    {
+        builder.Entity<InventoryPlan>(entity =>
+        {
+            entity.ToTable("InventoryPlan");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.WorkOrderId).IsRequired();
+            entity.Property(e => e.PlanDate).IsRequired().HasColumnType("date");
+            entity.Property(e => e.InventoryBatchId).IsRequired();
+            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.InputMultiple).IsRequired().HasDefaultValue(1);
+            entity.Property(e => e.UsageMode).IsRequired().HasMaxLength(10).HasDefaultValue("All");
+            entity.Property(e => e.UsedQuantity);
+            entity.Property(e => e.UsedWeight).IsRequired().HasColumnType("decimal(18,3)");
+            entity.Property(e => e.RequiredDate).HasColumnType("date");
+            entity.Property(e => e.PlanStatus).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(InventoryPlanStatus.Planned);
+            entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.Property(e => e.ReworkType).HasMaxLength(20);
+            entity.Property(e => e.ProcessPlan).HasColumnType("nvarchar(max)");
+            entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_InventoryPlan_WorkOrderId");
+            entity.HasIndex(e => e.InventoryBatchId).HasDatabaseName("IX_InventoryPlan_InventoryBatchId");
+            entity.HasIndex(e => e.PlanStatus).HasDatabaseName("IX_InventoryPlan_PlanStatus");
         });
     }
 }

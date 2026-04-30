@@ -1,0 +1,347 @@
+@page "/workorders/{WorkOrderId:int}/rework-plan"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Enums
+@using MES.Blazor.Shared
+@using MES.Blazor.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inject MaterialPlanService MaterialPlanService
+@inject WorkOrderService WorkOrderService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Construction" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">库料生产改制</MudText>
+                    @if (workOrder != null)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="ml-4">工单号：@workOrder.WorkOrderNo</MudText>
+                    }
+                </div>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft"
+                               Size="Size.Small"
+                               Disabled="@(!hasPrevWorkOrder)"
+                               OnClick="NavigateToPrev"
+                               Title="上一个工单" />
+                @if (siblingWorkOrders.Any())
+                {
+                    <MudText Typo="Typo.body2" Class="mx-1">@(currentWorkOrderIndex + 1)/@siblingWorkOrders.Count</MudText>
+                }
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
+                               Size="Size.Small"
+                               Disabled="@(!hasNextWorkOrder)"
+                               OnClick="NavigateToNext"
+                               Title="下一个工单" />
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回用料计划总览</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            @if (isLoading)
+            {
+                <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+            }
+            else
+            {
+                <!-- 工单信息 -->
+                @if (workOrder != null)
+                {
+                    <MudPaper Class="pa-3 mb-2" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background-color:var(--mud-palette-info-hover);">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-1">
+                            <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" Class="mr-1" />工单信息
+                        </MudText>
+                        <MudGrid>
+                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">工单号</MudText><MudText Typo="Typo.body2" Class="font-weight-bold">@workOrder.WorkOrderNo</MudText></MudItem>
+                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">源订单号</MudText><MudText Typo="Typo.body2">@workOrder.SalesOrderNo</MudText></MudItem>
+                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">主号/次号</MudText><MudText Typo="Typo.body2">@workOrder.ProductionMainNo@(!string.IsNullOrEmpty(workOrder.ProductionSubNo) ? $"/{workOrder.ProductionSubNo}" : "")</MudText></MudItem>
+                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">物料名称</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetMaterialNameText(workOrder.MaterialName)</MudText></MudItem>
+                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">结算方式</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetSettlementMethodText(workOrder.SettlementMethod)</MudText></MudItem>
+                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">交货状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetDeliveryStateText(workOrder.DeliveryState)</MudText></MudItem>
+                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">延期罚款</MudText><MudText Typo="Typo.body2">@(workOrder.DelayPenalty ? "是" : "否")</MudText></MudItem>
+                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">交货日期</MudText><MudText Typo="Typo.body2">@workOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText></MudItem>
+                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">工厂牌号</MudText><MudText Typo="Typo.body2">@workOrder.PlantGrade</MudText></MudItem>
+                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">规格</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatSpecification(workOrder.Specification)</MudText></MudItem>
+                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">外径公差(mm)</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.OuterDiameterNegative) / @DisplayHelper.FormatDecimal(workOrder.OuterDiameterPositive)</MudText></MudItem>
+                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">壁厚公差(mm)</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.WallThicknessNegative) / @DisplayHelper.FormatDecimal(workOrder.WallThicknessPositive)</MudText></MudItem>
+                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">长度状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(workOrder.LengthStatus) @(workOrder.MaxLength.HasValue ? $"(最长{(int)workOrder.MaxLength.Value}mm)" : "")</MudText></MudItem>
+                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">数量/重量</MudText><MudText Typo="Typo.body2">@workOrder.TotalQuantity 支 / @workOrder.TotalWeight.ToString("G29") kg</MudText></MudItem>
+                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">总米数</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.TotalMeters) m</MudText></MudItem>
+                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">理论单支重</MudText><MudText Typo="Typo.body2">@(workOrder.UnitWeight?.ToString("G29") ?? "-") kg</MudText></MudItem>
+                        </MudGrid>
+                    </MudPaper>
+                }
+
+                <!-- 状态摘要 + 新增按钮 -->
+                <MudPaper Class="pa-3 mb-4 d-flex align-center" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                    <MudText Typo="Typo.body2" Class="mr-4">
+                        <strong>用料计划状态：</strong>
+                        <MudChip Size="Size.Small" Color="@GetStatusColor(summary?.MaterialPlanStatus ?? 0)" Class="ml-1">
+                            @GetStatusText(summary?.MaterialPlanStatus ?? 0)
+                        </MudChip>
+                    </MudText>
+                    <MudText Typo="Typo.body2" Class="mr-4">
+                        <strong>满足率：</strong>@(((int)Math.Round(summary?.MaterialPlanRate ?? 0)).ToString())%
+                    </MudText>
+                    <MudText Typo="Typo.body2" Class="mr-4">
+                        <strong>改制占比：</strong>
+                        @if (workOrder != null && plans.Any())
+                        {
+                            var isFixed = string.Equals(workOrder.LengthStatus, "Fixed", StringComparison.OrdinalIgnoreCase);
+                            if (isFixed)
+                            {
+                                var totalQty = workOrder.TotalQuantity > 0 ? workOrder.TotalQuantity : 1;
+                                var pct = Math.Round(plans.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple) / (decimal)totalQty * 100);
+                                <span>@pct%</span>
+                            }
+                            else
+                            {
+                                var totalWt = workOrder.TotalWeight > 0 ? workOrder.TotalWeight : 1;
+                                var pct = Math.Round(plans.Sum(p => p.UsedWeight) / totalWt * 100);
+                                <span>@pct%</span>
+                            }
+                        }
+                        else
+                        {
+                            <span class="mud-text-secondary">-</span>
+                        }
+                    </MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="NavigateToCreate">
+                        新增计划
+                    </MudButton>
+                </MudPaper>
+
+                <!-- 数据表格 -->
+                <MudTable Items="@plans" Dense="true" Hover="true" Striped="true" Elevation="0"
+                          Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                    <HeaderContent>
+                        <MudTh>批次号</MudTh>
+                        <MudTh>工厂牌号</MudTh>
+                        <MudTh>规格</MudTh>
+                        <MudTh>投料倍率</MudTh>
+                        <MudTh>使用模式</MudTh>
+                        <MudTh>出库支数</MudTh>
+                        <MudTh>出库重量(kg)</MudTh>
+                        <MudTh>改制类型</MudTh>
+                        <MudTh>简化工艺</MudTh>
+                        <MudTh>创建人</MudTh>
+                        <MudTh>操作</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="批次号">@context.BatchNo</MudTd>
+                        <MudTd DataLabel="工厂牌号">@context.PlantGrade</MudTd>
+                        <MudTd DataLabel="规格">@context.Specification</MudTd>
+                        <MudTd DataLabel="投料倍率">@context.InputMultiple</MudTd>
+                        <MudTd DataLabel="使用模式">@(context.UsageMode == "All" ? "全部" : "部分")</MudTd>
+                        <MudTd DataLabel="出库支数">
+                            @if (context.UsageMode == "All")
+                            {
+                                <span>全部(@(context.UsedQuantity?.ToString() ?? "0")支)</span>
+                            }
+                            else
+                            {
+                                <span>@(context.UsedQuantity?.ToString() ?? "-")支</span>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="出库重量">@context.UsedWeight.ToString("G29")</MudTd>
+                        <MudTd DataLabel="改制类型">@context.ReworkTypeText</MudTd>
+                        <MudTd DataLabel="简化工艺" Class="table-cell-clamp-1">@FormatProcessPlan(context.ProcessPlan)</MudTd>
+                        <MudTd DataLabel="创建人">@context.CreatedBy</MudTd>
+                        <MudTd DataLabel="操作">
+                            <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
+                                           Color="Color.Info" OnClick="() => PrintReworkPlan(context.Id)"
+                                           Title="打印" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
+                                           Color="Color.Error" OnClick="() => DeletePlan(context.Id)"
+                                           Title="取消" />
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Align="Align.Center" Color="Color.Secondary" Class="py-4">暂无改制计划</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+            }
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    [Parameter] public int WorkOrderId { get; set; }
+
+    private WorkOrderDetailDto? workOrder;
+    private List<InventoryPlanDto> plans = new();
+    private WorkOrderMaterialPlanDto? summary;
+    private List<WorkOrderListDto> siblingWorkOrders = new();
+    private int currentWorkOrderIndex = -1;
+    private bool isLoading = true;
+    private bool hasPrevWorkOrder => currentWorkOrderIndex > 0;
+    private bool hasNextWorkOrder => currentWorkOrderIndex >= 0 && currentWorkOrderIndex < siblingWorkOrders.Count - 1;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var workOrderResult = await WorkOrderService.GetByIdAsync(WorkOrderId);
+            workOrder = workOrderResult.Success ? workOrderResult.Data : null;
+
+            var plansResult = await MaterialPlanService.GetReworkPlansAsync(WorkOrderId);
+            if (plansResult.Success) plans = plansResult.Data ?? new();
+
+            var summaryResult = await MaterialPlanService.GetSummaryAsync(WorkOrderId);
+            if (summaryResult.Success) summary = summaryResult.Data;
+
+            if (workOrder != null)
+            {
+                await LoadSiblingWorkOrders(workOrder.SalesOrderNo);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadSiblingWorkOrders(string salesOrderNo)
+    {
+        try
+        {
+            var result = await WorkOrderService.GetBySalesOrderNoAsync(salesOrderNo);
+            if (result != null && result.Success && result.Data != null)
+            {
+                siblingWorkOrders = result.Data.OrderBy(wo => wo.Id).ToList();
+                currentWorkOrderIndex = siblingWorkOrders.FindIndex(wo => wo.Id == WorkOrderId);
+            }
+        }
+        catch
+        {
+            siblingWorkOrders = new();
+            currentWorkOrderIndex = -1;
+        }
+    }
+
+    private void NavigateToPrev()
+    {
+        if (hasPrevWorkOrder)
+            Navigation.NavigateTo($"/workorders/{siblingWorkOrders[currentWorkOrderIndex - 1].Id}/rework-plan");
+    }
+
+    private void NavigateToNext()
+    {
+        if (hasNextWorkOrder)
+            Navigation.NavigateTo($"/workorders/{siblingWorkOrders[currentWorkOrderIndex + 1].Id}/rework-plan");
+    }
+
+    private void NavigateToCreate()
+    {
+        Navigation.NavigateTo($"/workorders/{WorkOrderId}/rework-plan/create");
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/material-plan-overview");
+
+    private async Task PrintReworkPlan(int planId)
+    {
+        try
+        {
+            var result = await MaterialPlanService.PrintReworkPlanAsync(planId);
+            if (result.Success && !string.IsNullOrEmpty(result.Data))
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印生成失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>
+    /// 将简化工艺JSON格式化为可读文本，如 "42.2*3.6→32*2.5"
+    /// </summary>
+    private static string FormatProcessPlan(string? processPlan)
+    {
+        if (string.IsNullOrEmpty(processPlan)) return "-";
+        try
+        {
+            var steps = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement[]>(processPlan);
+            if (steps == null || steps.Length == 0) return "-";
+            var specs = steps.Select(s => s.GetProperty("spec").GetString()).Where(s => !string.IsNullOrEmpty(s));
+            return string.Join("→", specs);
+        }
+        catch
+        {
+            return processPlan;
+        }
+    }
+
+    private async Task DeletePlan(int planId)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认取消", new DialogParameters
+        {
+            ["ContentText"] = "确定要取消此改制计划吗？\n\n取消后数据将不可恢复！",
+            ["ConfirmText"] = "确认取消",
+            ["Color"] = Color.Error
+        });
+        var result = await dialog.Result;
+        if (result.Canceled) return;
+
+        var apiResult = await MaterialPlanService.DeleteInventoryPlanAsync(planId);
+        if (apiResult.Success)
+        {
+            Snackbar.Add("取消成功", Severity.Success);
+            await LoadData();
+        }
+        else
+        {
+            Snackbar.Add(apiResult.Message ?? "取消失败", Severity.Error);
+        }
+    }
+
+    private Color GetStatusColor(MaterialPlanStatus? status)
+    {
+        return (status ?? MaterialPlanStatus.NotPlanned) switch
+        {
+            MaterialPlanStatus.NotPlanned => Color.Default,
+            MaterialPlanStatus.Partial => Color.Warning,
+            MaterialPlanStatus.TheoreticalSatisfied => Color.Info,
+            MaterialPlanStatus.Satisfied => Color.Success,
+            MaterialPlanStatus.Excess => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private string GetStatusText(MaterialPlanStatus? status)
+    {
+        return (status ?? MaterialPlanStatus.NotPlanned) switch
+        {
+            MaterialPlanStatus.NotPlanned => "未计划",
+            MaterialPlanStatus.Partial => "部分",
+            MaterialPlanStatus.TheoreticalSatisfied => "理论满足",
+            MaterialPlanStatus.Satisfied => "满足",
+            MaterialPlanStatus.Excess => "超量",
+            _ => "未知"
+        };
+    }
+}

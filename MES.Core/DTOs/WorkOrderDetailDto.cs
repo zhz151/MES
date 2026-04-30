@@ -196,6 +196,11 @@ public string StatusText
     public decimal MaterialPlanRate { get; set; }
 
     /// <summary>
+    /// 理论单支重(kg/支)
+    /// </summary>
+    public decimal? UnitWeight { get; set; }
+
+    /// <summary>
     /// 创建时间
     /// </summary>
     public DateTimeOffset CreatedTime { get; set; }

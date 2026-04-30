@@ -13,12 +13,12 @@ using MES.Api.Services;
 using MES.Api.Utils;
 using MES.Auth.Services;
 using MES.Core.Interfaces;
-using MES.Core.Interfaces.Order;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Seed;
 using MES.Services;
 using MES.Services.Order;
+using QuestPDF.Infrastructure;
 using MES.Shared.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -148,6 +148,9 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// QuestPDF 许可设置（社区版免费）
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 // ========== 初始化数据库 ==========
 using (var scope = app.Services.CreateScope())

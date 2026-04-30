@@ -52,6 +52,38 @@ public interface IMaterialPlanService
     /// </summary>
     Task DeleteFinishedPlanAsync(int id);
 
+    // ========== 库存使用计划 ==========
+
+    /// <summary>
+    /// 获取工单的库存使用计划列表
+    /// </summary>
+    Task<List<InventoryPlanDto>> GetInventoryPlansAsync(int workOrderId);
+
+    /// <summary>
+    /// 创建库存使用计划
+    /// </summary>
+    Task<InventoryPlanDto> CreateInventoryPlanAsync(CreateInventoryPlanRequest request);
+
+    /// <summary>
+    /// 删除库存使用计划
+    /// </summary>
+    Task DeleteInventoryPlanAsync(int id);
+
+    /// <summary>
+    /// 获取工单可用库存批次列表
+    /// </summary>
+    Task<List<AvailableInventoryBatchDto>> GetAvailableInventoryAsync(int workOrderId);
+
+    /// <summary>
+    /// 获取工单可用改制库存（根据改制类型筛选）
+    /// </summary>
+    Task<List<AvailableInventoryBatchDto>> GetAvailableReworkInventoryAsync(int workOrderId, string reworkType);
+
+    /// <summary>
+    /// 获取工单的改制计划列表
+    /// </summary>
+    Task<List<InventoryPlanDto>> GetReworkPlansAsync(int workOrderId);
+
     // ========== 用料测算 ==========
 
     /// <summary>
@@ -82,4 +114,14 @@ public interface IMaterialPlanService
     /// 生成成品采购申请单PDF（返回byte[]）
     /// </summary>
     Task<byte[]> PrintFinishedPlanAsync(int planId);
+
+    /// <summary>
+    /// 生成库存使用单PDF（返回byte[]）
+    /// </summary>
+    Task<byte[]> PrintInventoryPlanAsync(int planId);
+
+    /// <summary>
+    /// 生成库料改制单PDF（返回byte[]）
+    /// </summary>
+    Task<byte[]> PrintReworkPlanAsync(int planId);
 }

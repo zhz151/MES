@@ -781,7 +781,56 @@ public class WorkOrderService : IWorkOrderService
             .Where(p => allWorkOrderIds.Contains(p.WorkOrderId))
             .ToListAsync();
 
-        // 1. 主号级聚合
+        var allInventoryPlans = await _context.InventoryPlans
+            .Where(p => allWorkOrderIds.Contains(p.WorkOrderId) && p.PlanStatus != InventoryPlanStatus.Cancelled)
+            .ToListAsync();
+
+        // 1. 填充各计划类型重量汇总（按工单ID）
+        var semiWeightByWo = allSemiPlans
+            .GroupBy(p => p.WorkOrderId)
+            .ToDictionary(g => g.Key, g => g.Sum(p => p.RequiredWeight));
+        var semiPiecesByWo = allSemiPlans
+            .GroupBy(p => p.WorkOrderId)
+            .ToDictionary(g => g.Key, g => g.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple));
+
+        var finishWeightByWo = allFinishPlans
+            .GroupBy(p => p.WorkOrderId)
+            .ToDictionary(g => g.Key, g => g.Sum(p => p.RequiredWeight));
+        var finishPiecesByWo = allFinishPlans
+            .GroupBy(p => p.WorkOrderId)
+            .ToDictionary(g => g.Key, g => g.Sum(p => p.RequiredPiece ?? 0));
+
+        var inventoryWeightByWo = allInventoryPlans
+            .Where(p => p.ReworkType == null)
+            .GroupBy(p => p.WorkOrderId)
+            .ToDictionary(g => g.Key, g => g.Sum(p => p.UsedWeight));
+        var inventoryPiecesByWo = allInventoryPlans
+            .Where(p => p.ReworkType == null)
+            .GroupBy(p => p.WorkOrderId)
+            .ToDictionary(g => g.Key, g => g.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple));
+
+        var reworkWeightByWo = allInventoryPlans
+            .Where(p => p.ReworkType != null)
+            .GroupBy(p => p.WorkOrderId)
+            .ToDictionary(g => g.Key, g => g.Sum(p => p.UsedWeight));
+        var reworkPiecesByWo = allInventoryPlans
+            .Where(p => p.ReworkType != null)
+            .GroupBy(p => p.WorkOrderId)
+            .ToDictionary(g => g.Key, g => g.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple));
+
+        foreach (var item in items)
+        {
+            if (semiWeightByWo.TryGetValue(item.Id, out var semiW)) item.SemiPlanTotalWeight = semiW;
+            if (semiPiecesByWo.TryGetValue(item.Id, out var semiP)) item.SemiPlanTotalPieces = semiP;
+            if (finishWeightByWo.TryGetValue(item.Id, out var finW)) item.FinishedPlanTotalWeight = finW;
+            if (finishPiecesByWo.TryGetValue(item.Id, out var finP)) item.FinishedPlanTotalPieces = finP;
+            if (inventoryWeightByWo.TryGetValue(item.Id, out var invW)) item.InventoryPlanTotalWeight = invW;
+            if (inventoryPiecesByWo.TryGetValue(item.Id, out var invP)) item.InventoryPlanTotalPieces = invP;
+            if (reworkWeightByWo.TryGetValue(item.Id, out var rewW)) item.ReworkPlanTotalWeight = rewW;
+            if (reworkPiecesByWo.TryGetValue(item.Id, out var rewP)) item.ReworkPlanTotalPieces = rewP;
+        }
+
+        // 2. 主号级聚合
         var mainNoKeys = items
             .Select(i => new { i.SalesOrderNo, MainNo = i.ProductionMainNo })
             .Distinct()
@@ -796,8 +845,11 @@ public class WorkOrderService : IWorkOrderService
             var groupIds = groupWorkOrders.Select(wo => wo.Id).ToHashSet();
             var groupSemiPlans = allSemiPlans.Where(p => groupIds.Contains(p.WorkOrderId)).ToList();
             var groupFinishPlans = allFinishPlans.Where(p => groupIds.Contains(p.WorkOrderId)).ToList();
+            var groupInventoryAll = allInventoryPlans.Where(p => groupIds.Contains(p.WorkOrderId)).ToList();
+            var groupInventoryPlans = groupInventoryAll.Where(p => p.ReworkType == null).ToList();
+            var groupReworkPlans = groupInventoryAll.Where(p => p.ReworkType != null).ToList();
 
-            var (rate, status) = CalculateMainNoAggregation(groupWorkOrders, groupSemiPlans, groupFinishPlans);
+            var (rate, status) = CalculateMainNoAggregation(groupWorkOrders, groupSemiPlans, groupFinishPlans, groupInventoryPlans, groupReworkPlans);
 
             foreach (var item in items.Where(i =>
                 i.SalesOrderNo == key.SalesOrderNo && i.ProductionMainNo == key.MainNo))
@@ -836,7 +888,9 @@ public class WorkOrderService : IWorkOrderService
     private (decimal rate, MaterialPlanStatus status) CalculateMainNoAggregation(
         List<WorkOrder> workOrders,
         List<PurchaseSemiPlan> semiPlans,
-        List<PurchaseFinishedPlan> finishPlans)
+        List<PurchaseFinishedPlan> finishPlans,
+        List<InventoryPlan> inventoryPlans,
+        List<InventoryPlan> reworkPlans)
     {
         var fixedOrders = workOrders.Where(wo => wo.LengthStatus == LengthStatus.Fixed).ToList();
         var nonFixedOrders = workOrders.Where(wo => wo.LengthStatus != LengthStatus.Fixed).ToList();
@@ -852,6 +906,8 @@ public class WorkOrderService : IWorkOrderService
 
             var fixedSemi = semiPlans.Where(p => fixedIds.Contains(p.WorkOrderId)).ToList();
             var fixedFinish = finishPlans.Where(p => fixedIds.Contains(p.WorkOrderId)).ToList();
+            var fixedInventory = inventoryPlans.Where(p => fixedIds.Contains(p.WorkOrderId)).ToList();
+            var fixedRework = reworkPlans.Where(p => fixedIds.Contains(p.WorkOrderId)).ToList();
 
             var semiPieces = fixedSemi.Sum(p => p.RequiredPieces ?? 0);
             if (semiPieces > 0 && fixedSemi.Any())
@@ -862,6 +918,8 @@ public class WorkOrderService : IWorkOrderService
             }
 
             totalEffective += fixedFinish.Sum(p => p.RequiredPiece ?? 0) * 1.02m;
+            totalEffective += (int)(fixedInventory.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple) * 1.02m);
+            totalEffective += (int)(fixedRework.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple) * 1.02m);
         }
 
         // 范围尺/非定尺：按重量
@@ -872,14 +930,26 @@ public class WorkOrderService : IWorkOrderService
 
             var nonFixedSemi = semiPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
             var nonFixedFinish = finishPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
+            var nonFixedInventory = inventoryPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
+            var nonFixedRework = reworkPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
 
             totalEffective += nonFixedSemi.Sum(p => p.RequiredWeight) * 1.05m;
             totalEffective += nonFixedFinish.Sum(p => p.RequiredWeight) * 1.05m;
+            totalEffective += nonFixedInventory.Sum(p => p.UsedWeight) * 1.05m;
+            totalEffective += nonFixedRework.Sum(p => p.UsedWeight) * 1.05m;
         }
 
         if (totalDemand <= 0) return (0, MaterialPlanStatus.NotPlanned);
 
-        var rate = Math.Round(totalEffective / totalDemand * 100m, 2);
+        var rate = Math.Round(totalEffective / totalDemand * 100m, 0);
+
+        // 小批量特殊处理：定尺总支数 ≤ 20 时，≥100% 即视为满足
+        var fixedTotalQuantity = fixedOrders.Sum(wo => wo.TotalQuantity);
+        if (fixedTotalQuantity > 0 && fixedTotalQuantity <= 20)
+        {
+            var batchStatus = rate >= 100m ? MaterialPlanStatus.Satisfied : MaterialPlanStatus.Partial;
+            return (rate, batchStatus);
+        }
 
         // 使用原始标准（不含理论满足）
         var status = CalculateMainNoStatus(rate, fixedOrders.Any());

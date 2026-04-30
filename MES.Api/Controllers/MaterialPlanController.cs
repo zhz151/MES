@@ -99,6 +99,65 @@ public class MaterialPlanController : ControllerBase
 
     #endregion
 
+    #region 库存使用计划
+
+    [HttpGet("inventory/{workOrderId}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<InventoryPlanDto>>>> GetInventoryPlans(int workOrderId)
+    {
+        var result = await _materialPlanService.GetInventoryPlansAsync(workOrderId);
+        return Ok(ApiResponse<List<InventoryPlanDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("rework/{workOrderId}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<InventoryPlanDto>>>> GetReworkPlans(int workOrderId)
+    {
+        var result = await _materialPlanService.GetReworkPlansAsync(workOrderId);
+        return Ok(ApiResponse<List<InventoryPlanDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("inventory/available/{workOrderId}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<AvailableInventoryBatchDto>>>> GetAvailableInventory(int workOrderId)
+    {
+        var result = await _materialPlanService.GetAvailableInventoryAsync(workOrderId);
+        return Ok(ApiResponse<List<AvailableInventoryBatchDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("rework-inventory/{workOrderId}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<AvailableInventoryBatchDto>>>> GetAvailableReworkInventory(
+        int workOrderId, [FromQuery] string reworkType)
+    {
+        if (string.IsNullOrEmpty(reworkType))
+            return BadRequest(ApiResponse<List<AvailableInventoryBatchDto>>.Fail("改制类型不能为空"));
+        var result = await _materialPlanService.GetAvailableReworkInventoryAsync(workOrderId, reworkType);
+        return Ok(ApiResponse<List<AvailableInventoryBatchDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpPost("inventory")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<InventoryPlanDto>>> CreateInventoryPlan(
+        [FromBody] CreateInventoryPlanRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<InventoryPlanDto>.Fail("请求参数无效"));
+
+        var result = await _materialPlanService.CreateInventoryPlanAsync(request);
+        return Ok(ApiResponse<InventoryPlanDto>.Ok(result, "创建成功"));
+    }
+
+    [HttpDelete("inventory/{id}")]
+    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse>> DeleteInventoryPlan(int id)
+    {
+        await _materialPlanService.DeleteInventoryPlanAsync(id);
+        return Ok(ApiResponse.Ok("删除成功"));
+    }
+
+    #endregion
+
     #region 用料测算
 
     [HttpPost("calculate")]
@@ -151,6 +210,24 @@ public class MaterialPlanController : ControllerBase
     public async Task<ActionResult<ApiResponse<string>>> PrintFinishedPlan(int id)
     {
         var bytes = await _materialPlanService.PrintFinishedPlanAsync(id);
+        var base64 = Convert.ToBase64String(bytes);
+        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
+    }
+
+    [HttpGet("print/inventory/{id}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintInventoryPlan(int id)
+    {
+        var bytes = await _materialPlanService.PrintInventoryPlanAsync(id);
+        var base64 = Convert.ToBase64String(bytes);
+        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
+    }
+
+    [HttpGet("print/rework/{id}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintReworkPlan(int id)
+    {
+        var bytes = await _materialPlanService.PrintReworkPlanAsync(id);
         var base64 = Convert.ToBase64String(bytes);
         return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
     }

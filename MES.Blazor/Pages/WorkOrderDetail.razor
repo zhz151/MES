@@ -9,7 +9,7 @@
 @inject IJSRuntime JS
 @attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+<MudContainer Class="mt-2 px-3" Style="max-width:100%;">
     @if (isLoading)
     {
         <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
@@ -20,219 +20,166 @@
     }
     else
     {
-        <MudCard>
-            <MudCardHeader>
-                <CardHeaderContent>
-                    <div class="d-flex align-center">
-                        <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
-                        <MudText Typo="Typo.h5" Class="font-weight-bold">工单详情</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="ml-4">工单号：@workOrder.WorkOrderNo</MudText>
-                        <MudChip Size="Size.Small" Color="@GetStatusColor(workOrder.Status)" Class="ml-2">
-                            @workOrder.StatusText
-                        </MudChip>
-                    </div>
-                    <div class="d-flex align-center mt-1">
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            订单号：@workOrder.SalesOrderNo
-                            @if (siblingWorkOrders.Count > 0)
-                            {
-                                <span> | 共 @siblingWorkOrders.Count 个工单，当前第 @(currentIndex + 1) 个</span>
-                            }
-                        </MudText>
-                    </div>
-                </CardHeaderContent>
-                <CardHeaderActions>
-                    <div class="d-flex align-center">
-                        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft"
-                                       Color="Color.Primary"
-                                       Disabled="@(!hasPrevious)"
-                                       OnClick="GoToPrevious"
-                                       Title="上一个工单" />
-                        <MudText Typo="Typo.body2" Class="mx-2">
-                            @if (siblingWorkOrders.Count > 0)
-                            {
-                                <text>@(currentIndex + 1) / @siblingWorkOrders.Count</text>
-                            }
-                            else
-                            {
-                                <text>- / -</text>
-                            }
-                        </MudText>
-                        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
-                                       Color="Color.Primary"
-                                       Disabled="@(!hasNext)"
-                                       OnClick="GoToNext"
-                                       Title="下一个工单" />
-                    </div>
-                    <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
-                </CardHeaderActions>
-            </MudCardHeader>
-
-            <MudCardContent>
-                <MudGrid>
-                    <!-- 基本信息 -->
-                    <MudItem xs="12">
-                        <MudText Typo="Typo.subtitle1" Class="mb-2">基本信息</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudText Typo="Typo.body2"><strong>工单号：</strong>@workOrder.WorkOrderNo</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudText Typo="Typo.body2"><strong>源订单号：</strong>@workOrder.SalesOrderNo</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudText Typo="Typo.body2"><strong>主号：</strong>@workOrder.ProductionMainNo</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudText Typo="Typo.body2"><strong>次号：</strong>@(workOrder.ProductionSubNo ?? "-")</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudText Typo="Typo.body2"><strong>状态：</strong>@workOrder.StatusText</MudText>
-                    </MudItem>
-
-                    <!-- 订单信息 -->
-                    <MudItem xs="12">
-                        <MudDivider Class="my-3" />
-                        <MudText Typo="Typo.subtitle1" Class="mb-2">订单信息</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudText Typo="Typo.body2"><strong>签订日期：</strong>@workOrder.SignDate.ToString("yyyy-MM-dd")</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudText Typo="Typo.body2"><strong>业务员：</strong>@workOrder.Salesman</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudText Typo="Typo.body2"><strong>最终用户：</strong>@(workOrder.EndCustomer ?? "-")</MudText>
-                    </MudItem>
-
-                    <!-- 规格信息 -->
-                    <MudItem xs="12">
-                        <MudDivider Class="my-3" />
-                        <MudText Typo="Typo.subtitle1" Class="mb-2">规格信息</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>交货日期：</strong>@workOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>延期罚款：</strong>@(workOrder.DelayPenalty ? "是" : "否")</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>物料名称：</strong>@GetMaterialNameText(workOrder.MaterialName)</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>结算方式：</strong>@GetSettlementMethodText(workOrder.SettlementMethod)</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>产品标准：</strong>@workOrder.StandardCode</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>交货状态：</strong>@DisplayHelper.GetDeliveryStateText(workOrder.DeliveryState)</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>工厂牌号：</strong>@workOrder.PlantGrade</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>规格：</strong>@DisplayHelper.FormatSpecification(workOrder.Specification)</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>外径公差：</strong>@DisplayHelper.FormatDecimal(workOrder.OuterDiameterNegative) / @DisplayHelper.FormatDecimal(workOrder.OuterDiameterPositive)</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>壁厚公差：</strong>@DisplayHelper.FormatDecimal(workOrder.WallThicknessNegative) / @DisplayHelper.FormatDecimal(workOrder.WallThicknessPositive)</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>长度状态：</strong>@DisplayHelper.GetLengthStatusText(workOrder.LengthStatus)</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>长度范围：</strong>@DisplayHelper.FormatNullableDecimal(workOrder.MinLength) / @DisplayHelper.FormatNullableDecimal(workOrder.MaxLength)</MudText>
-                    </MudItem>
-
-                    <!-- 汇总信息 -->
-                    <MudItem xs="12">
-                        <MudDivider Class="my-3" />
-                        <MudText Typo="Typo.subtitle1" Class="mb-2">汇总信息</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>总支数：</strong>@workOrder.TotalQuantity</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>总米数：</strong>@DisplayHelper.FormatDecimal(workOrder.TotalMeters)</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>总重量：</strong>@DisplayHelper.FormatDecimal(workOrder.TotalWeight)</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudText Typo="Typo.body2"><strong>总项次数：</strong>@workOrder.TotalItemCount</MudText>
-                    </MudItem>
-
-                    <!-- 明细信息 -->
-                    @if (!string.IsNullOrEmpty(workOrder.ItemDetails))
+        <!-- ===== 压缩页眉：标题+导航+用料计划+返回 ===== -->
+        <MudPaper Class="pa-3 mb-2" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+            <div class="d-flex align-center justify-space-between flex-wrap" Style="gap:4px;">
+                <div class="d-flex align-center flex-wrap" Style="gap:4px;">
+                    <MudIcon Icon="@Icons.Material.Filled.Assignment" Color="Color.Primary" Size="Size.Small" />
+                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold mr-1">工单详情</MudText>
+                    <MudChip Size="Size.Small" Color="@GetStatusColor(workOrder.Status)">@workOrder.StatusText</MudChip>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-2">@workOrder.WorkOrderNo</MudText>
+                </div>
+                <div class="d-flex align-center flex-wrap" Style="gap:4px;">
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small"
+                                   Color="Color.Primary" Disabled="@(!hasPrevious)"
+                                   OnClick="GoToPrevious" Title="上一个工单" />
+                    <MudText Typo="Typo.caption" Class="mx-1">
+                        @(siblingWorkOrders.Count > 0 ? $"{currentIndex + 1}/{siblingWorkOrders.Count}" : "- / -")
+                    </MudText>
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small"
+                                   Color="Color.Primary" Disabled="@(!hasNext)"
+                                   OnClick="GoToNext" Title="下一个工单" />
+                    <MudMenu>
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                       Size="Size.Small" Class="ml-1"
+                                       EndIcon="@Icons.Material.Filled.ArrowDropDown">
+                                用料计划
+                            </MudButton>
+                        </ActivatorContent>
+                        <ChildContent>
+                            <MudMenuItem OnClick="NavigateToSemiPlan">
+                                <MudIcon Icon="@Icons.Material.Filled.Inventory2" Size="Size.Small" Class="mr-1" />原料采购计划
+                            </MudMenuItem>
+                            <MudMenuItem OnClick="NavigateToFinishPlan">
+                                <MudIcon Icon="@Icons.Material.Filled.Checklist" Size="Size.Small" Class="mr-1" />成品采购计划
+                            </MudMenuItem>
+                            <MudMenuItem OnClick="NavigateToInventoryPlan">
+                                <MudIcon Icon="@Icons.Material.Filled.Warehouse" Size="Size.Small" Class="mr-1" />库存使用计划
+                            </MudMenuItem>
+                            <MudMenuItem OnClick="NavigateToReworkPlan">
+                                <MudIcon Icon="@Icons.Material.Filled.Build" Size="Size.Small" Class="mr-1" />库料改制计划
+                            </MudMenuItem>
+                        </ChildContent>
+                    </MudMenu>
+                    <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="GoBack" Class="ml-1">工单首页</MudButton>
+                    <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="GoToMaterialPlanOverview">用料计划总览</MudButton>
+                </div>
+            </div>
+            <div class="d-flex align-center flex-wrap mt-1" Style="gap:6px;">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    订单号：@workOrder.SalesOrderNo / @workOrder.ProductionMainNo@(!string.IsNullOrEmpty(workOrder.ProductionSubNo) ? $"/{workOrder.ProductionSubNo}" : "")
+                    @if (siblingWorkOrders.Count > 0)
                     {
-                        <MudItem xs="12">
-                            <MudDivider Class="my-3" />
-                            <MudText Typo="Typo.subtitle1" Class="mb-2">明细</MudText>
-                            <MudText Typo="Typo.body2">@workOrder.ItemDetails</MudText>
-                        </MudItem>
+                        <span> | 共 @siblingWorkOrders.Count 个工单，当前第 @(currentIndex + 1) 个</span>
                     }
+                </MudText>
+                <MudChip Size="Size.Small" Color="@GetMaterialPlanColor(workOrder.MaterialPlanStatus)">
+                    @GetMaterialPlanStatusText(workOrder.MaterialPlanStatus)
+                </MudChip>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">满足率：@((int)Math.Round(workOrder.MaterialPlanRate))%</MudText>
+            </div>
+        </MudPaper>
 
-                    <!-- 用料计划 -->
-                    <MudItem xs="12">
-                        <MudDivider Class="my-3" />
-                        <MudText Typo="Typo.subtitle1" Class="mb-2">用料计划</MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudText Typo="Typo.body2">
-                            <strong>用料计划状态：</strong>
-                            <MudChip Size="Size.Small" Color="@GetMaterialPlanColor(workOrder.MaterialPlanStatus)" Class="ml-1">
-                                @GetMaterialPlanStatusText(workOrder.MaterialPlanStatus)
-                            </MudChip>
-                        </MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudText Typo="Typo.body2">
-                            <strong>满足率：</strong>@workOrder.MaterialPlanRate.ToString("G29")%
-                        </MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="4" Class="d-flex align-center justify-end">
-                        <MudButton Variant="Variant.Outlined"
-                                   Color="Color.Primary"
-                                   Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.Inventory2"
-                                   OnClick="NavigateToSemiPlan"
-                                   Class="mr-2">
-                            原料采购计划
-                        </MudButton>
-                        <MudButton Variant="Variant.Outlined"
-                                   Color="Color.Primary"
-                                   Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.Checklist"
-                                   OnClick="NavigateToFinishPlan">
-                            成品采购计划
-                        </MudButton>
-                    </MudItem>
+        <!-- ===== 工单信息卡片（14字段紧凑布局） ===== -->
+        <MudPaper Class="pa-3 mb-2" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background-color:var(--mud-palette-info-hover);">
+            <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-1">
+                <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" Class="mr-1" />工单信息
+            </MudText>
+            <MudGrid>
+                <MudItem xs="6" md="3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">工单号</MudText>
+                    <MudText Typo="Typo.body2" Class="font-weight-bold">@workOrder.WorkOrderNo</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">源订单号</MudText>
+                    <MudText Typo="Typo.body2">@workOrder.SalesOrderNo</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">主号/次号</MudText>
+                    <MudText Typo="Typo.body2">@workOrder.ProductionMainNo@(!string.IsNullOrEmpty(workOrder.ProductionSubNo) ? $"/{workOrder.ProductionSubNo}" : "")</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">物料名称</MudText>
+                    <MudText Typo="Typo.body2">@GetMaterialNameText(workOrder.MaterialName)</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">结算方式</MudText>
+                    <MudText Typo="Typo.body2">@GetSettlementMethodText(workOrder.SettlementMethod)</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">交货状态</MudText>
+                    <MudText Typo="Typo.body2">@DisplayHelper.GetDeliveryStateText(workOrder.DeliveryState)</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">延期罚款</MudText>
+                    <MudText Typo="Typo.body2">@(workOrder.DelayPenalty ? "是" : "否")</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">交货日期</MudText>
+                    <MudText Typo="Typo.body2">@workOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">工厂牌号</MudText>
+                    <MudText Typo="Typo.body2">@workOrder.PlantGrade</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">规格</MudText>
+                    <MudText Typo="Typo.body2">@DisplayHelper.FormatSpecification(workOrder.Specification)</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">外径公差(mm)</MudText>
+                    <MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.OuterDiameterNegative) / @DisplayHelper.FormatDecimal(workOrder.OuterDiameterPositive)</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">壁厚公差(mm)</MudText>
+                    <MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.WallThicknessNegative) / @DisplayHelper.FormatDecimal(workOrder.WallThicknessPositive)</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">长度状态</MudText>
+                    <MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(workOrder.LengthStatus) @(workOrder.MaxLength.HasValue ? $"(最长{(int)workOrder.MaxLength.Value}mm)" : "")</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">数量/重量</MudText>
+                    <MudText Typo="Typo.body2">@workOrder.TotalQuantity 支 / @workOrder.TotalWeight.ToString("G29") kg</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">总米数</MudText>
+                    <MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.TotalMeters) m</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">理论单支重</MudText>
+                    <MudText Typo="Typo.body2">@(workOrder.UnitWeight?.ToString("G29") ?? "-") kg</MudText>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
 
-                    <!-- 技术要求 -->
-                    <MudItem xs="12">
-                        <MudDivider Class="my-3" />
-                        <MudText Typo="Typo.subtitle1" Class="mb-2">技术要求</MudText>
-                        <MudChip Size="Size.Small" Color="@(workOrder.TechnicalRequirements == "Special" ? Color.Warning : Color.Default)">
-                            @(workOrder.TechnicalRequirements == "Special" ? "特殊" : "常规")
-                        </MudChip>
-                    </MudItem>
+        <!-- ===== 明细（如有） ===== -->
+        @if (!string.IsNullOrEmpty(workOrder.ItemDetails))
+        {
+            <MudPaper Class="pa-3 mb-2" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; max-height:80px; overflow-y:auto;">
+                <MudText Typo="Typo.caption" Color="Color.Primary" Class="mb-1">
+                    <MudIcon Icon="@Icons.Material.Filled.ListAlt" Size="Size.Small" Class="mr-1" />明细
+                </MudText>
+                <MudText Typo="Typo.caption">@workOrder.ItemDetails</MudText>
+            </MudPaper>
+        }
 
-                    <!-- 审计信息 -->
-                    <MudItem xs="12">
-                        <MudDivider Class="my-3" />
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            创建时间：@workOrder.CreatedTime.ToString("yyyy-MM-dd HH:mm") | 创建人：@workOrder.CreatedBy
-                        </MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            更新时间：@workOrder.UpdatedTime.ToString("yyyy-MM-dd HH:mm") | 更新人：@workOrder.UpdatedBy
-                        </MudText>
-                    </MudItem>
-                </MudGrid>
-            </MudCardContent>
-        </MudCard>
+        <!-- ===== 底部：技术要求+审计 ===== -->
+        <div class="d-flex flex-wrap align-center justify-space-between pa-2"
+             Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+            <div class="d-flex align-center" Style="gap:4px;">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">技术要求：</MudText>
+                <MudChip Size="Size.Small" Color="@(workOrder.TechnicalRequirements == "Special" ? Color.Warning : Color.Default)">
+                    @(workOrder.TechnicalRequirements == "Special" ? "特殊" : "常规")
+                </MudChip>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-3">产品标准：@workOrder.StandardCode</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-3">总项次：@workOrder.TotalItemCount</MudText>
+            </div>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                创建：@workOrder.CreatedBy @workOrder.CreatedTime.ToString("yyyy-MM-dd HH:mm") | 更新：@workOrder.UpdatedBy @workOrder.UpdatedTime.ToString("yyyy-MM-dd HH:mm")
+            </MudText>
+        </div>
     }
 </MudContainer>
 
@@ -341,6 +288,7 @@
     }
 
     private void GoBack() => Navigation.NavigateTo("/workorders");
+    private void GoToMaterialPlanOverview() => Navigation.NavigateTo("/material-plan-overview");
 
     private Color GetStatusColor(int status)
     {
@@ -385,14 +333,25 @@
         Navigation.NavigateTo($"/workorders/{Id}/finish-plan");
     }
 
+    private void NavigateToInventoryPlan()
+    {
+        Navigation.NavigateTo($"/workorders/{Id}/inventory-plan");
+    }
+
+    private void NavigateToReworkPlan()
+    {
+        Navigation.NavigateTo($"/workorders/{Id}/rework-plan");
+    }
+
     private Color GetMaterialPlanColor(int status)
     {
         return status switch
         {
             0 => Color.Default,
             1 => Color.Warning,
-            2 => Color.Success,
-            3 => Color.Error,
+            2 => Color.Info,
+            3 => Color.Success,
+            4 => Color.Error,
             _ => Color.Default
         };
     }
@@ -403,8 +362,9 @@
         {
             0 => "未计划",
             1 => "部分",
-            2 => "满足",
-            3 => "超量",
+            2 => "理论满足",
+            3 => "满足",
+            4 => "超量",
             _ => "未知"
         };
     }

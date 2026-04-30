@@ -20,7 +20,7 @@
                 </div>
             </CardHeaderContent>
             <CardHeaderActions>
-                <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回上一级</MudButton>
             </CardHeaderActions>
         </MudCardHeader>
 
@@ -31,64 +31,28 @@
             }
             else if (workOrder != null)
             {
-                <!-- ===== 工单基本信息 ===== -->
-                <MudPaper Class="pa-3 mb-3" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background-color:var(--mud-palette-info-hover);">
+                <!-- ===== 工单信息 ===== -->
+                <MudPaper Class="pa-3 mb-2" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background-color:var(--mud-palette-info-hover);">
                     <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-1">
-                        <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" Class="mr-1" />工单基本信息
+                        <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" Class="mr-1" />工单信息
                     </MudText>
                     <MudGrid>
-                        <MudItem xs="6" md="3">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">工单号</MudText>
-                            <MudText Typo="Typo.body2" Class="font-weight-bold">@workOrder.WorkOrderNo</MudText>
-                        </MudItem>
-                        <MudItem xs="6" md="3">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">订单号/主号/次号</MudText>
-                            <MudText Typo="Typo.body2">@GetOrderNo()</MudText>
-                        </MudItem>
-                        <MudItem xs="6" md="3">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">物料名称</MudText>
-                            <MudText Typo="Typo.body2">@DisplayHelper.GetMaterialNameText(workOrder.MaterialName)</MudText>
-                        </MudItem>
-                        <MudItem xs="6" md="3">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">结算方式</MudText>
-                            <MudText Typo="Typo.body2">@DisplayHelper.GetSettlementMethodText(workOrder.SettlementMethod)</MudText>
-                        </MudItem>
-                        <MudItem xs="6" md="3">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">交货状态</MudText>
-                            <MudText Typo="Typo.body2">@DisplayHelper.GetDeliveryStateText(workOrder.DeliveryState)</MudText>
-                        </MudItem>
-                        <MudItem xs="6" md="3">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">延期罚款</MudText>
-                            <MudText Typo="Typo.body2">@(workOrder.DelayPenalty ? "是" : "否")</MudText>
-                        </MudItem>
-                        <MudItem xs="6" md="3">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">交货日期</MudText>
-                            <MudText Typo="Typo.body2">@workOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText>
-                        </MudItem>
-                        <MudItem xs="6" md="3">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">工厂牌号</MudText>
-                            <MudText Typo="Typo.body2">@workOrder.PlantGrade</MudText>
-                        </MudItem>
-                        <MudItem xs="6" md="3">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">规格</MudText>
-                            <MudText Typo="Typo.body2">@workOrder.Specification</MudText>
-                        </MudItem>
-                        <MudItem xs="6" md="3">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">外径公差(mm)</MudText>
-                            <MudText Typo="Typo.body2">@GetToleranceText(workOrder.OuterDiameterNegative, workOrder.OuterDiameterPositive)</MudText>
-                        </MudItem>
-                        <MudItem xs="6" md="3">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">壁厚公差(mm)</MudText>
-                            <MudText Typo="Typo.body2">@GetToleranceText(workOrder.WallThicknessNegative, workOrder.WallThicknessPositive)</MudText>
-                        </MudItem>
-                        <MudItem xs="6" md="3">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">长度状态</MudText>
-                            <MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(workOrder.LengthStatus) @(workOrder.MaxLength.HasValue ? $"(最长{(int)workOrder.MaxLength.Value}mm)" : "")</MudText>
-                        </MudItem>
-                        <MudItem xs="6" md="3">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">总数</MudText>
-                            <MudText Typo="Typo.body2">@workOrder.TotalQuantity 支 / @workOrder.TotalWeight.ToString("G29") kg</MudText>
-                        </MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">工单号</MudText><MudText Typo="Typo.body2" Class="font-weight-bold">@workOrder.WorkOrderNo</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">源订单号</MudText><MudText Typo="Typo.body2">@workOrder.SalesOrderNo</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">主号/次号</MudText><MudText Typo="Typo.body2">@workOrder.ProductionMainNo@(!string.IsNullOrEmpty(workOrder.ProductionSubNo) ? $"/{workOrder.ProductionSubNo}" : "")</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">物料名称</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetMaterialNameText(workOrder.MaterialName)</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">结算方式</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetSettlementMethodText(workOrder.SettlementMethod)</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">交货状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetDeliveryStateText(workOrder.DeliveryState)</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">延期罚款</MudText><MudText Typo="Typo.body2">@(workOrder.DelayPenalty ? "是" : "否")</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">交货日期</MudText><MudText Typo="Typo.body2">@workOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">工厂牌号</MudText><MudText Typo="Typo.body2">@workOrder.PlantGrade</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">规格</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatSpecification(workOrder.Specification)</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">外径公差(mm)</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.OuterDiameterNegative) / @DisplayHelper.FormatDecimal(workOrder.OuterDiameterPositive)</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">壁厚公差(mm)</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.WallThicknessNegative) / @DisplayHelper.FormatDecimal(workOrder.WallThicknessPositive)</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">长度状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(workOrder.LengthStatus) @(workOrder.MaxLength.HasValue ? $"(最长{(int)workOrder.MaxLength.Value}mm)" : "")</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">数量/重量</MudText><MudText Typo="Typo.body2">@workOrder.TotalQuantity 支 / @workOrder.TotalWeight.ToString("G29") kg</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">总米数</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.TotalMeters) m</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">理论单支重</MudText><MudText Typo="Typo.body2">@(workOrder.UnitWeight?.ToString("G29") ?? "-") kg</MudText></MudItem>
                     </MudGrid>
                 </MudPaper>
 
@@ -239,18 +203,7 @@
 
     private void GoBack()
     {
-        Navigation.NavigateTo("/material-plan-overview");
-    }
-
-    private string GetOrderNo()
-    {
-        var subNo = string.IsNullOrEmpty(workOrder?.ProductionSubNo) ? "" : $"/{workOrder.ProductionSubNo}";
-        return $"{workOrder?.SalesOrderNo}/{workOrder?.ProductionMainNo}{subNo}";
-    }
-
-    private string GetToleranceText(decimal negative, decimal positive)
-    {
-        return $"{negative.ToString("G29")}~+{positive.ToString("G29")}";
+        Navigation.NavigateTo($"/workorders/{WorkOrderId}/finish-plan");
     }
 
 }

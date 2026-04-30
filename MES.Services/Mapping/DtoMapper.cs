@@ -1,4 +1,5 @@
 using MES.Core.DTOs;
+using MES.Core.Enums;
 using MES.Data.Entities;
 
 namespace MES.Services.Mapping;
@@ -65,6 +66,7 @@ public static class DtoMapper
         MaterialName = entity.MaterialName.ToString(),
         Specification = entity.Specification,
         DeliveryDate = entity.DeliveryDate,
+        LengthStatus = entity.LengthStatus.ToString(),
         TotalQuantity = entity.TotalQuantity,
         TotalWeight = entity.TotalWeight,
         Status = (int)entity.Status,
@@ -112,8 +114,32 @@ public static class DtoMapper
         UpdatedTime = entity.UpdatedTime,
         UpdatedBy = entity.UpdatedBy,
         MaterialPlanStatus = (int)entity.MaterialPlanStatus,
-        MaterialPlanRate = entity.MaterialPlanRate
+        MaterialPlanRate = entity.MaterialPlanRate,
+        UnitWeight = CalculateUnitWeight(entity)
     };
+
+    private static decimal? CalculateUnitWeight(WorkOrder entity)
+    {
+        if (string.IsNullOrEmpty(entity.Specification)) return null;
+
+        var parts = entity.Specification.Split('*');
+        if (parts.Length < 2) return null;
+        if (!decimal.TryParse(parts[0], out var nominalOd)) return null;
+        if (!decimal.TryParse(parts[1], out var nominalWt)) return null;
+
+        var odActual = nominalOd - 0.5m * entity.OuterDiameterNegative + 0.5m * entity.OuterDiameterPositive;
+        var wtActual = nominalWt - 0.5m * entity.WallThicknessNegative + 0.5m * entity.WallThicknessPositive;
+
+        if (odActual <= 0 || wtActual <= 0) return null;
+
+        var weightPerMeter = (odActual - wtActual) * wtActual * 0.02466m;
+        var maxLengthMm = entity.LengthStatus == LengthStatus.Fixed
+            ? entity.MaxLength ?? 4500m
+            : 4500m;
+        var unitWeight = weightPerMeter * maxLengthMm / 1000m;
+
+        return Math.Round(unitWeight, 3);
+    }
 
     public static ProductRequirementDto ToDto(this ProductRequirement entity, int sequence) => new()
     {

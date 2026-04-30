@@ -1,7 +1,7 @@
 // 文件路径: MES.Core/Interfaces/Order/IProductRequirementService.cs
 using MES.Core.DTOs;
 
-namespace MES.Core.Interfaces.Order;
+namespace MES.Core.Interfaces;
 
 public interface IProductRequirementService
 {

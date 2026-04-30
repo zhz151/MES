@@ -14,9 +14,9 @@ namespace MES.Services;
 public class InventoryService : IInventoryService
 {
     private readonly AppDbContext _context;
-    private readonly IHttpContextAccessor? _httpContextAccessor;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public InventoryService(AppDbContext context, IHttpContextAccessor? httpContextAccessor = null)
+    public InventoryService(AppDbContext context, IHttpContextAccessor httpContextAccessor)
     {
         _context = context;
         _httpContextAccessor = httpContextAccessor;
@@ -24,10 +24,11 @@ public class InventoryService : IInventoryService
 
     private string GetCurrentUser()
     {
-        if (_httpContextAccessor?.HttpContext?.User?.Identity?.Name is { } name)
-            return name;
+        var userName = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
+        if (!string.IsNullOrEmpty(userName))
+            return userName;
 
-        var emailClaim = _httpContextAccessor?.HttpContext?.User?.FindFirst(ClaimTypes.Email);
+        var emailClaim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.Email);
         if (emailClaim != null)
             return emailClaim.Value;
 

@@ -111,8 +111,8 @@
                         <MudTh>次号</MudTh>
                         <MudTh>工单用料计划</MudTh>
                         <MudTh>工单满足率</MudTh>
+                        <MudTh>用料占比</MudTh>
                         <MudTh>关联主号用料</MudTh>
-                        <MudTh>主号满足率</MudTh>
                         <MudTh>关联订单用料</MudTh>
                         <MudTh>操作</MudTh>
                     </HeaderContent>
@@ -130,22 +130,41 @@
                                 @GetStatusText(wo.MaterialPlanStatus)
                             </MudChip>
                         </MudTd>
-                        <MudTd>@wo.MaterialPlanRate.ToString("G29")%</MudTd>
+                        <MudTd>@((int)Math.Round(wo.MaterialPlanRate))%</MudTd>
+                        <MudTd>
+                            @if (!string.IsNullOrEmpty(wo.PlanProportionText))
+                            {
+                                <MudText Typo="Typo.caption" Class="text-wrap" Style="max-width:180px;">@wo.PlanProportionText</MudText>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
+                            }
+                        </MudTd>
                         <MudTd>
                             <MudChip Size="Size.Small" Color="@GetStatusColor(wo.MainNoMaterialPlanStatus)">
                                 @GetStatusText(wo.MainNoMaterialPlanStatus)
                             </MudChip>
                         </MudTd>
-                        <MudTd>@wo.MainNoMaterialPlanRate.ToString("G29")%</MudTd>
                         <MudTd>
                             <MudChip Size="Size.Small" Color="@GetOrderStatusColor(wo.OrderMaterialPlanStatus)">
                                 @GetOrderStatusText(wo.OrderMaterialPlanStatus)
                             </MudChip>
                         </MudTd>
                         <MudTd>
+                            <MudIconButton Icon="@Icons.Material.Filled.Warehouse"
+                                           Size="Size.Small"
+                                           Color="Color.Info"
+                                           OnClick="() => NavigateToInventoryPlan(wo.Id)"
+                                           Title="库存使用计划" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Construction"
+                                           Size="Size.Small"
+                                           Color="Color.Warning"
+                                           OnClick="() => NavigateToReworkPlan(wo.Id)"
+                                           Title="库料生产改制" />
                             <MudIconButton Icon="@Icons.Material.Filled.Inventory2"
                                            Size="Size.Small"
-                                           Color="Color.Primary"
+                                           Color="Color.Success"
                                            OnClick="() => NavigateToSemiPlan(wo.Id)"
                                            Title="原料采购计划" />
                             <MudIconButton Icon="@Icons.Material.Filled.Checklist"
@@ -255,6 +274,16 @@
     private void NavigateToFinishPlan(int id)
     {
         Navigation.NavigateTo($"/workorders/{id}/finish-plan");
+    }
+
+    private void NavigateToInventoryPlan(int id)
+    {
+        Navigation.NavigateTo($"/workorders/{id}/inventory-plan");
+    }
+
+    private void NavigateToReworkPlan(int id)
+    {
+        Navigation.NavigateTo($"/workorders/{id}/rework-plan");
     }
 
     private Color GetStatusColor(int status)

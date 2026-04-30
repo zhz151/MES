@@ -1,0 +1,537 @@
+@page "/workorders/{WorkOrderId:int}/rework-plan/create"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Enums
+@using MES.Blazor.Shared
+@using MES.Blazor.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inject MaterialPlanService MaterialPlanService
+@inject WorkOrderService WorkOrderService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-2">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Construction" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">新增库料生产改制</MudText>
+                </div>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回上一级</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            @if (isLoadingWorkOrder)
+            {
+                <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+            }
+            else if (workOrder != null)
+            {
+                <!-- ===== 工单信息 ===== -->
+                <MudPaper Class="pa-3 mb-2" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background-color:var(--mud-palette-info-hover);">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-1">
+                        <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" Class="mr-1" />工单信息
+                    </MudText>
+                    <MudGrid>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">工单号</MudText><MudText Typo="Typo.body2" Class="font-weight-bold">@workOrder.WorkOrderNo</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">源订单号</MudText><MudText Typo="Typo.body2">@workOrder.SalesOrderNo</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">主号/次号</MudText><MudText Typo="Typo.body2">@workOrder.ProductionMainNo@(!string.IsNullOrEmpty(workOrder.ProductionSubNo) ? $"/{workOrder.ProductionSubNo}" : "")</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">物料名称</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetMaterialNameText(workOrder.MaterialName)</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">结算方式</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetSettlementMethodText(workOrder.SettlementMethod)</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">交货状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetDeliveryStateText(workOrder.DeliveryState)</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">延期罚款</MudText><MudText Typo="Typo.body2">@(workOrder.DelayPenalty ? "是" : "否")</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">交货日期</MudText><MudText Typo="Typo.body2">@workOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">工厂牌号</MudText><MudText Typo="Typo.body2">@workOrder.PlantGrade</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">规格</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatSpecification(workOrder.Specification)</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">外径公差(mm)</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.OuterDiameterNegative) / @DisplayHelper.FormatDecimal(workOrder.OuterDiameterPositive)</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">壁厚公差(mm)</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.WallThicknessNegative) / @DisplayHelper.FormatDecimal(workOrder.WallThicknessPositive)</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">长度状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(workOrder.LengthStatus) @(workOrder.MaxLength.HasValue ? $"(最长{(int)workOrder.MaxLength.Value}mm)" : "")</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">数量/重量</MudText><MudText Typo="Typo.body2">@workOrder.TotalQuantity 支 / @workOrder.TotalWeight.ToString("G29") kg</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">总米数</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.TotalMeters) m</MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">理论单支重</MudText><MudText Typo="Typo.body2">@(workOrder.UnitWeight?.ToString("G29") ?? "-") kg</MudText></MudItem>
+                    </MudGrid>
+                </MudPaper>
+
+                <!-- ===== 三Tab切换 ===== -->
+                <MudTabs @bind-ActivePanelIndex="activeTab" Class="mb-3" Elevation="0" Outlined="true" Centered="true">
+                    <MudTabPanel Text="空拉改制" />
+                    <MudTabPanel Text="少道次改制" />
+                    <MudTabPanel Text="人工选择改制" />
+                </MudTabs>
+
+                <!-- ===== 展示可用库存按钮 ===== -->
+                <div class="d-flex align-center mb-3">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Search"
+                               OnClick="LoadAvailableInventory"
+                               Disabled="isLoadingInventory">
+                        @(isLoadingInventory ? "加载中..." : "展示可用库存")
+                    </MudButton>
+                    @if (errorMessage != null)
+                    {
+                        <MudAlert Severity="Severity.Warning" Class="ml-3 pa-2" Dense="true">
+                            @errorMessage
+                        </MudAlert>
+                    }
+                </div>
+
+                <!-- ===== 可用库存列表 ===== -->
+                @if (availableBatches.Any())
+                {
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Inventory" Size="Size.Small" Class="mr-1" />可用库存列表
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-2" Style="display:inline;">
+                            （已选 @selectedBatchIds.Count 项）
+                        </MudText>
+                    </MudText>
+
+                    <!-- 规格模糊搜索 + 操作按钮 -->
+                    <div class="d-flex align-center mb-2 flex-wrap" Style="gap:8px;">
+                        <MudTextField @bind-Value="specSearchText"
+                                      Label="搜索规格"
+                                      Immediate="true"
+                                      Clearable="true"
+                                      Size="Size.Small"
+                                      Variant="Variant.Outlined"
+                                      Style="width:200px;"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@Icons.Material.Filled.Search" />
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info"
+                                   Size="Size.Small"
+                                   OnClick="ToggleShowSelected"
+                                   StartIcon="@(showSelectedOnly ? Icons.Material.Filled.List : Icons.Material.Filled.FilterAlt)">
+                            @(showSelectedOnly ? "显示全部" : "选定")
+                        </MudButton>
+                        <span class="flex-grow-1"></span>
+                        <MudButton Variant="Variant.Text" OnClick="GoBack" Size="Size.Small">取消</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                   OnClick="SavePlans" Disabled="isSaving || selectedBatchIds.Count == 0">
+                            @(isSaving ? "保存中..." : "保存")
+                        </MudButton>
+                    </div>
+
+                    <div Style="overflow-x:auto; border:1px solid var(--mud-palette-lines-default); border-radius:8px;" Class="mb-3">
+                        <MudTable Items="@filteredBatches" Dense="true" Hover="true" Striped="true" Elevation="0" RowsPerPage="5" RowsPerPageLabel="每页行数:">
+                            <HeaderContent>
+                                <MudTh Style="width:40px;">选择</MudTh>
+                                <MudTh>物料名称</MudTh>
+                                <MudTh>工厂牌号</MudTh>
+                                <MudTh>名义规格</MudTh>
+                                <MudTh>长度状态</MudTh>
+                                <MudTh>最小长度</MudTh>
+                                <MudTh>最大长度</MudTh>
+                                <MudTh>剩余支数</MudTh>
+                                <MudTh>剩余重量</MudTh>
+                                <MudTh>理论单支重</MudTh>
+                                <MudTh>物料状态</MudTh>
+                                <MudTh>放置框架</MudTh>
+                                <MudTh>实际外径</MudTh>
+                                <MudTh>实际壁厚</MudTh>
+                                <MudTh Style="min-width:100px; background-color: rgba(255, 152, 0, 0.08);">投料倍率</MudTh>
+                                <MudTh Style="min-width:100px; background-color: rgba(255, 152, 0, 0.08);">使用模式</MudTh>
+                                <MudTh Style="min-width:90px; background-color: rgba(255, 152, 0, 0.08);">出库支数</MudTh>
+                                <MudTh Style="min-width:90px; background-color: rgba(255, 152, 0, 0.08);">出库重量</MudTh>
+                                <MudTh Style="min-width:180px; background-color: rgba(255, 152, 0, 0.08);">简化工艺(JSON)</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>
+                                    <MudCheckBox Value="@GetSelection(context.Id)"
+                                                 ValueChanged="@((bool v) => OnSelectionChanged(context.Id, v))"
+                                                 Color="Color.Primary" />
+                                </MudTd>
+                                <MudTd DataLabel="物料名称">@context.MaterialType</MudTd>
+                                <MudTd DataLabel="工厂牌号">@context.PlantGrade</MudTd>
+                                <MudTd DataLabel="名义规格">@context.Specification</MudTd>
+                                <MudTd DataLabel="长度状态">@context.LengthStatus</MudTd>
+                                <MudTd DataLabel="最小长度">@DisplayHelper.FormatNullableDecimal(context.MinLength)</MudTd>
+                                <MudTd DataLabel="最大长度">@DisplayHelper.FormatNullableDecimal(context.MaxLength)</MudTd>
+                                <MudTd DataLabel="剩余支数">@context.RemainingQuantity</MudTd>
+                                <MudTd DataLabel="剩余重量">@context.RemainingWeight.ToString("G29")</MudTd>
+                                <MudTd DataLabel="理论单支重">@DisplayHelper.FormatNullableDecimal(context.UnitWeight)</MudTd>
+                                <MudTd DataLabel="物料状态">@context.SurfaceCondition</MudTd>
+                                <MudTd DataLabel="放置框架">@GetLocation(context)</MudTd>
+                                <MudTd DataLabel="实际外径">@DisplayHelper.FormatNullableDecimal(context.ActualOuterDiameter)</MudTd>
+                                <MudTd DataLabel="实际壁厚">@DisplayHelper.FormatNullableDecimal(context.ActualWallThickness)</MudTd>
+                                <MudTd DataLabel="投料倍率" Style="background-color: rgba(255, 152, 0, 0.08);">
+                                    @if (GetSelection(context.Id))
+                                    {
+                                        <MudNumericField Value="@GetInputMultiple(context.Id)"
+                                                         ValueChanged="@((int v) => OnInputMultipleChanged(context.Id, v))"
+                                                         Size="Size.Small"
+                                                         Variant="Variant.Outlined"
+                                                         Min="1" Max="99"
+                                                         HideSpinButtons="true"
+                                                         Class="my-n2" Style="width:80px;" />
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="使用模式" Style="background-color: rgba(255, 152, 0, 0.08);">
+                                    @if (GetSelection(context.Id))
+                                    {
+                                        <MudSelect Value="@GetUsageMode(context.Id)"
+                                                   ValueChanged="@((string v) => OnUsageModeChanged(context.Id, v))"
+                                                   Size="Size.Small"
+                                                   Variant="Variant.Outlined"
+                                                   Class="my-n2" Style="width:90px;">
+                                            <MudSelectItem Value="@("All")">全部</MudSelectItem>
+                                            <MudSelectItem Value="@("Partial")">部分</MudSelectItem>
+                                        </MudSelect>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="出库支数" Style="background-color: rgba(255, 152, 0, 0.08);">
+                                    @if (GetSelection(context.Id) && GetUsageMode(context.Id) == "Partial")
+                                    {
+                                        <MudNumericField Value="@GetUsedQuantity(context.Id)"
+                                                         ValueChanged="@((int? v) => OnUsedQuantityChanged(context.Id, v))"
+                                                         Size="Size.Small"
+                                                         Variant="Variant.Outlined"
+                                                         Min="1" Max="@context.RemainingQuantity"
+                                                         HideSpinButtons="true"
+                                                         Class="my-n2" Style="width:80px;" />
+                                    }
+                                    else if (GetSelection(context.Id))
+                                    {
+                                        <MudText Typo="Typo.body2">全部</MudText>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="出库重量" Style="background-color: rgba(255, 152, 0, 0.08);">
+                                    @if (GetSelection(context.Id) && GetUsageMode(context.Id) == "Partial")
+                                    {
+                                        <MudNumericField Value="@GetUsedWeight(context.Id)"
+                                                         ValueChanged="@((decimal? v) => OnUsedWeightChanged(context.Id, v))"
+                                                         Size="Size.Small"
+                                                         Variant="Variant.Outlined"
+                                                         Min="0"
+                                                         HideSpinButtons="true"
+                                                         Class="my-n2" Style="width:90px;" />
+                                    }
+                                    else if (GetSelection(context.Id))
+                                    {
+                                        <MudText Typo="Typo.body2">@context.RemainingWeight.ToString("G29")</MudText>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="简化工艺" Style="background-color: rgba(255, 152, 0, 0.08);">
+                                    @if (GetSelection(context.Id))
+                                    {
+                                        <MudTextField Value="@GetProcessPlanString(context.Id)"
+                                                      ValueChanged="@((string v) => OnProcessPlanChanged(context.Id, v))"
+                                                      Size="Size.Small"
+                                                      Variant="Variant.Outlined"
+                                                      Placeholder="67*5, 38*3"
+                                                      Class="my-n2" Style="width:160px;" />
+                                    }
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </div>
+                }
+            }
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    [Parameter] public int WorkOrderId { get; set; }
+
+    private WorkOrderDetailDto? workOrder;
+    private List<AvailableInventoryBatchDto> availableBatches = new();
+    private bool isLoadingWorkOrder = true;
+    private bool isLoadingInventory = false;
+    private bool isSaving = false;
+    private string? errorMessage;
+    private int activeTab;
+    private string specSearchText = string.Empty;
+    private bool showSelectedOnly = false;
+
+    private List<AvailableInventoryBatchDto> filteredBatches
+    {
+        get
+        {
+            var query = availableBatches.AsEnumerable();
+            if (!string.IsNullOrWhiteSpace(specSearchText))
+                query = query.Where(b => b.Specification?.Contains(specSearchText, StringComparison.OrdinalIgnoreCase) == true);
+            if (showSelectedOnly)
+                query = query.Where(b => GetSelection(b.Id));
+            return query.ToList();
+        }
+    }
+
+    // 选择数据：batchId -> selected
+    private Dictionary<int, bool> selections = new();
+    private Dictionary<int, int> inputMultiples = new();
+    private Dictionary<int, string> usageModes = new();
+    private Dictionary<int, int?> usedQuantities = new();
+    private Dictionary<int, decimal?> usedWeights = new();
+    private Dictionary<int, string> processPlanStrings = new(); // 简化工艺（逗号分隔的规格）
+
+    private HashSet<int> selectedBatchIds => selections.Where(s => s.Value).Select(s => s.Key).ToHashSet();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var result = await WorkOrderService.GetByIdAsync(WorkOrderId);
+            workOrder = result.Success ? result.Data : null;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载工单失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoadingWorkOrder = false;
+        }
+    }
+
+    private string GetReworkTypeString()
+    {
+        return activeTab switch
+        {
+            0 => "EmptyDrawing",
+            1 => "FewerPass",
+            2 => "ManualSelect",
+            _ => "EmptyDrawing"
+        };
+    }
+
+    private async Task LoadAvailableInventory()
+    {
+        isLoadingInventory = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var reworkType = GetReworkTypeString();
+            var result = await MaterialPlanService.GetAvailableReworkInventoryAsync(WorkOrderId, reworkType);
+            if (result.Success)
+            {
+                availableBatches = (result.Data ?? new())
+                    .OrderByDescending(b => b.Specification)
+                    .ToList();
+                ResetSelections();
+
+                if (availableBatches.Count == 0)
+                {
+                    errorMessage = "未找到符合条件的可用库存";
+                }
+            }
+            else
+            {
+                errorMessage = result.Message ?? "查询可用库存失败";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"加载失败: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingInventory = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ResetSelections()
+    {
+        selections.Clear();
+        inputMultiples.Clear();
+        usageModes.Clear();
+        usedQuantities.Clear();
+        usedWeights.Clear();
+        processPlanStrings.Clear();
+        specSearchText = string.Empty;
+
+        foreach (var batch in availableBatches)
+        {
+            selections[batch.Id] = false;
+            inputMultiples[batch.Id] = 1;
+            usageModes[batch.Id] = "All";
+            usedQuantities[batch.Id] = null;
+            usedWeights[batch.Id] = null;
+            processPlanStrings[batch.Id] = string.Empty;
+        }
+    }
+
+    private bool GetSelection(int batchId) => selections.GetValueOrDefault(batchId, false);
+    private int GetInputMultiple(int batchId) => inputMultiples.GetValueOrDefault(batchId, 1);
+    private string GetUsageMode(int batchId) => usageModes.GetValueOrDefault(batchId, "All");
+    private int? GetUsedQuantity(int batchId) => usedQuantities.GetValueOrDefault(batchId);
+    private decimal? GetUsedWeight(int batchId) => usedWeights.GetValueOrDefault(batchId);
+    private string GetProcessPlanString(int batchId) => processPlanStrings.GetValueOrDefault(batchId, string.Empty);
+
+    private void OnSelectionChanged(int batchId, bool value)
+    {
+        if (selections.ContainsKey(batchId))
+            selections[batchId] = value;
+    }
+
+    private void OnInputMultipleChanged(int batchId, int value)
+    {
+        if (inputMultiples.ContainsKey(batchId))
+            inputMultiples[batchId] = value;
+    }
+
+    private void OnUsageModeChanged(int batchId, string value)
+    {
+        if (usageModes.ContainsKey(batchId))
+            usageModes[batchId] = value;
+    }
+
+    private void OnUsedQuantityChanged(int batchId, int? value)
+    {
+        if (usedQuantities.ContainsKey(batchId))
+            usedQuantities[batchId] = value;
+    }
+
+    private void OnUsedWeightChanged(int batchId, decimal? value)
+    {
+        if (usedWeights.ContainsKey(batchId))
+            usedWeights[batchId] = value;
+        var mode = usageModes.GetValueOrDefault(batchId, "All");
+        if (mode == "Partial" && !usedQuantities.ContainsKey(batchId))
+        {
+            usedQuantities[batchId] = 0;
+        }
+    }
+
+    private void OnProcessPlanChanged(int batchId, string value)
+    {
+        if (processPlanStrings.ContainsKey(batchId))
+            processPlanStrings[batchId] = value;
+    }
+
+    /// <summary>
+    /// 将逗号分隔的工艺规格（如 "67*5, 38*3"）转换为JSON数组格式
+    /// </summary>
+    private static string? ConvertProcessPlanStringToJson(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return null;
+        var specs = input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select((s, idx) => new { step = idx + 1, spec = s })
+            .ToList();
+        return specs.Any() ? System.Text.Json.JsonSerializer.Serialize(specs) : null;
+    }
+
+    private string GetLocation(AvailableInventoryBatchDto dto)
+    {
+        var area = dto.LocationArea ?? "";
+        var rack = dto.LocationRack ?? "";
+        return string.IsNullOrEmpty(area) && string.IsNullOrEmpty(rack) ? "-" : $"{area}/{rack}";
+    }
+
+    private void ToggleShowSelected()
+    {
+        showSelectedOnly = !showSelectedOnly;
+    }
+
+    private void GoBack() => Navigation.NavigateTo($"/workorders/{WorkOrderId}/rework-plan");
+
+    private async Task SavePlans()
+    {
+        var selectedIds = selectedBatchIds.ToList();
+        if (selectedIds.Count == 0)
+        {
+            Snackbar.Add("请至少选择一个库存批次", Severity.Warning);
+            return;
+        }
+
+        // 前端验证
+        var errors = new List<string>();
+        foreach (var batchId in selectedIds)
+        {
+            var batch = availableBatches.FirstOrDefault(b => b.Id == batchId);
+            if (batch == null) continue;
+
+            var mode = usageModes.GetValueOrDefault(batchId, "All");
+            if (mode == "Partial")
+            {
+                var qty = usedQuantities.GetValueOrDefault(batchId);
+                var wt = usedWeights.GetValueOrDefault(batchId);
+                if (qty == null || qty <= 0)
+                    errors.Add($"批次 {batch.BatchNo}：部分使用模式下出库支数必须大于0");
+                if (wt == null || wt <= 0)
+                    errors.Add($"批次 {batch.BatchNo}：部分使用模式下出库重量必须大于0");
+                if (qty > batch.RemainingQuantity)
+                    errors.Add($"批次 {batch.BatchNo}：出库支数({qty})超过剩余支数({batch.RemainingQuantity})");
+                if (wt > batch.RemainingWeight)
+                    errors.Add($"批次 {batch.BatchNo}：出库重量({wt})超过剩余重量({batch.RemainingWeight})");
+            }
+        }
+
+        if (errors.Any())
+        {
+            await JS.InvokeVoidAsync("alert", string.Join("\n", errors));
+            return;
+        }
+
+        isSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            var reworkType = GetReworkTypeString();
+            var successCount = 0;
+            foreach (var batchId in selectedIds)
+            {
+                var batch = availableBatches.FirstOrDefault(b => b.Id == batchId);
+                if (batch == null) continue;
+
+                var mode = usageModes.GetValueOrDefault(batchId, "All");
+                var processPlanInput = processPlanStrings.GetValueOrDefault(batchId, string.Empty);
+                var processPlanJson = ConvertProcessPlanStringToJson(processPlanInput);
+
+                var request = new CreateInventoryPlanRequest
+                {
+                    WorkOrderId = WorkOrderId,
+                    PlanDate = DateTime.Today,
+                    InventoryBatchId = batchId,
+                    InputMultiple = inputMultiples.GetValueOrDefault(batchId, 1),
+                    UsageMode = mode,
+                    RequiredDate = null,
+                    Remark = null,
+                    ReworkType = reworkType,
+                    ProcessPlan = processPlanJson
+                };
+
+                if (mode == "Partial")
+                {
+                    request.UsedQuantity = usedQuantities.GetValueOrDefault(batchId);
+                    request.UsedWeight = usedWeights.GetValueOrDefault(batchId) ?? 0;
+                }
+
+                var result = await MaterialPlanService.CreateInventoryPlanAsync(request);
+                if (result.Success)
+                    successCount++;
+                else
+                    errors.Add($"批次 {batch.BatchNo}：{result.Message}");
+            }
+
+            if (successCount > 0)
+            {
+                Snackbar.Add($"成功创建 {successCount} 条改制计划", Severity.Success);
+                GoBack();
+            }
+
+            if (errors.Any())
+            {
+                await JS.InvokeVoidAsync("alert", string.Join("\n", errors));
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
+    }
+}

@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
 using MES.Core.Enums;
-using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Shared.Constants;
 

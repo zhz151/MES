@@ -120,15 +120,8 @@ public class InventoryController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<InventoryBatchDto>.Fail("请求参数无效"));
 
-        try
-        {
-            var result = await _service.UpdateInventoryBatchAsync(id, request);
-            return Ok(ApiResponse<InventoryBatchDto>.Ok(result, "更新成功"));
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(ApiResponse<InventoryBatchDto>.Fail(ex.Message));
-        }
+        var result = await _service.UpdateInventoryBatchAsync(id, request);
+        return Ok(ApiResponse<InventoryBatchDto>.Ok(result, "更新成功"));
     }
 
     /// <summary>
@@ -138,15 +131,8 @@ public class InventoryController : ControllerBase
     [Authorize(Roles = $"{Roles.Directors.Warehouse},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<object>>> HardDeleteInventoryBatch(int id)
     {
-        try
-        {
-            await _service.HardDeleteInventoryBatchAsync(id);
-            return Ok(ApiResponse<object>.Ok(null!, "删除成功"));
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(ApiResponse<object>.Fail(ex.Message));
-        }
+        await _service.HardDeleteInventoryBatchAsync(id);
+        return Ok(ApiResponse<object>.Ok(null!, "删除成功"));
     }
 
     /// <summary>
@@ -159,15 +145,8 @@ public class InventoryController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<OutboundRecordDto>.Fail("请求参数无效"));
 
-        try
-        {
-            var result = await _service.UpdateOutboundRecordAsync(id, request);
-            return Ok(ApiResponse<OutboundRecordDto>.Ok(result, "更新成功"));
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(ApiResponse<OutboundRecordDto>.Fail(ex.Message));
-        }
+        var result = await _service.UpdateOutboundRecordAsync(id, request);
+        return Ok(ApiResponse<OutboundRecordDto>.Ok(result, "更新成功"));
     }
 
     /// <summary>
@@ -177,14 +156,7 @@ public class InventoryController : ControllerBase
     [Authorize(Roles = $"{Roles.Directors.Warehouse},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<object>>> HardDeleteOutboundRecord(long id)
     {
-        try
-        {
-            await _service.HardDeleteOutboundRecordAsync(id);
-            return Ok(ApiResponse<object>.Ok(null!, "删除成功"));
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(ApiResponse<object>.Fail(ex.Message));
-        }
+        await _service.HardDeleteOutboundRecordAsync(id);
+        return Ok(ApiResponse<object>.Ok(null!, "删除成功"));
     }
 }

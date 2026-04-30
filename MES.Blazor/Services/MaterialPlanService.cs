@@ -128,6 +128,88 @@ public class MaterialPlanService
 
     #endregion
 
+    #region 库存使用计划
+
+    public async Task<ApiResponse<List<InventoryPlanDto>>> GetInventoryPlansAsync(int workOrderId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<InventoryPlanDto>>>($"{BaseUrl}/inventory/{workOrderId}");
+            return response ?? ApiResponse<List<InventoryPlanDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<InventoryPlanDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<List<InventoryPlanDto>>> GetReworkPlansAsync(int workOrderId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<InventoryPlanDto>>>($"{BaseUrl}/rework/{workOrderId}");
+            return response ?? ApiResponse<List<InventoryPlanDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<InventoryPlanDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<List<AvailableInventoryBatchDto>>> GetAvailableInventoryAsync(int workOrderId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<AvailableInventoryBatchDto>>>($"{BaseUrl}/inventory/available/{workOrderId}");
+            return response ?? ApiResponse<List<AvailableInventoryBatchDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<AvailableInventoryBatchDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<List<AvailableInventoryBatchDto>>> GetAvailableReworkInventoryAsync(int workOrderId, string reworkType)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<AvailableInventoryBatchDto>>>($"{BaseUrl}/rework-inventory/{workOrderId}?reworkType={reworkType}");
+            return response ?? ApiResponse<List<AvailableInventoryBatchDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<AvailableInventoryBatchDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<InventoryPlanDto>> CreateInventoryPlanAsync(CreateInventoryPlanRequest request)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<CreateInventoryPlanRequest, ApiResponse<InventoryPlanDto>>($"{BaseUrl}/inventory", request);
+            return response ?? ApiResponse<InventoryPlanDto>.Fail("创建失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<InventoryPlanDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse> DeleteInventoryPlanAsync(int id)
+    {
+        try
+        {
+            var response = await _http.DeleteFromJsonAsync<ApiResponse>($"{BaseUrl}/inventory/{id}");
+            return response ?? ApiResponse.Fail("删除失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    #endregion
+
     #region 测算
 
     public async Task<ApiResponse<MaterialCalculateResult>> CalculateAsync(MaterialCalculateRequest request)
@@ -195,6 +277,32 @@ public class MaterialPlanService
         try
         {
             var response = await _http.GetFromJsonAsync<ApiResponse<string>>($"{BaseUrl}/print/finished/{planId}");
+            return response ?? ApiResponse<string>.Fail("打印生成失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<string>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<string>> PrintInventoryPlanAsync(int planId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<string>>($"{BaseUrl}/print/inventory/{planId}");
+            return response ?? ApiResponse<string>.Fail("打印生成失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<string>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<string>> PrintReworkPlanAsync(int planId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<string>>($"{BaseUrl}/print/rework/{planId}");
             return response ?? ApiResponse<string>.Fail("打印生成失败");
         }
         catch (Exception ex)
