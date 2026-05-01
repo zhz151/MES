@@ -75,7 +75,7 @@ public class InventoryPlan : BaseEntity
     /// <summary>
     /// 改制类型：null=普通库存使用, EmptyDrawing=空拉改制, FewerPass=少道次改制, ManualSelect=人工选择改制
     /// </summary>
-    public string? ReworkType { get; set; }
+    public ReworkType? ReworkType { get; set; }
 
     /// <summary>
     /// 简化生产工艺（仅改制时使用，JSON数组格式：[{"step":1,"spec":"67*5"},...]）

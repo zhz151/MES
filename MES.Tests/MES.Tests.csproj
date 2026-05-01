@@ -10,6 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="bunit" Version="1.39.5" />
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="FluentAssertions" Version="8.9.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.11" />
@@ -28,6 +29,7 @@
     <ProjectReference Include="..\MES.Services\MES.Services.csproj" />
     <ProjectReference Include="..\MES.Data\MES.Data.csproj" />
     <ProjectReference Include="..\MES.Api\MES.Api.csproj" />
+    <ProjectReference Include="..\MES.Blazor\MES.Blazor.csproj" />
   </ItemGroup>
 
 </Project>

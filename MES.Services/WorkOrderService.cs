@@ -735,6 +735,28 @@ public class WorkOrderService : IWorkOrderService
             workOrderQuery = query.IsDescending ? workOrderQuery.OrderByDescending(wo => wo.CreatedTime) : workOrderQuery.OrderBy(wo => wo.CreatedTime);
         }
 
+        // 当有关联主号/订单用料筛选时，需加载全部数据计算聚合后再筛选
+        if (query.MainNoMaterialPlanStatus.HasValue || query.OrderMaterialPlanStatus.HasValue)
+        {
+            var allWorkOrders = await workOrderQuery.AsNoTracking().ToListAsync();
+            var allItems = allWorkOrders.Select(wo => wo.ToListDto()).ToList();
+            if (allItems.Any())
+                await EnrichWithAggregatedStatusAsync(allItems);
+
+            if (query.MainNoMaterialPlanStatus.HasValue)
+                allItems = allItems.Where(i => i.MainNoMaterialPlanStatus == query.MainNoMaterialPlanStatus.Value).ToList();
+            if (query.OrderMaterialPlanStatus.HasValue)
+                allItems = allItems.Where(i => i.OrderMaterialPlanStatus == query.OrderMaterialPlanStatus.Value).ToList();
+
+            return new PagedResult<WorkOrderListDto>
+            {
+                Items = allItems.Skip(query.Skip).Take(query.PageSize).ToList(),
+                TotalCount = allItems.Count,
+                PageIndex = query.PageIndex,
+                PageSize = query.PageSize
+            };
+        }
+
         var workOrders = await workOrderQuery
             .AsNoTracking()
             .Skip(query.Skip)

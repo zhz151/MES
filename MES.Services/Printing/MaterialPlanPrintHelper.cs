@@ -247,10 +247,10 @@ public static class MaterialPlanPrintHelper
 
             var reworkTypeText = plan.ReworkType switch
             {
-                "EmptyDrawing" => "空拉改制",
-                "FewerPass" => "少道次改制",
-                "ManualSelect" => "人工选择改制",
-                _ => plan.ReworkType ?? "-"
+                ReworkType.EmptyDrawing => "空拉改制",
+                ReworkType.FewerPass => "少道次改制",
+                ReworkType.ManualSelect => "人工选择改制",
+                _ => plan.ReworkType?.ToString() ?? "-"
             };
             ComposeInfoRow(col.Item(), "改制类型：", reworkTypeText);
 

@@ -18,6 +18,18 @@ public class MaterialPlanService : IMaterialPlanService
     private readonly AppDbContext _context;
     private readonly ILogger<MaterialPlanService> _logger;
 
+    /// <summary>
+    /// 工厂牌号替代映射（高级可替低级）：key=低级, value=高级
+    /// </summary>
+    private static readonly Dictionary<string, string> GradeSubstitutes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["30400"] = "304L0",
+        ["31600"] = "316L0",
+        ["316H0"] = "31600",
+        ["34700"] = "347H0",
+        ["22051"] = "22052"
+    };
+
     public MaterialPlanService(AppDbContext context, ILogger<MaterialPlanService> logger)
     {
         _context = context;
@@ -86,7 +98,9 @@ public class MaterialPlanService : IMaterialPlanService
             RawUnitWeight = calc.RawUnitWeight,
             RequiredPieces = (int)requiredPieces,
             RequiredWeight = requiredWeight,
-            RawMaterialType = Enum.Parse<RawMaterialType>(request.RawMaterialType),
+            RawMaterialType = Enum.TryParse<RawMaterialType>(request.RawMaterialType, out var rt)
+                ? rt
+                : throw new BusinessException($"无效的原料类型: {request.RawMaterialType}"),
             RawMaterialSpec = request.RawMaterialSpec,
             RequiredDate = request.RequiredDate,
             ProcessPlan = request.ProcessPlan,
@@ -157,7 +171,9 @@ public class MaterialPlanService : IMaterialPlanService
         {
             WorkOrderId = request.WorkOrderId,
             PlanDate = request.PlanDate,
-            ProductType = Enum.Parse<FinishedProductType>(request.ProductType),
+            ProductType = Enum.TryParse<FinishedProductType>(request.ProductType, out var pt)
+                ? pt
+                : throw new BusinessException($"无效的成品类型: {request.ProductType}"),
             RequiredPiece = request.RequiredPiece,
             RequiredWeight = request.RequiredWeight,
             RequiredDate = request.RequiredDate,
@@ -266,7 +282,7 @@ public class MaterialPlanService : IMaterialPlanService
             RequiredDate = request.RequiredDate,
             PlanStatus = InventoryPlanStatus.Planned,
             Remark = request.Remark,
-            ReworkType = request.ReworkType,
+            ReworkType = request.ReworkType != null ? Enum.Parse<ReworkType>(request.ReworkType) : null,
             ProcessPlan = request.ProcessPlan
         };
 
@@ -306,8 +322,8 @@ public class MaterialPlanService : IMaterialPlanService
             throw new BusinessException("工单不存在");
 
         // 解析外径和壁厚
-        var od = ParseOuterDiameter(workOrder.Specification);
-        var wt = ParseWallThickness(workOrder.Specification);
+        var od = SpecificationParser.ParseOuterDiameter(workOrder.Specification);
+        var wt = SpecificationParser.ParseWallThickness(workOrder.Specification);
 
         // 计算实际OD和WT（公差中值）
         var odActual = od - 0.5m * workOrder.OuterDiameterNegative + 0.5m * workOrder.OuterDiameterPositive;
@@ -346,16 +362,6 @@ public class MaterialPlanService : IMaterialPlanService
         var wtMin = Math.Round((wt - workOrder.WallThicknessNegative) * 1.02m, 3);
         var wtMax = Math.Round((wt + workOrder.WallThicknessPositive) * 0.98m, 3);
 
-        // 定义5种牌号替代映射（高级可替低级）
-        var gradeSubstitutes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["30400"] = "304L0",
-            ["31600"] = "316L0",
-            ["316H0"] = "31600",
-            ["34700"] = "347H0",
-            ["22051"] = "22052"
-        };
-
         // 获取已被其他未取消库存使用计划引用的批次ID
         var usedBatchIds = await _context.InventoryPlans
             .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled)
@@ -372,12 +378,12 @@ public class MaterialPlanService : IMaterialPlanService
 
         // 牌号条件：精确匹配 或 高级替代
         var eligibleGrades = new List<string> { workOrder.PlantGrade };
-        if (gradeSubstitutes.TryGetValue(workOrder.PlantGrade, out var substitute))
+        if (GradeSubstitutes.TryGetValue(workOrder.PlantGrade, out var substitute))
         {
             eligibleGrades.Add(substitute);
         }
         // 反向检查：是否有其他牌号可以替代工单的牌号（即工单牌号是某高级牌号的低级版）
-        foreach (var kvp in gradeSubstitutes)
+        foreach (var kvp in GradeSubstitutes)
         {
             if (kvp.Value == workOrder.PlantGrade)
             {
@@ -455,8 +461,8 @@ public class MaterialPlanService : IMaterialPlanService
             throw new BusinessException("工单不存在");
 
         // 解析名义外径和壁厚
-        var nominalOd = ParseOuterDiameter(workOrder.Specification);
-        var nominalWt = ParseWallThickness(workOrder.Specification);
+        var nominalOd = SpecificationParser.ParseOuterDiameter(workOrder.Specification);
+        var nominalWt = SpecificationParser.ParseWallThickness(workOrder.Specification);
 
         // 计算测算OD/WT（公差中值法）
         var calculatedOd = nominalOd - 0.5m * workOrder.OuterDiameterNegative + 0.5m * workOrder.OuterDiameterPositive;
@@ -484,22 +490,12 @@ public class MaterialPlanService : IMaterialPlanService
             requiredUnitWeight = Math.Round(unitWeightPerMeter * lengthMm / 1000m, 3);
         }
 
-        // 工厂牌号替代映射（高级可替低级）：key=低级, value=高级
-        var gradeSubstitutes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["30400"] = "304L0",
-            ["31600"] = "316L0",
-            ["316H0"] = "31600",
-            ["34700"] = "347H0",
-            ["22051"] = "22052"
-        };
-
         // 排除规则：316L0不可替代316H0
         var exclude316L0For316H0 = string.Equals(workOrder.PlantGrade, "316H0", StringComparison.OrdinalIgnoreCase);
 
         // 合格牌号：工单本身牌号 + 高级替代牌号
         var eligibleGrades = new List<string> { workOrder.PlantGrade };
-        if (gradeSubstitutes.TryGetValue(workOrder.PlantGrade, out var higherGrade))
+        if (GradeSubstitutes.TryGetValue(workOrder.PlantGrade, out var higherGrade))
         {
             if (!(exclude316L0For316H0 && string.Equals(higherGrade, "316L0", StringComparison.OrdinalIgnoreCase)))
             {
@@ -615,21 +611,6 @@ public class MaterialPlanService : IMaterialPlanService
         return available;
     }
 
-    /// <summary>
-    /// 从规格字符串解析壁厚
-    /// </summary>
-    private static decimal ParseWallThickness(string specification)
-    {
-        if (string.IsNullOrEmpty(specification))
-            return 0;
-
-        var parts = specification.Split('*');
-        if (parts.Length > 1 && decimal.TryParse(parts[1], out var wt))
-            return wt;
-
-        return 0;
-    }
-
     #endregion
 
     #region 用料测算
@@ -665,7 +646,7 @@ public class MaterialPlanService : IMaterialPlanService
         result.Density = gradeMapping?.Density ?? 7.93m; // 默认密度
 
         // 2. 解析外径
-        var od = ParseOuterDiameter(workOrder.Specification);
+        var od = SpecificationParser.ParseOuterDiameter(workOrder.Specification);
 
         // 3. 单米重量(kg/m) = π × 密度 × 调整壁厚 × (外径 - 调整壁厚) / 1000
         var adjustedWT = request.AdjustedWallThickness;
@@ -706,21 +687,6 @@ public class MaterialPlanService : IMaterialPlanService
         }
 
         return result;
-    }
-
-    /// <summary>
-    /// 从规格字符串解析外径
-    /// </summary>
-    private static decimal ParseOuterDiameter(string specification)
-    {
-        if (string.IsNullOrEmpty(specification))
-            return 0;
-
-        var parts = specification.Split('*');
-        if (parts.Length > 0 && decimal.TryParse(parts[0], out var od))
-            return od;
-
-        return 0;
     }
 
     #endregion
@@ -1181,12 +1147,12 @@ internal static class MaterialPlanMappingExtensions
                 _ => "未知"
             },
             Remark = entity.Remark,
-            ReworkType = entity.ReworkType,
+            ReworkType = entity.ReworkType?.ToString(),
             ReworkTypeText = entity.ReworkType switch
             {
-                "EmptyDrawing" => "空拉改制",
-                "FewerPass" => "少道次改制",
-                "ManualSelect" => "人工选择改制",
+                ReworkType.EmptyDrawing => "空拉改制",
+                ReworkType.FewerPass => "少道次改制",
+                ReworkType.ManualSelect => "人工选择改制",
                 _ => null
             },
             ProcessPlan = entity.ProcessPlan,

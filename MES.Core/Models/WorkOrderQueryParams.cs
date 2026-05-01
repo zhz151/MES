@@ -74,4 +74,14 @@ public class WorkOrderQueryParams : QueryParams
     /// 用料计划状态筛选（0=未计划，1=部分，2=理论满足，3=满足，4=超量）
     /// </summary>
     public int? MaterialPlanStatus { get; set; }
+
+    /// <summary>
+    /// 关联主号用料状态筛选
+    /// </summary>
+    public int? MainNoMaterialPlanStatus { get; set; }
+
+    /// <summary>
+    /// 关联订单用料状态筛选
+    /// </summary>
+    public int? OrderMaterialPlanStatus { get; set; }
 }

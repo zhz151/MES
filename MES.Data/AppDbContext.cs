@@ -470,7 +470,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
 
             // 来源信息
-            entity.Property(e => e.InboundSource).IsRequired().HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.InboundSource).IsRequired().HasMaxLength(20);
             entity.Property(e => e.SourceName).IsRequired().HasMaxLength(200);
             entity.Property(e => e.InboundDate).IsRequired().HasColumnType("datetime");
 
@@ -602,7 +602,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.RequiredDate).HasColumnType("date");
             entity.Property(e => e.PlanStatus).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(InventoryPlanStatus.Planned);
             entity.Property(e => e.Remark).HasMaxLength(500);
-            entity.Property(e => e.ReworkType).HasMaxLength(20);
+            entity.Property(e => e.ReworkType).HasMaxLength(20).HasConversion<string>();
             entity.Property(e => e.ProcessPlan).HasColumnType("nvarchar(max)");
             entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_InventoryPlan_WorkOrderId");
             entity.HasIndex(e => e.InventoryBatchId).HasDatabaseName("IX_InventoryPlan_InventoryBatchId");

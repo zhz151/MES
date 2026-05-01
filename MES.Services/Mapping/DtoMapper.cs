@@ -122,10 +122,9 @@ public static class DtoMapper
     {
         if (string.IsNullOrEmpty(entity.Specification)) return null;
 
-        var parts = entity.Specification.Split('*');
-        if (parts.Length < 2) return null;
-        if (!decimal.TryParse(parts[0], out var nominalOd)) return null;
-        if (!decimal.TryParse(parts[1], out var nominalWt)) return null;
+        var nominalOd = SpecificationParser.ParseOuterDiameter(entity.Specification);
+        var nominalWt = SpecificationParser.ParseWallThickness(entity.Specification);
+        if (nominalOd <= 0 || nominalWt <= 0) return null;
 
         var odActual = nominalOd - 0.5m * entity.OuterDiameterNegative + 0.5m * entity.OuterDiameterPositive;
         var wtActual = nominalWt - 0.5m * entity.WallThicknessNegative + 0.5m * entity.WallThicknessPositive;
