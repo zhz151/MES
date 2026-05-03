@@ -11,7 +11,7 @@ public class WorkOrder : BaseEntity
 {
     /// <summary>
     /// 工单号（业务唯一标识）
-    /// 格式：WO + yyyyMMdd + 4位序号
+    /// 格式：GD + yyMMdd + 3位序号
     /// </summary>
     public string WorkOrderNo { get; set; } = null!;
 

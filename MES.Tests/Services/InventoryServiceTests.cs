@@ -67,7 +67,7 @@ public class InventoryServiceTests : TestBase
         });
 
         result.Should().NotBeNull();
-        result.BatchNo.Should().StartWith("STK");
+        result.BatchNo.Should().StartWith("CK");
         result.RemainingQuantity.Should().Be(10);
         result.RemainingWeight.Should().Be(1000m);
         result.WarehouseName.Should().Be("测试仓库");

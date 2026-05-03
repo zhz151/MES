@@ -64,4 +64,7 @@ public class CreateInboundRequest
     public string? WorkOrderNo { get; set; }
     public string? SalesOrderNo { get; set; }
     public string? OrderItemIds { get; set; }
+
+    // 跨上下文关联
+    public string? SourceOrderNo { get; set; }
 }

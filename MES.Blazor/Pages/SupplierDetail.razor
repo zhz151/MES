@@ -1,0 +1,94 @@
+@page "/suppliers/{id:int}"
+@page "/suppliers/{id:int}/edit"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using Microsoft.AspNetCore.Authorization
+@inject SupplierService SupplierService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "MaterialStaff,MaterialDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    @if (isLoading) { <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" /> }
+    else if (item == null) { <MudAlert Severity="Severity.Error">供应商不存在</MudAlert> }
+    else
+    {
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.Business" Class="mr-2" Color="Color.Primary" />供应商详情</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@item.SupplierName</MudText>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                    @if (isEditMode)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Disabled="@isSubmitting">
+                            @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> } else { <span>保存</span> }
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <AuthorizeView Roles="MaterialDirector,Admin"><MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑</MudButton></AuthorizeView>
+                    }
+                </CardHeaderActions>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudGrid>
+                    <MudItem xs="12" md="6"><MudTextField T="string" Label="供应商名称" @bind-Value="editItem.SupplierName" Disabled="!isEditMode" /></MudItem>
+                    <MudItem xs="12" md="3"><MudTextField T="string" Label="联系人" @bind-Value="editItem.ContactPerson" Disabled="!isEditMode" /></MudItem>
+                    <MudItem xs="12" md="3"><MudTextField T="string" Label="联系电话" @bind-Value="editItem.ContactPhone" Disabled="!isEditMode" /></MudItem>
+                    <MudItem xs="12" md="12"><MudTextField T="string" Label="地址" @bind-Value="editItem.Address" Disabled="!isEditMode" Multiline="true" Lines="2" /></MudItem>
+                    <MudItem xs="12" md="6"><MudSwitch @bind-Value="editItem.IsActive" Label="启用" Disabled="!isEditMode" /></MudItem>
+                    <MudItem xs="12" md="12"><MudTextField T="string" Label="备注" @bind-Value="editItem.Remark" Disabled="!isEditMode" Multiline="true" Lines="3" /></MudItem>
+                </MudGrid>
+            </MudCardContent>
+        </MudCard>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private bool isEditMode => Navigation.Uri.Contains("/edit");
+    private SupplierProfileDto? item;
+    private UpdateSupplierRequest editItem = new();
+    private bool isLoading = true;
+    private bool isSubmitting;
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData()
+    {
+        if (Id <= 0) { Snackbar.Add("无效的ID", Severity.Error); isLoading = false; return; }
+        isLoading = true; StateHasChanged();
+        try
+        {
+            var result = await SupplierService.GetByIdAsync(Id);
+            if (result.Success && result.Data != null)
+            {
+                item = result.Data;
+                editItem = new UpdateSupplierRequest { SupplierName = item.SupplierName, ContactPerson = item.ContactPerson, ContactPhone = item.ContactPhone, Address = item.Address, IsActive = item.IsActive, Remark = item.Remark };
+            }
+            else { Snackbar.Add(result.Message ?? "加载失败", Severity.Error); }
+        }
+        catch (Exception ex) { Snackbar.Add($"加载失败: {ex.Message}", Severity.Error); }
+        finally { isLoading = false; StateHasChanged(); }
+    }
+
+    private void EnterEditMode() => Navigation.NavigateTo($"/suppliers/{Id}/edit");
+
+    private async Task Save()
+    {
+        isSubmitting = true; StateHasChanged();
+        try
+        {
+            var result = await SupplierService.UpdateAsync(Id, editItem);
+            if (result.Success) { Snackbar.Add("更新成功", Severity.Success); Navigation.NavigateTo($"/suppliers/{Id}"); }
+            else { Snackbar.Add(result.Message ?? "更新失败", Severity.Error); }
+        }
+        catch (Exception ex) { Snackbar.Add($"更新失败: {ex.Message}", Severity.Error); }
+        finally { isSubmitting = false; StateHasChanged(); }
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/suppliers");
+}

@@ -9,7 +9,7 @@ public class InventoryBatch : BaseEntity
 
     /// <summary>
     /// 批次号，唯一
-    /// 格式：STK + yyyyMMdd + 4位流水号
+    /// 格式：CK + yyMMdd + 3位流水号
     /// </summary>
     public string BatchNo { get; set; } = null!;
 
@@ -177,7 +177,7 @@ public class InventoryBatch : BaseEntity
     /// </summary>
     public string? DefectRemark { get; set; }
 
-    // ========== 工单与订单关联（松耦合，仅存单号文本） ==========
+    // ========== 跨上下文关联（松耦合，仅存单号文本） ==========
 
     /// <summary>
     /// 是否关联工单
@@ -198,4 +198,10 @@ public class InventoryBatch : BaseEntity
     /// 项次ID列表（逗号分隔）
     /// </summary>
     public string? OrderItemIds { get; set; }
+
+    /// <summary>
+    /// 来源单号（采购单号/委外单号，无FK，追溯采购或委外执行）
+    /// 前缀 CG=采购，WW=委外；具体类型由 InboundSource 区分
+    /// </summary>
+    public string? SourceOrderNo { get; set; }
 }

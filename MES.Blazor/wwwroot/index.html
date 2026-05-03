@@ -31,6 +31,30 @@
     <!-- 关键：先加载 MudBlazor JS，再加载 Blazor -->
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="js/print.js"></script>
+    <script>
+        // 下载文件工具函数（放在此处防止缓存问题）
+        window.downloadFile = function (base64, fileName) {
+            try {
+                const byteCharacters = atob(base64);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                console.error('下载失败:', e);
+            }
+        };
+    </script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
 

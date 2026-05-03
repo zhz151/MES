@@ -1,7 +1,6 @@
 @page "/customers/create"
 @using MES.Blazor.Services
 @using MES.Core.DTOs
-@using MES.Core.Enums
 @using Microsoft.AspNetCore.Authorization
 @inject CustomerService CustomerService
 @inject NavigationManager Navigation
@@ -16,11 +15,11 @@
                     <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Primary" />
                     新建客户
                 </MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">创建新的客户档案</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">创建新的客户档案，可批量添加多条记录</MudText>
             </CardHeaderContent>
             <CardHeaderActions>
                 <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveCustomer" Disabled="@isSubmitting">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAll" Disabled="@isSubmitting">
                     @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> }
                     else { <span>保存</span> }
                 </MudButton>
@@ -28,91 +27,205 @@
         </MudCardHeader>
 
         <MudCardContent>
-            <MudGrid>
-                <MudItem xs="12" md="6">
-                    <MudTextField T="string" Label="客户编码" @bind-Value="customer.CustomerCode" Required="true" />
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudTextField T="string" Label="业务员" @bind-Value="customer.Salesman" Required="true" />
-                </MudItem>
-                <MudItem xs="12" md="12">
-                    <MudTextField T="string" Label="客户单位" @bind-Value="customer.CustomerUnit" Required="true" />
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudTextField T="string" Label="最终用户" @bind-Value="customer.EndCustomer" />
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudSelect T="string" Label="状态" @bind-Value="selectedStatusText" Required="true">
-                        <MudSelectItem Value="@CustomerStatus.Active.ToString()">启用</MudSelectItem>
-                        <MudSelectItem Value="@CustomerStatus.Inactive.ToString()">停用</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudTextField T="string" Label="联系人" @bind-Value="customer.ContactPerson" />
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudTextField T="string" Label="联系电话" @bind-Value="customer.ContactPhone" />
-                </MudItem>
-                <MudItem xs="12" md="12">
-                    <MudTextField T="string" Label="联系地址" @bind-Value="customer.Address" />
-                </MudItem>
-                <MudItem xs="12" md="12">
-                    <MudTextField T="string" Label="备注" @bind-Value="customer.Remark" Multiline="true" />
-                </MudItem>
-            </MudGrid>
+            <div class="d-flex justify-space-between align-center mb-3">
+                <MudText Typo="Typo.subtitle1">客户列表</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow">添加客户</MudButton>
+            </div>
+
+            @if (rows.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info">请点击"添加客户"按钮添加记录</MudAlert>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Warning" Class="mb-3">点击右上角"保存"按钮一次性提交所有记录。</MudAlert>
+
+                <div style="overflow-x: auto;">
+                    <MudTable T="CustomerRow" Items="@rows" Dense="true" Hover="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh Style="width: 50px;">行号</MudTh>
+                            <MudTh Style="width: 120px;">客户编码</MudTh>
+                            <MudTh Style="width: 130px;">业务员</MudTh>
+                            <MudTh Style="min-width: 180px;">客户单位</MudTh>
+                            <MudTh Style="min-width: 130px;">最终用户</MudTh>
+                            <MudTh Style="width: 130px;">联系人</MudTh>
+                            <MudTh Style="width: 130px;">联系电话</MudTh>
+                            <MudTh Style="min-width: 180px;">联系地址</MudTh>
+                            <MudTh Style="min-width: 150px;">备注</MudTh>
+                            <MudTh Style="width: 60px;">操作</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="row">
+                            <MudTd>
+                                <MudText Typo="Typo.body2">@row.Sequence</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.CustomerCode"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.Salesman"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.CustomerUnit"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.EndCustomer"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.ContactPerson"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.ContactPhone"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.Address"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.Remark"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                @if (rows.Count > 1)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Color="Color.Error"
+                                                   Size="Size.Small"
+                                                   OnClick="() => RemoveRow(row)" />
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+            }
         </MudCardContent>
     </MudCard>
 </MudContainer>
 
 @code {
-    private CreateCustomerRequest customer = new() { Status = CustomerStatus.Active };
+    private List<CustomerRow> rows = new();
     private bool isSubmitting;
-    private string selectedStatusText = CustomerStatus.Active.ToString();
 
-    private async Task SaveCustomer()
+    private class CustomerRow
     {
-        if (string.IsNullOrWhiteSpace(customer.CustomerCode))
-        {
-            Snackbar.Add("客户编码不能为空", Severity.Warning);
-            return;
-        }
-        if (string.IsNullOrWhiteSpace(customer.Salesman))
-        {
-            Snackbar.Add("业务员不能为空", Severity.Warning);
-            return;
-        }
-        if (string.IsNullOrWhiteSpace(customer.CustomerUnit))
-        {
-            Snackbar.Add("客户单位不能为空", Severity.Warning);
-            return;
-        }
+        public int Sequence { get; set; }
+        public string CustomerCode { get; set; } = string.Empty;
+        public string Salesman { get; set; } = string.Empty;
+        public string CustomerUnit { get; set; } = string.Empty;
+        public string? EndCustomer { get; set; }
+        public string? ContactPerson { get; set; }
+        public string? ContactPhone { get; set; }
+        public string? Address { get; set; }
+        public string? Remark { get; set; }
+    }
 
-        customer.Status = selectedStatusText == CustomerStatus.Active.ToString() ? CustomerStatus.Active : CustomerStatus.Inactive;
+    protected override void OnInitialized()
+    {
+        AddRow();
+    }
 
-        isSubmitting = true;
-        StateHasChanged();
+    private void AddRow()
+    {
+        rows.Add(new CustomerRow { Sequence = rows.Count + 1 });
+    }
 
-        try
+    private void RemoveRow(CustomerRow row)
+    {
+        if (rows.Count <= 1) { Snackbar.Add("至少保留一条记录", Severity.Warning); return; }
+        rows.Remove(row);
+        for (int i = 0; i < rows.Count; i++) rows[i].Sequence = i + 1;
+    }
+
+    private async Task SaveAll()
+    {
+        // 前端验证
+        var errors = new List<string>();
+        for (int i = 0; i < rows.Count; i++)
         {
-            var result = await CustomerService.CreateAsync(customer);
-            if (result.Success)
+            var r = rows[i];
+            var seq = i + 1;
+            if (string.IsNullOrWhiteSpace(r.CustomerCode)) errors.Add($"行{seq}: 客户编码不能为空");
+            if (string.IsNullOrWhiteSpace(r.Salesman)) errors.Add($"行{seq}: 业务员不能为空");
+            if (string.IsNullOrWhiteSpace(r.CustomerUnit)) errors.Add($"行{seq}: 客户单位不能为空");
+        }
+        if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
+
+        isSubmitting = true; StateHasChanged();
+        var successCount = 0;
+        var failCount = 0;
+        var failMessages = new List<string>();
+
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var r = rows[i];
+            var request = new CreateCustomerRequest
             {
-                Snackbar.Add("创建成功", Severity.Success);
-                Navigation.NavigateTo("/customers");
-            }
-            else
+                CustomerCode = r.CustomerCode,
+                Salesman = r.Salesman,
+                CustomerUnit = r.CustomerUnit,
+                EndCustomer = r.EndCustomer,
+                ContactPerson = r.ContactPerson,
+                ContactPhone = r.ContactPhone,
+                Address = r.Address,
+                Remark = r.Remark
+            };
+
+            try
             {
-                Snackbar.Add(result.Message ?? "创建失败", Severity.Error);
+                var result = await CustomerService.CreateAsync(request);
+                if (result.Success) successCount++;
+                else { failCount++; failMessages.Add($"行{i + 1}: {result.Message}"); }
             }
+            catch (Exception ex) { failCount++; failMessages.Add($"行{i + 1}: {ex.Message}"); }
         }
-        catch (Exception ex)
+
+        isSubmitting = false; StateHasChanged();
+
+        if (failCount == 0)
         {
-            Snackbar.Add($"创建失败: {ex.Message}", Severity.Error);
+            Snackbar.Add($"成功创建 {successCount} 条记录", Severity.Success);
+            Navigation.NavigateTo("/customers");
         }
-        finally
+        else
         {
-            isSubmitting = false;
-            StateHasChanged();
+            Snackbar.Add($"成功 {successCount} 条，失败 {failCount} 条：{string.Join("；", failMessages)}", Severity.Error);
         }
     }
 

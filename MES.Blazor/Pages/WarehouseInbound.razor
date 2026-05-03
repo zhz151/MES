@@ -284,6 +284,7 @@
         public string? WorkOrderNo { get; set; }
         public string? SalesOrderNo { get; set; }
         public string? OrderItemIds { get; set; }
+        public string? SourceOrderNo { get; set; }
         // 新增模板字段
         public decimal? MinLength { get; set; }
         public decimal? MaxLength { get; set; }
@@ -368,6 +369,7 @@
         new() { Key = "WorkOrderNo",         Label = "工单号",         Type = "text",   Visible = false },
         new() { Key = "SalesOrderNo",        Label = "订单号",         Type = "text",   Visible = false },
         new() { Key = "OrderItemIds",        Label = "项次ID列表",     Type = "text",   Visible = false },
+        new() { Key = "SourceOrderNo",        Label = "来源单号",       Type = "text",   Visible = false },
         // 长度
         new() { Key = "MinLength",           Label = "最小长度",       Type = "decimal",Visible = false },
         new() { Key = "MaxLength",           Label = "最大长度",       Type = "decimal",Visible = false },
@@ -729,6 +731,10 @@
                 if (!string.IsNullOrEmpty(row.OrderItemIds))
                     builder.AddContent(0, row.OrderItemIds);
                 break;
+            case "SourceOrderNo":
+                if (!string.IsNullOrEmpty(row.SourceOrderNo))
+                    builder.AddContent(0, row.SourceOrderNo);
+                break;
             case "MinLength":
                 if (row.MinLength.HasValue)
                     builder.AddContent(0, row.MinLength.Value.ToString("G29"));
@@ -948,6 +954,7 @@
         "WorkOrderNo" => row.WorkOrderNo,
         "SalesOrderNo" => row.SalesOrderNo,
         "OrderItemIds" => row.OrderItemIds,
+        "SourceOrderNo" => row.SourceOrderNo,
         "ActualSpecification" => row.ActualSpecification,
         "ProductionBatchNo" => row.ProductionBatchNo,
         "DefectReason" => row.DefectReason,
@@ -977,6 +984,7 @@
             case "WorkOrderNo": row.WorkOrderNo = value; break;
             case "SalesOrderNo": row.SalesOrderNo = value; break;
             case "OrderItemIds": row.OrderItemIds = value; break;
+            case "SourceOrderNo": row.SourceOrderNo = value; break;
             case "ActualSpecification": row.ActualSpecification = value; break;
             case "ProductionBatchNo": row.ProductionBatchNo = value; break;
             case "DefectReason": row.DefectReason = value; break;
@@ -1036,6 +1044,7 @@
         row.WorkOrderNo = source.WorkOrderNo;
         row.SalesOrderNo = source.SalesOrderNo;
         row.OrderItemIds = source.OrderItemIds;
+        row.SourceOrderNo = source.SourceOrderNo;
         row.MinLength = source.MinLength;
         row.MaxLength = source.MaxLength;
         row.Meters = source.Meters;
@@ -1115,6 +1124,7 @@
                 OrderItemIds = string.IsNullOrEmpty(first.OrderItemIds) ? null : first.OrderItemIds,
                 IsLinkedToWorkOrder = first.IsLinkedToWorkOrder ? true : null,
                 WorkOrderNo = first.WorkOrderNo,
+                SourceOrderNo = first.SourceOrderNo,
                 // 行级字段
                 Rows = _rows.Select(r => new InboundRow
                 {

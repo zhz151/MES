@@ -76,8 +76,16 @@
 
             <!-- 物料模块 -->
             <AuthorizeView Roles="MaterialStaff,MaterialDirector,Admin">
-                <MudNavLink Href="/materials">物料管理</MudNavLink>
+                <MudNavGroup Title="物料管理" Icon="@Icons.Material.Filled.Inventory2">
+                    <MudNavLink Href="/materials">物料档案</MudNavLink>
+                    <MudNavLink Href="/suppliers">供应商管理</MudNavLink>
+                    <MudNavLink Href="/purchase-orders">采购订单</MudNavLink>
+                    <MudNavLink Href="/subcontract-orders">委外加工</MudNavLink>
+                </MudNavGroup>
             </AuthorizeView>
+
+            <!-- 数据工具（可见所有用户，导入仅 Admin） -->
+            <MudNavLink Href="/data-exchange" Icon="@Icons.Material.Filled.SwapHoriz">数据工具</MudNavLink>
 
             <!-- 用户管理（仅 Admin） -->
             <AuthorizeView Roles="Admin">
@@ -110,7 +118,13 @@
         }
     }
 
-    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    private void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        // 使用 Fire-and-Forget 模式，避免 async void
+        _ = HandleAuthenticationStateChangedAsync(task);
+    }
+
+    private async Task HandleAuthenticationStateChangedAsync(Task<AuthenticationState> task)
     {
         try
         {

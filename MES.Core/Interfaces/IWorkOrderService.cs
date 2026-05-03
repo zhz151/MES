@@ -39,6 +39,11 @@ public interface IWorkOrderService
     Task<WorkOrderDetailDto> GetByIdAsync(int id);
 
     /// <summary>
+    /// 根据工单号获取工单详情
+    /// </summary>
+    Task<WorkOrderDetailDto> GetByWorkOrderNoAsync(string workOrderNo);
+
+    /// <summary>
     /// 根据订单号获取工单列表
     /// </summary>
     Task<List<WorkOrderListDto>> GetBySalesOrderNoAsync(string salesOrderNo);

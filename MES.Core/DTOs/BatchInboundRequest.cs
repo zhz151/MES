@@ -49,6 +49,7 @@ public class BatchInboundRequest
     public string? WorkOrderNo { get; set; }
     public string? SalesOrderNo { get; set; }
     public string? OrderItemIds { get; set; }
+    public string? SourceOrderNo { get; set; }
 }
 
 /// <summary>

@@ -1,0 +1,56 @@
+@page "/suppliers/create"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using Microsoft.AspNetCore.Authorization
+@inject SupplierService SupplierService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "MaterialStaff,MaterialDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Primary" />新建供应商</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">创建新的供应商档案</MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Disabled="@isSubmitting">
+                    @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> } else { <span>保存</span> }
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" md="6"><MudTextField T="string" Label="供应商名称" @bind-Value="request.SupplierName" Required="true" /></MudItem>
+                <MudItem xs="12" md="3"><MudTextField T="string" Label="联系人" @bind-Value="request.ContactPerson" /></MudItem>
+                <MudItem xs="12" md="3"><MudTextField T="string" Label="联系电话" @bind-Value="request.ContactPhone" /></MudItem>
+                <MudItem xs="12" md="12"><MudTextField T="string" Label="地址" @bind-Value="request.Address" Multiline="true" Lines="2" /></MudItem>
+                <MudItem xs="12" md="6"><MudSwitch @bind-Value="request.IsActive" Label="启用" /></MudItem>
+                <MudItem xs="12" md="12"><MudTextField T="string" Label="备注" @bind-Value="request.Remark" Multiline="true" Lines="3" /></MudItem>
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private CreateSupplierRequest request = new() { IsActive = true };
+    private bool isSubmitting;
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(request.SupplierName)) { Snackbar.Add("供应商名称不能为空", Severity.Warning); return; }
+        isSubmitting = true; StateHasChanged();
+        try
+        {
+            var result = await SupplierService.CreateAsync(request);
+            if (result.Success) { Snackbar.Add("创建成功", Severity.Success); Navigation.NavigateTo("/suppliers"); }
+            else { Snackbar.Add(result.Message ?? "创建失败", Severity.Error); }
+        }
+        catch (Exception ex) { Snackbar.Add($"创建失败: {ex.Message}", Severity.Error); }
+        finally { isSubmitting = false; StateHasChanged(); }
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/suppliers");
+}

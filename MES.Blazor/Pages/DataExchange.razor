@@ -1,0 +1,448 @@
+@page "/data-exchange"
+@using MES.Blazor.Services
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@inject DataExchangeService DataExchangeSvc
+@inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthProvider
+@attribute [Authorize]
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    <MudText Typo="Typo.h5" Class="font-weight-bold mb-4">
+        <MudIcon Icon="@Icons.Material.Filled.SwapHoriz" Class="mr-2" Color="Color.Primary" />
+        数据工具
+    </MudText>
+
+    <!-- 实体选择 -->
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.subtitle1" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.ListAlt" Class="mr-1" Size="Size.Small" />
+            Ⅰ. 选择数据类型
+        </MudText>
+        <MudSelect T="string"
+                   Label="选择数据类型"
+                   Value="@selectedEntity"
+                   ValueChanged="@OnEntityChanged"
+                   Forced="true"
+                   AnchorOrigin="Origin.BottomCenter"
+                   Class="mb-3">
+            @foreach (var entity in entities)
+            {
+                <MudSelectItem Value="@entity.Key">@entity.Name</MudSelectItem>
+            }
+        </MudSelect>
+
+        @if (!string.IsNullOrEmpty(selectedEntity))
+        {
+            <MudGrid>
+                <MudItem xs="12" sm="4">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Download"
+                               OnClick="DownloadTemplate"
+                               Disabled="@isLoading">
+                        下载模板
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Info"
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.FileDownload"
+                               OnClick="ExportData"
+                               Loading="@isLoading"
+                               Disabled="@isLoading">
+                        导出数据
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Warning"
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="RefreshEntities"
+                               Disabled="@isLoading">
+                        刷新列表
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        }
+    </MudPaper>
+
+    <!-- 导入区域（仅管理员） -->
+    @if (isAdmin)
+    {
+        <MudPaper Class="pa-4 mb-4">
+            <MudText Typo="Typo.subtitle1" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.FileUpload" Class="mr-1" Size="Size.Small" />
+                Ⅱ. 导入数据（仅管理员）
+            </MudText>
+
+            <MudFileUpload T="IBrowserFile"
+                           FilesChanged="@OnFileSelected"
+                           AcceptedExtensions=".xlsx">
+                <ButtonTemplate Context="ctx">
+                    <MudButton HtmlTag="label"
+                               for="@ctx.Id"
+                               Variant="Variant.Filled"
+                               Color="Color.Secondary"
+                               StartIcon="@Icons.Material.Filled.AttachFile">
+                        选择文件 (.xlsx)
+                    </MudButton>
+                </ButtonTemplate>
+            </MudFileUpload>
+
+            @if (selectedFile != null)
+            {
+                <MudText Class="mt-2" Typo="Typo.body2">
+                    已选择: @selectedFile.Name (@(selectedFile.Size.ToString("N0")) bytes)
+                </MudText>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.UploadFile"
+                           Class="mt-2"
+                           OnClick="PreviewImport"
+                           Loading="@isPreviewing"
+                           Disabled="@isPreviewing">
+                    上传并预览
+                </MudButton>
+            }
+
+            <MudAlert Severity="Severity.Info" Class="mt-3" Variant="Variant.Outlined">
+                支持 .xlsx 格式，表头须与模板一致。导入在事务内执行：先禁用外键约束 → 写入数据 → 校验约束 → 通过则提交，失败则回滚。
+            </MudAlert>
+        </MudPaper>
+
+        <!-- 预览结果 -->
+        @if (previewResult != null)
+        {
+            <MudPaper Class="pa-4 mb-4">
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-1" Size="Size.Small" />
+                    Ⅲ. 预览结果
+                </MudText>
+
+                <MudText Typo="Typo.body2" Class="mb-2">
+                    共 @previewResult.TotalRows 行，
+                    有效 @previewResult.ValidCount 行，
+                    错误 @previewResult.ErrorCount 行，
+                    重复 @previewResult.DuplicateCount 条
+                </MudText>
+
+                @if (previewResult.ErrorCount > 0 || previewResult.DuplicateCount > 0)
+                {
+                    <MudTable Items="@previewResult.RowResults.Where(r => !r.IsValid || r.IsDuplicate).ToList()"
+                              Dense="true"
+                              Hover="true"
+                              Elevation="0"
+                              Class="mt-2">
+                        <HeaderContent>
+                            <MudTh>行号</MudTh>
+                            <MudTh>结果</MudTh>
+                            <MudTh>说明</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.RowNumber</MudTd>
+                            <MudTd>
+                                @if (context.IsValid && !context.IsDuplicate)
+                                {
+                                    <MudChip Size="Size.Small" Color="Color.Success">✅ 成功</MudChip>
+                                }
+                                else if (context.IsDuplicate)
+                                {
+                                    <MudChip Size="Size.Small" Color="Color.Warning">⚠ 重复</MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip Size="Size.Small" Color="Color.Error">❌ 失败</MudChip>
+                                }
+                            </MudTd>
+                            <MudTd>
+                                @if (context.Errors.Any())
+                                {
+                                    @string.Join("; ", context.Errors)
+                                }
+                                else if (context.IsDuplicate)
+                                {
+                                    <span>记录已存在: @context.Key</span>
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+
+                @if (previewResult.ValidCount > 0)
+                {
+                    <MudText Typo="Typo.subtitle2" Class="mt-3 mb-2">导入策略</MudText>
+                                    <MudSelect T="string" Label="导入策略" @bind-Value="importStrategy" Class="mb-3" Variant="Variant.Outlined">
+                        <MudSelectItem Value="@("skip")">跳过已存在的记录（保留原数据）</MudSelectItem>
+                        <MudSelectItem Value="@("overwrite")">覆盖已存在的记录（用Excel数据替换）</MudSelectItem>
+                    </MudSelect>
+
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Success"
+                               StartIcon="@Icons.Material.Filled.CloudUpload"
+                               OnClick="ConfirmImport"
+                               Loading="@isImporting"
+                               Disabled="@isImporting">
+                        确认导入
+                    </MudButton>
+                }
+            </MudPaper>
+        }
+
+        <!-- 导入结果 -->
+        @if (importResult != null)
+        {
+            <MudPaper Class="pa-4 mb-4">
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.DoneAll" Class="mr-1" Size="Size.Small" />
+                    导入结果
+                </MudText>
+
+                @if (importResult.HasRolledBack)
+                {
+                    <MudAlert Severity="Severity.Error" Class="mb-2">
+                        导入失败，已回滚。共 @importResult.TotalRows 行，全部失败。
+                    </MudAlert>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Success" Class="mb-2">
+                        导入完成: 共 @importResult.TotalRows 行，成功 @importResult.SuccessCount 行，
+                        失败 @importResult.FailedCount 行，策略: @(importResult.Strategy == "overwrite" ? "覆盖" : "跳过")
+                    </MudAlert>
+                }
+
+                @if (importResult.Errors.Any())
+                {
+                    <MudTable Items="@importResult.Errors" Dense="true" Hover="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>行号</MudTh>
+                            <MudTh>错误信息</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.RowNumber</MudTd>
+                            <MudTd>@context.Message</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </MudPaper>
+        }
+    }
+</MudContainer>
+
+@code {
+    private List<EntityInfo> entities = new();
+    private string? selectedEntity;
+    private IBrowserFile? selectedFile;
+    private ImportPreviewResult? previewResult;
+    private ImportResult? importResult;
+    private string importStrategy = "skip";
+    private bool isLoading;
+    private bool isPreviewing;
+    private bool isImporting;
+    private bool isAdmin;
+    private bool canPreview;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEntities();
+        await CheckAdmin();
+    }
+
+    private async Task CheckAdmin()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        // 兼容 JWT 短名 "role" 和 ClaimTypes.Role 两种方式
+        isAdmin = user.Claims.Any(c => c.Type == "role" && c.Value == "Admin")
+               || user.IsInRole("Admin");
+        StateHasChanged();
+    }
+
+    private async Task LoadEntities()
+    {
+        isLoading = true;
+        try
+        {
+            var result = await DataExchangeSvc.GetEntitiesAsync();
+            if (result.Success && result.Data != null)
+                entities = result.Data;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载实体列表失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task DownloadTemplate()
+    {
+        if (string.IsNullOrEmpty(selectedEntity)) return;
+        isLoading = true;
+        try
+        {
+            var data = await DataExchangeSvc.GetTemplateAsync(selectedEntity);
+            await DownloadFileAsync(data, $"{GetEntityName()}_模板.xlsx");
+            Snackbar.Add("模板下载完成", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"下载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ExportData()
+    {
+        if (string.IsNullOrEmpty(selectedEntity)) return;
+        isLoading = true;
+        try
+        {
+            var data = await DataExchangeSvc.ExportAsync(selectedEntity);
+            var fileName = $"{GetEntityName()}_{DateTime.Today:yyyyMMdd}.xlsx";
+            await DownloadFileAsync(data, fileName);
+            Snackbar.Add("数据导出完成", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"导出失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RefreshEntities()
+    {
+        await LoadEntities();
+        Snackbar.Add("已刷新", Severity.Info);
+    }
+
+    private void OnFileSelected(IBrowserFile file)
+    {
+        selectedFile = file;
+        UpdateCanPreview();
+    }
+
+    private async Task OnEntityChanged(string entity)
+    {
+        selectedEntity = entity;
+        UpdateCanPreview();
+    }
+
+    private async Task PreviewImport()
+    {
+        if (!canPreview)
+        {
+            if (string.IsNullOrEmpty(selectedEntity))
+                Snackbar.Add("请先在步骤Ⅰ中选择数据类型", Severity.Warning);
+            else if (selectedFile == null)
+                Snackbar.Add("请先选择文件", Severity.Warning);
+            return;
+        }
+
+        Snackbar.Add("正在上传并解析...", Severity.Info);
+
+        isPreviewing = true;
+        UpdateCanPreview();
+        previewResult = null;
+        importResult = null;
+
+        try
+        {
+            byte[] fileData;
+            using (var ms = new MemoryStream())
+            {
+                await selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(ms);
+                fileData = ms.ToArray();
+            }
+
+            var result = await DataExchangeSvc.PreviewAsync(selectedEntity!, fileData, selectedFile.Name);
+            if (result.Success && result.Data != null)
+            {
+                previewResult = result.Data;
+                Snackbar.Add("预览完成", Severity.Info);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "预览失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"预览失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isPreviewing = false;
+            UpdateCanPreview();
+        }
+    }
+
+    private async Task ConfirmImport()
+    {
+        if (selectedFile == null || string.IsNullOrEmpty(selectedEntity) || previewResult == null) return;
+
+        isImporting = true;
+        importResult = null;
+
+        try
+        {
+            using var ms = new MemoryStream();
+            await selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(ms);
+            var fileData = ms.ToArray();
+
+            var result = await DataExchangeSvc.ImportAsync(selectedEntity, fileData, selectedFile.Name, importStrategy);
+            if (result.Success && result.Data != null)
+            {
+                importResult = result.Data;
+                var severity = result.Data.HasRolledBack ? Severity.Error : Severity.Success;
+                var msg = result.Data.HasRolledBack
+                    ? $"导入失败已回滚: {result.Data.RollbackReason ?? "未知错误"}"
+                    : $"导入完成: 成功 {result.Data.SuccessCount}，失败 {result.Data.FailedCount}";
+                Snackbar.Add(msg, severity);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "导入失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"导入失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isImporting = false;
+        }
+    }
+
+    private string GetEntityName()
+    {
+        var entity = entities.FirstOrDefault(e => e.Key == selectedEntity);
+        return entity?.Name ?? selectedEntity ?? "数据";
+    }
+
+    private async Task DownloadFileAsync(byte[] data, string fileName)
+    {
+        var base64 = Convert.ToBase64String(data);
+        await JSRuntime.InvokeVoidAsync("downloadFile", base64, fileName);
+    }
+
+    private void UpdateCanPreview()
+    {
+        canPreview = !isPreviewing && !string.IsNullOrEmpty(selectedEntity) && selectedFile != null;
+    }
+}

@@ -162,6 +162,22 @@ public class WorkOrderService
     }
 
     /// <summary>
+    /// 根据工单号获取工单详情
+    /// </summary>
+    public async Task<ApiResponse<WorkOrderDetailDto>> GetByWorkOrderNoAsync(string workOrderNo)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<WorkOrderDetailDto>>($"{BaseUrl}/by-workorder-no/{Uri.EscapeDataString(workOrderNo)}");
+            return response ?? ApiResponse<WorkOrderDetailDto>.Fail("获取工单详情失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<WorkOrderDetailDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// 根据订单号获取工单列表
     /// </summary>
     public async Task<ApiResponse<List<WorkOrderListDto>>> GetBySalesOrderNoAsync(string salesOrderNo)
@@ -218,6 +234,22 @@ public class WorkOrderService
         {
             var response = await _http.DeleteFromJsonAsync<ApiResponse<object>>($"{BaseUrl}/{id}");
             return response ?? ApiResponse<object>.Fail("删除工单失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<object>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 即时检测所有订单变更，更新工单状态
+    /// </summary>
+    public async Task<ApiResponse<object>> CheckAllOrderChangeAsync()
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<object, ApiResponse<object>>($"{BaseUrl}/check-all-order-change", new { });
+            return response ?? ApiResponse<object>.Fail("操作失败");
         }
         catch (Exception ex)
         {

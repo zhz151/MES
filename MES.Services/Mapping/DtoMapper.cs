@@ -205,7 +205,8 @@ public static class DtoMapper
         IsLinkedToWorkOrder = entity.IsLinkedToWorkOrder,
         WorkOrderNo = entity.WorkOrderNo,
         SalesOrderNo = entity.SalesOrderNo,
-        OrderItemIds = entity.OrderItemIds
+        OrderItemIds = entity.OrderItemIds,
+        SourceOrderNo = entity.SourceOrderNo
     };
 
     public static OutboundRecordDto ToDto(this OutboundRecord entity) => new()

@@ -224,7 +224,8 @@ public class InventoryService : IInventoryService
                     IsLinkedToWorkOrder = request.IsLinkedToWorkOrder ?? false,
                     WorkOrderNo = request.WorkOrderNo,
                     SalesOrderNo = request.SalesOrderNo,
-                    OrderItemIds = request.OrderItemIds
+                    OrderItemIds = request.OrderItemIds,
+                    SourceOrderNo = request.SourceOrderNo
                 };
 
                 _context.InventoryBatches.Add(entity);
@@ -316,7 +317,8 @@ public class InventoryService : IInventoryService
             IsLinkedToWorkOrder = request.IsLinkedToWorkOrder,
             WorkOrderNo = request.WorkOrderNo,
             SalesOrderNo = request.SalesOrderNo,
-            OrderItemIds = request.OrderItemIds
+            OrderItemIds = request.OrderItemIds,
+            SourceOrderNo = request.SourceOrderNo
         };
 
         _context.InventoryBatches.Add(entity);
@@ -547,6 +549,8 @@ public class InventoryService : IInventoryService
         if (request.SalesOrderNo != null) entity.SalesOrderNo = request.SalesOrderNo;
         if (request.OrderItemIds != null) entity.OrderItemIds = request.OrderItemIds;
 
+        if (request.SourceOrderNo != null) entity.SourceOrderNo = request.SourceOrderNo;
+
         // 如果修改了数量或重量，同步更新剩余量
         if (request.InitialQuantity.HasValue)
             entity.RemainingQuantity = request.InitialQuantity.Value;
@@ -641,8 +645,8 @@ public class InventoryService : IInventoryService
 
     private async Task<string> GenerateBatchNoAsync()
     {
-        var today = DateTime.Now.ToString("yyyyMMdd");
-        var prefix = $"STK{today}";
+        var today = DateTime.Now.ToString("yyMMdd");
+        var prefix = $"CK{today}";
 
         var lastBatch = await _context.InventoryBatches
             .AsNoTracking()
@@ -651,12 +655,12 @@ public class InventoryService : IInventoryService
             .FirstOrDefaultAsync();
 
         int sequence = 1;
-        if (lastBatch != null && int.TryParse(lastBatch.BatchNo[^4..], out var lastSeq))
+        if (lastBatch != null && int.TryParse(lastBatch.BatchNo[^3..], out var lastSeq))
         {
             sequence = lastSeq + 1;
         }
 
-        return $"{prefix}{sequence:D4}";
+        return $"{prefix}{sequence:D3}";
     }
 
     /// <summary>
@@ -664,8 +668,8 @@ public class InventoryService : IInventoryService
     /// </summary>
     private async Task<List<string>> GenerateBatchNoSequenceAsync(int count)
     {
-        var today = DateTime.Now.ToString("yyyyMMdd");
-        var prefix = $"STK{today}";
+        var today = DateTime.Now.ToString("yyMMdd");
+        var prefix = $"CK{today}";
 
         var lastBatch = await _context.InventoryBatches
             .AsNoTracking()
@@ -674,7 +678,7 @@ public class InventoryService : IInventoryService
             .FirstOrDefaultAsync();
 
         int sequence = 1;
-        if (lastBatch != null && int.TryParse(lastBatch.BatchNo[^4..], out var lastSeq))
+        if (lastBatch != null && int.TryParse(lastBatch.BatchNo[^3..], out var lastSeq))
         {
             sequence = lastSeq + 1;
         }
@@ -682,7 +686,7 @@ public class InventoryService : IInventoryService
         var results = new List<string>(count);
         for (int i = 0; i < count; i++)
         {
-            results.Add($"{prefix}{sequence + i:D4}");
+            results.Add($"{prefix}{sequence + i:D3}");
         }
         return results;
     }

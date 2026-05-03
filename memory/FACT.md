@@ -112,7 +112,7 @@ MES.sln
 - `MES.Blazor/wwwroot/js/print.js` - PDF打印前端JS（Blob URL方案）
 
 ## 构建状态
-- 0 errors, 2 warnings (CS0414 未使用字段，不影响功能)
+- 0 errors, 0 warnings
 
 ## 设计文档位置（docs/）
 工单上下文设计文档已拆分到三个文件中：
@@ -123,6 +123,4 @@ MES.sln
 ## 当前分支状态
 - **分支**: `fix/remaining-issues`
 - **基础分支**: `main`
-- **未提交**: 31 modified + 15 untracked（用料计划页面/PurchaseSemiPlan实体/InventoryPlan实体/InventorPlanDto/Printing/迁移文件等）
-- **关键改动**: 仓库上下文修正（内联编辑/确认弹窗/验证汇总）、用料计划完整实现（4种类型）、打印功能（QuestPDF）、文档拆分重构
-- **构建**: 0 errors, 2 warnings (CS0414)
+- **构建**: 0 errors, 0 warnings

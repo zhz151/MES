@@ -50,7 +50,13 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
             var payload = jwt.Split('.')[1];
             var jsonBytes = ParseBase64WithoutPadding(payload);
             var keyValuePairs = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes);
-            return keyValuePairs?.Select(kvp => new Claim(kvp.Key, kvp.Value?.ToString() ?? string.Empty)) 
+            return keyValuePairs?.Select(kvp =>
+            {
+                // JWT 使用短名 "role"，Blazor 的 IsInRole 需要 ClaimTypes.Role
+                if (kvp.Key == "role")
+                    return new Claim(ClaimTypes.Role, kvp.Value?.ToString() ?? string.Empty);
+                return new Claim(kvp.Key, kvp.Value?.ToString() ?? string.Empty);
+            }) 
                    ?? new List<Claim>();
         }
         catch

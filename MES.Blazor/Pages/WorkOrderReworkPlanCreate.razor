@@ -491,7 +491,7 @@
                 {
                     WorkOrderId = WorkOrderId,
                     PlanDate = DateTime.Today,
-                    InventoryBatchId = batchId,
+                    InventoryBatchNo = batch.BatchNo,
                     InputMultiple = inputMultiples.GetValueOrDefault(batchId, 1),
                     UsageMode = mode,
                     RequiredDate = null,

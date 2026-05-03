@@ -1,0 +1,147 @@
+@page "/subcontract-orders"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
+@inject SubcontractOrderService SubcontractService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = "MaterialStaff,MaterialDirector,Admin")]
+
+<div class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.Handyman" Class="mr-2" Color="Color.Primary" />委外加工单</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">委外加工单管理，收回进度自动同步</MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.Sync" OnClick="SyncAll" Disabled="@isSyncing" Class="mr-2">
+                    @if (isSyncing) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> } else { <span>即时更新</span> }
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="NavigateToCreate">新建委外单</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string" Label="搜索 - 单号/物料/供应商" Placeholder="输入关键字..." @bind-Value="searchKeyword" Immediate="true" DebounceInterval="500" OnKeyDown="OnSearchKeyDown" Clearable="true" ClearButton="true" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudSelect T="string" @bind-Value="filterStatus" OnValueChanged="OnFilterChanged">
+                        <MudSelectItem Value="@("")">全部状态</MudSelectItem>
+                        <MudSelectItem Value="@("Sent")">已发出</MudSelectItem>
+                        <MudSelectItem Value="@("PartialReturned")">部分收回</MudSelectItem>
+                        <MudSelectItem Value="@("Completed")">已完成</MudSelectItem>
+                        <MudSelectItem Value="@("Cancelled")">已取消</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudTextField T="string" Label="发出日期起" @bind-Value="dateFromText" OnValueChanged="OnFilterChanged" Placeholder="yyyy-MM-dd" Clearable="true" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudTextField T="string" Label="发出日期止" @bind-Value="dateToText" OnValueChanged="OnFilterChanged" Placeholder="yyyy-MM-dd" Clearable="true" />
+                </MudItem>
+            </MudGrid>
+            <MudTable @ref="table" T="SubcontractOrderDto" ServerData="OnServerData" Loading="@isLoading" Dense="true" Hover="true" Class="mt-4" Elevation="0" RowsPerPageLabel="每页行数:">
+                <ToolBarContent><MudText Typo="Typo.body2" Class="ml-auto">共 @totalCount 条记录</MudText></ToolBarContent>
+                <HeaderContent>
+                    <MudTh>委外单号</MudTh>
+                    <MudTh>发出物料</MudTh>
+                    <MudTh>供应商</MudTh>
+                    <MudTh>发出数量/重量</MudTh>
+                    <MudTh>已收回数量/重量</MudTh>
+                    <MudTh>收回期限</MudTh>
+                    <MudTh>状态</MudTh>
+                    <MudTh>操作</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd title="@context.OrderNo"><MudText Typo="Typo.body2" Class="font-weight-bold">@context.OrderNo</MudText></MudTd>
+                    <MudTd><small>@context.OutMaterialCategory<br />@context.OutPlantGrade @context.OutSpecification</small></MudTd>
+                    <MudTd>@context.SupplierName</MudTd>
+                    <MudTd>@context.OutQuantity.ToString("G29")支 / @context.OutWeight.ToString("G29")kg</MudTd>
+                    <MudTd>@(context.InQuantity?.ToString("G29") ?? "0")支 / @(context.InWeight?.ToString("G29") ?? "0")kg</MudTd>
+                    <MudTd>@context.ReturnDeadline?.ToString("yyyy-MM-dd")</MudTd>
+                    <MudTd><MudChip Size="Size.Small" Color="@GetStatusColor(context.Status)">@GetStatusText(context.Status)</MudChip></MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info" Size="Size.Small" OnClick="() => ViewDetail(context.Id)" />
+                        @if (context.Status != "Completed" && context.Status != "Cancelled")
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Size="Size.Small" OnClick="() => NavigateToEdit(context.Id)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" OnClick="() => CancelOrder(context)" />
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent><MudTablePager /></PagerContent>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+</div>
+
+@code {
+    private MudTable<SubcontractOrderDto>? table;
+    private List<SubcontractOrderDto> items = new();
+    private bool isLoading, isSyncing;
+    private string searchKeyword = string.Empty;
+    private string filterStatus = string.Empty;
+    private string dateFromText = "", dateToText = "";
+    private int totalCount;
+
+    private async Task<TableData<SubcontractOrderDto>> OnServerData(TableState state)
+    {
+        isLoading = true; StateHasChanged();
+        try
+        {
+            var query = new QueryParams { PageIndex = state.Page + 1, PageSize = state.PageSize, Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword };
+            var statusFilter = string.IsNullOrEmpty(filterStatus) ? null : filterStatus;
+            DateTime? dateFrom = string.IsNullOrWhiteSpace(dateFromText) ? null : DateTime.TryParse(dateFromText, out var df) ? df : null;
+            DateTime? dateTo = string.IsNullOrWhiteSpace(dateToText) ? null : DateTime.TryParse(dateToText, out var dt) ? dt : null;
+            var result = await SubcontractService.GetPagedAsync(query, statusFilter, dateFrom, dateTo);
+            if (result.Success && result.Data != null) { items = result.Data.Items; totalCount = result.Data.TotalCount; return new TableData<SubcontractOrderDto> { Items = items, TotalItems = totalCount }; }
+            return new TableData<SubcontractOrderDto> { Items = new List<SubcontractOrderDto>(), TotalItems = 0 };
+        }
+        catch (Exception ex) { Snackbar.Add($"加载失败: {ex.Message}", Severity.Error); return new TableData<SubcontractOrderDto> { Items = new List<SubcontractOrderDto>(), TotalItems = 0 }; }
+        finally { isLoading = false; StateHasChanged(); }
+    }
+
+    private async Task Search() { if (table != null) await table.ReloadServerData(); }
+    private void OnSearchKeyDown(KeyboardEventArgs args) { if (args.Key == "Enter") _ = Search(); }
+    private async Task OnFilterChanged() { await Search(); }
+    private void NavigateToCreate() => Navigation.NavigateTo("/subcontract-orders/create");
+    private void ViewDetail(int id) => Navigation.NavigateTo($"/subcontract-orders/{id}");
+    private void NavigateToEdit(int id) => Navigation.NavigateTo($"/subcontract-orders/{id}/edit");
+
+    private async Task SyncAll()
+    {
+        isSyncing = true; StateHasChanged();
+        try
+        {
+            var result = await SubcontractService.SyncAllAsync();
+            if (result.Success) { Snackbar.Add("同步完成", Severity.Success); await Search(); }
+            else { Snackbar.Add(result.Message ?? "同步失败", Severity.Error); }
+        }
+        catch (Exception ex) { Snackbar.Add($"同步失败: {ex.Message}", Severity.Error); }
+        finally { isSyncing = false; StateHasChanged(); }
+    }
+
+    private async Task CancelOrder(SubcontractOrderDto item)
+    {
+        var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters { ["ContentText"] = $"确定要取消委外单 \"{item.OrderNo}\" 吗？", ["ConfirmText"] = "确认取消", ["Color"] = Color.Error });
+        var dialogResult = await dialog.Result;
+        if (!dialogResult.Canceled)
+        {
+            try
+            {
+                var result = await SubcontractService.DeleteAsync(item.Id);
+                if (result.Success) { Snackbar.Add("取消成功", Severity.Success); await Search(); }
+                else { Snackbar.Add(result.Message ?? "取消失败", Severity.Error); }
+            }
+            catch (Exception ex) { Snackbar.Add($"取消失败: {ex.Message}", Severity.Error); }
+        }
+    }
+
+    private static Color GetStatusColor(string status) => status switch { "Sent" => Color.Info, "PartialReturned" => Color.Warning, "Completed" => Color.Success, "Cancelled" => Color.Default, _ => Color.Default };
+    private static string GetStatusText(string status) => status switch { "Sent" => "已发出", "PartialReturned" => "部分收回", "Completed" => "已完成", "Cancelled" => "已取消", _ => status };
+}

@@ -18,9 +18,9 @@ public class InventoryPlan : BaseEntity
     public DateTime PlanDate { get; set; }
 
     /// <summary>
-    /// 关联库存批次ID
+    /// 关联库存批次号（字符串，无FK）
     /// </summary>
-    public int InventoryBatchId { get; set; }
+    public string InventoryBatchNo { get; set; } = null!;
 
     /// <summary>
     /// 批次号（冗余展示）

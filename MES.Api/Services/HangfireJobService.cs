@@ -74,4 +74,30 @@ public class HangfireJobService
             throw;
         }
     }
+
+    /// <summary>
+    /// 物料同步定时任务（每小时执行一次）
+    /// 同步采购单到货进度和委外单收回进度
+    /// </summary>
+    public async Task MaterialSyncJob()
+    {
+        _logger.LogInformation("开始执行物料同步定时任务");
+
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var purchaseService = scope.ServiceProvider.GetRequiredService<IPurchaseOrderService>();
+            var subcontractService = scope.ServiceProvider.GetRequiredService<ISubcontractOrderService>();
+
+            await purchaseService.SyncAllAsync();
+            await subcontractService.SyncAllAsync();
+
+            _logger.LogInformation("物料同步定时任务执行完成");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "物料同步定时任务执行失败");
+            throw;
+        }
+    }
 }

@@ -79,9 +79,4 @@ public class OutboundRecord
     /// 更新人
     /// </summary>
     public string UpdatedBy { get; set; } = null!;
-
-    /// <summary>
-    /// 软删除标记
-    /// </summary>
-    public bool IsDeleted { get; set; }
 }

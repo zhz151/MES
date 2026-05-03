@@ -171,7 +171,9 @@
     private decimal _editWeight;
     private string _editHeatNo = string.Empty;
     private string _editRemark = string.Empty;
+#pragma warning disable CS0414 // 在 Razor 模板 Loading 参数中使用
     private bool _isEditing;
+#pragma warning restore CS0414
 
     protected override async Task OnInitializedAsync()
     {

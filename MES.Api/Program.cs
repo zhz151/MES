@@ -17,6 +17,7 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Seed;
 using MES.Services;
+using MES.Services.DataExchange;
 using MES.Services.Order;
 using QuestPDF.Infrastructure;
 using MES.Shared.Settings;
@@ -134,6 +135,15 @@ builder.Services.AddScoped<IMaterialPlanService, MaterialPlanService>();
 builder.Services.AddScoped<IWarehouseService, WarehouseService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 
+// Register material context services
+builder.Services.AddScoped<IMaterialService, MaterialService>();
+builder.Services.AddScoped<ISupplierService, SupplierService>();
+builder.Services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
+builder.Services.AddScoped<ISubcontractOrderService, SubcontractOrderService>();
+
+// 数据导入导出服务
+builder.Services.AddScoped<DataExchangeService>();
+
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddCors(options =>
@@ -191,6 +201,12 @@ recurringJobManager.AddOrUpdate<HangfireJobService>(
     "cleanup-old-notifications",
     service => service.CleanupOldNotificationsJob(),
     "0 2 * * *");  // 每天凌晨2点执行
+
+recurringJobManager.AddOrUpdate<HangfireJobService>(
+    "material-sync",
+    service => service.MaterialSyncJob(),
+    "37 * * * *",  // 每小时的第37分钟执行
+    jobOptions);
 
 app.UseHttpsRedirection();
 app.UseCors("AllowBlazor");

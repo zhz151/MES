@@ -1,0 +1,351 @@
+@page "/subcontract-orders/{id:int}"
+@page "/subcontract-orders/{id:int}/edit"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using Microsoft.AspNetCore.Authorization
+@inject SubcontractOrderService SubcontractService
+@inject SupplierService SupplierService
+@inject WorkOrderService WorkOrderService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "MaterialStaff,MaterialDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    @if (isLoading) { <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" /> }
+    else if (order == null) { <MudAlert Severity="Severity.Error">委外单不存在</MudAlert> }
+    else
+    {
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.Handyman" Class="mr-2" Color="Color.Primary" />委外加工单详情</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">单号：@order.OrderNo</MudText>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                    @if (isEditMode)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Disabled="@isSubmitting">
+                            @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> } else { <span>保存</span> }
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <AuthorizeView Roles="MaterialDirector,Admin"><MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑</MudButton></AuthorizeView>
+                    }
+                </CardHeaderActions>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudText Typo="Typo.subtitle1" Class="mb-4 font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />基本信息</MudText>
+                <MudGrid>
+                    <MudItem xs="12" md="3"><MudTextField T="string" Label="委外单号" Value="@order.OrderNo" Disabled="true" /></MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect T="int" Label="供应商" @bind-Value="editOrder.SupplierId" Disabled="!isEditMode" Required="true">
+                            @foreach (var s in suppliers) { <MudSelectItem Value="s.Id">@s.SupplierName</MudSelectItem> }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3"><MudTextField T="string" Label="下单日期" Value="@orderDateText" Disabled="true" /></MudItem>
+                    <MudItem xs="12" md="3">
+                        @if (isEditMode || isStatusEditMode)
+                        {
+                            <MudSelect T="string" Label="状态辅助" @bind-Value="editManualStatus" OnValueChanged="OnManualStatusChanged" Clearable="true">
+                                <MudSelectItem Value="@("")">（自动）</MudSelectItem>
+                                <MudSelectItem Value="@("Sent")">已发出</MudSelectItem>
+                                <MudSelectItem Value="@("PartialReturned")">部分收回</MudSelectItem>
+                                <MudSelectItem Value="@("Completed")">已完成</MudSelectItem>
+                                <MudSelectItem Value="@("Cancelled")">已取消</MudSelectItem>
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            <MudTextField T="string" Label="状态" Value="@GetStatusText(order.Status)" Disabled="true" />
+                        }
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">当前：@GetStatusText(order.Status)@(!string.IsNullOrEmpty(order.ManualStatus) ? "（手动覆盖）" : "")</MudText>
+                    </MudItem>
+                </MudGrid>
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string" Label="来源工单号" @bind-Value="editOrder.SourceWorkOrderNo" Disabled="!isEditMode" />
+                    </MudItem>
+                    <MudItem xs="12" md="6" Class="d-flex align-center">
+                        @if (!string.IsNullOrEmpty(order.SourceWorkOrderNo))
+                        {
+                            <MudButton Variant="Variant.Text" Color="Color.Info" Size="Size.Small" OnClick="ToggleWorkOrderInfo">
+                                @(showWorkOrder ? "隐藏工单信息" : "查看工单信息")
+                            </MudButton>
+                        }
+                    </MudItem>
+                </MudGrid>
+                @if (showWorkOrder && workOrder != null)
+                {
+                    <MudAlert Severity="Severity.Info" Class="mb-4" Variant="Variant.Outlined">
+                        <MudText Typo="Typo.body2"><strong>工单号：</strong>@workOrder.WorkOrderNo</MudText>
+                        <MudText Typo="Typo.body2"><strong>订单号/主号/次号：</strong>@workOrder.SalesOrderNo / @workOrder.ProductionMainNo / @workOrder.ProductionSubNo</MudText>
+                        <MudText Typo="Typo.body2"><strong>物料名称：</strong>@workOrder.MaterialName</MudText>
+                        <MudText Typo="Typo.body2"><strong>结算方式：</strong>@workOrder.SettlementMethod</MudText>
+                        <MudText Typo="Typo.body2"><strong>交货状态：</strong>@workOrder.DeliveryState</MudText>
+                        <MudText Typo="Typo.body2"><strong>延期罚款：</strong>@(workOrder.DelayPenalty ? "是" : "否")</MudText>
+                        <MudText Typo="Typo.body2"><strong>交货日期：</strong>@workOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText>
+                        <MudText Typo="Typo.body2"><strong>工厂牌号：</strong>@workOrder.PlantGrade</MudText>
+                        <MudText Typo="Typo.body2"><strong>规格：</strong>@workOrder.Specification</MudText>
+                        <MudText Typo="Typo.body2"><strong>外径公差：</strong>@workOrder.OuterDiameterNegative ~ @workOrder.OuterDiameterPositive</MudText>
+                        <MudText Typo="Typo.body2"><strong>壁厚公差：</strong>@workOrder.WallThicknessNegative ~ @workOrder.WallThicknessPositive</MudText>
+                        <MudText Typo="Typo.body2"><strong>长度状态：</strong>@workOrder.LengthStatus</MudText>
+                        <MudText Typo="Typo.body2"><strong>数量/重量：</strong>@workOrder.TotalQuantity 支 / @workOrder.TotalWeight.ToString("G29") kg</MudText>
+                        <MudText Typo="Typo.body2"><strong>理论单支重：</strong>@workOrder.UnitWeight?.ToString("G29") kg</MudText>
+                    </MudAlert>
+                }
+
+                <MudText Typo="Typo.subtitle1" Class="mb-4 mt-4 font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.Output" Size="Size.Small" Class="mr-1" />发出物料</MudText>
+                <MudGrid>
+                    <MudItem xs="12" md="4"><MudTextField T="string" Label="物料分类" @bind-Value="editOrder.OutMaterialCategory" Disabled="!isEditMode" Required="true" /></MudItem>
+                    <MudItem xs="12" md="4"><MudTextField T="string" Label="厂内钢种" @bind-Value="editOrder.OutPlantGrade" Disabled="!isEditMode" Required="true" /></MudItem>
+                    <MudItem xs="12" md="4"><MudTextField T="string" Label="规格" @bind-Value="editOrder.OutSpecification" Disabled="!isEditMode" Required="true" /></MudItem>
+                    <MudItem xs="12" md="3"><MudTextField T="int" Label="发出支数" @bind-Value="editOrder.OutQuantity" Disabled="!isEditMode" Required="true" /></MudItem>
+                    <MudItem xs="12" md="3"><MudTextField T="decimal" Label="发出重量(kg)" @bind-Value="editOrder.OutWeight" Disabled="!isEditMode" Required="true" /></MudItem>
+                    <MudItem xs="12" md="3"><MudTextField T="string" Label="收回期限" @bind-Value="returnDeadlineText" Disabled="!isEditMode" Placeholder="yyyy-MM-dd" /></MudItem>
+                    <MudItem xs="12" md="12"><MudTextField T="string" Label="备注" @bind-Value="editOrder.Remark" Disabled="!isEditMode" Multiline="true" Lines="2" /></MudItem>
+                </MudGrid>
+
+                <MudText Typo="Typo.subtitle1" Class="mb-4 mt-4 font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.ListAlt" Size="Size.Small" Class="mr-1" />加工要求明细
+                    @if (isEditMode)
+                    {
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary" OnClick="AddReturnItem" Class="ml-4">+ 添加</MudButton>
+                    }
+                </MudText>
+                <MudTable Dense="true" Hover="true" Elevation="0" Items="@editReturnItems" ReadOnly="true">
+                    <HeaderContent>
+                        <MudTh>序号</MudTh>
+                        <MudTh>加工要求</MudTh>
+                        <MudTh>物料分类</MudTh>
+                        <MudTh>加工规格</MudTh>
+                        <MudTh>状态说明</MudTh>
+                        <MudTh>单价</MudTh>
+                        <MudTh>金额</MudTh>
+                        <MudTh>工单号</MudTh>
+                        @if (isEditMode) { <MudTh>操作</MudTh> }
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Sequence</MudTd>
+                        <MudTd><MudTextField T="string" @bind-Value="context.ProcessType" Placeholder="加工要求" Dense="true" Disabled="!isEditMode" /></MudTd>
+                        <MudTd><MudTextField T="string" @bind-Value="context.MaterialCategory" Placeholder="物料分类" Dense="true" Disabled="!isEditMode" /></MudTd>
+                        <MudTd><MudTextField T="string" @bind-Value="context.ProcessSpecification" Placeholder="加工规格" Dense="true" Disabled="!isEditMode" /></MudTd>
+                        <MudTd><MudTextField T="string" @bind-Value="context.ProcessStatusRemark" Placeholder="状态说明" Dense="true" Disabled="!isEditMode" /></MudTd>
+                        <MudTd><MudTextField T="decimal?" @bind-Value="context.ProcessUnitPrice" Placeholder="单价" Dense="true" Disabled="!isEditMode" /></MudTd>
+                        <MudTd><MudTextField T="decimal?" @bind-Value="context.ProcessTotalAmount" Placeholder="金额" Dense="true" Disabled="!isEditMode" /></MudTd>
+                        <MudTd><MudTextField T="string" @bind-Value="context.SourceWorkOrderNo" Placeholder="工单号" Dense="true" Disabled="!isEditMode" /></MudTd>
+                        @if (isEditMode)
+                        {
+                            <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => RemoveReturnItem(context)" /></MudTd>
+                        }
+                    </RowTemplate>
+                </MudTable>
+
+                <MudText Typo="Typo.subtitle1" Class="mb-4 mt-4 font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.Inventory" Size="Size.Small" Class="mr-1" />收回进度（仓库同步）</MudText>
+                <MudGrid>
+                    <MudItem xs="12" md="3"><MudTextField T="int" Label="已收回支数" Value="@(order.InQuantity ?? 0)" Disabled="true" /></MudItem>
+                    <MudItem xs="12" md="3"><MudTextField T="decimal" Label="已收回重量(kg)" Value="@(order.InWeight ?? 0)" Disabled="true" /></MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" OnClick="SyncSingle" Disabled="@isSyncing" StartIcon="@Icons.Material.Filled.Sync">
+                            即时更新
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+                @if (order.OutQuantity > 0)
+                {
+                    var receivedPct = order.InQuantity.HasValue ? Math.Min(100, (double)order.InQuantity.Value / order.OutQuantity * 100) : 0;
+                    <MudProgressLinear Value="@receivedPct" Color="@(receivedPct >= 95 ? Color.Success : Color.Primary)" Class="mt-2" />
+                }
+            </MudCardContent>
+        </MudCard>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private bool isEditMode => Navigation.Uri.Contains("/edit");
+    private bool isStatusEditMode = true;
+    private SubcontractOrderDto? order;
+    private EditOrderModel editOrder = new();
+    private string orderDateText = "";
+    private string returnDeadlineText = "";
+    private List<SupplierProfileDto> suppliers = new();
+    private List<EditReturnItemModel> editReturnItems = new();
+    private bool isLoading = true, isSubmitting, isSyncing, showWorkOrder;
+    private WorkOrderDetailDto? workOrder;
+    private string? editManualStatus;
+
+    private class EditOrderModel
+    {
+        public int SupplierId { get; set; }
+        public string OutMaterialCategory { get; set; } = string.Empty;
+        public string OutPlantGrade { get; set; } = string.Empty;
+        public string OutSpecification { get; set; } = string.Empty;
+        public int OutQuantity { get; set; }
+        public decimal OutWeight { get; set; }
+        public DateTime? ReturnDeadline { get; set; }
+        public string? SourceWorkOrderNo { get; set; }
+        public string? Remark { get; set; }
+    }
+
+    private class EditReturnItemModel
+    {
+        public int Id { get; set; }
+        public int Sequence { get; set; }
+        public string ProcessType { get; set; } = string.Empty;
+        public string MaterialCategory { get; set; } = string.Empty;
+        public string ProcessSpecification { get; set; } = string.Empty;
+        public string? ProcessStatusRemark { get; set; }
+        public decimal? ProcessUnitPrice { get; set; }
+        public decimal? ProcessTotalAmount { get; set; }
+        public string? SourceWorkOrderNo { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        suppliers = await SupplierService.GetActiveAsync();
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        if (Id <= 0) { Snackbar.Add("无效的ID", Severity.Error); isLoading = false; return; }
+        isLoading = true; StateHasChanged();
+        try
+        {
+            var result = await SubcontractService.GetByIdAsync(Id);
+            if (result.Success && result.Data != null)
+            {
+                order = result.Data;
+                editManualStatus = order.ManualStatus;
+                editOrder = new EditOrderModel
+                {
+                    SupplierId = order.SupplierId,
+                    OutMaterialCategory = order.OutMaterialCategory,
+                    OutPlantGrade = order.OutPlantGrade,
+                    OutSpecification = order.OutSpecification,
+                    OutQuantity = order.OutQuantity,
+                    OutWeight = order.OutWeight,
+                    ReturnDeadline = order.ReturnDeadline,
+                    SourceWorkOrderNo = order.SourceWorkOrderNo,
+                    Remark = order.Remark
+                };
+                orderDateText = order.OrderDate.ToString("yyyy-MM-dd");
+                returnDeadlineText = order.ReturnDeadline?.ToString("yyyy-MM-dd") ?? "";
+                editReturnItems = order.ReturnItems.Select(i => new EditReturnItemModel
+                {
+                    Id = i.Id,
+                    Sequence = i.Sequence,
+                    ProcessType = i.ProcessType,
+                    MaterialCategory = i.MaterialCategory,
+                    ProcessSpecification = i.ProcessSpecification,
+                    ProcessStatusRemark = i.ProcessStatusRemark,
+                    ProcessUnitPrice = i.ProcessUnitPrice,
+                    ProcessTotalAmount = i.ProcessTotalAmount,
+                    SourceWorkOrderNo = i.SourceWorkOrderNo
+                }).ToList();
+            }
+            else { Snackbar.Add(result.Message ?? "加载失败", Severity.Error); }
+        }
+        catch (Exception ex) { Snackbar.Add($"加载失败: {ex.Message}", Severity.Error); }
+        finally { isLoading = false; StateHasChanged(); }
+    }
+
+    private void EnterEditMode() => Navigation.NavigateTo($"/subcontract-orders/{Id}/edit");
+
+    private async Task Save()
+    {
+        if (!string.IsNullOrWhiteSpace(returnDeadlineText) && !DateTime.TryParse(returnDeadlineText, out _)) { Snackbar.Add("收回期限格式错误，请使用 yyyy-MM-dd", Severity.Warning); return; }
+        editOrder.ReturnDeadline = string.IsNullOrWhiteSpace(returnDeadlineText) ? null : DateTime.Parse(returnDeadlineText);
+
+        isSubmitting = true; StateHasChanged();
+        try
+        {
+            var req = new UpdateSubcontractOrderRequest
+            {
+                SupplierId = editOrder.SupplierId,
+                OutMaterialCategory = editOrder.OutMaterialCategory,
+                OutPlantGrade = editOrder.OutPlantGrade,
+                OutSpecification = editOrder.OutSpecification,
+                OutQuantity = editOrder.OutQuantity,
+                OutWeight = editOrder.OutWeight,
+                ReturnDeadline = editOrder.ReturnDeadline,
+                SourceWorkOrderNo = editOrder.SourceWorkOrderNo,
+                Remark = editOrder.Remark,
+                ReturnItems = editReturnItems.Select(i => new MES.Core.DTOs.CreateReturnItemRequest
+                {
+                    ProcessType = i.ProcessType,
+                    MaterialCategory = i.MaterialCategory,
+                    ProcessSpecification = i.ProcessSpecification,
+                    ProcessStatusRemark = i.ProcessStatusRemark,
+                    ProcessUnitPrice = i.ProcessUnitPrice,
+                    ProcessTotalAmount = i.ProcessTotalAmount,
+                    SourceWorkOrderNo = i.SourceWorkOrderNo
+                }).ToList()
+            };
+            var result = await SubcontractService.UpdateAsync(Id, req);
+            if (result.Success) { Snackbar.Add("更新成功", Severity.Success); Navigation.NavigateTo($"/subcontract-orders/{Id}"); }
+            else { Snackbar.Add(result.Message ?? "更新失败", Severity.Error); }
+        }
+        catch (Exception ex) { Snackbar.Add($"更新失败: {ex.Message}", Severity.Error); }
+        finally { isSubmitting = false; StateHasChanged(); }
+    }
+
+    private void AddReturnItem()
+    {
+        editReturnItems.Add(new EditReturnItemModel { Sequence = editReturnItems.Count + 1 });
+    }
+
+    private void RemoveReturnItem(EditReturnItemModel item)
+    {
+        editReturnItems.Remove(item);
+        for (int i = 0; i < editReturnItems.Count; i++)
+            editReturnItems[i].Sequence = i + 1;
+    }
+
+    private async Task OnManualStatusChanged(string? value)
+    {
+        editManualStatus = value;
+        try
+        {
+            var result = await SubcontractService.UpdateStatusAsync(Id, new UpdateOrderStatusRequest { ManualStatus = value });
+            if (result.Success) { Snackbar.Add("状态已更新", Severity.Success); await LoadData(); }
+            else { Snackbar.Add(result.Message ?? "状态更新失败", Severity.Error); }
+        }
+        catch (Exception ex) { Snackbar.Add($"状态更新失败: {ex.Message}", Severity.Error); }
+    }
+
+    private async Task SyncSingle()
+    {
+        isSyncing = true; StateHasChanged();
+        try
+        {
+            var result = await SubcontractService.SyncSingleAsync(Id);
+            if (result.Success) { Snackbar.Add("同步完成", Severity.Success); await LoadData(); }
+            else { Snackbar.Add(result.Message ?? "同步失败", Severity.Error); }
+        }
+        catch (Exception ex) { Snackbar.Add($"同步失败: {ex.Message}", Severity.Error); }
+        finally { isSyncing = false; StateHasChanged(); }
+    }
+
+    private async Task ToggleWorkOrderInfo()
+    {
+        showWorkOrder = !showWorkOrder;
+        if (showWorkOrder && workOrder == null && !string.IsNullOrEmpty(order?.SourceWorkOrderNo))
+        {
+            try
+            {
+                var result = await WorkOrderService.GetByWorkOrderNoAsync(order.SourceWorkOrderNo);
+                if (result.Success && result.Data != null)
+                    workOrder = result.Data;
+                else
+                    Snackbar.Add(result.Message ?? "未找到工单信息", Severity.Warning);
+            }
+            catch (Exception ex) { Snackbar.Add($"查询工单失败: {ex.Message}", Severity.Warning); }
+        }
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/subcontract-orders");
+    private static string GetStatusText(string status) => status switch { "Sent" => "已发出", "PartialReturned" => "部分收回", "Completed" => "已完成", "Cancelled" => "已取消", _ => status };
+}

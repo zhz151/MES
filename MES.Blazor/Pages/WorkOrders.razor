@@ -25,6 +25,15 @@
                            BadgeColor="Color.Error"
                            OnClick="@(() => notificationDrawerOpen = true)" />
             <MudButton Variant="Variant.Filled"
+                       Color="Color.Info"
+                       StartIcon="@Icons.Material.Filled.Sync"
+                       OnClick="CheckAllOrderChange"
+                       Loading="@isSyncing"
+                       Disabled="@isSyncing"
+                       Class="ml-2">
+                即时更新
+            </MudButton>
+            <MudButton Variant="Variant.Filled"
                        Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Refresh"
                        OnClick="Search"
@@ -253,6 +262,7 @@ else if (order.WorkOrderStatus == "Pending")
     private List<OrderWorkOrderStatusDto> orders = new();
     private List<CancelledOrderDto> cancelledOrders = new();
     private bool isLoading = false;
+    private bool isSyncing = false;
     private string searchKeyword = string.Empty;
     private string selectedStatus = string.Empty;
     private int totalCount = 0;
@@ -421,6 +431,32 @@ else if (order.WorkOrderStatus == "Pending")
         if (table != null)
             await table.ReloadServerData();
         await LoadCancelledOrders();
+    }
+
+    private async Task CheckAllOrderChange()
+    {
+        isSyncing = true;
+        try
+        {
+            var result = await WorkOrderService.CheckAllOrderChangeAsync();
+            if (result.Success)
+            {
+                Snackbar.Add("订单变更检测完成，工单状态已同步", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "同步失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"同步失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSyncing = false;
+        }
+        await Search();
     }
 
     private void OnSearchKeyDown(KeyboardEventArgs args)

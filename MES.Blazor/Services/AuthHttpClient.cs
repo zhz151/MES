@@ -199,4 +199,25 @@ public class AuthHttpClient
     /// </summary>
     public Task<T?> DeleteFromJsonAsync<T>(string url)
         => SendAndDeserializeAsync<T>(() => _http.DeleteAsync(url));
+
+    /// <summary>
+    /// GET 请求并返回字节数组
+    /// </summary>
+    public async Task<byte[]> GetByteArrayAsync(string url)
+    {
+        var response = await SendWithRefreshAsync(() => _http.GetAsync(url));
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync();
+            var trimmed = errorBody?.Length > 200 ? errorBody[..200] + "..." : errorBody;
+            throw new HttpRequestException($"服务器错误 ({(int)response.StatusCode}): {trimmed}");
+        }
+        return await response.Content.ReadAsByteArrayAsync();
+    }
+
+    /// <summary>
+    /// POST multipart/form-data 请求并反序列化响应
+    /// </summary>
+    public Task<TResponse?> PostMultipartAsync<TResponse>(string url, MultipartFormDataContent content)
+        => SendAndDeserializeAsync<TResponse>(() => _http.PostAsync(url, content));
 }

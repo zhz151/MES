@@ -50,6 +50,14 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<InventoryBatchDeleteLog> InventoryBatchDeleteLogs { get; set; } = null!;
     public DbSet<InventoryPlan> InventoryPlans { get; set; } = null!;
 
+    // ========== 物料上下文 ==========
+
+    public DbSet<Material> Materials { get; set; } = null!;
+    public DbSet<SupplierProfile> SupplierProfiles { get; set; } = null!;
+    public DbSet<PurchaseOrder> PurchaseOrders { get; set; } = null!;
+    public DbSet<SubcontractOrder> SubcontractOrders { get; set; } = null!;
+    public DbSet<SubcontractReturnItem> SubcontractReturnItems { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -73,6 +81,13 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigurePurchaseSemiPlan(builder);
         ConfigurePurchaseFinishedPlan(builder);
         ConfigureInventoryPlan(builder);
+
+        // ========== 物料上下文 ==========
+        ConfigureMaterial(builder);
+        ConfigureSupplierProfile(builder);
+        ConfigurePurchaseOrder(builder);
+        ConfigureSubcontractOrder(builder);
+        ConfigureSubcontractReturnItem(builder);
 
         // ========== 仓库上下文 ==========
         ConfigureWarehouse(builder);
@@ -545,7 +560,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
             // 审计字段
             entity.Property(e => e.CreatedBy).IsRequired().HasMaxLength(50);
             entity.Property(e => e.UpdatedBy).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.IsDeleted).IsRequired().HasDefaultValue(false);
 
             // 索引
             entity.HasIndex(e => e.InventoryBatchId).HasDatabaseName("IX_OutboundRecord_InventoryBatchId");
@@ -591,7 +605,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasKey(e => e.Id);
             entity.Property(e => e.WorkOrderId).IsRequired();
             entity.Property(e => e.PlanDate).IsRequired().HasColumnType("date");
-            entity.Property(e => e.InventoryBatchId).IsRequired();
+            entity.Property(e => e.InventoryBatchNo).IsRequired().HasMaxLength(50);
             entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
             entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
@@ -605,8 +619,133 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.ReworkType).HasMaxLength(20).HasConversion<string>();
             entity.Property(e => e.ProcessPlan).HasColumnType("nvarchar(max)");
             entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_InventoryPlan_WorkOrderId");
-            entity.HasIndex(e => e.InventoryBatchId).HasDatabaseName("IX_InventoryPlan_InventoryBatchId");
+            entity.HasIndex(e => e.InventoryBatchNo).HasDatabaseName("IX_InventoryPlan_InventoryBatchNo");
             entity.HasIndex(e => e.PlanStatus).HasDatabaseName("IX_InventoryPlan_PlanStatus");
+        });
+    }
+
+    // ================================================================
+    //                      物料上下文配置
+    // ================================================================
+
+    private static void ConfigureMaterial(ModelBuilder builder)
+    {
+        builder.Entity<Material>(entity =>
+        {
+            entity.ToTable("Material");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaterialCategory).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.IsActive).IsRequired().HasDefaultValue(true);
+            entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.HasIndex(e => new { e.MaterialCategory, e.PlantGrade, e.Specification })
+                .IsUnique()
+                .HasDatabaseName("UK_Material_Combo")
+                .HasFilter("[IsDeleted] = 0");
+            entity.HasIndex(e => e.MaterialCategory).HasDatabaseName("IX_Material_Category");
+            entity.HasIndex(e => e.IsActive).HasDatabaseName("IX_Material_IsActive");
+        });
+    }
+
+    private static void ConfigureSupplierProfile(ModelBuilder builder)
+    {
+        builder.Entity<SupplierProfile>(entity =>
+        {
+            entity.ToTable("SupplierProfile");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SupplierName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.ContactPerson).HasMaxLength(50);
+            entity.Property(e => e.ContactPhone).HasMaxLength(50);
+            entity.Property(e => e.Address).HasMaxLength(500);
+            entity.Property(e => e.IsActive).IsRequired().HasDefaultValue(true);
+            entity.Property(e => e.Remark).HasMaxLength(500);
+        });
+    }
+
+    private static void ConfigurePurchaseOrder(ModelBuilder builder)
+    {
+        builder.Entity<PurchaseOrder>(entity =>
+        {
+            entity.ToTable("PurchaseOrder");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OrderNo).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.SupplierId).IsRequired();
+            entity.Property(e => e.OrderDate).IsRequired().HasColumnType("date");
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Open");
+            entity.Property(e => e.ManualStatus).HasMaxLength(20);
+            entity.Property(e => e.MaterialCategory).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.UnitWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Quantity);
+            entity.Property(e => e.Weight).IsRequired().HasColumnType("decimal(18,3)");
+            entity.Property(e => e.RequiredDate).IsRequired().HasColumnType("date");
+            entity.Property(e => e.UnitPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.LastArrivalDate).HasColumnType("date");
+            entity.Property(e => e.ReceivedQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.ReceivedWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.SourceWorkOrderNo).HasMaxLength(50);
+            entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.HasIndex(e => e.OrderNo).IsUnique().HasDatabaseName("UK_PurchaseOrder_OrderNo");
+            entity.HasIndex(e => e.SupplierId).HasDatabaseName("IX_PurchaseOrder_SupplierId");
+            entity.HasIndex(e => e.Status).HasDatabaseName("IX_PurchaseOrder_Status");
+            entity.HasIndex(e => e.SourceWorkOrderNo).HasDatabaseName("IX_PurchaseOrder_SourceWO");
+            entity.HasIndex(e => e.RequiredDate).HasDatabaseName("IX_PurchaseOrder_RequiredDate");
+        });
+    }
+
+    private static void ConfigureSubcontractOrder(ModelBuilder builder)
+    {
+        builder.Entity<SubcontractOrder>(entity =>
+        {
+            entity.ToTable("SubcontractOrder");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OrderNo).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.SupplierId).IsRequired();
+            entity.Property(e => e.OrderDate).IsRequired().HasColumnType("date");
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Sent");
+            entity.Property(e => e.ManualStatus).HasMaxLength(20);
+            entity.Property(e => e.OutMaterialCategory).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.OutPlantGrade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.OutSpecification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.OutQuantity).IsRequired();
+            entity.Property(e => e.OutWeight).IsRequired().HasColumnType("decimal(18,3)");
+            entity.Property(e => e.ReturnDeadline).HasColumnType("date");
+            entity.Property(e => e.InQuantity);
+            entity.Property(e => e.InWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.SourceWorkOrderNo).HasMaxLength(50);
+            entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.HasIndex(e => e.OrderNo).IsUnique().HasDatabaseName("UK_SubcontractOrder_OrderNo");
+            entity.HasIndex(e => e.SupplierId).HasDatabaseName("IX_SubcontractOrder_SupplierId");
+            entity.HasIndex(e => e.Status).HasDatabaseName("IX_SubcontractOrder_Status");
+            entity.HasMany(e => e.ReturnItems)
+                .WithOne(r => r.SubcontractOrder)
+                .HasForeignKey(r => r.SubcontractOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureSubcontractReturnItem(ModelBuilder builder)
+    {
+        builder.Entity<SubcontractReturnItem>(entity =>
+        {
+            entity.ToTable("SubcontractReturnItem");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SubcontractOrderId).IsRequired();
+            entity.Property(e => e.Sequence).IsRequired();
+            entity.Property(e => e.ProcessType).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.MaterialCategory).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.ProcessSpecification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ProcessStatusRemark).HasMaxLength(500);
+            entity.Property(e => e.ProcessUnitPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.ProcessTotalAmount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.SourceWorkOrderNo).HasMaxLength(50);
+            entity.HasIndex(e => new { e.SubcontractOrderId, e.Sequence })
+                .IsUnique()
+                .HasDatabaseName("UK_ReturnItem_Seq");
+            entity.HasIndex(e => e.SubcontractOrderId).HasDatabaseName("IX_ReturnItem_OrderId");
         });
     }
 }

@@ -15,11 +15,11 @@
                     <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Primary" />
                     新建牌号对照
                 </MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">创建标准牌号与工厂牌号的映射</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">创建标准牌号与工厂牌号的映射，可批量添加多条记录</MudText>
             </CardHeaderContent>
             <CardHeaderActions>
                 <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveGradeMapping" Disabled="@isSubmitting">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAll" Disabled="@isSubmitting">
                     @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> }
                     else { <span>保存</span> }
                 </MudButton>
@@ -27,56 +27,191 @@
         </MudCardHeader>
 
         <MudCardContent>
-            <MudGrid>
-                <MudItem xs="12" md="6">
-                    <MudTextField T="string" Label="标准牌号" @bind-Value="gradeMapping.StandardGrade" Required="true" HelperText="如 304, 316L" />
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudTextField T="string" Label="工厂牌号" @bind-Value="gradeMapping.PlantGrade" Required="true" HelperText="如 06Cr19Ni10" />
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudNumericField T="decimal" Label="密度 (g/cm³)" @bind-Value="densityValue" Required="true" Format="F4" Min="0" />
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudSwitch @bind-Value="gradeMapping.SpecialMaterial" Label="特殊材料" />
-                </MudItem>
-                <MudItem xs="12" md="12">
-                    <MudTextField T="string" Label="热处理工艺" @bind-Value="gradeMapping.HeatTreatment" HelperText="如：固溶处理 1010-1150℃，快冷" />
-                </MudItem>
-                <MudItem xs="12" md="12">
-                    <MudTextField T="string" Label="特殊注意事项" @bind-Value="gradeMapping.SpecialNote" Multiline="true" Lines="2" />
-                </MudItem>
-                <MudItem xs="12" md="12">
-                    <MudTextField T="string" Label="备注" @bind-Value="gradeMapping.Remark" Multiline="true" Lines="3" />
-                </MudItem>
-            </MudGrid>
+            <div class="d-flex justify-space-between align-center mb-3">
+                <MudText Typo="Typo.subtitle1">牌号对照列表</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow">添加牌号</MudButton>
+            </div>
+
+            @if (rows.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info">请点击"添加牌号"按钮添加记录</MudAlert>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Warning" Class="mb-3">点击右上角"保存"按钮一次性提交所有记录。</MudAlert>
+
+                <div style="overflow-x: auto;">
+                    <MudTable T="GradeMappingRow" Items="@rows" Dense="true" Hover="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh Style="width: 50px;">行号</MudTh>
+                            <MudTh Style="width: 120px;">标准牌号</MudTh>
+                            <MudTh Style="width: 120px;">工厂牌号</MudTh>
+                            <MudTh Style="width: 130px;">密度 (g/cm³)</MudTh>
+                            <MudTh Style="width: 80px;">特殊材料</MudTh>
+                            <MudTh Style="min-width: 180px;">热处理工艺</MudTh>
+                            <MudTh Style="min-width: 180px;">特殊注意事项</MudTh>
+                            <MudTh Style="min-width: 150px;">备注</MudTh>
+                            <MudTh Style="width: 60px;">操作</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="row">
+                            <MudTd>
+                                <MudText Typo="Typo.body2">@row.Sequence</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.StandardGrade"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.PlantGrade"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudNumericField T="decimal"
+                                                 @bind-Value="row.Density"
+                                                 Format="F4"
+                                                 Min="0"
+                                                 Dense="true"
+                                                 Variant="Variant.Outlined"
+                                                 Size="Size.Small"
+                                                 Style="width: 110px;" />
+                            </MudTd>
+                            <MudTd>
+                                <MudCheckBox @bind-Value="row.SpecialMaterial" Dense="true" Size="Size.Small" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.HeatTreatment"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.SpecialNote"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.Remark"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                @if (rows.Count > 1)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Color="Color.Error"
+                                                   Size="Size.Small"
+                                                   OnClick="() => RemoveRow(row)" />
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+            }
         </MudCardContent>
     </MudCard>
 </MudContainer>
 
 @code {
-    private CreateGradeMappingRequest gradeMapping = new() { Density = 7.93m, SpecialMaterial = false };
+    private List<GradeMappingRow> rows = new();
     private bool isSubmitting;
-    private decimal densityValue = 7.93m;
 
-    protected override void OnInitialized() => densityValue = gradeMapping.Density;
-
-    private async Task SaveGradeMapping()
+    private class GradeMappingRow
     {
-        if (string.IsNullOrWhiteSpace(gradeMapping.StandardGrade)) { Snackbar.Add("标准牌号不能为空", Severity.Warning); return; }
-        if (string.IsNullOrWhiteSpace(gradeMapping.PlantGrade)) { Snackbar.Add("工厂牌号不能为空", Severity.Warning); return; }
-        gradeMapping.Density = densityValue;
-        if (gradeMapping.Density <= 0) { Snackbar.Add("密度必须大于0", Severity.Warning); return; }
+        public int Sequence { get; set; }
+        public string StandardGrade { get; set; } = string.Empty;
+        public string PlantGrade { get; set; } = string.Empty;
+        public decimal Density { get; set; }
+        public bool SpecialMaterial { get; set; }
+        public string? HeatTreatment { get; set; }
+        public string? SpecialNote { get; set; }
+        public string? Remark { get; set; }
+    }
+
+    protected override void OnInitialized()
+    {
+        AddRow();
+    }
+
+    private void AddRow()
+    {
+        rows.Add(new GradeMappingRow { Sequence = rows.Count + 1 });
+    }
+
+    private void RemoveRow(GradeMappingRow row)
+    {
+        if (rows.Count <= 1) { Snackbar.Add("至少保留一条记录", Severity.Warning); return; }
+        rows.Remove(row);
+        for (int i = 0; i < rows.Count; i++) rows[i].Sequence = i + 1;
+    }
+
+    private async Task SaveAll()
+    {
+        var errors = new List<string>();
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var r = rows[i];
+            var seq = i + 1;
+            if (string.IsNullOrWhiteSpace(r.StandardGrade)) errors.Add($"行{seq}: 标准牌号不能为空");
+            if (string.IsNullOrWhiteSpace(r.PlantGrade)) errors.Add($"行{seq}: 工厂牌号不能为空");
+            if (r.Density <= 0) errors.Add($"行{seq}: 密度必须大于0");
+        }
+        if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
 
         isSubmitting = true; StateHasChanged();
-        try
+        var successCount = 0;
+        var failCount = 0;
+        var failMessages = new List<string>();
+
+        for (int i = 0; i < rows.Count; i++)
         {
-            var result = await GradeMappingService.CreateAsync(gradeMapping);
-            if (result.Success) { Snackbar.Add("创建成功", Severity.Success); Navigation.NavigateTo("/grade-mappings"); }
-            else { Snackbar.Add(result.Message ?? "创建失败", Severity.Error); }
+            var r = rows[i];
+            var request = new CreateGradeMappingRequest
+            {
+                StandardGrade = r.StandardGrade,
+                PlantGrade = r.PlantGrade,
+                Density = r.Density,
+                SpecialMaterial = r.SpecialMaterial,
+                HeatTreatment = r.HeatTreatment,
+                SpecialNote = r.SpecialNote,
+                Remark = r.Remark
+            };
+
+            try
+            {
+                var result = await GradeMappingService.CreateAsync(request);
+                if (result.Success) successCount++;
+                else { failCount++; failMessages.Add($"行{i + 1}: {result.Message}"); }
+            }
+            catch (Exception ex) { failCount++; failMessages.Add($"行{i + 1}: {ex.Message}"); }
         }
-        catch (Exception ex) { Snackbar.Add($"创建失败: {ex.Message}", Severity.Error); }
-        finally { isSubmitting = false; StateHasChanged(); }
+
+        isSubmitting = false; StateHasChanged();
+
+        if (failCount == 0)
+        {
+            Snackbar.Add($"成功创建 {successCount} 条记录", Severity.Success);
+            Navigation.NavigateTo("/grade-mappings");
+        }
+        else
+        {
+            Snackbar.Add($"成功 {successCount} 条，失败 {failCount} 条：{string.Join("；", failMessages)}", Severity.Error);
+        }
     }
 
     private void GoBack() => Navigation.NavigateTo("/grade-mappings");

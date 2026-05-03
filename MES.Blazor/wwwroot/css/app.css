@@ -455,6 +455,125 @@ svg[aria-label="Increment"] {
 }
 
 /* ============================================================
+   水平表单布局 - label在左，输入框在右
+   ============================================================ */
+
+.form-horizontal-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+}
+
+.form-horizontal-field .form-label {
+    min-width: 100px;
+    text-align: right;
+    flex-shrink: 0;
+    font-size: 0.875rem;
+    color: rgba(0, 0, 0, 0.7);
+    white-space: nowrap;
+}
+
+.form-horizontal-field .form-input {
+    flex: 1;
+    min-width: 0;
+}
+
+/* 多行输入框（如备注）的行高适应 */
+.form-horizontal-field.form-field-multiline {
+    align-items: flex-start;
+}
+
+/* ============================================================
+   行内多字段布局 - 多个label+输入框在同一行
+   ============================================================ */
+
+.form-inline-row {
+    display: flex;
+    align-items: stretch;
+    gap: 24px;
+    flex-wrap: nowrap;
+}
+
+.form-inline-row .form-inline-field {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.form-inline-row .form-inline-field .form-label {
+    white-space: nowrap;
+    font-size: 0.875rem;
+    color: rgba(0, 0, 0, 0.7);
+    flex-shrink: 0;
+    padding-bottom: 0;
+    line-height: 1.2;
+}
+
+.form-inline-row .form-inline-field .form-input-stack {
+    display: flex;
+    flex-direction: column;
+    width: 200px;
+    flex-shrink: 0;
+}
+
+.form-inline-row .form-inline-field .form-input-stack .input-hint {
+    font-size: 0.65rem;
+    color: var(--mud-palette-error);
+    line-height: 1.2;
+    padding-left: 2px;
+    margin-bottom: 0;
+    font-weight: 500;
+}
+
+/* 隐藏式输入框 - 无边框，hover/focus时显示 */
+.form-inline-row .form-hidden-input .mud-input {
+    min-height: 24px !important;
+    height: 24px !important;
+    margin-top: 0 !important;
+}
+
+.form-inline-row .form-hidden-input .mud-input-outlined .mud-input-outlined-border {
+    border-color: transparent !important;
+    transition: border-color 0.2s ease;
+}
+
+.form-inline-row .form-hidden-input .mud-input-outlined:hover .mud-input-outlined-border {
+    border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+.form-inline-row .form-hidden-input .mud-input-outlined:focus-within .mud-input-outlined-border {
+    border-color: var(--mud-palette-primary) !important;
+    border-width: 1px !important;
+}
+
+.form-inline-row .form-hidden-input .mud-input input {
+    padding: 0 4px !important;
+    line-height: 24px !important;
+    font-size: 0.875rem !important;
+}
+
+/* 必填红色星号 - 输入框内右上角 */
+.form-inline-row .form-input-required {
+    position: relative;
+}
+
+.form-inline-row .form-input-required::after {
+    content: "*";
+    color: var(--mud-palette-error);
+    position: absolute;
+    top: 0;
+    right: 2px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    z-index: 1;
+    pointer-events: none;
+    line-height: 1;
+}
+
+/* ============================================================
    入库公共字段 - 两行 TABLE 样式
    ============================================================ */
 

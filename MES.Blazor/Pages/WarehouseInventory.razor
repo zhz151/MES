@@ -12,6 +12,11 @@
 @inject OutboundStateService OutboundState
 @attribute [Authorize]
 
+<style>
+    .column-selector-wrapper { position: relative; display: inline-block; }
+    .column-selector-panel { position: absolute; right: 0; top: 42px; z-index: 1000; }
+</style>
+
 @if (string.IsNullOrEmpty(Code))
 {
     @* ======== 仓库首页：4个仓库卡片入口 ======== *@
@@ -169,16 +174,17 @@ else
                             </MudText>
                         }
                         <MudSpacer />
-                        <MudMenu>
-                            <ActivatorContent>
-                                <MudButton Variant="Variant.Outlined" Size="Size.Small"
-                                           Color="Color.Primary"
-                                           StartIcon="@Icons.Material.Filled.ViewColumn">
-                                    列选择
-                                </MudButton>
-                            </ActivatorContent>
-                            <ChildContent>
-                                <MudPaper Class="pa-4" Elevation="8" Style="max-height:400px; overflow-y:auto; min-width:260px;">
+                        <div class="column-selector-wrapper">
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.ViewColumn"
+                                       OnClick="@(() => _columnMenuOpen = !_columnMenuOpen)">
+                                列选择
+                            </MudButton>
+                            @if (_columnMenuOpen)
+                            {
+                                <MudOverlay Visible="true" OnClick="@(() => _columnMenuOpen = false)" />
+                                <MudPaper Class="pa-4 column-selector-panel" Elevation="8" Style="max-height:400px; overflow-y:auto; min-width:260px;">
                                     @* 适用列 *@
                                     <MudText Typo="Typo.body2" Class="font-weight-bold mb-2" Color="Color.Primary">适用字段</MudText>
                                     @foreach (var col in _allColumns.Where(c => c.IsApplicable))
@@ -226,8 +232,8 @@ else
                                         </MudGrid>
                                     }
                                 </MudPaper>
-                            </ChildContent>
-                        </MudMenu>
+                            }
+                        </div>
                     </ToolBarContent>
                     <HeaderContent>
                         @foreach (var col in _visibleColumns)
@@ -282,6 +288,9 @@ else
     // 多选
     private HashSet<InventoryBatchDto> _selectedItems = new();
 
+    // 列选择菜单
+    private bool _columnMenuOpen;
+
     // ========== 列定义 ==========
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
@@ -328,6 +337,8 @@ else
         new() { Key = "WorkOrderNo",         Label = "工单号" },
         new() { Key = "SalesOrderNo",        Label = "订单号" },
         new() { Key = "OrderItemIds",        Label = "项次" },
+        // 物料
+        new() { Key = "SourceOrderNo",       Label = "物料单号" },
     };
 
     private static void ApplyWarehouseDefaults(List<ColumnDef> cols, string whCode)
@@ -357,22 +368,24 @@ else
                 SetNotApplicable(cols, "DefectRemark");
                 break;
             case "FG":
-                // 成品库模板不含：次品相关
+                // 成品库模板不含：次品相关、物料单号
                 SetNotApplicable(cols, "DefectReason");
                 SetNotApplicable(cols, "LiabilityType");
                 SetNotApplicable(cols, "OriginalSupplier");
                 SetNotApplicable(cols, "TagNo");
                 SetNotApplicable(cols, "DefectRemark");
+                SetNotApplicable(cols, "SourceOrderNo");
                 break;
             case "DEFECT":
-                // 次品库模板不含：米数、实际规格、外径、壁厚
+                // 次品库模板不含：米数、实际规格、外径、壁厚、物料单号
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "ActualSpecification");
                 SetNotApplicable(cols, "ActualOuterDiameter");
                 SetNotApplicable(cols, "ActualWallThickness");
+                SetNotApplicable(cols, "SourceOrderNo");
                 break;
             case "WIP":
-                // 在制品库模板不含：工单关联、次品相关、米数
+                // 在制品库模板不含：工单关联、次品相关、米数、物料单号
                 SetNotApplicable(cols, "IsLinkedToWorkOrder");
                 SetNotApplicable(cols, "WorkOrderNo");
                 SetNotApplicable(cols, "SalesOrderNo");
@@ -383,6 +396,7 @@ else
                 SetNotApplicable(cols, "TagNo");
                 SetNotApplicable(cols, "DefectRemark");
                 SetNotApplicable(cols, "Meters");
+                SetNotApplicable(cols, "SourceOrderNo");
                 break;
         }
     }
@@ -541,6 +555,10 @@ else
             case "OrderItemIds":
                 builder.AddContent(0, item.OrderItemIds);
                 break;
+            case "SourceOrderNo":
+                if (!string.IsNullOrEmpty(item.SourceOrderNo))
+                    builder.AddContent(0, item.SourceOrderNo);
+                break;
         }
     };
 
@@ -607,16 +625,31 @@ else
         _allColumns = GetAllColumnDefs();
         ApplyWarehouseDefaults(_allColumns, warehouseCode);
 
-        // 加载用户自定义列偏好 → 覆盖默认值
+        // 加载用户自定义列偏好 → 覆盖可见性和顺序
         var saved = await ColumnPrefs.LoadAsync("inventory", warehouseCode);
         if (saved.Count > 0)
         {
+            // 先恢复可见性
             foreach (var s in saved)
             {
                 var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
                 if (match != null)
                     match.Visible = s.Visible;
             }
+            // 再恢复列顺序（按保存的顺序重排，新增列放到末尾）
+            var reordered = new List<ColumnDef>();
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
         }
 
         // 不适用列强制隐藏（防止旧数据干扰）

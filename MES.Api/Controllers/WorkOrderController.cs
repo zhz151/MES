@@ -90,6 +90,16 @@ public class WorkOrderController : ControllerBase
         return Ok(ApiResponse<WorkOrderDetailDto>.Ok(result, "查询成功"));
     }
 
+    [HttpGet("by-workorder-no/{workOrderNo}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<WorkOrderDetailDto>>> GetByWorkOrderNo(string workOrderNo)
+    {
+        if (string.IsNullOrWhiteSpace(workOrderNo))
+            return BadRequest(ApiResponse<WorkOrderDetailDto>.Fail("工单号不能为空"));
+        var result = await _workOrderService.GetByWorkOrderNoAsync(workOrderNo);
+        return Ok(ApiResponse<WorkOrderDetailDto>.Ok(result, "查询成功"));
+    }
+
     [HttpGet("by-order/{salesOrderNo}")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<WorkOrderListDto>>>> GetBySalesOrderNo(string salesOrderNo)
@@ -139,6 +149,14 @@ public class WorkOrderController : ControllerBase
     {
         await _workOrderService.CheckAndUpdateWorkOrderStatusAsync(salesOrderId);
         return Ok(ApiResponse.Ok("检测完成"));
+    }
+
+    [HttpPost("check-all-order-change")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse>> CheckAllOrderChange()
+    {
+        await _workOrderService.CheckAllOrdersChangeAsync();
+        return Ok(ApiResponse.Ok("订单变更检测完成，工单状态已更新"));
     }
     /// <summary>
 /// 获取订单的工单项次追溯关系（包含该订单下所有工单及其项次明细）

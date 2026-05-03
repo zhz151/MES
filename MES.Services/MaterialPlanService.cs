@@ -104,14 +104,25 @@ public class MaterialPlanService : IMaterialPlanService
             RawMaterialSpec = request.RawMaterialSpec,
             RequiredDate = request.RequiredDate,
             ProcessPlan = request.ProcessPlan,
-            Remark = request.Remark
+            Remark = request.Remark,
         };
 
-        _context.PurchaseSemiPlans.Add(plan);
-        await _context.SaveChangesAsync();
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            _context.PurchaseSemiPlans.Add(plan);
+            await _context.SaveChangesAsync();
 
-        // 刷新工单状态
-        await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
+            // 刷新工单状态（与创建在同一事务中）
+            await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
 
         _logger.LogInformation("创建原料采购计划成功: 工单ID {WorkOrderId}, 原料规格 {Spec}, 重量 {Weight}",
             request.WorkOrderId, request.RawMaterialSpec, requiredWeight);
@@ -126,11 +137,22 @@ public class MaterialPlanService : IMaterialPlanService
             throw new BusinessException("原料采购计划不存在");
 
         var workOrderId = plan.WorkOrderId;
-        _context.PurchaseSemiPlans.Remove(plan);
-        await _context.SaveChangesAsync();
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            _context.PurchaseSemiPlans.Remove(plan);
+            await _context.SaveChangesAsync();
 
-        // 刷新工单状态
-        await UpdateMaterialPlanStatusAsync(workOrderId);
+            // 刷新工单状态（与删除在同一事务中）
+            await UpdateMaterialPlanStatusAsync(workOrderId);
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
 
         _logger.LogInformation("删除原料采购计划成功: ID {Id}", id);
     }
@@ -177,14 +199,25 @@ public class MaterialPlanService : IMaterialPlanService
             RequiredPiece = request.RequiredPiece,
             RequiredWeight = request.RequiredWeight,
             RequiredDate = request.RequiredDate,
-            Remark = request.Remark
+            Remark = request.Remark,
         };
 
-        _context.PurchaseFinishedPlans.Add(plan);
-        await _context.SaveChangesAsync();
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            _context.PurchaseFinishedPlans.Add(plan);
+            await _context.SaveChangesAsync();
 
-        // 刷新工单状态
-        await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
+            // 刷新工单状态（与创建在同一事务中）
+            await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
 
         _logger.LogInformation("创建成品采购计划成功: 工单ID {WorkOrderId}, 重量 {Weight}",
             request.WorkOrderId, request.RequiredWeight);
@@ -199,11 +232,22 @@ public class MaterialPlanService : IMaterialPlanService
             throw new BusinessException("成品采购计划不存在");
 
         var workOrderId = plan.WorkOrderId;
-        _context.PurchaseFinishedPlans.Remove(plan);
-        await _context.SaveChangesAsync();
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            _context.PurchaseFinishedPlans.Remove(plan);
+            await _context.SaveChangesAsync();
 
-        // 刷新工单状态
-        await UpdateMaterialPlanStatusAsync(workOrderId);
+            // 刷新工单状态（与删除在同一事务中）
+            await UpdateMaterialPlanStatusAsync(workOrderId);
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
 
         _logger.LogInformation("删除成品采购计划成功: ID {Id}", id);
     }
@@ -238,13 +282,15 @@ public class MaterialPlanService : IMaterialPlanService
         if (workOrder == null)
             throw new BusinessException("工单不存在");
 
-        var batch = await _context.InventoryBatches.FindAsync(request.InventoryBatchId);
+        var batch = await _context.InventoryBatches
+            .FirstOrDefaultAsync(b => b.BatchNo == request.InventoryBatchNo);
         if (batch == null)
             throw new BusinessException("库存批次不存在");
 
-        // 校验：批次未被其他未取消的库存使用计划引用
+        // 校验：批次未被其他工单的未取消库存使用计划引用（排除自身工单）
         var existingPlan = await _context.InventoryPlans
-            .AnyAsync(p => p.InventoryBatchId == request.InventoryBatchId
+            .AnyAsync(p => p.WorkOrderId != request.WorkOrderId
+                && p.InventoryBatchNo == request.InventoryBatchNo
                 && p.PlanStatus != InventoryPlanStatus.Cancelled);
         if (existingPlan)
             throw new BusinessException("该库存批次已被其他工单的库存使用计划引用");
@@ -271,7 +317,7 @@ public class MaterialPlanService : IMaterialPlanService
         {
             WorkOrderId = request.WorkOrderId,
             PlanDate = request.PlanDate,
-            InventoryBatchId = request.InventoryBatchId,
+            InventoryBatchNo = request.InventoryBatchNo,
             BatchNo = batch.BatchNo,
             PlantGrade = batch.PlantGrade,
             Specification = batch.Specification,
@@ -287,10 +333,21 @@ public class MaterialPlanService : IMaterialPlanService
         };
 
         _context.InventoryPlans.Add(plan);
-        await _context.SaveChangesAsync();
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
 
-        // 刷新工单状态
-        await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
+            // 刷新工单状态（与创建在同一事务中）
+            await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
 
         _logger.LogInformation("创建库存使用计划成功: 工单ID {WorkOrderId}, 批次号 {BatchNo}, 重量 {Weight}",
             request.WorkOrderId, batch.BatchNo, request.UsedWeight);
@@ -306,10 +363,21 @@ public class MaterialPlanService : IMaterialPlanService
 
         var workOrderId = plan.WorkOrderId;
         _context.InventoryPlans.Remove(plan);
-        await _context.SaveChangesAsync();
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
 
-        // 刷新工单状态
-        await UpdateMaterialPlanStatusAsync(workOrderId);
+            // 刷新工单状态（与删除在同一事务中）
+            await UpdateMaterialPlanStatusAsync(workOrderId);
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
 
         _logger.LogInformation("删除库存使用计划成功: ID {Id}", id);
     }
@@ -362,10 +430,10 @@ public class MaterialPlanService : IMaterialPlanService
         var wtMin = Math.Round((wt - workOrder.WallThicknessNegative) * 1.02m, 3);
         var wtMax = Math.Round((wt + workOrder.WallThicknessPositive) * 0.98m, 3);
 
-        // 获取已被其他未取消库存使用计划引用的批次ID
-        var usedBatchIds = await _context.InventoryPlans
+        // 获取已被其他未取消库存使用计划引用的批次号
+        var usedBatchNos = await _context.InventoryPlans
             .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled)
-            .Select(p => p.InventoryBatchId)
+            .Select(p => p.InventoryBatchNo)
             .Distinct()
             .ToListAsync();
 
@@ -374,7 +442,7 @@ public class MaterialPlanService : IMaterialPlanService
             .AsNoTracking()
             .Where(b => b.RemainingWeight > 0
                 && (b.MaterialType == "备料成品" || b.MaterialType == "余库料")
-                && !usedBatchIds.Contains(b.Id));
+                && !usedBatchNos.Contains(b.BatchNo));
 
         // 牌号条件：精确匹配 或 高级替代
         var eligibleGrades = new List<string> { workOrder.PlantGrade };
@@ -503,10 +571,10 @@ public class MaterialPlanService : IMaterialPlanService
             }
         }
 
-        // 已被其他未取消计划引用的批次ID
-        var usedBatchIds = await _context.InventoryPlans
+        // 已被其他未取消计划引用的批次号
+        var usedBatchNos = await _context.InventoryPlans
             .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled)
-            .Select(p => p.InventoryBatchId)
+            .Select(p => p.InventoryBatchNo)
             .Distinct()
             .ToListAsync();
 
@@ -514,7 +582,7 @@ public class MaterialPlanService : IMaterialPlanService
         var query = _context.InventoryBatches
             .AsNoTracking()
             .Where(b => b.RemainingWeight > 0
-                && !usedBatchIds.Contains(b.Id)
+                && !usedBatchNos.Contains(b.BatchNo)
                 && eligibleGrades.Contains(b.PlantGrade));
 
         // 物料名称筛选
@@ -847,7 +915,7 @@ public class MaterialPlanService : IMaterialPlanService
             {
                 var s = CalculateInventoryPlanStatus(workOrder, reworkPlans, isRework: true);
                 statuses.Add(s);
-                rates.Add(CalculateInventoryPlanRate(workOrder, reworkPlans, isRework: true));
+                rates.Add(CalculateInventoryPlanRate(workOrder, reworkPlans));
             }
 
             // 工单满足率 = 4种用料相加（总覆盖率）
@@ -898,12 +966,9 @@ public class MaterialPlanService : IMaterialPlanService
 
             if (isSemi)
             {
-                // 原料采购：推算可产成品支数 = 原料支数 × 每支产出 × 正品率/100 × 1.02
+                // 原料采购：原料支数 × 投料倍率
                 var semiPlans = plans.Cast<PurchaseSemiPlan>();
-                var totalInputPieces = semiPlans.Sum(p => p.RequiredPieces ?? 0);
-                var avgInputMultiple = semiPlans.Average(p => p.InputMultiple);
-                var avgQualifiedDecimal = semiPlans.Average(p => p.QualifiedRate) / 100m;
-                effectivePieces = (int)(totalInputPieces * (decimal)avgInputMultiple * avgQualifiedDecimal * 1.02m);
+                effectivePieces = (int)semiPlans.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple);
             }
             else
             {
@@ -923,7 +988,7 @@ public class MaterialPlanService : IMaterialPlanService
             if (isSemi)
             {
                 var semiPlans = plans.Cast<PurchaseSemiPlan>();
-                effectiveWeight = semiPlans.Sum(p => p.RequiredWeight) * 1.05m;
+                effectiveWeight = semiPlans.Sum(p => p.RequiredWeight);
             }
             else
             {
@@ -941,14 +1006,12 @@ public class MaterialPlanService : IMaterialPlanService
     /// 计算库存使用计划满足率
     /// </summary>
     private decimal CalculateInventoryPlanRate(WorkOrder workOrder,
-        IReadOnlyCollection<InventoryPlan> plans, bool isRework = false)
+        IReadOnlyCollection<InventoryPlan> plans)
     {
         if (workOrder.LengthStatus == LengthStatus.Fixed)
         {
             // 定尺：按支数，直接按实际出库支数 × 投料倍率
-            var rawPieces = (int)(plans.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple));
-            // 库料改制涉及生产工艺，有2%损耗
-            var effectivePieces = isRework ? (int)(rawPieces * 1.02m) : rawPieces;
+            var effectivePieces = (int)(plans.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple));
 
             if (workOrder.TotalQuantity <= 0) return 0;
             return Math.Round((decimal)effectivePieces / workOrder.TotalQuantity * 100m, 0);
@@ -956,9 +1019,7 @@ public class MaterialPlanService : IMaterialPlanService
         else
         {
             // 范围尺/非定尺：按重量，直接按实际出库重量
-            var rawWeight = plans.Sum(p => p.UsedWeight);
-            // 库料改制涉及生产工艺，有5%损耗
-            var effectiveWeight = isRework ? rawWeight * 1.05m : rawWeight;
+            var effectiveWeight = plans.Sum(p => p.UsedWeight);
 
             if (workOrder.TotalWeight <= 0) return 0;
             return Math.Round(effectiveWeight / workOrder.TotalWeight * 100m, 0);
@@ -971,7 +1032,7 @@ public class MaterialPlanService : IMaterialPlanService
     private MaterialPlanStatus CalculateInventoryPlanStatus(WorkOrder workOrder,
         IReadOnlyCollection<InventoryPlan> plans, bool isRework = false)
     {
-        var rate = CalculateInventoryPlanRate(workOrder, plans, isRework);
+        var rate = CalculateInventoryPlanRate(workOrder, plans);
 
         if (workOrder.LengthStatus == LengthStatus.Fixed)
         {
@@ -1129,7 +1190,7 @@ internal static class MaterialPlanMappingExtensions
             Id = entity.Id,
             WorkOrderId = entity.WorkOrderId,
             PlanDate = entity.PlanDate,
-            InventoryBatchId = entity.InventoryBatchId,
+            InventoryBatchNo = entity.InventoryBatchNo,
             BatchNo = entity.BatchNo,
             PlantGrade = entity.PlantGrade,
             Specification = entity.Specification,

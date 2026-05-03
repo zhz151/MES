@@ -1,0 +1,110 @@
+@page "/suppliers"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
+@inject SupplierService SupplierService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = "MaterialStaff,MaterialDirector,Admin")]
+
+<div class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Business" Class="mr-2" Color="Color.Primary" />
+                    供应商管理
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">供应商档案维护</MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="NavigateToCreate">新建供应商</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string" Label="模糊搜索 - 名称/联系人" Placeholder="输入关键字..." @bind-Value="searchKeyword" Immediate="true" DebounceInterval="500" OnKeyDown="OnSearchKeyDown" Clearable="true" ClearButton="true" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Filled.Search" OnClick="Search">搜索</MudButton>
+                </MudItem>
+            </MudGrid>
+            <MudTable @ref="table" T="SupplierProfileDto" ServerData="OnServerData" Loading="@isLoading" Dense="true" Hover="true" Class="mt-4" Elevation="0" RowsPerPageLabel="每页行数:">
+                <ToolBarContent>
+                    <MudText Typo="Typo.body2" Class="ml-auto">共 @totalCount 条记录</MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>供应商名称</MudTh>
+                    <MudTh>联系人</MudTh>
+                    <MudTh>联系电话</MudTh>
+                    <MudTh>状态</MudTh>
+                    <MudTh>操作</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd title="@context.SupplierName">@context.SupplierName</MudTd>
+                    <MudTd>@context.ContactPerson</MudTd>
+                    <MudTd>@context.ContactPhone</MudTd>
+                    <MudTd>
+                        <MudChip Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Error)">@(context.IsActive ? "启用" : "停用")</MudChip>
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info" Size="Size.Small" OnClick="() => ViewDetail(context.Id)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Size="Size.Small" OnClick="() => EditDetail(context.Id)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItem(context)" />
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+</div>
+
+@code {
+    private MudTable<SupplierProfileDto>? table;
+    private List<SupplierProfileDto> items = new();
+    private bool isLoading;
+    private string searchKeyword = string.Empty;
+    private int totalCount;
+
+    private async Task<TableData<SupplierProfileDto>> OnServerData(TableState state)
+    {
+        isLoading = true; StateHasChanged();
+        try
+        {
+            var query = new QueryParams { PageIndex = state.Page + 1, PageSize = state.PageSize, Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword };
+            var result = await SupplierService.GetPagedAsync(query);
+            if (result.Success && result.Data != null) { items = result.Data.Items; totalCount = result.Data.TotalCount; return new TableData<SupplierProfileDto> { Items = items, TotalItems = totalCount }; }
+            return new TableData<SupplierProfileDto> { Items = new List<SupplierProfileDto>(), TotalItems = 0 };
+        }
+        catch (Exception ex) { Snackbar.Add($"加载失败: {ex.Message}", Severity.Error); return new TableData<SupplierProfileDto> { Items = new List<SupplierProfileDto>(), TotalItems = 0 }; }
+        finally { isLoading = false; StateHasChanged(); }
+    }
+
+    private async Task Search() { if (table != null) await table.ReloadServerData(); }
+    private void OnSearchKeyDown(KeyboardEventArgs args) { if (args.Key == "Enter") _ = Search(); }
+    private void NavigateToCreate() => Navigation.NavigateTo("/suppliers/create");
+    private void ViewDetail(int id) => Navigation.NavigateTo($"/suppliers/{id}");
+    private void EditDetail(int id) => Navigation.NavigateTo($"/suppliers/{id}/edit");
+
+    private async Task DeleteItem(SupplierProfileDto item)
+    {
+        var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters { ["ContentText"] = $"确定要删除供应商 \"{item.SupplierName}\" 吗？", ["ConfirmText"] = "确认删除", ["Color"] = Color.Error });
+        var dialogResult = await dialog.Result;
+        if (!dialogResult.Canceled)
+        {
+            try
+            {
+                var result = await SupplierService.DeleteAsync(item.Id);
+                if (result.Success) { Snackbar.Add("删除成功", Severity.Success); await Search(); }
+                else { Snackbar.Add(result.Message ?? "删除失败", Severity.Error); }
+            }
+            catch (Exception ex) { Snackbar.Add($"删除失败: {ex.Message}", Severity.Error); }
+        }
+    }
+}

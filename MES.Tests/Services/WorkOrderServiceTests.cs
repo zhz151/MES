@@ -173,7 +173,7 @@ public class WorkOrderServiceTests : TestBase
         });
 
         result.Should().HaveCount(1);
-        result[0].WorkOrderNo.Should().StartWith("WO");
+        result[0].WorkOrderNo.Should().StartWith("GD");
         result[0].SalesOrderNo.Should().Be(orderNo);
         result[0].ProductionMainNo.Should().Be("D01");
         result[0].ProductionSubNo.Should().Be("C01");

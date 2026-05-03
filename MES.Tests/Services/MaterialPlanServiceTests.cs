@@ -363,7 +363,7 @@ public class MaterialPlanServiceTests : TestBase
         {
             WorkOrderId = woId,
             PlanDate = DateTime.Today,
-            InventoryBatchId = batch.Id,
+            InventoryBatchNo = batch.BatchNo,
             UsageMode = "All",
             UsedWeight = batch.RemainingWeight
         });
@@ -385,7 +385,7 @@ public class MaterialPlanServiceTests : TestBase
         {
             WorkOrderId = woId,
             PlanDate = DateTime.Today,
-            InventoryBatchId = batch.Id,
+            InventoryBatchNo = batch.BatchNo,
             UsageMode = "Partial",
             UsedQuantity = 10,
             UsedWeight = 1000m
@@ -409,7 +409,7 @@ public class MaterialPlanServiceTests : TestBase
         {
             WorkOrderId = woId,
             PlanDate = DateTime.Today,
-            InventoryBatchId = batch.Id,
+            InventoryBatchNo = batch.BatchNo,
             UsageMode = "All",
             UsedWeight = batch.RemainingWeight
         });
@@ -420,7 +420,7 @@ public class MaterialPlanServiceTests : TestBase
         {
             WorkOrderId = woId2,
             PlanDate = DateTime.Today,
-            InventoryBatchId = batch.Id,
+            InventoryBatchNo = batch.BatchNo,
             UsageMode = "All",
             UsedWeight = batch.RemainingWeight
         });
@@ -439,7 +439,7 @@ public class MaterialPlanServiceTests : TestBase
         {
             WorkOrderId = woId,
             PlanDate = DateTime.Today,
-            InventoryBatchId = 999,
+            InventoryBatchNo = "NON_EXISTENT",
             UsageMode = "All"
         });
 
@@ -458,7 +458,7 @@ public class MaterialPlanServiceTests : TestBase
         {
             WorkOrderId = woId,
             PlanDate = DateTime.Today,
-            InventoryBatchId = batch.Id,
+            InventoryBatchNo = batch.BatchNo,
             UsageMode = "Partial",
             UsedQuantity = 20, // 超过库存10
             UsedWeight = 2000m
@@ -699,7 +699,7 @@ public class MaterialPlanServiceTests : TestBase
         {
             WorkOrderId = woId,
             PlanDate = DateTime.Today,
-            InventoryBatchId = batch.Id,
+            InventoryBatchNo = batch.BatchNo,
             UsageMode = "All",
             UsedWeight = batch.RemainingWeight
         });

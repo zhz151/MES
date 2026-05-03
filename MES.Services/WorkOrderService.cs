@@ -95,19 +95,19 @@ public class WorkOrderService : IWorkOrderService
 
             if (!hasWorkOrder)
             {
-                workOrderStatus = "NotGenerated";
+                workOrderStatus = WorkOrderStatus.NotGenerated.ToString();
             }
             else
             {
                 var pendingWorkOrder = orderWorkOrders.FirstOrDefault(wo => wo.Status == WorkOrderStatus.Pending);
                 if (pendingWorkOrder != null)
                 {
-                    workOrderStatus = "Pending";
+                    workOrderStatus = WorkOrderStatus.Pending.ToString();
                     workOrderId = pendingWorkOrder.Id;
                 }
                 else
                 {
-                    workOrderStatus = "Confirmed";
+                    workOrderStatus = WorkOrderStatus.Confirmed.ToString();
                     workOrderId = orderWorkOrders.FirstOrDefault()?.Id;
                 }
             }
@@ -143,13 +143,10 @@ public class WorkOrderService : IWorkOrderService
 
     private static int GetWorkOrderStatusOrder(string status)
     {
-        return status switch
-        {
-            "Pending" => 1,
-            "NotGenerated" => 2,
-            "Confirmed" => 3,
-            _ => 4
-        };
+        if (status == WorkOrderStatus.Pending.ToString()) return 1;
+        if (status == WorkOrderStatus.NotGenerated.ToString()) return 2;
+        if (status == WorkOrderStatus.Confirmed.ToString()) return 3;
+        return 4;
     }
 
     public async Task<List<CancelledOrderDto>> GetCancelledOrdersAsync()
@@ -475,29 +472,29 @@ public class WorkOrderService : IWorkOrderService
             
             // 7. 获取下一个可用序号
             var workOrderDate = DateTime.Now;
-            var dateStr = workOrderDate.ToString("yyyyMMdd");
-            var prefix = $"WO{dateStr}";
-            
+            var dateStr = workOrderDate.ToString("yyMMdd");
+            var prefix = $"GD{dateStr}";
+
             // 获取当天所有工单号
             var existingNos = await _context.WorkOrders
                 .AsNoTracking()
                 .Where(wo => wo.WorkOrderNo.StartsWith(prefix))
                 .Select(wo => wo.WorkOrderNo)
                 .ToListAsync();
-            
+
             int maxSeq = 0;
             foreach (var no in existingNos)
             {
-                if (no.Length >= 4 && int.TryParse(no.Substring(no.Length - 4), out var seq))
+                if (no.Length >= 3 && int.TryParse(no.Substring(no.Length - 3), out var seq))
                 {
                     if (seq > maxSeq) maxSeq = seq;
                 }
             }
-            
+
             int currentSeq = maxSeq + 1;
-            
-            if (currentSeq > 9999)
-                throw new BusinessException($"当天工单号已达到上限9999，无法生成新工单");
+
+            if (currentSeq > 999)
+                throw new BusinessException($"当天工单号已达到上限999，无法生成新工单");
             
             _logger.LogWarning("=== 工单序号分配 ===");
             _logger.LogWarning($"日期前缀: {prefix}");
@@ -522,7 +519,7 @@ public class WorkOrderService : IWorkOrderService
                 var (minLength, maxLength, totalQuantity, totalMeters, totalWeight, itemDetails, technicalRequirements) =
                     CalculateAggregates(groupItems!, firstItem.LengthStatus);
 
-                var workOrderNo = $"{prefix}{currentSeq:D4}";
+                var workOrderNo = $"{prefix}{currentSeq:D3}";
                 currentSeq++;
 
                 _logger.LogWarning($"生成工单号: {workOrderNo}");
@@ -931,17 +928,14 @@ public class WorkOrderService : IWorkOrderService
             var fixedInventory = inventoryPlans.Where(p => fixedIds.Contains(p.WorkOrderId)).ToList();
             var fixedRework = reworkPlans.Where(p => fixedIds.Contains(p.WorkOrderId)).ToList();
 
-            var semiPieces = fixedSemi.Sum(p => p.RequiredPieces ?? 0);
-            if (semiPieces > 0 && fixedSemi.Any())
-            {
-                var avgMultiple = fixedSemi.Average(p => p.InputMultiple);
-                var avgQualified = fixedSemi.Average(p => p.QualifiedRate) / 100m;
-                totalEffective += semiPieces * (decimal)avgMultiple * avgQualified * 1.02m;
-            }
-
+            // 原料采购：原料支数 × 投料倍率，不乘系数
+            totalEffective += (int)fixedSemi.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple);
+            // 成品采购：×1.02
             totalEffective += fixedFinish.Sum(p => p.RequiredPiece ?? 0) * 1.02m;
+            // 库存使用：×1.02
             totalEffective += (int)(fixedInventory.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple) * 1.02m);
-            totalEffective += (int)(fixedRework.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple) * 1.02m);
+            // 库料改制：不乘系数
+            totalEffective += (int)fixedRework.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple);
         }
 
         // 范围尺/非定尺：按重量
@@ -955,15 +949,21 @@ public class WorkOrderService : IWorkOrderService
             var nonFixedInventory = inventoryPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
             var nonFixedRework = reworkPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
 
-            totalEffective += nonFixedSemi.Sum(p => p.RequiredWeight) * 1.05m;
+            totalEffective += nonFixedSemi.Sum(p => p.RequiredWeight);
+            // 成品采购：×1.05
             totalEffective += nonFixedFinish.Sum(p => p.RequiredWeight) * 1.05m;
+            // 库存使用：×1.05
             totalEffective += nonFixedInventory.Sum(p => p.UsedWeight) * 1.05m;
-            totalEffective += nonFixedRework.Sum(p => p.UsedWeight) * 1.05m;
+            // 库料改制：不乘系数
+            totalEffective += nonFixedRework.Sum(p => p.UsedWeight);
         }
 
         if (totalDemand <= 0) return (0, MaterialPlanStatus.NotPlanned);
 
         var rate = Math.Round(totalEffective / totalDemand * 100m, 0);
+
+        // 无任何投料 → 未计划
+        if (rate <= 0) return (0, MaterialPlanStatus.NotPlanned);
 
         // 小批量特殊处理：定尺总支数 ≤ 20 时，≥100% 即视为满足
         var fixedTotalQuantity = fixedOrders.Sum(wo => wo.TotalQuantity);
@@ -1006,6 +1006,17 @@ public class WorkOrderService : IWorkOrderService
         var workOrder = await _context.WorkOrders
             .AsNoTracking()
             .FirstOrDefaultAsync(wo => wo.Id == id);
+        if (workOrder == null)
+            throw new BusinessException("工单不存在");
+
+        return workOrder.ToDetailDto();
+    }
+
+    public async Task<WorkOrderDetailDto> GetByWorkOrderNoAsync(string workOrderNo)
+    {
+        var workOrder = await _context.WorkOrders
+            .AsNoTracking()
+            .FirstOrDefaultAsync(wo => wo.WorkOrderNo == workOrderNo);
         if (workOrder == null)
             throw new BusinessException("工单不存在");
 
