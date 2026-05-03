@@ -366,9 +366,120 @@ svg[aria-label="Increment"] {
     margin-top: 2px;
 }
 
+/* ============================================================
+   顶部导航栏样式
+   ============================================================ */
+
+/* 导航按钮基础样式 */
+.nav-btn {
+    color: #ccc !important;
+    text-transform: none !important;
+    min-width: unset !important;
+    padding: 4px 10px !important;
+    border-radius: 4px !important;
+    transition: all 0.15s ease !important;
+}
+
+.nav-btn:hover {
+    color: #fff !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 当前选中菜单项 */
+.nav-active {
+    color: #fff !important;
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    font-weight: 500 !important;
+}
+
+/* MudMenu 下拉菜单按钮的文字颜色 */
+.mud-menu .mud-button-text {
+    color: inherit !important;
+}
+
+/* ============================================================
+   下拉菜单容器样式 - 深色主题，与导航栏一致
+   ============================================================ */
+
+/* 下拉面板背景 */
+.mud-menu .mud-paper {
+    background-color: #1a1a2e !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 6px !important;
+    margin-top: 4px !important;
+    min-width: 140px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 菜单项基础样式 */
+.mud-menu .mud-list-item {
+    color: #ccc !important;
+    font-size: 0.875rem !important;
+    padding: 8px 16px !important;
+    transition: all 0.15s ease !important;
+    border-radius: 4px !important;
+    margin: 2px 4px !important;
+}
+
+/* 菜单项悬停 */
+.mud-menu .mud-list-item:hover {
+    color: #fff !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 当前选中菜单项（高亮） */
+.mud-menu .menu-item-active {
+    color: #fff !important;
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    font-weight: 500 !important;
+}
+
+/* 菜单项右侧选中指示线 */
+.mud-menu .menu-item-active::after {
+    content: "";
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 16px;
+    border-radius: 2px;
+    background-color: var(--mud-palette-primary, #1976d2);
+}
+
+/* 顶部导航容器滚动条隐藏（但不影响功能） */
+.top-nav::-webkit-scrollbar {
+    height: 0;
+}
+.top-nav {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
 /* 表格内联编辑的验证样式 */
 .mud-table .mud-input-error .mud-input-outlined-border {
     border-color: var(--mud-palette-error) !important;
+}
+
+/* ============================================================
+   紧凑表格样式 - 极小内边距，适配20+列密集表格
+   ============================================================ */
+
+.compact-table.mud-table .mud-table-cell {
+    padding: 2px 3px !important;
+}
+
+.compact-table.mud-table .mud-select {
+    min-width: unset !important;
+}
+
+.compact-table.mud-table .mud-input input,
+.compact-table.mud-table .mud-select input {
+    padding: 0 0 0 4px !important;
+}
+
+.compact-table.mud-table .mud-select .mud-input {
+    padding-right: 16px !important;
 }
 
 /* 下拉选择框验证样式 */
@@ -571,6 +682,30 @@ svg[aria-label="Increment"] {
     z-index: 1;
     pointer-events: none;
     line-height: 1;
+}
+
+/* ============================================================
+   可排序列头样式 - 简洁美观，不遮蔽字段文字
+   ============================================================ */
+
+.sortable-header {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.sortable-header:hover {
+    color: var(--mud-palette-primary);
+}
+
+.sort-arrow {
+    font-size: 9px;
+    line-height: 1;
+    color: var(--mud-palette-primary);
+    flex-shrink: 0;
 }
 
 /* ============================================================

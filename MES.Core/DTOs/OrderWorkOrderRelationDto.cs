@@ -85,6 +85,11 @@ public class WorkOrderRelationDto
     public string MaterialName { get; set; } = null!;
 
     /// <summary>
+    /// 标准牌号（从订单项次获取，同一工单下一致）
+    /// </summary>
+    public string StandardGrade { get; set; } = null!;
+
+    /// <summary>
     /// 工厂牌号
     /// </summary>
     public string PlantGrade { get; set; } = null!;
@@ -93,6 +98,26 @@ public class WorkOrderRelationDto
     /// 规格
     /// </summary>
     public string Specification { get; set; } = null!;
+
+    /// <summary>
+    /// 外径下偏差
+    /// </summary>
+    public decimal OuterDiameterNegative { get; set; }
+
+    /// <summary>
+    /// 外径上偏差
+    /// </summary>
+    public decimal OuterDiameterPositive { get; set; }
+
+    /// <summary>
+    /// 壁厚下偏差
+    /// </summary>
+    public decimal WallThicknessNegative { get; set; }
+
+    /// <summary>
+    /// 壁厚上偏差
+    /// </summary>
+    public decimal WallThicknessPositive { get; set; }
 
     /// <summary>
     /// 交货状态

@@ -22,4 +22,9 @@ public interface IProductionStandardService
     
     // 删除
     Task DeleteAsync(int id);
+
+    // ========== 打印 ==========
+    Task<byte[]> PrintStandardAsync(int id);
+    Task<byte[]> PrintStandardBatchAsync(int[] ids);
+    Task<byte[]> PrintStandardAllAsync(string? keyword, bool? isActive, string? sortBy = null, bool isDescending = false);
 }

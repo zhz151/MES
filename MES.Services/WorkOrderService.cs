@@ -8,6 +8,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Mapping;
+using MES.Services.Printing;
 
 namespace MES.Services;
 
@@ -62,32 +63,22 @@ public class WorkOrderService : IWorkOrderService
             );
         }
 
-        // 获取总数
-        var totalCount = await orderQuery.CountAsync();
+        // 获取所有匹配订单（不分页，因为需要先计算 WorkOrderStatus 再筛选）
+        var allOrders = await orderQuery.ToListAsync();
+        var allOrderNumbers = allOrders.Select(x => x.SalesOrder.OrderNumber).ToList();
 
-        // 排序和分页
-        var orderedQuery = query.IsDescending
-            ? orderQuery.OrderByDescending(x => x.SalesOrder.SignDate)
-            : orderQuery.OrderBy(x => x.SalesOrder.SignDate);
-
-        var orderList = await orderedQuery
-            .Skip(query.Skip)
-            .Take(query.PageSize)
+        // 获取关联的所有工单
+        var allWorkOrders = await _context.WorkOrders
+            .Where(wo => allOrderNumbers.Contains(wo.SalesOrderNo) && wo.Status != WorkOrderStatus.Cancelled)
             .ToListAsync();
 
-        // 获取分页后订单的工单信息
-        var pagedOrderNumbers = orderList.Select(x => x.SalesOrder.OrderNumber).ToList();
-        var pagedWorkOrders = await _context.WorkOrders
-            .Where(wo => pagedOrderNumbers.Contains(wo.SalesOrderNo) && wo.Status != WorkOrderStatus.Cancelled)
-            .ToListAsync();
-
-        var items = new List<OrderWorkOrderStatusDto>();
-
-        foreach (var item in orderList)
+        // 为每个订单计算工单状态
+        var allItems = new List<OrderWorkOrderStatusDto>();
+        foreach (var item in allOrders)
         {
             var order = item.SalesOrder;
             var customer = item.Customer;
-            var orderWorkOrders = pagedWorkOrders.Where(wo => wo.SalesOrderNo == order.OrderNumber).ToList();
+            var orderWorkOrders = allWorkOrders.Where(wo => wo.SalesOrderNo == order.OrderNumber).ToList();
 
             string workOrderStatus;
             bool hasWorkOrder = orderWorkOrders.Any();
@@ -112,7 +103,7 @@ public class WorkOrderService : IWorkOrderService
                 }
             }
 
-            items.Add(new OrderWorkOrderStatusDto
+            allItems.Add(new OrderWorkOrderStatusDto
             {
                 SalesOrderId = order.Id,
                 OrderNumber = order.OrderNumber,
@@ -126,15 +117,30 @@ public class WorkOrderService : IWorkOrderService
             });
         }
 
+        // 应用工单状态筛选（后端过滤，前端传对应字符串值）
+        if (!string.IsNullOrEmpty(query.WorkOrderStatus))
+        {
+            allItems = allItems.Where(x => x.WorkOrderStatus == query.WorkOrderStatus).ToList();
+        }
+
         // 排序：待修正 → 未编制 → 已确定
-        items = items
+        allItems = allItems
             .OrderBy(x => GetWorkOrderStatusOrder(x.WorkOrderStatus))
             .ThenByDescending(x => x.SignDate)
             .ToList();
 
+        // 总数（筛选后）
+        var totalCount = allItems.Count;
+
+        // 分页
+        var pagedItems = allItems
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .ToList();
+
         return new PagedResult<OrderWorkOrderStatusDto>
         {
-            Items = items,
+            Items = pagedItems,
             TotalCount = totalCount,
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
@@ -1235,8 +1241,13 @@ result.WorkOrders.Add(new WorkOrderRelationDto
     Status = (int)wo.Status,
     StatusText = GetStatusText(wo.Status),
     MaterialName = wo.MaterialName.ToString(),
+    StandardGrade = workOrderItems.FirstOrDefault()?.StandardGrade ?? "",
     PlantGrade = wo.PlantGrade,
     Specification = wo.Specification,
+    OuterDiameterNegative = wo.OuterDiameterNegative,
+    OuterDiameterPositive = wo.OuterDiameterPositive,
+    WallThicknessNegative = wo.WallThicknessNegative,
+    WallThicknessPositive = wo.WallThicknessPositive,
     DeliveryState = wo.DeliveryState.ToString(),
     LengthStatus = wo.LengthStatus.ToString(),
     DeliveryDate = wo.DeliveryDate,
@@ -1247,6 +1258,128 @@ result.WorkOrders.Add(new WorkOrderRelationDto
         }
 
         return result;
+    }
+
+    public async Task<byte[]> PrintWorkOrderAsync(int id)
+    {
+        var entity = await _context.WorkOrders
+            .AsNoTracking()
+            .FirstOrDefaultAsync(wo => wo.Id == id && !wo.IsDeleted)
+            ?? throw new BusinessException("工单不存在");
+
+        return WorkOrderPrintHelper.GeneratePdf(entity);
+    }
+
+    public async Task<byte[]> PrintWorkOrdersByOrderAsync(string salesOrderNo)
+    {
+        var workOrders = await _context.WorkOrders
+            .AsNoTracking()
+            .Where(wo => wo.SalesOrderNo == salesOrderNo
+                      && wo.Status != WorkOrderStatus.Cancelled
+                      && !wo.IsDeleted)
+            .OrderBy(wo => wo.ProductionMainNo)
+            .ThenBy(wo => wo.ProductionSubNo)
+            .ToListAsync();
+
+        if (workOrders.Count == 0)
+            throw new BusinessException($"订单 {salesOrderNo} 下没有可打印的工单");
+
+        return WorkOrderPrintHelper.GenerateBatchPdf(salesOrderNo, workOrders);
+    }
+
+    public async Task<byte[]> PrintWorkOrdersByOrderBatchAsync(string[] salesOrderNos)
+    {
+        var workOrders = await _context.WorkOrders
+            .AsNoTracking()
+            .Where(wo => salesOrderNos.Contains(wo.SalesOrderNo)
+                      && wo.Status != WorkOrderStatus.Cancelled
+                      && !wo.IsDeleted)
+            .OrderBy(wo => wo.SalesOrderNo)
+            .ThenBy(wo => wo.ProductionMainNo)
+            .ThenBy(wo => wo.ProductionSubNo)
+            .ToListAsync();
+
+        if (workOrders.Count == 0)
+            throw new BusinessException("所选订单下没有可打印的工单");
+
+        return WorkOrderPrintHelper.GenerateMultiBatchPdf(workOrders);
+    }
+
+    public async Task<byte[]> PrintWorkOrdersByOrderAllAsync(WorkOrderQueryParams query)
+    {
+        // 复用首页筛选逻辑：获取所有已确认订单
+        var orderQuery = _context.SalesOrders
+            .Where(so => so.Status == SalesOrderStatus.Confirmed && !so.IsDeleted)
+            .Join(
+                _context.CustomerProfiles.Where(c => !c.IsDeleted),
+                so => so.CustomerId,
+                c => c.Id,
+                (so, c) => new { SalesOrder = so, Customer = c }
+            );
+
+        if (!string.IsNullOrEmpty(query.Salesman))
+            orderQuery = orderQuery.Where(x => x.Customer.Salesman.Contains(query.Salesman));
+
+        if (!string.IsNullOrEmpty(query.EndCustomer))
+            orderQuery = orderQuery.Where(x => x.Customer.EndCustomer != null && x.Customer.EndCustomer.Contains(query.EndCustomer));
+
+        if (!string.IsNullOrEmpty(query.Keyword))
+        {
+            var keyword = query.Keyword;
+            orderQuery = orderQuery.Where(x =>
+                x.SalesOrder.OrderNumber.Contains(keyword) ||
+                x.Customer.CustomerUnit.Contains(keyword) ||
+                x.Customer.Salesman.Contains(keyword) ||
+                (x.Customer.EndCustomer != null && x.Customer.EndCustomer.Contains(keyword)));
+        }
+
+        var allOrders = await orderQuery.ToListAsync();
+        var allOrderNumbers = allOrders.Select(x => x.SalesOrder.OrderNumber).ToList();
+
+        // 获取关联的所有工单
+        var allWorkOrders = await _context.WorkOrders
+            .AsNoTracking()
+            .Where(wo => allOrderNumbers.Contains(wo.SalesOrderNo)
+                      && wo.Status != WorkOrderStatus.Cancelled)
+            .ToListAsync();
+
+        // 计算每个订单的工单状态并筛选
+        var matchedOrderNumbers = new List<string>();
+        foreach (var item in allOrders)
+        {
+            var order = item.SalesOrder;
+            var orderWorkOrders = allWorkOrders.Where(wo => wo.SalesOrderNo == order.OrderNumber).ToList();
+
+            string workOrderStatus;
+            if (!orderWorkOrders.Any())
+            {
+                workOrderStatus = WorkOrderStatus.NotGenerated.ToString();
+            }
+            else
+            {
+                workOrderStatus = orderWorkOrders.Any(wo => wo.Status == WorkOrderStatus.Pending)
+                    ? WorkOrderStatus.Pending.ToString()
+                    : WorkOrderStatus.Confirmed.ToString();
+            }
+
+            if (string.IsNullOrEmpty(query.WorkOrderStatus) || workOrderStatus == query.WorkOrderStatus)
+            {
+                matchedOrderNumbers.Add(order.OrderNumber);
+            }
+        }
+
+        // 加载匹配订单的所有工单
+        var resultWorkOrders = allWorkOrders
+            .Where(wo => matchedOrderNumbers.Contains(wo.SalesOrderNo))
+            .OrderBy(wo => wo.SalesOrderNo)
+            .ThenBy(wo => wo.ProductionMainNo)
+            .ThenBy(wo => wo.ProductionSubNo)
+            .ToList();
+
+        if (resultWorkOrders.Count == 0)
+            throw new BusinessException("没有可打印的工单");
+
+        return WorkOrderPrintHelper.GenerateMultiBatchPdf(resultWorkOrders);
     }
 
     #endregion

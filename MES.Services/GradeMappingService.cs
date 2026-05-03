@@ -7,6 +7,7 @@ using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Mapping;
+using MES.Services.Printing;
 
 namespace MES.Services;
 
@@ -32,12 +33,27 @@ public class GradeMappingService : IGradeMappingService
             .Where(g => !g.IsDeleted)
             .AsQueryable();
 
-        // 关键字模糊搜索
+        // 关键字模糊搜索（多关键词AND + 状态中文映射）
         if (!string.IsNullOrEmpty(query.Keyword))
         {
-            queryable = queryable.Where(g =>
-                g.StandardGrade.Contains(query.Keyword) ||
-                g.PlantGrade.Contains(query.Keyword));
+            var keywords = query.Keyword.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var kw in keywords)
+            {
+                var keyword = kw;
+                bool? parsedSpecial = keyword switch
+                {
+                    "是" => true,
+                    "特殊" => true,
+                    "否" => false,
+                    "常规" => false,
+                    _ => null
+                };
+                queryable = queryable.Where(g =>
+                    g.StandardGrade.Contains(keyword) ||
+                    g.PlantGrade.Contains(keyword) ||
+                    (g.HeatTreatment != null && g.HeatTreatment.Contains(keyword)) ||
+                    (parsedSpecial.HasValue && g.SpecialMaterial == parsedSpecial.Value));
+            }
         }
 
         // 排序
@@ -49,6 +65,15 @@ public class GradeMappingService : IGradeMappingService
             "plantgrade" => query.IsDescending
                 ? queryable.OrderByDescending(g => g.PlantGrade)
                 : queryable.OrderBy(g => g.PlantGrade),
+            "density" => query.IsDescending
+                ? queryable.OrderByDescending(g => g.Density)
+                : queryable.OrderBy(g => g.Density),
+            "heattreatment" => query.IsDescending
+                ? queryable.OrderByDescending(g => g.HeatTreatment ?? "")
+                : queryable.OrderBy(g => g.HeatTreatment ?? ""),
+            "specialmaterial" => query.IsDescending
+                ? queryable.OrderByDescending(g => g.SpecialMaterial)
+                : queryable.OrderBy(g => g.SpecialMaterial),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(g => g.StandardGrade)
                 : queryable.OrderBy(g => g.StandardGrade)
@@ -229,5 +254,41 @@ public class GradeMappingService : IGradeMappingService
 
         entity.IsDeleted = true;
         await _context.SaveChangesAsync();
+    }
+
+    // ========== 打印 ==========
+
+    public async Task<byte[]> PrintGradeMappingAsync(int id)
+    {
+        var dto = await GetByIdAsync(id);
+        return GradeMappingPrintHelper.GeneratePdf(dto);
+    }
+
+    public async Task<byte[]> PrintGradeMappingBatchAsync(int[] ids)
+    {
+        var result = new List<StandardGradeMappingDto>();
+        foreach (var id in ids)
+        {
+            try
+            {
+                result.Add(await GetByIdAsync(id));
+            }
+            catch (BusinessException) { }
+        }
+        return GradeMappingPrintHelper.GenerateBatchPdf(result);
+    }
+
+    public async Task<byte[]> PrintGradeMappingAllAsync(string? keyword, string? sortBy = null, bool isDescending = false)
+    {
+        var query = new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = int.MaxValue,
+            Keyword = keyword,
+            SortBy = sortBy,
+            IsDescending = isDescending
+        };
+        var paged = await GetPagedAsync(query);
+        return GradeMappingPrintHelper.GenerateBatchPdf(paged.Items);
     }
 }

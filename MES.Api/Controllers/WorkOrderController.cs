@@ -139,6 +139,51 @@ public class WorkOrderController : ControllerBase
         return Ok(ApiResponse.Ok("工单已删除"));
     }
 
+    [HttpGet("{id}/print")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintWorkOrder(int id)
+    {
+        var bytes = await _workOrderService.PrintWorkOrderAsync(id);
+        var base64 = Convert.ToBase64String(bytes);
+        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
+    }
+
+    [HttpGet("order-print")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintWorkOrdersByOrder(
+        [FromQuery] string salesOrderNo)
+    {
+        if (string.IsNullOrWhiteSpace(salesOrderNo))
+            return BadRequest(ApiResponse<string>.Fail("订单号不能为空"));
+
+        var bytes = await _workOrderService.PrintWorkOrdersByOrderAsync(salesOrderNo);
+        var base64 = Convert.ToBase64String(bytes);
+        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
+    }
+
+    [HttpPost("order-print-batch")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintWorkOrdersByOrderBatch(
+        [FromBody] string[] salesOrderNos)
+    {
+        if (salesOrderNos == null || salesOrderNos.Length == 0)
+            return BadRequest(ApiResponse<string>.Fail("请选择要打印的订单"));
+
+        var bytes = await _workOrderService.PrintWorkOrdersByOrderBatchAsync(salesOrderNos);
+        var base64 = Convert.ToBase64String(bytes);
+        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
+    }
+
+    [HttpPost("order-print-all")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintWorkOrdersByOrderAll(
+        [FromBody] WorkOrderQueryParams query)
+    {
+        var bytes = await _workOrderService.PrintWorkOrdersByOrderAllAsync(query);
+        var base64 = Convert.ToBase64String(bytes);
+        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
+    }
+
     #endregion
 
     #region 定时任务接口

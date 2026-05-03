@@ -288,5 +288,70 @@ public async Task<ApiResponse<OrderWorkOrderRelationDto>> GetOrderWorkOrderRelat
         return ApiResponse<OrderWorkOrderRelationDto>.Fail($"网络错误: {ex.Message}");
     }
 }
+
+    /// <summary>
+    /// 打印工单详情（返回PDF base64）
+    /// </summary>
+    public async Task<ApiResponse<string>> PrintAsync(int id)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<string>>($"{BaseUrl}/{id}/print");
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<string>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 按订单号批量打印所有工单（返回PDF base64）
+    /// </summary>
+    public async Task<ApiResponse<string>> PrintOrderWorkOrdersAsync(string salesOrderNo)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/order-print?salesOrderNo={Uri.EscapeDataString(salesOrderNo)}";
+            var response = await _http.GetFromJsonAsync<ApiResponse<string>>(url);
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<string>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 按多个订单号批量打印工单（选中打印）
+    /// </summary>
+    public async Task<ApiResponse<string>> PrintOrderWorkOrdersBatchAsync(string[] salesOrderNos)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<string[], ApiResponse<string>>($"{BaseUrl}/order-print-batch", salesOrderNos);
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<string>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 按筛选项打印全部工单
+    /// </summary>
+    public async Task<ApiResponse<string>> PrintOrderWorkOrdersAllAsync(WorkOrderQueryParams query)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<WorkOrderQueryParams, ApiResponse<string>>($"{BaseUrl}/order-print-all", query);
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<string>.Fail($"网络错误: {ex.Message}");
+        }
+    }
     #endregion
 }

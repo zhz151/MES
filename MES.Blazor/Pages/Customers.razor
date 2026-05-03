@@ -9,6 +9,7 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
 
 <div class="mt-4">
@@ -34,27 +35,18 @@
         <MudCardContent>
             <!-- 搜索栏 -->
             <MudGrid>
-                <MudItem xs="12" md="8">
+                <MudItem xs="12" md="12">
                     <MudTextField T="string"
-                                  Label="模糊搜索 - 客户编码/单位/业务员"
-                                  Placeholder="输入关键字进行模糊搜索..."
-                                  @bind-Value="searchKeyword"
+                                  Label="模糊搜索 - 客户编码/单位/业务员/最终客户/状态"
+                                  Placeholder="输入关键字..."
+                                  Value="searchKeyword"
+                                  ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
-                                  OnKeyDown="OnSearchKeyDown"
                                   Clearable="true"
                                   ClearButton="true"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudButton Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               FullWidth="true"
-                               StartIcon="@Icons.Material.Filled.Search"
-                               OnClick="Search">
-                        搜索
-                    </MudButton>
                 </MudItem>
             </MudGrid>
 
@@ -69,21 +61,87 @@
                       Elevation="0"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
+                    <MudButton Variant="Variant.Outlined"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               Disabled="@(!selectedIds.Any())"
+                               OnClick="PrintSelected">
+                        打印选中 (@selectedIds.Count)
+                    </MudButton>
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll">
+                        打印全部
+                    </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
                         共 @totalCount 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
-                    <MudTh>客户编码</MudTh>
-                    <MudTh>业务员</MudTh>
-                    <MudTh>客户单位</MudTh>
-                    <MudTh>最终客户</MudTh>
-                    <MudTh>状态</MudTh>
+                    <MudTh Style="width: 40px;">
+                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" OnValueChanged="ToggleSelectAll" />
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("customercode")' class="sortable-header">
+                            客户编码
+                            @if (sortColumn == "customercode")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("customercode")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("salesman")' class="sortable-header">
+                            业务员
+                            @if (sortColumn == "salesman")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("salesman")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("customerunit")' class="sortable-header">
+                            客户单位
+                            @if (sortColumn == "customerunit")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("customerunit")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("endcustomer")' class="sortable-header">
+                            最终客户
+                            @if (sortColumn == "endcustomer")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("endcustomer")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("status")' class="sortable-header">
+                            状态
+                            @if (sortColumn == "status")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("status")</span>
+                            }
+                        </span>
+                    </MudTh>
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd  title="@context.CustomerCode">@context.CustomerCode</MudTd>
-                    <MudTd  title="@context.Salesman">@context.Salesman</MudTd>
+                    <MudTd Style="width: 40px;">
+                        <MudCheckBox T="bool"
+                                     Value="@selectedIds.Contains(context.Id)"
+                                     ValueChanged="@((v) => { if(v) selectedIds.Add(context.Id); else selectedIds.Remove(context.Id); StateHasChanged(); })"
+                                     Dense="true" />
+                    </MudTd>
+                    <MudTd title="@context.CustomerCode">
+                        <MudLink Typo="Typo.body2" OnClick="() => ViewCustomer(context.Id)">@context.CustomerCode</MudLink>
+                    </MudTd>
+                    <MudTd title="@context.Salesman">@context.Salesman</MudTd>
                     <MudTd title="@context.CustomerUnit">@context.CustomerUnit</MudTd>
                     <MudTd title="@context.EndCustomer">@context.EndCustomer</MudTd>
                     <MudTd>
@@ -92,10 +150,6 @@
                         </MudChip>
                     </MudTd>
                     <MudTd>
-                        <MudIconButton Icon="@Icons.Material.Filled.Visibility"
-                                       Color="Color.Info"
-                                       Size="Size.Small"
-                                       OnClick="() => ViewCustomer(context.Id)" />
                         <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                        Color="Color.Warning"
                                        Size="Size.Small"
@@ -117,9 +171,20 @@
 @code {
     private MudTable<CustomerProfileDto>? table;
     private List<CustomerProfileDto> customers = new();
+    private HashSet<int> selectedIds = new();
+    private bool allSelected;
     private bool isLoading = false;
     private string searchKeyword = string.Empty;
     private int totalCount = 0;
+
+    private string sortColumn = "customercode";
+    private bool sortDescending = false;
+
+    private string GetSortIndicator(string column)
+    {
+        if (sortColumn != column) return "";
+        return sortDescending ? "\u25BC" : "\u25B2";
+    }
 
     private async Task<TableData<CustomerProfileDto>> OnServerData(TableState state)
     {
@@ -132,11 +197,13 @@
             {
                 PageIndex = state.Page + 1,
                 PageSize = state.PageSize,
-                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword
+                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                SortBy = sortColumn,
+                IsDescending = sortDescending
             };
 
             var result = await CustomerService.GetPagedAsync(queryParams);
-            
+
             if (result.Success && result.Data != null)
             {
                 customers = result.Data.Items;
@@ -147,7 +214,7 @@
                     TotalItems = totalCount
                 };
             }
-            
+
             return new TableData<CustomerProfileDto>
             {
                 Items = new List<CustomerProfileDto>(),
@@ -171,6 +238,19 @@
         }
     }
 
+    private async Task ToggleSort(string column)
+    {
+        if (sortColumn == column)
+            sortDescending = !sortDescending;
+        else
+        {
+            sortColumn = column;
+            sortDescending = false;
+        }
+        if (table != null)
+            await table.ReloadServerData();
+    }
+
     private async Task Search()
     {
         if (table != null)
@@ -179,12 +259,11 @@
         }
     }
 
-    private void OnSearchKeyDown(KeyboardEventArgs args)
+    private async Task OnSearchChanged(string value)
     {
-        if (args.Key == "Enter")
-        {
-            _ = Search();
-        }
+        searchKeyword = value ?? string.Empty;
+        if (table != null)
+            await table.ReloadServerData();
     }
 
     private void NavigateToCreate() => Navigation.NavigateTo("/customers/create");
@@ -219,6 +298,65 @@
             {
                 Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
             }
+        }
+    }
+
+    // ========== 选择方法 ==========
+
+    private async Task ToggleSelectAll(bool select)
+    {
+        allSelected = select;
+        if (select)
+        {
+            foreach (var item in customers)
+                selectedIds.Add(item.Id);
+        }
+        else
+        {
+            selectedIds.Clear();
+        }
+        await Task.CompletedTask;
+    }
+
+    // ========== 打印方法 ==========
+
+    private async Task PrintSelected()
+    {
+        if (!selectedIds.Any())
+        {
+            Snackbar.Add("请先选择要打印的客户", Severity.Warning);
+            return;
+        }
+        try
+        {
+            var ids = selectedIds.ToArray();
+            var result = await CustomerService.PrintCustomerBatchAsync(ids);
+            if (result.Success && result.Data != null)
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PrintAll()
+    {
+        try
+        {
+            var result = await CustomerService.PrintCustomerAllAsync(
+                string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                sortColumn, sortDescending);
+            if (result.Success && result.Data != null)
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
         }
     }
 }

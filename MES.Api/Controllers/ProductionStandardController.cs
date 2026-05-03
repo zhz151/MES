@@ -72,6 +72,44 @@ public class ProductionStandardController : ControllerBase
         return Ok(ApiResponse<ProductionStandardDto>.Ok(result, "创建成功"));
     }
 
+    // ========== 打印 ==========
+
+    /// <summary>
+    /// 打印单个产品标准
+    /// </summary>
+    [HttpGet("{id}/print")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintStandard(int id)
+    {
+        var pdfBytes = await _service.PrintStandardAsync(id);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    /// <summary>
+    /// 批量打印产品标准
+    /// </summary>
+    [HttpPost("print-batch")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintStandardBatch([FromBody] OrderPrintBatchRequest request)
+    {
+        var pdfBytes = await _service.PrintStandardBatchAsync(request.Ids);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    /// <summary>
+    /// 按筛选条件打印全部产品标准
+    /// </summary>
+    [HttpPost("print-all")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintStandardAll([FromBody] OrderPrintAllRequest request)
+    {
+        var pdfBytes = await _service.PrintStandardAllAsync(request.Keyword, null, request.SortBy, request.IsDescending);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
     /// <summary>
     /// 更新产品标准
     /// </summary>

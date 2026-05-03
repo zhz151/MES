@@ -7,6 +7,7 @@ using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Mapping;
+using MES.Services.Printing;
 
 namespace MES.Services;
 
@@ -32,12 +33,24 @@ public class ProductionStandardService : IProductionStandardService
             .Where(p => !p.IsDeleted)
             .AsQueryable();
 
-        // 关键字模糊搜索
+        // 关键字模糊搜索（多关键词AND + 状态中文映射）
         if (!string.IsNullOrEmpty(query.Keyword))
         {
-            queryable = queryable.Where(p =>
-                p.StandardCode.Contains(query.Keyword) ||
-                p.StandardName.Contains(query.Keyword));
+            var keywords = query.Keyword.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var kw in keywords)
+            {
+                var keyword = kw;
+                bool? parsedActive = keyword switch
+                {
+                    "启用" => true,
+                    "停用" => false,
+                    _ => null
+                };
+                queryable = queryable.Where(p =>
+                    p.StandardCode.Contains(keyword) ||
+                    p.StandardName.Contains(keyword) ||
+                    (parsedActive.HasValue && p.IsActive == parsedActive.Value));
+            }
         }
 
         // 状态筛选（在服务端执行，确保分页总数正确）
@@ -58,6 +71,9 @@ public class ProductionStandardService : IProductionStandardService
             "sortorder" => query.IsDescending
                 ? queryable.OrderByDescending(p => p.SortOrder)
                 : queryable.OrderBy(p => p.SortOrder),
+            "isactive" => query.IsDescending
+                ? queryable.OrderByDescending(p => p.IsActive)
+                : queryable.OrderBy(p => p.IsActive),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(p => p.SortOrder)
                 : queryable.OrderBy(p => p.SortOrder)
@@ -231,5 +247,41 @@ public class ProductionStandardService : IProductionStandardService
 
         entity.IsDeleted = true;
         await _context.SaveChangesAsync();
+    }
+
+    // ========== 打印 ==========
+
+    public async Task<byte[]> PrintStandardAsync(int id)
+    {
+        var dto = await GetByIdAsync(id);
+        return StandardPrintHelper.GeneratePdf(dto);
+    }
+
+    public async Task<byte[]> PrintStandardBatchAsync(int[] ids)
+    {
+        var result = new List<ProductionStandardDto>();
+        foreach (var id in ids)
+        {
+            try
+            {
+                result.Add(await GetByIdAsync(id));
+            }
+            catch (BusinessException) { }
+        }
+        return StandardPrintHelper.GenerateBatchPdf(result);
+    }
+
+    public async Task<byte[]> PrintStandardAllAsync(string? keyword, bool? isActive, string? sortBy = null, bool isDescending = false)
+    {
+        var query = new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = int.MaxValue,
+            Keyword = keyword,
+            SortBy = sortBy,
+            IsDescending = isDescending
+        };
+        var paged = await GetPagedAsync(query, isActive);
+        return StandardPrintHelper.GenerateBatchPdf(paged.Items);
     }
 }

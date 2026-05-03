@@ -15,67 +15,187 @@
                     <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Primary" />
                     新建物料
                 </MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">创建新的物料档案</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">创建新的物料档案，可批量添加多条记录</MudText>
             </CardHeaderContent>
             <CardHeaderActions>
                 <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Disabled="@isSubmitting">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAll" Disabled="@isSubmitting">
                     @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> }
                     else { <span>保存</span> }
                 </MudButton>
             </CardHeaderActions>
         </MudCardHeader>
+
         <MudCardContent>
-            <MudGrid>
-                <MudItem xs="12" md="4">
-                    <MudSelect T="string" Label="物料分类" @bind-Value="request.MaterialCategory" Required="true" Immediate="true">
-                        @foreach (var cat in materialCategories)
-                        {
-                            <MudSelectItem Value="cat">@cat</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudTextField T="string" Label="厂内钢种" @bind-Value="request.PlantGrade" Required="true" />
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudTextField T="string" Label="名义规格" @bind-Value="request.Specification" Required="true" />
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudSwitch @bind-Value="request.IsActive" Label="启用" />
-                </MudItem>
-                <MudItem xs="12" md="12">
-                    <MudTextField T="string" Label="备注" @bind-Value="request.Remark" Multiline="true" Lines="3" />
-                </MudItem>
-            </MudGrid>
+            <div class="d-flex justify-space-between align-center mb-3">
+                <MudText Typo="Typo.subtitle1">物料列表</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow">添加物料</MudButton>
+            </div>
+
+            @if (rows.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info">请点击"添加物料"按钮添加记录</MudAlert>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Warning" Class="mb-3">点击右上角"保存"按钮一次性提交所有记录。</MudAlert>
+
+                <div style="overflow-x: auto;">
+                    <MudTable T="MaterialRow" Items="@rows" Dense="true" Hover="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh Style="width: 50px;">行号</MudTh>
+                            <MudTh Style="width: 130px;">物料分类</MudTh>
+                            <MudTh Style="width: 130px;">厂内钢种</MudTh>
+                            <MudTh Style="min-width: 150px;">名义规格</MudTh>
+                            <MudTh Style="width: 70px;">启用</MudTh>
+                            <MudTh Style="min-width: 200px;">备注</MudTh>
+                            <MudTh Style="width: 60px;">操作</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="row">
+                            <MudTd>
+                                <MudText Typo="Typo.body2">@row.Sequence</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudSelect T="string" @bind-Value="row.MaterialCategory"
+                                           Dense="true" Variant="Variant.Outlined" Size="Size.Small" Immediate="true">
+                                    @foreach (var cat in materialCategories)
+                                    {
+                                        <MudSelectItem Value="cat">@cat</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.PlantGrade"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.Specification"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudCheckBox @bind-Value="row.IsActive" Dense="true" Size="Size.Small" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.Remark"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                @if (rows.Count > 1)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Color="Color.Error"
+                                                   Size="Size.Small"
+                                                   OnClick="() => RemoveRow(row)" />
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+            }
         </MudCardContent>
     </MudCard>
 </MudContainer>
 
 @code {
-    private CreateMaterialRequest request = new();
+    private List<MaterialRow> rows = new();
     private bool isSubmitting;
-    private List<string> materialCategories = new()
-    {
-        "圆棒", "荒管", "中间品", "订单成品", "备料成品", "临界成品",
-        "次品圆棒", "次品荒管", "次品中间品", "次品成品", "报废品", "余库料"
-    };
+    private List<string> materialCategories = new();
 
-    private async Task Save()
+    private class MaterialRow
     {
-        if (string.IsNullOrWhiteSpace(request.MaterialCategory)) { Snackbar.Add("物料分类不能为空", Severity.Warning); return; }
-        if (string.IsNullOrWhiteSpace(request.PlantGrade)) { Snackbar.Add("厂内钢种不能为空", Severity.Warning); return; }
-        if (string.IsNullOrWhiteSpace(request.Specification)) { Snackbar.Add("名义规格不能为空", Severity.Warning); return; }
+        public int Sequence { get; set; }
+        public string MaterialCategory { get; set; } = string.Empty;
+        public string PlantGrade { get; set; } = string.Empty;
+        public string Specification { get; set; } = string.Empty;
+        public bool IsActive { get; set; } = true;
+        public string? Remark { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        materialCategories = await MaterialService.GetCategoriesAsync();
+        if (materialCategories.Count == 0)
+        {
+            materialCategories = new() { "圆棒", "荒管", "中间品", "订单成品", "备料成品", "临界成品",
+                "次品圆棒", "次品荒管", "次品中间品", "次品成品", "报废品", "余库料" };
+        }
+        AddRow();
+    }
+
+    private void AddRow()
+    {
+        rows.Add(new MaterialRow { Sequence = rows.Count + 1 });
+    }
+
+    private void RemoveRow(MaterialRow row)
+    {
+        if (rows.Count <= 1) { Snackbar.Add("至少保留一条记录", Severity.Warning); return; }
+        rows.Remove(row);
+        for (int i = 0; i < rows.Count; i++) rows[i].Sequence = i + 1;
+    }
+
+    private async Task SaveAll()
+    {
+        var errors = new List<string>();
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var r = rows[i];
+            var seq = i + 1;
+            if (string.IsNullOrWhiteSpace(r.MaterialCategory)) errors.Add($"行{seq}: 物料分类不能为空");
+            if (string.IsNullOrWhiteSpace(r.PlantGrade)) errors.Add($"行{seq}: 厂内钢种不能为空");
+            if (string.IsNullOrWhiteSpace(r.Specification)) errors.Add($"行{seq}: 名义规格不能为空");
+        }
+        if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
 
         isSubmitting = true; StateHasChanged();
-        try
+        var successCount = 0;
+        var failCount = 0;
+        var failMessages = new List<string>();
+
+        for (int i = 0; i < rows.Count; i++)
         {
-            var result = await MaterialService.CreateAsync(request);
-            if (result.Success) { Snackbar.Add("创建成功", Severity.Success); Navigation.NavigateTo("/materials"); }
-            else { Snackbar.Add(result.Message ?? "创建失败", Severity.Error); }
+            var r = rows[i];
+            var request = new CreateMaterialRequest
+            {
+                MaterialCategory = r.MaterialCategory,
+                PlantGrade = r.PlantGrade,
+                Specification = r.Specification,
+                IsActive = r.IsActive,
+                Remark = r.Remark
+            };
+
+            try
+            {
+                var result = await MaterialService.CreateAsync(request);
+                if (result.Success) successCount++;
+                else { failCount++; failMessages.Add($"行{i + 1}: {result.Message}"); }
+            }
+            catch (Exception ex) { failCount++; failMessages.Add($"行{i + 1}: {ex.Message}"); }
         }
-        catch (Exception ex) { Snackbar.Add($"创建失败: {ex.Message}", Severity.Error); }
-        finally { isSubmitting = false; StateHasChanged(); }
+
+        isSubmitting = false; StateHasChanged();
+
+        if (failCount == 0)
+        {
+            Snackbar.Add($"成功创建 {successCount} 条记录", Severity.Success);
+            Navigation.NavigateTo("/materials");
+        }
+        else
+        {
+            Snackbar.Add($"成功 {successCount} 条，失败 {failCount} 条：{string.Join("；", failMessages)}", Severity.Error);
+        }
     }
 
     private void GoBack() => Navigation.NavigateTo("/materials");

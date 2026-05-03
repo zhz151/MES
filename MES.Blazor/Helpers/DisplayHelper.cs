@@ -93,6 +93,14 @@ public static class DisplayHelper
     }
 
     /// <summary>
+    /// 格式化公差显示（例：-0.5/+0.5）
+    /// </summary>
+    public static string FormatTolerance(decimal negative, decimal positive)
+    {
+        return $"-{negative.ToString("G29")}/+{positive.ToString("G29")}";
+    }
+
+    /// <summary>
     /// 获取工单状态对应的颜色
     /// </summary>
     public static Color GetWorkOrderStatusColor(int status)

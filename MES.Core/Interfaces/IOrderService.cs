@@ -26,4 +26,41 @@ public interface IOrderService
     Task<OrderItemDto> AddItemAsync(int orderId, AddOrderItemRequest request);
     Task<OrderItemDto> UpdateItemAsync(int orderId, int itemId, UpdateOrderItemRequest request);
     Task DeleteItemAsync(int orderId, int itemId);
+
+    // ========== 打印 ==========
+
+    /// <summary>
+    /// 获取订单详情（用于打印）
+    /// </summary>
+    Task<SalesOrderDetailDto> GetByIdForPrintAsync(int id);
+
+    /// <summary>
+    /// 批量获取订单详情列表（用于打印）
+    /// </summary>
+    Task<List<SalesOrderDetailDto>> GetByIdsForPrintAsync(int[] ids);
+
+    /// <summary>
+    /// 按筛选条件获取全部订单详情列表（用于打印全部）
+    /// </summary>
+    Task<List<SalesOrderDetailDto>> GetAllByFilterForPrintAsync(string? keyword, bool? hasTechnicalRequirement, List<SalesOrderStatus>? statuses, string? sortBy = null, bool isDescending = false);
+
+    /// <summary>
+    /// 打印单个订单PDF
+    /// </summary>
+    Task<byte[]> PrintOrderAsync(int id);
+
+    /// <summary>
+    /// 打印选中批次订单PDF
+    /// </summary>
+    Task<byte[]> PrintOrderBatchAsync(int[] ids);
+
+    /// <summary>
+    /// 打印全部筛选订单PDF
+    /// </summary>
+    Task<byte[]> PrintOrderAllAsync(string? keyword, bool? hasTechnicalRequirement, List<SalesOrderStatus>? statuses, string? sortBy = null, bool isDescending = false);
+
+    /// <summary>
+    /// 打印订单技术要求PDF
+    /// </summary>
+    Task<byte[]> PrintOrderRequirementsAsync(int orderId);
 }

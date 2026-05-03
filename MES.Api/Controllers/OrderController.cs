@@ -125,4 +125,63 @@ public class OrderController : ControllerBase
     }
 
     #endregion
+
+    #region 打印
+
+    [HttpGet("{id}/print")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintOrder(int id)
+    {
+        var pdfBytes = await _orderService.PrintOrderAsync(id);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    [HttpPost("print-batch")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintOrderBatch([FromBody] OrderPrintBatchRequest request)
+    {
+        var pdfBytes = await _orderService.PrintOrderBatchAsync(request.Ids);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    [HttpPost("print-all")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintOrderAll([FromBody] OrderPrintAllRequest request)
+    {
+        bool? hasTechnicalRequirement = request.TechnicalStatus?.ToLower() switch
+        {
+            "edited" => true,
+            "notedited" => false,
+            _ => null
+        };
+
+        List<SalesOrderStatus>? statuses = null;
+        if (!string.IsNullOrEmpty(request.OrderStatus))
+        {
+            var statusStrings = request.OrderStatus.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            statuses = new List<SalesOrderStatus>();
+            foreach (var s in statusStrings)
+            {
+                if (Enum.TryParse<SalesOrderStatus>(s, true, out var status))
+                    statuses.Add(status);
+            }
+        }
+
+        var pdfBytes = await _orderService.PrintOrderAllAsync(request.Keyword, hasTechnicalRequirement, statuses, request.SortBy, request.IsDescending);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    [HttpGet("{orderId}/requirements/print")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintOrderRequirements(int orderId)
+    {
+        var pdfBytes = await _orderService.PrintOrderRequirementsAsync(orderId);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    #endregion
 }

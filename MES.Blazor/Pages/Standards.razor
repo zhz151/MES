@@ -8,6 +8,7 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
 
 <div class="mt-4">
@@ -33,34 +34,18 @@
         <MudCardContent>
             <!-- 搜索栏 -->
             <MudGrid>
-                <MudItem xs="12" md="6">
+                <MudItem xs="12" md="12">
                     <MudTextField T="string"
-                                  Label="模糊搜索 - 标准编码/名称"
-                                  Placeholder="输入关键字进行模糊搜索..."
-                                  @bind-Value="searchKeyword"
+                                  Label="模糊搜索 - 标准编码/名称/状态"
+                                  Placeholder="输入关键字..."
+                                  Value="searchKeyword"
+                                  ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
-                                  OnKeyDown="OnSearchKeyDown"
                                   Clearable="true"
                                   ClearButton="true"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudSelect T="bool?" Label="状态筛选" @bind-Value="filterActive" OnValueChanged="OnFilterChanged">
-                        <MudSelectItem Value="@((bool?)null)">全部</MudSelectItem>
-                        <MudSelectItem Value="@((bool?)true)">已启用</MudSelectItem>
-                        <MudSelectItem Value="@((bool?)false)">已停用</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudButton Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               FullWidth="true"
-                               StartIcon="@Icons.Material.Filled.Search"
-                               OnClick="Search">
-                        搜索
-                    </MudButton>
                 </MudItem>
             </MudGrid>
 
@@ -74,18 +59,68 @@
                       Elevation="0"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
+                    <MudButton Variant="Variant.Outlined"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               Disabled="@(!selectedIds.Any())"
+                               OnClick="PrintSelected">
+                        打印选中 (@selectedIds.Count)
+                    </MudButton>
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll">
+                        打印全部
+                    </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
                         共 @totalCount 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
-                    <MudTh>标准编码</MudTh>
-                    <MudTh>标准名称</MudTh>
-                    <MudTh>状态</MudTh>
+                    <MudTh Style="width: 40px;">
+                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" OnValueChanged="ToggleSelectAll" />
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("standardcode")' class="sortable-header">
+                            标准编码
+                            @if (sortColumn == "standardcode")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("standardcode")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("standardname")' class="sortable-header">
+                            标准名称
+                            @if (sortColumn == "standardname")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("standardname")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("isactive")' class="sortable-header">
+                            状态
+                            @if (sortColumn == "isactive")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("isactive")</span>
+                            }
+                        </span>
+                    </MudTh>
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd  title="@context.StandardCode">@context.StandardCode</MudTd>
+                    <MudTd Style="width: 40px;">
+                        <MudCheckBox T="bool"
+                                     Value="@selectedIds.Contains(context.Id)"
+                                     ValueChanged="@((v) => { if(v) selectedIds.Add(context.Id); else selectedIds.Remove(context.Id); StateHasChanged(); })"
+                                     Dense="true" />
+                    </MudTd>
+                    <MudTd title="@context.StandardCode">
+                        <MudLink Typo="Typo.body2" OnClick="() => ViewStandard(context.Id)">@context.StandardCode</MudLink>
+                    </MudTd>
                     <MudTd title="@context.StandardName">@context.StandardName</MudTd>
                     <MudTd>
                         <MudChip Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Error)">
@@ -93,10 +128,6 @@
                         </MudChip>
                     </MudTd>
                     <MudTd>
-                        <MudIconButton Icon="@Icons.Material.Filled.Visibility"
-                                       Color="Color.Info"
-                                       Size="Size.Small"
-                                       OnClick="() => ViewStandard(context.Id)" />
                         <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                        Color="Color.Warning"
                                        Size="Size.Small"
@@ -118,10 +149,20 @@
 @code {
     private MudTable<ProductionStandardDto>? table;
     private List<ProductionStandardDto> standards = new();
+    private HashSet<int> selectedIds = new();
+    private bool allSelected;
     private bool isLoading = false;
     private string searchKeyword = string.Empty;
-    private bool? filterActive = null;
     private int totalCount = 0;
+
+    private string sortColumn = "standardcode";
+    private bool sortDescending = false;
+
+    private string GetSortIndicator(string column)
+    {
+        if (sortColumn != column) return "";
+        return sortDescending ? "\u25BC" : "\u25B2";
+    }
 
     private async Task<TableData<ProductionStandardDto>> OnServerData(TableState state)
     {
@@ -134,10 +175,12 @@
             {
                 PageIndex = state.Page + 1,
                 PageSize = state.PageSize,
-                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword
+                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                SortBy = sortColumn,
+                IsDescending = sortDescending
             };
 
-            var result = await StandardService.GetPagedAsync(queryParams, filterActive);
+            var result = await StandardService.GetPagedAsync(queryParams, null);
 
             if (result.Success && result.Data != null)
             {
@@ -149,7 +192,7 @@
                     TotalItems = totalCount
                 };
             }
-            
+
             return new TableData<ProductionStandardDto>
             {
                 Items = new List<ProductionStandardDto>(),
@@ -173,6 +216,19 @@
         }
     }
 
+    private async Task ToggleSort(string column)
+    {
+        if (sortColumn == column)
+            sortDescending = !sortDescending;
+        else
+        {
+            sortColumn = column;
+            sortDescending = false;
+        }
+        if (table != null)
+            await table.ReloadServerData();
+    }
+
     private async Task Search()
     {
         if (table != null)
@@ -181,21 +237,11 @@
         }
     }
 
-    private void OnSearchKeyDown(KeyboardEventArgs args)
+    private async Task OnSearchChanged(string value)
     {
-        if (args.Key == "Enter")
-        {
-            _ = Search();
-        }
-    }
-
-    private async Task OnFilterChanged(bool? value)
-    {
-        filterActive = value;
+        searchKeyword = value ?? string.Empty;
         if (table != null)
-        {
             await table.ReloadServerData();
-        }
     }
 
     private void NavigateToCreate() => Navigation.NavigateTo("/standards/create");
@@ -230,6 +276,65 @@
             {
                 Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
             }
+        }
+    }
+
+    // ========== 选择方法 ==========
+
+    private async Task ToggleSelectAll(bool select)
+    {
+        allSelected = select;
+        if (select)
+        {
+            foreach (var item in standards)
+                selectedIds.Add(item.Id);
+        }
+        else
+        {
+            selectedIds.Clear();
+        }
+        await Task.CompletedTask;
+    }
+
+    // ========== 打印方法 ==========
+
+    private async Task PrintSelected()
+    {
+        if (!selectedIds.Any())
+        {
+            Snackbar.Add("请先选择要打印的标准", Severity.Warning);
+            return;
+        }
+        try
+        {
+            var ids = selectedIds.ToArray();
+            var result = await StandardService.PrintStandardBatchAsync(ids);
+            if (result.Success && result.Data != null)
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PrintAll()
+    {
+        try
+        {
+            var result = await StandardService.PrintStandardAllAsync(
+                string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                sortColumn, sortDescending);
+            if (result.Success && result.Data != null)
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
         }
     }
 }

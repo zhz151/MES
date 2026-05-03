@@ -72,6 +72,44 @@ public class GradeMappingController : ControllerBase
         return Ok(ApiResponse<StandardGradeMappingDto>.Ok(result, "创建成功"));
     }
 
+    // ========== 打印 ==========
+
+    /// <summary>
+    /// 打印单个牌号对照
+    /// </summary>
+    [HttpGet("{id}/print")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintGradeMapping(int id)
+    {
+        var pdfBytes = await _service.PrintGradeMappingAsync(id);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    /// <summary>
+    /// 批量打印牌号对照
+    /// </summary>
+    [HttpPost("print-batch")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintGradeMappingBatch([FromBody] OrderPrintBatchRequest request)
+    {
+        var pdfBytes = await _service.PrintGradeMappingBatchAsync(request.Ids);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    /// <summary>
+    /// 按筛选条件打印全部牌号对照
+    /// </summary>
+    [HttpPost("print-all")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintGradeMappingAll([FromBody] OrderPrintAllRequest request)
+    {
+        var pdfBytes = await _service.PrintGradeMappingAllAsync(request.Keyword, request.SortBy, request.IsDescending);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
     /// <summary>
     /// 更新牌号对照
     /// </summary>

@@ -9,6 +9,7 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
@@ -91,33 +92,28 @@
             <MudGrid>
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
-                                  Label="搜索 - 订单号/客户名称/业务员"
-                                  Placeholder="输入关键字进行模糊搜索..."
-                                  @bind-Value="searchKeyword"
+                                  Label="模糊搜索 - 订单号/客户名称/业务员"
+                                  Placeholder="输入关键字..."
+                                  Value="@searchKeyword"
+                                  ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
-                                  OnKeyDown="OnSearchKeyDown"
                                   Clearable="true"
                                   ClearButton="true"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
                 <MudItem xs="12" md="3">
-                    <MudSelect T="string" Label="工单状态" @bind-Value="selectedStatus">
-                        <MudSelectItem Value="@(null as string)">全部</MudSelectItem>
+                    <MudSelect T="string" Label="工单状态" Value="@selectedStatus" ValueChanged="@OnStatusFilterChanged">
+                        <MudSelectItem Value="@("All")">全部</MudSelectItem>
                         <MudSelectItem Value="@("NotGenerated")">未编制</MudSelectItem>
                         <MudSelectItem Value="@("Confirmed")">已确定</MudSelectItem>
                         <MudSelectItem Value="@("Pending")">待修正</MudSelectItem>
+                        <MudSelectItem Value="@("Cancelled")">已取消</MudSelectItem>
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="3">
-                    <MudButton Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               FullWidth="true"
-                               StartIcon="@Icons.Material.Filled.Search"
-                               OnClick="Search">
-                        搜索
-                    </MudButton>
+                    <!-- 占位，保持布局 -->
                 </MudItem>
             </MudGrid>
 
@@ -132,25 +128,91 @@
                       Elevation="0"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
+                    <MudButton Variant="Variant.Outlined"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               Disabled="@(!selectedOrderNos.Any())"
+                               OnClick="PrintSelected">
+                        打印选中 (@selectedOrderNos.Count)
+                    </MudButton>
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll">
+                        打印全部
+                    </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
                         共 @totalCount 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
-                    <MudTh>订单号</MudTh>
-                    <MudTh>签订日期</MudTh>
-                    <MudTh>业务员</MudTh>
-                    <MudTh>客户名称</MudTh>
-                    <MudTh>工单状态</MudTh>
+                    <MudTh Style="width: 40px;">
+                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" OnValueChanged="ToggleSelectAll" />
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("ordernumber")' class="sortable-header">
+                            订单号
+                            @if (sortColumn == "ordernumber")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("ordernumber")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("signdate")' class="sortable-header">
+                            签订日期
+                            @if (sortColumn == "signdate")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("signdate")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("salesman")' class="sortable-header">
+                            业务员
+                            @if (sortColumn == "salesman")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("salesman")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("customername")' class="sortable-header">
+                            客户名称
+                            @if (sortColumn == "customername")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("customername")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("workorderstatus")' class="sortable-header">
+                            工单状态
+                            @if (sortColumn == "workorderstatus")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("workorderstatus")</span>
+                            }
+                        </span>
+                    </MudTh>
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="order">
-                    <MudTd  title="@order.OrderNumber">@order.OrderNumber</MudTd>
+                    <MudTd Style="width: 40px;">
+                        <MudCheckBox T="bool"
+                                     Value="@selectedOrderNos.Contains(order.OrderNumber)"
+                                     ValueChanged="@((v) => { if(v) selectedOrderNos.Add(order.OrderNumber); else selectedOrderNos.Remove(order.OrderNumber); StateHasChanged(); })"
+                                     Dense="true" />
+                    </MudTd>
+                    <MudTd>
+                            <MudLink Typo="Typo.body2" OnClick="() => NavigateToTrace(order.OrderNumber)">@order.OrderNumber</MudLink>
+                    </MudTd>
                     <MudTd >@order.SignDate.ToString("yyyy-MM-dd")</MudTd>
                     <MudTd  title="@order.Salesman">@order.Salesman</MudTd>
                     <MudTd title="@order.CustomerName">@order.CustomerName</MudTd>
                     <MudTd>
-                        <MudChip Size="Size.Small" 
+                        <MudChip Size="Size.Small"
                                  Color="@GetStatusColor(order.WorkOrderStatus)"
                                  Clickable="true"
                                  OnClick="() => FilterByStatus(order.WorkOrderStatus)">
@@ -158,12 +220,6 @@
                         </MudChip>
                     </MudTd>
                     <MudTd>
-                        <MudIconButton Icon="@Icons.Material.Filled.Link"
-                                       Color="Color.Primary"
-                                       Size="Size.Small"
-                                       OnClick="() => NavigateToTrace(order.OrderNumber)"
-                                       Title="工单项次追溯" />
-
 @if (order.WorkOrderStatus == "NotGenerated")
 {
     <MudButton Variant="Variant.Text"
@@ -264,8 +320,22 @@ else if (order.WorkOrderStatus == "Pending")
     private bool isLoading = false;
     private bool isSyncing = false;
     private string searchKeyword = string.Empty;
-    private string selectedStatus = string.Empty;
+    private string selectedStatus = "All";
     private int totalCount = 0;
+
+    // 排序状态
+    private string sortColumn = "signdate";
+    private bool sortDescending = true;
+
+    // 选中与悬停
+    private bool allSelected;
+    private HashSet<string> selectedOrderNos = new();
+
+    private string GetSortIndicator(string column)
+    {
+        if (sortColumn != column) return "";
+        return sortDescending ? "\u25BC" : "\u25B2";
+    }
 
     // 通知相关
     private bool notificationDrawerOpen = false;
@@ -384,10 +454,10 @@ else if (order.WorkOrderStatus == "Pending")
             {
                 PageIndex = state.Page + 1,
                 PageSize = state.PageSize,
-                SortBy = "SignDate",
-                IsDescending = true,
+                SortBy = sortColumn,
+                IsDescending = sortDescending,
                 Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
-                WorkOrderStatus = string.IsNullOrWhiteSpace(selectedStatus) ? null : selectedStatus
+                WorkOrderStatus = selectedStatus == "All" ? null : selectedStatus
             };
 
             var result = await WorkOrderService.GetOrderWorkOrderStatusPageAsync(queryParams);
@@ -459,16 +529,42 @@ else if (order.WorkOrderStatus == "Pending")
         await Search();
     }
 
-    private void OnSearchKeyDown(KeyboardEventArgs args)
+    private async Task OnSearchChanged(string value)
     {
-        if (args.Key == "Enter")
-            _ = Search();
+        searchKeyword = value ?? string.Empty;
+        if (table != null)
+            await table.ReloadServerData();
+        await LoadCancelledOrders();
+    }
+
+    private async Task OnStatusFilterChanged(string value)
+    {
+        selectedStatus = value ?? string.Empty;
+        if (table != null)
+            await table.ReloadServerData();
+        await LoadCancelledOrders();
+    }
+
+    private async Task ToggleSort(string column)
+    {
+        if (sortColumn == column)
+            sortDescending = !sortDescending;
+        else
+        {
+            sortColumn = column;
+            sortDescending = false;
+        }
+        if (table != null)
+            await table.ReloadServerData();
     }
 
     private async Task FilterByStatus(string status)
     {
-        selectedStatus = status;
-        await Search();
+        selectedStatus = status ?? string.Empty;
+        StateHasChanged();
+        if (table != null)
+            await table.ReloadServerData();
+        await LoadCancelledOrders();
     }
 
     private Color GetStatusColor(string status)
@@ -525,6 +621,86 @@ else if (order.WorkOrderStatus == "Pending")
         catch (Exception ex)
         {
             Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ToggleSelectAll(bool select)
+    {
+        allSelected = select;
+        if (select)
+        {
+            foreach (var item in orders)
+                selectedOrderNos.Add(item.OrderNumber);
+        }
+        else
+        {
+            selectedOrderNos.Clear();
+        }
+    }
+
+    private async Task PrintSelected()
+    {
+        if (!selectedOrderNos.Any()) return;
+        try
+        {
+            var result = await WorkOrderService.PrintOrderWorkOrdersBatchAsync(selectedOrderNos.ToArray());
+            if (result.Success && result.Data != null)
+            {
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PrintAll()
+    {
+        try
+        {
+            var queryParams = new WorkOrderQueryParams
+            {
+                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                WorkOrderStatus = selectedStatus == "All" ? null : selectedStatus
+            };
+            var result = await WorkOrderService.PrintOrderWorkOrdersAllAsync(queryParams);
+            if (result.Success && result.Data != null)
+            {
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PrintOrderWorkOrders(string salesOrderNo)
+    {
+        try
+        {
+            var result = await WorkOrderService.PrintOrderWorkOrdersAsync(salesOrderNo);
+            if (result.Success && result.Data != null)
+            {
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
         }
     }
 }

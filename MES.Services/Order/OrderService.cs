@@ -8,6 +8,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Printing;
 
 namespace MES.Services.Order;
 
@@ -30,6 +31,7 @@ public class OrderService : IOrderService
     {
         var queryable = _context.SalesOrders
             .Where(so => !so.IsDeleted)
+            .Include(so => so.Customer)
             .AsNoTracking()
             .AsQueryable();
 
@@ -40,15 +42,26 @@ public class OrderService : IOrderService
         }
         queryable = queryable.Where(so => statuses.Contains(so.Status));
 
-        // 关键字模糊搜索
+        // 关键字模糊搜索（多关键词AND + 状态中文映射）
         if (!string.IsNullOrEmpty(query.Keyword))
         {
-            var keyword = query.Keyword;
-            queryable = queryable.Where(so =>
-                so.OrderNumber.Contains(keyword) ||
-                _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.CustomerUnit.Contains(keyword)) ||
-                _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.Salesman.Contains(keyword)) ||
-                _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.EndCustomer != null && c.EndCustomer.Contains(keyword)));
+            var keywords = query.Keyword.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var kw in keywords)
+            {
+                var keyword = kw;
+                SalesOrderStatus? parsedStatus = keyword switch
+                {
+                    "待处理" => SalesOrderStatus.Pending,
+                    "已确认" => SalesOrderStatus.Confirmed,
+                    _ => null
+                };
+                queryable = queryable.Where(so =>
+                    so.OrderNumber.Contains(keyword) ||
+                    _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.CustomerUnit.Contains(keyword)) ||
+                    _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.Salesman.Contains(keyword)) ||
+                    _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.EndCustomer != null && c.EndCustomer.Contains(keyword)) ||
+                    (parsedStatus.HasValue && so.Status == parsedStatus.Value));
+            }
         }
 
         // 技术要求状态筛选
@@ -88,6 +101,18 @@ public class OrderService : IOrderService
                 case "status":
                     queryable = query.IsDescending ? queryable.OrderByDescending(so => so.Status) : queryable.OrderBy(so => so.Status);
                     break;
+                case "salesman":
+                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.Customer.Salesman) : queryable.OrderBy(so => so.Customer.Salesman);
+                    break;
+                case "customername":
+                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.Customer.CustomerUnit) : queryable.OrderBy(so => so.Customer.CustomerUnit);
+                    break;
+                case "endcustomer":
+                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.Customer.EndCustomer ?? "") : queryable.OrderBy(so => so.Customer.EndCustomer ?? "");
+                    break;
+                case "lastchangedate":
+                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.LastItemChangeTime) : queryable.OrderBy(so => so.LastItemChangeTime);
+                    break;
                 default:
                     queryable = query.IsDescending ? queryable.OrderByDescending(so => so.CreatedTime) : queryable.OrderBy(so => so.CreatedTime);
                     break;
@@ -95,7 +120,7 @@ public class OrderService : IOrderService
         }
         else
         {
-            queryable = query.IsDescending ? queryable.OrderByDescending(so => so.CreatedTime) : queryable.OrderBy(so => so.CreatedTime);
+            queryable = queryable.OrderByDescending(so => so.SignDate);
         }
 
         var salesOrders = await queryable
@@ -989,6 +1014,106 @@ public async Task DeleteAsync(int id)
         };
         _context.OrderChangeNotifications.Add(notification);
         await _context.SaveChangesAsync();
+    }
+
+    #endregion
+
+    #region 打印
+
+    public async Task<SalesOrderDetailDto> GetByIdForPrintAsync(int id)
+    {
+        return await GetByIdAsync(id);
+    }
+
+    public async Task<List<SalesOrderDetailDto>> GetByIdsForPrintAsync(int[] ids)
+    {
+        var result = new List<SalesOrderDetailDto>();
+        foreach (var id in ids)
+        {
+            try
+            {
+                var order = await GetByIdAsync(id);
+                result.Add(order);
+            }
+            catch (BusinessException)
+            {
+                // 跳过不存在的订单
+            }
+        }
+        return result;
+    }
+
+    public async Task<List<SalesOrderDetailDto>> GetAllByFilterForPrintAsync(string? keyword, bool? hasTechnicalRequirement, List<SalesOrderStatus>? statuses, string? sortBy = null, bool isDescending = false)
+    {
+        var query = new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = int.MaxValue,
+            Keyword = keyword,
+            SortBy = sortBy,
+            IsDescending = isDescending
+        };
+
+        var paged = await GetPagedAsync(query, hasTechnicalRequirement, statuses);
+
+        var result = new List<SalesOrderDetailDto>();
+        foreach (var item in paged.Items)
+        {
+            try
+            {
+                var order = await GetByIdAsync(item.Id);
+                result.Add(order);
+            }
+            catch (BusinessException) { }
+        }
+        return result;
+    }
+
+    public async Task<byte[]> PrintOrderAsync(int id)
+    {
+        var order = await GetByIdForPrintAsync(id);
+        return SalesOrderPrintHelper.GenerateOrderPdf(order);
+    }
+
+    public async Task<byte[]> PrintOrderBatchAsync(int[] ids)
+    {
+        var orders = await GetByIdsForPrintAsync(ids);
+        return SalesOrderPrintHelper.GenerateBatchOrderPdf(orders);
+    }
+
+    public async Task<byte[]> PrintOrderAllAsync(string? keyword, bool? hasTechnicalRequirement, List<SalesOrderStatus>? statuses, string? sortBy = null, bool isDescending = false)
+    {
+        var orders = await GetAllByFilterForPrintAsync(keyword, hasTechnicalRequirement, statuses, sortBy, isDescending);
+        return SalesOrderPrintHelper.GenerateBatchOrderPdf(orders);
+    }
+
+    public async Task<byte[]> PrintOrderRequirementsAsync(int orderId)
+    {
+        var order = await GetByIdForPrintAsync(orderId);
+
+        // 加载技术要求
+        var reqResult = await _context.ProductRequirements
+            .Where(pr => !pr.IsDeleted && pr.OrderItem != null && pr.OrderItem.SalesOrderId == orderId)
+            .Include(pr => pr.OrderItem)
+            .ToListAsync();
+
+        var requirements = reqResult.Select(pr => new ProductRequirementDto
+        {
+            Id = pr.Id,
+            OrderItemId = pr.OrderItemId,
+            RequirementType = pr.RequirementType,
+            ChemicalComposition = pr.ChemicalComposition,
+            MechanicalProperty = pr.MechanicalProperty,
+            ToleranceRequirement = pr.ToleranceRequirement,
+            SurfaceQuality = pr.SurfaceQuality,
+            NdtRequirement = pr.NdtRequirement,
+            OtherRequirement = pr.OtherRequirement,
+            Sequence = pr.OrderItem?.Sequence ?? 0,
+            CreatedTime = pr.CreatedTime,
+            UpdatedTime = pr.UpdatedTime
+        }).OrderBy(r => r.Sequence).ToList();
+
+        return SalesOrderPrintHelper.GenerateRequirementsPdf(order, requirements);
     }
 
     #endregion

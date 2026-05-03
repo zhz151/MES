@@ -78,4 +78,24 @@ public interface IWorkOrderService
 /// <param name="salesOrderNo">订单号</param>
 Task<OrderWorkOrderRelationDto> GetOrderWorkOrderRelationAsync(string salesOrderNo);
 
+/// <summary>
+/// 打印工单详情（返回PDF字节数组）
+/// </summary>
+Task<byte[]> PrintWorkOrderAsync(int id);
+
+/// <summary>
+/// 按订单号批量打印所有工单（返回PDF字节数组）
+/// </summary>
+Task<byte[]> PrintWorkOrdersByOrderAsync(string salesOrderNo);
+
+/// <summary>
+/// 按多个订单号批量打印工单（选中打印）
+/// </summary>
+Task<byte[]> PrintWorkOrdersByOrderBatchAsync(string[] salesOrderNos);
+
+/// <summary>
+/// 按筛选项打印全部工单（全部打印）
+/// </summary>
+Task<byte[]> PrintWorkOrdersByOrderAllAsync(WorkOrderQueryParams query);
+
 }

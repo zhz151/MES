@@ -134,4 +134,78 @@ public class OrderService
             return ApiResponse<object>.Fail($"网络错误: {ex.Message}");
         }
     }
+
+    // ========== 打印 ==========
+
+    /// <summary>
+    /// 打印单个订单
+    /// </summary>
+    public async Task<ApiResponse<string>> PrintOrderAsync(int id)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<string>>($"{BaseUrl}/{id}/print");
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<string>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 批量打印选定订单
+    /// </summary>
+    public async Task<ApiResponse<string>> PrintOrderBatchAsync(int[] ids)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<OrderPrintBatchRequest, ApiResponse<string>>($"{BaseUrl}/print-batch", new OrderPrintBatchRequest { Ids = ids });
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<string>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 按筛选条件打印全部订单
+    /// </summary>
+    public async Task<ApiResponse<string>> PrintOrderAllAsync(string? keyword = null, string? technicalStatus = null, string? orderStatus = null, string? sortBy = null, bool isDescending = false)
+    {
+        try
+        {
+            var request = new OrderPrintAllRequest
+            {
+                Keyword = keyword,
+                TechnicalStatus = technicalStatus,
+                OrderStatus = orderStatus,
+                SortBy = sortBy,
+                IsDescending = isDescending
+            };
+            var response = await _http.PostAsJsonAsync<OrderPrintAllRequest, ApiResponse<string>>($"{BaseUrl}/print-all", request);
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<string>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 打印订单技术要求
+    /// </summary>
+    public async Task<ApiResponse<string>> PrintOrderRequirementsAsync(int orderId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<string>>($"{BaseUrl}/{orderId}/requirements/print");
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<string>.Fail($"网络错误: {ex.Message}");
+        }
+    }
 }

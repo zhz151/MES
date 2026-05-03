@@ -8,6 +8,7 @@ using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Mapping;
+using MES.Services.Printing;
 
 namespace MES.Services;
 
@@ -33,13 +34,26 @@ public class CustomerService : ICustomerService
             .Where(c => !c.IsDeleted)
             .AsQueryable();
 
-        // Keyword search
+        // Keyword search（多关键词AND + 状态中文映射）
         if (!string.IsNullOrEmpty(query.Keyword))
         {
-            queryable = queryable.Where(c =>
-                c.CustomerCode.Contains(query.Keyword) ||
-                c.CustomerUnit.Contains(query.Keyword) ||
-                c.Salesman.Contains(query.Keyword));
+            var keywords = query.Keyword.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var kw in keywords)
+            {
+                var keyword = kw;
+                CustomerStatus? parsedStatus = keyword switch
+                {
+                    "启用" => CustomerStatus.Active,
+                    "停用" => CustomerStatus.Inactive,
+                    _ => null
+                };
+                queryable = queryable.Where(c =>
+                    c.CustomerCode.Contains(keyword) ||
+                    c.CustomerUnit.Contains(keyword) ||
+                    c.Salesman.Contains(keyword) ||
+                    (c.EndCustomer != null && c.EndCustomer.Contains(keyword)) ||
+                    (parsedStatus.HasValue && c.Status == parsedStatus.Value));
+            }
         }
 
         // Sorting
@@ -54,6 +68,12 @@ public class CustomerService : ICustomerService
             "salesman" => query.IsDescending
                 ? queryable.OrderByDescending(c => c.Salesman)
                 : queryable.OrderBy(c => c.Salesman),
+            "endcustomer" => query.IsDescending
+                ? queryable.OrderByDescending(c => c.EndCustomer ?? "")
+                : queryable.OrderBy(c => c.EndCustomer ?? ""),
+            "status" => query.IsDescending
+                ? queryable.OrderByDescending(c => c.Status)
+                : queryable.OrderBy(c => c.Status),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(c => c.CreatedTime)
                 : queryable.OrderBy(c => c.CreatedTime)
@@ -230,5 +250,41 @@ public class CustomerService : ICustomerService
 
         entity.IsDeleted = true;
         await _context.SaveChangesAsync();
+    }
+
+    // ========== 打印 ==========
+
+    public async Task<byte[]> PrintCustomerAsync(int id)
+    {
+        var dto = await GetByIdAsync(id);
+        return CustomerPrintHelper.GeneratePdf(dto);
+    }
+
+    public async Task<byte[]> PrintCustomerBatchAsync(int[] ids)
+    {
+        var result = new List<CustomerProfileDto>();
+        foreach (var id in ids)
+        {
+            try
+            {
+                result.Add(await GetByIdAsync(id));
+            }
+            catch (BusinessException) { }
+        }
+        return CustomerPrintHelper.GenerateBatchPdf(result);
+    }
+
+    public async Task<byte[]> PrintCustomerAllAsync(string? keyword, string? sortBy = null, bool isDescending = false)
+    {
+        var query = new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = int.MaxValue,
+            Keyword = keyword,
+            SortBy = sortBy,
+            IsDescending = isDescending
+        };
+        var paged = await GetPagedAsync(query);
+        return CustomerPrintHelper.GenerateBatchPdf(paged.Items);
     }
 }

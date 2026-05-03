@@ -8,6 +8,7 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
 
 <div class="mt-4">
@@ -33,27 +34,18 @@
         <MudCardContent>
             <!-- 搜索栏 -->
             <MudGrid>
-                <MudItem xs="12" md="8">
+                <MudItem xs="12" md="12">
                     <MudTextField T="string"
-                                  Label="模糊搜索 - 标准牌号/工厂牌号"
-                                  Placeholder="输入关键字进行模糊搜索..."
-                                  @bind-Value="searchKeyword"
+                                  Label="模糊搜索 - 标准牌号/工厂牌号/热处理工艺/特殊材料"
+                                  Placeholder="输入关键字..."
+                                  Value="searchKeyword"
+                                  ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
-                                  OnKeyDown="OnSearchKeyDown"
                                   Clearable="true"
                                   ClearButton="true"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudButton Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               FullWidth="true"
-                               StartIcon="@Icons.Material.Filled.Search"
-                               OnClick="Search">
-                        搜索
-                    </MudButton>
                 </MudItem>
             </MudGrid>
 
@@ -67,33 +59,95 @@
                       Elevation="0"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
+                    <MudButton Variant="Variant.Outlined"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               Disabled="@(!selectedIds.Any())"
+                               OnClick="PrintSelected">
+                        打印选中 (@selectedIds.Count)
+                    </MudButton>
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll">
+                        打印全部
+                    </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
                         共 @totalCount 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
-                    <MudTh>标准牌号</MudTh>
-                    <MudTh>工厂牌号</MudTh>
-                    <MudTh>密度(g/cm³)</MudTh>
-                    <MudTh>热处理工艺</MudTh>
-                    <MudTh>特殊材料</MudTh>
+                    <MudTh Style="width: 40px;">
+                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" OnValueChanged="ToggleSelectAll" />
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("standardgrade")' class="sortable-header">
+                            标准牌号
+                            @if (sortColumn == "standardgrade")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("standardgrade")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("plantgrade")' class="sortable-header">
+                            工厂牌号
+                            @if (sortColumn == "plantgrade")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("plantgrade")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("density")' class="sortable-header">
+                            密度(g/cm³)
+                            @if (sortColumn == "density")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("density")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("heattreatment")' class="sortable-header">
+                            热处理工艺
+                            @if (sortColumn == "heattreatment")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("heattreatment")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("specialmaterial")' class="sortable-header">
+                            特殊材料
+                            @if (sortColumn == "specialmaterial")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("specialmaterial")</span>
+                            }
+                        </span>
+                    </MudTh>
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd  title="@context.StandardGrade">@context.StandardGrade</MudTd>
-                    <MudTd  title="@context.PlantGrade">@context.PlantGrade</MudTd>
-                    <MudTd >@context.Density.ToString("F4")</MudTd>
-                    <MudTd  title="@context.HeatTreatment">@context.HeatTreatment</MudTd>
+                    <MudTd Style="width: 40px;">
+                        <MudCheckBox T="bool"
+                                     Value="@selectedIds.Contains(context.Id)"
+                                     ValueChanged="@((v) => { if(v) selectedIds.Add(context.Id); else selectedIds.Remove(context.Id); StateHasChanged(); })"
+                                     Dense="true" />
+                    </MudTd>
+                    <MudTd title="@context.StandardGrade">
+                        <MudLink Typo="Typo.body2" OnClick="() => ViewGradeMapping(context.Id)">@context.StandardGrade</MudLink>
+                    </MudTd>
+                    <MudTd title="@context.PlantGrade">@context.PlantGrade</MudTd>
+                    <MudTd>@context.Density.ToString("F4")</MudTd>
+                    <MudTd title="@context.HeatTreatment">@context.HeatTreatment</MudTd>
                     <MudTd>
                         <MudChip Size="Size.Small" Color="@(context.SpecialMaterial? Color.Warning: Color.Default)">
                             @(context.SpecialMaterial ? "特殊" : "常规")
                         </MudChip>
                     </MudTd>
                     <MudTd>
-                        <MudIconButton Icon="@Icons.Material.Filled.Visibility"
-                                       Color="Color.Info"
-                                       Size="Size.Small"
-                                       OnClick="() => ViewGradeMapping(context.Id)" />
                         <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                        Color="Color.Warning"
                                        Size="Size.Small"
@@ -115,9 +169,20 @@
 @code {
     private MudTable<StandardGradeMappingDto>? table;
     private List<StandardGradeMappingDto> gradeMappings = new();
+    private HashSet<int> selectedIds = new();
+    private bool allSelected;
     private bool isLoading = false;
     private string searchKeyword = string.Empty;
     private int totalCount = 0;
+
+    private string sortColumn = "standardgrade";
+    private bool sortDescending = false;
+
+    private string GetSortIndicator(string column)
+    {
+        if (sortColumn != column) return "";
+        return sortDescending ? "\u25BC" : "\u25B2";
+    }
 
     private async Task<TableData<StandardGradeMappingDto>> OnServerData(TableState state)
     {
@@ -130,7 +195,9 @@
             {
                 PageIndex = state.Page + 1,
                 PageSize = state.PageSize,
-                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword
+                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                SortBy = sortColumn,
+                IsDescending = sortDescending
             };
 
             var result = await GradeMappingService.GetPagedAsync(queryParams);
@@ -145,7 +212,7 @@
                     TotalItems = totalCount
                 };
             }
-            
+
             return new TableData<StandardGradeMappingDto>
             {
                 Items = new List<StandardGradeMappingDto>(),
@@ -169,6 +236,19 @@
         }
     }
 
+    private async Task ToggleSort(string column)
+    {
+        if (sortColumn == column)
+            sortDescending = !sortDescending;
+        else
+        {
+            sortColumn = column;
+            sortDescending = false;
+        }
+        if (table != null)
+            await table.ReloadServerData();
+    }
+
     private async Task Search()
     {
         if (table != null)
@@ -177,12 +257,11 @@
         }
     }
 
-    private void OnSearchKeyDown(KeyboardEventArgs args)
+    private async Task OnSearchChanged(string value)
     {
-        if (args.Key == "Enter")
-        {
-            _ = Search();
-        }
+        searchKeyword = value ?? string.Empty;
+        if (table != null)
+            await table.ReloadServerData();
     }
 
     private void NavigateToCreate() => Navigation.NavigateTo("/grade-mappings/create");
@@ -217,6 +296,65 @@
             {
                 Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
             }
+        }
+    }
+
+    // ========== 选择方法 ==========
+
+    private async Task ToggleSelectAll(bool select)
+    {
+        allSelected = select;
+        if (select)
+        {
+            foreach (var item in gradeMappings)
+                selectedIds.Add(item.Id);
+        }
+        else
+        {
+            selectedIds.Clear();
+        }
+        await Task.CompletedTask;
+    }
+
+    // ========== 打印方法 ==========
+
+    private async Task PrintSelected()
+    {
+        if (!selectedIds.Any())
+        {
+            Snackbar.Add("请先选择要打印的牌号", Severity.Warning);
+            return;
+        }
+        try
+        {
+            var ids = selectedIds.ToArray();
+            var result = await GradeMappingService.PrintGradeMappingBatchAsync(ids);
+            if (result.Success && result.Data != null)
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PrintAll()
+    {
+        try
+        {
+            var result = await GradeMappingService.PrintGradeMappingAllAsync(
+                string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                sortColumn, sortDescending);
+            if (result.Success && result.Data != null)
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
         }
     }
 }

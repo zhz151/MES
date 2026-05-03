@@ -1,4 +1,3 @@
-// 文件路径: MES.Blazor/Pages/ProductRequirement.razor
 @page "/orders/{orderId:int}/requirements"
 @page "/orders/{orderId:int}/requirements/edit"
 @using MES.Blazor.Services
@@ -9,6 +8,7 @@
 @inject OrderService OrderService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
@@ -42,6 +42,14 @@
                 </CardHeaderContent>
                 <CardHeaderActions>
                     <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                    @if (!isEditMode)
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info"
+                                   StartIcon="@Icons.Material.Filled.Print"
+                                   OnClick="PrintRequirements">
+                            打印
+                        </MudButton>
+                    }
                     @if (isEditMode)
                     {
                         @if (orderStatus != SalesOrderStatus.Cancelled)
@@ -400,4 +408,20 @@
     }
 
     private void GoBack() => Navigation.NavigateTo($"/orders/{orderId}");
+
+    private async Task PrintRequirements()
+    {
+        try
+        {
+            var result = await OrderService.PrintOrderRequirementsAsync(orderId);
+            if (result.Success && result.Data != null)
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
 }

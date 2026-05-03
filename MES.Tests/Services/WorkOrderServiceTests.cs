@@ -12,6 +12,7 @@ using MES.Services.Order;
 using MES.Tests.Tests;
 using MES.Data;
 using Moq;
+using QuestPDF.Infrastructure;
 
 namespace MES.Tests.Services;
 
@@ -20,6 +21,12 @@ namespace MES.Tests.Services;
 /// </summary>
 public class WorkOrderServiceTests : TestBase
 {
+    static WorkOrderServiceTests()
+    {
+        // QuestPDF 社区版许可（测试环境需要手动设置）
+        QuestPDF.Settings.License = LicenseType.Community;
+    }
+
     private WorkOrderService CreateService(AppDbContext ctx)
     {
         var loggerMock = new Mock<ILogger<WorkOrderService>>();
@@ -73,6 +80,31 @@ public class WorkOrderServiceTests : TestBase
         });
 
         return (order.Id, order.OrderNumber);
+    }
+
+    /// <summary>
+    /// 种子一个已确认订单并生成工单，返回 (orderId, orderNo, workOrderIds)
+    /// </summary>
+    private async Task<(int OrderId, string OrderNo, List<int> WorkOrderIds)> SeedConfirmedOrderWithWorkOrdersAsync(AppDbContext ctx, int itemCount = 1)
+    {
+        var (orderId, orderNo) = await SeedConfirmedOrderAsync(ctx);
+
+        var items = await ctx.OrderItems
+            .Where(oi => oi.SalesOrderId == orderId && !oi.IsDeleted)
+            .ToListAsync();
+        var itemIds = items.Select(i => i.Id).ToList();
+
+        var svc = CreateService(ctx);
+        var generated = await svc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
+        {
+            SalesOrderNo = orderNo,
+            WorkOrders = new List<WorkOrderItemGroup>
+            {
+                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = itemIds }
+            }
+        });
+
+        return (orderId, orderNo, generated.Select(g => g.Id).ToList());
     }
 
     // ========== 获取工单项次 ==========
@@ -372,5 +404,173 @@ public class WorkOrderServiceTests : TestBase
         relation.WorkOrders.Should().HaveCount(1);
         relation.WorkOrders[0].ProductionMainNo.Should().Be("D01");
         relation.WorkOrders[0].OrderItems.Should().HaveCount(1);
+    }
+
+    // ========== 工单打印 ==========
+
+    [Fact]
+    public async Task PrintWorkOrderAsync_成功生成PDF()
+    {
+        var ctx = CreateDbContext();
+        var (_, _, workOrderIds) = await SeedConfirmedOrderWithWorkOrdersAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var pdfBytes = await svc.PrintWorkOrderAsync(workOrderIds[0]);
+
+        pdfBytes.Should().NotBeNull();
+        pdfBytes.Should().NotBeEmpty();
+        // PDF 文件头固定为 %PDF
+        pdfBytes[0].Should().Be((byte)'%');
+        pdfBytes[1].Should().Be((byte)'P');
+        pdfBytes[2].Should().Be((byte)'D');
+        pdfBytes[3].Should().Be((byte)'F');
+    }
+
+    [Fact]
+    public async Task PrintWorkOrderAsync_工单不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.PrintWorkOrderAsync(99999);
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("工单不存在");
+    }
+
+    [Fact]
+    public async Task PrintWorkOrdersByOrderAsync_成功生成批量PDF()
+    {
+        var ctx = CreateDbContext();
+        var (_, orderNo, _) = await SeedConfirmedOrderWithWorkOrdersAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var pdfBytes = await svc.PrintWorkOrdersByOrderAsync(orderNo);
+
+        pdfBytes.Should().NotBeNull();
+        pdfBytes.Should().NotBeEmpty();
+        pdfBytes[0].Should().Be((byte)'%');
+    }
+
+    [Fact]
+    public async Task PrintWorkOrdersByOrderAsync_无工单_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.PrintWorkOrdersByOrderAsync("NONEXISTENT-ORDER");
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*没有可打印的工单*");
+    }
+
+    [Fact]
+    public async Task PrintWorkOrdersByOrderBatchAsync_选中订单批量打印()
+    {
+        var ctx = CreateDbContext();
+        var (_, orderNoA, _) = await SeedConfirmedOrderWithWorkOrdersAsync(ctx);
+        var (_, orderNoB, _) = await SeedConfirmedOrderWithWorkOrdersAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var pdfBytes = await svc.PrintWorkOrdersByOrderBatchAsync(new[] { orderNoA, orderNoB });
+
+        pdfBytes.Should().NotBeNull();
+        pdfBytes.Should().NotBeEmpty();
+        pdfBytes[0].Should().Be((byte)'%');
+    }
+
+    [Fact]
+    public async Task PrintWorkOrdersByOrderAllAsync_按筛选条件全部打印()
+    {
+        var ctx = CreateDbContext();
+        var (_, orderNo, _) = await SeedConfirmedOrderWithWorkOrdersAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var pdfBytes = await svc.PrintWorkOrdersByOrderAllAsync(new WorkOrderQueryParams
+        {
+            Keyword = orderNo,
+            PageIndex = 1,
+            PageSize = 20
+        });
+
+        pdfBytes.Should().NotBeNull();
+        pdfBytes.Should().NotBeEmpty();
+        pdfBytes[0].Should().Be((byte)'%');
+    }
+
+    // ========== 工单首页订单状态分页 ==========
+
+    [Fact]
+    public async Task GetOrderWorkOrderStatusPageAsync_搜索关键字筛选()
+    {
+        var ctx = CreateDbContext();
+        var (_, orderNo, _) = await SeedConfirmedOrderWithWorkOrdersAsync(ctx);
+        var svc = CreateService(ctx);
+
+        // 按订单号搜索
+        var result = await svc.GetOrderWorkOrderStatusPageAsync(new WorkOrderQueryParams
+        {
+            Keyword = orderNo,
+            PageIndex = 1,
+            PageSize = 20
+        });
+
+        result.Should().NotBeNull();
+        result.Items.Should().Contain(i => i.OrderNumber == orderNo);
+        result.Items[0].WorkOrderStatus.Should().Be("Confirmed");
+    }
+
+    [Fact]
+    public async Task GetOrderWorkOrderStatusPageAsync_按工单状态筛选()
+    {
+        var ctx = CreateDbContext();
+        var (_, orderNo, _) = await SeedConfirmedOrderWithWorkOrdersAsync(ctx);
+        var svc = CreateService(ctx);
+
+        // 筛选已确认的工单
+        var result = await svc.GetOrderWorkOrderStatusPageAsync(new WorkOrderQueryParams
+        {
+            Keyword = orderNo,
+            WorkOrderStatus = "Confirmed",
+            PageIndex = 1,
+            PageSize = 20
+        });
+
+        result.Should().NotBeNull();
+        result.Items.Should().Contain(i => i.OrderNumber == orderNo);
+        result.Items.All(i => i.WorkOrderStatus == "Confirmed").Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetOrderWorkOrderStatusPageAsync_按客户名称搜索()
+    {
+        var ctx = CreateDbContext();
+        // 创建测试订单（客户名在 SeedConfirmedOrderAsync 中为"测试客户"）
+        var (_, orderNo, _) = await SeedConfirmedOrderWithWorkOrdersAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetOrderWorkOrderStatusPageAsync(new WorkOrderQueryParams
+        {
+            Keyword = "测试客户",
+            PageIndex = 1,
+            PageSize = 20
+        });
+
+        result.Should().NotBeNull();
+        result.Items.Should().Contain(i => i.OrderNumber == orderNo);
+    }
+
+    [Fact]
+    public async Task GetOrderWorkOrderStatusPageAsync_按业务员搜索()
+    {
+        var ctx = CreateDbContext();
+        var (_, orderNo, _) = await SeedConfirmedOrderWithWorkOrdersAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetOrderWorkOrderStatusPageAsync(new WorkOrderQueryParams
+        {
+            Keyword = "测试业务员",
+            PageIndex = 1,
+            PageSize = 20
+        });
+
+        result.Should().NotBeNull();
+        result.Items.Should().Contain(i => i.OrderNumber == orderNo);
     }
 }

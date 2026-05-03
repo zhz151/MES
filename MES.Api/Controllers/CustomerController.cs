@@ -96,6 +96,44 @@ public class CustomerController : ControllerBase
         return Ok(ApiResponse<CustomerProfileDto>.Ok(result, "更新成功"));
     }
 
+    // ========== 打印 ==========
+
+    /// <summary>
+    /// 打印单个客户
+    /// </summary>
+    [HttpGet("{id}/print")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintCustomer(int id)
+    {
+        var pdfBytes = await _customerService.PrintCustomerAsync(id);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    /// <summary>
+    /// 批量打印客户
+    /// </summary>
+    [HttpPost("print-batch")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintCustomerBatch([FromBody] OrderPrintBatchRequest request)
+    {
+        var pdfBytes = await _customerService.PrintCustomerBatchAsync(request.Ids);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    /// <summary>
+    /// 按筛选条件打印全部客户
+    /// </summary>
+    [HttpPost("print-all")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintCustomerAll([FromBody] OrderPrintAllRequest request)
+    {
+        var pdfBytes = await _customerService.PrintCustomerAllAsync(request.Keyword, request.SortBy, request.IsDescending);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
     /// <summary>
     /// 删除客户（软删除）
     /// </summary>

@@ -1,4 +1,3 @@
-// 文件路径: MES.Blazor/Pages/OrderCreate.razor
 @page "/orders/create"
 @using MES.Blazor.Helpers
 @using MES.Blazor.Services
@@ -60,7 +59,6 @@
                                               Dense="true"
                                               Variant="Variant.Outlined"
                                               Size="Size.Small"
-                                              Required="true"
                                               Immediate="true" />
                             </div>
                         </div>
@@ -74,7 +72,6 @@
                                               Dense="true"
                                               Variant="Variant.Outlined"
                                               Size="Size.Small"
-                                              Required="true"
                                               Immediate="true" />
                             </div>
                         </div>
@@ -88,7 +85,6 @@
                                               Dense="true"
                                               Variant="Variant.Outlined"
                                               Size="Size.Small"
-                                              Required="true"
                                               Immediate="true" />
                             </div>
                         </div>
@@ -100,19 +96,20 @@
                 <!-- ========== 2. 订单项次区域 ========== -->
                 <div class="d-flex justify-space-between align-center mb-3">
                     <MudText Typo="Typo.subtitle1">订单项次</MudText>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddNewItem">添加项次</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddSimilarItem" Class="mr-2">添加同类项次</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddNewItem">添加异类项次</MudButton>
                 </div>
 
                 @if (editItemViewModels.Count == 0)
                 {
-                    <MudAlert Severity="Severity.Info">请点击"添加项次"按钮添加订单项次</MudAlert>
+                    <MudAlert Severity="Severity.Info">请点击"添加异类项次"或"添加同类项次"按钮添加订单项次</MudAlert>
                 }
                 else
                 {
                     <MudAlert Severity="Severity.Warning" Class="mb-3">每个订单至少需要保留一个项次。删除项次请点击行尾的删除按钮。</MudAlert>
 
                     <div style="overflow-x: auto;">
-                        <MudTable T="OrderItemViewModel" Items="@editItemViewModels" Dense="true" Hover="true" Elevation="0">
+                        <MudTable T="OrderItemViewModel" Items="@editItemViewModels" Dense="true" Hover="true" Elevation="0" RowsPerPage="10" RowsPerPageLabel="每页行数:" Class="compact-table">
                             <HeaderContent>
                                 <MudTh>项次</MudTh>
                                 <MudTh>交货日期</MudTh>
@@ -137,6 +134,9 @@
                                 <MudTh>理算重量</MudTh>
                                 <MudTh>操作</MudTh>
                             </HeaderContent>
+                            <PagerContent>
+                                <MudTablePager />
+                            </PagerContent>
                             <RowTemplate Context="item">
                                 <!-- 项次 - 只读显示 -->
                                 <MudTd>
@@ -150,8 +150,7 @@
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 120px;"
-                                                  Placeholder="yyyy-MM-dd"
+                                                  Style="width: 72px;"
                                                   Immediate="true" />
                                 </MudTd>
 
@@ -162,7 +161,7 @@
 
                                 <!-- 结算方式 - 下拉选择 -->
                                 <MudTd>
-                                    <MudSelect T="SettlementMethod" @bind-Value="item.SettlementMethod" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="min-width: 80px;">
+                                    <MudSelect T="SettlementMethod" @bind-Value="item.SettlementMethod" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
                                         <MudSelectItem Value="SettlementMethod.Theoretical">理算</MudSelectItem>
                                         <MudSelectItem Value="SettlementMethod.Weighing">过磅</MudSelectItem>
                                         <MudSelectItem Value="SettlementMethod.WeighingNegative">过磅-负</MudSelectItem>
@@ -171,7 +170,7 @@
 
                                 <!-- 物料名称 - 下拉选择 -->
                                 <MudTd>
-                                    <MudSelect T="MaterialName" @bind-Value="item.MaterialName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="min-width: 80px;">
+                                    <MudSelect T="MaterialName" @bind-Value="item.MaterialName" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
                                         <MudSelectItem Value="MaterialName.SeamlessPipe">无缝管</MudSelectItem>
                                         <MudSelectItem Value="MaterialName.WeldedPipe">焊管</MudSelectItem>
                                     </MudSelect>
@@ -179,7 +178,7 @@
 
                                 <!-- 产品标准 - 下拉选择 -->
                                 <MudTd>
-                                    <MudSelect T="int" @bind-Value="item.ProductionStandardId" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="min-width: 100px;">
+                                    <MudSelect T="int" @bind-Value="item.ProductionStandardId" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
                                         @foreach (var std in productionStandards)
                                         {
                                             <MudSelectItem Value="@std.Id">@std.StandardCode</MudSelectItem>
@@ -189,7 +188,7 @@
 
                                 <!-- 交货状态 - 下拉选择 -->
                                 <MudTd>
-                                    <MudSelect T="DeliveryState" @bind-Value="item.DeliveryState" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="min-width: 100px;">
+                                    <MudSelect T="DeliveryState" @bind-Value="item.DeliveryState" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
                                         <MudSelectItem Value="DeliveryState.SolutionAnnealedAndPickled">固溶酸洗</MudSelectItem>
                                         <MudSelectItem Value="DeliveryState.Bright">光亮</MudSelectItem>
                                         <MudSelectItem Value="DeliveryState.Hard">硬态</MudSelectItem>
@@ -198,7 +197,7 @@
 
                                 <!-- 标准牌号 - 下拉选择 -->
                                 <MudTd>
-                                    <MudSelect T="string" @bind-Value="item.StandardGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="min-width: 80px;">
+                                    <MudSelect T="string" @bind-Value="item.StandardGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
                                         @foreach (var grade in gradeMappings)
                                         {
                                             <MudSelectItem Value="@grade.StandardGrade">@grade.StandardGrade</MudSelectItem>
@@ -213,7 +212,7 @@
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 80px;" />
+                                                  Style="width: 45px;" />
                                 </MudTd>
 
                                 <!-- 壁厚 - 文本输入 -->
@@ -223,7 +222,7 @@
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 80px;" />
+                                                  Style="width: 45px;" />
                                 </MudTd>
 
                                 <!-- 外径下差 - 文本输入 -->
@@ -233,7 +232,7 @@
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 70px;" />
+                                                  Style="width: 40px;" />
                                 </MudTd>
 
                                 <!-- 外径上差 - 文本输入 -->
@@ -243,7 +242,7 @@
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 70px;" />
+                                                  Style="width: 40px;" />
                                 </MudTd>
 
                                 <!-- 壁厚下差 - 文本输入 -->
@@ -253,7 +252,7 @@
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 70px;" />
+                                                  Style="width: 40px;" />
                                 </MudTd>
 
                                 <!-- 壁厚上差 - 文本输入 -->
@@ -263,12 +262,12 @@
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 70px;" />
+                                                  Style="width: 40px;" />
                                 </MudTd>
 
                                 <!-- 长度状态 - 下拉选择 -->
                                 <MudTd>
-                                    <MudSelect T="LengthStatus" @bind-Value="item.LengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="min-width: 80px;">
+                                    <MudSelect T="LengthStatus" @bind-Value="item.LengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
                                         <MudSelectItem Value="LengthStatus.Fixed">定尺</MudSelectItem>
                                         <MudSelectItem Value="LengthStatus.Range">范围尺</MudSelectItem>
                                         <MudSelectItem Value="LengthStatus.NonFixed">非定尺</MudSelectItem>
@@ -282,7 +281,7 @@
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 90px;" />
+                                                  Style="width: 50px;" />
                                 </MudTd>
 
                                 <!-- 最大长度 - 文本输入 -->
@@ -292,7 +291,7 @@
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 90px;" />
+                                                  Style="width: 50px;" />
                                 </MudTd>
 
                                 <!-- 支数 - 文本输入 -->
@@ -302,7 +301,7 @@
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 70px;" />
+                                                  Style="width: 40px;" />
                                 </MudTd>
 
                                 <!-- 米数 - 文本输入 + 计算按钮 -->
@@ -313,7 +312,7 @@
                                                       Dense="true"
                                                       Variant="Variant.Outlined"
                                                       Size="Size.Small"
-                                                      Style="width: 90px;" />
+                                                      Style="width: 48px;" />
                                         <MudIconButton Icon="@Icons.Material.Filled.Calculate"
                                                        Color="Color.Primary"
                                                        Size="Size.Small"
@@ -328,7 +327,7 @@
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 100px;" />
+                                                  Style="width: 50px;" />
                                 </MudTd>
 
                                 <!-- 理算重量 - 只读 + 计算按钮 -->
@@ -459,8 +458,52 @@
         editItemViewModels.Add(new OrderItemViewModel
         {
             Sequence = newSequence,
-            ProductionStandardId = productionStandards.FirstOrDefault()?.Id ?? 0,
-            StandardGrade = gradeMappings.FirstOrDefault()?.StandardGrade ?? string.Empty
+            DeliveryDateStr = string.Empty,
+            SettlementMethod = default,
+            MaterialName = default,
+            DeliveryState = default,
+            LengthStatus = default,
+            OuterDiameterNegativeStr = string.Empty,
+            OuterDiameterPositiveStr = string.Empty,
+            WallThicknessNegativeStr = string.Empty,
+            WallThicknessPositiveStr = string.Empty
+        });
+        StateHasChanged();
+    }
+
+    private void AddSimilarItem()
+    {
+        if (!editItemViewModels.Any())
+        {
+            AddNewItem();
+            return;
+        }
+        var last = editItemViewModels.Last();
+        var newSequence = editItemViewModels.Max(x => x.Sequence) + 1;
+        editItemViewModels.Add(new OrderItemViewModel
+        {
+            Sequence = newSequence,
+            DeliveryDateStr = last.DeliveryDateStr,
+            DelayPenalty = last.DelayPenalty,
+            SettlementMethod = last.SettlementMethod,
+            MaterialName = last.MaterialName,
+            ProductionStandardId = last.ProductionStandardId,
+            DeliveryState = last.DeliveryState,
+            StandardGrade = last.StandardGrade,
+            OuterDiameterStr = last.OuterDiameterStr,
+            WallThicknessStr = last.WallThicknessStr,
+            OuterDiameterNegativeStr = last.OuterDiameterNegativeStr,
+            OuterDiameterPositiveStr = last.OuterDiameterPositiveStr,
+            WallThicknessNegativeStr = last.WallThicknessNegativeStr,
+            WallThicknessPositiveStr = last.WallThicknessPositiveStr,
+            LengthStatus = last.LengthStatus,
+            // 以下6个字段默认置0
+            MinLengthStr = "0",
+            MaxLengthStr = "0",
+            QuantityStr = "0",
+            MetersStr = "0",
+            ContractWeightStr = "0",
+            TheoreticalWeight = 0
         });
         StateHasChanged();
     }
@@ -557,8 +600,14 @@
 
         try
         {
-            // 加载客户数据（用于验证客户编码）
-            var customersResult = await CustomerService.GetPagedAsync(new QueryParams { PageSize = 100 });
+            // 并行加载：客户列表、产品标准、牌号对照（三者无依赖关系）
+            var customersTask = CustomerService.GetPagedAsync(new QueryParams { PageSize = 100 });
+            var standardsTask = StandardService.GetAllAsync();
+            var gradesTask = GradeMappingService.GetAllAsync();
+            await Task.WhenAll(customersTask, standardsTask, gradesTask);
+
+            // 处理客户数据
+            var customersResult = await customersTask;
             if (customersResult.Success && customersResult.Data != null)
             {
                 allCustomers = customersResult.Data.Items;
@@ -570,12 +619,11 @@
                         validCustomerCodes.Add(customer.CustomerCode);
                     }
                 }
-                Console.WriteLine($"加载到 {allCustomers.Count} 个客户，有效客户编码 {validCustomerCodes.Count} 个");
             }
 
-            // 加载产品标准和牌号对照
-            productionStandards = await StandardService.GetAllAsync();
-            gradeMappings = await GradeMappingService.GetAllAsync();
+            // 产品和牌号数据已并行完成
+            productionStandards = await standardsTask;
+            gradeMappings = await gradesTask;
 
             // 添加一个默认项次
             AddNewItem();

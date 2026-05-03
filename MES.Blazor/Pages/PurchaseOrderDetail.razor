@@ -163,8 +163,10 @@
 
     protected override async Task OnInitializedAsync()
     {
-        suppliers = await SupplierService.GetActiveAsync();
+        // 供应商列表和订单数据可并行加载
+        var suppliersTask = SupplierService.GetActiveAsync();
         await LoadData();
+        suppliers = await suppliersTask;
     }
 
     private async Task LoadData()

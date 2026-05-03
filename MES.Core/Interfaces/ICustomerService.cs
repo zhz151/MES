@@ -13,4 +13,9 @@ public interface ICustomerService
     Task<CustomerProfileDto> UpdateAsync(int id, UpdateCustomerRequest request);
 
     Task DeleteAsync(int id);
+
+    // ========== 打印 ==========
+    Task<byte[]> PrintCustomerAsync(int id);
+    Task<byte[]> PrintCustomerBatchAsync(int[] ids);
+    Task<byte[]> PrintCustomerAllAsync(string? keyword, string? sortBy = null, bool isDescending = false);
 }

@@ -12,44 +12,187 @@
         <MudCardHeader>
             <CardHeaderContent>
                 <MudText Typo="Typo.h5" Class="font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Primary" />新建供应商</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">创建新的供应商档案</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">创建新的供应商档案，可批量添加多条记录</MudText>
             </CardHeaderContent>
             <CardHeaderActions>
                 <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Disabled="@isSubmitting">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAll" Disabled="@isSubmitting">
                     @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> } else { <span>保存</span> }
                 </MudButton>
             </CardHeaderActions>
         </MudCardHeader>
+
         <MudCardContent>
-            <MudGrid>
-                <MudItem xs="12" md="6"><MudTextField T="string" Label="供应商名称" @bind-Value="request.SupplierName" Required="true" /></MudItem>
-                <MudItem xs="12" md="3"><MudTextField T="string" Label="联系人" @bind-Value="request.ContactPerson" /></MudItem>
-                <MudItem xs="12" md="3"><MudTextField T="string" Label="联系电话" @bind-Value="request.ContactPhone" /></MudItem>
-                <MudItem xs="12" md="12"><MudTextField T="string" Label="地址" @bind-Value="request.Address" Multiline="true" Lines="2" /></MudItem>
-                <MudItem xs="12" md="6"><MudSwitch @bind-Value="request.IsActive" Label="启用" /></MudItem>
-                <MudItem xs="12" md="12"><MudTextField T="string" Label="备注" @bind-Value="request.Remark" Multiline="true" Lines="3" /></MudItem>
-            </MudGrid>
+            <div class="d-flex justify-space-between align-center mb-3">
+                <MudText Typo="Typo.subtitle1">供应商列表</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow">添加供应商</MudButton>
+            </div>
+
+            @if (rows.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info">请点击"添加供应商"按钮添加记录</MudAlert>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Warning" Class="mb-3">点击右上角"保存"按钮一次性提交所有记录。</MudAlert>
+
+                <div style="overflow-x: auto;">
+                    <MudTable T="SupplierRow" Items="@rows" Dense="true" Hover="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh Style="width: 50px;">行号</MudTh>
+                            <MudTh Style="min-width: 160px;">供应商名称</MudTh>
+                            <MudTh Style="width: 110px;">联系人</MudTh>
+                            <MudTh Style="width: 130px;">联系电话</MudTh>
+                            <MudTh Style="min-width: 180px;">地址</MudTh>
+                            <MudTh Style="width: 70px;">启用</MudTh>
+                            <MudTh Style="min-width: 200px;">备注</MudTh>
+                            <MudTh Style="width: 60px;">操作</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="row">
+                            <MudTd>
+                                <MudText Typo="Typo.body2">@row.Sequence</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.SupplierName"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.ContactPerson"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.ContactPhone"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.Address"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudCheckBox @bind-Value="row.IsActive" Dense="true" Size="Size.Small" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.Remark"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                @if (rows.Count > 1)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Color="Color.Error"
+                                                   Size="Size.Small"
+                                                   OnClick="() => RemoveRow(row)" />
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+            }
         </MudCardContent>
     </MudCard>
 </MudContainer>
 
 @code {
-    private CreateSupplierRequest request = new() { IsActive = true };
+    private List<SupplierRow> rows = new();
     private bool isSubmitting;
 
-    private async Task Save()
+    private class SupplierRow
     {
-        if (string.IsNullOrWhiteSpace(request.SupplierName)) { Snackbar.Add("供应商名称不能为空", Severity.Warning); return; }
-        isSubmitting = true; StateHasChanged();
-        try
+        public int Sequence { get; set; }
+        public string SupplierName { get; set; } = string.Empty;
+        public string? ContactPerson { get; set; }
+        public string? ContactPhone { get; set; }
+        public string? Address { get; set; }
+        public bool IsActive { get; set; } = true;
+        public string? Remark { get; set; }
+    }
+
+    protected override void OnInitialized()
+    {
+        AddRow();
+    }
+
+    private void AddRow()
+    {
+        rows.Add(new SupplierRow { Sequence = rows.Count + 1 });
+    }
+
+    private void RemoveRow(SupplierRow row)
+    {
+        if (rows.Count <= 1) { Snackbar.Add("至少保留一条记录", Severity.Warning); return; }
+        rows.Remove(row);
+        for (int i = 0; i < rows.Count; i++) rows[i].Sequence = i + 1;
+    }
+
+    private async Task SaveAll()
+    {
+        var errors = new List<string>();
+        for (int i = 0; i < rows.Count; i++)
         {
-            var result = await SupplierService.CreateAsync(request);
-            if (result.Success) { Snackbar.Add("创建成功", Severity.Success); Navigation.NavigateTo("/suppliers"); }
-            else { Snackbar.Add(result.Message ?? "创建失败", Severity.Error); }
+            var r = rows[i];
+            var seq = i + 1;
+            if (string.IsNullOrWhiteSpace(r.SupplierName)) errors.Add($"行{seq}: 供应商名称不能为空");
         }
-        catch (Exception ex) { Snackbar.Add($"创建失败: {ex.Message}", Severity.Error); }
-        finally { isSubmitting = false; StateHasChanged(); }
+        if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
+
+        isSubmitting = true; StateHasChanged();
+        var successCount = 0;
+        var failCount = 0;
+        var failMessages = new List<string>();
+
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var r = rows[i];
+            var request = new CreateSupplierRequest
+            {
+                SupplierName = r.SupplierName,
+                ContactPerson = r.ContactPerson,
+                ContactPhone = r.ContactPhone,
+                Address = r.Address,
+                IsActive = r.IsActive,
+                Remark = r.Remark
+            };
+
+            try
+            {
+                var result = await SupplierService.CreateAsync(request);
+                if (result.Success) successCount++;
+                else { failCount++; failMessages.Add($"行{i + 1}: {result.Message}"); }
+            }
+            catch (Exception ex) { failCount++; failMessages.Add($"行{i + 1}: {ex.Message}"); }
+        }
+
+        isSubmitting = false; StateHasChanged();
+
+        if (failCount == 0)
+        {
+            Snackbar.Add($"成功创建 {successCount} 条记录", Severity.Success);
+            Navigation.NavigateTo("/suppliers");
+        }
+        else
+        {
+            Snackbar.Add($"成功 {successCount} 条，失败 {failCount} 条：{string.Join("；", failMessages)}", Severity.Error);
+        }
     }
 
     private void GoBack() => Navigation.NavigateTo("/suppliers");

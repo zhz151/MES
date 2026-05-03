@@ -22,4 +22,9 @@ public interface IGradeMappingService
     
     // 删除
     Task DeleteAsync(int id);
+
+    // ========== 打印 ==========
+    Task<byte[]> PrintGradeMappingAsync(int id);
+    Task<byte[]> PrintGradeMappingBatchAsync(int[] ids);
+    Task<byte[]> PrintGradeMappingAllAsync(string? keyword, string? sortBy = null, bool isDescending = false);
 }
