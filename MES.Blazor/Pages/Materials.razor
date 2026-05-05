@@ -8,6 +8,7 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "MaterialStaff,MaterialDirector,Admin")]
 
 <div class="mt-4">
@@ -31,31 +32,24 @@
         </MudCardHeader>
 
         <MudCardContent>
+            <!-- 搜索栏 -->
             <MudGrid>
-                <MudItem xs="12" md="6">
+                <MudItem xs="12" md="12">
                     <MudTextField T="string"
-                                  Label="模糊搜索 - 分类/钢种/规格"
+                                  Label="模糊搜索 - 物料编码/分类/钢种/规格"
                                   Placeholder="输入关键字..."
-                                  @bind-Value="searchKeyword"
+                                  Value="searchKeyword"
+                                  ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
-                                  OnKeyDown="OnSearchKeyDown"
                                   Clearable="true"
                                   ClearButton="true"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudButton Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               FullWidth="true"
-                               StartIcon="@Icons.Material.Filled.Search"
-                               OnClick="Search">
-                        搜索
-                    </MudButton>
-                </MudItem>
             </MudGrid>
 
+            <!-- 数据表格 -->
             <MudTable @ref="table"
                       T="MaterialDto"
                       ServerData="OnServerData"
@@ -66,16 +60,86 @@
                       Elevation="0"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
-                    <MudText Typo="Typo.body2" Class="ml-auto">共 @totalCount 条记录</MudText>
+                    <MudButton Variant="Variant.Outlined"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               Disabled="@(!selectedIds.Any())"
+                               OnClick="PrintSelected">
+                        打印选中 (@selectedIds.Count)
+                    </MudButton>
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll">
+                        打印全部
+                    </MudButton>
+                    <MudText Typo="Typo.body2" Class="ml-auto">
+                        共 @totalCount 条记录
+                    </MudText>
                 </ToolBarContent>
                 <HeaderContent>
-                    <MudTh>物料分类</MudTh>
-                    <MudTh>厂内钢种</MudTh>
-                    <MudTh>名义规格</MudTh>
-                    <MudTh>状态</MudTh>
+                    <MudTh Style="width: 40px;">
+                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("materialcode")' class="sortable-header">
+                            物料编码
+                            @if (sortColumn == "materialcode")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("materialcode")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("materialcategory")' class="sortable-header">
+                            物料分类
+                            @if (sortColumn == "materialcategory")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("materialcategory")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("plantgrade")' class="sortable-header">
+                            厂内钢种
+                            @if (sortColumn == "plantgrade")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("plantgrade")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("specification")' class="sortable-header">
+                            名义规格
+                            @if (sortColumn == "specification")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("specification")</span>
+                            }
+                        </span>
+                    </MudTh>
+                    <MudTh>
+                        <span @onclick='() => ToggleSort("isactive")' class="sortable-header">
+                            状态
+                            @if (sortColumn == "isactive")
+                            {
+                                <span class="sort-arrow">@GetSortIndicator("isactive")</span>
+                            }
+                        </span>
+                    </MudTh>
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate>
+                    <MudTd Style="width: 40px;">
+                        <MudCheckBox T="bool"
+                                     Value="@selectedIds.Contains(context.Id)"
+                                     ValueChanged="@((v) => { if(v) selectedIds.Add(context.Id); else selectedIds.Remove(context.Id); _allSelected = items.Any() && items.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                     Dense="true" />
+                    </MudTd>
+                    <MudTd title="@context.MaterialCode">
+                        <MudLink Typo="Typo.body2" OnClick="() => ViewDetail(context.Id)">@context.MaterialCode</MudLink>
+                    </MudTd>
                     <MudTd title="@context.MaterialCategory">@context.MaterialCategory</MudTd>
                     <MudTd title="@context.PlantGrade">@context.PlantGrade</MudTd>
                     <MudTd title="@context.Specification">@context.Specification</MudTd>
@@ -85,9 +149,14 @@
                         </MudChip>
                     </MudTd>
                     <MudTd>
-                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info" Size="Size.Small" OnClick="() => ViewDetail(context.Id)" />
-                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Size="Size.Small" OnClick="() => EditDetail(context.Id)" />
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItem(context)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                       Color="Color.Warning"
+                                       Size="Size.Small"
+                                       OnClick="() => EditDetail(context.Id)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Color="Color.Error"
+                                       Size="Size.Small"
+                                       OnClick="() => DeleteItem(context)" />
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
@@ -101,36 +170,117 @@
 @code {
     private MudTable<MaterialDto>? table;
     private List<MaterialDto> items = new();
+    private HashSet<int> selectedIds = new();
+    private bool _allSelected;
+    private bool allSelected
+    {
+        get => _allSelected;
+        set
+        {
+            if (_allSelected == value) return;
+            _allSelected = value;
+            if (value)
+            {
+                foreach (var item in items)
+                    selectedIds.Add(item.Id);
+            }
+            else
+            {
+                selectedIds.Clear();
+            }
+            StateHasChanged();
+        }
+    }
     private bool isLoading;
     private string searchKeyword = string.Empty;
     private int totalCount;
 
+    private string sortColumn = "materialcode";
+    private bool sortDescending = false;
+
+    private string GetSortIndicator(string column)
+    {
+        if (sortColumn != column) return "";
+        return sortDescending ? "\u25BC" : "\u25B2";
+    }
+
     private async Task<TableData<MaterialDto>> OnServerData(TableState state)
     {
-        isLoading = true; StateHasChanged();
+        isLoading = true;
+        StateHasChanged();
+
         try
         {
-            var query = new QueryParams
+            var queryParams = new QueryParams
             {
                 PageIndex = state.Page + 1,
                 PageSize = state.PageSize,
-                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword
+                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                SortBy = sortColumn,
+                IsDescending = sortDescending
             };
-            var result = await MaterialService.GetPagedAsync(query);
+
+            var result = await MaterialService.GetPagedAsync(queryParams);
+
             if (result.Success && result.Data != null)
             {
                 items = result.Data.Items;
                 totalCount = result.Data.TotalCount;
-                return new TableData<MaterialDto> { Items = items, TotalItems = totalCount };
+                return new TableData<MaterialDto>
+                {
+                    Items = items,
+                    TotalItems = totalCount
+                };
             }
-            return new TableData<MaterialDto> { Items = new List<MaterialDto>(), TotalItems = 0 };
+
+            return new TableData<MaterialDto>
+            {
+                Items = new List<MaterialDto>(),
+                TotalItems = 0
+            };
         }
-        catch (Exception ex) { Snackbar.Add($"加载失败: {ex.Message}", Severity.Error); return new TableData<MaterialDto> { Items = new List<MaterialDto>(), TotalItems = 0 }; }
-        finally { isLoading = false; StateHasChanged(); }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+            return new TableData<MaterialDto>
+            {
+                Items = new List<MaterialDto>(),
+                TotalItems = 0
+            };
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
-    private async Task Search() { if (table != null) await table.ReloadServerData(); }
-    private void OnSearchKeyDown(KeyboardEventArgs args) { if (args.Key == "Enter") _ = Search(); }
+    private async Task ToggleSort(string column)
+    {
+        if (sortColumn == column)
+            sortDescending = !sortDescending;
+        else
+        {
+            sortColumn = column;
+            sortDescending = false;
+        }
+        if (table != null)
+            await table.ReloadServerData();
+    }
+
+    private async Task Search()
+    {
+        if (table != null)
+            await table.ReloadServerData();
+    }
+
+    private async Task OnSearchChanged(string value)
+    {
+        searchKeyword = value ?? string.Empty;
+        if (table != null)
+            await table.ReloadServerData();
+    }
+
     private void NavigateToCreate() => Navigation.NavigateTo("/materials/create");
     private void ViewDetail(int id) => Navigation.NavigateTo($"/materials/{id}");
     private void EditDetail(int id) => Navigation.NavigateTo($"/materials/{id}/edit");
@@ -139,7 +289,7 @@
     {
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
         {
-            ["ContentText"] = $"确定要删除物料 \"{item.MaterialCategory}/{item.PlantGrade}/{item.Specification}\" 吗？",
+            ["ContentText"] = $"确定要删除物料 \"{item.MaterialCategory}/{item.PlantGrade}/{item.Specification}\" 吗？\n\n删除后数据将不可恢复！",
             ["ConfirmText"] = "确认删除",
             ["Color"] = Color.Error
         });
@@ -149,10 +299,62 @@
             try
             {
                 var result = await MaterialService.DeleteAsync(item.Id);
-                if (result.Success) { Snackbar.Add("删除成功", Severity.Success); await Search(); }
-                else { Snackbar.Add(result.Message ?? "删除失败", Severity.Error); }
+                if (result.Success)
+                {
+                    Snackbar.Add("删除成功", Severity.Success);
+                    await Search();
+                }
+                else
+                {
+                    Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
+                }
             }
-            catch (Exception ex) { Snackbar.Add($"删除失败: {ex.Message}", Severity.Error); }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    // ========== 打印方法 ==========
+
+    private async Task PrintSelected()
+    {
+        if (!selectedIds.Any())
+        {
+            Snackbar.Add("请先选择要打印的物料", Severity.Warning);
+            return;
+        }
+        try
+        {
+            var ids = selectedIds.ToArray();
+            var result = await MaterialService.PrintMaterialBatchAsync(ids);
+            if (result.Success && result.Data != null)
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PrintAll()
+    {
+        try
+        {
+            var result = await MaterialService.PrintMaterialAllAsync(
+                string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                sortColumn, sortDescending);
+            if (result.Success && result.Data != null)
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
         }
     }
 }

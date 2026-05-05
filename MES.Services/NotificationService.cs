@@ -23,7 +23,6 @@ public class NotificationService : INotificationService
 
     public async Task<int> GetUnreadCountAsync()
     {
-        // 通知使用物理删除，不需要 IsDeleted 条件
         return await _context.OrderChangeNotifications
             .Where(n => !n.IsRead)
             .CountAsync();

@@ -10,8 +10,11 @@ public class InventoryPlanDto
     public DateTime PlanDate { get; set; }
     public string InventoryBatchNo { get; set; } = null!;
     public string BatchNo { get; set; } = null!;
+    public string MaterialType { get; set; } = null!;
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
+    public string? LocationArea { get; set; }
+    public string? LocationRack { get; set; }
     public int InputMultiple { get; set; }
     public string UsageMode { get; set; } = null!;
     public int? UsedQuantity { get; set; }
@@ -35,6 +38,9 @@ public class CreateInventoryPlanRequest
     public int WorkOrderId { get; set; }
     public DateTime PlanDate { get; set; }
     public string InventoryBatchNo { get; set; } = null!;
+    public string MaterialType { get; set; } = null!;
+    public string? LocationArea { get; set; }
+    public string? LocationRack { get; set; }
     public int InputMultiple { get; set; } = 1;
     public string UsageMode { get; set; } = "All";
     public int? UsedQuantity { get; set; }

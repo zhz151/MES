@@ -14,7 +14,9 @@ public class PurchaseOrderService
     {
         try
         {
-            var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={Uri.EscapeDataString(query.SortBy)}&isDescending={query.IsDescending}";
+            var isDescending = query.IsDescending ? "true" : "false";
+            var encodedSortBy = Uri.EscapeDataString(query.SortBy ?? "orderdate");
+            var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={encodedSortBy}&isDescending={isDescending}";
             if (!string.IsNullOrEmpty(query.Keyword)) url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
             if (!string.IsNullOrEmpty(status)) url += $"&status={Uri.EscapeDataString(status)}";
             if (dateFrom.HasValue) url += $"&dateFrom={dateFrom.Value:yyyy-MM-dd}";
@@ -45,6 +47,16 @@ public class PurchaseOrderService
                    ?? ApiResponse<PurchaseOrderDto>.Fail("创建失败");
         }
         catch (Exception ex) { return ApiResponse<PurchaseOrderDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<List<PurchaseOrderDto>>> CreateBatchAsync(List<CreatePurchaseOrderRequest> requests)
+    {
+        try
+        {
+            return await _http.PostAsJsonAsync<List<CreatePurchaseOrderRequest>, ApiResponse<List<PurchaseOrderDto>>>($"{BaseUrl}/batch", requests)
+                   ?? ApiResponse<List<PurchaseOrderDto>>.Fail("批量创建失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<PurchaseOrderDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
     public async Task<ApiResponse<PurchaseOrderDto>> UpdateAsync(int id, UpdatePurchaseOrderRequest request)
@@ -95,5 +107,61 @@ public class PurchaseOrderService
                    ?? ApiResponse<object>.Fail("删除失败");
         }
         catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<List<ProcurementStatusDto>>> GetProcurementStatusAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<ProcurementStatusDto>>>($"{BaseUrl}/procurement-status")
+                   ?? ApiResponse<List<ProcurementStatusDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<ProcurementStatusDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<PlanDetailDto>> GetPlanDetailAsync(string workOrderNo, string materialCategory)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/plan-detail?workOrderNo={Uri.EscapeDataString(workOrderNo)}&materialCategory={Uri.EscapeDataString(materialCategory)}";
+            return await _http.GetFromJsonAsync<ApiResponse<PlanDetailDto>>(url)
+                   ?? ApiResponse<PlanDetailDto>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<PlanDetailDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    // ========== 打印 ==========
+
+    public async Task<ApiResponse<string>> PrintOrderAsync(int id)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<string>>($"{BaseUrl}/{id}/print");
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<string>> PrintOrderBatchAsync(int[] ids)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<OrderPrintBatchRequest, ApiResponse<string>>(
+                $"{BaseUrl}/print-batch", new OrderPrintBatchRequest { Ids = ids });
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<string>> PrintOrderAllAsync(string? keyword = null, string? sortBy = null, bool isDescending = false)
+    {
+        try
+        {
+            var request = new OrderPrintAllRequest { Keyword = keyword, SortBy = sortBy, IsDescending = isDescending };
+            var response = await _http.PostAsJsonAsync<OrderPrintAllRequest, ApiResponse<string>>(
+                $"{BaseUrl}/print-all", request);
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 }

@@ -116,7 +116,7 @@ public class WarehouseServiceTests : TestBase
     }
 
     [Fact]
-    public async Task GetPagedAsync_软删除后不显示()
+    public async Task GetPagedAsync_删除后不显示()
     {
         var ctx = CreateDbContext();
         await SeedWarehouseAsync(ctx);
@@ -206,7 +206,7 @@ public class WarehouseServiceTests : TestBase
         result.Name.Should().Be("新仓库");
         result.IsActive.Should().BeTrue();
 
-        var saved = await ctx.Warehouses.FirstAsync(w => !w.IsDeleted);
+        var saved = await ctx.Warehouses.FirstAsync(w => w.Code == "WH-NEW");
         saved.Code.Should().Be("WH-NEW");
     }
 
@@ -268,7 +268,7 @@ public class WarehouseServiceTests : TestBase
     // ========== DeleteAsync ==========
 
     [Fact]
-    public async Task DeleteAsync_成功软删除()
+    public async Task DeleteAsync_成功删除()
     {
         var ctx = CreateDbContext();
         await SeedWarehouseAsync(ctx);
@@ -278,7 +278,7 @@ public class WarehouseServiceTests : TestBase
         await svc.DeleteAsync(id);
 
         var deleted = await ctx.Warehouses.FindAsync(id);
-        deleted!.IsDeleted.Should().BeTrue();
+        deleted.Should().BeNull();
     }
 
     [Fact]

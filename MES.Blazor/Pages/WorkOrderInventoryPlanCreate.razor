@@ -12,7 +12,7 @@
 @inject IJSRuntime JS
 @attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-2">
+<MudContainer Class="mt-4" Style="max-width:100%;">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
@@ -34,29 +34,7 @@
             else if (workOrder != null)
             {
                 <!-- ===== 工单信息 ===== -->
-                <MudPaper Class="pa-3 mb-2" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background-color:var(--mud-palette-info-hover);">
-                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-1">
-                        <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" Class="mr-1" />工单信息
-                    </MudText>
-                    <MudGrid>
-                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">工单号</MudText><MudText Typo="Typo.body2" Class="font-weight-bold">@workOrder.WorkOrderNo</MudText></MudItem>
-                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">源订单号</MudText><MudText Typo="Typo.body2">@workOrder.SalesOrderNo</MudText></MudItem>
-                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">主号/次号</MudText><MudText Typo="Typo.body2">@workOrder.ProductionMainNo@(!string.IsNullOrEmpty(workOrder.ProductionSubNo) ? $"/{workOrder.ProductionSubNo}" : "")</MudText></MudItem>
-                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">物料名称</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetMaterialNameText(workOrder.MaterialName)</MudText></MudItem>
-                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">结算方式</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetSettlementMethodText(workOrder.SettlementMethod)</MudText></MudItem>
-                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">交货状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetDeliveryStateText(workOrder.DeliveryState)</MudText></MudItem>
-                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">延期罚款</MudText><MudText Typo="Typo.body2">@(workOrder.DelayPenalty ? "是" : "否")</MudText></MudItem>
-                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">交货日期</MudText><MudText Typo="Typo.body2">@workOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText></MudItem>
-                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">工厂牌号</MudText><MudText Typo="Typo.body2">@workOrder.PlantGrade</MudText></MudItem>
-                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">规格</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatSpecification(workOrder.Specification)</MudText></MudItem>
-                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">外径公差(mm)</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.OuterDiameterNegative) / @DisplayHelper.FormatDecimal(workOrder.OuterDiameterPositive)</MudText></MudItem>
-                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">壁厚公差(mm)</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.WallThicknessNegative) / @DisplayHelper.FormatDecimal(workOrder.WallThicknessPositive)</MudText></MudItem>
-                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">长度状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(workOrder.LengthStatus) @(workOrder.MaxLength.HasValue ? $"(最长{(int)workOrder.MaxLength.Value}mm)" : "")</MudText></MudItem>
-                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">数量/重量</MudText><MudText Typo="Typo.body2">@workOrder.TotalQuantity 支 / @workOrder.TotalWeight.ToString("G29") kg</MudText></MudItem>
-                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">总米数</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.TotalMeters) m</MudText></MudItem>
-                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">理论单支重</MudText><MudText Typo="Typo.body2">@(workOrder.UnitWeight?.ToString("G29") ?? "-") kg</MudText></MudItem>
-                    </MudGrid>
-                </MudPaper>
+                <WorkOrderInfoCard WorkOrder="workOrder" />
 
                 <!-- ===== 展示可用库存按钮 ===== -->
                 <div class="d-flex align-center mb-3">
@@ -84,27 +62,27 @@
                         </MudText>
                     </MudText>
 
-                    <div Style="overflow-x:auto; border:1px solid var(--mud-palette-lines-default); border-radius:8px;" Class="mb-3">
-                        <MudTable Items="@availableBatches" Dense="true" Hover="true" Striped="true" Elevation="0">
+                    <div Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;" Class="mb-3">
+                        <MudTable Items="@availableBatches" Dense="true" Hover="true" Striped="true" Elevation="0" Style="table-layout:fixed;">
                             <HeaderContent>
-                                <MudTh Style="width:40px;">选择</MudTh>
-                                <MudTh>物料名称</MudTh>
-                                <MudTh>工厂牌号</MudTh>
-                                <MudTh>名义规格</MudTh>
-                                <MudTh>长度状态</MudTh>
-                                <MudTh>最小长度</MudTh>
-                                <MudTh>最大长度</MudTh>
-                                <MudTh>剩余支数</MudTh>
-                                <MudTh>剩余重量</MudTh>
-                                <MudTh>理论单支重</MudTh>
-                                <MudTh>物料状态</MudTh>
-                                <MudTh>放置框架</MudTh>
-                                <MudTh>实际外径</MudTh>
-                                <MudTh>实际壁厚</MudTh>
-                                <MudTh Style="min-width:100px; background-color: rgba(255, 152, 0, 0.08);">投料倍率</MudTh>
-                                <MudTh Style="min-width:100px; background-color: rgba(255, 152, 0, 0.08);">使用模式</MudTh>
-                                <MudTh Style="min-width:90px; background-color: rgba(255, 152, 0, 0.08);">出库支数</MudTh>
-                                <MudTh Style="min-width:90px; background-color: rgba(255, 152, 0, 0.08);">出库重量</MudTh>
+                                <MudTh Style="width:36px;">选择</MudTh>
+                                <MudTh Style="width:70px; white-space:nowrap;">物料名称</MudTh>
+                                <MudTh Style="width:70px; white-space:nowrap;">工厂牌号</MudTh>
+                                <MudTh Style="width:75px; white-space:nowrap;">名义规格</MudTh>
+                                <MudTh Style="width:55px; white-space:nowrap;">长度状态</MudTh>
+                                <MudTh Style="width:50px; white-space:nowrap;">最小长度</MudTh>
+                                <MudTh Style="width:50px; white-space:nowrap;">最大长度</MudTh>
+                                <MudTh Style="width:55px; white-space:nowrap;">剩余支数</MudTh>
+                                <MudTh Style="width:60px; white-space:nowrap;">剩余重量</MudTh>
+                                <MudTh Style="width:60px; white-space:nowrap;">理论单支重</MudTh>
+                                <MudTh Style="width:55px; white-space:nowrap;">物料状态</MudTh>
+                                <MudTh Style="width:60px; white-space:nowrap;">放置框架</MudTh>
+                                <MudTh Style="width:55px; white-space:nowrap;">实际外径</MudTh>
+                                <MudTh Style="width:55px; white-space:nowrap;">实际壁厚</MudTh>
+                                <MudTh Style="background-color: rgba(255, 152, 0, 0.08);">投料倍率</MudTh>
+                                <MudTh Style="background-color: rgba(255, 152, 0, 0.08);">使用模式</MudTh>
+                                <MudTh Style="background-color: rgba(255, 152, 0, 0.08);">出库支数</MudTh>
+                                <MudTh Style="background-color: rgba(255, 152, 0, 0.08);">出库重量</MudTh>
                             </HeaderContent>
                             <RowTemplate>
                                 <MudTd>
@@ -134,7 +112,7 @@
                                                          Variant="Variant.Outlined"
                                                          Min="1" Max="99"
                                                          HideSpinButtons="true"
-                                                         Class="my-n2" Style="width:80px;" />
+                                                         Class="my-n2" Style="width:60px;" />
                                     }
                                 </MudTd>
                                 <MudTd DataLabel="使用模式" Style="background-color: rgba(255, 152, 0, 0.08);">
@@ -144,7 +122,7 @@
                                                    ValueChanged="@((string v) => OnUsageModeChanged(context.Id, v))"
                                                    Size="Size.Small"
                                                    Variant="Variant.Outlined"
-                                                   Class="my-n2" Style="width:90px;">
+                                                   Class="my-n2" Style="width:70px;">
                                             <MudSelectItem Value="@("All")">全部</MudSelectItem>
                                             <MudSelectItem Value="@("Partial")">部分</MudSelectItem>
                                         </MudSelect>
@@ -159,7 +137,7 @@
                                                          Variant="Variant.Outlined"
                                                          Min="1" Max="@context.RemainingQuantity"
                                                          HideSpinButtons="true"
-                                                         Class="my-n2" Style="width:80px;" />
+                                                         Class="my-n2" Style="width:60px;" />
                                     }
                                     else if (GetSelection(context.Id))
                                     {
@@ -175,7 +153,7 @@
                                                          Variant="Variant.Outlined"
                                                          Min="0"
                                                          HideSpinButtons="true"
-                                                         Class="my-n2" Style="width:90px;" />
+                                                         Class="my-n2" Style="width:70px;" />
                                     }
                                     else if (GetSelection(context.Id))
                                     {
@@ -394,6 +372,9 @@
                     WorkOrderId = WorkOrderId,
                     PlanDate = DateTime.Today,
                     InventoryBatchNo = batch.BatchNo,
+                    MaterialType = batch.MaterialType,
+                    LocationArea = batch.LocationArea,
+                    LocationRack = batch.LocationRack,
                     InputMultiple = inputMultiples.GetValueOrDefault(batchId, 1),
                     UsageMode = mode,
                     RequiredDate = null,

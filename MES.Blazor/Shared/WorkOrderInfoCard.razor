@@ -1,0 +1,70 @@
+@using MES.Core.DTOs
+@using MES.Blazor.Helpers
+
+@if (WorkOrder != null)
+{
+    <MudPaper Class="pa-4 mb-3" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background:#fafafa;">
+        <!-- 第1组：基本信息 -->
+        <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">工单号</MudText><MudText Typo="Typo.body2" Class="mb-0">@WorkOrder.WorkOrderNo</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">源订单号</MudText><MudText Typo="Typo.body2" Class="mb-0">@WorkOrder.SalesOrderNo</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">主号</MudText><MudText Typo="Typo.body2" Class="mb-0">@WorkOrder.ProductionMainNo</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">次号</MudText><MudText Typo="Typo.body2" Class="mb-0">@(WorkOrder.ProductionSubNo ?? "-")</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">签订日期</MudText><MudText Typo="Typo.body2" Class="mb-0">@WorkOrder.SignDate.ToString("yyyy-MM-dd")</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">业务员</MudText><MudText Typo="Typo.body2" Class="mb-0">@WorkOrder.Salesman</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">最终用户</MudText><MudText Typo="Typo.body2" Class="mb-0">@(WorkOrder.EndCustomer ?? "-")</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">交货日期</MudText><MudText Typo="Typo.body2" Class="mb-0">@WorkOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">延期罚款</MudText><MudText Typo="Typo.body2" Class="mb-0">@(WorkOrder.DelayPenalty ? "是" : "否")</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">物料名称</MudText><MudText Typo="Typo.body2" Class="mb-0">@DisplayHelper.GetMaterialNameText(WorkOrder.MaterialName)</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">结算方式</MudText><MudText Typo="Typo.body2" Class="mb-0">@DisplayHelper.GetSettlementMethodText(WorkOrder.SettlementMethod)</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">标准编码</MudText><MudText Typo="Typo.body2" Class="mb-0">@WorkOrder.StandardCode</MudText></div>
+        </div>
+
+        <MudDivider Class="my-3" />
+
+        <!-- 第2组：工艺参数+汇总 -->
+        <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">交货状态</MudText><MudText Typo="Typo.body2" Class="mb-0">@DisplayHelper.GetDeliveryStateText(WorkOrder.DeliveryState)</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">工厂牌号</MudText><MudText Typo="Typo.body2" Class="mb-0">@WorkOrder.PlantGrade</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">规格</MudText><MudText Typo="Typo.body2" Class="mb-0">@DisplayHelper.FormatSpecification(WorkOrder.Specification)</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">外径公差</MudText><MudText Typo="Typo.body2" Class="mb-0">@DisplayHelper.FormatTolerance(WorkOrder.OuterDiameterNegative, WorkOrder.OuterDiameterPositive)</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">壁厚公差</MudText><MudText Typo="Typo.body2" Class="mb-0">@DisplayHelper.FormatTolerance(WorkOrder.WallThicknessNegative, WorkOrder.WallThicknessPositive)</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">长度状态</MudText><MudText Typo="Typo.body2" Class="mb-0">@DisplayHelper.GetLengthStatusText(WorkOrder.LengthStatus)</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">最小长度</MudText><MudText Typo="Typo.body2" Class="mb-0">@DisplayHelper.FormatNullableDecimal(WorkOrder.MinLength) mm</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">最大长度</MudText><MudText Typo="Typo.body2" Class="mb-0">@DisplayHelper.FormatNullableDecimal(WorkOrder.MaxLength) mm</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">总支数</MudText><MudText Typo="Typo.body2" Class="mb-0">@WorkOrder.TotalQuantity 支</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">总米数</MudText><MudText Typo="Typo.body2" Class="mb-0">@DisplayHelper.FormatDecimal(WorkOrder.TotalMeters) m</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">总重量</MudText><MudText Typo="Typo.body2" Class="mb-0">@DisplayHelper.FormatDecimal(WorkOrder.TotalWeight) kg</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">理论单支重</MudText><MudText Typo="Typo.body2" Class="mb-0">@(WorkOrder.UnitWeight?.ToString("G29") ?? "-") kg</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">技术要求</MudText><MudText Typo="Typo.body2" Class="mb-0">@(WorkOrder.TechnicalRequirements == "Special" ? "特殊" : "常规")</MudText></div>
+        </div>
+
+        <MudDivider Class="my-3" />
+
+        <!-- 第3组：项次+明细 -->
+        <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">总项次数</MudText><MudText Typo="Typo.body2" Class="mb-0">@WorkOrder.TotalItemCount</MudText></div>
+            <div style="flex: 1; min-width: 200px;">
+                <MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">明细</MudText>
+                <MudText Typo="Typo.body2" Class="mb-0" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; display: block;"
+                         title="@WorkOrder.ItemDetails">
+                    @(WorkOrder.ItemDetails ?? "-")
+                </MudText>
+            </div>
+        </div>
+    </MudPaper>
+}
+
+@code {
+    /// <summary>
+    /// 工单详情数据
+    /// </summary>
+    [Parameter]
+    public WorkOrderDetailDto WorkOrder { get; set; } = null!;
+
+    /// <summary>
+    /// 是否显示分组标题
+    /// </summary>
+    [Parameter]
+    public bool ShowTitle { get; set; } = false;
+}

@@ -14,7 +14,9 @@ public class SupplierService
     {
         try
         {
-            var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={Uri.EscapeDataString(query.SortBy)}&isDescending={query.IsDescending}";
+            var isDescending = query.IsDescending ? "true" : "false";
+            var encodedSortBy = Uri.EscapeDataString(query.SortBy ?? "CreatedTime");
+            var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={encodedSortBy}&isDescending={isDescending}";
             if (!string.IsNullOrEmpty(query.Keyword)) url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<SupplierProfileDto>>>(url)
                    ?? ApiResponse<PagedResult<SupplierProfileDto>>.Fail("获取数据失败");
@@ -40,6 +42,16 @@ public class SupplierService
                    ?? ApiResponse<SupplierProfileDto>.Fail("创建失败");
         }
         catch (Exception ex) { return ApiResponse<SupplierProfileDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<List<SupplierProfileDto>>> CreateBatchAsync(List<CreateSupplierRequest> requests)
+    {
+        try
+        {
+            return await _http.PostAsJsonAsync<List<CreateSupplierRequest>, ApiResponse<List<SupplierProfileDto>>>($"{BaseUrl}/batch", requests)
+                   ?? ApiResponse<List<SupplierProfileDto>>.Fail("批量创建失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<SupplierProfileDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
     public async Task<ApiResponse<SupplierProfileDto>> UpdateAsync(int id, UpdateSupplierRequest request)
@@ -70,5 +82,40 @@ public class SupplierService
             return result?.Data ?? new List<SupplierProfileDto>();
         }
         catch { return new List<SupplierProfileDto>(); }
+    }
+
+    // ========== 打印 ==========
+
+    public async Task<ApiResponse<string>> PrintSupplierAsync(int id)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<string>>($"{BaseUrl}/{id}/print");
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<string>> PrintSupplierBatchAsync(int[] ids)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<OrderPrintBatchRequest, ApiResponse<string>>(
+                $"{BaseUrl}/print-batch", new OrderPrintBatchRequest { Ids = ids });
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<string>> PrintSupplierAllAsync(string? keyword = null, string? sortBy = null, bool isDescending = false)
+    {
+        try
+        {
+            var request = new OrderPrintAllRequest { Keyword = keyword, SortBy = sortBy, IsDescending = isDescending };
+            var response = await _http.PostAsJsonAsync<OrderPrintAllRequest, ApiResponse<string>>(
+                $"{BaseUrl}/print-all", request);
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 }

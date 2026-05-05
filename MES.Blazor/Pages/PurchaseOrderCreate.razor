@@ -1,20 +1,24 @@
 @page "/purchase-orders/create"
 @using MES.Blazor.Services
+@using MES.Blazor.Shared
+@using MES.Blazor.Helpers
 @using MES.Core.DTOs
 @using Microsoft.AspNetCore.Authorization
 @inject PurchaseOrderService PurchaseService
 @inject SupplierService SupplierService
+@inject MaterialService MaterialService
 @inject WorkOrderService WorkOrderService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 @attribute [Authorize(Roles = "MaterialStaff,MaterialDirector,Admin")]
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+<MudContainer Class="mt-2 px-3" Style="max-width:100%;">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
                 <MudText Typo="Typo.h5" Class="font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Class="mr-2" Color="Color.Primary" />新建采购订单</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">创建新的采购订单，可批量添加多条记录</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">可批量添加多条采购记录，点击右上角保存一次性提交</MudText>
             </CardHeaderContent>
             <CardHeaderActions>
                 <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
@@ -25,6 +29,55 @@
         </MudCardHeader>
 
         <MudCardContent>
+            @* 工单采购执行状态（未采购/部分采购） *@
+            @if (procurementItems.Any())
+            {
+                var noneCount = procurementItems.Count(x => x.StatusText == "未采购");
+                var partialCount = procurementItems.Count(x => x.StatusText == "部分采购");
+                <MudPaper Class="pa-3 mb-3" Elevation="0" Style="border: 1px solid #e0e0e0; border-radius: 8px;">
+                    <div Class="d-flex align-center" style="cursor: pointer;" @onclick="ToggleProcurementStatus">
+                        <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Info" Class="mr-2" />
+                        <MudText Typo="Typo.body1" Class="font-weight-bold flex-grow-1">工单用料计划执行状态</MudText>
+                        <MudChip Size="Size.Small" Color="Color.Error" Class="mr-1">未采购 @noneCount</MudChip>
+                        <MudChip Size="Size.Small" Color="Color.Warning" Class="mr-1">部分采购 @partialCount</MudChip>
+                        <MudIcon Icon="@(showProcurementStatus ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Color="Color.Default" />
+                    </div>
+                    @if (showProcurementStatus)
+                    {
+                        <div style="overflow-x: auto; overflow-y: auto; margin-top: 8px; max-height: 25vh;">
+                            <MudTable T="ProcurementStatusDto" Items="@procurementItems" Dense="true" Hover="true" Elevation="0">
+                                <HeaderContent>
+                                    <MudTh Style="width: 120px;">工单号</MudTh>
+                                    <MudTh Style="width: 90px;">物料分类</MudTh>
+                                    <MudTh Style="width: 100px;" Class="text-right">计划总量(kg)</MudTh>
+                                    <MudTh Style="width: 100px;" Class="text-right">已采购(kg)</MudTh>
+                                    <MudTh Style="width: 100px;" Class="text-right">已委外(kg)</MudTh>
+                                    <MudTh Style="width: 100px;" Class="text-right">合计(kg)</MudTh>
+                                    <MudTh Style="width: 90px;">状态</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd>
+                                        <MudText Style="cursor: pointer; color: #1976D2;" @onclick="@(() => AddRowFromProcurement(context))">
+                                            @context.WorkOrderNo
+                                        </MudText>
+                                    </MudTd>
+                                    <MudTd>@context.MaterialCategory</MudTd>
+                                    <MudTd Class="text-right">@context.PlanWeight.ToString("G29")</MudTd>
+                                    <MudTd Class="text-right">@context.PurchaseWeight.ToString("G29")</MudTd>
+                                    <MudTd Class="text-right">@context.SubcontractWeight.ToString("G29")</MudTd>
+                                    <MudTd Class="text-right">@context.TotalWeight.ToString("G29")</MudTd>
+                                    <MudTd>
+                                        <MudChip Size="Size.Small" Color="@(context.StatusText == "未采购" ? Color.Error : Color.Warning)">
+                                            @context.StatusText
+                                        </MudChip>
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </div>
+                    }
+                </MudPaper>
+            }
+
             <div class="d-flex justify-space-between align-center mb-3">
                 <MudText Typo="Typo.subtitle1">采购订单列表</MudText>
                 <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow">添加订单</MudButton>
@@ -36,129 +89,42 @@
             }
             else
             {
-                <MudAlert Severity="Severity.Warning" Class="mb-3">点击右上角"保存"按钮一次性提交所有记录。</MudAlert>
-
                 <div style="overflow-x: auto;">
                     <MudTable T="PurchaseOrderRow" Items="@rows" Dense="true" Hover="true" Elevation="0">
                         <HeaderContent>
-                            <MudTh Style="width: 50px;">行号</MudTh>
-                            <MudTh Style="width: 140px;">供应商</MudTh>
+                            <MudTh Style="width: 40px;">行号</MudTh>
                             <MudTh Style="width: 120px;">下单日期</MudTh>
-                            <MudTh Style="width: 120px;">要求到货日期</MudTh>
-                            <MudTh Style="width: 110px;">物料分类</MudTh>
-                            <MudTh Style="width: 110px;">厂内钢种</MudTh>
-                            <MudTh Style="width: 130px;">规格</MudTh>
-                            <MudTh Style="width: 100px;">单支重量(kg)</MudTh>
-                            <MudTh Style="width: 90px;">采购支数</MudTh>
-                            <MudTh Style="width: 100px;">采购重量(kg)</MudTh>
-                            <MudTh Style="width: 90px;">单价</MudTh>
-                            <MudTh Style="min-width: 200px;">来源工单号</MudTh>
-                            <MudTh Style="min-width: 150px;">备注</MudTh>
-                            <MudTh Style="width: 60px;">操作</MudTh>
+                            <MudTh Style="min-width: 180px;">来源工单号</MudTh>
+                            <MudTh Style="width: 100px;">物料分类</MudTh>
+                            <MudTh Style="width: 100px;">厂内钢种</MudTh>
+                            <MudTh Style="width: 120px;">规格</MudTh>
+                            <MudTh Style="width: 90px;">单支重量</MudTh>
+                            <MudTh Style="width: 80px;">支数</MudTh>
+                            <MudTh Style="width: 100px;">采购重量</MudTh>
+                            <MudTh Style="width: 140px;">要求到货日期</MudTh>
+                            <MudTh Style="min-width: 140px;">备注</MudTh>
+                            <MudTh Style="width: 280px;">供应商</MudTh>
+                            <MudTh Style="width: 70px;">单价</MudTh>
+                            <MudTh Style="width: 50px;">操作</MudTh>
                         </HeaderContent>
                         <RowTemplate Context="row">
-                            <MudTd>
-                                <MudText Typo="Typo.body2">@row.Sequence</MudText>
-                            </MudTd>
-                            <MudTd>
-                                <MudSelect T="int" @bind-Value="row.SupplierId"
-                                           Dense="true" Variant="Variant.Outlined" Size="Size.Small" Immediate="true">
-                                    @foreach (var s in suppliers)
-                                    {
-                                        <MudSelectItem Value="s.Id">@s.SupplierName</MudSelectItem>
-                                    }
-                                </MudSelect>
-                            </MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@row.Sequence</MudText></MudTd>
                             <MudTd>
                                 <MudTextField T="string"
                                               @bind-Value="row.OrderDateStr"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Size="Size.Small"
-                                              Placeholder="yyyy-MM-dd"
-                                              Immediate="true" />
-                            </MudTd>
-                            <MudTd>
-                                <MudTextField T="string"
-                                              @bind-Value="row.RequiredDateStr"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Size="Size.Small"
-                                              Placeholder="yyyy-MM-dd"
-                                              Immediate="true" />
-                            </MudTd>
-                            <MudTd>
-                                <MudTextField T="string"
-                                              @bind-Value="row.MaterialCategory"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Size="Size.Small"
-                                              Immediate="true" />
-                            </MudTd>
-                            <MudTd>
-                                <MudTextField T="string"
-                                              @bind-Value="row.PlantGrade"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Size="Size.Small"
-                                              Immediate="true" />
-                            </MudTd>
-                            <MudTd>
-                                <MudTextField T="string"
-                                              @bind-Value="row.Specification"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Size="Size.Small"
-                                              Immediate="true" />
-                            </MudTd>
-                            <MudTd>
-                                <MudTextField T="string"
-                                              @bind-Value="row.UnitWeightStr"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Size="Size.Small"
-                                              Style="width: 80px;"
-                                              Immediate="true" />
-                            </MudTd>
-                            <MudTd>
-                                <MudTextField T="string"
-                                              @bind-Value="row.QuantityStr"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Size="Size.Small"
-                                              Style="width: 70px;"
-                                              Immediate="true" />
-                            </MudTd>
-                            <MudTd>
-                                <MudTextField T="string"
-                                              @bind-Value="row.WeightStr"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Size="Size.Small"
-                                              Style="width: 80px;"
-                                              Immediate="true" />
-                            </MudTd>
-                            <MudTd>
-                                <MudTextField T="string"
-                                              @bind-Value="row.UnitPriceStr"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Size="Size.Small"
-                                              Style="width: 70px;"
+                                              Dense="true" Variant="Variant.Outlined" Size="Size.Small"
+                                              Style="width: 100px;"
                                               Immediate="true" />
                             </MudTd>
                             <MudTd>
                                 <div style="display: flex; align-items: center; gap: 4px;">
                                     <MudTextField T="string"
                                                   @bind-Value="row.SourceWorkOrderNo"
-                                                  Dense="true"
-                                                  Variant="Variant.Outlined"
-                                                  Size="Size.Small"
+                                                  Dense="true" Variant="Variant.Outlined" Size="Size.Small"
                                                   Style="width: 110px;"
                                                   Immediate="true" />
                                     <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Info"
-                                               OnClick="() => ToggleWorkOrderInfo(row)"
-                                               Disabled="string.IsNullOrWhiteSpace(row.SourceWorkOrderNo) && !row.ShowWorkOrderInfo">
+                                               OnClick="() => ToggleWorkOrderInfo(row)">
                                         @(row.ShowWorkOrderInfo ? "隐藏" : "展示")
                                     </MudButton>
                                 </div>
@@ -174,10 +140,11 @@
                                             <div><strong>工单号：</strong>@row.WorkOrderInfo.WorkOrderNo</div>
                                             <div><strong>订单号：</strong>@row.WorkOrderInfo.SalesOrderNo</div>
                                             <div><strong>主号/次号：</strong>@row.WorkOrderInfo.ProductionMainNo@(!string.IsNullOrEmpty(row.WorkOrderInfo.ProductionSubNo) ? "/" + row.WorkOrderInfo.ProductionSubNo : "")</div>
-                                            <div><strong>物料名称：</strong>@row.WorkOrderInfo.MaterialName</div>
+                                            <div><strong>厂内牌号：</strong>@row.WorkOrderInfo.PlantGrade</div>
                                             <div><strong>规格：</strong>@row.WorkOrderInfo.Specification</div>
+                                            <div><strong>交货状态：</strong>@DisplayHelper.GetDeliveryStateText(row.WorkOrderInfo.DeliveryState)</div>
+                                            <div><strong>交货日期：</strong>@row.WorkOrderInfo.DeliveryDate.ToString("yyyy-MM-dd")</div>
                                             <div><strong>数量/重量：</strong>@row.WorkOrderInfo.TotalQuantity 支 / @row.WorkOrderInfo.TotalWeight kg</div>
-                                            <div><strong>状态：</strong>@row.WorkOrderInfo.StatusText</div>
                                         }
                                         else
                                         {
@@ -188,20 +155,79 @@
                             </MudTd>
                             <MudTd>
                                 <MudTextField T="string"
-                                              @bind-Value="row.Remark"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Size="Size.Small"
+                                              @bind-Value="row.MaterialCategory"
+                                              Dense="true" Variant="Variant.Outlined" Size="Size.Small"
                                               Immediate="true" />
                             </MudTd>
                             <MudTd>
-                                @if (rows.Count > 1)
-                                {
-                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                                   Color="Color.Error"
-                                                   Size="Size.Small"
-                                                   OnClick="() => RemoveRow(row)" />
-                                }
+                                <MudTextField T="string"
+                                              @bind-Value="row.PlantGrade"
+                                              Dense="true" Variant="Variant.Outlined" Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.Specification"
+                                              Dense="true" Variant="Variant.Outlined" Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.UnitWeightStr"
+                                              Dense="true" Variant="Variant.Outlined" Size="Size.Small"
+                                              Style="width: 70px;"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.QuantityStr"
+                                              Dense="true" Variant="Variant.Outlined" Size="Size.Small"
+                                              Style="width: 60px;"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.WeightStr"
+                                              Dense="true" Variant="Variant.Outlined" Size="Size.Small"
+                                              Style="width: 80px;"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.RequiredDateStr"
+                                              Dense="true" Variant="Variant.Outlined" Size="Size.Small"
+                                              Placeholder="yyyy-MM-dd"
+                                              Style="width: 120px;"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.Remark"
+                                              Dense="true" Variant="Variant.Outlined" Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudAutocomplete T="SupplierProfileDto"
+                                                 Value="@row.SelectedSupplier"
+                                                 ValueChanged="@(v => { row.SelectedSupplier = v; if (v != null) row.SupplierName = v.SupplierName; })"
+                                                 Text="@row.SupplierName"
+                                                 TextChanged="@(t => { if (row.SelectedSupplier == null) row.SupplierName = t ?? string.Empty; })"
+                                                 SearchFunc="@(search => FilterSuppliers(row, search))"
+                                                 ToStringFunc="@FormatSupplier"
+                                                 Dense="true" Variant="Variant.Outlined" Size="Size.Small"
+                                                 Immediate="true" Clearable="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.UnitPriceStr"
+                                              Dense="true" Variant="Variant.Outlined" Size="Size.Small"
+                                              Style="width: 60px;"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Color="Color.Error" Size="Size.Small"
+                                               OnClick="() => RemoveRow(row)" />
                             </MudTd>
                         </RowTemplate>
                     </MudTable>
@@ -214,14 +240,18 @@
 @code {
     private List<PurchaseOrderRow> rows = new();
     private bool isSubmitting;
-    private List<SupplierProfileDto> suppliers = new();
+    private List<SupplierProfileDto> allSuppliers = new();
+    private List<ProcurementStatusDto> procurementItems = new();
+    private bool showProcurementStatus = false;
 
-    private class PurchaseOrderRow
+    class PurchaseOrderRow
     {
         public int Sequence { get; set; }
-        public int SupplierId { get; set; }
         public string OrderDateStr { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
-        public string RequiredDateStr { get; set; } = DateTime.Today.AddDays(30).ToString("yyyy-MM-dd");
+        public string? SourceWorkOrderNo { get; set; }
+        public string SupplierName { get; set; } = string.Empty;
+        public SupplierProfileDto? SelectedSupplier { get; set; }
+        public string RequiredDateStr { get; set; } = string.Empty;
         public string MaterialCategory { get; set; } = string.Empty;
         public string PlantGrade { get; set; } = string.Empty;
         public string Specification { get; set; } = string.Empty;
@@ -229,7 +259,6 @@
         public string QuantityStr { get; set; } = string.Empty;
         public string WeightStr { get; set; } = string.Empty;
         public string UnitPriceStr { get; set; } = string.Empty;
-        public string? SourceWorkOrderNo { get; set; }
         public string? Remark { get; set; }
         public bool ShowWorkOrderInfo { get; set; }
         public bool WorkOrderLoading { get; set; }
@@ -239,15 +268,78 @@
         public int? Quantity => ParseInt(QuantityStr);
         public decimal Weight => decimal.TryParse(WeightStr, out var v) ? v : 0;
         public decimal? UnitPrice => ParseDecimal(UnitPriceStr);
-
         private static decimal? ParseDecimal(string v) => decimal.TryParse(v, out var r) ? r : null;
         private static int? ParseInt(string v) => int.TryParse(v, out var r) ? r : null;
     }
 
     protected override async Task OnInitializedAsync()
     {
-        suppliers = await SupplierService.GetActiveAsync();
-        AddRow();
+        allSuppliers = await SupplierService.GetActiveAsync();
+        try
+        {
+            var statusResult = await PurchaseService.GetProcurementStatusAsync();
+            if (statusResult.Success && statusResult.Data != null)
+                procurementItems = statusResult.Data;
+            else if (!statusResult.Success)
+                Snackbar.Add($"加载用料计划执行状态失败: {statusResult.Message}", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载用料计划执行状态异常: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void ToggleProcurementStatus() => showProcurementStatus = !showProcurementStatus;
+
+    private async Task AddRowFromProcurement(ProcurementStatusDto item)
+    {
+        // 获取用料计划详情
+        var result = await PurchaseService.GetPlanDetailAsync(item.WorkOrderNo, item.MaterialCategory);
+        if (!result.Success || result.Data == null)
+        {
+            Snackbar.Add($"未找到工单 {item.WorkOrderNo} 的用料计划", Severity.Warning);
+            return;
+        }
+
+        var plan = result.Data;
+        var existingRow = rows.FirstOrDefault(r =>
+            r.SourceWorkOrderNo == plan.WorkOrderNo &&
+            r.MaterialCategory == plan.MaterialCategory);
+
+        if (existingRow != null)
+        {
+            Snackbar.Add($"工单 {plan.WorkOrderNo}（{plan.MaterialCategory}）已在列表中，可继续添加", Severity.Info);
+        }
+
+        rows.Add(new PurchaseOrderRow
+        {
+            Sequence = rows.Count + 1,
+            OrderDateStr = DateTime.Today.ToString("yyyy-MM-dd"),
+            SourceWorkOrderNo = plan.WorkOrderNo,
+            MaterialCategory = plan.MaterialCategory,
+            PlantGrade = plan.PlantGrade ?? string.Empty,
+            Specification = plan.Specification ?? string.Empty,
+            UnitWeightStr = plan.UnitWeight?.ToString("G29") ?? string.Empty,
+            QuantityStr = plan.Quantity?.ToString() ?? string.Empty,
+            WeightStr = plan.Weight.ToString("G29"),
+            Remark = plan.Remark,
+            RequiredDateStr = plan.RequiredDate?.ToString("yyyy-MM-dd") ?? string.Empty
+        });
+        Snackbar.Add($"已添加工单 {plan.WorkOrderNo}（{plan.MaterialCategory}）", Severity.Success);
+    }
+
+    private string FormatSupplier(SupplierProfileDto? s) =>
+        s == null ? "" : $"{s.MaterialCategory} - {s.SupplierName}";
+
+    private Task<IEnumerable<SupplierProfileDto>> FilterSuppliers(PurchaseOrderRow row, string search)
+    {
+        var query = allSuppliers.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(row.MaterialCategory))
+            query = query.Where(s => s.MaterialCategory != null &&
+                s.MaterialCategory.Equals(row.MaterialCategory, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(s => s.SupplierName.Contains(search, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(query.Take(30));
     }
 
     private void AddRow()
@@ -257,7 +349,6 @@
 
     private void RemoveRow(PurchaseOrderRow row)
     {
-        if (rows.Count <= 1) { Snackbar.Add("至少保留一条记录", Severity.Warning); return; }
         rows.Remove(row);
         for (int i = 0; i < rows.Count; i++) rows[i].Sequence = i + 1;
     }
@@ -285,14 +376,9 @@
         {
             var result = await WorkOrderService.GetByWorkOrderNoAsync(row.SourceWorkOrderNo);
             if (result.Success && result.Data != null)
-            {
                 row.WorkOrderInfo = result.Data;
-            }
         }
-        catch
-        {
-            // 无此工单 - WorkOrderInfo stays null
-        }
+        catch { }
         finally
         {
             row.WorkOrderLoading = false;
@@ -307,9 +393,13 @@
         {
             var r = rows[i];
             var seq = i + 1;
-            if (r.SupplierId <= 0) errors.Add($"行{seq}: 请选择供应商");
             if (!DateTime.TryParse(r.OrderDateStr, out _)) errors.Add($"行{seq}: 下单日期格式错误");
-            if (!DateTime.TryParse(r.RequiredDateStr, out _)) errors.Add($"行{seq}: 要求到货日期格式错误");
+            if (string.IsNullOrWhiteSpace(r.SupplierName))
+                errors.Add($"行{seq}: 请输入供应商名称");
+            else if (r.SupplierName.Trim().Length < 2)
+                errors.Add($"行{seq}: 供应商名称至少2个字符");
+            if (!string.IsNullOrWhiteSpace(r.RequiredDateStr) && !DateTime.TryParse(r.RequiredDateStr, out _))
+                errors.Add($"行{seq}: 要求到货日期格式错误");
             if (string.IsNullOrWhiteSpace(r.MaterialCategory)) errors.Add($"行{seq}: 物料分类不能为空");
             if (string.IsNullOrWhiteSpace(r.PlantGrade)) errors.Add($"行{seq}: 厂内钢种不能为空");
             if (string.IsNullOrWhiteSpace(r.Specification)) errors.Add($"行{seq}: 规格不能为空");
@@ -317,19 +407,135 @@
         }
         if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
 
+        // 物料匹配检测
+        var unmatched = new List<(int Index, string Category, string Grade, string Spec)>();
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var r = rows[i];
+            if (!string.IsNullOrWhiteSpace(r.MaterialCategory) &&
+                !string.IsNullOrWhiteSpace(r.PlantGrade) &&
+                !string.IsNullOrWhiteSpace(r.Specification))
+            {
+                var result = await MaterialService.MatchAsync(r.MaterialCategory, r.PlantGrade, r.Specification);
+                if (result?.Data == null)
+                    unmatched.Add((i + 1, r.MaterialCategory, r.PlantGrade, r.Specification));
+            }
+        }
+
+        if (unmatched.Any())
+        {
+            var lines = string.Join("\n", unmatched.Select(m => $"行{m.Index}: {m.Category}/{m.Grade}/{m.Spec}"));
+            var dialog = DialogService.Show<ConfirmDialog>("物料档案匹配", new DialogParameters
+            {
+                { "ContentText", $"以下物料未匹配到物料档案：\n{lines}\n\n是否继续保存并自动添加到物料档案？" },
+                { "ConfirmText", "继续保存" },
+                { "Color", Color.Warning }
+            });
+            var result = await dialog.Result;
+            if (result.Canceled) { Snackbar.Add("已取消保存", Severity.Normal); return; }
+        }
+
+        // 构建供应商(名称+物料分类)→ID 查询（同名不同分类视为不同供应商）
+        var supplierLookup = allSuppliers
+            .Where(s => !string.IsNullOrWhiteSpace(s.SupplierName))
+            .ToDictionary(
+                s => $"{s.SupplierName.Trim()}|{s.MaterialCategory ?? ""}",
+                s => s.Id,
+                StringComparer.OrdinalIgnoreCase);
+
+        // 供应商确认（按名称+物料分类检测是否真正需要新建）
+        var newSupplierEntries = rows
+            .Select((r, i) => (
+                Index: i + 1,
+                Key: $"{r.SupplierName.Trim()}|{r.MaterialCategory.Trim()}",
+                Display: $"{r.SupplierName.Trim()}（{r.MaterialCategory}）"))
+            .Where(x => !supplierLookup.ContainsKey(x.Key))
+            .GroupBy(x => x.Key)
+            .Select(g => g.First())
+            .ToList();
+        if (newSupplierEntries.Any())
+        {
+            var lines = string.Join("\n", newSupplierEntries.Select(s => $"行{s.Index}: {s.Display}"));
+            var dialog = DialogService.Show<ConfirmDialog>("新建供应商", new DialogParameters
+            {
+                { "ContentText", $"将自动创建以下新供应商档案：\n{lines}\n\n是否继续？" },
+                { "ConfirmText", "继续保存" },
+                { "Color", Color.Warning }
+            });
+            var result = await dialog.Result;
+            if (result.Canceled) { Snackbar.Add("已取消保存", Severity.Normal); return; }
+        }
+
         isSubmitting = true; StateHasChanged();
-        var successCount = 0;
-        var failCount = 0;
+
+        // 解析供应商ID + 构建批量请求
+        var requests = new List<(int Index, CreatePurchaseOrderRequest Request)>();
         var failMessages = new List<string>();
 
         for (int i = 0; i < rows.Count; i++)
         {
             var r = rows[i];
-            var request = new CreatePurchaseOrderRequest
+            var supplierName = r.SupplierName.Trim();
+            var lookupKey = $"{supplierName}|{r.MaterialCategory.Trim()}";
+            int supplierId;
+
+            if (r.SelectedSupplier != null)
             {
-                SupplierId = r.SupplierId,
+                supplierId = r.SelectedSupplier.Id;
+            }
+            else if (supplierLookup.TryGetValue(lookupKey, out var existingId))
+            {
+                supplierId = existingId;
+            }
+            else
+            {
+                try
+                {
+                    var createResult = await SupplierService.CreateAsync(new CreateSupplierRequest
+                    {
+                        SupplierName = supplierName,
+                        MaterialCategory = string.IsNullOrWhiteSpace(r.MaterialCategory) ? null : r.MaterialCategory,
+                        IsActive = true
+                    });
+                    if (createResult.Success && createResult.Data != null)
+                        supplierId = createResult.Data.Id;
+                    else
+                    {
+                        failMessages.Add($"行{i + 1}: 创建供应商失败 - {createResult.Message}");
+                        continue;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failMessages.Add($"行{i + 1}: 创建供应商失败 - {ex.Message}");
+                    continue;
+                }
+            }
+
+            // 自动添加物料档案
+            if (unmatched.Any(m => m.Index == i + 1))
+            {
+                try
+                {
+                    await MaterialService.CreateAsync(new CreateMaterialRequest
+                    {
+                        MaterialCategory = r.MaterialCategory,
+                        PlantGrade = r.PlantGrade,
+                        Specification = r.Specification,
+                        IsActive = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    failMessages.Add($"行{i + 1}: 自动添加物料档案失败 - {ex.Message}");
+                }
+            }
+
+            requests.Add((i + 1, new CreatePurchaseOrderRequest
+            {
+                SupplierId = supplierId,
                 OrderDate = DateTime.Parse(r.OrderDateStr),
-                RequiredDate = DateTime.Parse(r.RequiredDateStr),
+                RequiredDate = string.IsNullOrWhiteSpace(r.RequiredDateStr) ? DateTime.Today.AddDays(30) : DateTime.Parse(r.RequiredDateStr),
                 MaterialCategory = r.MaterialCategory,
                 PlantGrade = r.PlantGrade,
                 Specification = r.Specification,
@@ -339,27 +545,37 @@
                 UnitPrice = r.UnitPrice,
                 SourceWorkOrderNo = r.SourceWorkOrderNo,
                 Remark = r.Remark
-            };
+            }));
+        }
 
-            try
+        if (failMessages.Any())
+        {
+            isSubmitting = false; StateHasChanged();
+            Snackbar.Add($"失败 {failMessages.Count} 条：{string.Join("；", failMessages)}", Severity.Error);
+            return;
+        }
+
+        // 批量保存
+        try
+        {
+            var batchResult = await PurchaseService.CreateBatchAsync(requests.Select(r => r.Request).ToList());
+            if (batchResult.Success && batchResult.Data != null)
             {
-                var result = await PurchaseService.CreateAsync(request);
-                if (result.Success) successCount++;
-                else { failCount++; failMessages.Add($"行{i + 1}: {result.Message}"); }
+                Snackbar.Add($"成功创建 {batchResult.Data.Count} 条记录", Severity.Success);
+                Navigation.NavigateTo("/purchase-orders");
             }
-            catch (Exception ex) { failCount++; failMessages.Add($"行{i + 1}: {ex.Message}"); }
+            else
+            {
+                Snackbar.Add($"批量创建失败: {batchResult.Message}", Severity.Error);
+            }
         }
-
-        isSubmitting = false; StateHasChanged();
-
-        if (failCount == 0)
+        catch (Exception ex)
         {
-            Snackbar.Add($"成功创建 {successCount} 条记录", Severity.Success);
-            Navigation.NavigateTo("/purchase-orders");
+            Snackbar.Add($"批量创建失败: {ex.Message}", Severity.Error);
         }
-        else
+        finally
         {
-            Snackbar.Add($"成功 {successCount} 条，失败 {failCount} 条：{string.Join("；", failMessages)}", Severity.Error);
+            isSubmitting = false; StateHasChanged();
         }
     }
 

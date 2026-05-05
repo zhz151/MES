@@ -111,6 +111,11 @@ MES.sln
 - `MES.Api/Controllers/MaterialPlanController.cs` - 用料计划API
 - `MES.Blazor/wwwroot/js/print.js` - PDF打印前端JS（Blob URL方案）
 
+## 删除策略
+- 所有实体均使用物理删除（DELETE FROM），不使用软删除（IsDeleted标记）。
+- IsDeleted 列仍然存在于数据库表结构中，但代码层面不再使用该列进行逻辑删除。
+- 删除操作直接移除数据库记录，相关SQL脚本同样遵循物理删除策略。
+
 ## 构建状态
 - 0 errors, 0 warnings
 

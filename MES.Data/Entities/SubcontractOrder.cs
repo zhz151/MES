@@ -21,6 +21,11 @@ public class SubcontractOrder : BaseEntity
     public DateTime OrderDate { get; set; }
 
     /// <summary>
+    /// 加工类型（如：穿孔/冷拔/热处理）
+    /// </summary>
+    public string ProcessType { get; set; } = null!;
+
+    /// <summary>
     /// 状态（Sent/PartialReturned/Completed/Cancelled）
     /// </summary>
     public string Status { get; set; } = "Sent";
@@ -36,7 +41,12 @@ public class SubcontractOrder : BaseEntity
     public string OutMaterialCategory { get; set; } = null!;
 
     /// <summary>
-    /// 发出钢种
+    /// 炉号
+    /// </summary>
+    public string? FurnaceNumber { get; set; }
+
+    /// <summary>
+    /// 发出钢种（工厂牌号）
     /// </summary>
     public string OutPlantGrade { get; set; } = null!;
 
@@ -69,11 +79,6 @@ public class SubcontractOrder : BaseEntity
     /// 收回重量(kg)（Service维护）
     /// </summary>
     public decimal? InWeight { get; set; }
-
-    /// <summary>
-    /// 来源工单号（字符串，可选）
-    /// </summary>
-    public string? SourceWorkOrderNo { get; set; }
 
     /// <summary>
     /// 备注

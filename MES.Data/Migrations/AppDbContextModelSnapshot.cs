@@ -140,9 +140,6 @@ namespace MES.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
                     b.Property<string>("Remark")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -237,9 +234,6 @@ namespace MES.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(18,3)")
                         .HasDefaultValue(0m);
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
 
                     b.Property<bool>("IsLinkedToWorkOrder")
                         .ValueGeneratedOnAdd()
@@ -366,7 +360,7 @@ namespace MES.Data.Migrations
 
                     b.HasIndex("RemainingWeight")
                         .HasDatabaseName("IX_InventoryBatch_RemainingWeight")
-                        .HasFilter("[RemainingWeight] > 0 AND [IsDeleted] = 0");
+                        .HasFilter("[RemainingWeight] > 0");
 
                     b.HasIndex("SalesOrderNo")
                         .HasDatabaseName("IX_InventoryBatch_SalesOrderNo");
@@ -444,8 +438,18 @@ namespace MES.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
+                    b.Property<string>("LocationArea")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("LocationRack")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("MaterialType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime>("PlanDate")
                         .HasColumnType("date");
@@ -538,13 +542,15 @@ namespace MES.Data.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
                     b.Property<string>("MaterialCategory")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("MaterialCode")
+                        .IsRequired()
+                        .HasMaxLength(6)
+                        .HasColumnType("nvarchar(6)");
 
                     b.Property<string>("PlantGrade")
                         .IsRequired()
@@ -575,10 +581,13 @@ namespace MES.Data.Migrations
                     b.HasIndex("MaterialCategory")
                         .HasDatabaseName("IX_Material_Category");
 
+                    b.HasIndex("MaterialCode")
+                        .IsUnique()
+                        .HasDatabaseName("UK_Material_Code");
+
                     b.HasIndex("MaterialCategory", "PlantGrade", "Specification")
                         .IsUnique()
-                        .HasDatabaseName("UK_Material_Combo")
-                        .HasFilter("[IsDeleted] = 0");
+                        .HasDatabaseName("UK_Material_Combo");
 
                     b.ToTable("Material", (string)null);
                 });
@@ -646,9 +655,6 @@ namespace MES.Data.Migrations
 
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("datetimeoffset");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
 
                     b.Property<bool>("IsRead")
                         .ValueGeneratedOnAdd()
@@ -721,9 +727,6 @@ namespace MES.Data.Migrations
 
                     b.Property<decimal>("Density")
                         .HasColumnType("decimal(18,4)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
 
                     b.Property<string>("LengthStatus")
                         .IsRequired()
@@ -837,8 +840,7 @@ namespace MES.Data.Migrations
 
                     b.HasIndex("SalesOrderId", "Sequence")
                         .IsUnique()
-                        .HasDatabaseName("UK_OrderItem_Sequence_Active")
-                        .HasFilter("[IsDeleted] = 0");
+                        .HasDatabaseName("UK_OrderItem_Sequence_Active");
 
                     b.ToTable("OrderItem", (string)null);
                 });
@@ -861,11 +863,6 @@ namespace MES.Data.Migrations
 
                     b.Property<int>("InventoryBatchId")
                         .HasColumnType("int");
-
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
 
                     b.Property<string>("Operator")
                         .IsRequired()
@@ -936,9 +933,6 @@ namespace MES.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
                     b.Property<string>("MechanicalProperty")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -1008,9 +1002,6 @@ namespace MES.Data.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
                     b.Property<string>("Remark")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -1067,11 +1058,35 @@ namespace MES.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
+                    b.Property<string>("DeliveryState")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("LengthStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal?>("MaxLength")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("MinLength")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("OuterDiameterNegative")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("OuterDiameterPositive")
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<DateTime>("PlanDate")
                         .HasColumnType("date");
+
+                    b.Property<string>("PlantGrade")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("ProductType")
                         .IsRequired()
@@ -1091,12 +1106,23 @@ namespace MES.Data.Migrations
                     b.Property<decimal>("RequiredWeight")
                         .HasColumnType("decimal(18,3)");
 
+                    b.Property<string>("Specification")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTimeOffset>("UpdatedTime")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("WallThicknessNegative")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("WallThicknessPositive")
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<int>("WorkOrderId")
                         .HasColumnType("int");
@@ -1123,9 +1149,6 @@ namespace MES.Data.Migrations
 
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("datetimeoffset");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
 
                     b.Property<DateTime?>("LastArrivalDate")
                         .HasColumnType("date");
@@ -1257,11 +1280,13 @@ namespace MES.Data.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(1);
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
                     b.Property<DateTime>("PlanDate")
                         .HasColumnType("date");
+
+                    b.Property<string>("PlantGrade")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("ProcessPlan")
                         .HasColumnType("nvarchar(max)");
@@ -1286,11 +1311,14 @@ namespace MES.Data.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<DateTime?>("RequiredDate")
+                    b.Property<DateTime>("RequiredDate")
                         .HasColumnType("date");
 
                     b.Property<int?>("RequiredPieces")
                         .HasColumnType("int");
+
+                    b.Property<decimal?>("RequiredUnitWeight")
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<decimal>("RequiredWeight")
                         .HasColumnType("decimal(18,3)");
@@ -1336,9 +1364,6 @@ namespace MES.Data.Migrations
 
                     b.Property<DateTime>("Expires")
                         .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
 
                     b.Property<bool>("IsRevoked")
                         .ValueGeneratedOnAdd()
@@ -1394,9 +1419,6 @@ namespace MES.Data.Migrations
 
                     b.Property<int>("CustomerId")
                         .HasColumnType("int");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
 
                     b.Property<DateTimeOffset?>("LastItemChangeTime")
                         .HasColumnType("datetimeoffset");
@@ -1469,9 +1491,6 @@ namespace MES.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
                     b.Property<string>("PlantGrade")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1532,14 +1551,15 @@ namespace MES.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<string>("FurnaceNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<int?>("InQuantity")
                         .HasColumnType("int");
 
                     b.Property<decimal?>("InWeight")
                         .HasColumnType("decimal(18,3)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
 
                     b.Property<string>("ManualStatus")
                         .HasMaxLength(20)
@@ -1574,16 +1594,17 @@ namespace MES.Data.Migrations
                     b.Property<decimal>("OutWeight")
                         .HasColumnType("decimal(18,3)");
 
+                    b.Property<string>("ProcessType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
                     b.Property<string>("Remark")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
                     b.Property<DateTime?>("ReturnDeadline")
                         .HasColumnType("date");
-
-                    b.Property<string>("SourceWorkOrderNo")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1632,13 +1653,14 @@ namespace MES.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
                     b.Property<string>("MaterialCategory")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("PlantGrade")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("ProcessSpecification")
                         .IsRequired()
@@ -1652,12 +1674,17 @@ namespace MES.Data.Migrations
                     b.Property<decimal?>("ProcessTotalAmount")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("ProcessType")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
                     b.Property<decimal?>("ProcessUnitPrice")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("RequiredQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("RequiredWeight")
                         .HasColumnType("decimal(18,4)");
 
                     b.Property<int>("Sequence")
@@ -1669,6 +1696,9 @@ namespace MES.Data.Migrations
 
                     b.Property<int>("SubcontractOrderId")
                         .HasColumnType("int");
+
+                    b.Property<decimal?>("UnitWeight")
+                        .HasColumnType("decimal(18,4)");
 
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
@@ -1721,12 +1751,18 @@ namespace MES.Data.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
+                    b.Property<string>("MaterialCategory")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Remark")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("SupplierCode")
+                        .IsRequired()
+                        .HasMaxLength(6)
+                        .HasColumnType("nvarchar(6)");
 
                     b.Property<string>("SupplierName")
                         .IsRequired()
@@ -1741,6 +1777,10 @@ namespace MES.Data.Migrations
                         .HasColumnType("datetimeoffset");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SupplierCode")
+                        .IsUnique()
+                        .HasDatabaseName("UK_Supplier_Code");
 
                     b.ToTable("SupplierProfile", (string)null);
                 });
@@ -1769,9 +1809,6 @@ namespace MES.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1832,9 +1869,6 @@ namespace MES.Data.Migrations
                     b.Property<string>("EndCustomer")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
 
                     b.Property<string>("ItemDetails")
                         .HasColumnType("nvarchar(max)");

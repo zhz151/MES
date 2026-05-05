@@ -100,7 +100,7 @@ public class GradeMappingServiceTests : TestBase
     }
 
     [Fact]
-    public async Task GetPagedAsync_软删除后不显示()
+    public async Task GetPagedAsync_删除后不显示()
     {
         var ctx = CreateDbContext();
         await SeedMappingAsync(ctx);
@@ -177,7 +177,7 @@ public class GradeMappingServiceTests : TestBase
         result.PlantGrade.Should().Be("20#G");
         result.Density.Should().Be(7.85m);
 
-        var saved = await ctx.StandardGradeMappings.FirstAsync(g => !g.IsDeleted);
+        var saved = await ctx.StandardGradeMappings.FirstAsync(g => g.StandardGrade == "20#");
         saved.StandardGrade.Should().Be("20#");
     }
 
@@ -242,7 +242,7 @@ public class GradeMappingServiceTests : TestBase
     // ========== DeleteAsync ==========
 
     [Fact]
-    public async Task DeleteAsync_成功软删除()
+    public async Task DeleteAsync_成功删除()
     {
         var ctx = CreateDbContext();
         await SeedMappingAsync(ctx);
@@ -252,7 +252,7 @@ public class GradeMappingServiceTests : TestBase
         await svc.DeleteAsync(id);
 
         var deleted = await ctx.StandardGradeMappings.FindAsync(id);
-        deleted!.IsDeleted.Should().BeTrue();
+        deleted.Should().BeNull();
     }
 
     [Fact]

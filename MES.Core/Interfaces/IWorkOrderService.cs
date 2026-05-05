@@ -54,12 +54,12 @@ public interface IWorkOrderService
     Task<UpdateWorkOrderStatusResponseDto> UpdateStatusAsync(int id, UpdateWorkOrderStatusRequest request);
 
     /// <summary>
-    /// 删除工单（软删除）
+    /// 删除工单（物理删除）
     /// </summary>
     Task DeleteAsync(int id);
 
     /// <summary>
-    /// 软删除工单（用于"订单已取消-工单待删除"区域）
+    /// 删除工单（用于"订单已取消-工单待删除"区域）
     /// </summary>
     Task SoftDeleteAsync(int id);
 

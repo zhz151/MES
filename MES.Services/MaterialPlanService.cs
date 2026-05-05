@@ -7,6 +7,9 @@ using MES.Core.Interfaces;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Printing;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 namespace MES.Services;
 
@@ -62,28 +65,12 @@ public class MaterialPlanService : IMaterialPlanService
         if (workOrder == null)
             throw new BusinessException("工单不存在");
 
-        // 非定尺: 支数不能为空（需要人工填写）
-        if (workOrder.LengthStatus == LengthStatus.NonFixed && request.ManualPieces == null)
-            throw new BusinessException("非定尺模式下原料支数为必填");
+        // 非定尺: 支数不能为空
+        if (workOrder.LengthStatus == LengthStatus.NonFixed && request.RequiredPieces == null)
+            throw new BusinessException("非定尺模式下需求支数为必填");
 
         // 执行测算
         var calc = await CalculateInternalAsync(workOrder, request);
-
-        decimal requiredPieces;
-        decimal requiredWeight;
-
-        if (workOrder.LengthStatus == LengthStatus.NonFixed)
-        {
-            // 非定尺：人工填写
-            requiredPieces = request.ManualPieces ?? 0;
-            requiredWeight = request.ManualWeight ?? 0;
-        }
-        else
-        {
-            // 定尺/范围尺：自动计算
-            requiredPieces = calc.RequiredPieces ?? 0;
-            requiredWeight = calc.RequiredWeight ?? 0;
-        }
 
         var plan = new PurchaseSemiPlan
         {
@@ -96,12 +83,14 @@ public class MaterialPlanService : IMaterialPlanService
             Density = calc.Density,
             UnitWeight = calc.UnitWeight,
             RawUnitWeight = calc.RawUnitWeight,
-            RequiredPieces = (int)requiredPieces,
-            RequiredWeight = requiredWeight,
+            PlantGrade = request.PlantGrade,
             RawMaterialType = Enum.TryParse<RawMaterialType>(request.RawMaterialType, out var rt)
                 ? rt
                 : throw new BusinessException($"无效的原料类型: {request.RawMaterialType}"),
             RawMaterialSpec = request.RawMaterialSpec,
+            RequiredUnitWeight = request.RequiredUnitWeight,
+            RequiredPieces = request.RequiredPieces,
+            RequiredWeight = request.RequiredWeight,
             RequiredDate = request.RequiredDate,
             ProcessPlan = request.ProcessPlan,
             Remark = request.Remark,
@@ -125,7 +114,7 @@ public class MaterialPlanService : IMaterialPlanService
         }
 
         _logger.LogInformation("创建原料采购计划成功: 工单ID {WorkOrderId}, 原料规格 {Spec}, 重量 {Weight}",
-            request.WorkOrderId, request.RawMaterialSpec, requiredWeight);
+            request.WorkOrderId, request.RawMaterialSpec, request.RequiredWeight);
 
         return plan.ToDto();
     }
@@ -200,6 +189,20 @@ public class MaterialPlanService : IMaterialPlanService
             RequiredWeight = request.RequiredWeight,
             RequiredDate = request.RequiredDate,
             Remark = request.Remark,
+            PlantGrade = request.PlantGrade,
+            Specification = request.Specification,
+            OuterDiameterNegative = request.OuterDiameterNegative,
+            OuterDiameterPositive = request.OuterDiameterPositive,
+            WallThicknessNegative = request.WallThicknessNegative,
+            WallThicknessPositive = request.WallThicknessPositive,
+            LengthStatus = Enum.TryParse<LengthStatus>(request.LengthStatus, out var ls)
+                ? ls
+                : LengthStatus.Fixed,
+            MinLength = request.MinLength,
+            MaxLength = request.MaxLength,
+            DeliveryState = Enum.TryParse<DeliveryState>(request.DeliveryState, out var ds)
+                ? ds
+                : DeliveryState.SolutionAnnealedAndPickled,
         };
 
         using var transaction = await _context.Database.BeginTransactionAsync();
@@ -319,8 +322,11 @@ public class MaterialPlanService : IMaterialPlanService
             PlanDate = request.PlanDate,
             InventoryBatchNo = request.InventoryBatchNo,
             BatchNo = batch.BatchNo,
+            MaterialType = batch.MaterialType,
             PlantGrade = batch.PlantGrade,
             Specification = batch.Specification,
+            LocationArea = batch.LocationArea,
+            LocationRack = batch.LocationRack,
             InputMultiple = request.InputMultiple,
             UsageMode = request.UsageMode,
             UsedQuantity = request.UsedQuantity,
@@ -1133,6 +1139,88 @@ public class MaterialPlanService : IMaterialPlanService
         return MaterialPlanPrintHelper.GenerateReworkPlanPdf(plan, workOrder);
     }
 
+    public async Task<byte[]> PrintSelectedPlansAsync(MaterialPlanBatchPrintRequest request)
+    {
+        var workOrderIds = request.WorkOrderIds;
+        if (workOrderIds.Length == 0)
+            throw new BusinessException("请选择工单");
+
+        // 批量查询工单，避免 N+1
+        var workOrders = await _context.WorkOrders.AsNoTracking()
+            .Where(wo => workOrderIds.Contains(wo.Id))
+            .ToDictionaryAsync(wo => wo.Id);
+
+        // 按计划类型批量查询，固定最多 5 次数据库查询
+        var semiItems = new List<(PurchaseSemiPlan, WorkOrder)>();
+        var finishItems = new List<(PurchaseFinishedPlan, WorkOrder)>();
+        var inventoryItems = new List<(InventoryPlan, WorkOrder)>();
+        var reworkItems = new List<(InventoryPlan, WorkOrder)>();
+
+        if (request.IncludeSemi)
+        {
+            var plans = await _context.PurchaseSemiPlans
+                .Where(p => workOrderIds.Contains(p.WorkOrderId))
+                .ToListAsync();
+            semiItems = plans
+                .Where(p => workOrders.ContainsKey(p.WorkOrderId))
+                .Select(p => (p, workOrders[p.WorkOrderId]))
+                .ToList();
+        }
+
+        if (request.IncludeFinish)
+        {
+            var plans = await _context.PurchaseFinishedPlans
+                .Where(p => workOrderIds.Contains(p.WorkOrderId))
+                .ToListAsync();
+            finishItems = plans
+                .Where(p => workOrders.ContainsKey(p.WorkOrderId))
+                .Select(p => (p, workOrders[p.WorkOrderId]))
+                .ToList();
+        }
+
+        if (request.IncludeInventory)
+        {
+            var plans = await _context.InventoryPlans
+                .Where(p => workOrderIds.Contains(p.WorkOrderId) && p.ReworkType == null)
+                .ToListAsync();
+            inventoryItems = plans
+                .Where(p => workOrders.ContainsKey(p.WorkOrderId))
+                .Select(p => (p, workOrders[p.WorkOrderId]))
+                .ToList();
+        }
+
+        if (request.IncludeRework)
+        {
+            var plans = await _context.InventoryPlans
+                .Where(p => workOrderIds.Contains(p.WorkOrderId) && p.ReworkType != null)
+                .ToListAsync();
+            reworkItems = plans
+                .Where(p => workOrders.ContainsKey(p.WorkOrderId))
+                .Select(p => (p, workOrders[p.WorkOrderId]))
+                .ToList();
+        }
+
+        // 按计划类型生成汇总文档
+        var documents = new List<IDocument>();
+
+        if (semiItems.Any())
+            documents.Add(MaterialPlanPrintHelper.CreateBatchSemiPlanDocument(semiItems));
+        if (finishItems.Any())
+            documents.Add(MaterialPlanPrintHelper.CreateBatchFinishPlanDocument(finishItems));
+        if (inventoryItems.Any())
+            documents.Add(MaterialPlanPrintHelper.CreateBatchInventoryPlanDocument(inventoryItems));
+        if (reworkItems.Any())
+            documents.Add(MaterialPlanPrintHelper.CreateBatchReworkPlanDocument(reworkItems));
+
+        if (documents.Count == 0)
+            throw new BusinessException("没有找到符合条件的计划");
+
+        if (documents.Count == 1)
+            return documents[0].GeneratePdf();
+
+        return Document.Merge(documents).GeneratePdf();
+    }
+
     #endregion
 }
 
@@ -1154,10 +1242,12 @@ internal static class MaterialPlanMappingExtensions
             Density = entity.Density,
             UnitWeight = entity.UnitWeight,
             RawUnitWeight = entity.RawUnitWeight,
-            RequiredPieces = entity.RequiredPieces,
-            RequiredWeight = entity.RequiredWeight,
+            PlantGrade = entity.PlantGrade,
             RawMaterialType = entity.RawMaterialType.ToString(),
             RawMaterialSpec = entity.RawMaterialSpec,
+            RequiredUnitWeight = entity.RequiredUnitWeight,
+            RequiredPieces = entity.RequiredPieces,
+            RequiredWeight = entity.RequiredWeight,
             RequiredDate = entity.RequiredDate,
             ProcessPlan = entity.ProcessPlan,
             Remark = entity.Remark,
@@ -1179,7 +1269,17 @@ internal static class MaterialPlanMappingExtensions
             RequiredDate = entity.RequiredDate,
             Remark = entity.Remark,
             CreatedTime = entity.CreatedTime,
-            CreatedBy = entity.CreatedBy
+            CreatedBy = entity.CreatedBy,
+            PlantGrade = entity.PlantGrade,
+            Specification = entity.Specification,
+            OuterDiameterNegative = entity.OuterDiameterNegative,
+            OuterDiameterPositive = entity.OuterDiameterPositive,
+            WallThicknessNegative = entity.WallThicknessNegative,
+            WallThicknessPositive = entity.WallThicknessPositive,
+            LengthStatus = entity.LengthStatus.ToString(),
+            MinLength = entity.MinLength,
+            MaxLength = entity.MaxLength,
+            DeliveryState = entity.DeliveryState.ToString()
         };
     }
 
@@ -1192,8 +1292,11 @@ internal static class MaterialPlanMappingExtensions
             PlanDate = entity.PlanDate,
             InventoryBatchNo = entity.InventoryBatchNo,
             BatchNo = entity.BatchNo,
+            MaterialType = entity.MaterialType,
             PlantGrade = entity.PlantGrade,
             Specification = entity.Specification,
+            LocationArea = entity.LocationArea,
+            LocationRack = entity.LocationRack,
             InputMultiple = entity.InputMultiple,
             UsageMode = entity.UsageMode,
             UsedQuantity = entity.UsedQuantity,

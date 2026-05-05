@@ -13,13 +13,13 @@
 @inject IJSRuntime JS
 @attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+<MudContainer Class="mt-4" Style="max-width:100%;">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
                 <div class="d-flex align-center">
-                    <MudIcon Icon="@Icons.Material.Filled.Inventory2" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
-                    <MudText Typo="Typo.h5" Class="font-weight-bold">原料采购计划</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">工单用料计划</MudText>
                     @if (workOrder != null)
                     {
                         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="ml-4">工单号：@workOrder.WorkOrderNo</MudText>
@@ -53,158 +53,277 @@
             else
             {
                 <!-- 工单信息 -->
-                @if (workOrder != null)
-                {
-                    <MudPaper Class="pa-3 mb-2" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background-color:var(--mud-palette-info-hover);">
-                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-1">
-                            <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" Class="mr-1" />工单信息
-                        </MudText>
-                        <MudGrid>
-                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">工单号</MudText><MudText Typo="Typo.body2" Class="font-weight-bold">@workOrder.WorkOrderNo</MudText></MudItem>
-                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">源订单号</MudText><MudText Typo="Typo.body2">@workOrder.SalesOrderNo</MudText></MudItem>
-                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">主号/次号</MudText><MudText Typo="Typo.body2">@workOrder.ProductionMainNo@(!string.IsNullOrEmpty(workOrder.ProductionSubNo) ? $"/{workOrder.ProductionSubNo}" : "")</MudText></MudItem>
-                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">物料名称</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetMaterialNameText(workOrder.MaterialName)</MudText></MudItem>
-                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">结算方式</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetSettlementMethodText(workOrder.SettlementMethod)</MudText></MudItem>
-                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">交货状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetDeliveryStateText(workOrder.DeliveryState)</MudText></MudItem>
-                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">延期罚款</MudText><MudText Typo="Typo.body2">@(workOrder.DelayPenalty ? "是" : "否")</MudText></MudItem>
-                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">交货日期</MudText><MudText Typo="Typo.body2">@workOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText></MudItem>
-                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">工厂牌号</MudText><MudText Typo="Typo.body2">@workOrder.PlantGrade</MudText></MudItem>
-                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">规格</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatSpecification(workOrder.Specification)</MudText></MudItem>
-                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">外径公差(mm)</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.OuterDiameterNegative) / @DisplayHelper.FormatDecimal(workOrder.OuterDiameterPositive)</MudText></MudItem>
-                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">壁厚公差(mm)</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.WallThicknessNegative) / @DisplayHelper.FormatDecimal(workOrder.WallThicknessPositive)</MudText></MudItem>
-                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">长度状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(workOrder.LengthStatus) @(workOrder.MaxLength.HasValue ? $"(最长{(int)workOrder.MaxLength.Value}mm)" : "")</MudText></MudItem>
-                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">数量/重量</MudText><MudText Typo="Typo.body2">@workOrder.TotalQuantity 支 / @workOrder.TotalWeight.ToString("G29") kg</MudText></MudItem>
-                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">总米数</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(workOrder.TotalMeters) m</MudText></MudItem>
-                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption" Color="Color.Secondary">理论单支重</MudText><MudText Typo="Typo.body2">@(workOrder.UnitWeight?.ToString("G29") ?? "-") kg</MudText></MudItem>
-                        </MudGrid>
-                    </MudPaper>
-                }
+                <WorkOrderInfoCard WorkOrder="workOrder" />
 
-                <!-- 状态摘要 -->
-                <MudPaper Class="pa-4 mb-4" Elevation="0" Style="border: 1px solid var(--mud-palette-lines-default); border-radius: 8px;">
-                    <MudGrid>
-                        <MudItem xs="12" md="3">
-                            <MudText Typo="Typo.body2">
-                                <strong>用料计划状态：</strong>
-                                <MudChip Size="Size.Small" Color="@GetStatusColor(summary?.MaterialPlanStatus ?? MaterialPlanStatus.NotPlanned)" Class="ml-1">
-                                    @GetStatusText(summary?.MaterialPlanStatus ?? MaterialPlanStatus.NotPlanned)
-                                </MudChip>
-                            </MudText>
-                        </MudItem>
-                        <MudItem xs="12" md="3">
-                            <MudText Typo="Typo.body2">
-                                <strong>满足率：</strong>@(((int)Math.Round(summary?.MaterialPlanRate ?? 0)).ToString())%
-                            </MudText>
-                        </MudItem>
-                        <MudItem xs="12" md="3">
-                            <MudText Typo="Typo.body2">
-                                <strong>原料占比：</strong>
-                                @if (workOrder != null && semiPlans.Any())
-                                {
-                                    var isFixed = string.Equals(workOrder.LengthStatus, "Fixed", StringComparison.OrdinalIgnoreCase);
-                                    if (isFixed)
+                <!-- 占比率概览 -->
+                <div class="d-flex justify-start mb-2">
+                    <MudChip Size="Size.Small" Color="Color.Primary" Class="mr-1">原:@GetSemiPct()</MudChip>
+                    <MudChip Size="Size.Small" Color="Color.Primary" Class="mr-1">成:@GetFinishPct()</MudChip>
+                    <MudChip Size="Size.Small" Color="Color.Primary" Class="mr-1">库:@GetInvPct()</MudChip>
+                    <MudChip Size="Size.Small" Color="Color.Primary">改:@GetReworkPct()</MudChip>
+                </div>
+
+                <!-- Tab页 -->
+                <MudTabs Position="Position.Top" Class="mt-4">
+                    <!-- Tab 1: 原料采购计划 -->
+                    <MudTabPanel Text="原料采购计划" Icon="@Icons.Material.Filled.Inventory2">
+                        <MudPaper Class="pa-3 mb-4 d-flex justify-start" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Add"
+                                       OnClick="() => NavigateToCreate(1)">
+                                新增计划
+                            </MudButton>
+                        </MudPaper>
+
+                        <MudTable Items="@semiPlans" Dense="true" Hover="true" Elevation="0" Striped="true"
+                                  Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                            <HeaderContent>
+                                <MudTh>计划日期</MudTh>
+                                <MudTh>原料类型</MudTh>
+                                <MudTh>工厂牌号</MudTh>
+                                <MudTh>原料规格</MudTh>
+                                <MudTh>需求单重(kg/支)</MudTh>
+                                <MudTh>需求支数</MudTh>
+                                <MudTh>需求重量(kg)</MudTh>
+                                <MudTh>要求到货日</MudTh>
+                                <MudTh>备注</MudTh>
+                                <MudTh>工艺路线</MudTh>
+                                <MudTh>操作</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="plan">
+                                <MudTd>@plan.PlanDate.ToString("yyyy-MM-dd")</MudTd>
+                                <MudTd>@GetRawMaterialTypeText(plan.RawMaterialType)</MudTd>
+                                <MudTd>@plan.PlantGrade</MudTd>
+                                <MudTd>@plan.RawMaterialSpec</MudTd>
+                                <MudTd>@(plan.RequiredUnitWeight?.ToString("G29") ?? "-")</MudTd>
+                                <MudTd>@(plan.RequiredPieces?.ToString() ?? "-")</MudTd>
+                                <MudTd>@plan.RequiredWeight.ToString("G29")</MudTd>
+                                <MudTd>@plan.RequiredDate.ToString("yyyy-MM-dd")</MudTd>
+                                <MudTd>@(plan.Remark ?? "-")</MudTd>
+                                <MudTd>@FormatProcessPlan(plan.ProcessPlan)</MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
+                                                   Color="Color.Info" OnClick="() => PrintSemiPlan(plan.Id)"
+                                                   Title="打印采购申请单" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
+                                                   Color="Color.Error" OnClick="() => DeleteSemiPlan(plan.Id)"
+                                                   Title="取消" />
+                                </MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent>
+                                <MudText Align="Align.Center" Color="Color.Secondary" Class="py-4">暂无原料采购计划</MudText>
+                            </NoRecordsContent>
+                        </MudTable>
+                    </MudTabPanel>
+
+                    <!-- Tab 2: 成品采购计划 -->
+                    <MudTabPanel Text="成品采购计划" Icon="@Icons.Material.Filled.Checklist">
+                        <MudPaper Class="pa-3 mb-4 d-flex justify-start" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Add"
+                                       OnClick="() => NavigateToCreate(2)">
+                                新增计划
+                            </MudButton>
+                        </MudPaper>
+
+                        <MudTable Items="@finishPlans" Dense="true" Hover="true" Elevation="0" Striped="true"
+                                  Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                            <HeaderContent>
+                                <MudTh>计划日期</MudTh>
+                                <MudTh>成品类型</MudTh>
+                                <MudTh>工厂牌号</MudTh>
+                                <MudTh>规格</MudTh>
+                                <MudTh>外径公差</MudTh>
+                                <MudTh>壁厚公差</MudTh>
+                                <MudTh>长度状态</MudTh>
+                                <MudTh>长度(mm)</MudTh>
+                                <MudTh>交货状态</MudTh>
+                                <MudTh>需用支数</MudTh>
+                                <MudTh>需用重量(kg)</MudTh>
+                                <MudTh>要求到货日</MudTh>
+                                <MudTh>备注</MudTh>
+                                <MudTh>操作</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="plan">
+                                <MudTd>@plan.PlanDate.ToString("yyyy-MM-dd")</MudTd>
+                                <MudTd>@GetProductTypeText(plan.ProductType)</MudTd>
+                                <MudTd>@plan.PlantGrade</MudTd>
+                                <MudTd>@plan.Specification</MudTd>
+                                <MudTd>@FormatTolerance(plan.OuterDiameterNegative, plan.OuterDiameterPositive)</MudTd>
+                                <MudTd>@FormatTolerance(plan.WallThicknessNegative, plan.WallThicknessPositive)</MudTd>
+                                <MudTd>@DisplayHelper.GetLengthStatusText(plan.LengthStatus)</MudTd>
+                                <MudTd>@FormatLengthRange(plan.MinLength, plan.MaxLength)</MudTd>
+                                <MudTd>@DisplayHelper.GetDeliveryStateText(plan.DeliveryState)</MudTd>
+                                <MudTd>@(plan.RequiredPiece?.ToString() ?? "-")</MudTd>
+                                <MudTd>@plan.RequiredWeight.ToString("G29")</MudTd>
+                                <MudTd>@(plan.RequiredDate?.ToString("yyyy-MM-dd") ?? "-")</MudTd>
+                                <MudTd>@(plan.Remark ?? "-")</MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
+                                                   Color="Color.Info" OnClick="() => PrintFinishedPlan(plan.Id)"
+                                                   Title="打印采购申请单" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
+                                                   Color="Color.Error" OnClick="() => DeleteFinishedPlan(plan.Id)"
+                                                   Title="取消" />
+                                </MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent>
+                                <MudText Align="Align.Center" Color="Color.Secondary" Class="py-4">暂无成品采购计划</MudText>
+                            </NoRecordsContent>
+                        </MudTable>
+                    </MudTabPanel>
+
+                    <!-- Tab 3: 库存使用计划 -->
+                    <MudTabPanel Text="库存使用计划" Icon="@Icons.Material.Filled.Warehouse">
+                        <MudPaper Class="pa-3 mb-4 d-flex justify-start" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Add"
+                                       OnClick="() => NavigateToCreate(3)">
+                                新增计划
+                            </MudButton>
+                        </MudPaper>
+
+                        <MudTable Items="@inventoryPlans" Dense="true" Hover="true" Elevation="0" Striped="true"
+                                  Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                            <HeaderContent>
+                                <MudTh>计划日期</MudTh>
+                                <MudTh>批次号</MudTh>
+                                <MudTh>物料名称</MudTh>
+                                <MudTh>工厂牌号</MudTh>
+                                <MudTh>规格</MudTh>
+                                <MudTh>使用模式</MudTh>
+                                <MudTh>出库支数</MudTh>
+                                <MudTh>出库重量(kg)</MudTh>
+                                <MudTh>放置框架</MudTh>
+                                <MudTh>操作</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="plan">
+                                <MudTd>@plan.PlanDate.ToString("yyyy-MM-dd")</MudTd>
+                                <MudTd>@plan.BatchNo</MudTd>
+                                <MudTd>@plan.MaterialType</MudTd>
+                                <MudTd>@plan.PlantGrade</MudTd>
+                                <MudTd>@plan.Specification</MudTd>
+                                <MudTd>@(plan.UsageMode == "All" ? "全部" : "部分")</MudTd>
+                                <MudTd>
+                                    @if (plan.UsageMode == "All")
                                     {
-                                        var totalQty = workOrder.TotalQuantity > 0 ? workOrder.TotalQuantity : 1;
-                                        var pct = Math.Round(semiPlans.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple) / (decimal)totalQty * 100);
-                                        <span>@pct%</span>
+                                        <span>全部(@(plan.UsedQuantity?.ToString() ?? "0")支)</span>
                                     }
                                     else
                                     {
-                                        var totalWt = workOrder.TotalWeight > 0 ? workOrder.TotalWeight : 1;
-                                        var pct = Math.Round(semiPlans.Sum(p => p.RequiredWeight) / totalWt * 100);
-                                        <span>@pct%</span>
+                                        <span>@(plan.UsedQuantity?.ToString() ?? "-")支</span>
                                     }
-                                }
-                                else
-                                {
-                                    <span class="mud-text-secondary">-</span>
-                                }
-                            </MudText>
-                        </MudItem>
-                        <MudItem xs="12" md="3" Class="d-flex justify-end">
-                            <MudButton Variant="Variant.Filled"
-                                       Color="Color.Primary"
+                                </MudTd>
+                                <MudTd>@plan.UsedWeight.ToString("G29")</MudTd>
+                                <MudTd>@FormatLocation(plan.LocationArea, plan.LocationRack)</MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
+                                                   Color="Color.Info" OnClick="() => PrintInventoryPlan(plan.Id)"
+                                                   Title="打印" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
+                                                   Color="Color.Error" OnClick="() => DeleteInventoryPlan(plan.Id)"
+                                                   Title="取消" />
+                                </MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent>
+                                <MudText Align="Align.Center" Color="Color.Secondary" Class="py-4">暂无库存使用计划</MudText>
+                            </NoRecordsContent>
+                        </MudTable>
+                    </MudTabPanel>
+
+                    <!-- Tab 4: 库料改制计划 -->
+                    <MudTabPanel Text="库料改制计划" Icon="@Icons.Material.Filled.Construction">
+                        <MudPaper Class="pa-3 mb-4 d-flex justify-start" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                                        StartIcon="@Icons.Material.Filled.Add"
-                                       OnClick="NavigateToCreate">
+                                       OnClick="() => NavigateToCreate(4)">
                                 新增计划
                             </MudButton>
-                        </MudItem>
-                    </MudGrid>
-                </MudPaper>
+                        </MudPaper>
 
-                <!-- 数据表格 -->
-                <MudTable Items="@semiPlans"
-                          Dense="true"
-                          Hover="true"
-                          Elevation="0"
-                          Striped="true"
-                          Class="mt-2">
-                    <HeaderContent>
-                        <MudTh>原料类型</MudTh>
-                        <MudTh>原料规格</MudTh>
-                        <MudTh>成品调整壁厚</MudTh>
-                        <MudTh>成材率</MudTh>
-                        <MudTh>正品率</MudTh>
-                        <MudTh>原料每支产成</MudTh>
-                        <MudTh>需用支数</MudTh>
-                        <MudTh>需用重量(kg)</MudTh>
-                        <MudTh>要求到货日</MudTh>
-                        <MudTh>操作</MudTh>
-                    </HeaderContent>
-                    <RowTemplate Context="plan">
-                        <MudTd>@GetRawMaterialTypeText(plan.RawMaterialType)</MudTd>
-                        <MudTd>@plan.RawMaterialSpec</MudTd>
-                        <MudTd>@plan.AdjustedWallThickness.ToString("G29")</MudTd>
-                        <MudTd>@plan.YieldRate.ToString("G29")%</MudTd>
-                        <MudTd>@plan.QualifiedRate.ToString("G29")%</MudTd>
-                        <MudTd>@plan.InputMultiple</MudTd>
-                        <MudTd>@(plan.RequiredPieces?.ToString() ?? "-")</MudTd>
-                        <MudTd>@plan.RequiredWeight.ToString("G29")</MudTd>
-                        <MudTd>@(plan.RequiredDate?.ToString("yyyy-MM-dd") ?? "-")</MudTd>
-                        <MudTd>
-                            <MudIconButton Icon="@Icons.Material.Filled.Print"
-                                           Size="Size.Small"
-                                           Color="Color.Info"
-                                           OnClick="() => PrintSemiPlan(plan.Id)"
-                                           Title="打印采购申请单" />
-                            <MudIconButton Icon="@Icons.Material.Filled.Cancel"
-                                           Size="Size.Small"
-                                           Color="Color.Error"
-                                           OnClick="() => DeleteSemiPlan(plan.Id)"
-                                           Title="取消" />
-                        </MudTd>
-                    </RowTemplate>
-                    <NoRecordsContent>
-                        <MudText Class="d-flex justify-center pa-4" Color="Color.Secondary">暂无原料采购计划，请点击"新增计划"创建</MudText>
-                    </NoRecordsContent>
-                </MudTable>
-
-                @if (semiPlans.Any())
-                {
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
-                        共 @semiPlans.Count 条记录
-                    </MudText>
-                }
+                        <MudTable Items="@reworkPlans" Dense="true" Hover="true" Elevation="0" Striped="true"
+                                  Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                            <HeaderContent>
+                                <MudTh>计划日期</MudTh>
+                                <MudTh>批次号</MudTh>
+                                <MudTh>物料名称</MudTh>
+                                <MudTh>工厂牌号</MudTh>
+                                <MudTh>规格</MudTh>
+                                <MudTh>使用模式</MudTh>
+                                <MudTh>出库支数</MudTh>
+                                <MudTh>出库重量(kg)</MudTh>
+                                <MudTh>放置框架</MudTh>
+                                <MudTh>改制类型</MudTh>
+                                <MudTh>工艺路线</MudTh>
+                                <MudTh>操作</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="plan">
+                                <MudTd>@plan.PlanDate.ToString("yyyy-MM-dd")</MudTd>
+                                <MudTd>@plan.BatchNo</MudTd>
+                                <MudTd>@plan.MaterialType</MudTd>
+                                <MudTd>@plan.PlantGrade</MudTd>
+                                <MudTd>@plan.Specification</MudTd>
+                                <MudTd>@(plan.UsageMode == "All" ? "全部" : "部分")</MudTd>
+                                <MudTd>
+                                    @if (plan.UsageMode == "All")
+                                    {
+                                        <span>全部(@(plan.UsedQuantity?.ToString() ?? "0")支)</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@(plan.UsedQuantity?.ToString() ?? "-")支</span>
+                                    }
+                                </MudTd>
+                                <MudTd>@plan.UsedWeight.ToString("G29")</MudTd>
+                                <MudTd>@FormatLocation(plan.LocationArea, plan.LocationRack)</MudTd>
+                                <MudTd>@plan.ReworkTypeText</MudTd>
+                                <MudTd>@FormatProcessPlan(plan.ProcessPlan)</MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
+                                                   Color="Color.Info" OnClick="() => PrintReworkPlan(plan.Id)"
+                                                   Title="打印" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
+                                                   Color="Color.Error" OnClick="() => DeleteReworkPlan(plan.Id)"
+                                                   Title="取消" />
+                                </MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent>
+                                <MudText Align="Align.Center" Color="Color.Secondary" Class="py-4">暂无改制计划</MudText>
+                            </NoRecordsContent>
+                        </MudTable>
+                    </MudTabPanel>
+                </MudTabs>
             }
         </MudCardContent>
     </MudCard>
 </MudContainer>
 
-
 @code {
     [Parameter] public int WorkOrderId { get; set; }
 
     private WorkOrderDetailDto? workOrder;
-    private List<PurchaseSemiPlanDto> semiPlans = new();
-    private WorkOrderMaterialPlanDto? summary;
-    private bool isLoading = true;
-    private int previousWorkOrderId;
-
-    // 同订单工单导航
     private List<WorkOrderListDto> siblingWorkOrders = new();
     private int currentWorkOrderIndex = -1;
+    private bool isLoading = true;
     private bool hasPrevWorkOrder => currentWorkOrderIndex > 0;
-    private bool hasNextWorkOrder => currentWorkOrderIndex < siblingWorkOrders.Count - 1;
+    private bool hasNextWorkOrder => currentWorkOrderIndex >= 0 && currentWorkOrderIndex < siblingWorkOrders.Count - 1;
+    private int previousWorkOrderId;
+
+    // 原料采购计划
+    private List<PurchaseSemiPlanDto> semiPlans = new();
+    private WorkOrderMaterialPlanDto? semiSummary;
+
+    // 成品采购计划
+    private List<PurchaseFinishedPlanDto> finishPlans = new();
+    private WorkOrderMaterialPlanDto? finishSummary;
+
+    // 库存使用计划
+    private List<InventoryPlanDto> inventoryPlans = new();
+    private WorkOrderMaterialPlanDto? invSummary;
+
+    // 库料改制计划
+    private List<InventoryPlanDto> reworkPlans = new();
+    private WorkOrderMaterialPlanDto? reworkSummary;
 
     protected override async Task OnInitializedAsync()
     {
@@ -225,7 +344,6 @@
         isLoading = true;
         try
         {
-            // 加载工单信息
             var woResult = await WorkOrderService.GetByIdAsync(WorkOrderId);
             if (woResult.Success && woResult.Data != null)
             {
@@ -233,13 +351,15 @@
                 await LoadSiblingWorkOrders();
             }
 
-            // 加载列表
-            var listResult = await MaterialPlanService.GetSemiPlansAsync(WorkOrderId);
-            if (listResult.Success && listResult.Data != null)
-                semiPlans = listResult.Data;
-
-            // 加载汇总
-            await LoadSummary();
+            // 加载4种计划
+            var tasks = new Task[]
+            {
+                LoadSemiPlansAsync(),
+                LoadFinishPlansAsync(),
+                LoadInventoryPlansAsync(),
+                LoadReworkPlansAsync()
+            };
+            await Task.WhenAll(tasks);
         }
         catch (Exception ex)
         {
@@ -248,73 +368,6 @@
         finally
         {
             isLoading = false;
-        }
-    }
-
-    private async Task LoadSummary()
-    {
-        var summaryResult = await MaterialPlanService.GetSummaryAsync(WorkOrderId);
-        if (summaryResult.Success && summaryResult.Data != null)
-            summary = summaryResult.Data;
-    }
-
-    private void NavigateToCreate()
-    {
-        Navigation.NavigateTo($"/workorders/{WorkOrderId}/material-plan/create");
-    }
-
-    private void ShowEditNotSupported()
-    {
-        Snackbar.Add("编辑功能暂不支持，请删除后重新创建", Severity.Warning);
-    }
-
-    private async Task DeleteSemiPlan(int id)
-    {
-        var dialog = DialogService.Show<ConfirmDialog>("确认删除", new DialogParameters
-        {
-            ["ContentText"] = "确定要删除该原料采购计划吗？\n\n删除后数据将不可恢复！",
-            ["ConfirmText"] = "确认删除",
-            ["Color"] = Color.Error
-        });
-        var dialogResult = await dialog.Result;
-        if (dialogResult.Canceled) return;
-
-        try
-        {
-            var result = await MaterialPlanService.DeleteSemiPlanAsync(id);
-            if (result.Success)
-            {
-                Snackbar.Add("删除成功", Severity.Success);
-                await LoadData();
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task PrintSemiPlan(int planId)
-    {
-        try
-        {
-            var result = await MaterialPlanService.PrintSemiPlanAsync(planId);
-            if (result.Success && !string.IsNullOrEmpty(result.Data))
-            {
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "打印生成失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
         }
     }
 
@@ -339,6 +392,266 @@
         }
     }
 
+    // ===== 原料采购计划 =====
+
+    private async Task LoadSemiPlansAsync()
+    {
+        var listResult = await MaterialPlanService.GetSemiPlansAsync(WorkOrderId);
+        if (listResult.Success && listResult.Data != null)
+            semiPlans = listResult.Data;
+
+        var summaryResult = await MaterialPlanService.GetSummaryAsync(WorkOrderId);
+        if (summaryResult.Success && summaryResult.Data != null)
+            semiSummary = summaryResult.Data;
+    }
+
+    private async Task DeleteSemiPlan(int id)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认删除", new DialogParameters
+        {
+            ["ContentText"] = "确定要删除该原料采购计划吗？\n\n删除后数据将不可恢复！",
+            ["ConfirmText"] = "确认删除",
+            ["Color"] = Color.Error
+        });
+        var dialogResult = await dialog.Result;
+        if (dialogResult.Canceled) return;
+
+        try
+        {
+            var result = await MaterialPlanService.DeleteSemiPlanAsync(id);
+            if (result.Success)
+            {
+                Snackbar.Add("删除成功", Severity.Success);
+                await LoadSemiPlansAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PrintSemiPlan(int planId)
+    {
+        try
+        {
+            var result = await MaterialPlanService.PrintSemiPlanAsync(planId);
+            if (result.Success && !string.IsNullOrEmpty(result.Data))
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印生成失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // ===== 成品采购计划 =====
+
+    private async Task LoadFinishPlansAsync()
+    {
+        var listResult = await MaterialPlanService.GetFinishedPlansAsync(WorkOrderId);
+        if (listResult.Success && listResult.Data != null)
+            finishPlans = listResult.Data;
+
+        var summaryResult = await MaterialPlanService.GetSummaryAsync(WorkOrderId);
+        if (summaryResult.Success && summaryResult.Data != null)
+            finishSummary = summaryResult.Data;
+    }
+
+    private async Task DeleteFinishedPlan(int id)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认删除", new DialogParameters
+        {
+            ["ContentText"] = "确定要删除该成品采购计划吗？\n\n删除后数据将不可恢复！",
+            ["ConfirmText"] = "确认删除",
+            ["Color"] = Color.Error
+        });
+        var dialogResult = await dialog.Result;
+        if (dialogResult.Canceled) return;
+
+        try
+        {
+            var result = await MaterialPlanService.DeleteFinishedPlanAsync(id);
+            if (result.Success)
+            {
+                Snackbar.Add("删除成功", Severity.Success);
+                await LoadFinishPlansAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PrintFinishedPlan(int planId)
+    {
+        try
+        {
+            var result = await MaterialPlanService.PrintFinishedPlanAsync(planId);
+            if (result.Success && !string.IsNullOrEmpty(result.Data))
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印生成失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // ===== 库存使用计划 =====
+
+    private async Task LoadInventoryPlansAsync()
+    {
+        var listResult = await MaterialPlanService.GetInventoryPlansAsync(WorkOrderId);
+        if (listResult.Success && listResult.Data != null)
+            inventoryPlans = listResult.Data;
+
+        var summaryResult = await MaterialPlanService.GetSummaryAsync(WorkOrderId);
+        if (summaryResult.Success && summaryResult.Data != null)
+            invSummary = summaryResult.Data;
+    }
+
+    private async Task DeleteInventoryPlan(int planId)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认删除", new DialogParameters
+        {
+            ["ContentText"] = "确定要删除此库存使用计划吗？\n\n删除后数据将不可恢复！",
+            ["ConfirmText"] = "确认删除",
+            ["Color"] = Color.Error
+        });
+        var result = await dialog.Result;
+        if (result.Canceled) return;
+
+        var apiResult = await MaterialPlanService.DeleteInventoryPlanAsync(planId);
+        if (apiResult.Success)
+        {
+            Snackbar.Add("删除成功", Severity.Success);
+            await LoadInventoryPlansAsync();
+        }
+        else
+        {
+            Snackbar.Add(apiResult.Message ?? "删除失败", Severity.Error);
+        }
+    }
+
+    private async Task PrintInventoryPlan(int planId)
+    {
+        try
+        {
+            var result = await MaterialPlanService.PrintInventoryPlanAsync(planId);
+            if (result.Success && !string.IsNullOrEmpty(result.Data))
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印生成失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // ===== 库料改制计划 =====
+
+    private async Task LoadReworkPlansAsync()
+    {
+        var listResult = await MaterialPlanService.GetReworkPlansAsync(WorkOrderId);
+        if (listResult.Success && listResult.Data != null)
+            reworkPlans = listResult.Data;
+
+        var summaryResult = await MaterialPlanService.GetSummaryAsync(WorkOrderId);
+        if (summaryResult.Success && summaryResult.Data != null)
+            reworkSummary = summaryResult.Data;
+    }
+
+    private async Task DeleteReworkPlan(int planId)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认取消", new DialogParameters
+        {
+            ["ContentText"] = "确定要取消此改制计划吗？\n\n取消后数据将不可恢复！",
+            ["ConfirmText"] = "确认取消",
+            ["Color"] = Color.Error
+        });
+        var result = await dialog.Result;
+        if (result.Canceled) return;
+
+        var apiResult = await MaterialPlanService.DeleteInventoryPlanAsync(planId);
+        if (apiResult.Success)
+        {
+            Snackbar.Add("取消成功", Severity.Success);
+            await LoadReworkPlansAsync();
+        }
+        else
+        {
+            Snackbar.Add(apiResult.Message ?? "取消失败", Severity.Error);
+        }
+    }
+
+    private async Task PrintReworkPlan(int planId)
+    {
+        try
+        {
+            var result = await MaterialPlanService.PrintReworkPlanAsync(planId);
+            if (result.Success && !string.IsNullOrEmpty(result.Data))
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印生成失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // ===== 占比率计算 =====
+
+    private string GetSemiPct() => CalcPct(workOrder?.LengthStatus, semiPlans.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple), semiPlans.Sum(p => p.RequiredWeight));
+    private string GetFinishPct() => CalcPct(workOrder?.LengthStatus, finishPlans.Sum(p => p.RequiredPiece ?? 0), finishPlans.Sum(p => p.RequiredWeight));
+    private string GetInvPct() => CalcPct(workOrder?.LengthStatus, inventoryPlans.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple), inventoryPlans.Sum(p => p.UsedWeight));
+    private string GetReworkPct() => CalcPct(workOrder?.LengthStatus, reworkPlans.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple), reworkPlans.Sum(p => p.UsedWeight));
+
+    private string CalcPct(string? lengthStatus, decimal qtySum, decimal wtSum)
+    {
+        if (workOrder == null) return "0%";
+        var isFixed = string.Equals(lengthStatus, "Fixed", StringComparison.OrdinalIgnoreCase);
+        if (isFixed)
+        {
+            var total = workOrder.TotalQuantity > 0 ? workOrder.TotalQuantity : 1;
+            return Math.Round(qtySum / (decimal)total * 100).ToString() + "%";
+        }
+        else
+        {
+            var total = workOrder.TotalWeight > 0 ? workOrder.TotalWeight : 1;
+            return Math.Round(wtSum / total * 100).ToString() + "%";
+        }
+    }
+
+    // ===== 导航 =====
+
+    private void NavigateToCreate(int tabType)
+    {
+        var path = tabType switch
+        {
+            1 => $"/workorders/{WorkOrderId}/material-plan/create",
+            2 => $"/workorders/{WorkOrderId}/finish-plan/create",
+            3 => $"/workorders/{WorkOrderId}/inventory-plan/create",
+            4 => $"/workorders/{WorkOrderId}/rework-plan/create",
+            _ => $"/workorders/{WorkOrderId}/material-plan/create"
+        };
+        Navigation.NavigateTo(path);
+    }
+
     private void NavigateToPrev()
     {
         if (!hasPrevWorkOrder || currentWorkOrderIndex <= 0) return;
@@ -355,18 +668,78 @@
 
     private void GoBack() => Navigation.NavigateTo("/material-plan-overview");
 
-    private string GetOrderNo()
+    // ===== 格式化辅助方法 =====
+
+    private static string FormatProcessPlan(string? processPlan)
     {
-        var subNo = string.IsNullOrEmpty(workOrder?.ProductionSubNo) ? "" : $"/{workOrder.ProductionSubNo}";
-        return $"{workOrder?.SalesOrderNo}/{workOrder?.ProductionMainNo}{subNo}";
+        if (string.IsNullOrEmpty(processPlan)) return "-";
+        try
+        {
+            var steps = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement[]>(processPlan);
+            if (steps == null || steps.Length == 0) return "-";
+            var specs = steps.Select(s => s.GetProperty("spec").GetString()).Where(s => !string.IsNullOrEmpty(s));
+            return string.Join("→", specs);
+        }
+        catch
+        {
+            return processPlan;
+        }
     }
 
-    private string GetToleranceText(decimal negative, decimal positive)
+    private static string GetRawMaterialTypeText(string type)
     {
-        return $"{negative.ToString("G29")}~+{positive.ToString("G29")}";
+        return type switch
+        {
+            "SemiFinished" => "荒管",
+            "SemiProduct" => "半成品",
+            _ => type
+        };
     }
 
-    private Color GetStatusColor(MaterialPlanStatus status)
+    private static string GetProductTypeText(string type)
+    {
+        return type switch
+        {
+            "Critical" => "回厂复检",
+            "Order" => "不需再检验",
+            _ => type
+        };
+    }
+
+    private static string FormatTolerance(decimal neg, decimal pos)
+    {
+        if (neg == 0 && pos == 0) return "-";
+        return $"-{neg:G29}/+{pos:G29}";
+    }
+
+    private static string FormatLengthRange(decimal? min, decimal? max)
+    {
+        if (min == null && max == null) return "-";
+        if (min == null) return $"≤{max:G29}";
+        if (max == null) return $"≥{min:G29}";
+        return $"{min:G29}~{max:G29}";
+    }
+
+    private static string FormatLocation(string? area, string? rack)
+    {
+        if (string.IsNullOrEmpty(area) && string.IsNullOrEmpty(rack)) return "-";
+        if (string.IsNullOrEmpty(area)) return rack;
+        if (string.IsNullOrEmpty(rack)) return area;
+        return $"{area}/{rack}";
+    }
+
+    private Color GetPlanStatusColor(int planStatus)
+    {
+        return planStatus switch
+        {
+            0 => Color.Info,
+            1 => Color.Success,
+            2 => Color.Default,
+            _ => Color.Default
+        };
+    }
+
+    private static Color GetStatusColor(MaterialPlanStatus status)
     {
         return status switch
         {
@@ -379,7 +752,7 @@
         };
     }
 
-    private string GetStatusText(MaterialPlanStatus status)
+    private static string GetStatusText(MaterialPlanStatus status)
     {
         return status switch
         {
@@ -389,16 +762,6 @@
             MaterialPlanStatus.Satisfied => "满足",
             MaterialPlanStatus.Excess => "超量",
             _ => "未知"
-        };
-    }
-
-    private string GetRawMaterialTypeText(string type)
-    {
-        return type switch
-        {
-            "SemiFinished" => "荒管",
-            "SemiProduct" => "半成品",
-            _ => type
         };
     }
 }

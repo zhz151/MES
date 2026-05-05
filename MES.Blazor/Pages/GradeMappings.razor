@@ -80,7 +80,7 @@
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh Style="width: 40px;">
-                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" OnValueChanged="ToggleSelectAll" />
+                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
                     </MudTh>
                     <MudTh>
                         <span @onclick='() => ToggleSort("standardgrade")' class="sortable-header">
@@ -133,7 +133,7 @@
                     <MudTd Style="width: 40px;">
                         <MudCheckBox T="bool"
                                      Value="@selectedIds.Contains(context.Id)"
-                                     ValueChanged="@((v) => { if(v) selectedIds.Add(context.Id); else selectedIds.Remove(context.Id); StateHasChanged(); })"
+                                     ValueChanged="@((v) => { if(v) selectedIds.Add(context.Id); else selectedIds.Remove(context.Id); _allSelected = gradeMappings.Any() && gradeMappings.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
                                      Dense="true" />
                     </MudTd>
                     <MudTd title="@context.StandardGrade">
@@ -170,7 +170,26 @@
     private MudTable<StandardGradeMappingDto>? table;
     private List<StandardGradeMappingDto> gradeMappings = new();
     private HashSet<int> selectedIds = new();
-    private bool allSelected;
+    private bool _allSelected;
+    private bool allSelected
+    {
+        get => _allSelected;
+        set
+        {
+            if (_allSelected == value) return;
+            _allSelected = value;
+            if (value)
+            {
+                foreach (var item in gradeMappings)
+                    selectedIds.Add(item.Id);
+            }
+            else
+            {
+                selectedIds.Clear();
+            }
+            StateHasChanged();
+        }
+    }
     private bool isLoading = false;
     private string searchKeyword = string.Empty;
     private int totalCount = 0;
@@ -297,23 +316,6 @@
                 Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
             }
         }
-    }
-
-    // ========== 选择方法 ==========
-
-    private async Task ToggleSelectAll(bool select)
-    {
-        allSelected = select;
-        if (select)
-        {
-            foreach (var item in gradeMappings)
-                selectedIds.Add(item.Id);
-        }
-        else
-        {
-            selectedIds.Clear();
-        }
-        await Task.CompletedTask;
     }
 
     // ========== 打印方法 ==========

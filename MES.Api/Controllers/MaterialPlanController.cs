@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
 using MES.Core.Interfaces;
+using MES.Core.Exceptions;
 using MES.Core.Models;
 using MES.Shared.Constants;
 
@@ -230,6 +231,27 @@ public class MaterialPlanController : ControllerBase
         var bytes = await _materialPlanService.PrintReworkPlanAsync(id);
         var base64 = Convert.ToBase64String(bytes);
         return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
+    }
+
+    [HttpPost("print/batch")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintBatch([FromBody] MaterialPlanBatchPrintRequest request)
+    {
+        if (request.WorkOrderIds.Length == 0)
+            return BadRequest(ApiResponse<string>.Fail("请选择工单"));
+        if (!request.IncludeSemi && !request.IncludeFinish && !request.IncludeInventory && !request.IncludeRework)
+            return BadRequest(ApiResponse<string>.Fail("请至少选择一种计划类型"));
+
+        try
+        {
+            var bytes = await _materialPlanService.PrintSelectedPlansAsync(request);
+            var base64 = Convert.ToBase64String(bytes);
+            return Ok(ApiResponse<string>.Ok(base64, "打印生成成功"));
+        }
+        catch (BusinessException ex)
+        {
+            return BadRequest(ApiResponse<string>.Fail(ex.Message));
+        }
     }
 
     #endregion

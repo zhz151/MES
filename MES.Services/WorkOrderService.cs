@@ -33,9 +33,9 @@ public class WorkOrderService : IWorkOrderService
     {
         // 获取所有已确认且未删除的订单（不包括已取消的订单）
         var orderQuery = _context.SalesOrders
-            .Where(so => so.Status == SalesOrderStatus.Confirmed && !so.IsDeleted)
+            .Where(so => so.Status == SalesOrderStatus.Confirmed)
             .Join(
-                _context.CustomerProfiles.Where(c => !c.IsDeleted),
+                _context.CustomerProfiles,
                 so => so.CustomerId,
                 c => c.Id,
                 (so, c) => new { SalesOrder = so, Customer = c }
@@ -160,7 +160,7 @@ public class WorkOrderService : IWorkOrderService
         var query = from so in _context.SalesOrders
                     join c in _context.CustomerProfiles on so.CustomerId equals c.Id
                     join wo in _context.WorkOrders on so.OrderNumber equals wo.SalesOrderNo
-                    where so.Status == SalesOrderStatus.Cancelled && !so.IsDeleted
+                    where so.Status == SalesOrderStatus.Cancelled
                           && wo.Status != WorkOrderStatus.Cancelled
                     select new CancelledOrderDto
                     {
@@ -183,7 +183,7 @@ public class WorkOrderService : IWorkOrderService
     public async Task<List<OrderItemForWorkOrderDto>> GetOrderItemsForWorkOrderAsync(string salesOrderNo)
     {
         var salesOrder = await _context.SalesOrders
-            .FirstOrDefaultAsync(so => so.OrderNumber == salesOrderNo && !so.IsDeleted);
+            .FirstOrDefaultAsync(so => so.OrderNumber == salesOrderNo);
         if (salesOrder == null)
             throw new BusinessException($"订单 {salesOrderNo} 不存在");
         if (salesOrder.Status != SalesOrderStatus.Confirmed)
@@ -213,14 +213,14 @@ public class WorkOrderService : IWorkOrderService
         var orderItems = await _context.OrderItems
             .AsNoTracking()
             .Include(oi => oi.ProductRequirement)
-            .Where(oi => oi.SalesOrderId == salesOrder.Id && !oi.IsDeleted)
+            .Where(oi => oi.SalesOrderId == salesOrder.Id)
             .OrderBy(oi => oi.Sequence)
             .ToListAsync();
 
         if (!orderItems.Any())
             throw new BusinessException($"订单 {salesOrderNo} 没有有效的项次");
 
-        // 单独加载 ProductionStandard（避免全局软删除过滤器与必需导航属性冲突）
+        // 单独加载 ProductionStandard
         var psIds = orderItems
             .Where(oi => oi.ProductionStandardId > 0)
             .Select(oi => oi.ProductionStandardId)
@@ -391,9 +391,9 @@ public class WorkOrderService : IWorkOrderService
 
     private async Task<List<GeneratedWorkOrderDto>> GenerateWorkOrdersCoreAsync(CreateWorkOrderRequest request)
     {
-        // 1. 获取订单信息（不 Include Customer 导航属性，避免全局软删除过滤器冲突）
+        // 1. 获取订单信息
         var salesOrder = await _context.SalesOrders
-            .FirstOrDefaultAsync(so => so.OrderNumber == request.SalesOrderNo && !so.IsDeleted);
+            .FirstOrDefaultAsync(so => so.OrderNumber == request.SalesOrderNo);
         
         if (salesOrder == null)
             throw new BusinessException($"订单 {request.SalesOrderNo} 不存在");
@@ -401,17 +401,17 @@ public class WorkOrderService : IWorkOrderService
         if (salesOrder.Status != SalesOrderStatus.Confirmed)
             throw new BusinessException($"订单 {request.SalesOrderNo} 状态不是已确认，无法生成工单");
 
-        // 单独加载 Customer（避免全局软删除过滤器冲突）
+        // 单独加载 Customer
         var salesOrderCustomer = await _context.CustomerProfiles
             .FirstOrDefaultAsync(c => c.Id == salesOrder.CustomerId);
 
         // 2. 获取订单项次
         var allOrderItems = await _context.OrderItems
             .Include(oi => oi.ProductRequirement)
-            .Where(oi => oi.SalesOrderId == salesOrder.Id && !oi.IsDeleted)
+            .Where(oi => oi.SalesOrderId == salesOrder.Id)
             .ToDictionaryAsync(oi => oi.Id, oi => oi);
 
-        // 单独加载 ProductionStandard（避免全局软删除过滤器与必需导航属性冲突）
+        // 单独加载 ProductionStandard
         var psIds = allOrderItems.Values
             .Where(oi => oi.ProductionStandardId > 0)
             .Select(oi => oi.ProductionStandardId)
@@ -669,7 +669,6 @@ public class WorkOrderService : IWorkOrderService
 
     public async Task<PagedResult<WorkOrderListDto>> GetPagedAsync(WorkOrderQueryParams query)
     {
-        // 工单使用物理删除，不需要 IsDeleted 过滤
         var workOrderQuery = _context.WorkOrders.AsQueryable();
 
         if (!string.IsNullOrEmpty(query.SalesOrderNo))
@@ -700,15 +699,84 @@ public class WorkOrderService : IWorkOrderService
         if (!string.IsNullOrEmpty(query.Keyword))
         {
             var keyword = query.Keyword;
-            workOrderQuery = workOrderQuery.Where(wo =>
-                wo.WorkOrderNo.Contains(keyword) ||
-                wo.SalesOrderNo.Contains(keyword) ||
-                wo.ProductionMainNo.Contains(keyword) ||
-                (wo.ProductionSubNo != null && wo.ProductionSubNo.Contains(keyword)));
+
+            // 若关键字可解析为日期，连同计划表日期一起 OR 搜索（只用一个 Where，避免 AND 屏蔽）
+            if (DateTime.TryParse(keyword, out var keywordDate))
+            {
+                var date = keywordDate.Date;
+                workOrderQuery = workOrderQuery.Where(wo =>
+                    wo.WorkOrderNo.Contains(keyword) ||
+                    wo.SalesOrderNo.Contains(keyword) ||
+                    wo.ProductionMainNo.Contains(keyword) ||
+                    (wo.ProductionSubNo != null && wo.ProductionSubNo.Contains(keyword)) ||
+                    _context.PurchaseSemiPlans.Any(p => p.WorkOrderId == wo.Id && p.PlanDate == date) ||
+                    _context.PurchaseFinishedPlans.Any(p => p.WorkOrderId == wo.Id && p.PlanDate == date) ||
+                    _context.InventoryPlans.Any(p => p.WorkOrderId == wo.Id && p.PlanDate == date));
+            }
+            else
+            {
+                workOrderQuery = workOrderQuery.Where(wo =>
+                    wo.WorkOrderNo.Contains(keyword) ||
+                    wo.SalesOrderNo.Contains(keyword) ||
+                    wo.ProductionMainNo.Contains(keyword) ||
+                    (wo.ProductionSubNo != null && wo.ProductionSubNo.Contains(keyword)));
+            }
         }
 
         if (query.MaterialPlanStatus.HasValue)
             workOrderQuery = workOrderQuery.Where(wo => (int)wo.MaterialPlanStatus == query.MaterialPlanStatus.Value);
+
+        // 计划类型过滤：仅显示包含指定类型计划的工单
+        if (!string.IsNullOrEmpty(query.PlanTypeFilter))
+        {
+            var planTypes = query.PlanTypeFilter.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(t => t.ToLowerInvariant())
+                .ToHashSet();
+
+            if (planTypes.Count > 0 && planTypes.Count < 4)
+            {
+                var matchedIds = new HashSet<int>();
+
+                if (planTypes.Contains("semi"))
+                {
+                    var ids = await _context.PurchaseSemiPlans
+                        .Select(p => p.WorkOrderId)
+                        .Distinct().ToListAsync();
+                    foreach (var id in ids) matchedIds.Add(id);
+                }
+
+                if (planTypes.Contains("finish"))
+                {
+                    var ids = await _context.PurchaseFinishedPlans
+                        .Select(p => p.WorkOrderId)
+                        .Distinct().ToListAsync();
+                    foreach (var id in ids) matchedIds.Add(id);
+                }
+
+                if (planTypes.Contains("inventory"))
+                {
+                    var ids = await _context.InventoryPlans
+                        .Where(p => p.ReworkType == null)
+                        .Select(p => p.WorkOrderId)
+                        .Distinct().ToListAsync();
+                    foreach (var id in ids) matchedIds.Add(id);
+                }
+
+                if (planTypes.Contains("rework"))
+                {
+                    var ids = await _context.InventoryPlans
+                        .Where(p => p.ReworkType != null)
+                        .Select(p => p.WorkOrderId)
+                        .Distinct().ToListAsync();
+                    foreach (var id in ids) matchedIds.Add(id);
+                }
+
+                if (matchedIds.Count > 0)
+                    workOrderQuery = workOrderQuery.Where(wo => matchedIds.Contains(wo.Id));
+                else
+                    workOrderQuery = workOrderQuery.Where(wo => false);
+            }
+        }
 
         var totalCount = await workOrderQuery.CountAsync();
 
@@ -727,6 +795,32 @@ public class WorkOrderService : IWorkOrderService
                     break;
                 case "status":
                     workOrderQuery = query.IsDescending ? workOrderQuery.OrderByDescending(wo => wo.Status) : workOrderQuery.OrderBy(wo => wo.Status);
+                    break;
+                case "productionmainno":
+                    workOrderQuery = query.IsDescending ? workOrderQuery.OrderByDescending(wo => wo.ProductionMainNo) : workOrderQuery.OrderBy(wo => wo.ProductionMainNo);
+                    break;
+                case "productionsubno":
+                    workOrderQuery = query.IsDescending ? workOrderQuery.OrderByDescending(wo => wo.ProductionSubNo) : workOrderQuery.OrderBy(wo => wo.ProductionSubNo);
+                    break;
+                case "materialplanstatus":
+                    workOrderQuery = query.IsDescending ? workOrderQuery.OrderByDescending(wo => wo.MaterialPlanStatus) : workOrderQuery.OrderBy(wo => wo.MaterialPlanStatus);
+                    break;
+                case "materialplanrate":
+                    workOrderQuery = query.IsDescending ? workOrderQuery.OrderByDescending(wo => wo.MaterialPlanRate) : workOrderQuery.OrderBy(wo => wo.MaterialPlanRate);
+                    break;
+                case "latestplandate":
+                    // 4种用料计划中最新的计划日期（取最大值），关联子查询实现
+                    workOrderQuery = query.IsDescending
+                        ? workOrderQuery.OrderByDescending(wo =>
+                            _context.PurchaseSemiPlans.Where(p => p.WorkOrderId == wo.Id).Select(p => (DateTime?)p.PlanDate)
+                                .Concat(_context.PurchaseFinishedPlans.Where(p => p.WorkOrderId == wo.Id).Select(p => (DateTime?)p.PlanDate))
+                                .Concat(_context.InventoryPlans.Where(p => p.WorkOrderId == wo.Id).Select(p => (DateTime?)p.PlanDate))
+                                .Max())
+                        : workOrderQuery.OrderBy(wo =>
+                            _context.PurchaseSemiPlans.Where(p => p.WorkOrderId == wo.Id).Select(p => (DateTime?)p.PlanDate)
+                                .Concat(_context.PurchaseFinishedPlans.Where(p => p.WorkOrderId == wo.Id).Select(p => (DateTime?)p.PlanDate))
+                                .Concat(_context.InventoryPlans.Where(p => p.WorkOrderId == wo.Id).Select(p => (DateTime?)p.PlanDate))
+                                .Max());
                     break;
                 default:
                     workOrderQuery = query.IsDescending ? workOrderQuery.OrderByDescending(wo => wo.CreatedTime) : workOrderQuery.OrderBy(wo => wo.CreatedTime);
@@ -843,6 +937,27 @@ public class WorkOrderService : IWorkOrderService
             .GroupBy(p => p.WorkOrderId)
             .ToDictionary(g => g.Key, g => g.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple));
 
+        // 计算最新计划日期（4种计划中最晚的 PlanDate）
+        var latestDateByWo = new Dictionary<int, DateTime>();
+        void MergeMaxDate(IEnumerable<IGrouping<int, DateTime>> groups)
+        {
+            foreach (var g in groups)
+            {
+                var max = g.Max();
+                if (latestDateByWo.TryGetValue(g.Key, out var existing))
+                {
+                    if (max > existing) latestDateByWo[g.Key] = max;
+                }
+                else
+                {
+                    latestDateByWo[g.Key] = max;
+                }
+            }
+        }
+        MergeMaxDate(allSemiPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
+        MergeMaxDate(allFinishPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
+        MergeMaxDate(allInventoryPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
+
         foreach (var item in items)
         {
             if (semiWeightByWo.TryGetValue(item.Id, out var semiW)) item.SemiPlanTotalWeight = semiW;
@@ -853,6 +968,7 @@ public class WorkOrderService : IWorkOrderService
             if (inventoryPiecesByWo.TryGetValue(item.Id, out var invP)) item.InventoryPlanTotalPieces = invP;
             if (reworkWeightByWo.TryGetValue(item.Id, out var rewW)) item.ReworkPlanTotalWeight = rewW;
             if (reworkPiecesByWo.TryGetValue(item.Id, out var rewP)) item.ReworkPlanTotalPieces = rewP;
+            if (latestDateByWo.TryGetValue(item.Id, out var latestDate)) item.LatestPlanDate = latestDate;
         }
 
         // 2. 主号级聚合
@@ -1097,7 +1213,7 @@ public class WorkOrderService : IWorkOrderService
     {
         _logger.LogInformation("开始执行订单变更检测定时任务");
         var confirmedOrders = await _context.SalesOrders
-            .Where(so => so.Status == SalesOrderStatus.Confirmed && !so.IsDeleted)
+            .Where(so => so.Status == SalesOrderStatus.Confirmed)
             .Select(so => new { so.Id, so.OrderNumber, so.LastItemChangeTime })
             .ToListAsync();
 
@@ -1114,7 +1230,7 @@ public class WorkOrderService : IWorkOrderService
     private async Task<bool> CheckAndUpdateWorkOrderStatusInternalAsync(int salesOrderId)
     {
         var salesOrder = await _context.SalesOrders
-            .FirstOrDefaultAsync(so => so.Id == salesOrderId && !so.IsDeleted);
+            .FirstOrDefaultAsync(so => so.Id == salesOrderId);
         if (salesOrder == null || salesOrder.Status != SalesOrderStatus.Confirmed)
             return false;
 
@@ -1156,8 +1272,8 @@ public class WorkOrderService : IWorkOrderService
     {
         // 1. 获取订单信息
         var salesOrderQuery = await _context.SalesOrders
-            .Where(so => so.OrderNumber == salesOrderNo && !so.IsDeleted)
-            .Join(_context.CustomerProfiles.Where(c => !c.IsDeleted),
+            .Where(so => so.OrderNumber == salesOrderNo)
+            .Join(_context.CustomerProfiles,
                 so => so.CustomerId,
                 c => c.Id,
                 (so, c) => new { SalesOrder = so, Customer = c })
@@ -1189,7 +1305,7 @@ public class WorkOrderService : IWorkOrderService
 
         // 4. 批量查询订单项次（一次性加载所有相关项次）
         var orderItems = await _context.OrderItems
-            .Where(oi => allOrderItemIds.Contains(oi.Id) && !oi.IsDeleted)
+            .Where(oi => allOrderItemIds.Contains(oi.Id))
             .ToDictionaryAsync(oi => oi.Id, oi => oi);
 
         // 5. 构建 DTO
@@ -1264,7 +1380,7 @@ result.WorkOrders.Add(new WorkOrderRelationDto
     {
         var entity = await _context.WorkOrders
             .AsNoTracking()
-            .FirstOrDefaultAsync(wo => wo.Id == id && !wo.IsDeleted)
+            .FirstOrDefaultAsync(wo => wo.Id == id)
             ?? throw new BusinessException("工单不存在");
 
         return WorkOrderPrintHelper.GeneratePdf(entity);
@@ -1276,7 +1392,7 @@ result.WorkOrders.Add(new WorkOrderRelationDto
             .AsNoTracking()
             .Where(wo => wo.SalesOrderNo == salesOrderNo
                       && wo.Status != WorkOrderStatus.Cancelled
-                      && !wo.IsDeleted)
+                     )
             .OrderBy(wo => wo.ProductionMainNo)
             .ThenBy(wo => wo.ProductionSubNo)
             .ToListAsync();
@@ -1293,7 +1409,7 @@ result.WorkOrders.Add(new WorkOrderRelationDto
             .AsNoTracking()
             .Where(wo => salesOrderNos.Contains(wo.SalesOrderNo)
                       && wo.Status != WorkOrderStatus.Cancelled
-                      && !wo.IsDeleted)
+                     )
             .OrderBy(wo => wo.SalesOrderNo)
             .ThenBy(wo => wo.ProductionMainNo)
             .ThenBy(wo => wo.ProductionSubNo)
@@ -1309,9 +1425,9 @@ result.WorkOrders.Add(new WorkOrderRelationDto
     {
         // 复用首页筛选逻辑：获取所有已确认订单
         var orderQuery = _context.SalesOrders
-            .Where(so => so.Status == SalesOrderStatus.Confirmed && !so.IsDeleted)
+            .Where(so => so.Status == SalesOrderStatus.Confirmed)
             .Join(
-                _context.CustomerProfiles.Where(c => !c.IsDeleted),
+                _context.CustomerProfiles,
                 so => so.CustomerId,
                 c => c.Id,
                 (so, c) => new { SalesOrder = so, Customer = c }

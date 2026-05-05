@@ -200,7 +200,7 @@ public class OrderServiceTests : TestBase
     }
 
     [Fact]
-    public async Task DeleteAsync_成功删除_软删除订单和项次()
+    public async Task DeleteAsync_成功删除_物理删除订单和项次()
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);

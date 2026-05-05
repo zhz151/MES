@@ -30,7 +30,6 @@ public class ProductionStandardService : IProductionStandardService
     {
         var queryable = _context.ProductionStandards
             .AsNoTracking()
-            .Where(p => !p.IsDeleted)
             .AsQueryable();
 
         // 关键字模糊搜索（多关键词AND + 状态中文映射）
@@ -110,8 +109,7 @@ public class ProductionStandardService : IProductionStandardService
     public async Task<List<ProductionStandardDto>> GetAllAsync(bool onlyActive = true)
     {
         var query = _context.ProductionStandards
-            .AsNoTracking()
-            .Where(p => !p.IsDeleted);
+            .AsNoTracking();
 
         if (onlyActive)
         {
@@ -142,7 +140,7 @@ public class ProductionStandardService : IProductionStandardService
     {
         var entity = await _context.ProductionStandards
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+            .FirstOrDefaultAsync(p => p.Id == id);
 
         if (entity == null)
         {
@@ -159,7 +157,7 @@ public class ProductionStandardService : IProductionStandardService
     {
         // Check standard code uniqueness
         var exists = await _context.ProductionStandards
-            .AnyAsync(p => p.StandardCode == request.StandardCode && !p.IsDeleted);
+            .AnyAsync(p => p.StandardCode == request.StandardCode);
 
         if (exists)
         {
@@ -187,7 +185,7 @@ public class ProductionStandardService : IProductionStandardService
     public async Task<ProductionStandardDto> UpdateAsync(int id, UpdateProductionStandardRequest request)
     {
         var entity = await _context.ProductionStandards
-            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+            .FirstOrDefaultAsync(p => p.Id == id);
 
         if (entity == null)
         {
@@ -198,7 +196,7 @@ public class ProductionStandardService : IProductionStandardService
         if (!string.IsNullOrEmpty(request.StandardCode) && request.StandardCode != entity.StandardCode)
         {
             var exists = await _context.ProductionStandards
-                .AnyAsync(p => p.StandardCode == request.StandardCode && p.Id != id && !p.IsDeleted);
+                .AnyAsync(p => p.StandardCode == request.StandardCode && p.Id != id);
 
             if (exists)
             {
@@ -238,14 +236,14 @@ public class ProductionStandardService : IProductionStandardService
     public async Task DeleteAsync(int id)
     {
         var entity = await _context.ProductionStandards
-            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+            .FirstOrDefaultAsync(p => p.Id == id);
 
         if (entity == null)
         {
             throw new BusinessException("Production standard does not exist");
         }
 
-        entity.IsDeleted = true;
+        _context.ProductionStandards.Remove(entity);
         await _context.SaveChangesAsync();
     }
 

@@ -15,17 +15,17 @@ public class CreatePurchaseSemiPlanRequest
     public decimal QualifiedRate { get; set; }
 
     // 采购信息
+    public string PlantGrade { get; set; } = null!;
     public string RawMaterialType { get; set; } = null!;
     public string RawMaterialSpec { get; set; } = null!;
-    public DateTime? RequiredDate { get; set; }
+    public decimal? RequiredUnitWeight { get; set; }
+    public int? RequiredPieces { get; set; }
+    public decimal RequiredWeight { get; set; }
+    public DateTime RequiredDate { get; set; }
 
     // 工艺路线（JSON数组）
     public string? ProcessPlan { get; set; }
 
     // 其他
     public string? Remark { get; set; }
-
-    // 非定尺模式下人工填写的值
-    public int? ManualPieces { get; set; }
-    public decimal? ManualWeight { get; set; }
 }

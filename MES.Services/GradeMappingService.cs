@@ -30,7 +30,6 @@ public class GradeMappingService : IGradeMappingService
     {
         var queryable = _context.StandardGradeMappings
             .AsNoTracking()
-            .Where(g => !g.IsDeleted)
             .AsQueryable();
 
         // 关键字模糊搜索（多关键词AND + 状态中文映射）
@@ -112,7 +111,6 @@ public class GradeMappingService : IGradeMappingService
     {
         var items = await _context.StandardGradeMappings
             .AsNoTracking()
-            .Where(g => !g.IsDeleted)
             .OrderBy(g => g.StandardGrade)
             .Select(g => new StandardGradeMappingDto
             {
@@ -137,7 +135,7 @@ public class GradeMappingService : IGradeMappingService
     {
         var entity = await _context.StandardGradeMappings
             .AsNoTracking()
-            .FirstOrDefaultAsync(g => g.Id == id && !g.IsDeleted);
+            .FirstOrDefaultAsync(g => g.Id == id);
 
         if (entity == null)
         {
@@ -154,7 +152,7 @@ public class GradeMappingService : IGradeMappingService
     {
         // Check standard grade uniqueness
         var exists = await _context.StandardGradeMappings
-            .AnyAsync(g => g.StandardGrade == request.StandardGrade && !g.IsDeleted);
+            .AnyAsync(g => g.StandardGrade == request.StandardGrade);
 
         if (exists)
         {
@@ -184,7 +182,7 @@ public class GradeMappingService : IGradeMappingService
     public async Task<StandardGradeMappingDto> UpdateAsync(int id, UpdateGradeMappingRequest request)
     {
         var entity = await _context.StandardGradeMappings
-            .FirstOrDefaultAsync(g => g.Id == id && !g.IsDeleted);
+            .FirstOrDefaultAsync(g => g.Id == id);
 
         if (entity == null)
         {
@@ -195,7 +193,7 @@ public class GradeMappingService : IGradeMappingService
         if (!string.IsNullOrEmpty(request.StandardGrade) && request.StandardGrade != entity.StandardGrade)
         {
             var exists = await _context.StandardGradeMappings
-                .AnyAsync(g => g.StandardGrade == request.StandardGrade && g.Id != id && !g.IsDeleted);
+                .AnyAsync(g => g.StandardGrade == request.StandardGrade && g.Id != id);
 
             if (exists)
             {
@@ -245,14 +243,14 @@ public class GradeMappingService : IGradeMappingService
     public async Task DeleteAsync(int id)
     {
         var entity = await _context.StandardGradeMappings
-            .FirstOrDefaultAsync(g => g.Id == id && !g.IsDeleted);
+            .FirstOrDefaultAsync(g => g.Id == id);
 
         if (entity == null)
         {
             throw new BusinessException("Grade mapping does not exist");
         }
 
-        entity.IsDeleted = true;
+        _context.StandardGradeMappings.Remove(entity);
         await _context.SaveChangesAsync();
     }
 

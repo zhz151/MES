@@ -23,7 +23,7 @@ public class ProductRequirementService : IProductRequirementService
     {
         var entity = await _context.ProductRequirements
             .AsNoTracking()
-            .FirstOrDefaultAsync(pr => pr.OrderItemId == orderItemId && !pr.IsDeleted);
+            .FirstOrDefaultAsync(pr => pr.OrderItemId == orderItemId);
 
         if (entity == null) return null;
         return await MapToDtoWithSequenceAsync(entity);
@@ -32,12 +32,12 @@ public class ProductRequirementService : IProductRequirementService
     public async Task<ProductRequirementDto> CreateOrUpdateAsync(int orderItemId, CreateProductRequirementRequest request)
     {
         var orderItem = await _context.OrderItems
-            .FirstOrDefaultAsync(oi => oi.Id == orderItemId && !oi.IsDeleted);
+            .FirstOrDefaultAsync(oi => oi.Id == orderItemId);
         if (orderItem == null)
             throw new BusinessException("订单项次不存在");
 
         var existing = await _context.ProductRequirements
-            .FirstOrDefaultAsync(pr => pr.OrderItemId == orderItemId && !pr.IsDeleted);
+            .FirstOrDefaultAsync(pr => pr.OrderItemId == orderItemId);
 
         if (existing != null)
         {
@@ -87,14 +87,14 @@ public Task DeleteAsync(int orderItemId)
     {
         // 获取订单的所有项次
         var orderItems = await _context.OrderItems
-            .Where(oi => oi.SalesOrderId == orderId && !oi.IsDeleted)
+            .Where(oi => oi.SalesOrderId == orderId)
             .OrderBy(oi => oi.Sequence)
             .ToListAsync();
 
         // 获取所有存在的技术要求
         var orderItemIds = orderItems.Select(oi => oi.Id).ToList();
         var existingRequirements = await _context.ProductRequirements
-            .Where(pr => orderItemIds.Contains(pr.OrderItemId) && !pr.IsDeleted)
+            .Where(pr => orderItemIds.Contains(pr.OrderItemId))
             .ToDictionaryAsync(pr => pr.OrderItemId, pr => pr);
 
         var result = new List<ProductRequirementDto>();
@@ -122,7 +122,7 @@ public Task DeleteAsync(int orderItemId)
         else
         {
             var orderItem = await _context.OrderItems
-                .FirstOrDefaultAsync(oi => oi.Id == entity.OrderItemId && !oi.IsDeleted);
+                .FirstOrDefaultAsync(oi => oi.Id == entity.OrderItemId);
             sequence = orderItem?.Sequence ?? 0;
         }
 

@@ -47,7 +47,10 @@
             </MudCardHeader>
             <MudCardContent>
                 <MudGrid>
-                    <MudItem xs="12" md="4">
+                    <MudItem xs="12" md="3">
+                        <MudTextField T="string" Label="物料编码" Value="@item.MaterialCode" Disabled="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
                         <MudTextField T="string" Label="物料分类" @bind-Value="editItem.MaterialCategory" Disabled="!isEditMode" Required="true" />
                     </MudItem>
                     <MudItem xs="12" md="4">

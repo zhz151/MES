@@ -3,9 +3,19 @@ namespace MES.Data.Entities;
 public class SupplierProfile : BaseEntity
 {
     /// <summary>
+    /// 供应商编码（SU + 4位数字流水）
+    /// </summary>
+    public string SupplierCode { get; set; } = null!;
+
+    /// <summary>
     /// 供应商名称
     /// </summary>
     public string SupplierName { get; set; } = null!;
+
+    /// <summary>
+    /// 物料分类（用于采购时按物料筛选供应商）
+    /// </summary>
+    public string? MaterialCategory { get; set; }
 
     /// <summary>
     /// 联系人

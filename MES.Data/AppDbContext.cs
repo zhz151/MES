@@ -95,34 +95,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureOutboundRecord(builder);
         ConfigureNotification(builder);
         ConfigureInventoryBatchDeleteLog(builder);
-
-        // 软删除过滤：只为需要软删除的实体添加（排除 WorkOrder 和 OrderChangeNotification）
-        foreach (var entityType in builder.Model.GetEntityTypes())
-        {
-            if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
-            {
-                // 工单、通知、刷新令牌、采购计划不应用软删除过滤（使用物理删除）
-                if (entityType.ClrType == typeof(WorkOrder) ||
-                    entityType.ClrType == typeof(OrderChangeNotification) ||
-                    entityType.ClrType == typeof(RefreshToken) ||
-                    entityType.ClrType == typeof(PurchaseSemiPlan) ||
-                    entityType.ClrType == typeof(PurchaseFinishedPlan) ||
-                    entityType.ClrType == typeof(InventoryPlan))
-                {
-                    continue;
-                }
-
-                var method = typeof(AppDbContext).GetMethod(nameof(SetSoftDeleteFilter),
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
-                    ?.MakeGenericMethod(entityType.ClrType);
-                method?.Invoke(null, new object[] { builder });
-            }
-        }
-    }
-
-    private static void SetSoftDeleteFilter<TEntity>(ModelBuilder builder) where TEntity : BaseEntity
-    {
-        builder.Entity<TEntity>().HasQueryFilter(e => !e.IsDeleted);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -140,7 +112,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
                     entry.Entity.UpdatedTime = now;
                     entry.Entity.CreatedBy = currentUser;
                     entry.Entity.UpdatedBy = currentUser;
-                    entry.Entity.IsDeleted = false;
                     break;
 
                 case EntityState.Modified:
@@ -149,18 +120,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
                     break;
 
                 case EntityState.Deleted:
-                    // 工单、通知、刷新令牌、采购计划：物理删除，保持 Deleted 状态
-                    if (entry.Entity is WorkOrder || entry.Entity is OrderChangeNotification || entry.Entity is RefreshToken ||
-                        entry.Entity is PurchaseSemiPlan || entry.Entity is PurchaseFinishedPlan || entry.Entity is InventoryPlan)
-                    {
-                        // 保持 Deleted 状态，让 EF Core 执行物理删除
-                        break;
-                    }
-                    // 其他实体：软删除
-                    entry.State = EntityState.Modified;
-                    entry.Entity.IsDeleted = true;
-                    entry.Entity.UpdatedTime = now;
-                    entry.Entity.UpdatedBy = currentUser;
+                    // 所有实体统一使用物理删除，保持 Deleted 状态让 EF Core 执行物理删除
                     break;
             }
         }
@@ -233,7 +193,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Remark).HasMaxLength(500);
             entity.HasIndex(e => new { e.SalesOrderId, e.Sequence })
                 .HasDatabaseName("UK_OrderItem_Sequence_Active")
-                .HasFilter("[IsDeleted] = 0")
                 .IsUnique();
             entity.HasIndex(e => e.SalesOrderId).HasDatabaseName("IX_OrderItem_SalesOrderId");
             entity.HasIndex(e => e.ProductionStandardId).HasDatabaseName("IX_OrderItem_ProductStandardId");
@@ -361,7 +320,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.MaterialPlanStatus).IsRequired().HasDefaultValue(MaterialPlanStatus.NotPlanned);
             entity.Property(e => e.MaterialPlanRate).IsRequired().HasColumnType("decimal(5,2)").HasDefaultValue(0m);
 
-            // 索引（不包含 IsDeleted 条件，因为工单使用物理删除）
+            // 索引
             entity.HasIndex(e => e.WorkOrderNo).IsUnique().HasDatabaseName("UK_WorkOrder_WorkOrderNo");
             entity.HasIndex(e => new { e.SalesOrderNo, e.ProductionMainNo, e.ProductionSubNo })
                 .IsUnique()
@@ -425,7 +384,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.RequiredWeight).IsRequired().HasColumnType("decimal(18,3)");
             entity.Property(e => e.RawMaterialType).IsRequired().HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.RawMaterialSpec).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.RequiredDate).HasColumnType("date");
+            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.RequiredUnitWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.RequiredDate).IsRequired().HasColumnType("date");
             entity.Property(e => e.ProcessPlan).HasColumnType("nvarchar(max)");
             entity.Property(e => e.Remark).HasMaxLength(500);
             entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_PurchaseSemiPlan_WorkOrderId");
@@ -445,6 +406,19 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.RequiredWeight).IsRequired().HasColumnType("decimal(18,3)");
             entity.Property(e => e.RequiredDate).HasColumnType("date");
             entity.Property(e => e.Remark).HasMaxLength(500);
+
+            // 工单冗余字段
+            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Specification).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.OuterDiameterNegative).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.OuterDiameterPositive).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.WallThicknessNegative).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.WallThicknessPositive).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.LengthStatus).IsRequired().HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.MinLength).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.MaxLength).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.DeliveryState).IsRequired().HasConversion<string>().HasMaxLength(50);
+
             entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_PurchaseFinishedPlan_WorkOrderId");
         });
     }
@@ -537,7 +511,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => e.SalesOrderNo).HasDatabaseName("IX_InventoryBatch_SalesOrderNo");
             entity.HasIndex(e => e.ProductionBatchNo).HasDatabaseName("IX_InventoryBatch_ProductionBatchNo");
             entity.HasIndex(e => e.RemainingWeight).HasDatabaseName("IX_InventoryBatch_RemainingWeight")
-                .HasFilter("[RemainingWeight] > 0 AND [IsDeleted] = 0");
+                .HasFilter("[RemainingWeight] > 0");
         });
     }
 
@@ -607,8 +581,11 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.PlanDate).IsRequired().HasColumnType("date");
             entity.Property(e => e.InventoryBatchNo).IsRequired().HasMaxLength(50);
             entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.MaterialType).IsRequired().HasMaxLength(50);
             entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.LocationArea).HasMaxLength(100);
+            entity.Property(e => e.LocationRack).HasMaxLength(100);
             entity.Property(e => e.InputMultiple).IsRequired().HasDefaultValue(1);
             entity.Property(e => e.UsageMode).IsRequired().HasMaxLength(10).HasDefaultValue("All");
             entity.Property(e => e.UsedQuantity);
@@ -634,15 +611,16 @@ public class AppDbContext : IdentityDbContext<AppUser>
         {
             entity.ToTable("Material");
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaterialCode).IsRequired().HasMaxLength(6);
             entity.Property(e => e.MaterialCategory).IsRequired().HasMaxLength(30);
             entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
             entity.Property(e => e.IsActive).IsRequired().HasDefaultValue(true);
             entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.HasIndex(e => e.MaterialCode).IsUnique().HasDatabaseName("UK_Material_Code");
             entity.HasIndex(e => new { e.MaterialCategory, e.PlantGrade, e.Specification })
                 .IsUnique()
-                .HasDatabaseName("UK_Material_Combo")
-                .HasFilter("[IsDeleted] = 0");
+                .HasDatabaseName("UK_Material_Combo");
             entity.HasIndex(e => e.MaterialCategory).HasDatabaseName("IX_Material_Category");
             entity.HasIndex(e => e.IsActive).HasDatabaseName("IX_Material_IsActive");
         });
@@ -654,10 +632,13 @@ public class AppDbContext : IdentityDbContext<AppUser>
         {
             entity.ToTable("SupplierProfile");
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.SupplierCode).IsRequired().HasMaxLength(6);
             entity.Property(e => e.SupplierName).IsRequired().HasMaxLength(200);
+            entity.HasIndex(e => e.SupplierCode).IsUnique().HasDatabaseName("UK_Supplier_Code");
             entity.Property(e => e.ContactPerson).HasMaxLength(50);
             entity.Property(e => e.ContactPhone).HasMaxLength(50);
             entity.Property(e => e.Address).HasMaxLength(500);
+            entity.Property(e => e.MaterialCategory).HasMaxLength(100);
             entity.Property(e => e.IsActive).IsRequired().HasDefaultValue(true);
             entity.Property(e => e.Remark).HasMaxLength(500);
         });
@@ -707,6 +688,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.OrderDate).IsRequired().HasColumnType("date");
             entity.Property(e => e.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Sent");
             entity.Property(e => e.ManualStatus).HasMaxLength(20);
+            entity.Property(e => e.FurnaceNumber).HasMaxLength(50);
+            entity.Property(e => e.ProcessType).IsRequired().HasMaxLength(30);
             entity.Property(e => e.OutMaterialCategory).IsRequired().HasMaxLength(30);
             entity.Property(e => e.OutPlantGrade).IsRequired().HasMaxLength(50);
             entity.Property(e => e.OutSpecification).IsRequired().HasMaxLength(100);
@@ -715,7 +698,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.ReturnDeadline).HasColumnType("date");
             entity.Property(e => e.InQuantity);
             entity.Property(e => e.InWeight).HasColumnType("decimal(18,3)");
-            entity.Property(e => e.SourceWorkOrderNo).HasMaxLength(50);
             entity.Property(e => e.Remark).HasMaxLength(500);
             entity.HasIndex(e => e.OrderNo).IsUnique().HasDatabaseName("UK_SubcontractOrder_OrderNo");
             entity.HasIndex(e => e.SupplierId).HasDatabaseName("IX_SubcontractOrder_SupplierId");
@@ -735,10 +717,13 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasKey(e => e.Id);
             entity.Property(e => e.SubcontractOrderId).IsRequired();
             entity.Property(e => e.Sequence).IsRequired();
-            entity.Property(e => e.ProcessType).IsRequired().HasMaxLength(30);
             entity.Property(e => e.MaterialCategory).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.PlantGrade).HasMaxLength(50);
             entity.Property(e => e.ProcessSpecification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.UnitWeight).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.RequiredWeight).HasColumnType("decimal(18,4)");
             entity.Property(e => e.ProcessStatusRemark).HasMaxLength(500);
+            entity.Property(e => e.Remark).HasMaxLength(500);
             entity.Property(e => e.ProcessUnitPrice).HasColumnType("decimal(18,4)");
             entity.Property(e => e.ProcessTotalAmount).HasColumnType("decimal(18,2)");
             entity.Property(e => e.SourceWorkOrderNo).HasMaxLength(50);

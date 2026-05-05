@@ -29,9 +29,7 @@ public class SubcontractOrderController : ControllerBase
         [FromQuery] string? keyword = null,
         [FromQuery] string? sortBy = null,
         [FromQuery] bool isDescending = true,
-        [FromQuery] string? status = null,
-        [FromQuery] DateTime? dateFrom = null,
-        [FromQuery] DateTime? dateTo = null)
+        [FromQuery] string? status = null)
     {
         if (pageSize > 5000) pageSize = 5000;
         var query = new SubcontractQueryParams
@@ -41,9 +39,7 @@ public class SubcontractOrderController : ControllerBase
             Keyword = keyword,
             SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy,
             IsDescending = isDescending,
-            Status = status,
-            DateFrom = dateFrom,
-            DateTo = dateTo
+            Status = status
         };
         var result = await _service.GetPagedAsync(query);
         return Ok(ApiResponse<PagedResult<SubcontractOrderDto>>.Ok(result, "查询成功"));
@@ -107,5 +103,53 @@ public class SubcontractOrderController : ControllerBase
     {
         await _service.DeleteAsync(id);
         return Ok(ApiResponse.Ok("删除成功"));
+    }
+
+    [HttpGet("procurement-status")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<ProcurementStatusDto>>>> GetProcurementStatus()
+    {
+        var result = await _service.GetProcurementStatusAsync();
+        return Ok(ApiResponse<List<ProcurementStatusDto>>.Ok(result, "查询成功"));
+    }
+
+    // ========== 打印 ==========
+
+    [HttpGet("{id}/print")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintOrder(int id)
+    {
+        var pdfBytes = await _service.PrintOrderAsync(id);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    [HttpPost("print-batch")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintOrderBatch([FromBody] OrderPrintBatchRequest request)
+    {
+        var pdfBytes = await _service.PrintOrderBatchAsync(request.Ids);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    [HttpPost("print-all")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintOrderAll([FromBody] OrderPrintAllRequest request)
+    {
+        var pdfBytes = await _service.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    [HttpGet("plan-detail")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<PlanDetailDto>>> GetPlanDetail(
+        [FromQuery] string workOrderNo, [FromQuery] string materialCategory)
+    {
+        var result = await _service.GetPlanDetailAsync(workOrderNo, materialCategory);
+        if (result == null)
+            return Ok(ApiResponse<PlanDetailDto>.Fail("未找到对应的用料计划"));
+        return Ok(ApiResponse<PlanDetailDto>.Ok(result, "查询成功"));
     }
 }

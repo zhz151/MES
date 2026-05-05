@@ -135,6 +135,8 @@ public class WorkOrderService
                 url += $"&mainNoMaterialPlanStatus={query.MainNoMaterialPlanStatus.Value}";
             if (query.OrderMaterialPlanStatus.HasValue)
                 url += $"&orderMaterialPlanStatus={query.OrderMaterialPlanStatus.Value}";
+            if (!string.IsNullOrEmpty(query.PlanTypeFilter))
+                url += $"&planTypeFilter={Uri.EscapeDataString(query.PlanTypeFilter)}";
 
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<WorkOrderListDto>>>(url);
             return response ?? ApiResponse<PagedResult<WorkOrderListDto>>.Fail("获取数据失败");
@@ -226,7 +228,7 @@ public class WorkOrderService
     }
 
     /// <summary>
-    /// 删除工单（软删除）
+    /// 删除工单（物理删除）
     /// </summary>
     public async Task<ApiResponse<object>> DeleteAsync(int id)
     {
@@ -258,14 +260,14 @@ public class WorkOrderService
     }
 
     /// <summary>
-    /// 软删除工单（用于"订单已取消-工单待删除"区域）
+    /// 删除工单（用于"订单已取消-工单待删除"区域）
     /// </summary>
     public async Task<ApiResponse<object>> SoftDeleteAsync(int id)
     {
         try
         {
             var response = await _http.PostAsJsonAsync<object, ApiResponse<object>>($"{BaseUrl}/{id}/soft-delete", new { });
-            return response ?? ApiResponse<object>.Fail("软删除失败");
+            return response ?? ApiResponse<object>.Fail("删除失败");
         }
         catch (Exception ex)
         {

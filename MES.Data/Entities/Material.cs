@@ -3,6 +3,11 @@ namespace MES.Data.Entities;
 public class Material : BaseEntity
 {
     /// <summary>
+    /// 物料编码（MA + 4位数字流水）
+    /// </summary>
+    public string MaterialCode { get; set; } = null!;
+
+    /// <summary>
     /// 物料分类（兼作物料名称）
     /// </summary>
     public string MaterialCategory { get; set; } = null!;

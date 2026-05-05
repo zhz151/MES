@@ -30,7 +30,6 @@ public class OrderService : IOrderService
     public async Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, bool? hasTechReq = null, List<SalesOrderStatus>? statuses = null)
     {
         var queryable = _context.SalesOrders
-            .Where(so => !so.IsDeleted)
             .Include(so => so.Customer)
             .AsNoTracking()
             .AsQueryable();
@@ -71,17 +70,17 @@ public class OrderService : IOrderService
             {
                 // 已编辑：订单下所有项次都有技术要求
                 queryable = queryable.Where(so =>
-                    _context.OrderItems.Any(oi => oi.SalesOrderId == so.Id && !oi.IsDeleted) &&
-                    !_context.OrderItems.Any(oi => oi.SalesOrderId == so.Id && !oi.IsDeleted &&
-                        !_context.ProductRequirements.Any(pr => pr.OrderItemId == oi.Id && !pr.IsDeleted)));
+                    _context.OrderItems.Any(oi => oi.SalesOrderId == so.Id) &&
+                    !_context.OrderItems.Any(oi => oi.SalesOrderId == so.Id &&
+                        !_context.ProductRequirements.Any(pr => pr.OrderItemId == oi.Id)));
             }
             else
             {
                 // 未编辑：至少有一个项次没有技术要求
                 queryable = queryable.Where(so =>
-                    _context.OrderItems.Any(oi => oi.SalesOrderId == so.Id && !oi.IsDeleted) &&
-                    _context.OrderItems.Any(oi => oi.SalesOrderId == so.Id && !oi.IsDeleted &&
-                        !_context.ProductRequirements.Any(pr => pr.OrderItemId == oi.Id && !pr.IsDeleted)));
+                    _context.OrderItems.Any(oi => oi.SalesOrderId == so.Id) &&
+                    _context.OrderItems.Any(oi => oi.SalesOrderId == so.Id &&
+                        !_context.ProductRequirements.Any(pr => pr.OrderItemId == oi.Id)));
             }
         }
 
@@ -131,19 +130,19 @@ public class OrderService : IOrderService
         var orderIds = salesOrders.Select(so => so.Id).ToList();
         var customerIds = salesOrders.Select(so => so.CustomerId).Distinct().ToList();
         var customers = await _context.CustomerProfiles
-            .Where(c => customerIds.Contains(c.Id) && !c.IsDeleted)
+            .Where(c => customerIds.Contains(c.Id))
             .ToDictionaryAsync(c => c.Id, c => c);
 
         var orderItemCounts = await _context.OrderItems
-            .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
+            .Where(oi => orderIds.Contains(oi.SalesOrderId))
             .GroupBy(oi => oi.SalesOrderId)
             .Select(g => new { OrderId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.OrderId, x => x.Count);
 
         var orderHasReqCounts = await _context.OrderItems
-            .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
+            .Where(oi => orderIds.Contains(oi.SalesOrderId))
             .GroupJoin(
-                _context.ProductRequirements.Where(pr => !pr.IsDeleted),
+                _context.ProductRequirements,
                 oi => oi.Id,
                 pr => pr.OrderItemId,
                 (oi, prs) => new { oi.SalesOrderId, HasReq = prs.Any() }
@@ -154,13 +153,13 @@ public class OrderService : IOrderService
             .ToDictionaryAsync(x => x.OrderId, x => x.Count);
 
         var firstOrderItemIds = await _context.OrderItems
-            .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
+            .Where(oi => orderIds.Contains(oi.SalesOrderId))
             .GroupBy(oi => oi.SalesOrderId)
             .Select(g => new { OrderId = g.Key, FirstItemId = g.OrderBy(oi => oi.Sequence).Select(oi => (int?)oi.Id).FirstOrDefault() })
             .ToDictionaryAsync(x => x.OrderId, x => x.FirstItemId);
 
         var orderItemMaxUpdate = await _context.OrderItems
-            .Where(oi => orderIds.Contains(oi.SalesOrderId) && !oi.IsDeleted)
+            .Where(oi => orderIds.Contains(oi.SalesOrderId))
             .GroupBy(oi => oi.SalesOrderId)
             .Select(g => new { OrderId = g.Key, MaxUpdate = g.Max(oi => oi.UpdatedTime) })
             .ToDictionaryAsync(x => x.OrderId, x => x.MaxUpdate);
@@ -205,20 +204,20 @@ public class OrderService : IOrderService
 
     public async Task<SalesOrderDetailDto> GetByIdAsync(int id)
     {
-        // 先查询订单（不 Include 导航属性，避免全局软删除过滤器将 LEFT JOIN 转为 INNER JOIN）
+        // 先查询订单
         var salesOrder = await _context.SalesOrders
             .AsNoTracking()
-            .Include(so => so.OrderItems.Where(oi => !oi.IsDeleted))
-            .FirstOrDefaultAsync(so => so.Id == id && !so.IsDeleted);
+            .Include(so => so.OrderItems)
+            .FirstOrDefaultAsync(so => so.Id == id);
 
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
 
-        // 单独加载 Customer（避免全局软删除过滤器冲突）
+        // 单独加载 Customer
         var customer = await _context.CustomerProfiles
             .FirstOrDefaultAsync(c => c.Id == salesOrder.CustomerId);
 
-        // 单独加载 ProductionStandard（避免全局软删除过滤器冲突）
+        // 单独加载 ProductionStandard
         var psIds = salesOrder.OrderItems
             .Where(oi => oi.ProductionStandardId > 0)
             .Select(oi => oi.ProductionStandardId)
@@ -280,10 +279,10 @@ public class OrderService : IOrderService
 
     public async Task<SalesOrderListDto> CreateAsync(CreateSalesOrderRequest request)
     {
-        if (await _context.SalesOrders.AnyAsync(so => so.OrderNumber == request.OrderNumber && !so.IsDeleted))
+        if (await _context.SalesOrders.AnyAsync(so => so.OrderNumber == request.OrderNumber))
             throw new BusinessException("订单号已存在");
 
-        var customer = await _context.CustomerProfiles.FirstOrDefaultAsync(c => c.Id == request.CustomerId && !c.IsDeleted);
+        var customer = await _context.CustomerProfiles.FirstOrDefaultAsync(c => c.Id == request.CustomerId);
         if (customer == null)
             throw new BusinessException("客户不存在");
 
@@ -325,7 +324,7 @@ public class OrderService : IOrderService
     {
         var salesOrder = await _context.SalesOrders
             .Include(so => so.Customer)
-            .FirstOrDefaultAsync(so => so.Id == id && !so.IsDeleted);
+            .FirstOrDefaultAsync(so => so.Id == id);
 
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
@@ -335,7 +334,7 @@ public class OrderService : IOrderService
 
         if (!string.IsNullOrEmpty(request.OrderNumber) && request.OrderNumber != salesOrder.OrderNumber)
         {
-            if (await _context.SalesOrders.AnyAsync(so => so.OrderNumber == request.OrderNumber && so.Id != id && !so.IsDeleted))
+            if (await _context.SalesOrders.AnyAsync(so => so.OrderNumber == request.OrderNumber && so.Id != id))
                 throw new BusinessException("订单号已存在");
             salesOrder.OrderNumber = request.OrderNumber;
         }
@@ -345,7 +344,7 @@ public class OrderService : IOrderService
 
         if (request.CustomerId.HasValue && request.CustomerId.Value != salesOrder.CustomerId)
         {
-            var customer = await _context.CustomerProfiles.FirstOrDefaultAsync(c => c.Id == request.CustomerId.Value && !c.IsDeleted);
+            var customer = await _context.CustomerProfiles.FirstOrDefaultAsync(c => c.Id == request.CustomerId.Value);
             if (customer == null)
                 throw new BusinessException("客户不存在");
             salesOrder.CustomerId = request.CustomerId.Value;
@@ -373,7 +372,7 @@ public class OrderService : IOrderService
             throw new BusinessException("订单已被其他用户修改，请刷新后重试");
         }
 
-        var updatedCustomer = await _context.CustomerProfiles.FirstOrDefaultAsync(c => c.Id == salesOrder.CustomerId && !c.IsDeleted);
+        var updatedCustomer = await _context.CustomerProfiles.FirstOrDefaultAsync(c => c.Id == salesOrder.CustomerId);
 
         return new SalesOrderListDto
         {
@@ -393,7 +392,7 @@ public async Task DeleteAsync(int id)
     var salesOrder = await _context.SalesOrders
         .Include(so => so.OrderItems)
             .ThenInclude(oi => oi.ProductRequirement)
-        .FirstOrDefaultAsync(so => so.Id == id && !so.IsDeleted);
+        .FirstOrDefaultAsync(so => so.Id == id);
 
     if (salesOrder == null)
         throw new BusinessException("订单不存在");
@@ -405,16 +404,8 @@ public async Task DeleteAsync(int id)
     using var transaction = await _context.Database.BeginTransactionAsync();
     try
     {
-        // 2. 软删除订单
-        salesOrder.IsDeleted = true;
-
-        // 3. 软删除订单项次和产品要求
-        foreach (var orderItem in salesOrder.OrderItems.Where(oi => !oi.IsDeleted))
-        {
-            orderItem.IsDeleted = true;
-            if (orderItem.ProductRequirement != null && !orderItem.ProductRequirement.IsDeleted)
-                orderItem.ProductRequirement.IsDeleted = true;
-        }
+        // 2. 物理删除订单（级联删除订单项次和产品要求）
+        _context.SalesOrders.Remove(salesOrder);
 
         // 4. 物理删除关联工单（在事务内查询和删除，避免并发窗口）
         var workOrders = await _context.WorkOrders
@@ -463,8 +454,8 @@ public async Task DeleteAsync(int id)
     public async Task<OrderItemDto> AddItemAsync(int orderId, AddOrderItemRequest request)
     {
         var salesOrder = await _context.SalesOrders
-            .Include(so => so.OrderItems.Where(oi => !oi.IsDeleted))
-            .FirstOrDefaultAsync(so => so.Id == orderId && !so.IsDeleted);
+            .Include(so => so.OrderItems)
+            .FirstOrDefaultAsync(so => so.Id == orderId);
 
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
@@ -521,7 +512,7 @@ public async Task DeleteAsync(int id)
     public async Task<OrderItemDto> UpdateItemAsync(int orderId, int itemId, UpdateOrderItemRequest request)
     {
         var salesOrder = await _context.SalesOrders
-            .FirstOrDefaultAsync(so => so.Id == orderId && !so.IsDeleted);
+            .FirstOrDefaultAsync(so => so.Id == orderId);
 
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
@@ -531,7 +522,7 @@ public async Task DeleteAsync(int id)
 
         var orderItem = await _context.OrderItems
             .Include(oi => oi.ProductionStandard)
-            .FirstOrDefaultAsync(oi => oi.Id == itemId && oi.SalesOrderId == orderId && !oi.IsDeleted);
+            .FirstOrDefaultAsync(oi => oi.Id == itemId && oi.SalesOrderId == orderId);
 
         if (orderItem == null)
             throw new BusinessException("订单项次不存在");
@@ -539,14 +530,14 @@ public async Task DeleteAsync(int id)
         if (request.Sequence != orderItem.Sequence)
         {
             var exists = await _context.OrderItems
-                .AnyAsync(oi => oi.SalesOrderId == orderId && oi.Sequence == request.Sequence && oi.Id != itemId && !oi.IsDeleted);
+                .AnyAsync(oi => oi.SalesOrderId == orderId && oi.Sequence == request.Sequence && oi.Id != itemId);
             if (exists)
                 throw new BusinessException($"项次号 {request.Sequence} 已存在");
             orderItem.Sequence = request.Sequence;
         }
 
         var gradeMapping = await _context.StandardGradeMappings
-            .FirstOrDefaultAsync(sgm => sgm.StandardGrade == request.StandardGrade && !sgm.IsDeleted);
+            .FirstOrDefaultAsync(sgm => sgm.StandardGrade == request.StandardGrade);
         if (gradeMapping == null)
             throw new BusinessException($"标准牌号 '{request.StandardGrade}' 不存在");
 
@@ -571,7 +562,7 @@ public async Task DeleteAsync(int id)
             metersValue);
 
         var productionStandard = await _context.ProductionStandards
-            .FirstOrDefaultAsync(ps => ps.Id == request.ProductionStandardId && !ps.IsDeleted);
+            .FirstOrDefaultAsync(ps => ps.Id == request.ProductionStandardId);
         if (productionStandard == null)
             throw new BusinessException("产品标准不存在");
 
@@ -624,7 +615,7 @@ public async Task DeleteAsync(int id)
     public async Task DeleteItemAsync(int orderId, int itemId)
     {
         var salesOrder = await _context.SalesOrders
-            .FirstOrDefaultAsync(so => so.Id == orderId && !so.IsDeleted);
+            .FirstOrDefaultAsync(so => so.Id == orderId);
 
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
@@ -634,14 +625,12 @@ public async Task DeleteAsync(int id)
 
         var orderItem = await _context.OrderItems
             .Include(oi => oi.ProductRequirement)
-            .FirstOrDefaultAsync(oi => oi.Id == itemId && oi.SalesOrderId == orderId && !oi.IsDeleted);
+            .FirstOrDefaultAsync(oi => oi.Id == itemId && oi.SalesOrderId == orderId);
 
         if (orderItem == null)
             throw new BusinessException("订单项次不存在");
 
-        orderItem.IsDeleted = true;
-        if (orderItem.ProductRequirement != null && !orderItem.ProductRequirement.IsDeleted)
-            orderItem.ProductRequirement.IsDeleted = true;
+        _context.OrderItems.Remove(orderItem);
 
         // 更新订单的最后项次变更时间
         salesOrder.LastItemChangeTime = DateTimeOffset.Now;
@@ -668,12 +657,12 @@ public async Task DeleteAsync(int id)
     private async Task<OrderItem> CreateOrderItemFromCreateRequestAsync(CreateOrderItemRequest request, int salesOrderId, int sequence)
     {
         var productionStandard = await _context.ProductionStandards
-            .FirstOrDefaultAsync(ps => ps.Id == request.ProductionStandardId && !ps.IsDeleted);
+            .FirstOrDefaultAsync(ps => ps.Id == request.ProductionStandardId);
         if (productionStandard == null)
             throw new BusinessException("产品标准不存在");
 
         var gradeMapping = await _context.StandardGradeMappings
-            .FirstOrDefaultAsync(sgm => sgm.StandardGrade == request.StandardGrade && !sgm.IsDeleted);
+            .FirstOrDefaultAsync(sgm => sgm.StandardGrade == request.StandardGrade);
         if (gradeMapping == null)
             throw new BusinessException($"标准牌号 '{request.StandardGrade}' 不存在");
 
@@ -735,12 +724,12 @@ public async Task DeleteAsync(int id)
     private async Task<OrderItem> CreateOrderItemFromAddRequestAsync(AddOrderItemRequest request, int salesOrderId, int sequence)
     {
         var productionStandard = await _context.ProductionStandards
-            .FirstOrDefaultAsync(ps => ps.Id == request.ProductionStandardId && !ps.IsDeleted);
+            .FirstOrDefaultAsync(ps => ps.Id == request.ProductionStandardId);
         if (productionStandard == null)
             throw new BusinessException("产品标准不存在");
 
         var gradeMapping = await _context.StandardGradeMappings
-            .FirstOrDefaultAsync(sgm => sgm.StandardGrade == request.StandardGrade && !sgm.IsDeleted);
+            .FirstOrDefaultAsync(sgm => sgm.StandardGrade == request.StandardGrade);
         if (gradeMapping == null)
             throw new BusinessException($"标准牌号 '{request.StandardGrade}' 不存在");
 
@@ -998,7 +987,7 @@ public async Task DeleteAsync(int id)
     private async Task CreateItemChangedNotificationIfNeededAsync(int salesOrderId)
     {
         var salesOrder = await _context.SalesOrders
-            .FirstOrDefaultAsync(so => so.Id == salesOrderId && !so.IsDeleted);
+            .FirstOrDefaultAsync(so => so.Id == salesOrderId);
         if (salesOrder == null || salesOrder.Status != SalesOrderStatus.Confirmed)
             return;
 
@@ -1093,7 +1082,7 @@ public async Task DeleteAsync(int id)
 
         // 加载技术要求
         var reqResult = await _context.ProductRequirements
-            .Where(pr => !pr.IsDeleted && pr.OrderItem != null && pr.OrderItem.SalesOrderId == orderId)
+            .Where(pr => pr.OrderItem != null && pr.OrderItem.SalesOrderId == orderId)
             .Include(pr => pr.OrderItem)
             .ToListAsync();
 

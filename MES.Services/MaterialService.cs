@@ -5,6 +5,8 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Helpers;
+using MES.Services.Printing;
 
 namespace MES.Services;
 
@@ -21,13 +23,13 @@ public class MaterialService : IMaterialService
     {
         var queryable = _context.Materials
             .AsNoTracking()
-            .Where(m => !m.IsDeleted)
             .AsQueryable();
 
         if (!string.IsNullOrEmpty(query.Keyword))
         {
             var kw = query.Keyword;
             queryable = queryable.Where(m =>
+                m.MaterialCode.Contains(kw) ||
                 m.MaterialCategory.Contains(kw) ||
                 m.PlantGrade.Contains(kw) ||
                 m.Specification.Contains(kw));
@@ -35,12 +37,21 @@ public class MaterialService : IMaterialService
 
         queryable = query.SortBy?.ToLower() switch
         {
+            "materialcode" => query.IsDescending
+                ? queryable.OrderByDescending(m => m.MaterialCode)
+                : queryable.OrderBy(m => m.MaterialCode),
             "materialcategory" => query.IsDescending
                 ? queryable.OrderByDescending(m => m.MaterialCategory)
                 : queryable.OrderBy(m => m.MaterialCategory),
-            "plangrade" => query.IsDescending
+            "plantgrade" => query.IsDescending
                 ? queryable.OrderByDescending(m => m.PlantGrade)
                 : queryable.OrderBy(m => m.PlantGrade),
+            "specification" => query.IsDescending
+                ? queryable.OrderByDescending(m => m.Specification)
+                : queryable.OrderBy(m => m.Specification),
+            "isactive" => query.IsDescending
+                ? queryable.OrderByDescending(m => m.IsActive)
+                : queryable.OrderBy(m => m.IsActive),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(m => m.CreatedTime)
                 : queryable.OrderBy(m => m.CreatedTime)
@@ -53,6 +64,7 @@ public class MaterialService : IMaterialService
             .Select(m => new MaterialDto
             {
                 Id = m.Id,
+                MaterialCode = m.MaterialCode,
                 MaterialCategory = m.MaterialCategory,
                 PlantGrade = m.PlantGrade,
                 Specification = m.Specification,
@@ -76,7 +88,7 @@ public class MaterialService : IMaterialService
     {
         var entity = await _context.Materials
             .AsNoTracking()
-            .FirstOrDefaultAsync(m => m.Id == id && !m.IsDeleted);
+            .FirstOrDefaultAsync(m => m.Id == id);
         if (entity == null) throw new BusinessException("物料不存在");
         return ToDto(entity);
     }
@@ -85,7 +97,7 @@ public class MaterialService : IMaterialService
     {
         var items = await _context.Materials
             .AsNoTracking()
-            .Where(m => !m.IsDeleted && m.IsActive)
+            .Where(m => m.IsActive)
             .OrderBy(m => m.MaterialCategory)
             .ThenBy(m => m.PlantGrade)
             .Select(m => ToDto(m))
@@ -97,7 +109,7 @@ public class MaterialService : IMaterialService
     {
         return await _context.Materials
             .AsNoTracking()
-            .Where(m => !m.IsDeleted && m.IsActive)
+            .Where(m => m.IsActive)
             .Select(m => m.MaterialCategory)
             .Distinct()
             .OrderBy(c => c)
@@ -111,8 +123,7 @@ public class MaterialService : IMaterialService
             .FirstOrDefaultAsync(m =>
                 m.MaterialCategory == category &&
                 m.PlantGrade == grade &&
-                m.Specification == spec &&
-                !m.IsDeleted);
+                m.Specification == spec);
         return entity != null ? ToDto(entity) : null;
     }
 
@@ -122,12 +133,15 @@ public class MaterialService : IMaterialService
             .AnyAsync(m =>
                 m.MaterialCategory == request.MaterialCategory &&
                 m.PlantGrade == request.PlantGrade &&
-                m.Specification == request.Specification &&
-                !m.IsDeleted);
+                m.Specification == request.Specification);
         if (exists) throw new BusinessException("该物料组合已存在");
+
+        var materialCode = await CodeGenerator.GenerateNextAsync(
+            _context.Materials.Select(m => m.MaterialCode), "MA");
 
         var entity = new Material
         {
+            MaterialCode = materialCode,
             MaterialCategory = request.MaterialCategory,
             PlantGrade = request.PlantGrade,
             Specification = request.Specification,
@@ -140,10 +154,70 @@ public class MaterialService : IMaterialService
         return ToDto(entity);
     }
 
+    public async Task<List<MaterialDto>> CreateBatchAsync(List<CreateMaterialRequest> requests)
+    {
+        if (requests.Count == 0) return new List<MaterialDto>();
+
+        // 检查批次内是否有重复组合
+        var duplicates = requests
+            .GroupBy(r => new { r.MaterialCategory, r.PlantGrade, r.Specification })
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+        if (duplicates.Any())
+        {
+            var dupMsg = string.Join("；", duplicates.Select(d => $"{d.MaterialCategory}/{d.PlantGrade}/{d.Specification}"));
+            throw new BusinessException($"批次内存在重复物料组合：{dupMsg}");
+        }
+
+        // 检查数据库中是否已存在
+        var existing = await _context.Materials
+            .Select(m => new { m.MaterialCategory, m.PlantGrade, m.Specification })
+            .ToListAsync();
+        var conflict = requests.FirstOrDefault(r =>
+            existing.Any(e =>
+                e.MaterialCategory == r.MaterialCategory &&
+                e.PlantGrade == r.PlantGrade &&
+                e.Specification == r.Specification));
+        if (conflict != null)
+            throw new BusinessException($"物料组合已存在：{conflict.MaterialCategory}/{conflict.PlantGrade}/{conflict.Specification}");
+
+        // 预生成编码
+        var maxCode = await _context.Materials
+            .Where(m => m.MaterialCode.StartsWith("MA") && m.MaterialCode.Length == 6)
+            .OrderByDescending(m => m.MaterialCode)
+            .Select(m => m.MaterialCode)
+            .FirstOrDefaultAsync();
+
+        int sequence = 1;
+        if (maxCode != null && int.TryParse(maxCode[2..], out var lastSeq))
+            sequence = lastSeq + 1;
+
+        var entities = new List<Material>(requests.Count);
+        for (int i = 0; i < requests.Count; i++)
+        {
+            var r = requests[i];
+            var code = $"MA{sequence + i:D4}";
+            entities.Add(new Material
+            {
+                MaterialCode = code,
+                MaterialCategory = r.MaterialCategory,
+                PlantGrade = r.PlantGrade,
+                Specification = r.Specification,
+                IsActive = r.IsActive,
+                Remark = r.Remark
+            });
+        }
+
+        _context.Materials.AddRange(entities);
+        await _context.SaveChangesAsync();
+        return entities.Select(ToDto).ToList();
+    }
+
     public async Task<MaterialDto> UpdateAsync(int id, UpdateMaterialRequest request)
     {
         var entity = await _context.Materials
-            .FirstOrDefaultAsync(m => m.Id == id && !m.IsDeleted);
+            .FirstOrDefaultAsync(m => m.Id == id);
         if (entity == null) throw new BusinessException("物料不存在");
 
         if (request.MaterialCategory != null) entity.MaterialCategory = request.MaterialCategory;
@@ -159,21 +233,53 @@ public class MaterialService : IMaterialService
     public async Task DeleteAsync(int id)
     {
         var entity = await _context.Materials
-            .FirstOrDefaultAsync(m => m.Id == id && !m.IsDeleted);
+            .FirstOrDefaultAsync(m => m.Id == id);
         if (entity == null) throw new BusinessException("物料不存在");
 
-        // 检查是否有关联的库存批次（匹配分类+钢种+规格）
-        var hasBatches = await _context.InventoryBatches
-            .AnyAsync(b => b.MaterialType == entity.MaterialCategory && b.PlantGrade == entity.PlantGrade && b.Specification == entity.Specification && !b.IsDeleted);
-        if (hasBatches) throw new BusinessException("该物料存在关联的库存批次，无法删除");
-
-        entity.IsDeleted = true;
+        _context.Materials.Remove(entity);
         await _context.SaveChangesAsync();
+    }
+
+    // ========== 打印 ==========
+
+    public async Task<byte[]> PrintMaterialAsync(int id)
+    {
+        var dto = await GetByIdAsync(id);
+        return MaterialPrintHelper.GeneratePdf(dto);
+    }
+
+    public async Task<byte[]> PrintMaterialBatchAsync(int[] ids)
+    {
+        var result = new List<MaterialDto>();
+        foreach (var id in ids)
+        {
+            try
+            {
+                result.Add(await GetByIdAsync(id));
+            }
+            catch (BusinessException) { }
+        }
+        return MaterialPrintHelper.GenerateBatchPdf(result);
+    }
+
+    public async Task<byte[]> PrintMaterialAllAsync(string? keyword, string? sortBy = null, bool isDescending = false)
+    {
+        var query = new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = int.MaxValue,
+            Keyword = keyword,
+            SortBy = sortBy,
+            IsDescending = isDescending
+        };
+        var paged = await GetPagedAsync(query);
+        return MaterialPrintHelper.GenerateBatchPdf(paged.Items);
     }
 
     private static MaterialDto ToDto(Material entity) => new()
     {
         Id = entity.Id,
+        MaterialCode = entity.MaterialCode,
         MaterialCategory = entity.MaterialCategory,
         PlantGrade = entity.PlantGrade,
         Specification = entity.Specification,

@@ -120,6 +120,13 @@ public string StatusText
     /// </summary>
     public DateTimeOffset CreatedTime { get; set; }
 
+    // ========== 最新计划日期 ==========
+
+    /// <summary>
+    /// 4种用料计划中最新的计划日期（取最大值），无计划时为 null
+    /// </summary>
+    public DateTime? LatestPlanDate { get; set; }
+
     // ========== 各类用料重量/数量汇总 ==========
 
     /// <summary>

@@ -56,17 +56,12 @@ public class PurchaseSemiPlan : BaseEntity
     /// </summary>
     public decimal? RawUnitWeight { get; set; }
 
-    /// <summary>
-    /// 原料支数（定尺/范围尺=自动，非定尺=人工）
-    /// </summary>
-    public int? RequiredPieces { get; set; }
-
-    /// <summary>
-    /// 原料重量(kg)（定尺/范围尺=自动，非定尺=人工）
-    /// </summary>
-    public decimal RequiredWeight { get; set; }
-
     // ========== 采购信息 ==========
+
+    /// <summary>
+    /// 工厂牌号
+    /// </summary>
+    public string PlantGrade { get; set; } = null!;
 
     /// <summary>
     /// 原料类型（荒管/半成品）
@@ -79,9 +74,24 @@ public class PurchaseSemiPlan : BaseEntity
     public string RawMaterialSpec { get; set; } = null!;
 
     /// <summary>
+    /// 需求单重(kg/支)
+    /// </summary>
+    public decimal? RequiredUnitWeight { get; set; }
+
+    /// <summary>
+    /// 需求支数
+    /// </summary>
+    public int? RequiredPieces { get; set; }
+
+    /// <summary>
+    /// 需求重量(kg)
+    /// </summary>
+    public decimal RequiredWeight { get; set; }
+
+    /// <summary>
     /// 要求到货日期
     /// </summary>
-    public DateTime? RequiredDate { get; set; }
+    public DateTime RequiredDate { get; set; }
 
     // ========== 工艺路线 ==========
 

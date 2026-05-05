@@ -78,23 +78,29 @@ public class ExceptionMiddleware
         await context.Response.WriteAsync(result);
     }
 
-    private async Task HandleSystemExceptionAsync(HttpContext context, Exception ex)
+private async Task HandleSystemExceptionAsync(HttpContext context, Exception ex)
     {
         _logger.LogError(ex, "系统异常: {Message}", ex.Message);
 
         context.Response.StatusCode = 500;
         context.Response.ContentType = "application/json";
 
+        var message = "系统内部错误，请稍后重试";
+
+#if DEBUG
+        // 递归获取最内层的异常消息（如 SQL 约束违反）
+        var inner = ex;
+        while (inner.InnerException != null)
+            inner = inner.InnerException;
+        message = $"{ex.Message} | {inner.GetType().Name}: {inner.Message}";
+#endif
+
         var response = new ApiResponse<object>
         {
             Success = false,
             Code = 500,
-            Message = "系统内部错误，请稍后重试"
+            Message = message
         };
-
-#if DEBUG
-        response.Message = ex.Message;
-#endif
 
         var result = JsonSerializer.Serialize(response, new JsonSerializerOptions
         {

@@ -100,7 +100,7 @@ public class CustomerServiceTests : TestBase
     }
 
     [Fact]
-    public async Task GetPagedAsync_软删除后不显示()
+    public async Task GetPagedAsync_删除后不显示()
     {
         var ctx = CreateDbContext();
         await SeedCustomerAsync(ctx);
@@ -177,7 +177,7 @@ public class CustomerServiceTests : TestBase
         result.Salesman.Should().Be("王五");
         result.Status.Should().Be(CustomerStatus.Active);
 
-        var saved = await ctx.CustomerProfiles.FirstAsync(c => !c.IsDeleted);
+        var saved = await ctx.CustomerProfiles.FirstAsync();
         saved.CustomerCode.Should().Be("C100");
     }
 
@@ -250,7 +250,7 @@ public class CustomerServiceTests : TestBase
     // ========== DeleteAsync ==========
 
     [Fact]
-    public async Task DeleteAsync_成功软删除()
+    public async Task DeleteAsync_成功删除()
     {
         var ctx = CreateDbContext();
         await SeedCustomerAsync(ctx);
@@ -260,7 +260,7 @@ public class CustomerServiceTests : TestBase
         await svc.DeleteAsync(id);
 
         var deleted = await ctx.CustomerProfiles.FindAsync(id);
-        deleted!.IsDeleted.Should().BeTrue();
+        deleted.Should().BeNull();
     }
 
     [Fact]

@@ -11,6 +11,12 @@ public interface IMaterialService
     Task<List<string>> GetCategoriesAsync();
     Task<MaterialDto?> MatchAsync(string category, string grade, string spec);
     Task<MaterialDto> CreateAsync(CreateMaterialRequest request);
+    Task<List<MaterialDto>> CreateBatchAsync(List<CreateMaterialRequest> requests);
     Task<MaterialDto> UpdateAsync(int id, UpdateMaterialRequest request);
     Task DeleteAsync(int id);
+
+    // ========== 打印 ==========
+    Task<byte[]> PrintMaterialAsync(int id);
+    Task<byte[]> PrintMaterialBatchAsync(int[] ids);
+    Task<byte[]> PrintMaterialAllAsync(string? keyword, string? sortBy = null, bool isDescending = false);
 }

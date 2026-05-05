@@ -35,7 +35,9 @@
             </MudCardHeader>
             <MudCardContent>
                 <MudGrid>
-                    <MudItem xs="12" md="6"><MudTextField T="string" Label="供应商名称" @bind-Value="editItem.SupplierName" Disabled="!isEditMode" /></MudItem>
+                    <MudItem xs="12" md="3"><MudTextField T="string" Label="供应商编码" Value="@item.SupplierCode" Disabled="true" /></MudItem>
+                    <MudItem xs="12" md="3"><MudTextField T="string" Label="供应商名称" @bind-Value="editItem.SupplierName" Disabled="!isEditMode" /></MudItem>
+                    <MudItem xs="12" md="3"><MudTextField T="string" Label="物料分类" @bind-Value="editItem.MaterialCategory" Disabled="!isEditMode" /></MudItem>
                     <MudItem xs="12" md="3"><MudTextField T="string" Label="联系人" @bind-Value="editItem.ContactPerson" Disabled="!isEditMode" /></MudItem>
                     <MudItem xs="12" md="3"><MudTextField T="string" Label="联系电话" @bind-Value="editItem.ContactPhone" Disabled="!isEditMode" /></MudItem>
                     <MudItem xs="12" md="12"><MudTextField T="string" Label="地址" @bind-Value="editItem.Address" Disabled="!isEditMode" Multiline="true" Lines="2" /></MudItem>
@@ -67,7 +69,7 @@
             if (result.Success && result.Data != null)
             {
                 item = result.Data;
-                editItem = new UpdateSupplierRequest { SupplierName = item.SupplierName, ContactPerson = item.ContactPerson, ContactPhone = item.ContactPhone, Address = item.Address, IsActive = item.IsActive, Remark = item.Remark };
+                editItem = new UpdateSupplierRequest { SupplierName = item.SupplierName, MaterialCategory = item.MaterialCategory, ContactPerson = item.ContactPerson, ContactPhone = item.ContactPhone, Address = item.Address, IsActive = item.IsActive, Remark = item.Remark };
             }
             else { Snackbar.Add(result.Message ?? "加载失败", Severity.Error); }
         }

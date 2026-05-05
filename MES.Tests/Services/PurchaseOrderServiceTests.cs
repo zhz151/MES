@@ -19,7 +19,7 @@ public class PurchaseOrderServiceTests : TestBase
 
     private async Task<int> SeedSupplierAsync(AppDbContext ctx, string name = "测试供应商")
     {
-        var entity = new SupplierProfile { SupplierName = name, IsActive = true };
+        var entity = new SupplierProfile { SupplierCode = $"S{Guid.NewGuid():N}"[..10], SupplierName = name, IsActive = true };
         ctx.SupplierProfiles.Add(entity);
         await ctx.SaveChangesAsync();
         return entity.Id;
@@ -242,7 +242,7 @@ public class PurchaseOrderServiceTests : TestBase
         result.TotalAmount.Should().Be(5000m); // 100 * 50
         result.SourceWorkOrderNo.Should().Be("GD20260101001");
 
-        var saved = await ctx.PurchaseOrders.FirstAsync(p => !p.IsDeleted);
+        var saved = await ctx.PurchaseOrders.FirstAsync(p => p.OrderNo == result.OrderNo);
         saved.OrderNo.Should().Be(result.OrderNo);
         saved.TotalAmount.Should().Be(5000m);
     }
@@ -436,7 +436,7 @@ public class PurchaseOrderServiceTests : TestBase
     // ========== DeleteAsync ==========
 
     [Fact]
-    public async Task DeleteAsync_成功软删除()
+    public async Task DeleteAsync_成功删除()
     {
         var ctx = CreateDbContext();
         var sid = await SeedSupplierAsync(ctx);
@@ -446,7 +446,7 @@ public class PurchaseOrderServiceTests : TestBase
         await svc.DeleteAsync(order.Id);
 
         var deleted = await ctx.PurchaseOrders.FindAsync(order.Id);
-        deleted!.IsDeleted.Should().BeTrue();
+        deleted.Should().BeNull();
     }
 
     [Fact]

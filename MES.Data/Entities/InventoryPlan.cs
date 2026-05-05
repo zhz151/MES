@@ -28,6 +28,11 @@ public class InventoryPlan : BaseEntity
     public string BatchNo { get; set; } = null!;
 
     /// <summary>
+    /// 物料名称（从库存批次冗余）
+    /// </summary>
+    public string MaterialType { get; set; } = null!;
+
+    /// <summary>
     /// 工厂牌号（冗余展示）
     /// </summary>
     public string PlantGrade { get; set; } = null!;
@@ -36,6 +41,16 @@ public class InventoryPlan : BaseEntity
     /// 名义规格（冗余展示）
     /// </summary>
     public string Specification { get; set; } = null!;
+
+    /// <summary>
+    /// 放置区域（从库存批次冗余）
+    /// </summary>
+    public string? LocationArea { get; set; }
+
+    /// <summary>
+    /// 放置架号（从库存批次冗余）
+    /// </summary>
+    public string? LocationRack { get; set; }
 
     /// <summary>
     /// 投料倍率（1支原料做几支成品）

@@ -16,14 +16,14 @@ public class SubcontractReturnItem : BaseEntity
     public int Sequence { get; set; }
 
     /// <summary>
-    /// 加工类型（如：穿孔/冷拔/热处理）
-    /// </summary>
-    public string ProcessType { get; set; } = null!;
-
-    /// <summary>
     /// 加工后物料分类
     /// </summary>
     public string MaterialCategory { get; set; } = null!;
+
+    /// <summary>
+    /// 工厂牌号
+    /// </summary>
+    public string? PlantGrade { get; set; }
 
     /// <summary>
     /// 加工规格
@@ -31,9 +31,29 @@ public class SubcontractReturnItem : BaseEntity
     public string ProcessSpecification { get; set; } = null!;
 
     /// <summary>
+    /// 单重(kg)
+    /// </summary>
+    public decimal? UnitWeight { get; set; }
+
+    /// <summary>
+    /// 需求支数
+    /// </summary>
+    public int? RequiredQuantity { get; set; }
+
+    /// <summary>
+    /// 需求重量(kg)
+    /// </summary>
+    public decimal? RequiredWeight { get; set; }
+
+    /// <summary>
     /// 状态备注
     /// </summary>
     public string? ProcessStatusRemark { get; set; }
+
+    /// <summary>
+    /// 备注
+    /// </summary>
+    public string? Remark { get; set; }
 
     /// <summary>
     /// 加工单价
@@ -46,7 +66,7 @@ public class SubcontractReturnItem : BaseEntity
     public decimal? ProcessTotalAmount { get; set; }
 
     /// <summary>
-    /// 对应工单号（为空表示余料）
+    /// 来源工单号
     /// </summary>
     public string? SourceWorkOrderNo { get; set; }
 

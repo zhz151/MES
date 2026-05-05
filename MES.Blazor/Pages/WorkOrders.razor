@@ -149,7 +149,7 @@
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh Style="width: 40px;">
-                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" OnValueChanged="ToggleSelectAll" />
+                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
                     </MudTh>
                     <MudTh>
                         <span @onclick='() => ToggleSort("ordernumber")' class="sortable-header">
@@ -202,7 +202,7 @@
                     <MudTd Style="width: 40px;">
                         <MudCheckBox T="bool"
                                      Value="@selectedOrderNos.Contains(order.OrderNumber)"
-                                     ValueChanged="@((v) => { if(v) selectedOrderNos.Add(order.OrderNumber); else selectedOrderNos.Remove(order.OrderNumber); StateHasChanged(); })"
+                                     ValueChanged="@((v) => { if(v) selectedOrderNos.Add(order.OrderNumber); else selectedOrderNos.Remove(order.OrderNumber); _allSelected = orders.Any() && orders.All(i => selectedOrderNos.Contains(i.OrderNumber)); StateHasChanged(); })"
                                      Dense="true" />
                     </MudTd>
                     <MudTd>
@@ -328,7 +328,26 @@ else if (order.WorkOrderStatus == "Pending")
     private bool sortDescending = true;
 
     // 选中与悬停
-    private bool allSelected;
+    private bool _allSelected;
+    private bool allSelected
+    {
+        get => _allSelected;
+        set
+        {
+            if (_allSelected == value) return;
+            _allSelected = value;
+            if (value)
+            {
+                foreach (var item in orders)
+                    selectedOrderNos.Add(item.OrderNumber);
+            }
+            else
+            {
+                selectedOrderNos.Clear();
+            }
+            StateHasChanged();
+        }
+    }
     private HashSet<string> selectedOrderNos = new();
 
     private string GetSortIndicator(string column)
@@ -621,20 +640,6 @@ else if (order.WorkOrderStatus == "Pending")
         catch (Exception ex)
         {
             Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task ToggleSelectAll(bool select)
-    {
-        allSelected = select;
-        if (select)
-        {
-            foreach (var item in orders)
-                selectedOrderNos.Add(item.OrderNumber);
-        }
-        else
-        {
-            selectedOrderNos.Clear();
         }
     }
 

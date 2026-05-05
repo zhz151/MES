@@ -41,4 +41,56 @@ public class PurchaseFinishedPlan : BaseEntity
     /// 备注
     /// </summary>
     public string? Remark { get; set; }
+
+    // ========== 工单冗余字段（默认与工单一致，可编辑） ==========
+
+    /// <summary>
+    /// 工厂牌号
+    /// </summary>
+    public string PlantGrade { get; set; } = null!;
+
+    /// <summary>
+    /// 规格（外径*壁厚）
+    /// </summary>
+    public string Specification { get; set; } = null!;
+
+    /// <summary>
+    /// 外径负公差(mm)
+    /// </summary>
+    public decimal OuterDiameterNegative { get; set; }
+
+    /// <summary>
+    /// 外径正公差(mm)
+    /// </summary>
+    public decimal OuterDiameterPositive { get; set; }
+
+    /// <summary>
+    /// 壁厚负公差(mm)
+    /// </summary>
+    public decimal WallThicknessNegative { get; set; }
+
+    /// <summary>
+    /// 壁厚正公差(mm)
+    /// </summary>
+    public decimal WallThicknessPositive { get; set; }
+
+    /// <summary>
+    /// 长度状态
+    /// </summary>
+    public LengthStatus LengthStatus { get; set; }
+
+    /// <summary>
+    /// 最小长度(mm)
+    /// </summary>
+    public decimal? MinLength { get; set; }
+
+    /// <summary>
+    /// 最大长度(mm)
+    /// </summary>
+    public decimal? MaxLength { get; set; }
+
+    /// <summary>
+    /// 交货状态
+    /// </summary>
+    public DeliveryState DeliveryState { get; set; }
 }

@@ -17,10 +17,11 @@ public class SupplierServiceTests : TestBase
 {
     private SupplierService CreateService(AppDbContext ctx) => new(ctx);
 
-    private async Task SeedSupplierAsync(AppDbContext ctx, string name = "测试供应商", string contact = "张三", string phone = "13800138000")
+    private async Task SeedSupplierAsync(AppDbContext ctx, string name = "测试供应商", string? code = null, string contact = "张三", string phone = "13800138000")
     {
         ctx.SupplierProfiles.Add(new SupplierProfile
         {
+            SupplierCode = code ?? $"S{Guid.NewGuid():N}"[..10],
             SupplierName = name,
             ContactPerson = contact,
             ContactPhone = phone,
@@ -148,6 +149,7 @@ public class SupplierServiceTests : TestBase
         await SeedSupplierAsync(ctx, name: "激活供应商");
         ctx.SupplierProfiles.Add(new SupplierProfile
         {
+            SupplierCode = $"S{Guid.NewGuid():N}"[..10],
             SupplierName = "停用供应商",
             IsActive = false
         });
@@ -180,7 +182,7 @@ public class SupplierServiceTests : TestBase
         result.SupplierName.Should().Be("新供应商");
         result.ContactPerson.Should().Be("王经理");
 
-        var saved = await ctx.SupplierProfiles.FirstAsync(s => !s.IsDeleted);
+        var saved = await ctx.SupplierProfiles.FirstAsync(s => s.SupplierName == "新供应商");
         saved.SupplierName.Should().Be("新供应商");
     }
 
@@ -220,7 +222,7 @@ public class SupplierServiceTests : TestBase
     // ========== DeleteAsync ==========
 
     [Fact]
-    public async Task DeleteAsync_成功软删除()
+    public async Task DeleteAsync_成功删除()
     {
         var ctx = CreateDbContext();
         await SeedSupplierAsync(ctx);
@@ -230,7 +232,7 @@ public class SupplierServiceTests : TestBase
         await svc.DeleteAsync(id);
 
         var deleted = await ctx.SupplierProfiles.FindAsync(id);
-        deleted!.IsDeleted.Should().BeTrue();
+        deleted.Should().BeNull();
     }
 
     [Fact]

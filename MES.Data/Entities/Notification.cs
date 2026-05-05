@@ -1,7 +1,7 @@
 namespace MES.Data.Entities;
 
 /// <summary>
-/// 通知记录（不使用BaseEntity，设计上无CreatedBy/UpdatedBy/IsDeleted）
+/// 通知记录（不使用BaseEntity，设计上无审计字段）
 /// </summary>
 public class Notification
 {

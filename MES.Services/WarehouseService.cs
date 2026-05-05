@@ -22,7 +22,6 @@ public class WarehouseService : IWarehouseService
     {
         var queryable = _context.Warehouses
             .AsNoTracking()
-            .Where(w => !w.IsDeleted)
             .AsQueryable();
 
         if (!string.IsNullOrEmpty(query.Keyword))
@@ -72,8 +71,7 @@ public class WarehouseService : IWarehouseService
     public async Task<List<WarehouseDto>> GetAllAsync(bool onlyActive = true)
     {
         var query = _context.Warehouses
-            .AsNoTracking()
-            .Where(w => !w.IsDeleted);
+            .AsNoTracking();
 
         if (onlyActive)
         {
@@ -90,7 +88,7 @@ public class WarehouseService : IWarehouseService
     {
         var entity = await _context.Warehouses
             .AsNoTracking()
-            .FirstOrDefaultAsync(w => w.Id == id && !w.IsDeleted);
+            .FirstOrDefaultAsync(w => w.Id == id);
 
         if (entity == null)
             throw new BusinessException("仓库不存在");
@@ -101,7 +99,7 @@ public class WarehouseService : IWarehouseService
     public async Task<WarehouseDto> CreateAsync(CreateWarehouseRequest request)
     {
         var exists = await _context.Warehouses
-            .AnyAsync(w => w.Code == request.Code && !w.IsDeleted);
+            .AnyAsync(w => w.Code == request.Code);
 
         if (exists)
             throw new BusinessException($"仓库代码 '{request.Code}' 已存在");
@@ -124,7 +122,7 @@ public class WarehouseService : IWarehouseService
     public async Task<WarehouseDto> UpdateAsync(int id, UpdateWarehouseRequest request)
     {
         var entity = await _context.Warehouses
-            .FirstOrDefaultAsync(w => w.Id == id && !w.IsDeleted);
+            .FirstOrDefaultAsync(w => w.Id == id);
 
         if (entity == null)
             throw new BusinessException("仓库不存在");
@@ -132,7 +130,7 @@ public class WarehouseService : IWarehouseService
         if (!string.IsNullOrEmpty(request.Code) && request.Code != entity.Code)
         {
             var exists = await _context.Warehouses
-                .AnyAsync(w => w.Code == request.Code && w.Id != id && !w.IsDeleted);
+                .AnyAsync(w => w.Code == request.Code && w.Id != id);
             if (exists)
                 throw new BusinessException($"仓库代码 '{request.Code}' 已存在");
             entity.Code = request.Code;
@@ -154,18 +152,18 @@ public class WarehouseService : IWarehouseService
     public async Task DeleteAsync(int id)
     {
         var entity = await _context.Warehouses
-            .FirstOrDefaultAsync(w => w.Id == id && !w.IsDeleted);
+            .FirstOrDefaultAsync(w => w.Id == id);
 
         if (entity == null)
             throw new BusinessException("仓库不存在");
 
         var hasBatches = await _context.InventoryBatches
-            .AnyAsync(b => b.WarehouseId == id && !b.IsDeleted);
+            .AnyAsync(b => b.WarehouseId == id);
 
         if (hasBatches)
             throw new BusinessException("该仓库下存在库存批次，无法删除");
 
-        entity.IsDeleted = true;
+        _context.Warehouses.Remove(entity);
         await _context.SaveChangesAsync();
     }
 }

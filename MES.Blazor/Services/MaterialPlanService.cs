@@ -311,5 +311,18 @@ public class MaterialPlanService
         }
     }
 
+    public async Task<ApiResponse<string>> PrintSelectedPlansAsync(MaterialPlanBatchPrintRequest request)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<MaterialPlanBatchPrintRequest, ApiResponse<string>>($"{BaseUrl}/print/batch", request);
+            return response ?? ApiResponse<string>.Fail("打印生成失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<string>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
     #endregion
 }

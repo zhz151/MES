@@ -21,6 +21,7 @@ public class MaterialServiceTests : TestBase
     {
         ctx.Materials.Add(new Material
         {
+            MaterialCode = $"M{Guid.NewGuid():N}"[..10],
             MaterialCategory = category,
             PlantGrade = grade,
             Specification = spec,
@@ -99,7 +100,7 @@ public class MaterialServiceTests : TestBase
     }
 
     [Fact]
-    public async Task GetPagedAsync_软删除后不显示()
+    public async Task GetPagedAsync_删除后不显示()
     {
         var ctx = CreateDbContext();
         await SeedMaterialAsync(ctx, category: "待删除物料");
@@ -247,7 +248,7 @@ public class MaterialServiceTests : TestBase
         result.PlantGrade.Should().Be("20#");
         result.Specification.Should().Be("219*8");
 
-        var saved = await ctx.Materials.FirstAsync(m => !m.IsDeleted);
+        var saved = await ctx.Materials.FirstAsync();
         saved.MaterialCategory.Should().Be("钢管");
     }
 
@@ -304,7 +305,7 @@ public class MaterialServiceTests : TestBase
     // ========== DeleteAsync ==========
 
     [Fact]
-    public async Task DeleteAsync_成功软删除()
+    public async Task DeleteAsync_成功删除()
     {
         var ctx = CreateDbContext();
         await SeedMaterialAsync(ctx);
@@ -314,7 +315,7 @@ public class MaterialServiceTests : TestBase
         await svc.DeleteAsync(id);
 
         var deleted = await ctx.Materials.FindAsync(id);
-        deleted!.IsDeleted.Should().BeTrue();
+        deleted.Should().BeNull();
     }
 
     [Fact]
@@ -328,13 +329,13 @@ public class MaterialServiceTests : TestBase
     }
 
     [Fact]
-    public async Task DeleteAsync_有关联库存批次_抛出BusinessException()
+    public async Task DeleteAsync_有关联库存批次_无FK可正常删除()
     {
         var ctx = CreateDbContext();
         await SeedMaterialAsync(ctx, category: "钢管", grade: "20#", spec: "219*8");
         var materialId = await ctx.Materials.Select(m => m.Id).FirstAsync();
 
-        // 创建关联的库存批次
+        // 创建关联的库存批次（MaterialType/PlantGrade/Specification 为字符串逻辑引用，无FK）
         ctx.InventoryBatches.Add(new InventoryBatch
         {
             BatchNo = "BATCH001",
@@ -351,8 +352,9 @@ public class MaterialServiceTests : TestBase
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
-        var act = () => svc.DeleteAsync(materialId);
+        await svc.DeleteAsync(materialId);
 
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("*关联的库存批次*");
+        var deleted = await ctx.Materials.FindAsync(materialId);
+        deleted.Should().BeNull();
     }
 }

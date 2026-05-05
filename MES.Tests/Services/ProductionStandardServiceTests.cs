@@ -114,7 +114,7 @@ public class ProductionStandardServiceTests : TestBase
     }
 
     [Fact]
-    public async Task GetPagedAsync_软删除后不显示()
+    public async Task GetPagedAsync_删除后不显示()
     {
         var ctx = CreateDbContext();
         await SeedStandardAsync(ctx);
@@ -203,7 +203,7 @@ public class ProductionStandardServiceTests : TestBase
         result.StandardName.Should().Be("不锈钢管");
         result.IsActive.Should().BeTrue();
 
-        var saved = await ctx.ProductionStandards.FirstAsync(s => !s.IsDeleted);
+        var saved = await ctx.ProductionStandards.FirstAsync(s => s.StandardCode == "GB/T 14976");
         saved.StandardCode.Should().Be("GB/T 14976");
     }
 
@@ -284,7 +284,7 @@ public class ProductionStandardServiceTests : TestBase
     // ========== DeleteAsync ==========
 
     [Fact]
-    public async Task DeleteAsync_成功软删除()
+    public async Task DeleteAsync_成功删除()
     {
         var ctx = CreateDbContext();
         await SeedStandardAsync(ctx);
@@ -294,7 +294,7 @@ public class ProductionStandardServiceTests : TestBase
         await svc.DeleteAsync(id);
 
         var deleted = await ctx.ProductionStandards.FindAsync(id);
-        deleted!.IsDeleted.Should().BeTrue();
+        deleted.Should().BeNull();
     }
 
     [Fact]

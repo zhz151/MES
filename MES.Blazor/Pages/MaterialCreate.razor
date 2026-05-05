@@ -160,41 +160,35 @@
         if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
 
         isSubmitting = true; StateHasChanged();
-        var successCount = 0;
-        var failCount = 0;
-        var failMessages = new List<string>();
 
-        for (int i = 0; i < rows.Count; i++)
+        var requests = rows.Select(r => new CreateMaterialRequest
         {
-            var r = rows[i];
-            var request = new CreateMaterialRequest
-            {
-                MaterialCategory = r.MaterialCategory,
-                PlantGrade = r.PlantGrade,
-                Specification = r.Specification,
-                IsActive = r.IsActive,
-                Remark = r.Remark
-            };
+            MaterialCategory = r.MaterialCategory,
+            PlantGrade = r.PlantGrade,
+            Specification = r.Specification,
+            IsActive = r.IsActive,
+            Remark = r.Remark
+        }).ToList();
 
-            try
+        try
+        {
+            var result = await MaterialService.CreateBatchAsync(requests);
+            isSubmitting = false; StateHasChanged();
+
+            if (result.Success)
             {
-                var result = await MaterialService.CreateAsync(request);
-                if (result.Success) successCount++;
-                else { failCount++; failMessages.Add($"行{i + 1}: {result.Message}"); }
+                Snackbar.Add($"成功创建 {result.Data?.Count ?? 0} 条记录", Severity.Success);
+                Navigation.NavigateTo("/materials");
             }
-            catch (Exception ex) { failCount++; failMessages.Add($"行{i + 1}: {ex.Message}"); }
+            else
+            {
+                Snackbar.Add($"批量创建失败：{result.Message}", Severity.Error);
+            }
         }
-
-        isSubmitting = false; StateHasChanged();
-
-        if (failCount == 0)
+        catch (Exception ex)
         {
-            Snackbar.Add($"成功创建 {successCount} 条记录", Severity.Success);
-            Navigation.NavigateTo("/materials");
-        }
-        else
-        {
-            Snackbar.Add($"成功 {successCount} 条，失败 {failCount} 条：{string.Join("；", failMessages)}", Severity.Error);
+            isSubmitting = false; StateHasChanged();
+            Snackbar.Add($"批量创建失败：{ex.Message}", Severity.Error);
         }
     }
 

@@ -102,7 +102,7 @@ public class CustomerService
     }
 
     /// <summary>
-    /// 删除客户（软删除）
+    /// 删除客户（物理删除）
     /// </summary>
     public async Task<ApiResponse<object>> DeleteAsync(int id)
     {

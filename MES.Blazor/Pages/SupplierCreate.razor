@@ -41,6 +41,7 @@
                         <HeaderContent>
                             <MudTh Style="width: 50px;">行号</MudTh>
                             <MudTh Style="min-width: 160px;">供应商名称</MudTh>
+                            <MudTh Style="width: 110px;">物料分类</MudTh>
                             <MudTh Style="width: 110px;">联系人</MudTh>
                             <MudTh Style="width: 130px;">联系电话</MudTh>
                             <MudTh Style="min-width: 180px;">地址</MudTh>
@@ -55,6 +56,14 @@
                             <MudTd>
                                 <MudTextField T="string"
                                               @bind-Value="row.SupplierName"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              Immediate="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.MaterialCategory"
                                               Dense="true"
                                               Variant="Variant.Outlined"
                                               Size="Size.Small"
@@ -120,6 +129,7 @@
     {
         public int Sequence { get; set; }
         public string SupplierName { get; set; } = string.Empty;
+        public string? MaterialCategory { get; set; }
         public string? ContactPerson { get; set; }
         public string? ContactPhone { get; set; }
         public string? Address { get; set; }
@@ -156,42 +166,37 @@
         if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
 
         isSubmitting = true; StateHasChanged();
-        var successCount = 0;
-        var failCount = 0;
-        var failMessages = new List<string>();
 
-        for (int i = 0; i < rows.Count; i++)
+        var requests = rows.Select(r => new CreateSupplierRequest
         {
-            var r = rows[i];
-            var request = new CreateSupplierRequest
-            {
-                SupplierName = r.SupplierName,
-                ContactPerson = r.ContactPerson,
-                ContactPhone = r.ContactPhone,
-                Address = r.Address,
-                IsActive = r.IsActive,
-                Remark = r.Remark
-            };
+            SupplierName = r.SupplierName,
+            MaterialCategory = r.MaterialCategory,
+            ContactPerson = r.ContactPerson,
+            ContactPhone = r.ContactPhone,
+            Address = r.Address,
+            IsActive = r.IsActive,
+            Remark = r.Remark
+        }).ToList();
 
-            try
+        try
+        {
+            var result = await SupplierService.CreateBatchAsync(requests);
+            isSubmitting = false; StateHasChanged();
+
+            if (result.Success)
             {
-                var result = await SupplierService.CreateAsync(request);
-                if (result.Success) successCount++;
-                else { failCount++; failMessages.Add($"行{i + 1}: {result.Message}"); }
+                Snackbar.Add($"成功创建 {result.Data?.Count ?? 0} 条记录", Severity.Success);
+                Navigation.NavigateTo("/suppliers");
             }
-            catch (Exception ex) { failCount++; failMessages.Add($"行{i + 1}: {ex.Message}"); }
+            else
+            {
+                Snackbar.Add($"批量创建失败：{result.Message}", Severity.Error);
+            }
         }
-
-        isSubmitting = false; StateHasChanged();
-
-        if (failCount == 0)
+        catch (Exception ex)
         {
-            Snackbar.Add($"成功创建 {successCount} 条记录", Severity.Success);
-            Navigation.NavigateTo("/suppliers");
-        }
-        else
-        {
-            Snackbar.Add($"成功 {successCount} 条，失败 {failCount} 条：{string.Join("；", failMessages)}", Severity.Error);
+            isSubmitting = false; StateHasChanged();
+            Snackbar.Add($"批量创建失败：{ex.Message}", Severity.Error);
         }
     }
 

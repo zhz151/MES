@@ -19,13 +19,15 @@ public class PurchaseSemiPlanDto
     public decimal? Density { get; set; }
     public decimal? UnitWeight { get; set; }
     public decimal? RawUnitWeight { get; set; }
-    public int? RequiredPieces { get; set; }
-    public decimal RequiredWeight { get; set; }
 
     // 采购信息
+    public string PlantGrade { get; set; } = null!;
     public string RawMaterialType { get; set; } = null!;
     public string RawMaterialSpec { get; set; } = null!;
-    public DateTime? RequiredDate { get; set; }
+    public decimal? RequiredUnitWeight { get; set; }
+    public int? RequiredPieces { get; set; }
+    public decimal RequiredWeight { get; set; }
+    public DateTime RequiredDate { get; set; }
 
     // 工艺路线
     public string? ProcessPlan { get; set; }

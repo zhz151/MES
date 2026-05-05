@@ -84,4 +84,11 @@ public class WorkOrderQueryParams : QueryParams
     /// 关联订单用料状态筛选
     /// </summary>
     public int? OrderMaterialPlanStatus { get; set; }
+
+    /// <summary>
+    /// 计划类型过滤：仅显示包含指定类型计划的工单
+    /// 可选值: Semi(原料采购), Finish(成品采购), Inventory(库存使用), Rework(库料改制)
+    /// 多个用逗号分隔，如 "Semi,Finish"
+    /// </summary>
+    public string? PlanTypeFilter { get; set; }
 }

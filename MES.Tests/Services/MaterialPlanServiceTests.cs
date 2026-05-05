@@ -77,7 +77,7 @@ public class MaterialPlanServiceTests : TestBase
 
         // 生成工单
         var items = await ctx.OrderItems
-            .Where(oi => oi.SalesOrderId == order.Id && !oi.IsDeleted)
+            .Where(oi => oi.SalesOrderId == order.Id)
             .ToListAsync();
         var itemIds = items.Select(i => i.Id).ToList();
 
@@ -129,8 +129,7 @@ public class MaterialPlanServiceTests : TestBase
             RemainingQuantity = quantity,
             RemainingWeight = weight,
             ActualOuterDiameter = od,
-            ActualWallThickness = wt,
-            IsDeleted = false
+            ActualWallThickness = wt
         };
         ctx.InventoryBatches.Add(batch);
         await ctx.SaveChangesAsync();
@@ -176,8 +175,11 @@ public class MaterialPlanServiceTests : TestBase
             YieldRate = 85m,
             InputMultiple = 1,
             QualifiedRate = 95m,
+            PlantGrade = "Q345B",
             RawMaterialType = "SemiFinished",
             RawMaterialSpec = "245*10",
+            RequiredPieces = 10,
+            RequiredWeight = 1000m,
             RequiredDate = DateTime.Today.AddMonths(1)
         });
 
@@ -186,7 +188,7 @@ public class MaterialPlanServiceTests : TestBase
         result.RawMaterialSpec.Should().Be("245*10");
         result.Density.Should().Be(7.85m);
         result.UnitWeight.Should().BeGreaterThan(0);
-        result.RequiredPieces.Should().BeGreaterThan(0);
+        result.RequiredPieces.Should().Be(10);
 
         // 验证数据库中有记录
         var plans = await ctx.PurchaseSemiPlans.Where(p => p.WorkOrderId == woId).ToListAsync();
@@ -207,15 +209,18 @@ public class MaterialPlanServiceTests : TestBase
             YieldRate = 85m,
             InputMultiple = 1,
             QualifiedRate = 95m,
+            PlantGrade = "Q345B",
             RawMaterialType = "SemiFinished",
-            RawMaterialSpec = "245*10"
+            RawMaterialSpec = "245*10",
+            RequiredWeight = 1000m,
+            RequiredDate = DateTime.Today.AddMonths(1)
         });
 
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
     }
 
     [Fact]
-    public async Task CreateSemiPlanAsync_非定尺无ManualPieces_抛出BusinessException()
+    public async Task CreateSemiPlanAsync_非定尺无RequiredPieces_抛出BusinessException()
     {
         var ctx = CreateDbContext();
         var (woId, _) = await SeedWorkOrderAsync(ctx, LengthStatus.NonFixed);
@@ -229,11 +234,14 @@ public class MaterialPlanServiceTests : TestBase
             YieldRate = 85m,
             InputMultiple = 1,
             QualifiedRate = 95m,
+            PlantGrade = "Q345B",
             RawMaterialType = "SemiFinished",
-            RawMaterialSpec = "245*10"
+            RawMaterialSpec = "245*10",
+            RequiredWeight = 1000m,
+            RequiredDate = DateTime.Today.AddMonths(1)
         });
 
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("*非定尺*原料支数*");
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*非定尺*需求支数*");
     }
 
     [Fact]
@@ -251,8 +259,12 @@ public class MaterialPlanServiceTests : TestBase
             YieldRate = 85m,
             InputMultiple = 1,
             QualifiedRate = 95m,
+            PlantGrade = "Q345B",
             RawMaterialType = "SemiFinished",
-            RawMaterialSpec = "245*10"
+            RawMaterialSpec = "245*10",
+            RequiredPieces = 10,
+            RequiredWeight = 1000m,
+            RequiredDate = DateTime.Today.AddMonths(1)
         });
 
         await svc.DeleteSemiPlanAsync(created.Id);
@@ -299,7 +311,15 @@ public class MaterialPlanServiceTests : TestBase
             ProductType = "Critical",
             RequiredPiece = 10,
             RequiredWeight = 2500m,
-            RequiredDate = DateTime.Today.AddMonths(1)
+            RequiredDate = DateTime.Today.AddMonths(1),
+            PlantGrade = "Q345B",
+            Specification = "89*10",
+            OuterDiameterNegative = 0.3m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.3m,
+            WallThicknessPositive = 0.5m,
+            LengthStatus = "Fixed",
+            DeliveryState = "SolutionAnnealedAndPickled"
         });
 
         result.Should().NotBeNull();
@@ -322,7 +342,15 @@ public class MaterialPlanServiceTests : TestBase
             WorkOrderId = woId,
             PlanDate = DateTime.Today,
             ProductType = "Critical",
-            RequiredWeight = 2500m
+            RequiredWeight = 2500m,
+            PlantGrade = "Q345B",
+            Specification = "89*10",
+            OuterDiameterNegative = 0.3m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.3m,
+            WallThicknessPositive = 0.5m,
+            LengthStatus = "Fixed",
+            DeliveryState = "SolutionAnnealedAndPickled"
         });
 
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*采购支数*");
@@ -340,7 +368,15 @@ public class MaterialPlanServiceTests : TestBase
             WorkOrderId = woId,
             PlanDate = DateTime.Today,
             ProductType = "Order",
-            RequiredWeight = 2500m
+            RequiredWeight = 2500m,
+            PlantGrade = "Q345B",
+            Specification = "89*10",
+            OuterDiameterNegative = 0.3m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.3m,
+            WallThicknessPositive = 0.5m,
+            LengthStatus = "Fixed",
+            DeliveryState = "SolutionAnnealedAndPickled"
         });
 
         await svc.DeleteFinishedPlanAsync(created.Id);
@@ -590,8 +626,12 @@ public class MaterialPlanServiceTests : TestBase
             YieldRate = 85m,
             InputMultiple = 1,
             QualifiedRate = 95m,
+            PlantGrade = "Q345B",
             RawMaterialType = "SemiFinished",
-            RawMaterialSpec = "245*10"
+            RawMaterialSpec = "245*10",
+            RequiredPieces = 10,
+            RequiredWeight = 1000m,
+            RequiredDate = DateTime.Today.AddMonths(1)
         });
 
         var dto = await svc.GetWorkOrderMaterialPlanAsync(woId);
@@ -623,8 +663,12 @@ public class MaterialPlanServiceTests : TestBase
             YieldRate = 85m,
             InputMultiple = 1,
             QualifiedRate = 95m,
+            PlantGrade = "Q345B",
             RawMaterialType = "SemiFinished",
-            RawMaterialSpec = "245*10"
+            RawMaterialSpec = "245*10",
+            RequiredPieces = 10,
+            RequiredWeight = 1000m,
+            RequiredDate = DateTime.Today.AddMonths(1)
         });
 
         // 创建成品采购计划
@@ -634,7 +678,15 @@ public class MaterialPlanServiceTests : TestBase
             PlanDate = DateTime.Today,
             ProductType = "Critical",
             RequiredPiece = 10,
-            RequiredWeight = 2500m
+            RequiredWeight = 2500m,
+            PlantGrade = "Q345B",
+            Specification = "89*10",
+            OuterDiameterNegative = 0.3m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.3m,
+            WallThicknessPositive = 0.5m,
+            LengthStatus = "Fixed",
+            DeliveryState = "SolutionAnnealedAndPickled"
         });
 
         // 验证状态已更新
@@ -658,8 +710,12 @@ public class MaterialPlanServiceTests : TestBase
             YieldRate = 85m,
             InputMultiple = 1,
             QualifiedRate = 95m,
+            PlantGrade = "Q345B",
             RawMaterialType = "SemiFinished",
-            RawMaterialSpec = "245*10"
+            RawMaterialSpec = "245*10",
+            RequiredPieces = 10,
+            RequiredWeight = 1000m,
+            RequiredDate = DateTime.Today.AddMonths(1)
         });
 
         // 删除后，状态恢复为未计划

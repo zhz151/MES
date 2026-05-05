@@ -61,6 +61,16 @@ public class SupplierController : ControllerBase
         return Ok(ApiResponse<SupplierProfileDto>.Ok(result, "创建成功"));
     }
 
+    [HttpPost("batch")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<SupplierProfileDto>>>> CreateBatch([FromBody] List<CreateSupplierRequest> requests)
+    {
+        if (requests == null || requests.Count == 0)
+            return BadRequest(ApiResponse<List<SupplierProfileDto>>.Fail("请求列表不能为空"));
+        var result = await _service.CreateBatchAsync(requests);
+        return Ok(ApiResponse<List<SupplierProfileDto>>.Ok(result, "批量创建成功"));
+    }
+
     [HttpPut("{id}")]
     [Authorize(Roles = $"{Roles.Directors.Material},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<SupplierProfileDto>>> Update(int id, [FromBody] UpdateSupplierRequest request)
@@ -77,6 +87,35 @@ public class SupplierController : ControllerBase
     {
         await _service.DeleteAsync(id);
         return Ok(ApiResponse.Ok("删除成功"));
+    }
+
+    // ========== 打印 ==========
+
+    [HttpGet("{id}/print")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintSupplier(int id)
+    {
+        var pdfBytes = await _service.PrintSupplierAsync(id);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    [HttpPost("print-batch")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintSupplierBatch([FromBody] OrderPrintBatchRequest request)
+    {
+        var pdfBytes = await _service.PrintSupplierBatchAsync(request.Ids);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    [HttpPost("print-all")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintSupplierAll([FromBody] OrderPrintAllRequest request)
+    {
+        var pdfBytes = await _service.PrintSupplierAllAsync(request.Keyword, request.SortBy, request.IsDescending);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
 
     [HttpGet("active")]

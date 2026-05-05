@@ -135,7 +135,7 @@ public class CustomerController : ControllerBase
     }
 
     /// <summary>
-    /// 删除客户（软删除）
+    /// 删除客户（物理删除）
     /// </summary>
     [HttpDelete("{id}")]
     [Authorize(Roles = Roles.Admin)]

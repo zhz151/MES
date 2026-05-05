@@ -31,7 +31,6 @@ public class CustomerService : ICustomerService
     {
         var queryable = _context.CustomerProfiles
             .AsNoTracking()
-            .Where(c => !c.IsDeleted)
             .AsQueryable();
 
         // Keyword search（多关键词AND + 状态中文映射）
@@ -114,7 +113,7 @@ public class CustomerService : ICustomerService
     {
         var entity = await _context.CustomerProfiles
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
+            .FirstOrDefaultAsync(c => c.Id == id);
 
         if (entity == null)
         {
@@ -131,7 +130,7 @@ public class CustomerService : ICustomerService
     {
         // Check customer code uniqueness
         var exists = await _context.CustomerProfiles
-            .AnyAsync(c => c.CustomerCode == request.CustomerCode && !c.IsDeleted);
+            .AnyAsync(c => c.CustomerCode == request.CustomerCode);
 
         if (exists)
         {
@@ -163,7 +162,7 @@ public class CustomerService : ICustomerService
     public async Task<CustomerProfileDto> UpdateAsync(int id, UpdateCustomerRequest request)
     {
         var entity = await _context.CustomerProfiles
-            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
+            .FirstOrDefaultAsync(c => c.Id == id);
 
         if (entity == null)
         {
@@ -174,7 +173,7 @@ public class CustomerService : ICustomerService
         if (!string.IsNullOrEmpty(request.CustomerCode) && request.CustomerCode != entity.CustomerCode)
         {
             var exists = await _context.CustomerProfiles
-                .AnyAsync(c => c.CustomerCode == request.CustomerCode && c.Id != id && !c.IsDeleted);
+                .AnyAsync(c => c.CustomerCode == request.CustomerCode && c.Id != id);
 
             if (exists)
             {
@@ -241,14 +240,14 @@ public class CustomerService : ICustomerService
     public async Task DeleteAsync(int id)
     {
         var entity = await _context.CustomerProfiles
-            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
+            .FirstOrDefaultAsync(c => c.Id == id);
 
         if (entity == null)
         {
             throw new BusinessException("客户不存在");
         }
 
-        entity.IsDeleted = true;
+        _context.CustomerProfiles.Remove(entity);
         await _context.SaveChangesAsync();
     }
 

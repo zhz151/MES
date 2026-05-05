@@ -90,7 +90,7 @@ public class WorkOrderServiceTests : TestBase
         var (orderId, orderNo) = await SeedConfirmedOrderAsync(ctx);
 
         var items = await ctx.OrderItems
-            .Where(oi => oi.SalesOrderId == orderId && !oi.IsDeleted)
+            .Where(oi => oi.SalesOrderId == orderId)
             .ToListAsync();
         var itemIds = items.Select(i => i.Id).ToList();
 
@@ -132,8 +132,7 @@ public class WorkOrderServiceTests : TestBase
             OrderNumber = "ORD-PENDING",
             SignDate = DateTime.Today,
             CustomerId = cust.Id,
-            Status = SalesOrderStatus.Pending,
-            IsDeleted = false
+            Status = SalesOrderStatus.Pending
         };
         ctx.SalesOrders.Add(salesOrder);
         await ctx.SaveChangesAsync();
@@ -184,7 +183,7 @@ public class WorkOrderServiceTests : TestBase
 
         // 获取订单项次
         var items = await ctx.OrderItems
-            .Where(oi => oi.SalesOrderId == orderId && !oi.IsDeleted)
+            .Where(oi => oi.SalesOrderId == orderId)
             .ToListAsync();
         var itemIds = items.Select(i => i.Id).ToList();
 
@@ -219,7 +218,7 @@ public class WorkOrderServiceTests : TestBase
         var (orderId, orderNo) = await SeedConfirmedOrderAsync(ctx);
 
         var items = await ctx.OrderItems
-            .Where(oi => oi.SalesOrderId == orderId && !oi.IsDeleted)
+            .Where(oi => oi.SalesOrderId == orderId)
             .ToListAsync();
         var itemIds = items.Select(i => i.Id).ToList();
 

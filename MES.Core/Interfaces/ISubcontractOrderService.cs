@@ -13,4 +13,13 @@ public interface ISubcontractOrderService
     Task SyncSingleAsync(int id);
     Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request);
     Task DeleteAsync(int id);
+
+    // ========== 用料计划执行状态 ==========
+    Task<List<ProcurementStatusDto>> GetProcurementStatusAsync();
+    Task<PlanDetailDto?> GetPlanDetailAsync(string workOrderNo, string materialCategory);
+
+    // ========== 打印 ==========
+    Task<byte[]> PrintOrderAsync(int id);
+    Task<byte[]> PrintOrderBatchAsync(int[] ids);
+    Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false);
 }

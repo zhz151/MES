@@ -40,9 +40,16 @@
                 <MudGrid>
                     <MudItem xs="12" md="3"><MudTextField T="string" Label="采购单号" Value="@order.OrderNo" Disabled="true" /></MudItem>
                     <MudItem xs="12" md="3">
-                        <MudSelect T="int" Label="供应商" @bind-Value="editOrder.SupplierId" Disabled="!isEditMode" Required="true">
-                            @foreach (var s in suppliers) { <MudSelectItem Value="s.Id">@s.SupplierName</MudSelectItem> }
-                        </MudSelect>
+                        @if (isEditMode)
+                        {
+                            <MudSelect T="int" Label="供应商" @bind-Value="editOrder.SupplierId" Required="true">
+                                @foreach (var s in suppliers) { <MudSelectItem Value="s.Id">@s.SupplierName</MudSelectItem> }
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            <MudTextField T="string" Label="供应商" Value="@order.SupplierName" Disabled="true" />
+                        }
                     </MudItem>
                     <MudItem xs="12" md="3"><MudTextField T="string" Label="下单日期" @bind-Value="dateText" Disabled="!isEditMode" Required="true" Placeholder="yyyy-MM-dd" /></MudItem>
                     <MudItem xs="12" md="3">

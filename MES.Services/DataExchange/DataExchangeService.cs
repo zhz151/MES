@@ -11,6 +11,7 @@ using MES.Core.Enums;
 using MES.Core.Helpers;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Helpers;
 using MES.Shared.Constants;
 
 namespace MES.Services.DataExchange;
@@ -29,6 +30,15 @@ public class DataExchangeService
         _logger = logger;
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
     }
+
+    /// <summary>
+    /// 系统编码字段的生成前缀映射（属性名 → 前缀）
+    /// </summary>
+    private static readonly Dictionary<string, string> CodePrefixMap = new()
+    {
+        ["SupplierCode"] = "SU",
+        ["MaterialCode"] = "MA",
+    };
 
     #region 实体定义
 
@@ -82,7 +92,9 @@ public class DataExchangeService
 
         ["SupplierProfile"] = new EntityDef("供应商档案", "供应商档案", typeof(SupplierProfile), 1, "SupplierName", new List<ColumnDef>
         {
+            new("供应商编码", "SupplierCode", isSystem: true),
             new("供应商名称", "SupplierName"),
+            new("物料分类", "MaterialCategory", typeof(string), isRequired: false),
             new("联系人", "ContactPerson", typeof(string), isRequired: false),
             new("联系电话", "ContactPhone", typeof(string), isRequired: false),
             new("地址", "Address", typeof(string), isRequired: false),
@@ -180,6 +192,7 @@ public class DataExchangeService
         // === 第6批：物料 ===
         ["Material"] = new EntityDef("物料", "物料", typeof(Material), 6, null, new List<ColumnDef>
         {
+            new("物料编码", "MaterialCode", isSystem: true),
             new("物料分类", "MaterialCategory"),
             new("厂内钢种", "PlantGrade"),
             new("名义规格", "Specification"),
@@ -212,6 +225,7 @@ public class DataExchangeService
             new("委外单号", "OrderNo"),
             new("供应商名称", null!) { IsFkColumn = true, FkEntityKey = "SupplierProfile", FkLookupProperty = "SupplierName", FkTargetProperty = "SupplierId" },
             new("下单日期", "OrderDate", typeof(DateTime)),
+            new("加工类型", "ProcessType"),
             new("状态", "Status"),
             new("发出物料分类", "OutMaterialCategory"),
             new("发出钢种", "OutPlantGrade"),
@@ -227,7 +241,6 @@ public class DataExchangeService
         {
             new("委外单号", null!) { IsFkColumn = true, FkEntityKey = "SubcontractOrder", FkLookupProperty = "OrderNo", FkTargetProperty = "SubcontractOrderId" },
             new("行号", "Sequence", typeof(int)),
-            new("加工类型", "ProcessType"),
             new("物料分类", "MaterialCategory"),
             new("加工规格", "ProcessSpecification"),
             new("状态备注", "ProcessStatusRemark", typeof(string), isRequired: false),
@@ -296,8 +309,11 @@ public class DataExchangeService
             new("计划日期", "PlanDate", typeof(DateTime)),
             new("库存批次号", "InventoryBatchNo"),
             new("批次号", "BatchNo"),
+            new("物料名称", "MaterialType"),
             new("工厂牌号", "PlantGrade"),
             new("规格", "Specification"),
+            new("放置区域", "LocationArea", typeof(string), isRequired: false),
+            new("放置架号", "LocationRack", typeof(string), isRequired: false),
             new("投料倍率", "InputMultiple", typeof(int)),
             new("使用模式", "UsageMode"),
             new("出库支数", "UsedQuantity", typeof(int?), isRequired: false),
@@ -305,6 +321,7 @@ public class DataExchangeService
             new("要求到位日期", "RequiredDate", typeof(DateTime?), isRequired: false),
             new("计划状态", "PlanStatus", typeof(InventoryPlanStatus), isEnum: true),
             new("改制类型", "ReworkType", typeof(ReworkType?), isEnum: true, isRequired: false),
+            new("简化工艺路线", "ProcessPlan", typeof(string), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
@@ -312,13 +329,18 @@ public class DataExchangeService
         {
             new("工单号", null!) { IsFkColumn = true, FkEntityKey = "WorkOrder", FkLookupProperty = "WorkOrderNo", FkTargetProperty = "WorkOrderId" },
             new("计划日期", "PlanDate", typeof(DateTime)),
-            new("调整壁厚(mm)", "AdjustedWallThickness", typeof(decimal)),
+            new("调整成品壁厚(mm)", "AdjustedWallThickness", typeof(decimal)),
             new("成材率(%)", "YieldRate", typeof(decimal)),
             new("投料倍率", "InputMultiple", typeof(int)),
             new("正品率(%)", "QualifiedRate", typeof(decimal)),
             new("原料类型", "RawMaterialType", typeof(RawMaterialType), isEnum: true),
+            new("工厂牌号", "PlantGrade"),
             new("原料规格", "RawMaterialSpec"),
-            new("要求到货日期", "RequiredDate", typeof(DateTime?), isRequired: false),
+            new("需求单重(kg/支)", "RequiredUnitWeight", typeof(decimal?), isRequired: false),
+            new("需求支数", "RequiredPieces", typeof(int?), isRequired: false),
+            new("需求重量(kg)", "RequiredWeight", typeof(decimal)),
+            new("要求到货日期", "RequiredDate", typeof(DateTime), isRequired: true),
+            new("工艺路线", "ProcessPlan", typeof(string), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
@@ -327,6 +349,16 @@ public class DataExchangeService
             new("工单号", null!) { IsFkColumn = true, FkEntityKey = "WorkOrder", FkLookupProperty = "WorkOrderNo", FkTargetProperty = "WorkOrderId" },
             new("计划日期", "PlanDate", typeof(DateTime)),
             new("成品类型", "ProductType", typeof(FinishedProductType), isEnum: true),
+            new("工厂牌号", "PlantGrade"),
+            new("规格", "Specification"),
+            new("外径负公差(mm)", "OuterDiameterNegative", typeof(decimal)),
+            new("外径正公差(mm)", "OuterDiameterPositive", typeof(decimal)),
+            new("壁厚负公差(mm)", "WallThicknessNegative", typeof(decimal)),
+            new("壁厚正公差(mm)", "WallThicknessPositive", typeof(decimal)),
+            new("长度状态", "LengthStatus", typeof(LengthStatus), isEnum: true),
+            new("最小长度(mm)", "MinLength", typeof(decimal?), isRequired: false),
+            new("最大长度(mm)", "MaxLength", typeof(decimal?), isRequired: false),
+            new("交货状态", "DeliveryState", typeof(DeliveryState), isEnum: true),
             new("采购支数", "RequiredPiece", typeof(int?), isRequired: false),
             new("采购重量(kg)", "RequiredWeight", typeof(decimal)),
             new("要求到货日期", "RequiredDate", typeof(DateTime?), isRequired: false),
@@ -598,11 +630,16 @@ public class DataExchangeService
             await DisableAllConstraintsAsync(dbTransaction.Connection!, dbTransaction);
 
             // 2. 逐行累积到DbContext（不逐行保存）
+            // 跟踪批次内已分配的系统编码，避免重复
+            var pendingCodes = def.Columns
+                .Where(c => c.IsSystem && c.Property != null && CodePrefixMap.ContainsKey(c.Property))
+                .ToDictionary(c => c.Property!, _ => new HashSet<string>());
+
             foreach (var row in rows)
             {
                 try
                 {
-                    await ImportRowAsync(def, row, fkCache, overwrite, userName, existingCache);
+                    await ImportRowAsync(def, row, fkCache, overwrite, userName, existingCache, pendingCodes);
                     result.SuccessCount++;
                 }
                 catch (Exception ex)
@@ -1069,7 +1106,8 @@ public class DataExchangeService
 
     private async Task ImportRowAsync(EntityDef def, ImportRowData row,
         Dictionary<string, Dictionary<string, int>> fkCache, bool overwrite, string? userName,
-        Dictionary<string, object> existingCache)
+        Dictionary<string, object> existingCache,
+        Dictionary<string, HashSet<string>> pendingCodes)
     {
         var entityType = def.Type;
         var dbSet = _context.GetType().GetMethod("Set", Type.EmptyTypes)!
@@ -1097,6 +1135,35 @@ public class DataExchangeService
         else
         {
             entity = Activator.CreateInstance(entityType)!;
+
+            // 自动生成系统编码（如 SupplierCode → SU0001）
+            foreach (var sysCol in def.Columns.Where(c => c.IsSystem && c.Property != null && CodePrefixMap.ContainsKey(c.Property)))
+            {
+                if (propertyCache.TryGetValue(sysCol.Property, out var codeProp) && codeProp.CanWrite)
+                {
+                    var prefix = CodePrefixMap[sysCol.Property];
+
+                    // 查询数据库中所有已有编码
+                    var dbCodes = await ((IQueryable)dbSet).Cast<BaseEntity>()
+                        .Select(e => EF.Property<string>(e, sysCol.Property))
+                        .ToListAsync();
+
+                    // 合并批次内已分配的编码
+                    var allCodes = dbCodes.Concat(pendingCodes[sysCol.Property]).ToList();
+
+                    // 计算下一个可用编码
+                    var matchingCodes = allCodes.Where(c => c.StartsWith(prefix) && c.Length == 6)
+                        .OrderByDescending(c => c)
+                        .ToList();
+                    var maxCode = matchingCodes.FirstOrDefault();
+                    var newCode = maxCode == null
+                        ? $"{prefix}0001"
+                        : $"{prefix}{int.Parse(maxCode[2..]) + 1:D4}";
+
+                    pendingCodes[sysCol.Property].Add(newCode);
+                    codeProp.SetValue(entity, newCode);
+                }
+            }
         }
 
         // 设置审计字段
@@ -1110,6 +1177,7 @@ public class DataExchangeService
             }
             be.UpdatedTime = now;
             be.UpdatedBy = userName ?? "system";
+
         }
 
         // 设置属性值

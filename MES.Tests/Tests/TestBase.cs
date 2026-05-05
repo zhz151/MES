@@ -60,7 +60,7 @@ public abstract class TestBase
     /// </summary>
     protected async Task<Warehouse> SeedWarehouseAsync(AppDbContext ctx, string name = "测试仓库")
     {
-        var wh = new Warehouse { Name = name, Code = "WH001", IsDeleted = false };
+        var wh = new Warehouse { Name = name, Code = "WH001" };
         ctx.Warehouses.Add(wh);
         await ctx.SaveChangesAsync();
         return wh;
@@ -76,8 +76,7 @@ public abstract class TestBase
             CustomerCode = $"C{DateTime.Now:yyyyMMddHHmmss}",
             CustomerUnit = unit,
             Salesman = "测试业务员",
-            Status = Core.Enums.CustomerStatus.Active,
-            IsDeleted = false
+            Status = Core.Enums.CustomerStatus.Active
         };
         ctx.CustomerProfiles.Add(c);
         await ctx.SaveChangesAsync();
@@ -92,8 +91,7 @@ public abstract class TestBase
         var ps = new ProductionStandard
         {
             StandardCode = "GB/T 8163",
-            StandardName = "流体管标准",
-            IsDeleted = false
+            StandardName = "流体管标准"
         };
         ctx.ProductionStandards.Add(ps);
         await ctx.SaveChangesAsync();
@@ -110,8 +108,7 @@ public abstract class TestBase
         {
             StandardGrade = standardGrade,
             PlantGrade = plantGrade,
-            Density = density,
-            IsDeleted = false
+            Density = density
         };
         ctx.StandardGradeMappings.Add(gm);
         await ctx.SaveChangesAsync();

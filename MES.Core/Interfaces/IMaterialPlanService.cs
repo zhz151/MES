@@ -124,4 +124,9 @@ public interface IMaterialPlanService
     /// 生成库料改制单PDF（返回byte[]）
     /// </summary>
     Task<byte[]> PrintReworkPlanAsync(int planId);
+
+    /// <summary>
+    /// 批量打印选中工单的指定类型用料计划
+    /// </summary>
+    Task<byte[]> PrintSelectedPlansAsync(MaterialPlanBatchPrintRequest request);
 }

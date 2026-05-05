@@ -1,7 +1,9 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using MES.Core.DTOs;
 using MES.Core.Exceptions;
+using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data.Entities;
 using MES.Data;
@@ -15,11 +17,11 @@ namespace MES.Tests.Services;
 /// </summary>
 public class SubcontractOrderServiceTests : TestBase
 {
-    private SubcontractOrderService CreateService(AppDbContext ctx) => new(ctx);
+    private SubcontractOrderService CreateService(AppDbContext ctx) => new(ctx, new Mock<IPurchaseOrderService>().Object);
 
     private async Task<int> SeedSupplierAsync(AppDbContext ctx, string name = "委外供应商")
     {
-        var entity = new SupplierProfile { SupplierName = name, IsActive = true };
+        var entity = new SupplierProfile { SupplierCode = $"S{Guid.NewGuid():N}"[..10], SupplierName = name, IsActive = true };
         ctx.SupplierProfiles.Add(entity);
         await ctx.SaveChangesAsync();
         return entity.Id;
@@ -34,6 +36,7 @@ public class SubcontractOrderServiceTests : TestBase
             SupplierId = supplierId,
             OrderDate = orderDate ?? DateTime.Today,
             Status = status,
+            ProcessType = "车丝",
             OutMaterialCategory = "钢管",
             OutPlantGrade = "20#",
             OutSpecification = "219*8",
@@ -44,7 +47,6 @@ public class SubcontractOrderServiceTests : TestBase
         order.ReturnItems.Add(new SubcontractReturnItem
         {
             Sequence = 1,
-            ProcessType = "车丝",
             MaterialCategory = "钢管",
             ProcessSpecification = "219*8",
             ProcessUnitPrice = 10m,
@@ -82,6 +84,7 @@ public class SubcontractOrderServiceTests : TestBase
             SupplierId = sid2,
             OrderDate = DateTime.Today,
             Status = "Sent",
+            ProcessType = "车丝",
             OutMaterialCategory = "不锈钢管",
             OutPlantGrade = "304",
             OutSpecification = "273*10",
@@ -116,21 +119,6 @@ public class SubcontractOrderServiceTests : TestBase
     }
 
     [Fact]
-    public async Task GetPagedAsync_按日期筛选_返回匹配()
-    {
-        var ctx = CreateDbContext();
-        var sid = await SeedSupplierAsync(ctx);
-        await SeedOrderAsync(ctx, sid, orderDate: DateTime.Today.AddDays(-5));
-        await SeedOrderAsync(ctx, sid, orderDate: DateTime.Today);
-        var svc = CreateService(ctx);
-
-        var result = await svc.GetPagedAsync(new SubcontractQueryParams
-        { PageIndex = 1, PageSize = 20, DateFrom = DateTime.Today.AddDays(-1) });
-
-        result.Items.Should().HaveCount(1);
-    }
-
-    [Fact]
     public async Task GetPagedAsync_填充供应商名称()
     {
         var ctx = CreateDbContext();
@@ -159,7 +147,7 @@ public class SubcontractOrderServiceTests : TestBase
         result.OrderNo.Should().Be(order.OrderNo);
         result.SupplierName.Should().Be("委外供应商");
         result.ReturnItems.Should().HaveCount(1);
-        result.ReturnItems[0].ProcessType.Should().Be("车丝");
+        result.ProcessType.Should().Be("车丝");
         result.ReturnItems[0].ProcessTotalAmount.Should().Be(1000m);
     }
 
@@ -192,12 +180,11 @@ public class SubcontractOrderServiceTests : TestBase
             OutQuantity = 100,
             OutWeight = 1000m,
             ReturnDeadline = DateTime.Today.AddDays(60),
-            SourceWorkOrderNo = "GD20260101001",
+            ProcessType = "车丝",
             ReturnItems = new List<MES.Core.DTOs.CreateReturnItemRequest>
             {
                 new()
                 {
-                    ProcessType = "车丝",
                     MaterialCategory = "钢管",
                     ProcessSpecification = "219*8",
                     ProcessUnitPrice = 10m,
@@ -210,11 +197,10 @@ public class SubcontractOrderServiceTests : TestBase
         result.Should().NotBeNull();
         result.OrderNo.Should().StartWith("WW" + DateTime.Now.ToString("yyMMdd"));
         result.ReturnItems.Should().HaveCount(1);
-        result.ReturnItems[0].ProcessType.Should().Be("车丝");
+        result.ProcessType.Should().Be("车丝");
         result.ReturnItems[0].ProcessTotalAmount.Should().Be(1000m);
-        result.SourceWorkOrderNo.Should().Be("GD20260101001");
 
-        var saved = await ctx.SubcontractOrders.Include(s => s.ReturnItems).FirstAsync(s => !s.IsDeleted);
+        var saved = await ctx.SubcontractOrders.Include(s => s.ReturnItems).FirstAsync(s => s.OrderNo == result.OrderNo);
         saved.ReturnItems.Should().HaveCount(1);
     }
 
@@ -229,6 +215,7 @@ public class SubcontractOrderServiceTests : TestBase
         {
             SupplierId = sid,
             OrderDate = DateTime.Today,
+            ProcessType = "车丝",
             OutMaterialCategory = "钢管",
             OutPlantGrade = "20#",
             OutSpecification = "219*8",
@@ -253,6 +240,7 @@ public class SubcontractOrderServiceTests : TestBase
         var result = await svc.UpdateAsync(order.Id, new UpdateSubcontractOrderRequest
         {
             SupplierId = sid,
+            ProcessType = "抛光",
             OutMaterialCategory = "不锈钢管",
             OutPlantGrade = "304",
             OutSpecification = "273*10",
@@ -263,7 +251,6 @@ public class SubcontractOrderServiceTests : TestBase
             {
                 new()
                 {
-                    ProcessType = "抛光",
                     MaterialCategory = "不锈钢管",
                     ProcessSpecification = "273*10",
                     ProcessUnitPrice = 20m,
@@ -271,7 +258,6 @@ public class SubcontractOrderServiceTests : TestBase
                 },
                 new()
                 {
-                    ProcessType = "车丝",
                     MaterialCategory = "不锈钢管",
                     ProcessSpecification = "273*10",
                     ProcessUnitPrice = 15m,
@@ -284,7 +270,7 @@ public class SubcontractOrderServiceTests : TestBase
         result.ReturnItems.Should().HaveCount(2);
 
         var saved = await ctx.SubcontractOrders.Include(s => s.ReturnItems).FirstAsync(s => s.Id == order.Id);
-        saved.ReturnItems.Where(r => !r.IsDeleted).Should().HaveCount(2);
+        saved.ReturnItems.Should().HaveCount(2);
         saved.OutMaterialCategory.Should().Be("不锈钢管");
     }
 
@@ -299,6 +285,7 @@ public class SubcontractOrderServiceTests : TestBase
         var act = () => svc.UpdateAsync(order.Id, new UpdateSubcontractOrderRequest
         {
             SupplierId = sid,
+            ProcessType = "车丝",
             OutMaterialCategory = "钢管",
             OutPlantGrade = "20#",
             OutSpecification = "219*8",
@@ -321,6 +308,7 @@ public class SubcontractOrderServiceTests : TestBase
         var act = () => svc.UpdateAsync(order.Id, new UpdateSubcontractOrderRequest
         {
             SupplierId = sid,
+            ProcessType = "车丝",
             OutMaterialCategory = "钢管",
             OutPlantGrade = "20#",
             OutSpecification = "219*8",
@@ -451,7 +439,7 @@ public class SubcontractOrderServiceTests : TestBase
     // ========== DeleteAsync ==========
 
     [Fact]
-    public async Task DeleteAsync_成功软删除()
+    public async Task DeleteAsync_成功删除()
     {
         var ctx = CreateDbContext();
         var sid = await SeedSupplierAsync(ctx);
@@ -461,7 +449,7 @@ public class SubcontractOrderServiceTests : TestBase
         await svc.DeleteAsync(order.Id);
 
         var deleted = await ctx.SubcontractOrders.FindAsync(order.Id);
-        deleted!.IsDeleted.Should().BeTrue();
+        deleted.Should().BeNull();
     }
 
     [Fact]

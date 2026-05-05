@@ -7,5 +7,4 @@ public abstract class BaseEntity
     public string CreatedBy { get; set; } = string.Empty;
     public DateTimeOffset UpdatedTime { get; set; }
     public string UpdatedBy { get; set; } = string.Empty;
-    public bool IsDeleted { get; set; }
 }

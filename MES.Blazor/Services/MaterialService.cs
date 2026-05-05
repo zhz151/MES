@@ -14,7 +14,9 @@ public class MaterialService
     {
         try
         {
-            var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={Uri.EscapeDataString(query.SortBy)}&isDescending={query.IsDescending}";
+            var isDescending = query.IsDescending ? "true" : "false";
+            var encodedSortBy = Uri.EscapeDataString(query.SortBy ?? "CreatedTime");
+            var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={encodedSortBy}&isDescending={isDescending}";
             if (!string.IsNullOrEmpty(query.Keyword)) url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<MaterialDto>>>(url)
                    ?? ApiResponse<PagedResult<MaterialDto>>.Fail("获取数据失败");
@@ -40,6 +42,16 @@ public class MaterialService
                    ?? ApiResponse<MaterialDto>.Fail("创建失败");
         }
         catch (Exception ex) { return ApiResponse<MaterialDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<List<MaterialDto>>> CreateBatchAsync(List<CreateMaterialRequest> requests)
+    {
+        try
+        {
+            return await _http.PostAsJsonAsync<List<CreateMaterialRequest>, ApiResponse<List<MaterialDto>>>($"{BaseUrl}/batch", requests)
+                   ?? ApiResponse<List<MaterialDto>>.Fail("批量创建失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<MaterialDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
     public async Task<ApiResponse<MaterialDto>> UpdateAsync(int id, UpdateMaterialRequest request)
@@ -70,5 +82,54 @@ public class MaterialService
             return result?.Data ?? new List<string>();
         }
         catch { return new List<string>(); }
+    }
+
+    /// <summary>
+    /// 匹配物料（按分类+钢种+规格）
+    /// </summary>
+    public async Task<ApiResponse<MaterialDto?>> MatchAsync(string category, string grade, string spec)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/match?category={Uri.EscapeDataString(category)}&grade={Uri.EscapeDataString(grade)}&spec={Uri.EscapeDataString(spec)}";
+            var response = await _http.GetFromJsonAsync<ApiResponse<MaterialDto?>>(url);
+            return response ?? ApiResponse<MaterialDto?>.Ok(null, "查询失败");
+        }
+        catch (Exception ex) { return ApiResponse<MaterialDto?>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    // ========== 打印 ==========
+
+    public async Task<ApiResponse<string>> PrintMaterialAsync(int id)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<string>>($"{BaseUrl}/{id}/print");
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<string>> PrintMaterialBatchAsync(int[] ids)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<OrderPrintBatchRequest, ApiResponse<string>>(
+                $"{BaseUrl}/print-batch", new OrderPrintBatchRequest { Ids = ids });
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<string>> PrintMaterialAllAsync(string? keyword = null, string? sortBy = null, bool isDescending = false)
+    {
+        try
+        {
+            var request = new OrderPrintAllRequest { Keyword = keyword, SortBy = sortBy, IsDescending = isDescending };
+            var response = await _http.PostAsJsonAsync<OrderPrintAllRequest, ApiResponse<string>>(
+                $"{BaseUrl}/print-all", request);
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 }

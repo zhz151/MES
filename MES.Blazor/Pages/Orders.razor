@@ -40,7 +40,7 @@
                     <MudTextField T="string"
                                   Label="模糊搜索 - 订单号/客户名称/业务员/最终客户/状态"
                                   Placeholder="输入关键字..."
-                                  Value="searchKeyword"
+                                  Value="@searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
@@ -97,7 +97,7 @@
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh Style="width: 40px;">
-                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" OnValueChanged="ToggleSelectAll" />
+                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
                     </MudTh>
                     <MudTh>
                         <span @onclick='() => ToggleSort("ordernumber")' class="sortable-header">
@@ -169,7 +169,7 @@
                     <MudTd Style="width: 40px;">
                         <MudCheckBox T="bool"
                                      Value="@selectedOrderIds.Contains(order.Id)"
-                                     ValueChanged="@((v) => { if(v) selectedOrderIds.Add(order.Id); else selectedOrderIds.Remove(order.Id); StateHasChanged(); })"
+                                     ValueChanged="@((v) => { if(v) selectedOrderIds.Add(order.Id); else selectedOrderIds.Remove(order.Id); _allSelected = orders.Any() && orders.All(i => selectedOrderIds.Contains(i.Id)); StateHasChanged(); })"
                                      Dense="true" />
                     </MudTd>
                     <MudTd title="@order.OrderNumber">
@@ -245,7 +245,26 @@
     private MudTable<SalesOrderListDto>? table;
     private List<SalesOrderListDto> orders = new();
     private HashSet<int> selectedOrderIds = new();
-    private bool allSelected;
+    private bool _allSelected;
+    private bool allSelected
+    {
+        get => _allSelected;
+        set
+        {
+            if (_allSelected == value) return;
+            _allSelected = value;
+            if (value)
+            {
+                foreach (var order in orders)
+                    selectedOrderIds.Add(order.Id);
+            }
+            else
+            {
+                selectedOrderIds.Clear();
+            }
+            StateHasChanged();
+        }
+    }
     private bool isLoading = false;
     private string searchKeyword = string.Empty;
     private string selectedTechStatus = "All";
@@ -447,23 +466,6 @@
         {
             Snackbar.Add($"取消失败: {ex.Message}", Severity.Error);
         }
-    }
-
-    // ========== 选择方法 ==========
-
-    private async Task ToggleSelectAll(bool select)
-    {
-        allSelected = select;
-        if (select)
-        {
-            foreach (var order in orders)
-                selectedOrderIds.Add(order.Id);
-        }
-        else
-        {
-            selectedOrderIds.Clear();
-        }
-        await Task.CompletedTask;
     }
 
     // ========== 打印方法 ==========

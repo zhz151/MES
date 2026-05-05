@@ -3,6 +3,7 @@ namespace MES.Core.DTOs;
 public class MaterialDto
 {
     public int Id { get; set; }
+    public string MaterialCode { get; set; } = null!;
     public string MaterialCategory { get; set; } = null!;
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;

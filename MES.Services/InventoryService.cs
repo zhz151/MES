@@ -39,7 +39,6 @@ public class InventoryService : IInventoryService
     {
         var queryable = _context.InventoryBatches
             .AsNoTracking()
-            .Where(b => !b.IsDeleted)
             .AsQueryable();
 
         // 关键字搜索（物料/钢种/规格/炉号/订单号等；按空格拆分多词 AND 匹配）
@@ -168,7 +167,7 @@ public class InventoryService : IInventoryService
     {
         var warehouse = await _context.Warehouses
             .AsNoTracking()
-            .FirstOrDefaultAsync(w => w.Id == request.WarehouseId && !w.IsDeleted);
+            .FirstOrDefaultAsync(w => w.Id == request.WarehouseId);
 
         if (warehouse == null)
             throw new BusinessException("仓库不存在");
@@ -252,7 +251,7 @@ public class InventoryService : IInventoryService
     {
         var entity = await _context.InventoryBatches
             .AsNoTracking()
-            .FirstOrDefaultAsync(b => b.Id == id && !b.IsDeleted);
+            .FirstOrDefaultAsync(b => b.Id == id);
 
         if (entity == null)
             throw new BusinessException("批次不存在");
@@ -273,7 +272,7 @@ public class InventoryService : IInventoryService
         // 验证仓库存在
         var warehouse = await _context.Warehouses
             .AsNoTracking()
-            .FirstOrDefaultAsync(w => w.Id == request.WarehouseId && !w.IsDeleted);
+            .FirstOrDefaultAsync(w => w.Id == request.WarehouseId);
 
         if (warehouse == null)
             throw new BusinessException("仓库不存在");
@@ -332,7 +331,7 @@ public class InventoryService : IInventoryService
     public async Task<OutboundRecordDto> OutboundAsync(CreateOutboundRequest request)
     {
         var batch = await _context.InventoryBatches
-            .FirstOrDefaultAsync(b => b.Id == request.InventoryBatchId && !b.IsDeleted);
+            .FirstOrDefaultAsync(b => b.Id == request.InventoryBatchId);
 
         if (batch == null)
             throw new BusinessException("批次不存在");
@@ -382,7 +381,7 @@ public class InventoryService : IInventoryService
             foreach (var item in request.Items)
             {
                 var batch = await _context.InventoryBatches
-                    .FirstOrDefaultAsync(b => b.Id == item.InventoryBatchId && !b.IsDeleted);
+                    .FirstOrDefaultAsync(b => b.Id == item.InventoryBatchId);
 
                 if (batch == null)
                     throw new BusinessException($"批次ID={item.InventoryBatchId}不存在");
@@ -510,7 +509,7 @@ public class InventoryService : IInventoryService
     public async Task<InventoryBatchDto> UpdateInventoryBatchAsync(int id, UpdateInventoryBatchRequest request)
     {
         var entity = await _context.InventoryBatches
-            .FirstOrDefaultAsync(b => b.Id == id && !b.IsDeleted);
+            .FirstOrDefaultAsync(b => b.Id == id);
 
         if (entity == null)
             throw new BusinessException("入库批次不存在");

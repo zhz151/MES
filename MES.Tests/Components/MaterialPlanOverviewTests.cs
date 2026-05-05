@@ -94,6 +94,7 @@ public class MaterialPlanOverviewTests : IDisposable
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://localhost:7001") };
         var authHttpClient = new AuthHttpClient(httpClient, localStorage.Object, fakeNav);
         _ctx.Services.AddSingleton(new WorkOrderService(authHttpClient));
+        _ctx.Services.AddSingleton(new MaterialPlanService(authHttpClient));
     }
 
     private void ConfigureResponse(Action<PagedResult<WorkOrderListDto>> configure)
