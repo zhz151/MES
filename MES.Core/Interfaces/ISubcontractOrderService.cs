@@ -16,6 +16,7 @@ public interface ISubcontractOrderService
 
     // ========== 用料计划执行状态 ==========
     Task<List<ProcurementStatusDto>> GetProcurementStatusAsync();
+    Task<List<OrderMismatchInfo>> GetMismatchedSubcontractOrdersAsync();
     Task<PlanDetailDto?> GetPlanDetailAsync(string workOrderNo, string materialCategory);
 
     // ========== 打印 ==========

@@ -102,6 +102,24 @@ public static class EnumHelper
 
         Register<NotificationChangeType>(("Deleted", "订单已删除"),
                                           ("ItemChanged", "项次已变更"));
+
+        Register<BatchStatus>(("None", "未产"),
+                               ("InProgress", "在产"),
+                               ("Completed", "完成"));
+
+        Register<PurchaseOrderStatus>(("Open", "未到货"),
+                                       ("Partial", "部分到货"),
+                                       ("Completed", "已完成"),
+                                       ("Cancelled", "已取消"));
+
+        Register<SubcontractOrderStatus>(("Sent", "已发出未收回"),
+                                          ("PartialReturned", "部分收回"),
+                                          ("Completed", "已完成"),
+                                          ("Cancelled", "已取消"));
+
+        Register<SectionOutsourceStatus>(("PendingRecovery", "待回收"),
+                                          ("Recovered", "已回收"),
+                                          ("InProgress", "在轧"));
     }
 
     private static void Register<T>(params (string value, string display)[] mappings) where T : Enum

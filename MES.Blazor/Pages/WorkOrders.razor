@@ -1,6 +1,7 @@
 @page "/workorders"
 @using MES.Blazor.Services
 @using MES.Core.DTOs
+@using MES.Core.Enums
 @using MES.Core.Models
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
@@ -10,9 +11,10 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject IJSRuntime JS
+@inject ColumnPrefsService ColumnPrefs
 @attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <!-- 页面顶部工具栏（铃铛图标和刷新） -->
     <div class="d-flex justify-space-between align-center mb-4">
         <MudText Typo="Typo.h5" Class="font-weight-bold">
@@ -20,11 +22,6 @@
             工单管理
         </MudText>
         <div class="d-flex align-center">
-            <MudIconButton Icon="@Icons.Material.Filled.Notifications"
-                           Color="Color.Primary"
-                           Badge="@(unreadCount > 0 ? unreadCount.ToString() : null)"
-                           BadgeColor="Color.Error"
-                           OnClick="@(() => notificationDrawerOpen = true)" />
             <MudButton Variant="Variant.Filled"
                        Color="Color.Info"
                        StartIcon="@Icons.Material.Filled.Sync"
@@ -43,6 +40,38 @@
             </MudButton>
         </div>
     </div>
+
+    <!-- 订单变更通知提醒 -->
+    @if (_orderChangeNotices is { Count: > 0 })
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Class="mb-4">
+            <div class="d-flex justify-space-between align-center">
+                <div>
+                    @foreach (var notice in _orderChangeNotices)
+                    {
+                        <div>@notice.Content</div>
+                    }
+                </div>
+                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Inherit" OnClick="DismissOrderChangeNotices">全部忽略</MudButton>
+            </div>
+        </MudAlert>
+    }
+
+    <!-- 订单删除通知提醒 -->
+    @if (_orderDeletedNotices is { Count: > 0 })
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Class="mb-4">
+            <div class="d-flex justify-space-between align-center">
+                <div>
+                    @foreach (var notice in _orderDeletedNotices)
+                    {
+                        <div>@notice.Content</div>
+                    }
+                </div>
+                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Inherit" OnClick="DismissOrderDeletedNotices">全部忽略</MudButton>
+            </div>
+        </MudAlert>
+    }
 
     <!-- 订单已取消-工单待删除区域 -->
     @if (cancelledOrders.Any())
@@ -92,8 +121,7 @@
             <MudGrid>
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
-                                  Label="模糊搜索 - 订单号/客户名称/业务员"
-                                  Placeholder="输入关键字..."
+                                  Label="模糊搜索 - 订单号/客户名称/业务员/最终客户/延期罚款"
                                   Value="@searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
@@ -106,10 +134,10 @@
                 <MudItem xs="12" md="3">
                     <MudSelect T="string" Label="工单状态" Value="@selectedStatus" ValueChanged="@OnStatusFilterChanged">
                         <MudSelectItem Value="@("All")">全部</MudSelectItem>
-                        <MudSelectItem Value="@("NotGenerated")">未编制</MudSelectItem>
-                        <MudSelectItem Value="@("Confirmed")">已确定</MudSelectItem>
-                        <MudSelectItem Value="@("Pending")">待修正</MudSelectItem>
-                        <MudSelectItem Value="@("Cancelled")">已取消</MudSelectItem>
+                        <MudSelectItem Value="@(WorkOrderStatus.NotGenerated.ToString())">未编制</MudSelectItem>
+                        <MudSelectItem Value="@(WorkOrderStatus.Confirmed.ToString())">已确定</MudSelectItem>
+                        <MudSelectItem Value="@(WorkOrderStatus.Pending.ToString())">待修正</MudSelectItem>
+                        <MudSelectItem Value="@(WorkOrderStatus.Cancelled.ToString())">已取消</MudSelectItem>
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="3">
@@ -118,16 +146,28 @@
             </MudGrid>
 
             <!-- 数据表格 -->
+            <div id="workorders-list-table">
             <MudTable @ref="table"
                       T="OrderWorkOrderStatusDto"
                       ServerData="OnServerData"
                       Loading="@isLoading"
                       Dense="true"
                       Hover="true"
-                      Class="mt-4"
+                      Class="mt-4 auto-table"
                       Elevation="0"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                    <MudSpacer />
                     <MudButton Variant="Variant.Outlined"
                                Size="Size.Small"
                                Color="Color.Info"
@@ -143,7 +183,7 @@
                                OnClick="PrintAll">
                         打印全部
                     </MudButton>
-                    <MudText Typo="Typo.body2" Class="ml-auto">
+                    <MudText Typo="Typo.body2" Class="ml-2">
                         共 @totalCount 条记录
                     </MudText>
                 </ToolBarContent>
@@ -151,51 +191,25 @@
                     <MudTh Style="width: 40px;">
                         <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
                     </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("ordernumber")' class="sortable-header">
-                            订单号
-                            @if (sortColumn == "ordernumber")
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTh>
+                            @if (!string.IsNullOrEmpty(col.SortKey))
                             {
-                                <span class="sort-arrow">@GetSortIndicator("ordernumber")</span>
+                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
+                                    @col.Label
+                                    @if (sortColumn == col.SortKey)
+                                    {
+                                        <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
+                                    }
+                                </span>
                             }
-                        </span>
-                    </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("signdate")' class="sortable-header">
-                            签订日期
-                            @if (sortColumn == "signdate")
+                            else
                             {
-                                <span class="sort-arrow">@GetSortIndicator("signdate")</span>
+                                <span class="th-label">@col.Label</span>
                             }
-                        </span>
-                    </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("salesman")' class="sortable-header">
-                            业务员
-                            @if (sortColumn == "salesman")
-                            {
-                                <span class="sort-arrow">@GetSortIndicator("salesman")</span>
-                            }
-                        </span>
-                    </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("customername")' class="sortable-header">
-                            客户名称
-                            @if (sortColumn == "customername")
-                            {
-                                <span class="sort-arrow">@GetSortIndicator("customername")</span>
-                            }
-                        </span>
-                    </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("workorderstatus")' class="sortable-header">
-                            工单状态
-                            @if (sortColumn == "workorderstatus")
-                            {
-                                <span class="sort-arrow">@GetSortIndicator("workorderstatus")</span>
-                            }
-                        </span>
-                    </MudTh>
+                        </MudTh>
+                    }
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="order">
@@ -205,50 +219,58 @@
                                      ValueChanged="@((v) => { if(v) selectedOrderNos.Add(order.OrderNumber); else selectedOrderNos.Remove(order.OrderNumber); _allSelected = orders.Any() && orders.All(i => selectedOrderNos.Contains(i.OrderNumber)); StateHasChanged(); })"
                                      Dense="true" />
                     </MudTd>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd>@RenderCell(order, col)</MudTd>
+                    }
                     <MudTd>
-                            <MudLink Typo="Typo.body2" OnClick="() => NavigateToTrace(order.OrderNumber)">@order.OrderNumber</MudLink>
-                    </MudTd>
-                    <MudTd >@order.SignDate.ToString("yyyy-MM-dd")</MudTd>
-                    <MudTd  title="@order.Salesman">@order.Salesman</MudTd>
-                    <MudTd title="@order.CustomerName">@order.CustomerName</MudTd>
-                    <MudTd>
-                        <MudChip Size="Size.Small"
-                                 Color="@GetStatusColor(order.WorkOrderStatus)"
-                                 Clickable="true"
-                                 OnClick="() => FilterByStatus(order.WorkOrderStatus)">
-                            @order.WorkOrderStatusText
-                        </MudChip>
-                    </MudTd>
-                    <MudTd>
-@if (order.WorkOrderStatus == "NotGenerated")
+@if (order.WorkOrderStatus == WorkOrderStatus.NotGenerated)
 {
     <MudButton Variant="Variant.Text"
                Color="Color.Primary"
                Size="Size.Small"
                StartIcon="@Icons.Material.Filled.Add"
-               OnClick="() => NavigateToGenerate(order.OrderNumber, order.WorkOrderStatus)">
+               OnClick="() => NavigateToGenerate(order.OrderNumber, order.WorkOrderStatus.ToString())">
         生成工单
     </MudButton>
 }
-else if (order.WorkOrderStatus == "Confirmed")
+else if (order.WorkOrderStatus == WorkOrderStatus.Confirmed)
 {
-    <MudButton Variant="Variant.Text"
-               Color="Color.Warning"
-               Size="Size.Small"
-               StartIcon="@Icons.Material.Filled.Refresh"
-               OnClick="() => NavigateToRegenerate(order.OrderNumber, order.WorkOrderStatus)">
-        重新生成
-    </MudButton>
+    <div class="d-flex flex-nowrap" style="gap: 4px;">
+        <MudButton Variant="Variant.Text"
+                   Color="Color.Warning"
+                   Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Refresh"
+                   OnClick="() => NavigateToRegenerate(order.OrderNumber, order.WorkOrderStatus.ToString())">
+            重新生成
+        </MudButton>
+        <MudButton Variant="Variant.Text"
+                   Color="Color.Info"
+                   Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Edit"
+                   OnClick="() => NavigateToUpdate(order.OrderNumber, order.WorkOrderStatus.ToString())">
+            更新修改
+        </MudButton>
+    </div>
 }
-else if (order.WorkOrderStatus == "Pending")
+else if (order.WorkOrderStatus == WorkOrderStatus.Pending)
 {
-    <MudButton Variant="Variant.Text"
-               Color="Color.Primary"
-               Size="Size.Small"
-               StartIcon="@Icons.Material.Filled.Add"
-               OnClick="() => NavigateToGenerate(order.OrderNumber, order.WorkOrderStatus)">
-        生成工单
-    </MudButton>
+    <div class="d-flex flex-nowrap" style="gap: 4px;">
+        <MudButton Variant="Variant.Text"
+                   Color="Color.Primary"
+                   Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Refresh"
+                   OnClick="() => NavigateToRegenerate(order.OrderNumber, order.WorkOrderStatus.ToString())">
+            重新生成
+        </MudButton>
+        <MudButton Variant="Variant.Text"
+                   Color="Color.Info"
+                   Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Edit"
+                   OnClick="() => NavigateToUpdate(order.OrderNumber, order.WorkOrderStatus.ToString())">
+            更新修改
+        </MudButton>
+    </div>
 }
                     </MudTd>
                 </RowTemplate>
@@ -256,65 +278,13 @@ else if (order.WorkOrderStatus == "Pending")
                     <MudTablePager />
                 </PagerContent>
             </MudTable>
+            </div>
         </MudCardContent>
     </MudCard>
 </MudContainer>
 
-<!-- 通知抽屉 -->
-<MudDrawer @bind-Open="notificationDrawerOpen" Anchor="Anchor.Right" Variant="DrawerVariant.Temporary">
-    <MudCard Style="height: 100%; display: flex; flex-direction: column;">
-        <MudCardHeader>
-            <CardHeaderContent>
-                <MudText Typo="Typo.h6">订单变更通知</MudText>
-            </CardHeaderContent>
-            <CardHeaderActions>
-                <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="MarkAllNotificationsRead">全部已读</MudButton>
-                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="() => notificationDrawerOpen = false" />
-            </CardHeaderActions>
-        </MudCardHeader>
-        <MudCardContent Style="flex: 1; overflow-y: auto;">
-            <MudTable @ref="notificationTable"
-                      T="OrderChangeNotificationDto"
-                      ServerData="LoadNotifications"
-                      Loading="@isLoadingNotifications"
-                      Dense="true"
-                      Hover="true"
-                      Elevation="0"
-                      RowsPerPageLabel="每页行数:">
-                <HeaderContent>
-                    <MudTh>订单号</MudTh>
-                    <MudTh>类型</MudTh>
-                    <MudTh>清理工单数</MudTh>
-                    <MudTh>时间</MudTh>
-                    <MudTh>操作</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd>@context.OrderNumber</MudTd>
-                    <MudTd>@context.ChangeTypeText</MudTd>
-                    <MudTd>@(context.WorkOrderCount > 0 ? context.WorkOrderCount.ToString() : "-")</MudTd>
-                    <MudTd>@context.CreatedTime.ToString("yyyy-MM-dd HH:mm")</MudTd>
-                    <MudTd>
-                        @if (!context.IsRead)
-                        {
-                            <MudIconButton Icon="@Icons.Material.Filled.Done"
-                                           Size="Size.Small"
-                                           Color="Color.Success"
-                                           OnClick="() => MarkNotificationRead(context.Id)"
-                                           Title="标记已读" />
-                        }
-                    </MudTd>
-                </RowTemplate>
-                <PagerContent>
-                    <MudTablePager />
-                </PagerContent>
-            </MudTable>
-        </MudCardContent>
-    </MudCard>
-</MudDrawer>
-
 @code {
     private MudTable<OrderWorkOrderStatusDto>? table;
-    private MudTable<OrderChangeNotificationDto>? notificationTable;
     private List<OrderWorkOrderStatusDto> orders = new();
     private List<CancelledOrderDto> cancelledOrders = new();
     private bool isLoading = false;
@@ -322,6 +292,7 @@ else if (order.WorkOrderStatus == "Pending")
     private string searchKeyword = string.Empty;
     private string selectedStatus = "All";
     private int totalCount = 0;
+    private bool _isArrowNavSetup;
 
     // 排序状态
     private string sortColumn = "signdate";
@@ -350,99 +321,199 @@ else if (order.WorkOrderStatus == "Pending")
     }
     private HashSet<string> selectedOrderNos = new();
 
+    // ========== 列选择管理 ==========
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns =>
+        _allColumns.Where(c => c.Visible).ToList();
+
+    private static List<ColumnDef> GetAllColumnDefs() => new()
+    {
+        new() { Key = "ordernumber",    Label = "订单号",   SortKey = "ordernumber" },
+        new() { Key = "signdate",       Label = "签订日期", SortKey = "signdate" },
+        new() { Key = "salesman",       Label = "业务员",   SortKey = "salesman" },
+        new() { Key = "customername",   Label = "客户名称", SortKey = "customername" },
+        new() { Key = "endcustomer",    Label = "最终客户", SortKey = "endcustomer" },
+        new() { Key = "deliverystart",  Label = "交期起始", SortKey = "deliverystart" },
+        new() { Key = "deliveryend",    Label = "交期截止", SortKey = "deliveryend" },
+        new() { Key = "hasdelaypenalty",Label = "延期罚款", SortKey = "hasdelaypenalty" },
+        new() { Key = "totalcontractweight", Label = "订单总重量", SortKey = "totalcontractweight" },
+        new() { Key = "itemcount",      Label = "含项次数", SortKey = "itemcount" },
+        new() { Key = "workordercount", Label = "现工单数", SortKey = "workordercount" },
+        new() { Key = "workorderstatus",Label = "工单状态", SortKey = "workorderstatus" },
+    };
+
+    private async Task OnColumnToggle(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task SaveColumnPrefs()
+    {
+        await ColumnPrefs.SaveAsync("workorders", null, _allColumns);
+    }
+
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnUp(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnDown(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    // ========== 单元格渲染 ==========
+
+    private RenderFragment RenderCell(OrderWorkOrderStatusDto order, ColumnDef col) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "ordernumber":
+                builder.OpenComponent<MudLink>(0);
+                builder.AddAttribute(1, "Typo", Typo.body2);
+                builder.AddAttribute(2, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => NavigateToTrace(order.OrderNumber)));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, order.OrderNumber)));
+                builder.CloseComponent();
+                break;
+            case "signdate":
+                builder.AddContent(0, order.SignDate.ToString("yyyy-MM-dd"));
+                break;
+            case "salesman":
+                builder.AddContent(0, order.Salesman);
+                break;
+            case "customername":
+                builder.AddContent(0, order.CustomerName);
+                break;
+            case "endcustomer":
+                builder.AddContent(0, order.EndCustomer);
+                break;
+            case "deliverystart":
+                builder.AddContent(0, order.DeliveryStart?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "deliveryend":
+                builder.AddContent(0, order.DeliveryEnd?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "hasdelaypenalty":
+                builder.AddContent(0, order.HasDelayPenalty ? "是" : "否");
+                break;
+            case "totalcontractweight":
+                builder.AddContent(0, order.TotalContractWeight.ToString("G29"));
+                break;
+            case "itemcount":
+                builder.AddContent(0, order.ItemCount);
+                break;
+            case "workordercount":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", Color.Primary);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, order.WorkOrderCount)));
+                builder.CloseComponent();
+                break;
+            case "workorderstatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetStatusColor(order.WorkOrderStatus));
+                builder.AddAttribute(3, "Clickable", true);
+                builder.AddAttribute(4, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => FilterByStatus(order.WorkOrderStatus.ToString())));
+                builder.AddAttribute(5, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, order.WorkOrderStatusText)));
+                builder.CloseComponent();
+                break;
+        }
+    };
+
     private string GetSortIndicator(string column)
     {
         if (sortColumn != column) return "";
         return sortDescending ? "\u25BC" : "\u25B2";
     }
 
-    // 通知相关
-    private bool notificationDrawerOpen = false;
-    private int unreadCount = 0;
-    private bool isLoadingNotifications = false;
+    // 通知提醒条
+    private List<NotificationDto>? _orderChangeNotices;
+    private List<NotificationDto>? _orderDeletedNotices;
 
     protected override async Task OnInitializedAsync()
     {
-        try
+        // 初始化列定义
+        _allColumns = GetAllColumnDefs();
+        var saved = await ColumnPrefs.LoadAsync("workorders", null);
+        if (saved.Count > 0)
         {
-            await LoadUnreadCount();
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
+            }
+            var reordered = new List<ColumnDef>();
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
         }
-        catch
-        {
-            // 通知未读数加载失败不影响主页面
-        }
+
+        await CheckNotifications();
         await LoadCancelledOrders();
         await base.OnInitializedAsync();
     }
 
-    private async Task LoadUnreadCount()
+    private async Task CheckNotifications()
     {
         try
         {
-            var result = await NotificationService.GetUnreadCountAsync();
-            if (result.Success)
-                unreadCount = result.Data;
+            var changeTask = NotificationService.GetByTypeAsync("OrderChanged");
+            var deletedTask = NotificationService.GetByTypeAsync("OrderDeleted");
+            await Task.WhenAll(changeTask, deletedTask);
+
+            var changeResult = await changeTask;
+            if (changeResult.Success && changeResult.Data != null)
+                _orderChangeNotices = changeResult.Data;
+            else
+                _orderChangeNotices = null;
+
+            var deletedResult = await deletedTask;
+            if (deletedResult.Success && deletedResult.Data != null)
+                _orderDeletedNotices = deletedResult.Data;
+            else
+                _orderDeletedNotices = null;
         }
         catch
         {
-            unreadCount = 0;
+            _orderChangeNotices = null;
+            _orderDeletedNotices = null;
         }
     }
 
-    private async Task<TableData<OrderChangeNotificationDto>> LoadNotifications(TableState state)
+    private async Task DismissOrderChangeNotices()
     {
-        isLoadingNotifications = true;
-        StateHasChanged();
-
-        try
-        {
-            var result = await NotificationService.GetPagedAsync(state.Page + 1, state.PageSize);
-            if (result.Success && result.Data != null)
-            {
-                return new TableData<OrderChangeNotificationDto>
-                {
-                    Items = result.Data.Items,
-                    TotalItems = result.Data.TotalCount
-                };
-            }
-            return new TableData<OrderChangeNotificationDto> { Items = new List<OrderChangeNotificationDto>(), TotalItems = 0 };
-        }
-        finally
-        {
-            isLoadingNotifications = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task MarkNotificationRead(int id)
-    {
-        var result = await NotificationService.MarkAsReadAsync(id);
+        var result = await NotificationService.MarkAllByTypeAsReadAsync("OrderChanged");
         if (result.Success)
         {
-            if (notificationTable != null)
-                await notificationTable.ReloadServerData();
-            await LoadUnreadCount();
-            Snackbar.Add("已标记为已读", Severity.Success);
-        }
-        else
-        {
-            Snackbar.Add(result.Message ?? "操作失败", Severity.Error);
+            _orderChangeNotices = null;
+            Snackbar.Add("提醒已忽略", Severity.Success);
         }
     }
 
-    private async Task MarkAllNotificationsRead()
+    private async Task DismissOrderDeletedNotices()
     {
-        var result = await NotificationService.MarkAllAsReadAsync();
+        var result = await NotificationService.MarkAllByTypeAsReadAsync("OrderDeleted");
         if (result.Success)
         {
-            if (notificationTable != null)
-                await notificationTable.ReloadServerData();
-            await LoadUnreadCount();
-            Snackbar.Add("已全部标记为已读", Severity.Success);
-        }
-        else
-        {
-            Snackbar.Add(result.Message ?? "操作失败", Severity.Error);
+            _orderDeletedNotices = null;
+            Snackbar.Add("提醒已忽略", Severity.Success);
         }
     }
 
@@ -545,6 +616,7 @@ else if (order.WorkOrderStatus == "Pending")
         {
             isSyncing = false;
         }
+        await CheckNotifications();
         await Search();
     }
 
@@ -586,13 +658,13 @@ else if (order.WorkOrderStatus == "Pending")
         await LoadCancelledOrders();
     }
 
-    private Color GetStatusColor(string status)
+    private Color GetStatusColor(WorkOrderStatus status)
     {
         return status switch
         {
-            "NotGenerated" => Color.Default,
-            "Confirmed" => Color.Success,
-            "Pending" => Color.Warning,
+            WorkOrderStatus.NotGenerated => Color.Default,
+            WorkOrderStatus.Confirmed => Color.Success,
+            WorkOrderStatus.Pending => Color.Warning,
             _ => Color.Default
         };
     }
@@ -605,6 +677,11 @@ else if (order.WorkOrderStatus == "Pending")
     private void NavigateToRegenerate(string salesOrderNo, string workOrderStatus)
     {
         Navigation.NavigateTo($"/workorders/generate?salesOrderNo={Uri.EscapeDataString(salesOrderNo)}&status={workOrderStatus}&regenerate=true");
+    }
+
+    private void NavigateToUpdate(string salesOrderNo, string workOrderStatus)
+    {
+        Navigation.NavigateTo($"/workorders/generate?salesOrderNo={Uri.EscapeDataString(salesOrderNo)}&status={workOrderStatus}&update=true");
     }
 
     private void NavigateToTrace(string orderNumber)
@@ -640,6 +717,16 @@ else if (order.WorkOrderStatus == "Pending")
         catch (Exception ex)
         {
             Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#workorders-list-table"))
+                _isArrowNavSetup = false;
         }
     }
 

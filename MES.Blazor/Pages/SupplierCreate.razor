@@ -5,19 +5,19 @@
 @inject SupplierService SupplierService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "MaterialStaff,MaterialDirector,Admin")]
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
                 <MudText Typo="Typo.h5" Class="font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Primary" />新建供应商</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">创建新的供应商档案，可批量添加多条记录</MudText>
             </CardHeaderContent>
             <CardHeaderActions>
                 <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAll" Disabled="@isSubmitting">
-                    @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> } else { <span>保存</span> }
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAll" Loading="@isSubmitting">
+                    保存
                 </MudButton>
             </CardHeaderActions>
         </MudCardHeader>
@@ -28,27 +28,19 @@
                 <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow">添加供应商</MudButton>
             </div>
 
-            @if (rows.Count == 0)
-            {
-                <MudAlert Severity="Severity.Info">请点击"添加供应商"按钮添加记录</MudAlert>
-            }
-            else
-            {
-                <MudAlert Severity="Severity.Warning" Class="mb-3">点击右上角"保存"按钮一次性提交所有记录。</MudAlert>
-
-                <div style="overflow-x: auto;">
-                    <MudTable T="SupplierRow" Items="@rows" Dense="true" Hover="true" Elevation="0">
-                        <HeaderContent>
-                            <MudTh Style="width: 50px;">行号</MudTh>
-                            <MudTh Style="min-width: 160px;">供应商名称</MudTh>
-                            <MudTh Style="width: 110px;">物料分类</MudTh>
-                            <MudTh Style="width: 110px;">联系人</MudTh>
-                            <MudTh Style="width: 130px;">联系电话</MudTh>
-                            <MudTh Style="min-width: 180px;">地址</MudTh>
-                            <MudTh Style="width: 70px;">启用</MudTh>
-                            <MudTh Style="min-width: 200px;">备注</MudTh>
-                            <MudTh Style="width: 60px;">操作</MudTh>
-                        </HeaderContent>
+            <div id="suppliers-create-table" style="overflow-x: auto;">
+                <MudTable T="SupplierRow" Items="@rows" Dense="true" Hover="true" Elevation="0" Class="auto-table">
+                    <HeaderContent>
+                        <MudTh Style="width: 50px;">行号</MudTh>
+                        <MudTh Style="width:160px;">供应商名称<span class="required-star">*</span></MudTh>
+                        <MudTh Style="width: 110px;">物料分类</MudTh>
+                        <MudTh Style="width: 110px;">联系人</MudTh>
+                        <MudTh Style="width: 130px;">联系电话</MudTh>
+                        <MudTh Style="width:180px;">地址</MudTh>
+                        <MudTh Style="width: 70px;">启用</MudTh>
+                        <MudTh Style="width:200px;">备注</MudTh>
+                        <MudTh Style="width: 60px;">操作</MudTh>
+                    </HeaderContent>
                         <RowTemplate Context="row">
                             <MudTd>
                                 <MudText Typo="Typo.body2">@row.Sequence</MudText>
@@ -59,7 +51,7 @@
                                               Dense="true"
                                               Variant="Variant.Outlined"
                                               Size="Size.Small"
-                                              Immediate="true" />
+                                              />
                             </MudTd>
                             <MudTd>
                                 <MudTextField T="string"
@@ -67,7 +59,7 @@
                                               Dense="true"
                                               Variant="Variant.Outlined"
                                               Size="Size.Small"
-                                              Immediate="true" />
+                                              />
                             </MudTd>
                             <MudTd>
                                 <MudTextField T="string"
@@ -75,7 +67,7 @@
                                               Dense="true"
                                               Variant="Variant.Outlined"
                                               Size="Size.Small"
-                                              Immediate="true" />
+                                              />
                             </MudTd>
                             <MudTd>
                                 <MudTextField T="string"
@@ -83,7 +75,7 @@
                                               Dense="true"
                                               Variant="Variant.Outlined"
                                               Size="Size.Small"
-                                              Immediate="true" />
+                                              />
                             </MudTd>
                             <MudTd>
                                 <MudTextField T="string"
@@ -91,10 +83,10 @@
                                               Dense="true"
                                               Variant="Variant.Outlined"
                                               Size="Size.Small"
-                                              Immediate="true" />
+                                              />
                             </MudTd>
                             <MudTd>
-                                <MudCheckBox @bind-Value="row.IsActive" Dense="true" Size="Size.Small" />
+                                <MudCheckBox @bind-Value="row.IsActive" />
                             </MudTd>
                             <MudTd>
                                 <MudTextField T="string"
@@ -102,7 +94,7 @@
                                               Dense="true"
                                               Variant="Variant.Outlined"
                                               Size="Size.Small"
-                                              Immediate="true" />
+                                              />
                             </MudTd>
                             <MudTd>
                                 @if (rows.Count > 1)
@@ -116,7 +108,6 @@
                         </RowTemplate>
                     </MudTable>
                 </div>
-            }
         </MudCardContent>
     </MudCard>
 </MudContainer>
@@ -124,6 +115,7 @@
 @code {
     private List<SupplierRow> rows = new();
     private bool isSubmitting;
+    private bool _isArrowNavSetup;
 
     private class SupplierRow
     {
@@ -140,6 +132,16 @@
     protected override void OnInitialized()
     {
         AddRow();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#suppliers-create-table"))
+                _isArrowNavSetup = false;
+        }
     }
 
     private void AddRow()

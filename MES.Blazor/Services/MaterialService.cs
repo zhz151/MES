@@ -98,6 +98,20 @@ public class MaterialService
         catch (Exception ex) { return ApiResponse<MaterialDto?>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    /// <summary>
+    /// 批量匹配物料，返回不存在的物料列表
+    /// </summary>
+    public async Task<ApiResponse<List<BatchMaterialMatchItem>>> BatchMatchAsync(List<BatchMaterialMatchItem> items)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<List<BatchMaterialMatchItem>, ApiResponse<List<BatchMaterialMatchItem>>>(
+                $"{BaseUrl}/batch-match", items);
+            return response ?? ApiResponse<List<BatchMaterialMatchItem>>.Ok(new List<BatchMaterialMatchItem>(), "查询失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<BatchMaterialMatchItem>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     // ========== 打印 ==========
 
     public async Task<ApiResponse<string>> PrintMaterialAsync(int id)

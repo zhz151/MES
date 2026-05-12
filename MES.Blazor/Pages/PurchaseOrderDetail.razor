@@ -1,139 +1,103 @@
 @page "/purchase-orders/{id:int}"
-@page "/purchase-orders/{id:int}/edit"
 @using MES.Blazor.Services
+@using MES.Blazor.Helpers
 @using MES.Core.DTOs
+@using MES.Core.Enums
 @using Microsoft.AspNetCore.Authorization
 @inject PurchaseOrderService PurchaseService
 @inject SupplierService SupplierService
-@inject WorkOrderService WorkOrderService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject ColumnPrefsService ColumnPrefs
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "MaterialStaff,MaterialDirector,Admin")]
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
-    @if (isLoading) { <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" /> }
-    else if (order == null) { <MudAlert Severity="Severity.Error">采购单不存在</MudAlert> }
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    @if (_isLoading) { <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" /> }
+    else if (_order == null) { <MudText Typo="Typo.body2" Color="Color.Error">采购单不存在</MudText> }
     else
     {
         <MudCard>
             <MudCardHeader>
                 <CardHeaderContent>
-                    <MudText Typo="Typo.h5" Class="font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Class="mr-2" Color="Color.Primary" />采购订单详情</MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">单号：@order.OrderNo</MudText>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">
+                        <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Class="mr-2" Color="Color.Primary" />采购订单详情
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">单号：@_order.OrderNo</MudText>
                 </CardHeaderContent>
                 <CardHeaderActions>
                     <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
-                    @if (isEditMode)
+                    @if (_isEditMode)
                     {
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Disabled="@isSubmitting">
-                            @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> } else { <span>保存</span> }
+                        <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CancelEdit">取消</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Loading="@_isSubmitting">
+                            保存
                         </MudButton>
                     }
                     else
                     {
-                        <AuthorizeView Roles="MaterialDirector,Admin"><MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑</MudButton></AuthorizeView>
+                        <AuthorizeView Roles="MaterialDirector,Admin">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑</MudButton>
+                        </AuthorizeView>
                     }
                 </CardHeaderActions>
             </MudCardHeader>
             <MudCardContent>
-                <MudText Typo="Typo.subtitle1" Class="mb-4 font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />基本信息</MudText>
-                <MudGrid>
-                    <MudItem xs="12" md="3"><MudTextField T="string" Label="采购单号" Value="@order.OrderNo" Disabled="true" /></MudItem>
-                    <MudItem xs="12" md="3">
-                        @if (isEditMode)
-                        {
-                            <MudSelect T="int" Label="供应商" @bind-Value="editOrder.SupplierId" Required="true">
-                                @foreach (var s in suppliers) { <MudSelectItem Value="s.Id">@s.SupplierName</MudSelectItem> }
-                            </MudSelect>
-                        }
-                        else
-                        {
-                            <MudTextField T="string" Label="供应商" Value="@order.SupplierName" Disabled="true" />
-                        }
-                    </MudItem>
-                    <MudItem xs="12" md="3"><MudTextField T="string" Label="下单日期" @bind-Value="dateText" Disabled="!isEditMode" Required="true" Placeholder="yyyy-MM-dd" /></MudItem>
-                    <MudItem xs="12" md="3">
-                        @if (isEditMode || isStatusEditMode)
-                        {
-                            <MudSelect T="string" Label="状态辅助" @bind-Value="editManualStatus" OnValueChanged="OnManualStatusChanged" Clearable="true">
-                                <MudSelectItem Value="@("")">（自动）</MudSelectItem>
-                                <MudSelectItem Value="@("Open")">已下单</MudSelectItem>
-                                <MudSelectItem Value="@("Partial")">部分到货</MudSelectItem>
-                                <MudSelectItem Value="@("Completed")">已完成</MudSelectItem>
-                                <MudSelectItem Value="@("Cancelled")">已取消</MudSelectItem>
-                            </MudSelect>
-                        }
-                        else
-                        {
-                            <MudTextField T="string" Label="状态" Value="@GetStatusText(order.Status)" Disabled="true" />
-                        }
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">当前：@GetStatusText(order.Status)@(!string.IsNullOrEmpty(order.ManualStatus) ? "（手动覆盖）" : "")</MudText>
-                    </MudItem>
-                </MudGrid>
-                <MudGrid>
-                    <MudItem xs="12" md="6">
-                        <MudTextField T="string" Label="来源工单号" @bind-Value="editOrder.SourceWorkOrderNo" Disabled="!isEditMode" />
-                    </MudItem>
-                    <MudItem xs="12" md="6" Class="d-flex align-center">
-                        @if (!string.IsNullOrEmpty(order.SourceWorkOrderNo))
-                        {
-                            <MudButton Variant="Variant.Text" Color="Color.Info" Size="Size.Small" OnClick="ToggleWorkOrderInfo">
-                                @(showWorkOrder ? "隐藏工单信息" : "查看工单信息")
-                            </MudButton>
-                        }
-                    </MudItem>
-                </MudGrid>
-                @if (showWorkOrder && workOrder != null)
-                {
-                    <MudAlert Severity="Severity.Info" Class="mb-4" Variant="Variant.Outlined">
-                        <MudText Typo="Typo.body2"><strong>工单号：</strong>@workOrder.WorkOrderNo</MudText>
-                        <MudText Typo="Typo.body2"><strong>订单号/主号/次号：</strong>@workOrder.SalesOrderNo / @workOrder.ProductionMainNo / @workOrder.ProductionSubNo</MudText>
-                        <MudText Typo="Typo.body2"><strong>物料名称：</strong>@workOrder.MaterialName</MudText>
-                        <MudText Typo="Typo.body2"><strong>结算方式：</strong>@workOrder.SettlementMethod</MudText>
-                        <MudText Typo="Typo.body2"><strong>交货状态：</strong>@workOrder.DeliveryState</MudText>
-                        <MudText Typo="Typo.body2"><strong>延期罚款：</strong>@(workOrder.DelayPenalty ? "是" : "否")</MudText>
-                        <MudText Typo="Typo.body2"><strong>交货日期：</strong>@workOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText>
-                        <MudText Typo="Typo.body2"><strong>工厂牌号：</strong>@workOrder.PlantGrade</MudText>
-                        <MudText Typo="Typo.body2"><strong>规格：</strong>@workOrder.Specification</MudText>
-                        <MudText Typo="Typo.body2"><strong>外径公差：</strong>@workOrder.OuterDiameterNegative ~ @workOrder.OuterDiameterPositive</MudText>
-                        <MudText Typo="Typo.body2"><strong>壁厚公差：</strong>@workOrder.WallThicknessNegative ~ @workOrder.WallThicknessPositive</MudText>
-                        <MudText Typo="Typo.body2"><strong>长度状态：</strong>@workOrder.LengthStatus</MudText>
-                        <MudText Typo="Typo.body2"><strong>数量/重量：</strong>@workOrder.TotalQuantity 支 / @workOrder.TotalWeight.ToString("G29") kg</MudText>
-                        <MudText Typo="Typo.body2"><strong>理论单支重：</strong>@workOrder.UnitWeight?.ToString("G29") kg</MudText>
-                    </MudAlert>
-                }
+                @* ========== 单行表格 ========== *@
+                <div class="d-flex align-center mb-2">
+                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold">
+                        <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />基本信息
+                    </MudText>
+                    <ColumnDisplaySelect Columns="@_allColumns"
+                                         OnColumnToggle="@OnColumnToggle"
+                                         OnMoveUp="@OnMoveUp"
+                                         OnMoveDown="@OnMoveDown" />
+                </div>
 
-                <MudText Typo="Typo.subtitle1" Class="mb-4 mt-4 font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.Category" Size="Size.Small" Class="mr-1" />物料信息</MudText>
-                <MudGrid>
-                    <MudItem xs="12" md="4"><MudTextField T="string" Label="物料分类" @bind-Value="editOrder.MaterialCategory" Disabled="!isEditMode" Required="true" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField T="string" Label="厂内钢种" @bind-Value="editOrder.PlantGrade" Disabled="!isEditMode" Required="true" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField T="string" Label="规格" @bind-Value="editOrder.Specification" Disabled="!isEditMode" Required="true" /></MudItem>
-                    <MudItem xs="12" md="3"><MudTextField T="decimal?" Label="单支重量(kg)" @bind-Value="editOrder.UnitWeight" Disabled="!isEditMode" /></MudItem>
-                    <MudItem xs="12" md="3"><MudTextField T="int?" Label="采购支数" @bind-Value="editOrder.Quantity" Disabled="!isEditMode" /></MudItem>
-                    <MudItem xs="12" md="3"><MudTextField T="decimal" Label="采购重量(kg)" @bind-Value="editOrder.Weight" Disabled="!isEditMode" Required="true" /></MudItem>
-                    <MudItem xs="12" md="3"><MudTextField T="string" Label="要求到货日期" @bind-Value="requiredDateText" Disabled="!isEditMode" Required="true" Placeholder="yyyy-MM-dd" /></MudItem>
-                    <MudItem xs="12" md="3"><MudTextField T="decimal?" Label="单价" @bind-Value="editOrder.UnitPrice" Disabled="!isEditMode" /></MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudTextField T="decimal?" Label="总金额" Value="@(editOrder.Quantity.HasValue && editOrder.UnitPrice.HasValue ? editOrder.Quantity.Value * editOrder.UnitPrice.Value : (decimal?)null)" Disabled="true" />
-                    </MudItem>
-                    <MudItem xs="12" md="12"><MudTextField T="string" Label="备注" @bind-Value="editOrder.Remark" Disabled="!isEditMode" Multiline="true" Lines="2" /></MudItem>
-                </MudGrid>
+                <div id="purchase-order-detail-table" style="overflow-x: auto;">
+                    <MudTable Items="@_singleItemList" Dense="true" Hover="true" Elevation="0" Class="auto-table" ReadOnly="true">
+                        <HeaderContent>
+                            @foreach (var col in _visibleColumns)
+                            {
+                                <MudTh>
+                                    @col.Label
+                                    @if (col.IsRequired) { <span class="required-star">*</span> }
+                                </MudTh>
+                            }
+                        </HeaderContent>
+                        <RowTemplate Context="item">
+                            @foreach (var col in _visibleColumns)
+                            {
+                                <MudTd>@RenderCell(item, col)</MudTd>
+                            }
+                        </RowTemplate>
+                    </MudTable>
+                </div>
 
-                <MudText Typo="Typo.subtitle1" Class="mb-4 mt-4 font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.Inventory" Size="Size.Small" Class="mr-1" />到货进度（仓库同步）</MudText>
-                <MudGrid>
-                    <MudItem xs="12" md="3"><MudTextField T="int" Label="已到货支数" Value="@order.ReceivedQuantity" Disabled="true" /></MudItem>
-                    <MudItem xs="12" md="3"><MudTextField T="decimal" Label="已到货重量(kg)" Value="@order.ReceivedWeight" Disabled="true" /></MudItem>
-                    <MudItem xs="12" md="3"><MudTextField T="string" Label="最后到货日期" Value="@(order.LastArrivalDate?.ToString("yyyy-MM-dd"))" Disabled="true" /></MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" OnClick="SyncSingle" Disabled="@isSyncing" StartIcon="@Icons.Material.Filled.Sync">
-                            即时更新
-                        </MudButton>
-                    </MudItem>
-                </MudGrid>
-                @if (order.Quantity.HasValue && order.Quantity > 0)
-                {
-                    <MudProgressLinear Value="@Math.Min(100, (double)order.ReceivedQuantity / order.Quantity.Value * 100)" Color="@(order.ReceivedQuantity >= order.Quantity.Value ? Color.Success : Color.Primary)" Class="mt-2" />
+                @* 到货进度条 *@
+                @{
+                    var hasQty = _order.Quantity.HasValue && _order.Quantity > 0;
+                    var receivedPct = hasQty ? Math.Min(100, (double)_order.ReceivedQuantity / (double)_order.Quantity.Value * 100) : 0;
                 }
+                <div class="d-flex align-center mt-2">
+                    <MudText Typo="Typo.body2" Class="mr-4">
+                        <MudIcon Icon="@Icons.Material.Filled.Inventory" Size="Size.Small" Class="mr-1" />到货进度
+                    </MudText>
+                    @if (hasQty)
+                    {
+                        <div style="flex:1; max-width:300px;" class="mr-4">
+                            <MudProgressLinear Value="@receivedPct" Color="@(receivedPct >= 100 ? Color.Success : Color.Primary)" />
+                        </div>
+                        <MudText Typo="Typo.body2">@_order.ReceivedQuantity.ToString("G29") / @_order.Quantity?.ToString("G29") 支</MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2">未设置采购支数</MudText>
+                    }
+                    <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" OnClick="SyncSingle" Disabled="@_isSyncing" StartIcon="@Icons.Material.Filled.Sync" Class="ml-4">
+                        即时更新
+                    </MudButton>
+                </div>
             </MudCardContent>
         </MudCard>
     }
@@ -141,125 +105,287 @@
 
 @code {
     [Parameter] public int Id { get; set; }
-    private bool isEditMode => Navigation.Uri.Contains("/edit");
-    private bool isStatusEditMode = true;
-    private PurchaseOrderDto? order;
-    private EditOrderModel editOrder = new();
-    private string dateText = "";
-    private string requiredDateText = "";
-    private List<SupplierProfileDto> suppliers = new();
-    private bool isLoading = true, isSubmitting, isSyncing, showWorkOrder;
-    private WorkOrderDetailDto? workOrder;
-    private string? editManualStatus;
 
+    // ========== 状态 ==========
+    private PurchaseOrderDto? _order;
+    private bool _isLoading = true;
+    private bool _isEditMode;
+    private bool _isSubmitting;
+    private bool _isSyncing;
+    private bool _editIsForceCompleted;
+    private bool _isArrowNavSetup;
+
+    // ========== 编辑模型 ==========
+    private EditOrderModel _editOrder = new();
+    private string _dateText = "";
+    private string _requiredDateText = "";
+    private string _quantityStr = "";
+    private string _unitWeightStr = "";
+    private string _weightStr = "";
+    private string _unitPriceStr = "";
+    private List<SupplierProfileDto> _suppliers = new();
+
+    // ========== 单行列表辅助 ==========
+    private List<PurchaseOrderDto> _singleItemList => _order != null ? new List<PurchaseOrderDto> { _order } : new();
+
+    // ========== 列定义 ==========
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns => _allColumns.Where(c => c.Visible).ToList();
+
+    // ========== 内部模型 ==========
     private class EditOrderModel
     {
         public int SupplierId { get; set; }
-        public DateTime Date { get; set; }
         public string MaterialCategory { get; set; } = string.Empty;
         public string PlantGrade { get; set; } = string.Empty;
         public string Specification { get; set; } = string.Empty;
-        public decimal? UnitWeight { get; set; }
-        public int? Quantity { get; set; }
-        public decimal Weight { get; set; }
-        public DateTime RequiredDate { get; set; }
-        public decimal? UnitPrice { get; set; }
+        public decimal? SourceUnitWeight { get; set; }
+        public int? SourceQuantity { get; set; }
+        public decimal SourceWeight { get; set; }
+        public DateTime SourceRequiredDate { get; set; }
+        public decimal? SourceUnitPrice { get; set; }
         public string? SourceWorkOrderNo { get; set; }
         public string? Remark { get; set; }
     }
 
+    // ========== 初始化 ==========
     protected override async Task OnInitializedAsync()
     {
-        // 供应商列表和订单数据可并行加载
-        var suppliersTask = SupplierService.GetActiveAsync();
+        InitColumns();
+        await LoadColumnPrefs();
+        _suppliers = await SupplierService.GetActiveAsync();
         await LoadData();
-        suppliers = await suppliersTask;
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_isEditMode && !_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#purchase-order-detail-table"))
+                _isArrowNavSetup = false;
+        }
+    }
+
+    private void InitColumns()
+    {
+        _allColumns = new List<ColumnDef>
+        {
+            // 基本信息
+            new() { Key = "orderno", Label = "采购单号", Visible = true, IsRequired = true },
+            new() { Key = "suppliername", Label = "供应商", Visible = true, IsRequired = true },
+            new() { Key = "orderdate", Label = "下单日期", Visible = true, IsRequired = true },
+            new() { Key = "status", Label = "状态", Visible = true },
+            // 物料信息
+            new() { Key = "materialcategory", Label = "物料分类", Visible = true, IsRequired = true },
+            new() { Key = "plantgrade", Label = "厂内钢种", Visible = true },
+            new() { Key = "specification", Label = "规格", Visible = true },
+            new() { Key = "unitweight", Label = "单支重量", Visible = true },
+            new() { Key = "quantity", Label = "采购支数", Visible = true },
+            new() { Key = "weight", Label = "采购重量", Visible = true },
+            new() { Key = "requireddate", Label = "要求到货日", Visible = true },
+            new() { Key = "unitprice", Label = "单价", Visible = false },
+            new() { Key = "totalamount", Label = "总金额", Visible = false },
+            new() { Key = "sourceworkorderno", Label = "来源工单号", Visible = true },
+            // 到货进度
+            new() { Key = "receivedquantity", Label = "已到货支数", Visible = true },
+            new() { Key = "receivedweight", Label = "已到货重量", Visible = true },
+            new() { Key = "lastarrivaldate", Label = "最后到货日", Visible = false },
+            // 备注
+            new() { Key = "remark", Label = "备注", Visible = false },
+            // Wo* 字段（17个）
+            new() { Key = "wosalesorderno", Label = "订单号", Visible = false },
+            new() { Key = "woproductionmainno", Label = "主号", Visible = false },
+            new() { Key = "woproductionsubno", Label = "次号", Visible = false },
+            new() { Key = "wosigndate", Label = "签订日期", Visible = false },
+            new() { Key = "wosalesman", Label = "业务员", Visible = false },
+            new() { Key = "woendcustomer", Label = "最终用户", Visible = false },
+            new() { Key = "wodeliverydate", Label = "交货日期", Visible = false },
+            new() { Key = "wodelaypenalty", Label = "延期罚款", Visible = false },
+            new() { Key = "wosettlementmethod", Label = "结算方式", Visible = false },
+            new() { Key = "woplantgrade", Label = "厂内牌号", Visible = false },
+            new() { Key = "wospecification", Label = "成品规格", Visible = false },
+            new() { Key = "wolengthstatus", Label = "长度状态", Visible = false },
+            new() { Key = "womaxlength", Label = "最长长度", Visible = false },
+            new() { Key = "wototalquantity", Label = "总支数", Visible = false },
+            new() { Key = "wototalweight", Label = "总重量", Visible = false },
+            new() { Key = "wodeliverystate", Label = "交货状态", Visible = false },
+            new() { Key = "wototalitemcount", Label = "总项次数", Visible = false },
+        };
+    }
+
+    // ========== 列偏好持久化 ==========
+    private const string ColumnPrefsKey = "purchase_order_detail";
+
+    private async Task LoadColumnPrefs()
+    {
+        var saved = await ColumnPrefs.LoadAsync(ColumnPrefsKey, null);
+        if (saved.Count > 0) ApplyColumnPrefs(_allColumns, saved);
+    }
+
+    private static void ApplyColumnPrefs(List<ColumnDef> target, List<ColumnDef> saved)
+    {
+        var savedByKey = saved.ToDictionary(s => s.Key, s => s);
+        foreach (var t in target)
+        {
+            if (savedByKey.TryGetValue(t.Key, out var pref))
+                t.Visible = pref.Visible;
+        }
+        var savedKeys = saved.Select(s => s.Key).ToHashSet();
+        var merged = saved
+            .Select(s => target.FirstOrDefault(t => t.Key == s.Key))
+            .Where(t => t != null)
+            .Cast<ColumnDef>()
+            .Concat(target.Where(t => !savedKeys.Contains(t.Key)))
+            .ToList();
+        if (merged.Count == target.Count)
+        {
+            for (int i = 0; i < target.Count; i++) target[i] = merged[i];
+        }
+    }
+
+    private async Task SaveColumnPrefs()
+    {
+        await ColumnPrefs.SaveAsync(ColumnPrefsKey, null, _allColumns);
+    }
+
+    private async Task OnColumnToggle(ColumnDef col) => await SaveColumnPrefs();
+    private async Task OnMoveUp(ColumnDef col) => await SaveColumnPrefs();
+    private async Task OnMoveDown(ColumnDef col) => await SaveColumnPrefs();
+
+    // ========== 数据加载 ==========
     private async Task LoadData()
     {
-        if (Id <= 0) { Snackbar.Add("无效的ID", Severity.Error); isLoading = false; return; }
-        isLoading = true; StateHasChanged();
+        if (Id <= 0) { Snackbar.Add("无效的ID", Severity.Error); _isLoading = false; return; }
+        _isLoading = true; StateHasChanged();
         try
         {
             var result = await PurchaseService.GetByIdAsync(Id);
             if (result.Success && result.Data != null)
             {
-                order = result.Data;
-                editManualStatus = order.ManualStatus;
-                editOrder = new EditOrderModel
-                {
-                    SupplierId = order.SupplierId,
-                    Date = order.OrderDate,
-                    MaterialCategory = order.MaterialCategory,
-                    PlantGrade = order.PlantGrade,
-                    Specification = order.Specification,
-                    UnitWeight = order.UnitWeight,
-                    Quantity = order.Quantity,
-                    Weight = order.Weight,
-                    RequiredDate = order.RequiredDate,
-                    UnitPrice = order.UnitPrice,
-                    SourceWorkOrderNo = order.SourceWorkOrderNo,
-                    Remark = order.Remark
-                };
-                dateText = order.OrderDate.ToString("yyyy-MM-dd");
-                requiredDateText = order.RequiredDate.ToString("yyyy-MM-dd");
+                _order = result.Data;
+                ResetEditModels();
             }
             else { Snackbar.Add(result.Message ?? "加载失败", Severity.Error); }
         }
         catch (Exception ex) { Snackbar.Add($"加载失败: {ex.Message}", Severity.Error); }
-        finally { isLoading = false; StateHasChanged(); }
+        finally { _isLoading = false; StateHasChanged(); }
     }
 
-    private void EnterEditMode() => Navigation.NavigateTo($"/purchase-orders/{Id}/edit");
+    private void ResetEditModels()
+    {
+        if (_order == null) return;
+        _editIsForceCompleted = _order.IsForceCompleted;
+        _editOrder = new EditOrderModel
+        {
+            SupplierId = _order.SupplierId,
+            MaterialCategory = _order.MaterialCategory,
+            PlantGrade = _order.PlantGrade,
+            Specification = _order.Specification,
+            SourceUnitWeight = _order.UnitWeight,
+            SourceQuantity = _order.Quantity,
+            SourceWeight = _order.Weight,
+            SourceRequiredDate = _order.RequiredDate,
+            SourceUnitPrice = _order.UnitPrice,
+            SourceWorkOrderNo = _order.SourceWorkOrderNo,
+            Remark = _order.Remark
+        };
+        _dateText = _order.OrderDate.ToString("yyyy-MM-dd");
+        _requiredDateText = _order.RequiredDate.ToString("yyyy-MM-dd");
+        _unitWeightStr = _order.UnitWeight?.ToString("G29") ?? "";
+        _quantityStr = _order.Quantity?.ToString() ?? "";
+        _weightStr = _order.Weight.ToString("G29");
+        _unitPriceStr = _order.UnitPrice?.ToString("G29") ?? "";
+    }
+
+    // ========== 编辑模式 ==========
+    private void EnterEditMode() { _isEditMode = true; }
+
+    private async Task CancelEdit()
+    {
+        _isEditMode = false;
+        ResetEditModels();
+        StateHasChanged();
+    }
 
     private async Task Save()
     {
-        isSubmitting = true; StateHasChanged();
+        // 验证
+        var errors = new List<string>();
+        if (!DateTime.TryParse(_dateText, out var orderDate))
+            errors.Add("下单日期格式错误，请使用 yyyy-MM-dd");
+        if (!DateTime.TryParse(_requiredDateText, out var requiredDate))
+            errors.Add("要求到货日期格式错误，请使用 yyyy-MM-dd");
+        if (string.IsNullOrWhiteSpace(_editOrder.MaterialCategory)) errors.Add("物料分类不能为空");
+        if (string.IsNullOrWhiteSpace(_editOrder.PlantGrade)) errors.Add("厂内钢种不能为空");
+        if (string.IsNullOrWhiteSpace(_editOrder.Specification)) errors.Add("规格不能为空");
+        if (!int.TryParse(_quantityStr, out var qty) || qty < 0)
+            errors.Add("采购支数必须为大于等于0的整数");
+        if (!decimal.TryParse(_weightStr, out var wgt) || wgt <= 0)
+            errors.Add("采购重量必须大于0");
+        if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
+
+        _isSubmitting = true; StateHasChanged();
         try
         {
+            _editOrder.SourceQuantity = qty;
+            _editOrder.SourceWeight = wgt;
+            _editOrder.SourceUnitWeight = decimal.TryParse(_unitWeightStr, out var uw) ? uw : null;
+            _editOrder.SourceUnitPrice = decimal.TryParse(_unitPriceStr, out var up) ? up : null;
+
             var req = new UpdatePurchaseOrderRequest
             {
-                SupplierId = editOrder.SupplierId,
-                MaterialCategory = editOrder.MaterialCategory,
-                PlantGrade = editOrder.PlantGrade,
-                Specification = editOrder.Specification,
-                UnitWeight = editOrder.UnitWeight,
-                Quantity = editOrder.Quantity,
-                Weight = editOrder.Weight,
-                RequiredDate = editOrder.RequiredDate,
-                UnitPrice = editOrder.UnitPrice,
-                SourceWorkOrderNo = editOrder.SourceWorkOrderNo,
-                Remark = editOrder.Remark
+                SupplierId = _editOrder.SupplierId,
+                MaterialCategory = _editOrder.MaterialCategory,
+                PlantGrade = _editOrder.PlantGrade,
+                Specification = _editOrder.Specification,
+                UnitWeight = _editOrder.SourceUnitWeight,
+                Quantity = _editOrder.SourceQuantity,
+                Weight = _editOrder.SourceWeight,
+                RequiredDate = requiredDate,
+                UnitPrice = _editOrder.SourceUnitPrice,
+                SourceWorkOrderNo = _editOrder.SourceWorkOrderNo,
+                Remark = _editOrder.Remark
             };
-            if (!DateTime.TryParse(dateText, out var dateVal)) { Snackbar.Add("下单日期格式错误", Severity.Warning); isSubmitting = false; return; }
-            if (!DateTime.TryParse(requiredDateText, out var requiredDateVal)) { Snackbar.Add("要求到货日期格式错误", Severity.Warning); isSubmitting = false; return; }
-            editOrder.Date = dateVal;
-            editOrder.RequiredDate = requiredDateVal;
-            req.RequiredDate = requiredDateVal;
+
             var result = await PurchaseService.UpdateAsync(Id, req);
-            if (result.Success) { Snackbar.Add("更新成功", Severity.Success); Navigation.NavigateTo($"/purchase-orders/{Id}"); }
-            else { Snackbar.Add(result.Message ?? "更新失败", Severity.Error); }
+            if (result.Success)
+            {
+                // 如果强制完成状态已改变，额外调用状态更新
+                if (_editIsForceCompleted != _order!.IsForceCompleted)
+                {
+                    await PurchaseService.UpdateStatusAsync(Id, new UpdateOrderStatusRequest { IsForceCompleted = _editIsForceCompleted });
+                }
+                Snackbar.Add("保存成功", Severity.Success);
+                _isEditMode = false;
+                await LoadData();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "保存失败", Severity.Error);
+            }
         }
-        catch (Exception ex) { Snackbar.Add($"更新失败: {ex.Message}", Severity.Error); }
-        finally { isSubmitting = false; StateHasChanged(); }
+        catch (Exception ex) { Snackbar.Add($"保存失败: {ex.Message}", Severity.Error); }
+        finally { _isSubmitting = false; StateHasChanged(); }
     }
 
-    private async Task OnManualStatusChanged(string? value)
+    // ========== 强制完成 ==========
+    private async Task OnForceCompletedChanged(bool value)
     {
-        editManualStatus = value;
+        _editIsForceCompleted = value;
         try
         {
-            var result = await PurchaseService.UpdateStatusAsync(Id, new UpdateOrderStatusRequest { ManualStatus = value });
+            var result = await PurchaseService.UpdateStatusAsync(Id, new UpdateOrderStatusRequest { IsForceCompleted = value });
             if (result.Success) { Snackbar.Add("状态已更新", Severity.Success); await LoadData(); }
             else { Snackbar.Add(result.Message ?? "状态更新失败", Severity.Error); }
         }
         catch (Exception ex) { Snackbar.Add($"状态更新失败: {ex.Message}", Severity.Error); }
     }
 
+    // ========== 同步到货进度 ==========
     private async Task SyncSingle()
     {
-        isSyncing = true; StateHasChanged();
+        _isSyncing = true; StateHasChanged();
         try
         {
             var result = await PurchaseService.SyncSingleAsync(Id);
@@ -267,26 +393,291 @@
             else { Snackbar.Add(result.Message ?? "同步失败", Severity.Error); }
         }
         catch (Exception ex) { Snackbar.Add($"同步失败: {ex.Message}", Severity.Error); }
-        finally { isSyncing = false; StateHasChanged(); }
+        finally { _isSyncing = false; StateHasChanged(); }
     }
 
-    private async Task ToggleWorkOrderInfo()
-    {
-        showWorkOrder = !showWorkOrder;
-        if (showWorkOrder && workOrder == null && !string.IsNullOrEmpty(order?.SourceWorkOrderNo))
-        {
-            try
-            {
-                var result = await WorkOrderService.GetByWorkOrderNoAsync(order.SourceWorkOrderNo);
-                if (result.Success && result.Data != null)
-                    workOrder = result.Data;
-                else
-                    Snackbar.Add(result.Message ?? "未找到工单信息", Severity.Warning);
-            }
-            catch (Exception ex) { Snackbar.Add($"查询工单失败: {ex.Message}", Severity.Warning); }
-        }
-    }
-
+    // ========== 导航 ==========
     private void GoBack() => Navigation.NavigateTo("/purchase-orders");
-    private static string GetStatusText(string status) => status switch { "Open" => "已下单", "Partial" => "部分到货", "Completed" => "已完成", "Cancelled" => "已取消", _ => status };
+
+    private static string GetStatusText(PurchaseOrderStatus status) => status switch
+    {
+        PurchaseOrderStatus.Open => "已下单",
+        PurchaseOrderStatus.Partial => "部分到货",
+        PurchaseOrderStatus.Completed => "已完成",
+        PurchaseOrderStatus.Cancelled => "已取消",
+        _ => status.ToString()
+    };
+
+    // ========== 渲染方法 ==========
+    private RenderFragment RenderCell(PurchaseOrderDto item, ColumnDef col) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "orderno":
+                builder.AddContent(0, item.OrderNo);
+                break;
+            case "suppliername":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudSelect<int>>(0);
+                    builder.AddAttribute(1, "Value", _editOrder.SupplierId);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int>(this, v => _editOrder.SupplierId = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
+                    {
+                        foreach (var s in _suppliers)
+                        {
+                            cb.OpenComponent<MudSelectItem<int>>(0);
+                            cb.AddAttribute(1, "Value", s.Id);
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, s.SupplierName)));
+                            cb.CloseComponent();
+                        }
+                    }));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, item.SupplierName);
+                }
+                break;
+            case "orderdate":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", _dateText);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => _dateText = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd");
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, item.OrderDate.ToString("yyyy-MM-dd"));
+                }
+                break;
+            case "status":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudSwitch<bool>>(0);
+                    builder.AddAttribute(1, "Value", _editIsForceCompleted);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<bool>(this, v =>
+                    {
+                        _editIsForceCompleted = v;
+                        _ = OnForceCompletedChanged(v);
+                    }));
+                    builder.AddAttribute(3, "Label", "强制完成");
+                    builder.AddAttribute(4, "Color", Color.Success);
+                    builder.AddAttribute(5, "Dense", true);
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, GetStatusText(item.Status));
+                    if (item.IsForceCompleted)
+                    {
+                        builder.AddContent(1, " (强制完成)");
+                    }
+                }
+                break;
+            case "materialcategory":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", _editOrder.MaterialCategory);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => _editOrder.MaterialCategory = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, item.MaterialCategory); }
+                break;
+            case "plantgrade":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", _editOrder.PlantGrade);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => _editOrder.PlantGrade = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, item.PlantGrade); }
+                break;
+            case "specification":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", _editOrder.Specification);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => _editOrder.Specification = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, item.Specification); }
+                break;
+            case "unitweight":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", _unitWeightStr);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => _unitWeightStr = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, item.UnitWeight?.ToString("G29")); }
+                break;
+            case "quantity":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", _quantityStr);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => _quantityStr = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, item.Quantity?.ToString("G29")); }
+                break;
+            case "weight":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", _weightStr);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => _weightStr = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, item.Weight.ToString("G29")); }
+                break;
+            case "requireddate":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", _requiredDateText);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => _requiredDateText = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd");
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, item.RequiredDate.ToString("yyyy-MM-dd")); }
+                break;
+            case "unitprice":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", _unitPriceStr);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => _unitPriceStr = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, item.UnitPrice?.ToString("G29")); }
+                break;
+            case "totalamount":
+                builder.AddContent(0, item.TotalAmount?.ToString("G29"));
+                break;
+            case "sourceworkorderno":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", _editOrder.SourceWorkOrderNo);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => _editOrder.SourceWorkOrderNo = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, item.SourceWorkOrderNo); }
+                break;
+            case "receivedquantity":
+                builder.AddContent(0, item.ReceivedQuantity.ToString("G29"));
+                break;
+            case "receivedweight":
+                builder.AddContent(0, item.ReceivedWeight.ToString("G29"));
+                break;
+            case "lastarrivaldate":
+                builder.AddContent(0, item.LastArrivalDate?.ToString("yyyy-MM-dd"));
+                break;
+            case "remark":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", _editOrder.Remark);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => _editOrder.Remark = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, item.Remark); }
+                break;
+            // Wo* 字段 - 只读展示
+            case "wosalesorderno":
+                builder.AddContent(0, item.WoSalesOrderNo);
+                break;
+            case "woproductionmainno":
+                builder.AddContent(0, item.WoProductionMainNo);
+                break;
+            case "woproductionsubno":
+                builder.AddContent(0, item.WoProductionSubNo);
+                break;
+            case "wosigndate":
+                builder.AddContent(0, item.WoSignDate?.ToString("yyyy-MM-dd"));
+                break;
+            case "wosalesman":
+                builder.AddContent(0, item.WoSalesman);
+                break;
+            case "woendcustomer":
+                builder.AddContent(0, item.WoEndCustomer);
+                break;
+            case "wodeliverydate":
+                builder.AddContent(0, item.WoDeliveryDate?.ToString("yyyy-MM-dd"));
+                break;
+            case "wodelaypenalty":
+                builder.AddContent(0, item.WoDelayPenalty ? "是" : "否");
+                break;
+            case "wosettlementmethod":
+                builder.AddContent(0, item.WoSettlementMethod != null ? DisplayHelper.GetSettlementMethodText(item.WoSettlementMethod.Value) : null);
+                break;
+            case "woplantgrade":
+                builder.AddContent(0, item.WoPlantGrade);
+                break;
+            case "wospecification":
+                builder.AddContent(0, item.WoSpecification);
+                break;
+            case "wolengthstatus":
+                builder.AddContent(0, item.WoLengthStatus != null ? DisplayHelper.GetLengthStatusText(item.WoLengthStatus.Value) : null);
+                break;
+            case "womaxlength":
+                builder.AddContent(0, item.WoMaxLength?.ToString("G29"));
+                break;
+            case "wototalquantity":
+                builder.AddContent(0, item.WoTotalQuantity?.ToString("G29"));
+                break;
+            case "wototalweight":
+                builder.AddContent(0, item.WoTotalWeight?.ToString("G29"));
+                break;
+            case "wodeliverystate":
+                builder.AddContent(0, item.WoDeliveryState != null ? DisplayHelper.GetDeliveryStateText(item.WoDeliveryState.Value) : null);
+                break;
+            case "wototalitemcount":
+                builder.AddContent(0, item.WoTotalItemCount?.ToString("G29"));
+                break;
+        }
+    };
 }

@@ -13,9 +13,10 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "OrderDirector,Admin")]
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
@@ -23,24 +24,17 @@
                     <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Primary" />
                     新建订单
                 </MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">创建新的销售订单，订单状态将自动设置为"待处理"</MudText>
             </CardHeaderContent>
             <CardHeaderActions>
                 <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitOrder" Disabled="@isSubmitting">
-                    @if (isSubmitting)
-                    {
-                        <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
-                    }
-                    else
-                    {
-                        <span>提交订单</span>
-                    }
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitOrder" Loading="@isSubmitting">
+                    提交订单
                 </MudButton>
             </CardHeaderActions>
         </MudCardHeader>
 
         <MudCardContent>
+            <div id="order-create-table">
             @if (isLoading)
             {
                 <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
@@ -49,46 +43,71 @@
             {
                 <!-- ========== 1. 基本信息区域 ========== -->
                 <MudText Typo="Typo.subtitle1" Class="mb-3">基本信息</MudText>
-                <div class="form-inline-row">
-                    <div class="form-inline-field">
-                        <span class="form-label">订单号</span>
-                        <div class="form-input-stack">
-                            <div class="form-hidden-input form-input-required">
+                <div style="overflow-x: auto;" class="mb-6">
+                    <MudTable Items="@_headerDummy" Dense="true" Hover="true" Elevation="0" Class="auto-table">
+                        <HeaderContent>
+                            <MudTh>订单号<span class="required-star">*</span></MudTh>
+                            <MudTh>签订日期</MudTh>
+                            <MudTh>业务员</MudTh>
+                            <MudTh>客户单位</MudTh>
+                            <MudTh>最终客户</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
                                 <MudTextField T="string"
                                               @bind-Value="headerData.OrderNumber"
                                               Dense="true"
                                               Variant="Variant.Outlined"
-                                              Size="Size.Small"
-                                              Immediate="true" />
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-inline-field">
-                        <span class="form-label">签订日期</span>
-                        <div class="form-input-stack">
-                            <div class="form-hidden-input form-input-required">
+                                              Size="Size.Small" />
+                            </MudTd>
+                            <MudTd>
                                 <MudTextField T="string"
                                               @bind-Value="headerData.SignDateStr"
                                               Dense="true"
                                               Variant="Variant.Outlined"
-                                              Size="Size.Small"
-                                              Immediate="true" />
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-inline-field">
-                        <span class="form-label">客户编号</span>
-                        <div class="form-input-stack">
-                            <div class="form-hidden-input form-input-required">
-                                <MudTextField T="string"
-                                              @bind-Value="headerData.CustomerCode"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Size="Size.Small"
-                                              Immediate="true" />
-                            </div>
-                        </div>
-                    </div>
+                                              Size="Size.Small" />
+                            </MudTd>
+                            <MudTd>
+                                <MudSelect T="string"
+                                           Value="headerData.SelectedSalesman"
+                                           ValueChanged="EventCallback.Factory.Create<string>(this, OnSalesmanValueChanged)"
+                                           Dense="true"
+                                           Variant="Variant.Outlined"
+                                           Size="Size.Small">
+                                    @foreach (var s in _salesmen)
+                                    {
+                                        <MudSelectItem Value="@s">@s</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudTd>
+                            <MudTd>
+                                <MudSelect T="string"
+                                           Value="headerData.SelectedCustomerUnit"
+                                           ValueChanged="EventCallback.Factory.Create<string>(this, OnCustomerUnitValueChanged)"
+                                           Dense="true"
+                                           Variant="Variant.Outlined"
+                                           Size="Size.Small">
+                                    @foreach (var u in _customerUnits)
+                                    {
+                                        <MudSelectItem Value="@u">@u</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudTd>
+                            <MudTd>
+                                <MudSelect T="string"
+                                           Value="headerData.SelectedEndCustomer"
+                                           ValueChanged="EventCallback.Factory.Create<string>(this, OnEndCustomerValueChanged)"
+                                           Dense="true"
+                                           Variant="Variant.Outlined"
+                                           Size="Size.Small">
+                                    @foreach (var e in _endCustomers)
+                                    {
+                                        <MudSelectItem Value="@e">@e</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
                 </div>
 
                 <MudDivider Class="my-4" />
@@ -100,25 +119,23 @@
                     <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddNewItem">添加异类项次</MudButton>
                 </div>
 
+                <div>
                 @if (editItemViewModels.Count == 0)
                 {
-                    <MudAlert Severity="Severity.Info">请点击"添加异类项次"或"添加同类项次"按钮添加订单项次</MudAlert>
                 }
                 else
                 {
-                    <MudAlert Severity="Severity.Warning" Class="mb-3">每个订单至少需要保留一个项次。删除项次请点击行尾的删除按钮。</MudAlert>
-
                     <div style="overflow-x: auto;">
-                        <MudTable T="OrderItemViewModel" Items="@editItemViewModels" Dense="true" Hover="true" Elevation="0" RowsPerPage="10" RowsPerPageLabel="每页行数:" Class="compact-table">
+                        <MudTable T="OrderItemViewModel" Items="@editItemViewModels" Dense="true" Hover="true" Elevation="0" RowsPerPage="10" RowsPerPageLabel="每页行数:" Class="auto-table">
                             <HeaderContent>
                                 <MudTh>项次</MudTh>
-                                <MudTh>交货日期</MudTh>
+                                <MudTh>交货日期<span class="required-star">*</span></MudTh>
                                 <MudTh>延期罚款</MudTh>
                                 <MudTh>结算方式</MudTh>
                                 <MudTh>物料名称</MudTh>
                                 <MudTh>产品标准</MudTh>
                                 <MudTh>交货状态</MudTh>
-                                <MudTh>标准牌号</MudTh>
+                                <MudTh>标准牌号<span class="required-star">*</span></MudTh>
                                 <MudTh>外径</MudTh>
                                 <MudTh>壁厚</MudTh>
                                 <MudTh>外径下差</MudTh>
@@ -151,12 +168,12 @@
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
                                                   Style="width: 72px;"
-                                                  Immediate="true" />
+                                                  />
                                 </MudTd>
 
                                 <!-- 延期罚款 - 复选框 -->
                                 <MudTd>
-                                    <MudCheckBox @bind-Value="item.DelayPenalty" Dense="true" Size="Size.Small" />
+                                    <MudCheckBox @bind-Value="item.DelayPenalty" />
                                 </MudTd>
 
                                 <!-- 结算方式 - 下拉选择 -->
@@ -363,7 +380,9 @@
                         </MudTable>
                     </div>
                 }
+                </div>
             }
+            </div>
         </MudCardContent>
     </MudCard>
 </MudContainer>
@@ -375,7 +394,9 @@
     {
         public string OrderNumber { get; set; } = string.Empty;
         public string SignDateStr { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
-        public string CustomerCode { get; set; } = string.Empty;
+        public string SelectedSalesman { get; set; } = string.Empty;
+        public string SelectedCustomerUnit { get; set; } = string.Empty;
+        public string SelectedEndCustomer { get; set; } = string.Empty;
     }
 
     private class OrderItemViewModel
@@ -433,9 +454,55 @@
     private List<ProductionStandardDto> productionStandards = new();
     private List<StandardGradeMappingDto> gradeMappings = new();
     private List<CustomerProfileDto> allCustomers = new();
-    private HashSet<string> validCustomerCodes = new();
+    private int? _selectedCustomerId;
     private bool isSubmitting = false;
     private bool isLoading = true;
+    private bool _isArrowNavSetup;
+    private List<int> _headerDummy => new() { 1 };
+
+    // ========== 级联选择计算属性 ==========
+
+    private List<string> _salesmen => allCustomers
+        .Where(c => !string.IsNullOrEmpty(c.Salesman))
+        .Select(c => c.Salesman)
+        .Distinct()
+        .OrderBy(s => s)
+        .ToList();
+
+    private List<CustomerProfileDto> _filteredBySalesman => string.IsNullOrEmpty(headerData.SelectedSalesman)
+        ? new List<CustomerProfileDto>()
+        : allCustomers.Where(c => c.Salesman == headerData.SelectedSalesman).ToList();
+
+    private List<string> _customerUnits => _filteredBySalesman
+        .Where(c => !string.IsNullOrEmpty(c.CustomerUnit))
+        .Select(c => c.CustomerUnit)
+        .Distinct()
+        .OrderBy(u => u)
+        .ToList();
+
+    private List<CustomerProfileDto> _matchedCustomers => string.IsNullOrEmpty(headerData.SelectedCustomerUnit)
+        ? new List<CustomerProfileDto>()
+        : _filteredBySalesman.Where(c => c.CustomerUnit == headerData.SelectedCustomerUnit).ToList();
+
+    private List<string> _endCustomers => _matchedCustomers
+        .Where(c => !string.IsNullOrEmpty(c.EndCustomer))
+        .Select(c => c.EndCustomer!)
+        .Distinct()
+        .OrderBy(e => e)
+        .ToList();
+
+    private bool _isEndCustomerAuto
+    {
+        get
+        {
+            var uniqueEndCustomers = _matchedCustomers
+                .Where(c => !string.IsNullOrEmpty(c.EndCustomer))
+                .Select(c => c.EndCustomer)
+                .Distinct()
+                .ToList();
+            return uniqueEndCustomers.Count == 1;
+        }
+    }
 
     // ========== 辅助方法 ==========
 
@@ -443,11 +510,55 @@
 
     private string FormatNullableDecimal(decimal? value) => value.HasValue && value.Value != 0 ? value.Value.ToString("G29") : "";
 
-    private int? FindCustomerIdByCode(string customerCode)
+    // ========== 级联选择事件处理 ==========
+
+    private void OnSalesmanValueChanged(string value)
     {
-        if (string.IsNullOrEmpty(customerCode)) return null;
-        var customer = allCustomers.FirstOrDefault(c => c.CustomerCode == customerCode);
-        return customer?.Id;
+        headerData.SelectedSalesman = value;
+        AfterSalesmanChanged();
+    }
+
+    private void OnCustomerUnitValueChanged(string value)
+    {
+        headerData.SelectedCustomerUnit = value;
+        AfterCustomerUnitChanged();
+    }
+
+    private void OnEndCustomerValueChanged(string value)
+    {
+        headerData.SelectedEndCustomer = value;
+        AfterEndCustomerChanged();
+    }
+
+    // ========== 值变更后续回调 ==========
+
+    private void AfterSalesmanChanged()
+    {
+        headerData.SelectedCustomerUnit = string.Empty;
+        headerData.SelectedEndCustomer = string.Empty;
+        _selectedCustomerId = null;
+    }
+
+    private void AfterCustomerUnitChanged()
+    {
+        headerData.SelectedEndCustomer = string.Empty;
+        _selectedCustomerId = null;
+
+        if (_isEndCustomerAuto)
+        {
+            var matched = _matchedCustomers.FirstOrDefault(c => !string.IsNullOrEmpty(c.EndCustomer));
+            if (matched != null)
+            {
+                headerData.SelectedEndCustomer = matched.EndCustomer!;
+                _selectedCustomerId = matched.Id;
+            }
+        }
+    }
+
+    private void AfterEndCustomerChanged()
+    {
+        var matched = _matchedCustomers.FirstOrDefault(c => c.EndCustomer == headerData.SelectedEndCustomer);
+        _selectedCustomerId = matched?.Id;
     }
 
     // ========== 项次操作方法 ==========
@@ -601,25 +712,13 @@
         try
         {
             // 并行加载：客户列表、产品标准、牌号对照（三者无依赖关系）
-            var customersTask = CustomerService.GetPagedAsync(new QueryParams { PageSize = 100 });
+            var customersTask = CustomerService.GetAllAsync();
             var standardsTask = StandardService.GetAllAsync();
             var gradesTask = GradeMappingService.GetAllAsync();
             await Task.WhenAll(customersTask, standardsTask, gradesTask);
 
             // 处理客户数据
-            var customersResult = await customersTask;
-            if (customersResult.Success && customersResult.Data != null)
-            {
-                allCustomers = customersResult.Data.Items;
-                validCustomerCodes.Clear();
-                foreach (var customer in allCustomers)
-                {
-                    if (!string.IsNullOrEmpty(customer.CustomerCode))
-                    {
-                        validCustomerCodes.Add(customer.CustomerCode);
-                    }
-                }
-            }
+            allCustomers = await customersTask;
 
             // 产品和牌号数据已并行完成
             productionStandards = await standardsTask;
@@ -668,16 +767,22 @@
             errors.Add("签订日期格式无效，请使用 yyyy-MM-dd 格式");
         }
 
-        if (string.IsNullOrEmpty(headerData.CustomerCode))
+        if (string.IsNullOrEmpty(headerData.SelectedSalesman))
         {
-            errors.Add("客户编号不能为空");
+            errors.Add("请选择业务员");
         }
-        else if (!validCustomerCodes.Contains(headerData.CustomerCode))
+        else if (string.IsNullOrEmpty(headerData.SelectedCustomerUnit))
         {
-            errors.Add($"客户编号 '{headerData.CustomerCode}' 不存在，请先在客户管理中创建");
+            errors.Add("请选择客户单位");
         }
-
-        var customerId = FindCustomerIdByCode(headerData.CustomerCode);
+        else if (string.IsNullOrEmpty(headerData.SelectedEndCustomer))
+        {
+            errors.Add("请选择最终客户");
+        }
+        else if (_selectedCustomerId == null)
+        {
+            errors.Add("未找到匹配的客户档案，请先在客户管理中创建");
+        }
 
         // 2. 验证项次
         if (editItemViewModels.Count == 0)
@@ -841,7 +946,7 @@
         {
             OrderNumber = headerData.OrderNumber,
             SignDate = DateTime.Parse(headerData.SignDateStr),
-            CustomerId = customerId!.Value,
+            CustomerId = _selectedCustomerId!.Value,
             Items = items
         };
 
@@ -871,6 +976,16 @@
         {
             isSubmitting = false;
             StateHasChanged();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#order-create-table"))
+                _isArrowNavSetup = false;
         }
     }
 

@@ -135,6 +135,20 @@ public class OrderService
         }
     }
 
+    public async Task<ApiResponse<SaveAllOrderResponse>> SaveAllAsync(int id, SaveAllOrderRequest request)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<SaveAllOrderRequest, ApiResponse<SaveAllOrderResponse>>(
+                $"{BaseUrl}/{id}/save-all", request);
+            return response ?? ApiResponse<SaveAllOrderResponse>.Fail("批量保存失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<SaveAllOrderResponse>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
     // ========== 打印 ==========
 
     /// <summary>

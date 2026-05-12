@@ -1,5 +1,7 @@
 // 文件路径: MES.Core/DTOs/WorkOrderListDto.cs
 
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs;
 
 /// <summary>
@@ -33,19 +35,19 @@ public class WorkOrderListDto
     public string? ProductionSubNo { get; set; }
 
     /// <summary>
-    /// 工厂牌号
+    /// 签订日期
     /// </summary>
-    public string PlantGrade { get; set; } = null!;
+    public DateTime SignDate { get; set; }
 
     /// <summary>
-    /// 物料名称
+    /// 业务员
     /// </summary>
-    public string MaterialName { get; set; } = null!;
+    public string Salesman { get; set; } = null!;
 
     /// <summary>
-    /// 规格
+    /// 最终用户
     /// </summary>
-    public string Specification { get; set; } = null!;
+    public string? EndCustomer { get; set; }
 
     /// <summary>
     /// 交货日期
@@ -53,9 +55,39 @@ public class WorkOrderListDto
     public DateTime DeliveryDate { get; set; }
 
     /// <summary>
+    /// 延期罚款
+    /// </summary>
+    public bool DelayPenalty { get; set; }
+
+    /// <summary>
+    /// 结算方式
+    /// </summary>
+    public SettlementMethod SettlementMethod { get; set; }
+
+    /// <summary>
+    /// 工厂牌号
+    /// </summary>
+    public string PlantGrade { get; set; } = null!;
+
+    /// <summary>
+    /// 物料名称
+    /// </summary>
+    public MaterialName MaterialName { get; set; }
+
+    /// <summary>
+    /// 规格
+    /// </summary>
+    public string Specification { get; set; } = null!;
+
+    /// <summary>
     /// 长度状态
     /// </summary>
-    public string LengthStatus { get; set; } = null!;
+    public LengthStatus LengthStatus { get; set; }
+
+    /// <summary>
+    /// 最大长度
+    /// </summary>
+    public decimal? MaxLength { get; set; }
 
     /// <summary>
     /// 总数量
@@ -66,6 +98,16 @@ public class WorkOrderListDto
     /// 总重量
     /// </summary>
     public decimal TotalWeight { get; set; }
+
+    /// <summary>
+    /// 交货状态
+    /// </summary>
+    public DeliveryState DeliveryState { get; set; }
+
+    /// <summary>
+    /// 总项次数（含项次数）
+    /// </summary>
+    public int TotalItemCount { get; set; }
 
     /// <summary>
     /// 工单状态值
@@ -179,7 +221,7 @@ public string StatusText
     {
         get
         {
-            var isFixed = string.Equals(LengthStatus, "Fixed", StringComparison.OrdinalIgnoreCase);
+            var isFixed = LengthStatus == LengthStatus.Fixed;
             var parts = new List<string>();
 
             if (isFixed)

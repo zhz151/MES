@@ -86,7 +86,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = 999,
             OutboundQuantity = 1,
             OutboundWeight = 100m,
-            OutboundType = "销售",
+            OutboundType = "SalesOut",
             TargetCompany = "客户X",
             OutboundDate = DateTime.Today
         });
@@ -118,7 +118,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 10,
             OutboundWeight = 100m,
-            OutboundType = "销售",
+            OutboundType = "SalesOut",
             TargetCompany = "客户X",
             OutboundDate = DateTime.Today
         });
@@ -151,7 +151,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 1,
             OutboundWeight = 600m,
-            OutboundType = "销售",
+            OutboundType = "SalesOut",
             TargetCompany = "客户X",
             OutboundDate = DateTime.Today
         });
@@ -184,7 +184,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 3,
             OutboundWeight = 300m,
-            OutboundType = "销售",
+            OutboundType = "SalesOut",
             TargetCompany = "客户X",
             OutboundDate = DateTime.Today
         });
@@ -226,7 +226,7 @@ public class InventoryServiceTests : TestBase
 
         var act = () => svc.BatchOutboundAsync(new BatchOutboundRequest
         {
-            OutboundType = "销售",
+            OutboundType = "SalesOut",
             TargetCompany = "客户Y",
             OutboundDate = DateTime.Today,
             Items = new List<OutboundItemRequest>
@@ -354,7 +354,7 @@ public class InventoryServiceTests : TestBase
         await svc.OutboundAsync(new CreateOutboundRequest
         {
             InventoryBatchId = b2.Id, OutboundQuantity = 5,
-            OutboundWeight = 500m, OutboundType = "销售",
+            OutboundWeight = 500m, OutboundType = "SalesOut",
             TargetCompany = "客户X", OutboundDate = DateTime.Today
         });
 
@@ -424,7 +424,7 @@ public class InventoryServiceTests : TestBase
     }
 
     [Fact]
-    public async Task HardDeleteInventoryBatchAsync_删除批次和关联出库记录()
+    public async Task HardDeleteInventoryBatchAsync_有出库记录_抛出BusinessException()
     {
         var ctx = CreateDbContext();
         var wh = await SeedWarehouseAsync(ctx);
@@ -438,26 +438,24 @@ public class InventoryServiceTests : TestBase
             InitialQuantity = 10, InitialWeight = 1000m
         });
 
-        await svc.OutboundAsync(new CreateOutboundRequest
+        var outRecord = await svc.OutboundAsync(new CreateOutboundRequest
         {
             InventoryBatchId = batch.Id, OutboundQuantity = 3,
-            OutboundWeight = 300m, OutboundType = "销售",
+            OutboundWeight = 300m, OutboundType = "SalesOut",
             TargetCompany = "客户X", OutboundDate = DateTime.Today
         });
 
+        // 有出库记录时无法删除批次
+        var act = () => svc.HardDeleteInventoryBatchAsync(batch.Id);
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*存在出库记录*");
+
+        // 先删除出库记录，再删除批次
+        await svc.HardDeleteOutboundRecordAsync(outRecord.Id);
         await svc.HardDeleteInventoryBatchAsync(batch.Id);
 
-        // 批次和出库记录都应被物理删除
+        // 验证已删除
         var getAct = () => svc.GetByIdAsync(batch.Id);
         await getAct.Should().ThrowAsync<BusinessException>().WithMessage("批次不存在");
-
-        var records = await svc.GetOutboundRecordsAsync(new OutboundQueryParams
-        {
-            InventoryBatchId = batch.Id,
-            PageIndex = 0,
-            PageSize = 10
-        });
-        records.Items.Should().BeEmpty();
     }
 
     // ========== 出库记录 ==========
@@ -480,25 +478,25 @@ public class InventoryServiceTests : TestBase
         await svc.OutboundAsync(new CreateOutboundRequest
         {
             InventoryBatchId = batch.Id, OutboundQuantity = 2,
-            OutboundWeight = 200m, OutboundType = "销售",
+            OutboundWeight = 200m, OutboundType = "SalesOut",
             TargetCompany = "客户A", OutboundDate = DateTime.Today
         });
         await svc.OutboundAsync(new CreateOutboundRequest
         {
             InventoryBatchId = batch.Id, OutboundQuantity = 3,
-            OutboundWeight = 300m, OutboundType = "调拨",
+            OutboundWeight = 300m, OutboundType = "TransferOut",
             TargetCompany = "客户B", OutboundDate = DateTime.Today
         });
 
         var result = await svc.GetOutboundRecordsAsync(new OutboundQueryParams
         {
-            OutboundType = "销售",
+            OutboundType = "SalesOut",
             PageIndex = 0,
             PageSize = 10
         });
 
         result.Items.Should().HaveCount(1);
-        result.Items[0].OutboundType.Should().Be("销售");
+        result.Items[0].OutboundType.Should().Be("SalesOut");
         result.Items[0].BatchNo.Should().Be(batch.BatchNo);
         result.TotalCount.Should().Be(1);
     }

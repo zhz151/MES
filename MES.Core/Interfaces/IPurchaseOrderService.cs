@@ -15,6 +15,7 @@ public interface IPurchaseOrderService
     Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request);
     Task DeleteAsync(int id);
     Task<List<ProcurementStatusDto>> GetProcurementStatusAsync();
+    Task<List<OrderMismatchInfo>> GetMismatchedPurchaseOrdersAsync();
     Task<PlanDetailDto?> GetPlanDetailAsync(string workOrderNo, string materialCategory);
 
     // ========== 打印 ==========

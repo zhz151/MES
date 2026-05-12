@@ -1,5 +1,6 @@
 @page "/material-plan-overview"
 @using MES.Blazor.Services
+@using MES.Blazor.Helpers
 @using MES.Core.DTOs
 @using MES.Core.Models
 @using MES.Core.Enums
@@ -10,16 +11,16 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
+@inject ColumnPrefsService ColumnPrefs
 @attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
                 <div class="d-flex align-center">
                     <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
                     <MudText Typo="Typo.h5" Class="font-weight-bold">用料计划总览</MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="ml-4">查看所有工单的用料计划状态</MudText>
                 </div>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -37,17 +38,14 @@
             <!-- 错误提示 -->
             @if (!string.IsNullOrEmpty(errorMessage))
             {
-                <MudAlert Severity="Severity.Error" Class="mb-4" Variant="Variant.Filled">
-                    @errorMessage
-                </MudAlert>
+                <MudText Typo="Typo.body2" Color="Color.Error" Class="mb-4">@errorMessage</MudText>
             }
 
             <!-- 筛选栏 -->
             <MudGrid>
                 <MudItem xs="12" md="3">
                     <MudTextField T="string"
-                                  Label="模糊搜索 - 工单号/订单号/主号/次号"
-                                  Placeholder="输入关键字..."
+                                  Label="模糊搜索 - 工单号/订单号/主号/次号/业务员/最终用户"
                                   Value="@searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
@@ -58,54 +56,65 @@
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
                 <MudItem xs="12" md="3">
-                    <MudSelect T="int?" Label="工单用料计划状态"
-                               Value="@selectedStatus"
-                               ValueChanged="@((int? v) => OnStatusFilterChanged(v, 1))"
-                               AnchorOrigin="Origin.BottomCenter">
-                        <MudSelectItem Value="@((int?)null)">全部</MudSelectItem>
-                        <MudSelectItem Value="@((int?)0)">未计划</MudSelectItem>
-                        <MudSelectItem Value="@((int?)1)">部分</MudSelectItem>
-                        <MudSelectItem Value="@((int?)2)">理论满足</MudSelectItem>
-                        <MudSelectItem Value="@((int?)3)">满足</MudSelectItem>
-                        <MudSelectItem Value="@((int?)4)">超量</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudSelect T="int?" Label="关联主号用料"
-                               Value="@selectedMainNoStatus"
-                               ValueChanged="@((int? v) => OnStatusFilterChanged(v, 2))"
-                               AnchorOrigin="Origin.BottomCenter">
-                        <MudSelectItem Value="@((int?)null)">全部</MudSelectItem>
-                        <MudSelectItem Value="@((int?)0)">未计划</MudSelectItem>
-                        <MudSelectItem Value="@((int?)1)">部分</MudSelectItem>
-                        <MudSelectItem Value="@((int?)3)">满足</MudSelectItem>
-                        <MudSelectItem Value="@((int?)4)">超量</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudSelect T="int?" Label="关联订单用料"
+                    <MudSelect T="int" Label="关联订单用料"
                                Value="@selectedOrderStatus"
-                               ValueChanged="@((int? v) => OnStatusFilterChanged(v, 3))"
+                               ValueChanged="@((int v) => OnStatusFilterChanged(v, 3))"
                                AnchorOrigin="Origin.BottomCenter">
-                        <MudSelectItem Value="@((int?)null)">全部</MudSelectItem>
-                        <MudSelectItem Value="@((int?)0)">未计划</MudSelectItem>
-                        <MudSelectItem Value="@((int?)1)">部分</MudSelectItem>
-                        <MudSelectItem Value="@((int?)3)">全部满足</MudSelectItem>
+                        <MudSelectItem Value="-1">全部</MudSelectItem>
+                        <MudSelectItem Value="0">未计划</MudSelectItem>
+                        <MudSelectItem Value="1">部分</MudSelectItem>
+                        <MudSelectItem Value="3">全部满足</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudSelect T="int" Label="关联主号用料"
+                               Value="@selectedMainNoStatus"
+                               ValueChanged="@((int v) => OnStatusFilterChanged(v, 2))"
+                               AnchorOrigin="Origin.BottomCenter">
+                        <MudSelectItem Value="-1">全部</MudSelectItem>
+                        <MudSelectItem Value="0">未计划</MudSelectItem>
+                        <MudSelectItem Value="1">部分</MudSelectItem>
+                        <MudSelectItem Value="3">满足</MudSelectItem>
+                        <MudSelectItem Value="4">超量</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudSelect T="int" Label="工单用料计划状态"
+                               Value="@selectedStatus"
+                               ValueChanged="@((int v) => OnStatusFilterChanged(v, 1))"
+                               AnchorOrigin="Origin.BottomCenter">
+                        <MudSelectItem Value="-1">全部</MudSelectItem>
+                        <MudSelectItem Value="0">未计划</MudSelectItem>
+                        <MudSelectItem Value="1">部分</MudSelectItem>
+                        <MudSelectItem Value="2">理论满足</MudSelectItem>
+                        <MudSelectItem Value="3">满足</MudSelectItem>
+                        <MudSelectItem Value="4">超量</MudSelectItem>
                     </MudSelect>
                 </MudItem>
             </MudGrid>
 
             <!-- 数据表格 -->
             <MudTable @ref="table"
-                      ServerData="ReloadData"
+                      ServerData="OnServerData"
                       Loading="@isLoading"
                       Dense="true"
                       Hover="true"
                       Elevation="0"
-                      Class="mt-4"
+                      Class="auto-table"
                       RowsPerPage="10"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                    <MudSpacer />
                     <MudButton Variant="Variant.Filled"
                                Size="Size.Small"
                                Color="Color.Info"
@@ -122,7 +131,7 @@
                     <MudText Typo="Typo.body2" Class="mr-3">库存使用</MudText>
                     <MudCheckBox T="bool" Value="@includeRework" ValueChanged="@((bool v) => OnPlanTypeFilterChanged(v, 4))" Dense="true" />
                     <MudText Typo="Typo.body2" Class="mr-3">库料改制</MudText>
-                    <MudText Typo="Typo.body2" Class="ml-auto">
+                    <MudText Typo="Typo.body2" Class="ml-4">
                         共 @totalCount 条记录
                     </MudText>
                 </ToolBarContent>
@@ -130,72 +139,25 @@
                     <MudTh Style="width: 40px;">
                         <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
                     </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("WorkOrderNo")' class="sortable-header">
-                            工单号
-                            @if (sortColumn == "WorkOrderNo")
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTh>
+                            @if (!string.IsNullOrEmpty(col.SortKey))
                             {
-                                <span class="sort-arrow">@GetSortIndicator("WorkOrderNo")</span>
+                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
+                                    @col.Label
+                                    @if (sortColumn == col.SortKey)
+                                    {
+                                        <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
+                                    }
+                                </span>
                             }
-                        </span>
-                    </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("SalesOrderNo")' class="sortable-header">
-                            订单号
-                            @if (sortColumn == "SalesOrderNo")
+                            else
                             {
-                                <span class="sort-arrow">@GetSortIndicator("SalesOrderNo")</span>
+                                <span class="th-label">@col.Label</span>
                             }
-                        </span>
-                    </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("ProductionMainNo")' class="sortable-header">
-                            主号
-                            @if (sortColumn == "ProductionMainNo")
-                            {
-                                <span class="sort-arrow">@GetSortIndicator("ProductionMainNo")</span>
-                            }
-                        </span>
-                    </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("ProductionSubNo")' class="sortable-header">
-                            次号
-                            @if (sortColumn == "ProductionSubNo")
-                            {
-                                <span class="sort-arrow">@GetSortIndicator("ProductionSubNo")</span>
-                            }
-                        </span>
-                    </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("LatestPlanDate")' class="sortable-header">
-                            计划日期
-                            @if (sortColumn == "LatestPlanDate")
-                            {
-                                <span class="sort-arrow">@GetSortIndicator("LatestPlanDate")</span>
-                            }
-                        </span>
-                    </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("MaterialPlanStatus")' class="sortable-header">
-                            工单用料计划
-                            @if (sortColumn == "MaterialPlanStatus")
-                            {
-                                <span class="sort-arrow">@GetSortIndicator("MaterialPlanStatus")</span>
-                            }
-                        </span>
-                    </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("MaterialPlanRate")' class="sortable-header">
-                            工单满足率
-                            @if (sortColumn == "MaterialPlanRate")
-                            {
-                                <span class="sort-arrow">@GetSortIndicator("MaterialPlanRate")</span>
-                            }
-                        </span>
-                    </MudTh>
-                    <MudTh>用料占比</MudTh>
-                    <MudTh>关联主号用料</MudTh>
-                    <MudTh>关联订单用料</MudTh>
+                        </MudTh>
+                    }
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="wo">
@@ -205,52 +167,10 @@
                                      ValueChanged="@((v) => ToggleSelectWorkOrder(wo.Id, v))"
                                      Dense="true" />
                     </MudTd>
-                    <MudTd title="@wo.WorkOrderNo">
-                        <MudLink Typo="Typo.body2" OnClick="() => NavigateToMaterialPlan(wo.Id)">
-                            @wo.WorkOrderNo
-                        </MudLink>
-                    </MudTd>
-                    <MudTd title="@wo.SalesOrderNo">@wo.SalesOrderNo</MudTd>
-                    <MudTd title="@wo.ProductionMainNo">@wo.ProductionMainNo</MudTd>
-                    <MudTd title="@wo.ProductionSubNo">@wo.ProductionSubNo</MudTd>
-                    <MudTd DataLabel="计划日期">
-                        <MudText Typo="Typo.caption">@(wo.LatestPlanDate?.ToString("yyyy-MM-dd") ?? "-")</MudText>
-                    </MudTd>
-                    <MudTd>
-                        <MudChip Size="Size.Small"
-                                 Color="@GetStatusColor(wo.MaterialPlanStatus)"
-                                 Clickable="true"
-                                 OnClick="() => FilterByPlanStatus(wo.MaterialPlanStatus)">
-                            @GetStatusText(wo.MaterialPlanStatus)
-                        </MudChip>
-                    </MudTd>
-                    <MudTd>@((int)Math.Round(wo.MaterialPlanRate))%</MudTd>
-                    <MudTd>
-                        @if (!string.IsNullOrEmpty(wo.PlanProportionText))
-                        {
-                            <MudText Typo="Typo.caption" Class="text-wrap" Style="max-width:180px;">@wo.PlanProportionText</MudText>
-                        }
-                        else
-                        {
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
-                        }
-                    </MudTd>
-                    <MudTd>
-                        <MudChip Size="Size.Small"
-                                 Color="@GetStatusColor(wo.MainNoMaterialPlanStatus)"
-                                 Clickable="true"
-                                 OnClick="() => FilterByMainNoStatus(wo.MainNoMaterialPlanStatus)">
-                            @GetStatusText(wo.MainNoMaterialPlanStatus)
-                        </MudChip>
-                    </MudTd>
-                    <MudTd>
-                        <MudChip Size="Size.Small"
-                                 Color="@GetOrderStatusColor(wo.OrderMaterialPlanStatus)"
-                                 Clickable="true"
-                                 OnClick="() => FilterByOrderStatus(wo.OrderMaterialPlanStatus)">
-                            @GetOrderStatusText(wo.OrderMaterialPlanStatus)
-                        </MudChip>
-                    </MudTd>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd>@RenderCell(wo, col)</MudTd>
+                    }
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Assignment"
                                        Size="Size.Small"
@@ -274,9 +194,9 @@
     private MudTable<WorkOrderListDto> table = null!;
     private string errorMessage = string.Empty;
     private string searchKeyword = string.Empty;
-    private int? selectedStatus;
-    private int? selectedMainNoStatus;
-    private int? selectedOrderStatus;
+    private int selectedStatus = -1;
+    private int selectedMainNoStatus = -1;
+    private int selectedOrderStatus = -1;
     private bool isLoading;
     private List<WorkOrderListDto> currentPageItems = new();
     private int totalCount;
@@ -315,6 +235,42 @@
     private bool includeRework = true;
     private bool anyPlanTypeSelected => includeSemi || includeFinish || includeInventory || includeRework;
 
+    // 列定义
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns =>
+        _allColumns.Where(c => c.Visible).ToList();
+
+    /// <summary>
+    /// 获取列定义（不可排序列 SortKey 设为 null）
+    /// </summary>
+    private static List<ColumnDef> GetAllColumnDefs() => new()
+    {
+        new() { Key = "WorkOrderNo",        Label = "工单号",     SortKey = "WorkOrderNo" },
+        new() { Key = "SalesOrderNo",       Label = "订单号",     SortKey = "SalesOrderNo" },
+        new() { Key = "ProductionMainNo",   Label = "主号",       SortKey = "ProductionMainNo" },
+        new() { Key = "ProductionSubNo",    Label = "次号",       SortKey = "ProductionSubNo" },
+        new() { Key = "SignDate",           Label = "签订日期",   SortKey = "signdate" },
+        new() { Key = "Salesman",           Label = "业务员",     SortKey = "salesman" },
+        new() { Key = "EndCustomer",        Label = "最终用户",   SortKey = "endcustomer" },
+        new() { Key = "DeliveryDate",       Label = "交货日期",   SortKey = "deliverydate" },
+        new() { Key = "DelayPenalty",       Label = "延期罚款",   SortKey = "delaypenalty" },
+        new() { Key = "SettlementMethod",   Label = "结算方式",   SortKey = "settlementmethod" },
+        new() { Key = "PlantGrade",         Label = "工厂牌号",   SortKey = "plantgrade" },
+        new() { Key = "Specification",      Label = "规格",       SortKey = "specification" },
+        new() { Key = "LengthStatus",       Label = "长度状态",   SortKey = "lengthstatus" },
+        new() { Key = "MaxLength",          Label = "最大长度",   SortKey = "maxlength" },
+        new() { Key = "TotalQuantity",      Label = "总支数",     SortKey = "totalquantity" },
+        new() { Key = "TotalWeight",        Label = "总重量",     SortKey = "totalweight" },
+        new() { Key = "DeliveryState",      Label = "交货状态",   SortKey = "deliverystate" },
+        new() { Key = "TotalItemCount",     Label = "含项次数",   SortKey = "totalitemcount" },
+        new() { Key = "LatestPlanDate",          Label = "计划日期",       SortKey = "LatestPlanDate" },
+        new() { Key = "MaterialPlanStatus",      Label = "工单用料计划",   SortKey = "MaterialPlanStatus" },
+        new() { Key = "MaterialPlanRate",        Label = "工单满足率",     SortKey = "MaterialPlanRate" },
+        new() { Key = "PlanProportion",          Label = "用料占比",       SortKey = null },
+        new() { Key = "MainNoMaterialPlanStatus",Label = "关联主号用料",   SortKey = "MainNoMaterialPlanStatus" },
+        new() { Key = "OrderMaterialPlanStatus", Label = "关联订单用料",   SortKey = "OrderMaterialPlanStatus" },
+    };
+
     /// <summary>
     /// 根据当前勾选的计算计划类型过滤字符串（全选时返回 null 不过滤）
     /// </summary>
@@ -348,6 +304,36 @@
     {
         if (firstRender)
         {
+            // 初始化列定义
+            _allColumns = GetAllColumnDefs();
+
+            // 加载用户自定义列偏好
+            var saved = await ColumnPrefs.LoadAsync("materialPlanOverview", null);
+            if (saved.Count > 0)
+            {
+                // 先恢复可见性
+                foreach (var s in saved)
+                {
+                    var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                    if (match != null)
+                        match.Visible = s.Visible;
+                }
+                // 再恢复列顺序
+                var reordered = new List<ColumnDef>();
+                foreach (var s in saved)
+                {
+                    var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                    if (match != null && !reordered.Contains(match))
+                        reordered.Add(match);
+                }
+                foreach (var c in _allColumns)
+                {
+                    if (!reordered.Contains(c))
+                        reordered.Add(c);
+                }
+                _allColumns = reordered;
+            }
+
             if (table != null)
                 await table.ReloadServerData();
         }
@@ -366,7 +352,7 @@
             await table.ReloadServerData();
     }
 
-    private async Task OnStatusFilterChanged(int? value, int filterType)
+    private async Task OnStatusFilterChanged(int value, int filterType)
     {
         switch (filterType)
         {
@@ -421,7 +407,7 @@
             await table.ReloadServerData();
     }
 
-    private async Task<TableData<WorkOrderListDto>> ReloadData(TableState state)
+    private async Task<TableData<WorkOrderListDto>> OnServerData(TableState state)
     {
         errorMessage = string.Empty;
         isLoading = true;
@@ -436,9 +422,9 @@
                 SortBy = sortColumn,
                 IsDescending = sortDescending,
                 Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
-                MaterialPlanStatus = selectedStatus,
-                MainNoMaterialPlanStatus = selectedMainNoStatus,
-                OrderMaterialPlanStatus = selectedOrderStatus,
+                MaterialPlanStatus = selectedStatus >= 0 ? selectedStatus : null,
+                MainNoMaterialPlanStatus = selectedMainNoStatus >= 0 ? selectedMainNoStatus : null,
+                OrderMaterialPlanStatus = selectedOrderStatus >= 0 ? selectedOrderStatus : null,
                 PlanTypeFilter = GetPlanTypeFilter()
             };
 
@@ -473,6 +459,163 @@
             TotalItems = 0
         };
     }
+
+    // ========== 单元格渲染 ==========
+
+    private RenderFragment RenderCell(WorkOrderListDto wo, ColumnDef col) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "WorkOrderNo":
+                builder.OpenComponent<MudLink>(0);
+                builder.AddAttribute(1, "Typo", Typo.body2);
+                builder.AddAttribute(2, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => NavigateToMaterialPlan(wo.Id)));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, wo.WorkOrderNo)));
+                builder.CloseComponent();
+                break;
+            case "SalesOrderNo":
+                builder.AddContent(0, wo.SalesOrderNo);
+                break;
+            case "ProductionMainNo":
+                builder.AddContent(0, wo.ProductionMainNo);
+                break;
+            case "ProductionSubNo":
+                builder.AddContent(0, wo.ProductionSubNo);
+                break;
+            case "SignDate":
+                builder.AddContent(0, wo.SignDate.ToString("yyyy-MM-dd"));
+                break;
+            case "Salesman":
+                builder.AddContent(0, wo.Salesman);
+                break;
+            case "EndCustomer":
+                builder.AddContent(0, wo.EndCustomer ?? "-");
+                break;
+            case "DeliveryDate":
+                builder.AddContent(0, wo.DeliveryDate.ToString("yyyy-MM-dd"));
+                break;
+            case "DelayPenalty":
+                builder.AddContent(0, wo.DelayPenalty ? "是" : "否");
+                break;
+            case "SettlementMethod":
+                builder.AddContent(0, DisplayHelper.GetSettlementMethodText(wo.SettlementMethod));
+                break;
+            case "PlantGrade":
+                builder.AddContent(0, wo.PlantGrade);
+                break;
+            case "Specification":
+                builder.AddContent(0, wo.Specification);
+                break;
+            case "LengthStatus":
+                builder.AddContent(0, DisplayHelper.GetLengthStatusText(wo.LengthStatus));
+                break;
+            case "MaxLength":
+                builder.AddContent(0, wo.MaxLength?.ToString("G29") ?? "-");
+                break;
+            case "TotalQuantity":
+                builder.AddContent(0, wo.TotalQuantity);
+                break;
+            case "TotalWeight":
+                builder.AddContent(0, wo.TotalWeight.ToString("G29"));
+                break;
+            case "DeliveryState":
+                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(wo.DeliveryState));
+                break;
+            case "TotalItemCount":
+                builder.AddContent(0, wo.TotalItemCount);
+                break;
+            case "LatestPlanDate":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", Color.Info);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, wo.LatestPlanDate?.ToString("yyyy-MM-dd") ?? "-")));
+                builder.CloseComponent();
+                break;
+            case "MaterialPlanStatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetStatusColor(wo.MaterialPlanStatus));
+                builder.AddAttribute(3, "Clickable", true);
+                builder.AddAttribute(4, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => FilterByPlanStatus(wo.MaterialPlanStatus)));
+                builder.AddAttribute(5, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetStatusText(wo.MaterialPlanStatus))));
+                builder.CloseComponent();
+                break;
+            case "MaterialPlanRate":
+                builder.AddContent(0, $"{(int)Math.Round(wo.MaterialPlanRate)}%");
+                break;
+            case "PlanProportion":
+                if (!string.IsNullOrEmpty(wo.PlanProportionText))
+                {
+                    builder.OpenComponent<MudText>(0);
+                    builder.AddAttribute(1, "Typo", Typo.caption);
+                    builder.AddAttribute(2, "Class", "text-wrap");
+                    builder.AddAttribute(3, "Style", "max-width:180px;");
+                    builder.AddAttribute(4, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, wo.PlanProportionText)));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.OpenComponent<MudText>(0);
+                    builder.AddAttribute(1, "Typo", Typo.caption);
+                    builder.AddAttribute(2, "Color", Color.Secondary);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "-")));
+                    builder.CloseComponent();
+                }
+                break;
+            case "MainNoMaterialPlanStatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetStatusColor(wo.MainNoMaterialPlanStatus));
+                builder.AddAttribute(3, "Clickable", true);
+                builder.AddAttribute(4, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => FilterByMainNoStatus(wo.MainNoMaterialPlanStatus)));
+                builder.AddAttribute(5, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetStatusText(wo.MainNoMaterialPlanStatus))));
+                builder.CloseComponent();
+                break;
+            case "OrderMaterialPlanStatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetOrderStatusColor(wo.OrderMaterialPlanStatus));
+                builder.AddAttribute(3, "Clickable", true);
+                builder.AddAttribute(4, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => FilterByOrderStatus(wo.OrderMaterialPlanStatus)));
+                builder.AddAttribute(5, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetOrderStatusText(wo.OrderMaterialPlanStatus))));
+                builder.CloseComponent();
+                break;
+        }
+    };
+
+    // ========== 列管理 ==========
+
+    private async Task OnColumnToggle(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task SaveColumnPrefs()
+    {
+        await ColumnPrefs.SaveAsync("materialPlanOverview", null, _allColumns);
+    }
+
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        foreach (var c in _allColumns)
+            c.Visible = true;
+        await SaveColumnPrefs();
+        if (table != null)
+            await table.ReloadServerData();
+    }
+
+    private async Task MoveColumnUp(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnDown(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    // ========== 导航 ==========
 
     private void NavigateToMaterialPlan(int id)
     {

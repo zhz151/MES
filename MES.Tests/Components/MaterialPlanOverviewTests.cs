@@ -51,6 +51,9 @@ public class MaterialPlanOverviewTests : IDisposable
             .ReturnsAsync((string?)null);
         _ctx.Services.AddSingleton(localStorage.Object);
 
+        // ColumnPrefsService（依赖 ILocalStorageService）
+        _ctx.Services.AddSingleton(new ColumnPrefsService(localStorage.Object));
+
         // JS 运行时 stub（MudBlazor Popover 需要真实 IJSRuntime）
         _ctx.Services.AddSingleton<Microsoft.JSInterop.IJSRuntime>(
             new SilentJsRuntime(_ctx));

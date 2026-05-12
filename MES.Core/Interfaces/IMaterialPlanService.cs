@@ -1,4 +1,5 @@
 using MES.Core.DTOs;
+using MES.Core.Enums;
 using MES.Core.Models;
 
 namespace MES.Core.Interfaces;
@@ -48,6 +49,11 @@ public interface IMaterialPlanService
     Task<PurchaseFinishedPlanDto> CreateFinishedPlanAsync(CreatePurchaseFinishedPlanRequest request);
 
     /// <summary>
+    /// 批量创建成品采购计划
+    /// </summary>
+    Task<List<PurchaseFinishedPlanDto>> CreateFinishedPlanBatchAsync(List<CreatePurchaseFinishedPlanRequest> requests);
+
+    /// <summary>
     /// 删除成品采购计划
     /// </summary>
     Task DeleteFinishedPlanAsync(int id);
@@ -65,6 +71,11 @@ public interface IMaterialPlanService
     Task<InventoryPlanDto> CreateInventoryPlanAsync(CreateInventoryPlanRequest request);
 
     /// <summary>
+    /// 批量创建库存使用计划（含改制计划）
+    /// </summary>
+    Task<List<InventoryPlanDto>> CreateInventoryPlanBatchAsync(List<CreateInventoryPlanRequest> requests);
+
+    /// <summary>
     /// 删除库存使用计划
     /// </summary>
     Task DeleteInventoryPlanAsync(int id);
@@ -77,7 +88,7 @@ public interface IMaterialPlanService
     /// <summary>
     /// 获取工单可用改制库存（根据改制类型筛选）
     /// </summary>
-    Task<List<AvailableInventoryBatchDto>> GetAvailableReworkInventoryAsync(int workOrderId, string reworkType);
+    Task<List<AvailableInventoryBatchDto>> GetAvailableReworkInventoryAsync(int workOrderId, ReworkType reworkType);
 
     /// <summary>
     /// 获取工单的改制计划列表

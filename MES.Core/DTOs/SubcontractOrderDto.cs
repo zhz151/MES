@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs;
 
 public class SubcontractOrderDto
@@ -8,8 +10,8 @@ public class SubcontractOrderDto
     public string SupplierName { get; set; } = null!;
     public DateTime OrderDate { get; set; }
     public string ProcessType { get; set; } = null!;
-    public string Status { get; set; } = null!;
-    public string? ManualStatus { get; set; }
+    public SubcontractOrderStatus Status { get; set; }
+    public bool IsForceCompleted { get; set; }
     public string? FurnaceNumber { get; set; }
     public string OutMaterialCategory { get; set; } = null!;
     public string OutPlantGrade { get; set; } = null!;
@@ -22,6 +24,26 @@ public class SubcontractOrderDto
     public string? Remark { get; set; }
     public List<SubcontractReturnItemDto> ReturnItems { get; set; } = new();
     public DateTimeOffset CreatedTime { get; set; }
+
+    // ========== 工单来源字段（从 ReturnItems 首个 SourceWorkOrderNo 关联 WorkOrder 查询） ==========
+    public string? SourceWorkOrderNo { get; set; }
+    public string? WoSalesOrderNo { get; set; }
+    public string? WoProductionMainNo { get; set; }
+    public string? WoProductionSubNo { get; set; }
+    public DateTime? WoSignDate { get; set; }
+    public string? WoSalesman { get; set; }
+    public string? WoEndCustomer { get; set; }
+    public DateTime? WoDeliveryDate { get; set; }
+    public bool WoDelayPenalty { get; set; }
+    public SettlementMethod? WoSettlementMethod { get; set; }
+    public string? WoPlantGrade { get; set; }
+    public string? WoSpecification { get; set; }
+    public LengthStatus? WoLengthStatus { get; set; }
+    public decimal? WoMaxLength { get; set; }
+    public int? WoTotalQuantity { get; set; }
+    public decimal? WoTotalWeight { get; set; }
+    public DeliveryState? WoDeliveryState { get; set; }
+    public int? WoTotalItemCount { get; set; }
 }
 
 public class SubcontractReturnItemDto
@@ -40,6 +62,25 @@ public class SubcontractReturnItemDto
     public decimal? ProcessUnitPrice { get; set; }
     public decimal? ProcessTotalAmount { get; set; }
     public string? SourceWorkOrderNo { get; set; }
+
+    // ========== 工单来源字段（按每个SourceWorkOrderNo各自关联） ==========
+    public string? WoSalesOrderNo { get; set; }
+    public string? WoProductionMainNo { get; set; }
+    public string? WoProductionSubNo { get; set; }
+    public DateTime? WoSignDate { get; set; }
+    public string? WoSalesman { get; set; }
+    public string? WoEndCustomer { get; set; }
+    public DateTime? WoDeliveryDate { get; set; }
+    public bool WoDelayPenalty { get; set; }
+    public SettlementMethod? WoSettlementMethod { get; set; }
+    public string? WoPlantGrade { get; set; }
+    public string? WoSpecification { get; set; }
+    public LengthStatus? WoLengthStatus { get; set; }
+    public decimal? WoMaxLength { get; set; }
+    public int? WoTotalQuantity { get; set; }
+    public decimal? WoTotalWeight { get; set; }
+    public DeliveryState? WoDeliveryState { get; set; }
+    public int? WoTotalItemCount { get; set; }
 }
 
 public class CreateSubcontractOrderRequest

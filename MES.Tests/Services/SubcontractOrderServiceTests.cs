@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using MES.Core.DTOs;
+using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Interfaces;
 using MES.Core.Models;
@@ -27,7 +28,7 @@ public class SubcontractOrderServiceTests : TestBase
         return entity.Id;
     }
 
-    private async Task<SubcontractOrder> SeedOrderAsync(AppDbContext ctx, int supplierId, string status = "Sent",
+    private async Task<SubcontractOrder> SeedOrderAsync(AppDbContext ctx, int supplierId, SubcontractOrderStatus status = SubcontractOrderStatus.Sent,
         DateTime? orderDate = null, int outQty = 100, decimal outWt = 1000m)
     {
         var order = new SubcontractOrder
@@ -83,7 +84,7 @@ public class SubcontractOrderServiceTests : TestBase
             OrderNo = "WW20260101002",
             SupplierId = sid2,
             OrderDate = DateTime.Today,
-            Status = "Sent",
+            Status = SubcontractOrderStatus.Sent,
             ProcessType = "车丝",
             OutMaterialCategory = "不锈钢管",
             OutPlantGrade = "304",
@@ -107,15 +108,15 @@ public class SubcontractOrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var sid = await SeedSupplierAsync(ctx);
-        await SeedOrderAsync(ctx, sid, status: "Sent");
-        await SeedOrderAsync(ctx, sid, status: "Completed");
+        await SeedOrderAsync(ctx, sid, status: SubcontractOrderStatus.Sent);
+        await SeedOrderAsync(ctx, sid, status: SubcontractOrderStatus.Completed);
         var svc = CreateService(ctx);
 
         var result = await svc.GetPagedAsync(new SubcontractQueryParams
         { PageIndex = 1, PageSize = 20, Status = "Completed" });
 
         result.Items.Should().HaveCount(1);
-        result.Items[0].Status.Should().Be("Completed");
+        result.Items[0].Status.Should().Be(SubcontractOrderStatus.Completed);
     }
 
     [Fact]
@@ -279,7 +280,7 @@ public class SubcontractOrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var sid = await SeedSupplierAsync(ctx);
-        var order = await SeedOrderAsync(ctx, sid, status: "Cancelled");
+        var order = await SeedOrderAsync(ctx, sid, status: SubcontractOrderStatus.Cancelled);
         var svc = CreateService(ctx);
 
         var act = () => svc.UpdateAsync(order.Id, new UpdateSubcontractOrderRequest
@@ -298,26 +299,32 @@ public class SubcontractOrderServiceTests : TestBase
     }
 
     [Fact]
-    public async Task UpdateAsync_已完成_抛出BusinessException()
+    public async Task UpdateAsync_已完成_仅允许修改来源工单号()
     {
         var ctx = CreateDbContext();
         var sid = await SeedSupplierAsync(ctx);
-        var order = await SeedOrderAsync(ctx, sid, status: "Completed");
+        var order = await SeedOrderAsync(ctx, sid, status: SubcontractOrderStatus.Completed);
+        // 先确认种子数据
+        ctx.Entry(order).Reload();
+        order.ProcessType.Should().Be("车丝", because: "种子数据默认ProcessType为车丝");
         var svc = CreateService(ctx);
 
-        var act = () => svc.UpdateAsync(order.Id, new UpdateSubcontractOrderRequest
+        // 已完成状态：UpdateAsync应跳过主表字段，只允许改ReturnItems.SourceWorkOrderNo
+        await svc.UpdateAsync(order.Id, new UpdateSubcontractOrderRequest
         {
             SupplierId = sid,
-            ProcessType = "车丝",
-            OutMaterialCategory = "钢管",
-            OutPlantGrade = "20#",
-            OutSpecification = "219*8",
-            OutQuantity = 100,
-            OutWeight = 1000m,
+            ProcessType = "抛光", // 请求中试图修改，但已完成状态不应生效
+            OutMaterialCategory = "不锈钢管",
+            OutPlantGrade = "304",
+            OutSpecification = "273*10",
+            OutQuantity = 200,
+            OutWeight = 2000m,
             ReturnItems = new List<MES.Core.DTOs.CreateReturnItemRequest>()
         });
 
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("*已完成*无法编辑*");
+        // 验证主表字段未被修改（仍为种子数据的值）
+        var updated = await ctx.SubcontractOrders.FirstAsync(s => s.Id == order.Id);
+        updated.ProcessType.Should().Be("车丝", because: "已完成状态下主表字段不应被修改");
     }
 
     // ========== SyncAllAsync / SyncSingleAsync ==========
@@ -351,7 +358,7 @@ public class SubcontractOrderServiceTests : TestBase
         var updated = await ctx.SubcontractOrders.FindAsync(order.Id);
         updated!.InQuantity.Should().Be(50);
         updated.InWeight.Should().Be(500m);
-        updated.Status.Should().Be("PartialReturned"); // 50/1000 < 95%
+        updated.Status.Should().Be(SubcontractOrderStatus.PartialReturned); // 50/1000 < 95%
     }
 
     [Fact]
@@ -382,7 +389,7 @@ public class SubcontractOrderServiceTests : TestBase
 
         var updated = await ctx.SubcontractOrders.FindAsync(order.Id);
         updated!.InWeight.Should().Be(950m);
-        updated.Status.Should().Be("Completed"); // 950/1000 >= 95%
+        updated.Status.Should().Be(SubcontractOrderStatus.Completed); // 950/1000 >= 95%
     }
 
     [Fact]
@@ -397,7 +404,7 @@ public class SubcontractOrderServiceTests : TestBase
 
         var updated = await ctx.SubcontractOrders.FindAsync(order.Id);
         updated!.InQuantity.Should().Be(0);
-        updated.Status.Should().Be("Sent");
+        updated.Status.Should().Be(SubcontractOrderStatus.Sent);
     }
 
     [Fact]
@@ -420,10 +427,10 @@ public class SubcontractOrderServiceTests : TestBase
         var order = await SeedOrderAsync(ctx, sid);
         var svc = CreateService(ctx);
 
-        await svc.UpdateStatusAsync(order.Id, new UpdateOrderStatusRequest { ManualStatus = "Completed" });
+        await svc.UpdateStatusAsync(order.Id, new UpdateOrderStatusRequest { IsForceCompleted = true });
 
         var updated = await ctx.SubcontractOrders.FindAsync(order.Id);
-        updated!.ManualStatus.Should().Be("Completed");
+        updated!.IsForceCompleted.Should().BeTrue();
     }
 
     [Fact]
@@ -432,7 +439,7 @@ public class SubcontractOrderServiceTests : TestBase
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        var act = () => svc.UpdateStatusAsync(999, new UpdateOrderStatusRequest { ManualStatus = "Completed" });
+        var act = () => svc.UpdateStatusAsync(999, new UpdateOrderStatusRequest { IsForceCompleted = true });
         await act.Should().ThrowAsync<BusinessException>().WithMessage("委外单不存在");
     }
 
@@ -457,7 +464,7 @@ public class SubcontractOrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var sid = await SeedSupplierAsync(ctx);
-        var order = await SeedOrderAsync(ctx, sid, status: "Cancelled");
+        var order = await SeedOrderAsync(ctx, sid, status: SubcontractOrderStatus.Cancelled);
         var svc = CreateService(ctx);
 
         var act = () => svc.DeleteAsync(order.Id);
@@ -469,7 +476,7 @@ public class SubcontractOrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var sid = await SeedSupplierAsync(ctx);
-        var order = await SeedOrderAsync(ctx, sid, status: "Completed");
+        var order = await SeedOrderAsync(ctx, sid, status: SubcontractOrderStatus.Completed);
         var svc = CreateService(ctx);
 
         var act = () => svc.DeleteAsync(order.Id);

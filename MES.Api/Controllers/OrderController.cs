@@ -124,6 +124,17 @@ public class OrderController : ControllerBase
         return Ok(ApiResponse.Ok("删除成功"));
     }
 
+    [HttpPost("{id}/save-all")]
+    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<SaveAllOrderResponse>>> SaveAll(int id, [FromBody] SaveAllOrderRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<SaveAllOrderResponse>.Fail("请求参数无效"));
+
+        var result = await _orderService.SaveAllAsync(id, request);
+        return Ok(ApiResponse<SaveAllOrderResponse>.Ok(result, "批量保存成功"));
+    }
+
     #endregion
 
     #region 打印

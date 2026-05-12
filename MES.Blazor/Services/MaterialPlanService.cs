@@ -1,4 +1,5 @@
 using MES.Core.DTOs;
+using MES.Core.Enums;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
@@ -113,6 +114,19 @@ public class MaterialPlanService
         }
     }
 
+    public async Task<ApiResponse<List<PurchaseFinishedPlanDto>>> CreateFinishedPlanBatchAsync(List<CreatePurchaseFinishedPlanRequest> requests)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<List<CreatePurchaseFinishedPlanRequest>, ApiResponse<List<PurchaseFinishedPlanDto>>>($"{BaseUrl}/finished/batch", requests);
+            return response ?? ApiResponse<List<PurchaseFinishedPlanDto>>.Fail("批量创建失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<PurchaseFinishedPlanDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
     public async Task<ApiResponse> DeleteFinishedPlanAsync(int id)
     {
         try
@@ -169,7 +183,7 @@ public class MaterialPlanService
         }
     }
 
-    public async Task<ApiResponse<List<AvailableInventoryBatchDto>>> GetAvailableReworkInventoryAsync(int workOrderId, string reworkType)
+    public async Task<ApiResponse<List<AvailableInventoryBatchDto>>> GetAvailableReworkInventoryAsync(int workOrderId, ReworkType reworkType)
     {
         try
         {
@@ -192,6 +206,19 @@ public class MaterialPlanService
         catch (Exception ex)
         {
             return ApiResponse<InventoryPlanDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<List<InventoryPlanDto>>> CreateInventoryPlanBatchAsync(List<CreateInventoryPlanRequest> requests)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<List<CreateInventoryPlanRequest>, ApiResponse<List<InventoryPlanDto>>>($"{BaseUrl}/inventory/batch", requests);
+            return response ?? ApiResponse<List<InventoryPlanDto>>.Fail("批量创建失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<InventoryPlanDto>>.Fail($"网络错误: {ex.Message}");
         }
     }
 

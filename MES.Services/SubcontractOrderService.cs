@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs;
+using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Interfaces;
 using MES.Core.Models;
@@ -30,7 +31,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         {
             var kw = query.Keyword;
 
-            // 尝试按供应商名称搜索 → 查 SupplierId
+            // 搜索供应商名称
             var matchedSupplierIds = await _context.SupplierProfiles
                 .AsNoTracking()
                 .Where(s => s.SupplierName.Contains(kw))
@@ -47,9 +48,9 @@ public class SubcontractOrderService : ISubcontractOrderService
         }
 
         // 状态筛选
-        if (!string.IsNullOrEmpty(query.Status))
+        if (!string.IsNullOrEmpty(query.Status) && Enum.TryParse<SubcontractOrderStatus>(query.Status, out var parsedStatus))
         {
-            queryable = queryable.Where(s => s.Status == query.Status);
+            queryable = queryable.Where(s => s.Status == parsedStatus);
         }
 
         // 排序
@@ -94,44 +95,26 @@ public class SubcontractOrderService : ISubcontractOrderService
         };
 
         var totalCount = await queryable.CountAsync();
-        var items = await queryable
+        var entityList = await queryable
+            .Include(s => s.ReturnItems.OrderBy(r => r.Sequence))
             .Skip(query.Skip)
             .Take(query.PageSize)
-            .Select(s => new SubcontractOrderDto
-            {
-                Id = s.Id,
-                OrderNo = s.OrderNo,
-                SupplierId = s.SupplierId,
-                SupplierName = "",
-                OrderDate = s.OrderDate,
-                Status = s.Status,
-                ManualStatus = s.ManualStatus,
-                FurnaceNumber = s.FurnaceNumber,
-                ProcessType = s.ProcessType,
-                OutMaterialCategory = s.OutMaterialCategory,
-                OutPlantGrade = s.OutPlantGrade,
-                OutSpecification = s.OutSpecification,
-                OutQuantity = s.OutQuantity,
-                OutWeight = s.OutWeight,
-                ReturnDeadline = s.ReturnDeadline,
-                InQuantity = s.InQuantity,
-                InWeight = s.InWeight,
-                Remark = s.Remark,
-                CreatedTime = s.CreatedTime
-            })
             .ToListAsync();
 
         // 填充供应商名称
-        var supplierIds = items.Where(i => i.SupplierId > 0).Select(i => i.SupplierId).Distinct().ToList();
+        var supplierIds = entityList.Where(i => i.SupplierId > 0).Select(i => i.SupplierId).Distinct().ToList();
         var suppliers = await _context.SupplierProfiles
             .AsNoTracking()
             .Where(s => supplierIds.Contains(s.Id))
             .ToDictionaryAsync(s => s.Id, s => s.SupplierName);
-        foreach (var item in items)
+
+        var items = entityList.Select(s =>
         {
-            if (suppliers.TryGetValue(item.SupplierId, out var name))
-                item.SupplierName = name;
-        }
+            var dto = ToDto(s);
+            if (suppliers.TryGetValue(s.SupplierId, out var name))
+                dto.SupplierName = name;
+            return dto;
+        }).ToList();
 
         return new PagedResult<SubcontractOrderDto>
         {
@@ -156,22 +139,49 @@ public class SubcontractOrderService : ISubcontractOrderService
             .FirstOrDefaultAsync(s => s.Id == entity.SupplierId);
         if (supplier != null) dto.SupplierName = supplier.SupplierName;
 
-        dto.ReturnItems = entity.ReturnItems.Select(r => new SubcontractReturnItemDto
+        // 收集所有 ReturnItem 的 SourceWorkOrderNo，批量查询 WorkOrder
+        var woNos = entity.ReturnItems
+            .Where(r => !string.IsNullOrEmpty(r.SourceWorkOrderNo))
+            .Select(r => r.SourceWorkOrderNo!)
+            .Distinct()
+            .ToList();
+
+        var workOrders = new Dictionary<string, WorkOrder>();
+        if (woNos.Count > 0)
         {
-            Id = r.Id,
-            SubcontractOrderId = r.SubcontractOrderId,
-            Sequence = r.Sequence,
-            MaterialCategory = r.MaterialCategory,
-            PlantGrade = r.PlantGrade,
-            ProcessSpecification = r.ProcessSpecification,
-            UnitWeight = r.UnitWeight,
-            RequiredQuantity = r.RequiredQuantity,
-            RequiredWeight = r.RequiredWeight,
-            ProcessStatusRemark = r.ProcessStatusRemark,
-            Remark = r.Remark,
-            ProcessUnitPrice = r.ProcessUnitPrice,
-            ProcessTotalAmount = r.ProcessTotalAmount,
-            SourceWorkOrderNo = r.SourceWorkOrderNo
+            workOrders = await _context.WorkOrders
+                .AsNoTracking()
+                .Where(w => woNos.Contains(w.WorkOrderNo))
+                .ToDictionaryAsync(w => w.WorkOrderNo, w => w);
+        }
+
+        dto.ReturnItems = entity.ReturnItems.Select(r =>
+        {
+            var itemDto = new SubcontractReturnItemDto
+            {
+                Id = r.Id,
+                SubcontractOrderId = r.SubcontractOrderId,
+                Sequence = r.Sequence,
+                MaterialCategory = r.MaterialCategory,
+                PlantGrade = r.PlantGrade,
+                ProcessSpecification = r.ProcessSpecification,
+                UnitWeight = r.UnitWeight,
+                RequiredQuantity = r.RequiredQuantity,
+                RequiredWeight = r.RequiredWeight,
+                ProcessStatusRemark = r.ProcessStatusRemark,
+                Remark = r.Remark,
+                ProcessUnitPrice = r.ProcessUnitPrice,
+                ProcessTotalAmount = r.ProcessTotalAmount,
+                SourceWorkOrderNo = r.SourceWorkOrderNo
+            };
+
+            // 按每个 ReturnItem 各自的 SourceWorkOrderNo 填充 Wo* 字段
+            if (r.SourceWorkOrderNo != null && workOrders.TryGetValue(r.SourceWorkOrderNo, out var wo))
+            {
+                FillWorkOrderFields(itemDto, wo);
+            }
+
+            return itemDto;
         }).ToList();
 
         return dto;
@@ -263,41 +273,56 @@ public class SubcontractOrderService : ISubcontractOrderService
             .Include(s => s.ReturnItems)
             .FirstOrDefaultAsync(s => s.Id == id);
         if (entity == null) throw new BusinessException("委外单不存在");
-        if (entity.Status == "Cancelled") throw new BusinessException("已取消的委外单无法编辑");
-        if (entity.Status == "Completed") throw new BusinessException("已完成的委外单无法编辑");
+        if (entity.Status == SubcontractOrderStatus.Cancelled) throw new BusinessException("已取消的委外单无法编辑");
 
-        entity.SupplierId = request.SupplierId;
-        entity.ProcessType = request.ProcessType;
-        entity.FurnaceNumber = request.FurnaceNumber;
-        entity.OutMaterialCategory = request.OutMaterialCategory;
-        entity.OutPlantGrade = request.OutPlantGrade;
-        entity.OutSpecification = request.OutSpecification;
-        entity.OutQuantity = request.OutQuantity;
-        entity.OutWeight = request.OutWeight;
-        entity.ReturnDeadline = request.ReturnDeadline;
-        entity.Remark = request.Remark;
-
-        // 全量替换子表
-        _context.SubcontractReturnItems.RemoveRange(entity.ReturnItems);
-
-        int seq = 1;
-        foreach (var item in request.ReturnItems)
+        if (entity.Status == SubcontractOrderStatus.Completed)
         {
-            entity.ReturnItems.Add(new SubcontractReturnItem
+            // 已完成：仅允许修改明细中的来源工单号
+            var itemSeq = 0;
+            foreach (var item in request.ReturnItems)
             {
-                Sequence = seq++,
-                MaterialCategory = item.MaterialCategory,
-                PlantGrade = item.PlantGrade,
-                ProcessSpecification = item.ProcessSpecification,
-                UnitWeight = item.UnitWeight,
-                RequiredQuantity = item.RequiredQuantity,
-                RequiredWeight = item.RequiredWeight,
-                ProcessStatusRemark = item.ProcessStatusRemark,
-                Remark = item.Remark,
-                ProcessUnitPrice = item.ProcessUnitPrice,
-                ProcessTotalAmount = item.ProcessTotalAmount,
-                SourceWorkOrderNo = item.SourceWorkOrderNo
-            });
+                if (itemSeq < entity.ReturnItems.Count)
+                {
+                    entity.ReturnItems[itemSeq].SourceWorkOrderNo = item.SourceWorkOrderNo;
+                }
+                itemSeq++;
+            }
+        }
+        else
+        {
+            entity.SupplierId = request.SupplierId;
+            entity.ProcessType = request.ProcessType;
+            entity.FurnaceNumber = request.FurnaceNumber;
+            entity.OutMaterialCategory = request.OutMaterialCategory;
+            entity.OutPlantGrade = request.OutPlantGrade;
+            entity.OutSpecification = request.OutSpecification;
+            entity.OutQuantity = request.OutQuantity;
+            entity.OutWeight = request.OutWeight;
+            entity.ReturnDeadline = request.ReturnDeadline;
+            entity.Remark = request.Remark;
+
+            // 全量替换子表
+            _context.SubcontractReturnItems.RemoveRange(entity.ReturnItems);
+
+            int seq = 1;
+            foreach (var item in request.ReturnItems)
+            {
+                entity.ReturnItems.Add(new SubcontractReturnItem
+                {
+                    Sequence = seq++,
+                    MaterialCategory = item.MaterialCategory,
+                    PlantGrade = item.PlantGrade,
+                    ProcessSpecification = item.ProcessSpecification,
+                    UnitWeight = item.UnitWeight,
+                    RequiredQuantity = item.RequiredQuantity,
+                    RequiredWeight = item.RequiredWeight,
+                    ProcessStatusRemark = item.ProcessStatusRemark,
+                    Remark = item.Remark,
+                    ProcessUnitPrice = item.ProcessUnitPrice,
+                    ProcessTotalAmount = item.ProcessTotalAmount,
+                    SourceWorkOrderNo = item.SourceWorkOrderNo
+                });
+            }
         }
 
         await _context.SaveChangesAsync();
@@ -329,7 +354,7 @@ public class SubcontractOrderService : ISubcontractOrderService
     public async Task SyncAllAsync()
     {
         var orders = await _context.SubcontractOrders
-            .Where(s => s.Status != "Cancelled" && s.Status != "Completed")
+            .Where(s => s.Status != SubcontractOrderStatus.Cancelled && s.Status != SubcontractOrderStatus.Completed)
             .ToListAsync();
 
         var orderNos = orders.Select(o => o.OrderNo).ToList();
@@ -346,7 +371,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             order.InQuantity = orderBatches.Sum(b => b.InitialQuantity);
             order.InWeight = orderBatches.Sum(b => b.InitialWeight);
 
-            if (string.IsNullOrEmpty(order.ManualStatus))
+            if (!order.IsForceCompleted)
                 RecalcSubcontractStatus(order);
         }
 
@@ -367,7 +392,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         order.InQuantity = batches.Sum(b => b.InitialQuantity);
         order.InWeight = batches.Sum(b => b.InitialWeight);
 
-        if (string.IsNullOrEmpty(order.ManualStatus))
+        if (!order.IsForceCompleted)
             RecalcSubcontractStatus(order);
 
         await _context.SaveChangesAsync();
@@ -379,7 +404,13 @@ public class SubcontractOrderService : ISubcontractOrderService
             .FirstOrDefaultAsync(s => s.Id == id);
         if (entity == null) throw new BusinessException("委外单不存在");
 
-        entity.ManualStatus = request.ManualStatus;
+        entity.IsForceCompleted = request.IsForceCompleted;
+
+        if (entity.IsForceCompleted)
+            entity.Status = SubcontractOrderStatus.Completed;
+        else
+            RecalcSubcontractStatus(entity);
+
         await _context.SaveChangesAsync();
     }
 
@@ -388,8 +419,8 @@ public class SubcontractOrderService : ISubcontractOrderService
         var entity = await _context.SubcontractOrders
             .FirstOrDefaultAsync(s => s.Id == id);
         if (entity == null) throw new BusinessException("委外单不存在");
-        if (entity.Status == "Completed") throw new BusinessException("已完成的委外单无法删除");
-        if (entity.Status == "Cancelled") throw new BusinessException("该委外单已取消");
+        if (entity.Status == SubcontractOrderStatus.Completed) throw new BusinessException("已完成的委外单无法删除");
+        if (entity.Status == SubcontractOrderStatus.Cancelled) throw new BusinessException("该委外单已取消");
 
         _context.SubcontractOrders.Remove(entity);
         await _context.SaveChangesAsync();
@@ -400,6 +431,62 @@ public class SubcontractOrderService : ISubcontractOrderService
     public async Task<List<ProcurementStatusDto>> GetProcurementStatusAsync()
     {
         return await _purchaseService.GetProcurementStatusAsync();
+    }
+
+    public async Task<List<OrderMismatchInfo>> GetMismatchedSubcontractOrdersAsync()
+    {
+        // 1. 获取所有涉及采购的工单号
+        var semiWoIds = await _context.PurchaseSemiPlans
+            .AsNoTracking()
+            .Where(p => p.RequiredWeight > 0)
+            .Select(p => p.WorkOrderId)
+            .Distinct()
+            .ToListAsync();
+
+        var finishWoIds = await _context.PurchaseFinishedPlans
+            .AsNoTracking()
+            .Where(p => p.RequiredWeight > 0)
+            .Select(p => p.WorkOrderId)
+            .Distinct()
+            .ToListAsync();
+
+        var allWoIds = semiWoIds.Union(finishWoIds).ToList();
+        if (allWoIds.Count == 0)
+            return new List<OrderMismatchInfo>();
+
+        var validWorkOrderNos = (await _context.WorkOrders
+            .AsNoTracking()
+            .Where(w => allWoIds.Contains(w.Id))
+            .Select(w => w.WorkOrderNo)
+            .ToListAsync()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // 2. 查询委外明细中 SourceWorkOrderNo 不为空的记录，关联主表获取委外单号
+        var mismatchedItems = await _context.SubcontractReturnItems
+            .AsNoTracking()
+            .Where(r => r.SourceWorkOrderNo != null && r.SourceWorkOrderNo != "")
+            .Select(r => new { r.SubcontractOrderId, r.SourceWorkOrderNo })
+            .ToListAsync();
+
+        // 3. 获取委外单号映射
+        var subcontractIds = mismatchedItems.Select(r => r.SubcontractOrderId).Distinct().ToList();
+        var orderNoMap = await _context.SubcontractOrders
+            .AsNoTracking()
+            .Where(o => subcontractIds.Contains(o.Id))
+            .ToDictionaryAsync(o => o.Id, o => o.OrderNo);
+
+        // 4. 找出不匹配的，按委外单号分组
+        var mismatches = mismatchedItems
+            .Where(r => !validWorkOrderNos.Contains(r.SourceWorkOrderNo!))
+            .GroupBy(r => r.SubcontractOrderId)
+            .Select(g => new OrderMismatchInfo
+            {
+                OrderNo = orderNoMap.GetValueOrDefault(g.Key, ""),
+                MismatchedWorkOrderNos = g.Select(r => r.SourceWorkOrderNo!).Distinct().ToList()
+            })
+            .Where(m => !string.IsNullOrEmpty(m.OrderNo))
+            .ToList();
+
+        return mismatches;
     }
 
     public async Task<PlanDetailDto?> GetPlanDetailAsync(string workOrderNo, string materialCategory)
@@ -417,12 +504,70 @@ public class SubcontractOrderService : ISubcontractOrderService
 
     public async Task<byte[]> PrintOrderBatchAsync(int[] ids)
     {
-        var orders = new List<SubcontractOrderDto>();
-        foreach (var id in ids)
-        {
-            orders.Add(await GetByIdAsync(id));
-        }
+        var orders = await GetByIdsAsync(ids);
         return SubcontractOrderPrintHelper.GenerateBatchPdf(orders);
+    }
+
+    public async Task<List<SubcontractOrderDto>> GetByIdsAsync(int[] ids)
+    {
+        var entities = await _context.SubcontractOrders
+            .AsNoTracking()
+            .Include(s => s.ReturnItems.OrderBy(r => r.Sequence))
+            .Where(s => ids.Contains(s.Id))
+            .ToListAsync();
+
+        var supplierIds = entities.Where(e => e.SupplierId > 0).Select(e => e.SupplierId).Distinct().ToList();
+        var suppliers = await _context.SupplierProfiles
+            .AsNoTracking()
+            .Where(s => supplierIds.Contains(s.Id))
+            .ToDictionaryAsync(s => s.Id, s => s.SupplierName);
+
+        var woNos = entities.SelectMany(e => e.ReturnItems)
+            .Where(r => !string.IsNullOrEmpty(r.SourceWorkOrderNo))
+            .Select(r => r.SourceWorkOrderNo!)
+            .Distinct()
+            .ToList();
+        var workOrders = new Dictionary<string, WorkOrder>();
+        if (woNos.Count > 0)
+        {
+            workOrders = await _context.WorkOrders
+                .AsNoTracking()
+                .Where(w => woNos.Contains(w.WorkOrderNo))
+                .ToDictionaryAsync(w => w.WorkOrderNo, w => w);
+        }
+
+        return entities.Select(e =>
+        {
+            var dto = ToDto(e);
+            if (suppliers.TryGetValue(e.SupplierId, out var name))
+                dto.SupplierName = name;
+
+            dto.ReturnItems = e.ReturnItems.Select(r =>
+            {
+                var itemDto = new SubcontractReturnItemDto
+                {
+                    Id = r.Id,
+                    SubcontractOrderId = r.SubcontractOrderId,
+                    Sequence = r.Sequence,
+                    MaterialCategory = r.MaterialCategory,
+                    PlantGrade = r.PlantGrade,
+                    ProcessSpecification = r.ProcessSpecification,
+                    UnitWeight = r.UnitWeight,
+                    RequiredQuantity = r.RequiredQuantity,
+                    RequiredWeight = r.RequiredWeight,
+                    ProcessStatusRemark = r.ProcessStatusRemark,
+                    Remark = r.Remark,
+                    ProcessUnitPrice = r.ProcessUnitPrice,
+                    ProcessTotalAmount = r.ProcessTotalAmount,
+                    SourceWorkOrderNo = r.SourceWorkOrderNo
+                };
+                if (r.SourceWorkOrderNo != null && workOrders.TryGetValue(r.SourceWorkOrderNo, out var wo))
+                    FillWorkOrderFields(itemDto, wo);
+                return itemDto;
+            }).ToList();
+
+            return dto;
+        }).ToList();
     }
 
     public async Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false)
@@ -444,11 +589,11 @@ public class SubcontractOrderService : ISubcontractOrderService
     private static void RecalcSubcontractStatus(SubcontractOrder order)
     {
         if (order.InWeight == null || order.InWeight == 0)
-            order.Status = "Sent";
+            order.Status = SubcontractOrderStatus.Sent;
         else if (order.InWeight >= order.OutWeight * 0.95m)
-            order.Status = "Completed";
+            order.Status = SubcontractOrderStatus.Completed;
         else
-            order.Status = "PartialReturned";
+            order.Status = SubcontractOrderStatus.PartialReturned;
     }
 
     private async Task<string> GenerateOrderNoAsync()
@@ -478,7 +623,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         SupplierName = "",
         OrderDate = entity.OrderDate,
         Status = entity.Status,
-        ManualStatus = entity.ManualStatus,
+        IsForceCompleted = entity.IsForceCompleted,
         FurnaceNumber = entity.FurnaceNumber,
         ProcessType = entity.ProcessType,
         OutMaterialCategory = entity.OutMaterialCategory,
@@ -492,4 +637,46 @@ public class SubcontractOrderService : ISubcontractOrderService
         Remark = entity.Remark,
         CreatedTime = entity.CreatedTime
     };
+
+    private static void FillWorkOrderFields(SubcontractOrderDto dto, WorkOrder wo)
+    {
+        dto.WoSalesOrderNo = wo.SalesOrderNo;
+        dto.WoProductionMainNo = wo.ProductionMainNo;
+        dto.WoProductionSubNo = wo.ProductionSubNo;
+        dto.WoSignDate = wo.SignDate;
+        dto.WoSalesman = wo.Salesman;
+        dto.WoEndCustomer = wo.EndCustomer;
+        dto.WoDeliveryDate = wo.DeliveryDate;
+        dto.WoDelayPenalty = wo.DelayPenalty;
+        dto.WoSettlementMethod = wo.SettlementMethod;
+        dto.WoPlantGrade = wo.PlantGrade;
+        dto.WoSpecification = wo.Specification;
+        dto.WoLengthStatus = wo.LengthStatus;
+        dto.WoMaxLength = wo.MaxLength;
+        dto.WoTotalQuantity = wo.TotalQuantity;
+        dto.WoTotalWeight = wo.TotalWeight;
+        dto.WoDeliveryState = wo.DeliveryState;
+        dto.WoTotalItemCount = wo.TotalItemCount;
+    }
+
+    private static void FillWorkOrderFields(SubcontractReturnItemDto dto, WorkOrder wo)
+    {
+        dto.WoSalesOrderNo = wo.SalesOrderNo;
+        dto.WoProductionMainNo = wo.ProductionMainNo;
+        dto.WoProductionSubNo = wo.ProductionSubNo;
+        dto.WoSignDate = wo.SignDate;
+        dto.WoSalesman = wo.Salesman;
+        dto.WoEndCustomer = wo.EndCustomer;
+        dto.WoDeliveryDate = wo.DeliveryDate;
+        dto.WoDelayPenalty = wo.DelayPenalty;
+        dto.WoSettlementMethod = wo.SettlementMethod;
+        dto.WoPlantGrade = wo.PlantGrade;
+        dto.WoSpecification = wo.Specification;
+        dto.WoLengthStatus = wo.LengthStatus;
+        dto.WoMaxLength = wo.MaxLength;
+        dto.WoTotalQuantity = wo.TotalQuantity;
+        dto.WoTotalWeight = wo.TotalWeight;
+        dto.WoDeliveryState = wo.DeliveryState;
+        dto.WoTotalItemCount = wo.TotalItemCount;
+    }
 }

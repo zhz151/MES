@@ -35,6 +35,56 @@ public class QueryParams
     public bool IsDescending { get; set; } = true;
 
     /// <summary>
+    /// 到料日期范围筛选-开始（仅检验到料使用）
+    /// </summary>
+    public DateTime? ReceiveDateFrom { get; set; }
+
+    /// <summary>
+    /// 到料日期范围筛选-结束（仅检验到料使用）
+    /// </summary>
+    public DateTime? ReceiveDateTo { get; set; }
+
+    /// <summary>
+    /// 执行日期范围筛选-开始（仅生产记录使用）
+    /// </summary>
+    public DateTime? ExecDateFrom { get; set; }
+
+    /// <summary>
+    /// 执行日期范围筛选-结束（仅生产记录使用）
+    /// </summary>
+    public DateTime? ExecDateTo { get; set; }
+
+    /// <summary>
+    /// 发出日期范围筛选-开始（仅工段委外使用）
+    /// </summary>
+    public DateTime? SendOutDateFrom { get; set; }
+
+    /// <summary>
+    /// 发出日期范围筛选-结束（仅工段委外使用）
+    /// </summary>
+    public DateTime? SendOutDateTo { get; set; }
+
+    /// <summary>
+    /// 实际回收日期范围筛选-开始（仅工段委外使用）
+    /// </summary>
+    public DateTime? ActualRecoveryDateFrom { get; set; }
+
+    /// <summary>
+    /// 实际回收日期范围筛选-结束（仅工段委外使用）
+    /// </summary>
+    public DateTime? ActualRecoveryDateTo { get; set; }
+
+    /// <summary>
+    /// 回收日期范围筛选-开始（仅委外回收使用）
+    /// </summary>
+    public DateTime? RecoveryDateFrom { get; set; }
+
+    /// <summary>
+    /// 回收日期范围筛选-结束（仅委外回收使用）
+    /// </summary>
+    public DateTime? RecoveryDateTo { get; set; }
+
+    /// <summary>
     /// 计算跳过的记录数
     /// </summary>
     public int Skip => (PageIndex - 1) * PageSize;

@@ -79,7 +79,7 @@ public class MaterialPlanServiceTests : TestBase
         var items = await ctx.OrderItems
             .Where(oi => oi.SalesOrderId == order.Id)
             .ToListAsync();
-        var itemIds = items.Select(i => i.Id).ToList();
+        var itemIds = items.Select(i => i.Sequence).ToList();
 
         var woLoggerMock = new Mock<ILogger<WorkOrderService>>();
         var woSvc = new WorkOrderService(ctx, woLoggerMock.Object);
@@ -792,7 +792,7 @@ public class MaterialPlanServiceTests : TestBase
             plantGrade: "Q345B", unitWeight: 270m);
         var svc = CreateService(ctx);
 
-        var available = await svc.GetAvailableReworkInventoryAsync(woId, "EmptyDrawing");
+        var available = await svc.GetAvailableReworkInventoryAsync(woId, ReworkType.EmptyDrawing);
 
         available.Should().NotBeEmpty();
     }
@@ -807,20 +807,20 @@ public class MaterialPlanServiceTests : TestBase
             plantGrade: "Q345B", unitWeight: 270m);
         var svc = CreateService(ctx);
 
-        var available = await svc.GetAvailableReworkInventoryAsync(woId, "EmptyDrawing");
+        var available = await svc.GetAvailableReworkInventoryAsync(woId, ReworkType.EmptyDrawing);
 
         available.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task GetAvailableReworkInventoryAsync_未知改制类型_返回空()
+    public async Task GetAvailableReworkInventoryAsync_空拉改制不匹配规格_返回空()
     {
         var ctx = CreateDbContext();
         var (woId, _) = await SeedWorkOrderAsync(ctx);
         await SeedInventoryBatchAsync(ctx);
         var svc = CreateService(ctx);
 
-        var available = await svc.GetAvailableReworkInventoryAsync(woId, "UnknownType");
+        var available = await svc.GetAvailableReworkInventoryAsync(woId, ReworkType.EmptyDrawing);
 
         available.Should().BeEmpty();
     }

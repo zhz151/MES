@@ -23,8 +23,6 @@
                           Label="邮箱"
                           Variant="Variant.Outlined"
                           Placeholder="请输入您的邮箱地址"
-                          Required="true"
-                          RequiredError="邮箱不能为空"
                           StartAdornment="@Icons.Material.Filled.Email" />
 
             <MudTextField @bind-Value="model.Password"
@@ -32,8 +30,6 @@
                           Variant="Variant.Outlined"
                           InputType="InputType.Password"
                           Placeholder="请输入您的密码"
-                          Required="true"
-                          RequiredError="密码不能为空"
                           StartAdornment="@Icons.Material.Filled.Lock" />
 
             <div class="text-center mt-6">
@@ -42,26 +38,17 @@
                            Size="Size.Large"
                            EndIcon="@Icons.Material.Filled.Login"
                            OnClick="HandleLogin"
-                           Disabled="@isLoading"
+                           Loading="@isLoading"
                            Class="px-8 py-4"
                            Style="min-width:150px">
-                    @if (isLoading)
-                    {
-                        <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
-                    }
-                    else
-                    {
-                        <span>登录</span>
-                    }
+                    登录
                 </MudButton>
             </div>
         </MudForm>
 
         @if (!string.IsNullOrEmpty(errorMessage))
         {
-            <MudAlert Severity="Severity.Error" Class="mt-4">
-                @errorMessage
-            </MudAlert>
+            <MudText Typo="Typo.body2" Color="Color.Error" Class="mt-4">@errorMessage</MudText>
         }
 
         <div class="text-center mt-4">

@@ -18,13 +18,13 @@
     }
     .rework-inventory-table table th,
     .rework-inventory-table table td {
+        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap;
     }
 </style>
 
-<MudContainer Class="mt-4" Style="max-width:100%;">
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
@@ -39,6 +39,7 @@
         </MudCardHeader>
 
         <MudCardContent>
+            <div id="rework-plan-create-table">
             @if (isLoadingWorkOrder)
             {
                 <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
@@ -65,9 +66,9 @@
                     </MudButton>
                     @if (errorMessage != null)
                     {
-                        <MudAlert Severity="Severity.Warning" Class="ml-3 pa-2" Dense="true">
+                        <MudText Typo="Typo.body2" Color="Color.Warning" Class="ml-3">
                             @errorMessage
-                        </MudAlert>
+                        </MudText>
                     }
                 </div>
 
@@ -92,76 +93,76 @@
                         <span class="flex-grow-1"></span>
                         <MudButton Variant="Variant.Text" OnClick="GoBack" Size="Size.Small">取消</MudButton>
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
-                                   OnClick="SavePlans" Disabled="isSaving || selectedBatchIds.Count == 0">
-                            @(isSaving ? "保存中..." : "保存")
+                                   OnClick="SavePlans" Disabled="selectedBatchIds.Count == 0" Loading="@isSaving">
+                            保存
                         </MudButton>
                     </div>
 
                     <div Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;" Class="mb-3">
-                        <MudTable Items="@filteredBatches" Class="rework-inventory-table" Dense="true" Hover="true" Striped="true" Elevation="0" RowsPerPage="5" RowsPerPageLabel="每页行数:">
+                        <MudTable Items="@filteredBatches" Class="rework-inventory-table auto-table" Dense="true" Hover="true" Striped="true" Elevation="0" RowsPerPage="5" RowsPerPageLabel="每页行数:">
                             <HeaderContent>
                                 <MudTh Style="width:32px;">选择</MudTh>
-                                <MudTh Style="width:48px; white-space:nowrap;">
+                                <MudTh Style="width:48px;">
                                     <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.MaterialType))" Style="cursor:pointer;">
                                         @SortIcon("MaterialType") 物料名称
                                     </span>
                                 </MudTh>
-                                <MudTh Style="width:50px; white-space:nowrap;">
+                                <MudTh Style="width:50px;">
                                     <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.PlantGrade))" Style="cursor:pointer;">
                                         @SortIcon("PlantGrade") 工厂牌号
                                     </span>
                                 </MudTh>
-                                <MudTh Style="width:55px; white-space:nowrap;">
+                                <MudTh Style="width:55px;">
                                     <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.Specification))" Style="cursor:pointer;">
                                         @SortIcon("Specification") 名义规格
                                     </span>
                                 </MudTh>
-                                <MudTh Style="width:40px; white-space:nowrap;">
+                                <MudTh Style="width:40px;">
                                     <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.LengthStatus))" Style="cursor:pointer;">
                                         @SortIcon("LengthStatus") 长度状态
                                     </span>
                                 </MudTh>
-                                <MudTh Style="width:35px; white-space:nowrap;">
+                                <MudTh Style="width:35px;">
                                     <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.MinLength))" Style="cursor:pointer;">
                                         @SortIcon("MinLength") 最小长度
                                     </span>
                                 </MudTh>
-                                <MudTh Style="width:35px; white-space:nowrap;">
+                                <MudTh Style="width:35px;">
                                     <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.MaxLength))" Style="cursor:pointer;">
                                         @SortIcon("MaxLength") 最大长度
                                     </span>
                                 </MudTh>
-                                <MudTh Style="width:45px; white-space:nowrap;">
+                                <MudTh Style="width:45px;">
                                     <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.RemainingQuantity))" Style="cursor:pointer;">
                                         @SortIcon("RemainingQuantity") 剩余支数
                                     </span>
                                 </MudTh>
-                                <MudTh Style="width:45px; white-space:nowrap;">
+                                <MudTh Style="width:45px;">
                                     <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.RemainingWeight))" Style="cursor:pointer;">
                                         @SortIcon("RemainingWeight") 剩余重量
                                     </span>
                                 </MudTh>
-                                <MudTh Style="width:45px; white-space:nowrap;">
+                                <MudTh Style="width:45px;">
                                     <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.UnitWeight))" Style="cursor:pointer;">
                                         @SortIcon("UnitWeight") 理论单支重
                                     </span>
                                 </MudTh>
-                                <MudTh Style="width:40px; white-space:nowrap;">
+                                <MudTh Style="width:40px;">
                                     <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.SurfaceCondition))" Style="cursor:pointer;">
                                         @SortIcon("SurfaceCondition") 物料状态
                                     </span>
                                 </MudTh>
-                                <MudTh Style="width:48px; white-space:nowrap;">
+                                <MudTh Style="width:48px;">
                                     <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.LocationArea))" Style="cursor:pointer;">
                                         @SortIcon("LocationArea") 放置框架
                                     </span>
                                 </MudTh>
-                                <MudTh Style="width:40px; white-space:nowrap;">
+                                <MudTh Style="width:40px;">
                                     <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.ActualOuterDiameter))" Style="cursor:pointer;">
                                         @SortIcon("ActualOuterDiameter") 实际外径
                                     </span>
                                 </MudTh>
-                                <MudTh Style="width:40px; white-space:nowrap;">
+                                <MudTh Style="width:40px;">
                                     <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.ActualWallThickness))" Style="cursor:pointer;">
                                         @SortIcon("ActualWallThickness") 实际壁厚
                                     </span>
@@ -181,7 +182,7 @@
                                 <MudTd DataLabel="物料名称">@context.MaterialType</MudTd>
                                 <MudTd DataLabel="工厂牌号">@context.PlantGrade</MudTd>
                                 <MudTd DataLabel="名义规格">@context.Specification</MudTd>
-                                <MudTd DataLabel="长度状态">@context.LengthStatus</MudTd>
+                                <MudTd DataLabel="长度状态">@DisplayHelper.GetLengthStatusText(context.LengthStatus)</MudTd>
                                 <MudTd DataLabel="最小长度">@DisplayHelper.FormatNullableDecimal(context.MinLength)</MudTd>
                                 <MudTd DataLabel="最大长度">@DisplayHelper.FormatNullableDecimal(context.MaxLength)</MudTd>
                                 <MudTd DataLabel="剩余支数">@context.RemainingQuantity</MudTd>
@@ -194,12 +195,11 @@
                                 <MudTd DataLabel="投料倍率" Style="background-color: rgba(255, 152, 0, 0.08);">
                                     @if (GetSelection(context.Id))
                                     {
-                                        <MudNumericField Value="@GetInputMultiple(context.Id)"
+                                        <MudNumericField HideSpinButtons="true" Value="@GetInputMultiple(context.Id)"
                                                          ValueChanged="@((int v) => OnInputMultipleChanged(context.Id, v))"
                                                          Size="Size.Small"
                                                          Variant="Variant.Outlined"
                                                          Min="1" Max="99"
-                                                         HideSpinButtons="true"
                                                          Class="my-n2" Style="width:42px;" />
                                     }
                                 </MudTd>
@@ -219,12 +219,11 @@
                                 <MudTd DataLabel="出库支数" Style="background-color: rgba(255, 152, 0, 0.08);">
                                     @if (GetSelection(context.Id) && GetUsageMode(context.Id) == "Partial")
                                     {
-                                        <MudNumericField Value="@GetUsedQuantity(context.Id)"
+                                        <MudNumericField HideSpinButtons="true" Value="@GetUsedQuantity(context.Id)"
                                                          ValueChanged="@((int? v) => OnUsedQuantityChanged(context.Id, v))"
                                                          Size="Size.Small"
                                                          Variant="Variant.Outlined"
                                                          Min="1" Max="@context.RemainingQuantity"
-                                                         HideSpinButtons="true"
                                                          Class="my-n2" Style="width:42px;" />
                                     }
                                     else if (GetSelection(context.Id))
@@ -235,12 +234,11 @@
                                 <MudTd DataLabel="出库重量" Style="background-color: rgba(255, 152, 0, 0.08);">
                                     @if (GetSelection(context.Id) && GetUsageMode(context.Id) == "Partial")
                                     {
-                                        <MudNumericField Value="@GetUsedWeight(context.Id)"
+                                        <MudNumericField HideSpinButtons="true" Value="@GetUsedWeight(context.Id)" Format="G29"
                                                          ValueChanged="@((decimal? v) => OnUsedWeightChanged(context.Id, v))"
                                                          Size="Size.Small"
                                                          Variant="Variant.Outlined"
                                                          Min="0"
-                                                         HideSpinButtons="true"
                                                          Class="my-n2" Style="width:48px;" />
                                     }
                                     else if (GetSelection(context.Id))
@@ -262,8 +260,10 @@
                             </RowTemplate>
                         </MudTable>
                     </div>
+
                 }
             }
+            </div>
         </MudCardContent>
     </MudCard>
 </MudContainer>
@@ -283,6 +283,8 @@
     // 排序状态
     private string sortColumn = "Specification";
     private bool sortDescending = true;
+
+    private bool _isArrowNavSetup;
 
     private List<AvailableInventoryBatchDto> filteredBatches
     {
@@ -366,14 +368,14 @@
         }
     }
 
-    private string GetReworkTypeString()
+    private ReworkType GetReworkType()
     {
         return activeTab switch
         {
-            0 => "EmptyDrawing",
-            1 => "FewerPass",
-            2 => "ManualSelect",
-            _ => "EmptyDrawing"
+            0 => ReworkType.EmptyDrawing,
+            1 => ReworkType.FewerPass,
+            2 => ReworkType.ManualSelect,
+            _ => ReworkType.EmptyDrawing
         };
     }
 
@@ -385,7 +387,7 @@
 
         try
         {
-            var reworkType = GetReworkTypeString();
+            var reworkType = GetReworkType();
             var result = await MaterialPlanService.GetAvailableReworkInventoryAsync(WorkOrderId, reworkType);
             if (result.Success)
             {
@@ -508,6 +510,16 @@
 
     private void GoBack() => Navigation.NavigateTo($"/workorders/{WorkOrderId}/rework-plan");
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#rework-plan-create-table"))
+                _isArrowNavSetup = false;
+        }
+    }
+
     private async Task SavePlans()
     {
         var selectedIds = selectedBatchIds.ToList();
@@ -542,7 +554,8 @@
 
         if (errors.Any())
         {
-            await JS.InvokeVoidAsync("alert", string.Join("\n", errors));
+            foreach (var err in errors)
+                Snackbar.Add(err, Severity.Warning);
             return;
         }
 
@@ -551,8 +564,8 @@
 
         try
         {
-            var reworkType = GetReworkTypeString();
-            var successCount = 0;
+            var reworkType = GetReworkType();
+            var requests = new List<CreateInventoryPlanRequest>();
             foreach (var batchId in selectedIds)
             {
                 var batch = availableBatches.FirstOrDefault(b => b.Id == batchId);
@@ -562,7 +575,7 @@
                 var processPlanInput = processPlanStrings.GetValueOrDefault(batchId, string.Empty);
                 var processPlanJson = ConvertProcessPlanStringToJson(processPlanInput);
 
-                var request = new CreateInventoryPlanRequest
+                requests.Add(new CreateInventoryPlanRequest
                 {
                     WorkOrderId = WorkOrderId,
                     PlanDate = DateTime.Today,
@@ -571,32 +584,29 @@
                     UsageMode = mode,
                     RequiredDate = null,
                     Remark = null,
-                    ReworkType = reworkType,
-                    ProcessPlan = processPlanJson
-                };
-
-                if (mode == "Partial")
-                {
-                    request.UsedQuantity = usedQuantities.GetValueOrDefault(batchId);
-                    request.UsedWeight = usedWeights.GetValueOrDefault(batchId) ?? 0;
-                }
-
-                var result = await MaterialPlanService.CreateInventoryPlanAsync(request);
-                if (result.Success)
-                    successCount++;
-                else
-                    errors.Add($"批次 {batch.BatchNo}：{result.Message}");
+                    ReworkType = reworkType.ToString(),
+                    ProcessPlan = processPlanJson,
+                    UsedQuantity = mode == "Partial" ? usedQuantities.GetValueOrDefault(batchId) : null,
+                    UsedWeight = mode == "Partial" ? usedWeights.GetValueOrDefault(batchId) ?? 0 : 0,
+                });
             }
 
-            if (successCount > 0)
+            var result = await MaterialPlanService.CreateInventoryPlanBatchAsync(requests);
+            if (result.Success)
             {
-                Snackbar.Add($"成功创建 {successCount} 条改制计划", Severity.Success);
+                var count = result.Data?.Count ?? 0;
+                Snackbar.Add($"成功创建 {count} 条改制计划", Severity.Success);
                 GoBack();
+            }
+            else
+            {
+                errors.Add(result.Message ?? "批量创建失败");
             }
 
             if (errors.Any())
             {
-                await JS.InvokeVoidAsync("alert", string.Join("\n", errors));
+                foreach (var err in errors)
+                    Snackbar.Add(err, Severity.Error);
             }
         }
         catch (Exception ex)

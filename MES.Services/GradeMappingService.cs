@@ -271,7 +271,7 @@ public class GradeMappingService : IGradeMappingService
             {
                 result.Add(await GetByIdAsync(id));
             }
-            catch (BusinessException) { }
+            catch (BusinessException) { /* 跳过不存在的牌号映射 */ }
         }
         return GradeMappingPrintHelper.GenerateBatchPdf(result);
     }
@@ -283,7 +283,7 @@ public class GradeMappingService : IGradeMappingService
             PageIndex = 1,
             PageSize = int.MaxValue,
             Keyword = keyword,
-            SortBy = sortBy,
+            SortBy = sortBy ?? "CreatedTime",
             IsDescending = isDescending
         };
         var paged = await GetPagedAsync(query);

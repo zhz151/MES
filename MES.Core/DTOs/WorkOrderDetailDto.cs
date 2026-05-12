@@ -1,5 +1,7 @@
 // 文件路径: MES.Core/DTOs/WorkOrderDetailDto.cs
 
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs;
 
 /// <summary>
@@ -88,12 +90,12 @@ public string StatusText
     /// <summary>
     /// 物料名称
     /// </summary>
-    public string MaterialName { get; set; } = null!;
+    public MaterialName MaterialName { get; set; }
 
     /// <summary>
     /// 结算方式
     /// </summary>
-    public string SettlementMethod { get; set; } = null!;
+    public SettlementMethod SettlementMethod { get; set; }
 
     /// <summary>
     /// 产品标准编码
@@ -103,7 +105,7 @@ public string StatusText
     /// <summary>
     /// 交货状态
     /// </summary>
-    public string DeliveryState { get; set; } = null!;
+    public DeliveryState DeliveryState { get; set; }
 
     /// <summary>
     /// 工厂牌号
@@ -138,7 +140,7 @@ public string StatusText
     /// <summary>
     /// 长度状态
     /// </summary>
-    public string LengthStatus { get; set; } = null!;
+    public LengthStatus LengthStatus { get; set; }
 
     /// <summary>
     /// 最小长度

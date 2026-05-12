@@ -103,6 +103,16 @@ public class SubcontractOrderService
         catch (Exception ex) { return ApiResponse<List<ProcurementStatusDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    public async Task<ApiResponse<List<OrderMismatchInfo>>> GetMismatchedOrdersAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<OrderMismatchInfo>>>($"{BaseUrl}/mismatched-orders")
+                   ?? ApiResponse<List<OrderMismatchInfo>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<OrderMismatchInfo>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     // ========== 打印 ==========
 
     public async Task<ApiResponse<string>> PrintOrderAsync(int id)

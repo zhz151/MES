@@ -13,6 +13,7 @@ public class CreateOutboundRequest
     [Required(ErrorMessage = "出库类型不能为空")]
     public string OutboundType { get; set; } = string.Empty;
 
+    public string? SourceOrderNo { get; set; }
     public string? TargetCompany { get; set; }
 
     [Range(1, int.MaxValue, ErrorMessage = "出库支数必须大于0")]

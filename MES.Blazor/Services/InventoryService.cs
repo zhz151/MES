@@ -122,6 +122,9 @@ public class InventoryService
             if (!string.IsNullOrEmpty(query.OutboundType))
                 url += $"&outboundType={Uri.EscapeDataString(query.OutboundType)}";
 
+            if (query.WarehouseId.HasValue)
+                url += $"&warehouseId={query.WarehouseId.Value}";
+
             if (query.StartDate.HasValue)
                 url += $"&startDate={query.StartDate.Value:yyyy-MM-dd}";
 
@@ -190,5 +193,74 @@ public class InventoryService
         {
             return ApiResponse<object>.Fail($"网络错误: {ex.Message}");
         }
+    }
+
+    public async Task<ApiResponse<SourceOrderValidationResult>> ValidateSourceOrderAsync(string sourceOrderNo, string inboundSource, int? sourceOrderSequence = null)
+    {
+        try
+        {
+            return await _http.PostAsJsonAsync<object, ApiResponse<SourceOrderValidationResult>>(
+                $"{BaseUrl}/validate-source-order",
+                new { sourceOrderNo, inboundSource, sourceOrderSequence })
+                ?? ApiResponse<SourceOrderValidationResult>.Fail("验证失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<SourceOrderValidationResult>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    // ========== 工单号验证 ==========
+
+    public async Task<ApiResponse<List<string>>> ValidateWorkOrderNosAsync(int warehouseId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<string>>>($"{BaseUrl}/validate-workorder-nos/{warehouseId}");
+            return response ?? ApiResponse<List<string>>.Fail("验证失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<string>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    // ========== 打印 ==========
+
+    public async Task<ApiResponse<string>> PrintInventoryAllAsync(InventoryPrintAllRequest request)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<InventoryPrintAllRequest, ApiResponse<string>>($"{BaseUrl}/print-inventory-all", request);
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<string>> PrintInventorySelectedAsync(InventoryPrintSelectedRequest request)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<InventoryPrintSelectedRequest, ApiResponse<string>>($"{BaseUrl}/print-inventory-selected", request);
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<string>> PrintOutboundAllAsync(OutboundPrintAllRequest request)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<OutboundPrintAllRequest, ApiResponse<string>>($"{BaseUrl}/print-outbound-all", request);
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<string>> PrintOutboundSelectedAsync(OutboundPrintSelectedRequest request)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<OutboundPrintSelectedRequest, ApiResponse<string>>($"{BaseUrl}/print-outbound-selected", request);
+            return response ?? ApiResponse<string>.Fail("打印失败");
+        }
+        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 }

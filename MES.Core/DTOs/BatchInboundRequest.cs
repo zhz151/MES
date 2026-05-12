@@ -63,6 +63,7 @@ public class InboundRow
     [Range(0, double.MaxValue, ErrorMessage = "重量必须大于等于0")]
     public decimal InitialWeight { get; set; }
 
+    // 原有可覆盖字段
     public string? LengthStatus { get; set; }
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
@@ -79,6 +80,23 @@ public class InboundRow
     public string? OriginalSupplier { get; set; }
     public string? TagNo { get; set; }
     public string? DefectRemark { get; set; }
+
+    // 原仅公共字段，现支持行级覆盖（row ?? common 回退）
+    public string? MaterialType { get; set; }
+    public string? PlantGrade { get; set; }
+    public string? Specification { get; set; }
+    public string? HeatNo { get; set; }
+    public string? InboundSource { get; set; }
+    public string? SourceName { get; set; }
+    public string? ProductionBatchNo { get; set; }
+    public string? ActualSpecification { get; set; }
+    public decimal? ActualOuterDiameter { get; set; }
+    public decimal? ActualWallThickness { get; set; }
+    public string? SalesOrderNo { get; set; }
+    public string? OrderItemIds { get; set; }
+    public bool? IsLinkedToWorkOrder { get; set; }
+    public string? WorkOrderNo { get; set; }
+    public string? SourceOrderNo { get; set; }
 }
 
 /// <summary>

@@ -21,9 +21,9 @@ public class AuthController : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("login")]
-    public async Task<ActionResult<ApiResponse<LoginResponse>>> Login([FromBody] LoginRequest request)
+    public async Task<ActionResult<ApiResponse<LoginResponse>>> Login([FromBody] LoginRequest loginRequest)
     {
-        var result = await _authService.LoginAsync(request);
+        var result = await _authService.LoginAsync(loginRequest);
         return Ok(result);
     }
 
@@ -37,9 +37,9 @@ public class AuthController : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("refresh-token")]
-    public async Task<ActionResult<ApiResponse<LoginResponse>>> RefreshToken([FromBody] RefreshTokenRequest request)
+    public async Task<ActionResult<ApiResponse<LoginResponse>>> RefreshToken([FromBody] RefreshTokenRequest refreshTokenRequest)
     {
-        var result = await _authService.RefreshTokenAsync(request.RefreshToken);
+        var result = await _authService.RefreshTokenAsync(refreshTokenRequest.RefreshToken);
         return Ok(result);
     }
 
@@ -49,9 +49,4 @@ public class AuthController : ControllerBase
         var result = await _authService.GetCurrentUserAsync();
         return Ok(result);
     }
-}
-
-public class RefreshTokenRequest
-{
-    public string RefreshToken { get; set; } = string.Empty;
 }

@@ -1,0 +1,582 @@
+@page "/production-records/create"
+@using MES.Core.DTOs
+@using MES.Blazor.Services
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
+@inject ProductionRecordService ProdRecordService
+@inject BatchService BatchService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject ColumnPrefsService ColumnPrefs
+@attribute [Authorize(Roles = "BatchStaff,BatchDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    <style>
+        .edit-table td.mud-table-cell,
+        .edit-table th.mud-table-cell {
+            padding: 1px 4px !important;
+        }
+        .edit-table .mud-input-input-control {
+            margin-top: 0;
+        }
+        .edit-table .mud-input {
+            font-size: 13px;
+            width: 100%;
+            min-width: 0;
+        }
+        .edit-table th.mud-table-cell {
+            white-space: nowrap;
+        }
+        .table-scroll {
+            max-height: calc(100vh - 280px);
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+    </style>
+
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.AddCircleOutline" Class="mr-2" Color="Color.Primary" />
+                    新建生产记录
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="GoBack">返回</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <div id="production-record-create-table">
+                @if (_rows.Any())
+                {
+                    <div class="d-flex align-center mb-2">
+                        <ColumnDisplaySelect Columns="_allColumns"
+                                             OnColumnToggle="OnColumnToggle"
+                                             OnMoveUp="MoveColumnUp"
+                                             OnMoveDown="MoveColumnDown" />
+                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                   Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.RestartAlt"
+                                   OnClick="ResetColumnDisplay" Class="ml-2">
+                            重置
+                        </MudButton>
+                        <MudSpacer />
+                        <MudText Typo="Typo.body2">共 @_rows.Count 行</MudText>
+                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                   Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.AddCircleOutline"
+                                   OnClick="AddRow" Class="ml-2">
+                            添加行
+                        </MudButton>
+                    </div>
+                    <div class="table-scroll">
+                        <MudTable Items="@_rows" Dense="true" Hover="true" Elevation="0" Striped="true"
+                                  Class="edit-table auto-table" SortMode="SortMode.None" FixedHeader="true">
+                            <HeaderContent>
+                                @foreach (var col in _visibleColumns)
+                                {
+                                    <MudTh>
+                                        @col.Label
+                                        @if (col.IsRequired)
+                                        {
+                                            <span class="required-star">*</span>
+                                        }
+                                    </MudTh>
+                                }
+                                <MudTh Style="width:60px;">操作</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="r">
+                                @foreach (var col in _visibleColumns)
+                                {
+                                    <MudTd>@RenderCell(r, col)</MudTd>
+                                }
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline"
+                                                   Color="Color.Error" Size="Size.Small"
+                                                   Title="删除"
+                                                   OnClick="() => RemoveRow(r)"
+                                                   Disabled="@(_rows.Count <= 1)" />
+                                </MudTd>
+                            </RowTemplate>
+                            <FooterContent>
+                                <MudTd colspan="@(_visibleColumns.Count + 1)">
+                                    <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline"
+                                                   Color="Color.Primary" Size="Size.Small"
+                                                   OnClick="AddRow" />
+                                </MudTd>
+                            </FooterContent>
+                        </MudTable>
+                    </div>
+                }
+            </div>
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <MudText Typo="Typo.body2" Color="Color.Error" Class="mt-4">@_errorMessage</MudText>
+            }
+
+            @if (_rows.Any())
+            {
+                <MudGrid Class="mt-4">
+                    <MudItem xs="12" Class="d-flex justify-end">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.CloudUpload"
+                                   OnClick="Submit" Loading="@_isSubmitting"
+                                   Size="Size.Large">
+                            确认提交 (@_rows.Count 条)
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            }
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private List<EditRow> _rows = new();
+    private bool _isSubmitting;
+    private bool _isArrowNavSetup;
+    private string _errorMessage = string.Empty;
+
+    // ========== 列定义 ==========
+
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns =>
+        _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
+
+    private static List<ColumnDef> GetAllColumnDefs() => new()
+    {
+        new() { Key = "ExecDate",          Label = "执行日期", IsRequired = true },               // → Entity.ExecDate
+        new() { Key = "BatchNo",           Label = "批次号", IsRequired = true },                 // → Entity.ProductionBatchId（通过批次号解析关联批次）
+        new() { Key = "ProcessName",       Label = "工序名称", IsRequired = true },               // → Entity.ProcessName + 联合解析 ProcessGroupId
+        new() { Key = "ManufacturingSpec", Label = "制造规格", IsRequired = true },                 // → Entity.ManufacturingSpec + 联合解析 ProcessGroupId
+        new() { Key = "SectionName",       Label = "工段名称", IsRequired = true },               // → Entity.SectionName（与ProcessGroupId联合解析SequenceNumber）
+        new() { Key = "EquipmentName",     Label = "设备名称" },                 // → Entity.EquipmentName
+        new() { Key = "Operator",          Label = "操作工" },                   // → Entity.Operator
+        new() { Key = "Shift",             Label = "班次" },                     // → Entity.Shift
+        new() { Key = "Quantity",          Label = "加工支数" },                 // → Entity.Quantity
+        new() { Key = "Weight",            Label = "加工重量" },                 // → Entity.Weight
+        new() { Key = "DefectQuantity",    Label = "次品支数" },                 // → Entity.DefectQuantity
+        new() { Key = "DefectWeight",      Label = "次品重量" },                 // → Entity.DefectWeight
+        new() { Key = "IsFinished",        Label = "是否成品" },                 // → Entity.IsFinished
+        new() { Key = "CuttingMultiple",   Label = "断切倍数" },                 // → Entity.CuttingMultiple
+        new() { Key = "FinishedCutLength", Label = "成品长度" },                 // → Entity.FinishedCutLength
+        new() { Key = "PostCutQuantity",   Label = "切后支数" },                 // → Entity.PostCutQuantity
+        new() { Key = "TagNo",             Label = "挂牌号" },                   // → Entity.TagNo
+        new() { Key = "PlantGrade",        Label = "工厂牌号" },                 // → Entity.PlantGrade
+        new() { Key = "Remark",            Label = "备注" },                     // → Entity.Remark
+    };
+
+    private async Task OnColumnToggle(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task SaveColumnPrefs()
+    {
+        await ColumnPrefs.SaveAsync("production-records-create", null, _allColumns);
+    }
+
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnUp(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnDown(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private class EditRow
+    {
+        public string ExecDate { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");          // → Entity.ExecDate
+        public string BatchNo { get; set; } = string.Empty;                                     // → Entity.ProductionBatchId
+        public string ProcessName { get; set; } = string.Empty;                                 // → Entity.ProcessName + 联合解析 ProcessGroupId
+        public string? ManufacturingSpec { get; set; }                                          // → Entity.ManufacturingSpec + 联合解析 ProcessGroupId
+        public string SectionName { get; set; } = string.Empty;                                 // → Entity.SectionName（与ProcessGroupId联合解析SequenceNumber）
+        public string? EquipmentName { get; set; }                                              // → Entity.EquipmentName
+        public string? Operator { get; set; }                                                   // → Entity.Operator
+        public string? Shift { get; set; }                                                      // → Entity.Shift
+        public int? Quantity { get; set; }                                                      // → Entity.Quantity
+        public decimal? Weight { get; set; }                                                    // → Entity.Weight
+        public int? DefectQuantity { get; set; }                                                // → Entity.DefectQuantity
+        public decimal? DefectWeight { get; set; }                                              // → Entity.DefectWeight
+        public bool IsFinished { get; set; }                                                    // → Entity.IsFinished
+        public decimal? CuttingMultiple { get; set; }                                           // → Entity.CuttingMultiple
+        public decimal? FinishedCutLength { get; set; }                                         // → Entity.FinishedCutLength
+        public int? PostCutQuantity { get; set; }                                               // → Entity.PostCutQuantity
+        public string? TagNo { get; set; }                                                      // → Entity.TagNo（来自批次信息）
+        public string? PlantGrade { get; set; }                                                 // → Entity.PlantGrade（来自批次信息）
+        public string? Remark { get; set; }                                                     // → Entity.Remark
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allColumns = GetAllColumnDefs();
+        var saved = await ColumnPrefs.LoadAsync("production-records-create", null);
+        if (saved.Count > 0)
+        {
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
+            }
+            var reordered = new List<ColumnDef>();
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
+        }
+
+        if (!_rows.Any())
+        {
+            _rows.Add(new EditRow());
+            _rows.Add(new EditRow());
+            _rows.Add(new EditRow());
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#production-record-create-table"))
+                _isArrowNavSetup = false;
+        }
+    }
+
+    private void AddRow()
+    {
+        _rows.Add(new EditRow());
+    }
+
+    private void RemoveRow(EditRow row)
+    {
+        if (_rows.Count <= 1) return;
+        _rows.Remove(row);
+    }
+
+    private async Task Submit()
+    {
+        _errorMessage = string.Empty;
+
+        var errors = new List<string>();
+        for (int i = 0; i < _rows.Count; i++)
+        {
+            var r = _rows[i];
+            if (string.IsNullOrWhiteSpace(r.BatchNo))
+                errors.Add($"第{i + 1}行：批次号不能为空");
+            if (string.IsNullOrWhiteSpace(r.ProcessName))
+                errors.Add($"第{i + 1}行：工序名称不能为空");
+            if (string.IsNullOrWhiteSpace(r.SectionName))
+                errors.Add($"第{i + 1}行：工段名称不能为空");
+            if (string.IsNullOrWhiteSpace(r.ManufacturingSpec))
+                errors.Add($"第{i + 1}行：制造规格不能为空");
+            if (!DateTime.TryParse(r.ExecDate, out _))
+                errors.Add($"第{i + 1}行：执行日期格式无效（请用 yyyy-MM-dd）");
+        }
+
+        if (errors.Any())
+        {
+            Snackbar.Add(string.Join("；", errors), Severity.Error);
+            return;
+        }
+
+        _isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var requests = _rows.Select(r => new CreateProductionRecordRequest
+            {
+                BatchNo = r.BatchNo,
+                ProcessName = r.ProcessName,
+                ManufacturingSpec = r.ManufacturingSpec,
+                SectionName = r.SectionName,
+                ExecDate = DateTime.Parse(r.ExecDate),
+                EquipmentName = r.EquipmentName,
+                Operator = r.Operator,
+                Shift = r.Shift,
+                Quantity = r.Quantity,
+                Weight = r.Weight,
+                DefectQuantity = r.DefectQuantity,
+                DefectWeight = r.DefectWeight,
+                IsFinished = r.IsFinished,
+                CuttingMultiple = r.CuttingMultiple,
+                FinishedCutLength = r.FinishedCutLength,
+                PostCutQuantity = r.PostCutQuantity,
+                TagNo = r.TagNo,
+                PlantGrade = r.PlantGrade,
+                Remark = r.Remark,
+            }).ToList();
+
+            var result = await ProdRecordService.BatchCreateProductionRecordsAsync(requests);
+
+            if (result.Success && result.Data != null)
+            {
+                Snackbar.Add($"批量创建生产记录成功，共{result.Data.Count}条", Severity.Success);
+                Navigation.NavigateTo("/production-records");
+            }
+            else
+            {
+                _errorMessage = result.Message ?? "批量创建失败";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"网络错误: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/production-records");
+    }
+
+    // ========== 自动填充（批次号+制造规格 → 挂牌号/工序名称/工厂牌号） ==========
+
+    private async Task OnAutoFillAsync(EditRow row)
+    {
+        if (string.IsNullOrWhiteSpace(row.BatchNo) || string.IsNullOrWhiteSpace(row.ManufacturingSpec))
+            return;
+
+        var result = await BatchService.GetByBatchNoAsync(row.BatchNo);
+        if (!result.Success || result.Data == null)
+            return;
+
+        var batch = result.Data;
+        row.TagNo = batch.TagNo;
+        row.PlantGrade = batch.PlantGrade;
+
+        var pg = batch.ProcessGroups?.FirstOrDefault(p => p.ManufacturingSpec == row.ManufacturingSpec);
+        if (pg != null)
+            row.ProcessName = pg.ProcessName;
+
+        StateHasChanged();
+    }
+
+    // ========== 单元格渲染 ==========
+
+    private RenderFragment RenderCell(EditRow r, ColumnDef col) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "ExecDate":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "Value",r.ExecDate);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.ExecDate = v));
+                builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd");
+                builder.CloseComponent();
+                break;
+            case "BatchNo":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "Value",r.BatchNo);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.BatchNo = v; await OnAutoFillAsync(r); }));
+                builder.AddAttribute(6, "Placeholder", "输入批次号");
+                builder.CloseComponent();
+                break;
+            case "ProcessName":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "Value",r.ProcessName);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.ProcessName = v ?? ""));
+                builder.CloseComponent();
+                break;
+            case "ManufacturingSpec":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "Value",r.ManufacturingSpec);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, async v => { r.ManufacturingSpec = v; await OnAutoFillAsync(r); }));
+                builder.CloseComponent();
+                break;
+            case "SectionName":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "Value",r.SectionName);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.SectionName = v ?? ""));
+                builder.CloseComponent();
+                break;
+            case "EquipmentName":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "Value",r.EquipmentName);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.EquipmentName = v));
+                builder.CloseComponent();
+                break;
+            case "Operator":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "Value",r.Operator);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.Operator = v));
+                builder.CloseComponent();
+                break;
+            case "Shift":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "Value",r.Shift);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.Shift = v));
+                builder.CloseComponent();
+                break;
+            case "Quantity":
+                builder.OpenComponent<MudNumericField<int?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "HideSpinButtons",true);
+                builder.AddAttribute(5, "Value", r.Quantity);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.Quantity = v));
+                builder.AddAttribute(7, "Clearable", true);
+                builder.CloseComponent();
+                break;
+            case "Weight":
+                builder.OpenComponent<MudNumericField<decimal?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "HideSpinButtons",true);
+                builder.AddAttribute(5, "Format", "G29");
+                builder.AddAttribute(6, "Value", r.Weight);
+                builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.Weight = v));
+                builder.AddAttribute(8, "Clearable", true);
+                builder.CloseComponent();
+                break;
+            case "DefectQuantity":
+                builder.OpenComponent<MudNumericField<int?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "HideSpinButtons",true);
+                builder.AddAttribute(5, "Value", r.DefectQuantity);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.DefectQuantity = v));
+                builder.AddAttribute(7, "Clearable", true);
+                builder.CloseComponent();
+                break;
+            case "DefectWeight":
+                builder.OpenComponent<MudNumericField<decimal?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "HideSpinButtons",true);
+                builder.AddAttribute(5, "Format", "G29");
+                builder.AddAttribute(6, "Value", r.DefectWeight);
+                builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.DefectWeight = v));
+                builder.AddAttribute(8, "Clearable", true);
+                builder.CloseComponent();
+                break;
+            case "IsFinished":
+                builder.OpenComponent<MudCheckBox<bool>>(0);
+                builder.AddAttribute(1, "Color", Color.Primary);
+                builder.AddAttribute(3, "Value", r.IsFinished);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<bool>(this, v => r.IsFinished = v));
+                builder.CloseComponent();
+                break;
+            case "CuttingMultiple":
+                builder.OpenComponent<MudNumericField<decimal?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "HideSpinButtons",true);
+                builder.AddAttribute(5, "Format", "G29");
+                builder.AddAttribute(6, "Value", r.CuttingMultiple);
+                builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.CuttingMultiple = v));
+                builder.AddAttribute(8, "Clearable", true);
+                builder.CloseComponent();
+                break;
+            case "FinishedCutLength":
+                builder.OpenComponent<MudNumericField<decimal?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "HideSpinButtons",true);
+                builder.AddAttribute(5, "Format", "G29");
+                builder.AddAttribute(6, "Value", r.FinishedCutLength);
+                builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.FinishedCutLength = v));
+                builder.AddAttribute(8, "Clearable", true);
+                builder.CloseComponent();
+                break;
+            case "PostCutQuantity":
+                builder.OpenComponent<MudNumericField<int?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "HideSpinButtons",true);
+                builder.AddAttribute(5, "Value", r.PostCutQuantity);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.PostCutQuantity = v));
+                builder.AddAttribute(7, "Clearable", true);
+                builder.CloseComponent();
+                break;
+            case "TagNo":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "Value",r.TagNo);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.TagNo = v));
+                builder.CloseComponent();
+                break;
+            case "PlantGrade":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "Value",r.PlantGrade);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.PlantGrade = v));
+                builder.CloseComponent();
+                break;
+            case "Remark":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "Value",r.Remark);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.Remark = v));
+                builder.CloseComponent();
+                break;
+            default:
+                builder.AddContent(0, "");
+                break;
+        }
+    };
+}

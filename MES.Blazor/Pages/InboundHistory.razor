@@ -3,6 +3,7 @@
 @using MES.Blazor.Services
 @using MES.Core.DTOs
 @using MES.Core.Models
+@using MES.Blazor.Helpers
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
 @inject InventoryService InventoryService
@@ -10,15 +11,39 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject ColumnPrefsService ColumnPrefs
+@inject IJSRuntime JS
+@inject NotificationService NotificationService
 @attribute [Authorize]
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+<style>
+    .inbound-history-edit-table td.mud-table-cell,
+    .inbound-history-edit-table th.mud-table-cell {
+        padding: 1px 4px !important;
+    }
+    .inbound-history-edit-table .mud-input-input-control {
+        margin-top: 0;
+    }
+    .inbound-history-edit-table .mud-input {
+        font-size: 13px;
+        width: 100%;
+        min-width: 0;
+    }
+    .inbound-history-edit-table th.mud-table-cell {
+        white-space: nowrap;
+    }
+</style>
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
                 <MudText Typo="Typo.h5" Class="font-weight-bold">
                     <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-2" Color="Color.Primary" />
                     入库历史记录查询及更正
+                    @if (!string.IsNullOrEmpty(_warehouseName))
+                    {
+                        <span Class="font-weight-light" Style="font-size:0.8em;"> — @_warehouseName</span>
+                    }
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -27,124 +52,153 @@
         </MudCardHeader>
 
         <MudCardContent>
-            <!-- 筛选栏 -->
-            <MudGrid Class="mb-4">
-                <MudItem xs="12" md="4">
-                    <MudTextField T="string" Label="关键词" @bind-Value="_filterKeyword"
-                                  Placeholder="批次号/物料/工厂牌号/规格..." Variant="Variant.Outlined" Dense="true" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField T="string" Label="入库日期从" @bind-Value="_filterDateFromText"
-                                  Placeholder="yyyy-MM-dd" Variant="Variant.Outlined" Dense="true" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField T="string" Label="入库日期至" @bind-Value="_filterDateToText"
-                                  Placeholder="yyyy-MM-dd" Variant="Variant.Outlined" Dense="true" />
-                </MudItem>
-                <MudItem xs="12" md="2" Class="d-flex align-center">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                               OnClick="DoFilter" Size="Size.Small" FullWidth="true">
-                        查询
+            <!-- 工单删除通知提醒条 -->
+            @if (_workOrderNotices is { Count: > 0 })
+            {
+                <MudAlert Severity="Severity.Warning" Class="mb-2" Variant="Variant.Filled">
+                    <MudText>
+                        <strong>工单已删除：</strong>有 @_workOrderNotices.Count 条入库批次引用了已删除的工单号，请及时更新或清空这些批次的工单关联。
+                    </MudText>
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Inherit"
+                               OnClick="DismissWorkOrderNotices" Class="ml-4">
+                        忽略
                     </MudButton>
+                </MudAlert>
+            }
+            <!-- 筛选栏 -->
+            <MudGrid Class="mb-2">
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  Value="_filterKeyword"
+                                  ValueChanged="@OnSearchChanged"
+                                  Label="模糊搜索"
+                                  Variant="Variant.Outlined"
+                                  Dense="true"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
             </MudGrid>
 
-            <!-- 表格 -->
+            <!-- 数据表格（内联编辑） -->
+            <div style="overflow-x:auto; max-width:100%;">
             <MudTable @ref="_table" T="InventoryBatchDto" ServerData="OnServerData"
                       Loading="_isLoading" Dense="true" Hover="true"
-                      Elevation="0" Striped="true" RowsPerPageLabel="每页行数:">
+                      Elevation="0" Striped="true" RowsPerPageLabel="每页行数:"
+                      MultiSelection="true" @bind-SelectedItems="_selectedItems"
+                      Class="auto-table inbound-history-edit-table">
+                <ToolBarContent>
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                    <MudSpacer />
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               Disabled="@(!_selectedItems.Any())"
+                               OnClick="PrintSelected" Class="mr-1">
+                        打印选中 (@_selectedItems.Count)
+                    </MudButton>
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll" Class="mr-4">
+                        打印全部
+                    </MudButton>
+                </ToolBarContent>
                 <HeaderContent>
-                    <MudTh>批次号</MudTh>
-                    <MudTh>物料</MudTh>
-                    <MudTh>工厂牌号</MudTh>
-                    <MudTh>规格</MudTh>
-                    <MudTh>入库日期</MudTh>
-                    <MudTh>支数</MudTh>
-                    <MudTh>重量(kg)</MudTh>
-                    <MudTh>来源</MudTh>
-                    <MudTh Style="width:140px;">操作</MudTh>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTh>
+                            @if (!string.IsNullOrEmpty(col.SortKey))
+                            {
+                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
+                                    @col.Label
+                                    @if (col.IsRequired)
+                                    {
+                                        <span class="required-star">*</span>
+                                    }
+                                    @if (sortColumn == col.SortKey)
+                                    {
+                                        <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
+                                    }
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="th-label">
+                                    @col.Label
+                                    @if (col.IsRequired)
+                                    {
+                                        <span class="required-star">*</span>
+                                    }
+                                </span>
+                            }
+                        </MudTh>
+                    }
+                    <MudTh Style="width:150px;">操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
-                    <MudTd><small>@item.BatchNo</small></MudTd>
-                    <MudTd><span class="table-cell-clamp-1">@item.MaterialType</span></MudTd>
-                    <MudTd><span class="table-cell-clamp-1">@item.PlantGrade</span></MudTd>
-                    <MudTd><span class="table-cell-clamp-1">@item.Specification</span></MudTd>
-                    <MudTd><small>@item.InboundDate.ToString("yyyy-MM-dd")</small></MudTd>
-                    <MudTd Class="text-right">@item.InitialQuantity</MudTd>
-                    <MudTd Class="text-right">@item.InitialWeight.ToString("G29")</MudTd>
-                    <MudTd><small>@GetInboundSource(item.InboundSource)</small></MudTd>
-                    <MudTd>
-                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
-                                       Size="Size.Small" Title="更正"
-                                       OnClick="() => OpenEdit(item)" />
-                        <MudIconButton Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Error"
-                                       Size="Size.Small" Title="物理删除"
-                                       OnClick="() => ConfirmDelete(item)" />
-                    </MudTd>
+                    @if (_editingRowId == item.Id)
+                    {
+                        @foreach (var col in _visibleColumns)
+                        {
+                            <MudTd>@RenderInlineEditor(item, col)</MudTd>
+                        }
+                        <MudTd>
+                            <MudButton Variant="Variant.Filled" Size="Size.Small"
+                                       Color="Color.Primary"
+                                       OnClick="() => SaveRow(item)"
+                                       Disabled="@_savingItemId.HasValue"
+                                       Class="mr-1">
+                                确认更改
+                            </MudButton>
+                            <MudButton Variant="Variant.Text" Size="Size.Small"
+                                       Color="Color.Default"
+                                       OnClick="CancelEdit"
+                                       Class="mr-1">
+                                取消
+                            </MudButton>
+                        </MudTd>
+                    }
+                    else
+                    {
+                        @foreach (var col in _visibleColumns)
+                        {
+                            <MudTd>@RenderCell(item, col)</MudTd>
+                        }
+                        <MudTd>
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                                       Color="Color.Primary"
+                                       OnClick="() => StartEdit(item)"
+                                       Class="mr-1">
+                                更改
+                            </MudButton>
+                            <MudIconButton Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Error"
+                                           Size="Size.Small" Title="物理删除"
+                                           OnClick="() => ConfirmDelete(item)" />
+                        </MudTd>
+                    }
                 </RowTemplate>
                 <PagerContent>
+                    <MudText Typo="Typo.body2" Class="d-flex align-center mr-auto">共 @_totalCount 条记录</MudText>
                     <MudTablePager />
                 </PagerContent>
                 <NoRecordsContent>
                     <MudText Class="d-flex justify-center pa-4" Color="Color.Secondary">暂无入库记录</MudText>
                 </NoRecordsContent>
             </MudTable>
-
-            @* ===== 内联编辑面板 ===== *@
-            @if (_editingItem != null)
-            {
-                <MudPaper Class="pa-4 mt-4" Elevation="1">
-                    <MudText Typo="Typo.h6" Class="mb-4">
-                        <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" Color="Color.Primary" />
-                        更正入库记录 — @_editingItem.BatchNo
-                    </MudText>
-                    <MudGrid>
-                        <MudItem xs="12" md="6">
-                            <MudTextField T="string" Label="批次号" @bind-Value="_editBatchNo"
-                                          Variant="Variant.Outlined" Dense="true" />
-                        </MudItem>
-                        <MudItem xs="12" md="6">
-                            <MudTextField T="string" Label="物料" @bind-Value="_editMaterialType"
-                                          Variant="Variant.Outlined" Dense="true" />
-                        </MudItem>
-                        <MudItem xs="12" md="6">
-                            <MudTextField T="string" Label="工厂牌号" @bind-Value="_editPlantGrade"
-                                          Variant="Variant.Outlined" Dense="true" />
-                        </MudItem>
-                        <MudItem xs="12" md="6">
-                            <MudTextField T="string" Label="规格" @bind-Value="_editSpecification"
-                                          Variant="Variant.Outlined" Dense="true" />
-                        </MudItem>
-                        <MudItem xs="12" md="6">
-                            <MudTextField T="string" Label="入库日期 (yyyy-MM-dd)" @bind-Value="_editInboundDateText"
-                                          Variant="Variant.Outlined" Dense="true" />
-                        </MudItem>
-                        <MudItem xs="12" md="3">
-                            <MudNumericField T="int" Label="支数" @bind-Value="_editQuantity"
-                                             Variant="Variant.Outlined" Dense="true" HideSpinButtons="true" />
-                        </MudItem>
-                        <MudItem xs="12" md="3">
-                            <MudNumericField T="decimal" Label="重量(kg)" @bind-Value="_editWeight"
-                                             Variant="Variant.Outlined" Dense="true" HideSpinButtons="true" />
-                        </MudItem>
-                        <MudItem xs="12" md="6">
-                            <MudTextField T="string" Label="炉号" @bind-Value="_editHeatNo"
-                                          Variant="Variant.Outlined" Dense="true" />
-                        </MudItem>
-                        <MudItem xs="12" md="6">
-                            <MudTextField T="string" Label="备注" @bind-Value="_editRemark"
-                                          Variant="Variant.Outlined" Dense="true" />
-                        </MudItem>
-                    </MudGrid>
-                    <MudGrid Class="mt-4">
-                        <MudItem xs="12" Class="d-flex justify-end">
-                            <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CancelEdit" Class="mr-2">取消</MudButton>
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                       OnClick="SubmitEdit" Loading="_isEditing">保存</MudButton>
-                        </MudItem>
-                    </MudGrid>
-                </MudPaper>
-            }
+            </div>
         </MudCardContent>
     </MudCard>
 </MudContainer>
@@ -153,41 +207,607 @@
     [Parameter]
     public string? Code { get; set; }
 
-    private int? _filterWarehouseId;
+    // ========== 仓库 ==========
+    private int? _warehouseId;
+    private string _warehouseName = string.Empty;
+    private List<WarehouseDto> _warehouses = new();
+
+    // ========== 工单删除通知 ==========
+    private List<NotificationDto>? _workOrderNotices;
+
+    // ========== 筛选 ==========
     private string _filterKeyword = string.Empty;
-    private string _filterDateFromText = string.Empty;
-    private string _filterDateToText = string.Empty;
+    private int _totalCount;
+
+    // 排序状态
+    private string sortColumn = "inbounddate";
+    private bool sortDescending = true;
+
+    private string GetSortIndicator(string column)
+    {
+        if (sortColumn != column) return "";
+        return sortDescending ? "\u25BC" : "\u25B2";
+    }
+
+    private async Task ToggleSort(string column)
+    {
+        if (sortColumn == column)
+            sortDescending = !sortDescending;
+        else
+        {
+            sortColumn = column;
+            sortDescending = false;
+        }
+        ClearEditState();
+        if (_table != null)
+            await _table.ReloadServerData();
+    }
+
+    private async Task OnSearchChanged(string value)
+    {
+        _filterKeyword = value ?? string.Empty;
+        ClearEditState();
+        if (_table != null)
+            await _table.ReloadServerData();
+    }
+
     private bool _isLoading;
+    private int? _savingItemId;
+    private int? _editingRowId;
     private MudTable<InventoryBatchDto>? _table;
 
-    // 编辑状态
-    private InventoryBatchDto? _editingItem;
-    private string _editBatchNo = string.Empty;
-    private string _editMaterialType = string.Empty;
-    private string _editPlantGrade = string.Empty;
-    private string _editSpecification = string.Empty;
-    private string _editInboundDateText = string.Empty;
-    private int _editQuantity;
-    private decimal _editWeight;
-    private string _editHeatNo = string.Empty;
-    private string _editRemark = string.Empty;
-#pragma warning disable CS0414 // 在 Razor 模板 Loading 参数中使用
-    private bool _isEditing;
-#pragma warning restore CS0414
+    /// <summary>内联编辑中按 item.Id 暂存的入库日期字符串</summary>
+    private Dictionary<int, string> _editDateStrings = new();
+
+    private void ClearEditState()
+    {
+        _editingRowId = null;
+        _editDateStrings.Clear();
+    }
+
+    // ========== 列定义 ==========
+
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns =>
+        _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
+    private readonly List<(string Value, string Text)> _inboundSourceOptions = new()
+    {
+        ("Purchase", "外购"),
+        ("Subcontract", "委外"),
+        ("ReturnIn", "退货入库"),
+        ("ProductionInbound", "生产入库"),
+        ("InspectionInbound", "检验入库"),
+        ("TransferIn", "移库入库"),
+        ("Other", "其它"),
+    };
+
+    private readonly List<(string Value, string Text)> _lengthStatusOptions = new()
+    {
+        ("定尺", "定尺"),
+        ("范围尺", "范围尺"),
+    };
+
+    private static List<ColumnDef> GetAllColumnDefs() => new()
+    {
+        new() { Key = "BatchNo",             Label = "批次号",   SortKey = "batchno" },
+        new() { Key = "InboundDate",         Label = "入库日期", SortKey = "inbounddate",    IsRequired = true },
+        new() { Key = "InboundSource",       Label = "来源",     SortKey = "inboundsource" },
+        new() { Key = "SourceOrderNo",       Label = "物料单号" },
+        new() { Key = "MaterialType",        Label = "物料",     SortKey = "materialtype",    IsRequired = true },
+        new() { Key = "SourceName",          Label = "来料单位" },
+        new() { Key = "SurfaceCondition",    Label = "物料状态", SortKey = "surfacecondition" },
+        new() { Key = "LocationArea",        Label = "区域" },
+        new() { Key = "LocationRack",        Label = "框架" },
+        new() { Key = "HeatNo",              Label = "炉号",     SortKey = "heatno" },
+        new() { Key = "PlantGrade",          Label = "工厂牌号", SortKey = "plantgrade",      IsRequired = true },
+        new() { Key = "Specification",       Label = "名义规格", SortKey = "specification",   IsRequired = true },
+        new() { Key = "LengthStatus",        Label = "长度状态", SortKey = "lengthstatus" },
+        new() { Key = "MinLength",           Label = "最小长度" },
+        new() { Key = "MaxLength",           Label = "最大长度" },
+        new() { Key = "InitialQuantity",     Label = "支数",     SortKey = "initialquantity", IsRequired = true },
+        new() { Key = "InitialWeight",       Label = "重量(kg)", SortKey = "initialweight",   IsRequired = true },
+        new() { Key = "UnitWeight",          Label = "单支重",   SortKey = "unitweight" },
+        new() { Key = "Meters",              Label = "米数" },
+        new() { Key = "Remark",              Label = "备注" },
+        new() { Key = "IsLinkedToWorkOrder", Label = "关联工单" },
+        new() { Key = "WorkOrderNo",         Label = "工单号",   SortKey = "workorderno" },
+        new() { Key = "SalesOrderNo",        Label = "订单号",   SortKey = "salesorderno" },
+        new() { Key = "OrderItemIds",        Label = "项次" },
+        new() { Key = "ProductionBatchNo",   Label = "生产批号", SortKey = "productionbatchno" },
+        new() { Key = "ActualSpecification", Label = "实际规格" },
+        new() { Key = "ActualOuterDiameter", Label = "外径" },
+        new() { Key = "ActualWallThickness", Label = "壁厚" },
+        new() { Key = "DefectReason",        Label = "次品原因" },
+        new() { Key = "LiabilityType",       Label = "责任类型" },
+        new() { Key = "OriginalSupplier",    Label = "原始来料" },
+        new() { Key = "TagNo",               Label = "挂牌号" },
+        new() { Key = "DefectRemark",        Label = "次品备注" },
+    };
+
+    private static void ApplyWarehouseDefaults(List<ColumnDef> cols, string whCode)
+    {
+        foreach (var c in cols)
+        {
+            c.IsApplicable = true;
+            c.Visible = true;
+        }
+
+        switch (whCode)
+        {
+            case "RAW":
+                SetNotApplicable(cols, "MinLength");
+                SetNotApplicable(cols, "MaxLength");
+                SetNotApplicable(cols, "Meters");
+                SetNotApplicable(cols, "ActualSpecification");
+                SetNotApplicable(cols, "ActualOuterDiameter");
+                SetNotApplicable(cols, "ActualWallThickness");
+                SetNotApplicable(cols, "ProductionBatchNo");
+                SetNotApplicable(cols, "DefectReason");
+                SetNotApplicable(cols, "LiabilityType");
+                SetNotApplicable(cols, "OriginalSupplier");
+                SetNotApplicable(cols, "TagNo");
+                SetNotApplicable(cols, "DefectRemark");
+                break;
+            case "FG":
+                SetNotApplicable(cols, "DefectReason");
+                SetNotApplicable(cols, "LiabilityType");
+                SetNotApplicable(cols, "OriginalSupplier");
+                SetNotApplicable(cols, "TagNo");
+                SetNotApplicable(cols, "DefectRemark");
+                break;
+            case "DEFECT":
+                SetNotApplicable(cols, "Meters");
+                SetNotApplicable(cols, "ActualSpecification");
+                SetNotApplicable(cols, "ActualOuterDiameter");
+                SetNotApplicable(cols, "ActualWallThickness");
+                SetNotApplicable(cols, "SourceOrderNo");
+                break;
+            case "WIP":
+                SetNotApplicable(cols, "IsLinkedToWorkOrder");
+                SetNotApplicable(cols, "WorkOrderNo");
+                SetNotApplicable(cols, "SalesOrderNo");
+                SetNotApplicable(cols, "OrderItemIds");
+                SetNotApplicable(cols, "DefectReason");
+                SetNotApplicable(cols, "LiabilityType");
+                SetNotApplicable(cols, "OriginalSupplier");
+                SetNotApplicable(cols, "TagNo");
+                SetNotApplicable(cols, "DefectRemark");
+                SetNotApplicable(cols, "Meters");
+                SetNotApplicable(cols, "SourceOrderNo");
+                break;
+        }
+    }
+
+    private static void SetNotApplicable(List<ColumnDef> cols, string key)
+    {
+        var c = cols.FirstOrDefault(x => x.Key == key);
+        if (c != null)
+        {
+            c.IsApplicable = false;
+            c.Visible = false;
+        }
+    }
+
+    // ========== 列选择操作 ==========
+
+    private async Task OnColumnToggle(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task SaveColumnPrefs()
+    {
+        var whCode = Code?.ToUpperInvariant() ?? "";
+        await ColumnPrefs.SaveAsync("inbound_history", whCode, _allColumns);
+    }
+
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        ApplyWarehouseDefaults(_allColumns, Code?.ToUpperInvariant() ?? "");
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnUp(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnDown(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    // ========== 编辑器类型推断 ==========
+
+    private static string GetEditorType(string key) => key switch
+    {
+        "InboundSource" => "select",
+        "LengthStatus" => "select",
+        "IsLinkedToWorkOrder" => "bool",
+        "InitialQuantity" => "int",
+        "InitialWeight" => "decimal",
+        "InboundDate" => "date",
+        "UnitWeight" or "MinLength" or "MaxLength" or "Meters"
+            or "ActualOuterDiameter" or "ActualWallThickness" => "nullableDecimal",
+        _ => "text"
+    };
+
+    // ========== 内联编辑渲染 ==========
+
+    private RenderFragment RenderInlineEditor(InventoryBatchDto item, ColumnDef col) => builder =>
+    {
+        // 批次号只读
+        if (col.Key == "BatchNo")
+        {
+            builder.AddContent(0, item.BatchNo);
+            return;
+        }
+
+        switch (GetEditorType(col.Key))
+        {
+            case "select":
+                var options = col.Key == "LengthStatus" ? _lengthStatusOptions : _inboundSourceOptions;
+                var selVal = GetCellStringValue(item, col.Key);
+                builder.OpenComponent<MudSelect<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Value", selVal);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => SetCellStringValue(item, col.Key, v)));
+                builder.AddAttribute(5, "ChildContent", (RenderFragment)(b2 =>
+                {
+                    foreach (var opt in options)
+                    {
+                        b2.OpenComponent<MudSelectItem<string>>(0);
+                        b2.AddAttribute(1, "Value", opt.Value);
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Text)));
+                        b2.CloseComponent();
+                    }
+                }));
+                builder.CloseComponent();
+                break;
+
+            case "bool":
+                builder.OpenComponent<MudSwitch<bool>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Color", Color.Primary);
+                builder.AddAttribute(3, "Value", item.IsLinkedToWorkOrder);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, v =>
+                {
+                    item.IsLinkedToWorkOrder = v;
+                    if (!v)
+                    {
+                        item.WorkOrderNo = null;
+                        item.SalesOrderNo = null;
+                        item.OrderItemIds = null;
+                    }
+                }));
+                builder.CloseComponent();
+                break;
+
+            case "int":
+                builder.OpenComponent<MudNumericField<int>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "HideSpinButtons", true);
+                builder.AddAttribute(3, "Value", item.InitialQuantity);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<int>(this, v => item.InitialQuantity = v));
+                builder.CloseComponent();
+                break;
+
+            case "decimal":
+                builder.OpenComponent<MudNumericField<decimal>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "HideSpinButtons", true);
+                builder.AddAttribute(3, "Format", "G29");
+                builder.AddAttribute(4, "Value", item.InitialWeight);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<decimal>(this, v => item.InitialWeight = v));
+                builder.CloseComponent();
+                break;
+
+            case "nullableDecimal":
+                builder.OpenComponent<MudNumericField<decimal?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "HideSpinButtons", true);
+                builder.AddAttribute(3, "Format", "G29");
+                builder.AddAttribute(3, "Value", GetCellDecimalValue(item, col.Key));
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => SetCellDecimalValue(item, col.Key, v)));
+                builder.CloseComponent();
+                break;
+
+            case "date":
+                if (!_editDateStrings.ContainsKey(item.Id))
+                    _editDateStrings[item.Id] = item.InboundDate.ToString("yyyy-MM-dd");
+                var dateVal = _editDateStrings[item.Id];
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Value", dateVal);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v =>
+                {
+                    _editDateStrings[item.Id] = v ?? item.InboundDate.ToString("yyyy-MM-dd");
+                    if (DateTime.TryParse(v, out var dt))
+                        item.InboundDate = dt;
+                }));
+                builder.CloseComponent();
+                break;
+
+            default: // text
+                var txtVal = GetCellStringValue(item, col.Key);
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Value", txtVal);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => SetCellStringValue(item, col.Key, v)));
+                builder.CloseComponent();
+                break;
+        }
+    };
+
+    // ========== 只读单元格渲染 ==========
+
+    private RenderFragment RenderCell(InventoryBatchDto item, ColumnDef col) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "BatchNo":
+                builder.AddContent(0, item.BatchNo);
+                break;
+            case "InboundDate":
+                builder.AddContent(0, item.InboundDate.ToString("yyyy-MM-dd"));
+                break;
+            case "InboundSource":
+                builder.AddContent(0, DisplayHelper.GetInboundSourceText(item.InboundSource));
+                break;
+            case "MaterialType":
+                builder.AddContent(0, item.MaterialType);
+                break;
+            case "PlantGrade":
+                builder.AddContent(0, item.PlantGrade);
+                break;
+            case "Specification":
+                builder.AddContent(0, item.Specification);
+                break;
+            case "SourceName":
+                builder.AddContent(0, TruncateText(item.SourceName));
+                break;
+            case "LocationArea":
+                builder.AddContent(0, TruncateText(item.LocationArea));
+                break;
+            case "InitialQuantity":
+                builder.AddContent(0, item.InitialQuantity);
+                break;
+            case "InitialWeight":
+                builder.AddContent(0, item.InitialWeight.ToString("G29"));
+                break;
+            case "UnitWeight":
+                if (item.UnitWeight.HasValue)
+                    builder.AddContent(0, item.UnitWeight.Value.ToString("G29"));
+                break;
+            case "MinLength":
+                if (item.MinLength.HasValue)
+                    builder.AddContent(0, item.MinLength.Value.ToString("G29"));
+                break;
+            case "MaxLength":
+                if (item.MaxLength.HasValue)
+                    builder.AddContent(0, item.MaxLength.Value.ToString("G29"));
+                break;
+            case "Meters":
+                if (item.Meters.HasValue)
+                    builder.AddContent(0, item.Meters.Value.ToString("G29"));
+                break;
+            case "ActualOuterDiameter":
+                if (item.ActualOuterDiameter.HasValue)
+                    builder.AddContent(0, item.ActualOuterDiameter.Value.ToString("G29"));
+                break;
+            case "ActualWallThickness":
+                if (item.ActualWallThickness.HasValue)
+                    builder.AddContent(0, item.ActualWallThickness.Value.ToString("G29"));
+                break;
+            case "IsLinkedToWorkOrder":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", item.IsLinkedToWorkOrder ? Color.Success : Color.Default);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.IsLinkedToWorkOrder ? "是" : "否")));
+                builder.CloseComponent();
+                break;
+            case "SourceOrderNo":
+                if (!string.IsNullOrEmpty(item.SourceOrderNo))
+                    builder.AddContent(0, item.SourceOrderNo);
+                break;
+            case "LengthStatus":
+                if (!string.IsNullOrEmpty(item.LengthStatus))
+                    builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                break;
+            default:
+                var val = GetCellStringValue(item, col.Key);
+                if (!string.IsNullOrEmpty(val))
+                    builder.AddContent(0, val);
+                break;
+        }
+    };
+
+    // ========== 编辑状态管理 ==========
+
+    private void StartEdit(InventoryBatchDto item)
+    {
+        _editingRowId = item.Id;
+        _editDateStrings[item.Id] = item.InboundDate.ToString("yyyy-MM-dd");
+    }
+
+    private void CancelEdit()
+    {
+        ClearEditState();
+    }
+
+    // ========== 辅助方法 ==========
+
+    private static string TruncateText(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return "";
+        return text.Length > 4 ? text[..4] + "…" : text;
+    }
+
+    // ========== Getter/Setter 辅助 ==========
+
+    private string? GetCellStringValue(InventoryBatchDto item, string key) => key switch
+    {
+        "MaterialType" => item.MaterialType,
+        "InboundSource" => item.InboundSource,
+        "SourceName" => item.SourceName,
+        "HeatNo" => item.HeatNo,
+        "PlantGrade" => item.PlantGrade,
+        "Specification" => item.Specification,
+        "LengthStatus" => item.LengthStatus,
+        "SurfaceCondition" => item.SurfaceCondition,
+        "LocationArea" => item.LocationArea,
+        "LocationRack" => item.LocationRack,
+        "Remark" => item.Remark,
+        "ActualSpecification" => item.ActualSpecification,
+        "ProductionBatchNo" => item.ProductionBatchNo,
+        "DefectReason" => item.DefectReason,
+        "LiabilityType" => item.LiabilityType,
+        "OriginalSupplier" => item.OriginalSupplier,
+        "TagNo" => item.TagNo,
+        "DefectRemark" => item.DefectRemark,
+        "WorkOrderNo" => item.WorkOrderNo,
+        "SalesOrderNo" => item.SalesOrderNo,
+        "OrderItemIds" => item.OrderItemIds,
+        "SourceOrderNo" => item.SourceOrderNo,
+        _ => null
+    };
+
+    private void SetCellStringValue(InventoryBatchDto item, string key, string? value)
+    {
+        switch (key)
+        {
+            case "MaterialType": item.MaterialType = value ?? ""; break;
+            case "InboundSource": item.InboundSource = value ?? ""; break;
+            case "SourceName": item.SourceName = value; break;
+            case "HeatNo": item.HeatNo = value; break;
+            case "PlantGrade": item.PlantGrade = value ?? ""; break;
+            case "Specification": item.Specification = value ?? ""; break;
+            case "LengthStatus": item.LengthStatus = value; break;
+            case "SurfaceCondition": item.SurfaceCondition = value; break;
+            case "LocationArea": item.LocationArea = value; break;
+            case "LocationRack": item.LocationRack = value; break;
+            case "Remark": item.Remark = value; break;
+            case "ActualSpecification": item.ActualSpecification = value; break;
+            case "ProductionBatchNo": item.ProductionBatchNo = value; break;
+            case "DefectReason": item.DefectReason = value; break;
+            case "LiabilityType": item.LiabilityType = value; break;
+            case "OriginalSupplier": item.OriginalSupplier = value; break;
+            case "TagNo": item.TagNo = value; break;
+            case "DefectRemark": item.DefectRemark = value; break;
+            case "WorkOrderNo": item.WorkOrderNo = value; break;
+            case "SalesOrderNo": item.SalesOrderNo = value; break;
+            case "OrderItemIds": item.OrderItemIds = value; break;
+            case "SourceOrderNo": item.SourceOrderNo = value; break;
+        }
+    }
+
+    private decimal? GetCellDecimalValue(InventoryBatchDto item, string key) => key switch
+    {
+        "UnitWeight" => item.UnitWeight,
+        "MinLength" => item.MinLength,
+        "MaxLength" => item.MaxLength,
+        "Meters" => item.Meters,
+        "ActualOuterDiameter" => item.ActualOuterDiameter,
+        "ActualWallThickness" => item.ActualWallThickness,
+        _ => null
+    };
+
+    private void SetCellDecimalValue(InventoryBatchDto item, string key, decimal? value)
+    {
+        switch (key)
+        {
+            case "UnitWeight": item.UnitWeight = value; break;
+            case "MinLength": item.MinLength = value; break;
+            case "MaxLength": item.MaxLength = value; break;
+            case "Meters": item.Meters = value; break;
+            case "ActualOuterDiameter": item.ActualOuterDiameter = value; break;
+            case "ActualWallThickness": item.ActualWallThickness = value; break;
+        }
+    }
+
+    // ========== 初始化 ==========
 
     protected override async Task OnInitializedAsync()
     {
+        var whResult = await WarehouseService.GetAllAsync(true);
+        if (whResult.Success && whResult.Data != null)
+            _warehouses = whResult.Data;
+
+        if (!string.IsNullOrEmpty(Code))
+            await ResolveWarehouse();
+
+        await CheckWorkOrderNotices();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
         if (!string.IsNullOrEmpty(Code))
         {
-            var result = await WarehouseService.GetAllAsync(true);
-            if (result.Success && result.Data != null)
+            await ResolveWarehouse();
+            ClearEditState();
+            if (_table != null)
+                await _table.ReloadServerData();
+        }
+        await CheckWorkOrderNotices();
+    }
+
+    private async Task ResolveWarehouse()
+    {
+        _filterKeyword = string.Empty;
+        var whCode = Code!.ToUpperInvariant();
+        var wh = _warehouses.FirstOrDefault(w => w.Code.Equals(whCode, StringComparison.OrdinalIgnoreCase));
+        if (wh != null)
+        {
+            _warehouseId = wh.Id;
+            _warehouseName = wh.Name;
+        }
+        else
+        {
+            _warehouseId = null;
+            _warehouseName = Code;
+        }
+
+        // 初始化列定义
+        _allColumns = GetAllColumnDefs();
+        ApplyWarehouseDefaults(_allColumns, whCode);
+
+        // 加载用户自定义列偏好
+        var saved = await ColumnPrefs.LoadAsync("inbound_history", whCode);
+        if (saved.Count > 0)
+        {
+            foreach (var s in saved)
             {
-                var wh = result.Data.FirstOrDefault(w => w.Code.Equals(Code, StringComparison.OrdinalIgnoreCase));
-                if (wh != null)
-                    _filterWarehouseId = wh.Id;
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
             }
+            var reordered = new List<ColumnDef>();
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
+        }
+
+        // 不适用列强制隐藏
+        foreach (var c in _allColumns)
+        {
+            if (!c.IsApplicable) c.Visible = false;
         }
     }
+
+    // ========== 数据加载 ==========
 
     private async Task<TableData<InventoryBatchDto>> OnServerData(TableState state)
     {
@@ -198,19 +818,17 @@
             {
                 PageIndex = state.Page + 1,
                 PageSize = state.PageSize,
-                SortBy = "InboundDate",
-                IsDescending = true,
-                WarehouseId = _filterWarehouseId,
+                SortBy = sortColumn,
+                IsDescending = sortDescending,
+                WarehouseId = _warehouseId,
                 Keyword = string.IsNullOrEmpty(_filterKeyword) ? null : _filterKeyword,
                 OnlyWithStock = false,
             };
 
-            if (DateTime.TryParse(_filterDateFromText, out var dateFrom)) query.InboundDateFrom = dateFrom;
-            if (DateTime.TryParse(_filterDateToText, out var dateTo)) query.InboundDateTo = dateTo;
-
             var result = await InventoryService.GetPagedAsync(query);
             if (result.Success && result.Data != null)
             {
+                _totalCount = result.Data.TotalCount;
                 return new TableData<InventoryBatchDto>
                 {
                     Items = result.Data.Items,
@@ -227,37 +845,26 @@
 
     private async Task DoFilter()
     {
+        ClearEditState();
         if (_table != null) await _table.ReloadServerData();
     }
 
-    private void OpenEdit(InventoryBatchDto item)
-    {
-        _editingItem = item;
-        _editBatchNo = item.BatchNo ?? "";
-        _editMaterialType = item.MaterialType ?? "";
-        _editPlantGrade = item.PlantGrade ?? "";
-        _editSpecification = item.Specification ?? "";
-        _editInboundDateText = item.InboundDate.ToString("yyyy-MM-dd");
-        _editQuantity = item.InitialQuantity;
-        _editWeight = item.InitialWeight;
-        _editHeatNo = item.HeatNo ?? "";
-        _editRemark = item.Remark ?? "";
-    }
+    // ========== 行保存（更改） ==========
 
-    private void CancelEdit()
+    private async Task SaveRow(InventoryBatchDto item)
     {
-        _editingItem = null;
-    }
-
-    private async Task SubmitEdit()
-    {
-        if (_editingItem == null) return;
-
+        // 验证
         var errors = new List<string>();
-        if (string.IsNullOrWhiteSpace(_editInboundDateText)) errors.Add("入库日期不能为空");
-        if (!DateTime.TryParse(_editInboundDateText, out var parsedDate)) errors.Add("入库日期无效，请按 yyyy-MM-dd 格式输入");
-        if (_editQuantity < 1) errors.Add("支数必须大于0");
-        if (_editWeight <= 0) errors.Add("重量必须大于0");
+        if (item.InitialQuantity < 1) errors.Add("支数必须大于0");
+        if (item.InitialWeight <= 0) errors.Add("重量必须大于0");
+
+        // 验证入库日期
+        DateTime parsedDate = item.InboundDate;
+        if (_editDateStrings.TryGetValue(item.Id, out var dateStr))
+        {
+            if (!DateTime.TryParse(dateStr, out parsedDate))
+                errors.Add("入库日期无效，请按 yyyy-MM-dd 格式输入");
+        }
 
         if (errors.Any())
         {
@@ -265,34 +872,60 @@
             return;
         }
 
-        _isEditing = true;
+        _savingItemId = item.Id;
         StateHasChanged();
 
         try
         {
             var request = new UpdateInventoryBatchRequest
             {
-                BatchNo = _editBatchNo,
-                MaterialType = _editMaterialType,
-                PlantGrade = _editPlantGrade,
-                Specification = _editSpecification,
+                BatchNo = item.BatchNo,
+                MaterialType = item.MaterialType,
+                PlantGrade = item.PlantGrade,
+                Specification = item.Specification,
+                InboundSource = item.InboundSource,
+                SourceName = item.SourceName,
                 InboundDate = parsedDate,
-                InitialQuantity = _editQuantity,
-                InitialWeight = _editWeight,
-                HeatNo = string.IsNullOrEmpty(_editHeatNo) ? null : _editHeatNo,
-                Remark = string.IsNullOrEmpty(_editRemark) ? null : _editRemark,
+                HeatNo = string.IsNullOrEmpty(item.HeatNo) ? null : item.HeatNo,
+                ProductionBatchNo = string.IsNullOrEmpty(item.ProductionBatchNo) ? null : item.ProductionBatchNo,
+                LengthStatus = string.IsNullOrEmpty(item.LengthStatus) ? null : item.LengthStatus,
+                MinLength = item.MinLength,
+                MaxLength = item.MaxLength,
+                InitialQuantity = item.InitialQuantity,
+                InitialWeight = item.InitialWeight,
+                UnitWeight = item.UnitWeight,
+                Meters = item.Meters,
+                SurfaceCondition = string.IsNullOrEmpty(item.SurfaceCondition) ? null : item.SurfaceCondition,
+                LocationArea = string.IsNullOrEmpty(item.LocationArea) ? null : item.LocationArea,
+                LocationRack = string.IsNullOrEmpty(item.LocationRack) ? null : item.LocationRack,
+                Remark = string.IsNullOrEmpty(item.Remark) ? null : item.Remark,
+                ActualSpecification = string.IsNullOrEmpty(item.ActualSpecification) ? null : item.ActualSpecification,
+                ActualOuterDiameter = item.ActualOuterDiameter,
+                ActualWallThickness = item.ActualWallThickness,
+                DefectReason = string.IsNullOrEmpty(item.DefectReason) ? null : item.DefectReason,
+                LiabilityType = string.IsNullOrEmpty(item.LiabilityType) ? null : item.LiabilityType,
+                OriginalSupplier = string.IsNullOrEmpty(item.OriginalSupplier) ? null : item.OriginalSupplier,
+                TagNo = string.IsNullOrEmpty(item.TagNo) ? null : item.TagNo,
+                DefectRemark = string.IsNullOrEmpty(item.DefectRemark) ? null : item.DefectRemark,
+                IsLinkedToWorkOrder = item.IsLinkedToWorkOrder,
+                WorkOrderNo = string.IsNullOrEmpty(item.WorkOrderNo) ? null : item.WorkOrderNo,
+                SalesOrderNo = string.IsNullOrEmpty(item.SalesOrderNo) ? null : item.SalesOrderNo,
+                OrderItemIds = string.IsNullOrEmpty(item.OrderItemIds) ? null : item.OrderItemIds,
+                SourceOrderNo = string.IsNullOrEmpty(item.SourceOrderNo) ? null : item.SourceOrderNo,
             };
 
-            var result = await InventoryService.UpdateInventoryBatchAsync(_editingItem.Id, request);
+            var result = await InventoryService.UpdateInventoryBatchAsync(item.Id, request);
             if (result.Success)
             {
-                Snackbar.Add("更新成功", Severity.Success);
-                _editingItem = null;
-                await DoFilter();
+                Snackbar.Add("更改成功", Severity.Success);
+                _editingRowId = null;
+                _editDateStrings.Remove(item.Id);
+                if (_table != null)
+                    await _table.ReloadServerData();
             }
             else
             {
-                Snackbar.Add(result.Message ?? "更新失败", Severity.Error);
+                Snackbar.Add(result.Message ?? "更改失败", Severity.Error);
             }
         }
         catch (Exception ex)
@@ -301,18 +934,20 @@
         }
         finally
         {
-            _isEditing = false;
+            _savingItemId = null;
             StateHasChanged();
         }
     }
 
+    // ========== 删除 ==========
+
     private async Task ConfirmDelete(InventoryBatchDto item)
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认删除",
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认",
             new DialogParameters
             {
                 { "ContentText", $"确认物理删除批次「{item.BatchNo}」？\n删除后将同时删除关联的出库记录，且不可恢复！" },
-                { "ConfirmText", "删除" },
+                { "ConfirmText", "确认删除" },
                 { "Color", Color.Error }
             });
         var dialogResult = await dialog.Result;
@@ -324,6 +959,7 @@
             if (result.Success)
             {
                 Snackbar.Add($"批次「{item.BatchNo}」已删除", Severity.Success);
+                ClearEditState();
                 await DoFilter();
             }
             else
@@ -337,17 +973,80 @@
         }
     }
 
-    private static string GetInboundSource(string? source) => source switch
+    // ========== 多选 ==========
+    private HashSet<InventoryBatchDto> _selectedItems = new();
+
+    // ========== 打印 ==========
+
+    private async Task PrintSelected()
     {
-        "Purchase" => "外购",
-        "ProductionInbound" => "生产入库",
-        "InspectionInbound" => "检验入库",
-        "SubcontractPiercing" => "委外穿孔",
-        "SelfProduced" => "自产",
-        "TransferIn" => "移库入库",
-        "ReturnIn" => "退货入库",
-        _ => source ?? ""
-    };
+        if (!_selectedItems.Any())
+        {
+            Snackbar.Add("请先选择要打印的入库记录", Severity.Warning);
+            return;
+        }
+        try
+        {
+            var columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+            var ids = _selectedItems.Select(i => i.Id).ToArray();
+            var result = await InventoryService.PrintInventorySelectedAsync(new InventoryPrintSelectedRequest
+            {
+                Ids = ids,
+                Columns = columns
+            });
+            if (result.Success && result.Data != null)
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
+    }
+
+    private async Task PrintAll()
+    {
+        try
+        {
+            var columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+            var result = await InventoryService.PrintInventoryAllAsync(new InventoryPrintAllRequest
+            {
+                Keyword = string.IsNullOrEmpty(_filterKeyword) ? null : _filterKeyword,
+                SortBy = sortColumn,
+                IsDescending = sortDescending,
+                WarehouseId = _warehouseId ?? 0,
+                OnlyWithStock = false,
+                Columns = columns
+            });
+            if (result.Success && result.Data != null)
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
+    }
+
+    // ========== 辅助方法 ==========
+
+    // ========== 工单删除通知检查 ==========
+
+    private async Task CheckWorkOrderNotices()
+    {
+        try
+        {
+            var result = await NotificationService.GetByTypeAsync("WorkOrderDeleted");
+            if (result.Success && result.Data != null)
+                _workOrderNotices = result.Data;
+        }
+        catch
+        {
+            // 通知检查失败不影响主页面
+        }
+    }
+
+    private async Task DismissWorkOrderNotices()
+    {
+        await NotificationService.MarkAllByTypeAsReadAsync("WorkOrderDeleted");
+        _workOrderNotices = null;
+    }
 
     private void GoBack() => Navigation.NavigateTo(!string.IsNullOrEmpty(Code) ? $"/warehouse/{Code.ToLowerInvariant()}" : "/warehouse");
 }

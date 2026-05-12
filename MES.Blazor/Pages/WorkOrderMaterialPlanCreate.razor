@@ -10,9 +10,10 @@
 @inject WorkOrderService WorkOrderService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
 
-<MudContainer Class="mt-4" Style="max-width:100%;">
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
@@ -27,6 +28,7 @@
         </MudCardHeader>
 
         <MudCardContent>
+            <div id="material-plan-create-table">
             @if (isLoadingWorkOrder)
             {
                 <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
@@ -41,7 +43,7 @@
                 </MudText>
 
                 <div Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;" Class="mb-3">
-                    <MudTable Items="@calcRows" Dense="true" Hover="true" Elevation="0" Style="table-layout:fixed;">
+                    <MudTable Items="@calcRows" Class="auto-table" Dense="true" Hover="true" Elevation="0" Style="table-layout:fixed;">
                         <HeaderContent>
                             <MudTh Style="width:110px;">调整成品壁厚(mm)</MudTh>
                             <MudTh Style="width:70px;">成材率(%)</MudTh>
@@ -57,43 +59,39 @@
                         </HeaderContent>
                         <RowTemplate Context="item">
                             <MudTd>
-                                <MudNumericField T="decimal"
+                                <MudNumericField Dense="true" HideSpinButtons="true" T="decimal" Format="G29"
                                                  Value="@item.AdjustedWallThickness"
                                                  ValueChanged="@((decimal v) => { item.AdjustedWallThickness = v; })"
                                                  Size="Size.Small"
                                                  Variant="Variant.Outlined"
                                                  Min="0"
-                                                 HideSpinButtons="true"
                                                  Class="my-n2" Style="width:80px;" />
                             </MudTd>
                             <MudTd>
-                                <MudNumericField T="decimal"
+                                <MudNumericField Dense="true" HideSpinButtons="true" T="decimal" Format="G29"
                                                  Value="@item.YieldRate"
                                                  ValueChanged="@((decimal v) => { item.YieldRate = v; })"
                                                  Size="Size.Small"
                                                  Variant="Variant.Outlined"
                                                  Min="0" Max="100"
-                                                 HideSpinButtons="true"
                                                  Class="my-n2" Style="width:60px;" />
                             </MudTd>
                             <MudTd>
-                                <MudNumericField T="decimal"
+                                <MudNumericField Dense="true" HideSpinButtons="true" T="decimal" Format="G29"
                                                  Value="@item.QualifiedRate"
                                                  ValueChanged="@((decimal v) => { item.QualifiedRate = v; })"
                                                  Size="Size.Small"
                                                  Variant="Variant.Outlined"
                                                  Min="0" Max="100"
-                                                 HideSpinButtons="true"
                                                  Class="my-n2" Style="width:60px;" />
                             </MudTd>
                             <MudTd>
-                                <MudNumericField T="int"
+                                <MudNumericField Dense="true" HideSpinButtons="true" T="int"
                                                  Value="@item.InputMultiple"
                                                  ValueChanged="@((int v) => { item.InputMultiple = v; })"
                                                  Size="Size.Small"
                                                  Variant="Variant.Outlined"
                                                  Min="1"
-                                                 HideSpinButtons="true"
                                                  Class="my-n2" Style="width:60px;" />
                             </MudTd>
                             <MudTd>
@@ -113,12 +111,12 @@
                             }
                             else
                             {
-                                <MudTd Class="mud-text-secondary">-</MudTd>
-                                <MudTd Class="mud-text-secondary">-</MudTd>
-                                <MudTd Class="mud-text-secondary">-</MudTd>
-                                <MudTd Class="mud-text-secondary">-</MudTd>
-                                <MudTd Class="mud-text-secondary">-</MudTd>
-                                <MudTd Class="mud-text-secondary">-</MudTd>
+                                <MudTd>-</MudTd>
+                                <MudTd>-</MudTd>
+                                <MudTd>-</MudTd>
+                                <MudTd>-</MudTd>
+                                <MudTd>-</MudTd>
+                                <MudTd>-</MudTd>
                             }
                         </RowTemplate>
                     </MudTable>
@@ -130,7 +128,7 @@
                 </MudText>
 
                 <div Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;" Class="mb-3">
-                    <MudTable Items="@materialRows" Dense="true" Hover="true" Striped="true" Elevation="0" Style="table-layout:fixed;">
+                    <MudTable Items="@materialRows" Class="auto-table" Dense="true" Hover="true" Striped="true" Elevation="0" Style="table-layout:fixed;">
                         <HeaderContent>
                             <MudTh Style="width:110px;">原料类型</MudTh>
                             <MudTh Style="width:90px;">工厂牌号</MudTh>
@@ -143,7 +141,7 @@
                         </HeaderContent>
                         <RowTemplate Context="item">
                             <MudTd>
-                                <MudSelect T="string"
+                                <MudSelect Dense="true" T="string"
                                            Value="@item.RawMaterialType"
                                            ValueChanged="@((string v) => { item.RawMaterialType = v; })"
                                            Size="Size.Small"
@@ -154,7 +152,7 @@
                                 </MudSelect>
                             </MudTd>
                             <MudTd>
-                                <MudTextField T="string"
+                                <MudTextField Dense="true" T="string"
                                               Value="@item.PlantGrade"
                                               ValueChanged="@((string v) => { item.PlantGrade = v; })"
                                               Size="Size.Small"
@@ -162,7 +160,7 @@
                                               Class="my-n2" Style="width:80px;" />
                             </MudTd>
                             <MudTd>
-                                <MudTextField T="string"
+                                <MudTextField Dense="true" T="string"
                                               Value="@item.RawMaterialSpec"
                                               ValueChanged="@((string v) => { item.RawMaterialSpec = v; })"
                                               Size="Size.Small"
@@ -170,38 +168,35 @@
                                               Class="my-n2" Style="width:90px;" />
                             </MudTd>
                             <MudTd>
-                                <MudNumericField T="decimal?"
+                                <MudNumericField Dense="true" HideSpinButtons="true" T="decimal?" Format="G29"
                                                  Value="@item.RequiredUnitWeight"
                                                  ValueChanged="@((decimal? v) => { item.RequiredUnitWeight = v; })"
                                                  Size="Size.Small"
                                                  Variant="Variant.Outlined"
                                                  Min="0"
-                                                 HideSpinButtons="true"
                                                  Class="my-n2" Style="width:80px;" />
                             </MudTd>
                             <MudTd>
-                                <MudNumericField T="int?"
+                                <MudNumericField Dense="true" HideSpinButtons="true" T="int?"
                                                  Value="@item.RequiredPieces"
                                                  ValueChanged="@((int? v) => { item.RequiredPieces = v; })"
                                                  Size="Size.Small"
                                                  Variant="Variant.Outlined"
                                                  Min="0"
-                                                 HideSpinButtons="true"
                                                  Disabled="@(!isNonFixedLength)"
                                                  Class="my-n2" Style="width:70px;" />
                             </MudTd>
                             <MudTd>
-                                <MudNumericField T="decimal?"
+                                <MudNumericField Dense="true" HideSpinButtons="true" T="decimal?" Format="G29"
                                                  Value="@item.RequiredWeight"
                                                  ValueChanged="@((decimal? v) => { item.RequiredWeight = v; })"
                                                  Size="Size.Small"
                                                  Variant="Variant.Outlined"
                                                  Min="0"
-                                                 HideSpinButtons="true"
                                                  Class="my-n2" Style="width:90px;" />
                             </MudTd>
                             <MudTd>
-                                <MudTextField T="string"
+                                <MudTextField Dense="true" T="string"
                                               Value="@item.RequiredDateStr"
                                               ValueChanged="@((string v) => { item.RequiredDateStr = v; })"
                                               Size="Size.Small"
@@ -209,7 +204,7 @@
                                               Class="my-n2" Style="width:90px;" />
                             </MudTd>
                             <MudTd>
-                                <MudTextField T="string"
+                                <MudTextField Dense="true" T="string"
                                               Value="@item.Remark"
                                               ValueChanged="@((string v) => { item.Remark = v; })"
                                               Size="Size.Small"
@@ -220,27 +215,19 @@
                     </MudTable>
                 </div>
 
-                @if (isNonFixedLength && calcResult == null)
-                {
-                    <MudAlert Severity="Severity.Info" Class="mb-2" Dense="true">
-                        该工单为非定尺/范围长度，请先测算，然后手动填写支数和重量
-                    </MudAlert>
-                }
-
                 <!-- ===== 三、工艺路线 ===== -->
                 <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2 mt-2">
                     <MudIcon Icon="@Icons.Material.Filled.Route" Size="Size.Small" Class="mr-1" />工艺路线
                 </MudText>
 
-                <MudTextField T="string"
+                <MudTextField Dense="true" T="string"
                               @bind-Value="processPlanInput"
-                              Placeholder="67*5, 38*3, 32*2.5"
-                              HelperText="各道次规格用逗号分隔" />
+                              Placeholder="67*5, 38*3, 32*2.5" />
 
                 <!-- ===== 验证消息 ===== -->
                 @if (!string.IsNullOrEmpty(validationMessage))
                 {
-                    <MudAlert Severity="Severity.Warning" Class="mb-2 mt-2">@validationMessage</MudAlert>
+                    <MudText Typo="Typo.body2" Color="Color.Warning" Class="mb-2 mt-2">@validationMessage</MudText>
                 }
 
                 <!-- ===== 操作按钮 ===== -->
@@ -251,6 +238,7 @@
                     </MudButton>
                 </div>
             }
+            </div>
         </MudCardContent>
     </MudCard>
 </MudContainer>
@@ -306,7 +294,7 @@
             if (woResult.Success && woResult.Data != null)
             {
                 workOrder = woResult.Data;
-                isNonFixedLength = workOrder.LengthStatus != "Fixed";
+                isNonFixedLength = workOrder.LengthStatus != LengthStatus.Fixed;
 
                 calcRows.Add(new CalcParamRow());
                 materialRows.Add(new MaterialRow
@@ -502,5 +490,17 @@
     private void GoBack()
     {
         Navigation.NavigateTo($"/workorders/{WorkOrderId}/material-plan");
+    }
+
+    private bool _isArrowNavSetup;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#material-plan-create-table"))
+                _isArrowNavSetup = false;
+        }
     }
 }

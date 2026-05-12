@@ -11,9 +11,10 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject IJSRuntime JS
+@inject ColumnPrefsService ColumnPrefs
 @attribute [Authorize]
 
-<div class="mt-4">
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
@@ -21,7 +22,6 @@
                     <MudIcon Icon="@Icons.Material.Filled.Receipt" Class="mr-2" Color="Color.Primary" />
                     订单管理
                 </MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">销售订单列表</MudText>
             </CardHeaderContent>
             <CardHeaderActions>
                 <MudButton Variant="Variant.Filled"
@@ -38,8 +38,7 @@
             <MudGrid>
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
-                                  Label="模糊搜索 - 订单号/客户名称/业务员/最终客户/状态"
-                                  Placeholder="输入关键字..."
+                                  Label="模糊搜索 - 订单号/客户名称/业务员/最终客户/延期罚款/状态"
                                   Value="@searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
@@ -66,16 +65,28 @@
             </MudGrid>
 
             <!-- 数据表格 -->
+            <div id="orders-list-table">
             <MudTable @ref="table"
                       T="SalesOrderListDto"
                       ServerData="OnServerData"
                       Loading="@isLoading"
                       Dense="true"
                       Hover="true"
-                      Class="mt-4"
+                      Class="mt-4 auto-table"
                       Elevation="0"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                    <MudSpacer />
                     <MudButton Variant="Variant.Outlined"
                                Size="Size.Small"
                                Color="Color.Info"
@@ -91,7 +102,7 @@
                                OnClick="PrintAll">
                         打印全部
                     </MudButton>
-                    <MudText Typo="Typo.body2" Class="ml-auto">
+                    <MudText Typo="Typo.body2" Class="ml-2">
                         共 @totalCount 条记录
                     </MudText>
                 </ToolBarContent>
@@ -99,70 +110,25 @@
                     <MudTh Style="width: 40px;">
                         <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
                     </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("ordernumber")' class="sortable-header">
-                            订单号
-                            @if (sortColumn == "ordernumber")
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTh>
+                            @if (!string.IsNullOrEmpty(col.SortKey))
                             {
-                                <span class="sort-arrow">@GetSortIndicator("ordernumber")</span>
+                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
+                                    @col.Label
+                                    @if (sortColumn == col.SortKey)
+                                    {
+                                        <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
+                                    }
+                                </span>
                             }
-                        </span>
-                    </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("signdate")' class="sortable-header">
-                            签订日期
-                            @if (sortColumn == "signdate")
+                            else
                             {
-                                <span class="sort-arrow">@GetSortIndicator("signdate")</span>
+                                <span class="th-label">@col.Label</span>
                             }
-                        </span>
-                    </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("salesman")' class="sortable-header">
-                            业务员
-                            @if (sortColumn == "salesman")
-                            {
-                                <span class="sort-arrow">@GetSortIndicator("salesman")</span>
-                            }
-                        </span>
-                    </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("customername")' class="sortable-header">
-                            客户名称
-                            @if (sortColumn == "customername")
-                            {
-                                <span class="sort-arrow">@GetSortIndicator("customername")</span>
-                            }
-                        </span>
-                    </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("endcustomer")' class="sortable-header">
-                            最终客户
-                            @if (sortColumn == "endcustomer")
-                            {
-                                <span class="sort-arrow">@GetSortIndicator("endcustomer")</span>
-                            }
-                        </span>
-                    </MudTh>
-                    <MudTh>技术要求</MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("status")' class="sortable-header">
-                            状态
-                            @if (sortColumn == "status")
-                            {
-                                <span class="sort-arrow">@GetSortIndicator("status")</span>
-                            }
-                        </span>
-                    </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("lastchangedate")' class="sortable-header">
-                            变更日期
-                            @if (sortColumn == "lastchangedate")
-                            {
-                                <span class="sort-arrow">@GetSortIndicator("lastchangedate")</span>
-                            }
-                        </span>
-                    </MudTh>
+                        </MudTh>
+                    }
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="order">
@@ -172,41 +138,10 @@
                                      ValueChanged="@((v) => { if(v) selectedOrderIds.Add(order.Id); else selectedOrderIds.Remove(order.Id); _allSelected = orders.Any() && orders.All(i => selectedOrderIds.Contains(i.Id)); StateHasChanged(); })"
                                      Dense="true" />
                     </MudTd>
-                    <MudTd title="@order.OrderNumber">
-                        <MudLink Typo="Typo.body2" OnClick="() => ViewOrder(order.Id)">@order.OrderNumber</MudLink>
-                    </MudTd>
-                    <MudTd >@order.SignDate.ToString("yyyy-MM-dd")</MudTd>
-                    <MudTd  title="@order.Salesman">@order.Salesman</MudTd>
-                    <MudTd title="@order.CustomerName">@order.CustomerName</MudTd>
-                    <MudTd title="@order.EndCustomer">@order.EndCustomer</MudTd>
-                    <MudTd>
-                        @if (order.HasTechnicalRequirement)
-                        {
-                            <MudChip Size="Size.Small" Color="Color.Success">已编辑</MudChip>
-                        }
-                        else
-                        {
-                            <div class="d-flex align-center">
-                                <MudChip Size="Size.Small" Color="Color.Error">未编辑</MudChip>
-@if (order.FirstOrderItemId.HasValue)
-{
-    <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                   Size="Size.Small"
-                   Color="Color.Warning"
-                   OnClick="() => EditTechnicalRequirement(order.Id, order.FirstOrderItemId.Value)" />
-}
-                            </div>
-                        }
-                    </MudTd>
-                    <MudTd>
-                        <MudChip Size="Size.Small" Color="@GetStatusColor(order.Status)">
-                            @GetStatusText(order.Status)
-                        </MudChip>
-                    </MudTd>
-                    <!-- 变更日期：有变更时显示日期，无变更时显示"-" -->
-                    <MudTd >
-                        @(order.LastChangeDate?.ToString("yyyy-MM-dd HH:mm") ?? "-")
-                    </MudTd>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd>@RenderCell(order, col)</MudTd>
+                    }
                     <MudTd>
                         @if (order.Status == SalesOrderStatus.Pending)
                         {
@@ -237,9 +172,10 @@
                     <MudTablePager />
                 </PagerContent>
             </MudTable>
+            </div>
         </MudCardContent>
     </MudCard>
-</div>
+</MudContainer>
 
 @code {
     private MudTable<SalesOrderListDto>? table;
@@ -270,10 +206,169 @@
     private string selectedTechStatus = "All";
     private string selectedOrderStatus = "All";
     private int totalCount = 0;
+    private bool _isArrowNavSetup;
+
+    // ========== 列选择管理 ==========
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns =>
+        _allColumns.Where(c => c.Visible).ToList();
+
+    private static List<ColumnDef> GetAllColumnDefs() => new()
+    {
+        new() { Key = "ordernumber",   Label = "订单号",   SortKey = "ordernumber" },
+        new() { Key = "signdate",      Label = "签订日期", SortKey = "signdate" },
+        new() { Key = "salesman",      Label = "业务员",   SortKey = "salesman" },
+        new() { Key = "customername",  Label = "客户名称", SortKey = "customername" },
+        new() { Key = "endcustomer",   Label = "最终客户", SortKey = "endcustomer" },
+        new() { Key = "deliverystart", Label = "交期起始", SortKey = "deliverystart" },
+        new() { Key = "deliveryend",   Label = "交期截止", SortKey = "deliveryend" },
+        new() { Key = "hasdelaypenalty", Label = "延期罚款", SortKey = "hasdelaypenalty" },
+        new() { Key = "totalcontractweight", Label = "订单总重量", SortKey = "totalcontractweight" },
+        new() { Key = "itemcount", Label = "含项次数", SortKey = "itemcount" },
+        new() { Key = "notech",        Label = "技术要求" },
+        new() { Key = "status",        Label = "状态",     SortKey = "status" },
+        new() { Key = "lastchangedate",Label = "变更日期", SortKey = "lastchangedate" },
+    };
+
+    private async Task OnColumnToggle(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task SaveColumnPrefs()
+    {
+        await ColumnPrefs.SaveAsync("orders", null, _allColumns);
+    }
+
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnUp(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnDown(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    // ========== 单元格渲染 ==========
+
+    private RenderFragment RenderCell(SalesOrderListDto order, ColumnDef col) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "ordernumber":
+                builder.OpenComponent<MudLink>(0);
+                builder.AddAttribute(1, "Typo", Typo.body2);
+                builder.AddAttribute(2, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => ViewOrder(order.Id)));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, order.OrderNumber)));
+                builder.CloseComponent();
+                break;
+            case "signdate":
+                builder.AddContent(0, order.SignDate.ToString("yyyy-MM-dd"));
+                break;
+            case "salesman":
+                builder.AddContent(0, order.Salesman);
+                break;
+            case "customername":
+                builder.AddContent(0, order.CustomerName);
+                break;
+            case "endcustomer":
+                builder.AddContent(0, order.EndCustomer);
+                break;
+            case "deliverystart":
+                builder.AddContent(0, order.DeliveryStart?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "deliveryend":
+                builder.AddContent(0, order.DeliveryEnd?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "hasdelaypenalty":
+                builder.AddContent(0, order.HasDelayPenalty ? "是" : "否");
+                break;
+            case "totalcontractweight":
+                builder.AddContent(0, order.TotalContractWeight.ToString("G29"));
+                break;
+            case "itemcount":
+                builder.AddContent(0, order.ItemCount);
+                break;
+            case "notech":
+                if (order.HasTechnicalRequirement)
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", Color.Success);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "已编辑")));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", Color.Error);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "未编辑")));
+                    builder.CloseComponent();
+                    if (order.FirstOrderItemId.HasValue)
+                    {
+                        builder.OpenComponent<MudIconButton>(0);
+                        builder.AddAttribute(1, "Icon", Icons.Material.Filled.Edit);
+                        builder.AddAttribute(2, "Size", Size.Small);
+                        builder.AddAttribute(3, "Color", Color.Warning);
+                        builder.AddAttribute(4, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => ViewTechnicalRequirement(order.Id)));
+                        builder.CloseComponent();
+                    }
+                }
+                break;
+            case "status":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetStatusColor(order.Status));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetStatusText(order.Status))));
+                builder.CloseComponent();
+                break;
+            case "lastchangedate":
+                builder.AddContent(0, order.LastChangeDate?.ToString("yyyy-MM-dd HH:mm") ?? "-");
+                break;
+        }
+    };
 
     // 排序状态
     private string sortColumn = "signdate";
     private bool sortDescending = true;
+
+    // ========== 初始化 ==========
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allColumns = GetAllColumnDefs();
+        var saved = await ColumnPrefs.LoadAsync("orders", null);
+        if (saved.Count > 0)
+        {
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
+            }
+            var reordered = new List<ColumnDef>();
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
+        }
+    }
 
     private string GetSortIndicator(string column)
     {
@@ -394,12 +489,9 @@
 
     private void NavigateToCreate() => Navigation.NavigateTo("/orders/create");
     private void ViewOrder(int id) => Navigation.NavigateTo($"/orders/{id}");
-    private void EditOrder(int id) => Navigation.NavigateTo($"/orders/{id}/edit");
+    private void EditOrder(int id) => Navigation.NavigateTo($"/orders/{id}");
     
-    private void EditTechnicalRequirement(int orderId, int itemId)
-    {
-        Navigation.NavigateTo($"/orders/{orderId}/requirements/edit");
-    }
+    private void ViewTechnicalRequirement(int orderId) => Navigation.NavigateTo($"/orders/{orderId}/requirements");
 
     private async Task ConfirmOrder(SalesOrderListDto order)
     {
@@ -545,4 +637,14 @@
         SalesOrderStatus.Confirmed => "已确认",
         _ => status.ToString()
     };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#orders-list-table"))
+                _isArrowNavSetup = false;
+        }
+    }
  }

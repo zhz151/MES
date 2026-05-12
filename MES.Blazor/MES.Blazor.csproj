@@ -11,6 +11,7 @@
 	<StaticWebAssetsEnabled>true</StaticWebAssetsEnabled>
 	<GenerateStaticWebAssetsManifest>true</GenerateStaticWebAssetsManifest>
 	<UseBlazorDebugging>true</UseBlazorDebugging>
+	<NoWarn>$(NoWarn);CS8669</NoWarn>
   </PropertyGroup>
 	
   <ItemGroup>

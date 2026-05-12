@@ -213,7 +213,7 @@ public class SupplierService : ISupplierService
             {
                 result.Add(await GetByIdAsync(id));
             }
-            catch (BusinessException) { }
+            catch (BusinessException) { /* 跳过不存在的供应商 */ }
         }
         return SupplierPrintHelper.GenerateBatchPdf(result);
     }
@@ -225,7 +225,7 @@ public class SupplierService : ISupplierService
             PageIndex = 1,
             PageSize = int.MaxValue,
             Keyword = keyword,
-            SortBy = sortBy,
+            SortBy = sortBy ?? "CreatedTime",
             IsDescending = isDescending
         };
         var paged = await GetPagedAsync(query);

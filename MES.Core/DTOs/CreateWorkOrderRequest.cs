@@ -3,6 +3,27 @@ using System.ComponentModel.DataAnnotations;
 namespace MES.Core.DTOs;
 
 /// <summary>
+/// 工单生成模式
+/// </summary>
+public enum WorkOrderGenerateMode
+{
+    /// <summary>
+    /// 首次生成（创建新工单，分配新工单号）
+    /// </summary>
+    FirstTime = 0,
+
+    /// <summary>
+    /// 重新生成（删除原工单及用料计划，全新创建，工单号重新分配）
+    /// </summary>
+    Regenerate = 1,
+
+    /// <summary>
+    /// 更新修改（保留原工单号/主号/次号，仅增删项次并重算汇总）
+    /// </summary>
+    Update = 2
+}
+
+/// <summary>
 /// 工单分组
 /// </summary>
 public class WorkOrderItemGroup
@@ -19,9 +40,9 @@ public class WorkOrderItemGroup
     public string? ProductionSubNo { get; set; }
 
     /// <summary>
-    /// 合并的订单项次ID列表
+    /// 合并的订单项次序号列表（OrderItem.Sequence）
     /// </summary>
-    [Required(ErrorMessage = "项次ID列表不能为空")]
+    [Required(ErrorMessage = "项次序号列表不能为空")]
     [MinLength(1, ErrorMessage = "至少选择一个项次")]
     public List<int> OrderItemIds { get; set; } = new();
 }
@@ -45,11 +66,12 @@ public class CreateWorkOrderRequest
     public List<WorkOrderItemGroup> WorkOrders { get; set; } = new();
 
     /// <summary>
-    /// 是否重新生成（覆盖原工单，保留主号/次号）
-    /// true: 覆盖生成，保留原主号/次号
-    /// false: 首次生成或待修正生成，创建新工单
+    /// 生成模式
+    /// FirstTime: 首次生成
+    /// Regenerate: 重新生成（覆盖原工单）
+    /// Update: 更新修改（保留原工单号，仅增删项次）
     /// </summary>
-    public bool IsRegenerate { get; set; }
+    public WorkOrderGenerateMode GenerateMode { get; set; }
 }
 
 /// <summary>
@@ -114,4 +136,9 @@ public class GeneratedWorkOrderDto
     /// 总重量
     /// </summary>
     public decimal TotalWeight { get; set; }
+
+    /// <summary>
+    /// 是否被修改（更新修改模式时，区分哪些工单被改动过）
+    /// </summary>
+    public bool IsModified { get; set; }
 }

@@ -1,6 +1,8 @@
 @page "/subcontract-orders"
 @using MES.Blazor.Services
+@using MES.Blazor.Helpers
 @using MES.Core.DTOs
+@using MES.Core.Enums
 @using MES.Core.Models
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
@@ -9,17 +11,17 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject IJSRuntime JS
+@inject ColumnPrefsService ColumnPrefs
 @attribute [Authorize(Roles = "MaterialStaff,MaterialDirector,Admin")]
 
-<div class="mt-4">
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
-                <MudText Typo="Typo.h5" Class="font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.Handyman" Class="mr-2" Color="Color.Primary" />委外加工单</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">委外加工单管理，收回进度自动同步</MudText>
+                <MudText Typo="Typo.h5" Class="font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.Handyman" Class="mr-2" Color="Color.Primary" />原料委外加工</MudText>
             </CardHeaderContent>
             <CardHeaderActions>
-                <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.Sync" OnClick="SyncAll" Disabled="@isSyncing" Class="mr-2">
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.Sync" OnClick="() => SyncAllAsync()" Disabled="@isSyncing" Class="mr-2">
                     @if (isSyncing) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> } else { <span>即时更新</span> }
                 </MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="NavigateToCreate">新建委外单</MudButton>
@@ -28,7 +30,7 @@
         <MudCardContent>
             <MudGrid>
                 <MudItem xs="12" md="6">
-                    <MudTextField T="string" Label="模糊搜索 - 单号/加工类型/物料分类/钢种/规格/供应商" Placeholder="输入关键字..." @bind-Value="searchKeyword" Immediate="true" DebounceInterval="500" OnKeyDown="OnSearchKeyDown" Clearable="true" ClearButton="true" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
+                    <MudTextField T="string" Label="模糊搜索 - 单号/加工类型/物料分类/钢种/规格/供应商" @bind-Value="searchKeyword" Immediate="true" DebounceInterval="500" OnKeyDown="OnSearchKeyDown" Clearable="true" ClearButton="true" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
                 <MudItem xs="12" md="2">
                     <MudSelect T="string" @bind-Value="filterStatus" OnValueChanged="OnFilterChanged">
@@ -57,7 +59,7 @@
                     @if (showProcurementStatus)
                     {
                         <div style="overflow-x: auto; overflow-y: auto; margin-top: 8px; max-height: 25vh;">
-                            <MudTable T="ProcurementStatusDto" Items="@procurementItems" Dense="true" Hover="true" Elevation="0">
+                            <MudTable T="ProcurementStatusDto" Items="@procurementItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
                                 <HeaderContent>
                                     <MudTh Style="width: 120px;">工单号</MudTh>
                                     <MudTh Style="width: 90px;">物料分类</MudTh>
@@ -86,121 +88,76 @@
                 </MudPaper>
             }
 
-            <MudTable @ref="table" T="SubcontractOrderDto" ServerData="OnServerData" Loading="@isLoading" Dense="true" Hover="true" Class="mt-4" Elevation="0" RowsPerPageLabel="每页行数:">
+            <div id="subcontract-orders-list-table"><MudTable @ref="table" T="SubcontractOrderDto" ServerData="OnServerData" Loading="@isLoading" Dense="true" Hover="true" Class="mt-4 auto-table" Elevation="0" RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                    <MudSpacer />
                     <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Info" StartIcon="@Icons.Material.Filled.Print" Disabled="@(!selectedIds.Any())" OnClick="PrintSelected">
                         打印选中 (@selectedIds.Count)
                     </MudButton>
                     <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info" StartIcon="@Icons.Material.Filled.Print" OnClick="PrintAll">
                         打印全部
                     </MudButton>
-                    <MudText Typo="Typo.body2" Class="ml-auto">共 @totalCount 条记录</MudText>
+                    <MudText Typo="Typo.body2" Class="ml-4">共 @totalCount 条记录</MudText>
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh Style="width: 36px;">
                         <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
                     </MudTh>
-                    <MudTh Style="width: 100px;">
-                        <span @onclick='() => ToggleSort("orderno")' class="sortable-header">
-                            委外单号
-                            @if (sortColumn == "orderno") { <span class="sort-arrow">@GetSortIndicator("orderno")</span> }
-                        </span>
-                    </MudTh>
-                    <MudTh Style="width: 90px;">
-                        <span @onclick='() => ToggleSort("orderdate")' class="sortable-header">
-                            下单日期
-                            @if (sortColumn == "orderdate") { <span class="sort-arrow">@GetSortIndicator("orderdate")</span> }
-                        </span>
-                    </MudTh>
-                    <MudTh Style="width: 80px;">
-                        <span @onclick='() => ToggleSort("processtype")' class="sortable-header">
-                            加工类型
-                            @if (sortColumn == "processtype") { <span class="sort-arrow">@GetSortIndicator("processtype")</span> }
-                        </span>
-                    </MudTh>
-                    <MudTh Style="width: 80px;">
-                        <span @onclick='() => ToggleSort("outmaterialcategory")' class="sortable-header">
-                            物料分类
-                            @if (sortColumn == "outmaterialcategory") { <span class="sort-arrow">@GetSortIndicator("outmaterialcategory")</span> }
-                        </span>
-                    </MudTh>
-                    <MudTh Style="width: 80px;">
-                        <span @onclick='() => ToggleSort("outplantgrade")' class="sortable-header">
-                            工厂牌号
-                            @if (sortColumn == "outplantgrade") { <span class="sort-arrow">@GetSortIndicator("outplantgrade")</span> }
-                        </span>
-                    </MudTh>
-                    <MudTh Style="width: 90px;">
-                        <span @onclick='() => ToggleSort("outspecification")' class="sortable-header">
-                            规格
-                            @if (sortColumn == "outspecification") { <span class="sort-arrow">@GetSortIndicator("outspecification")</span> }
-                        </span>
-                    </MudTh>
-                    <MudTh Style="width: 50px;">
-                        <span @onclick='() => ToggleSort("outquantity")' class="sortable-header">
-                            发出支数
-                            @if (sortColumn == "outquantity") { <span class="sort-arrow">@GetSortIndicator("outquantity")</span> }
-                        </span>
-                    </MudTh>
-                    <MudTh Style="width: 70px;">
-                        <span @onclick='() => ToggleSort("outweight")' class="sortable-header">
-                            发出重量
-                            @if (sortColumn == "outweight") { <span class="sort-arrow">@GetSortIndicator("outweight")</span> }
-                        </span>
-                    </MudTh>
-                    <MudTh Style="width: 80px;">
-                        <span @onclick='() => ToggleSort("returndeadline")' class="sortable-header">
-                            收回期限
-                            @if (sortColumn == "returndeadline") { <span class="sort-arrow">@GetSortIndicator("returndeadline")</span> }
-                        </span>
-                    </MudTh>
-                    <MudTh>
-                        <span @onclick='() => ToggleSort("suppliername")' class="sortable-header">
-                            供应商
-                            @if (sortColumn == "suppliername") { <span class="sort-arrow">@GetSortIndicator("suppliername")</span> }
-                        </span>
-                    </MudTh>
-                    <MudTh Style="width: 50px;">
-                        <span @onclick='() => ToggleSort("status")' class="sortable-header">
-                            状态
-                            @if (sortColumn == "status") { <span class="sort-arrow">@GetSortIndicator("status")</span> }
-                        </span>
-                    </MudTh>
-                    <MudTh Style="width: 60px;">已回收</MudTh>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTh>
+                            @if (!string.IsNullOrEmpty(col.SortKey))
+                            {
+                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
+                                    @col.Label
+                                    @if (sortColumn == col.SortKey)
+                                    {
+                                        <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
+                                    }
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="th-label">@col.Label</span>
+                            }
+                        </MudTh>
+                    }
                     <MudTh Style="width: 90px;">操作</MudTh>
                 </HeaderContent>
-                <RowTemplate>
+                <RowTemplate Context="item">
                     <MudTd Style="width: 36px;">
                         <MudCheckBox T="bool"
-                                     Value="@selectedIds.Contains(context.Id)"
-                                     ValueChanged="@((v) => { if(v) selectedIds.Add(context.Id); else selectedIds.Remove(context.Id); _allSelected = items.Any() && items.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                     Value="@selectedIds.Contains(item.Id)"
+                                     ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = items.Any() && items.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
                                      Dense="true" />
                     </MudTd>
-                    <MudTd title="@context.OrderNo"><MudLink Typo="Typo.body2" OnClick="() => ViewDetail(context.Id)"><strong>@context.OrderNo</strong></MudLink></MudTd>
-                    <MudTd><MudText Typo="Typo.body2">@context.OrderDate.ToString("yyyy-MM-dd")</MudText></MudTd>
-                    <MudTd title="@context.ProcessType"><small>@context.ProcessType</small></MudTd>
-                    <MudTd title="@context.OutMaterialCategory"><small>@context.OutMaterialCategory</small></MudTd>
-                    <MudTd title="@context.OutPlantGrade"><small>@context.OutPlantGrade</small></MudTd>
-                    <MudTd title="@context.OutSpecification"><small>@context.OutSpecification</small></MudTd>
-                    <MudTd><small>@context.OutQuantity.ToString("G29")</small></MudTd>
-                    <MudTd><small>@context.OutWeight.ToString("G29")</small></MudTd>
-                    <MudTd><small>@context.ReturnDeadline?.ToString("yyyy-MM-dd")</small></MudTd>
-                    <MudTd><small>@context.SupplierName</small></MudTd>
-                    <MudTd><MudChip Size="Size.Small" Color="@GetStatusColor(context.Status)">@GetStatusText(context.Status)</MudChip></MudTd>
-                    <MudTd><small>@(context.InQuantity?.ToString("G29") ?? "0")支/@(context.InWeight?.ToString("G29") ?? "0")kg</small></MudTd>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd>@RenderCell(item, col)</MudTd>
+                    }
                     <MudTd>
-                        @if (context.Status != "Completed" && context.Status != "Cancelled")
+                        @if (item.Status != SubcontractOrderStatus.Completed && item.Status != SubcontractOrderStatus.Cancelled)
                         {
-                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Size="Size.Small" OnClick="() => NavigateToEdit(context.Id)" />
-                            <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" OnClick="() => CancelOrder(context)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Size="Size.Small" OnClick="() => NavigateToEdit(item.Id)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" OnClick="() => CancelOrder(item)" />
                         }
                     </MudTd>
                 </RowTemplate>
                 <PagerContent><MudTablePager /></PagerContent>
-            </MudTable>
+            </MudTable></div>
         </MudCardContent>
     </MudCard>
-</div>
+</MudContainer>
 
 @code {
     private MudTable<SubcontractOrderDto>? table;
@@ -231,11 +188,124 @@
     private string filterStatus = string.Empty;
     private int totalCount;
 
+    private bool _isArrowNavSetup;
+
     private string sortColumn = "orderdate";
     private bool sortDescending = true;
 
     private List<ProcurementStatusDto> procurementItems = new();
     private bool showProcurementStatus = false;
+    private List<OrderMismatchInfo> mismatchItems = new();
+
+    // ========== 列定义 ==========
+
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns =>
+        _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
+    private static List<ColumnDef> GetAllColumnDefs() => new()
+    {
+        new() { Key = "OrderNo",             Label = "委外单号",     SortKey = "orderno" },
+        new() { Key = "OrderDate",           Label = "下单日期",     SortKey = "orderdate" },
+        new() { Key = "ProcessType",         Label = "加工类型",     SortKey = "processtype" },
+        new() { Key = "OutMaterialCategory", Label = "物料分类",     SortKey = "outmaterialcategory" },
+        new() { Key = "OutPlantGrade",       Label = "工厂牌号",     SortKey = "outplantgrade" },
+        new() { Key = "OutSpecification",    Label = "规格",         SortKey = "outspecification" },
+        new() { Key = "OutQuantity",         Label = "发出支数",     SortKey = "outquantity" },
+        new() { Key = "OutWeight",           Label = "发出重量",     SortKey = "outweight" },
+        new() { Key = "ReturnDeadline",      Label = "收回期限",     SortKey = "returndeadline" },
+        new() { Key = "SupplierName",        Label = "供应商",       SortKey = "suppliername" },
+        new() { Key = "Status",              Label = "状态",         SortKey = "status" },
+        new() { Key = "Returned",            Label = "已回收" },
+    };
+
+    // ========== 列选择操作 ==========
+
+    private async Task OnColumnToggle(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task SaveColumnPrefs()
+    {
+        await ColumnPrefs.SaveAsync("subcontract_orders", null, _allColumns);
+    }
+
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnUp(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnDown(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    // ========== 单元格渲染 ==========
+
+    private RenderFragment RenderCell(SubcontractOrderDto item, ColumnDef col) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "OrderNo":
+                builder.OpenComponent<MudLink>(0);
+                builder.AddAttribute(1, "Typo", Typo.body2);
+                builder.AddAttribute(2, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => ViewDetail(item.Id)));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => {
+                    b2.OpenElement(4, "strong");
+                    b2.AddContent(5, item.OrderNo);
+                    b2.CloseElement();
+                }));
+                builder.CloseComponent();
+                break;
+            case "OrderDate":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", Color.Info);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.OrderDate.ToString("yyyy-MM-dd"))));
+                builder.CloseComponent();
+                break;
+            case "ProcessType":
+                builder.AddContent(0, item.ProcessType);
+                break;
+            case "OutMaterialCategory":
+                builder.AddContent(0, item.OutMaterialCategory);
+                break;
+            case "OutPlantGrade":
+                builder.AddContent(0, item.OutPlantGrade);
+                break;
+            case "OutSpecification":
+                builder.AddContent(0, item.OutSpecification);
+                break;
+            case "OutQuantity":
+                builder.AddContent(0, item.OutQuantity.ToString("G29"));
+                break;
+            case "OutWeight":
+                builder.AddContent(0, item.OutWeight.ToString("G29"));
+                break;
+            case "ReturnDeadline":
+                builder.AddContent(0, item.ReturnDeadline?.ToString("yyyy-MM-dd"));
+                break;
+            case "SupplierName":
+                builder.AddContent(0, item.SupplierName);
+                break;
+            case "Status":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetStatusColor(item.Status));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetStatusText(item.Status))));
+                builder.CloseComponent();
+                break;
+            case "Returned":
+                builder.AddContent(0, $"{item.InQuantity?.ToString("G29") ?? "0"}支/{item.InWeight?.ToString("G29") ?? "0"}kg");
+                break;
+        }
+    };
 
     private string GetSortIndicator(string column)
     {
@@ -258,7 +328,36 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // 先同步仓库数据（收回进度），再加载状态和检测不匹配
+        await SyncAllAsync(silent: true);
         await LoadProcurementStatus();
+        await LoadOrderMismatches();
+
+        // 列定义与偏好加载
+        _allColumns = GetAllColumnDefs();
+        var saved = await ColumnPrefs.LoadAsync("subcontract_orders", null);
+        if (saved.Count > 0)
+        {
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
+            }
+            var reordered = new List<ColumnDef>();
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
+        }
     }
 
     private async Task LoadProcurementStatus()
@@ -278,6 +377,31 @@
     }
 
     private void ToggleProcurementStatus() => showProcurementStatus = !showProcurementStatus;
+
+    private async Task LoadOrderMismatches()
+    {
+        try
+        {
+            var result = await SubcontractService.GetMismatchedOrdersAsync();
+            if (result.Success && result.Data != null && result.Data.Count > 0)
+            {
+                mismatchItems = result.Data;
+                foreach (var item in mismatchItems)
+                {
+                    var woNos = string.Join("；", item.MismatchedWorkOrderNos);
+                    Snackbar.Add($"委外单号 {item.OrderNo} 中，来源工单号：{woNos} 已不关联采购用料计划，需修改！", Severity.Warning, config =>
+                    {
+                        config.VisibleStateDuration = 20000;
+                        config.Action = "忽略";
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"检测工单关联异常: {ex.Message}", Severity.Error);
+        }
+    }
 
     private async Task<TableData<SubcontractOrderDto>> OnServerData(TableState state)
     {
@@ -306,19 +430,31 @@
     private async Task OnFilterChanged() { await Search(); }
     private void NavigateToCreate() => Navigation.NavigateTo("/subcontract-orders/create");
     private void ViewDetail(int id) => Navigation.NavigateTo($"/subcontract-orders/{id}");
-    private void NavigateToEdit(int id) => Navigation.NavigateTo($"/subcontract-orders/{id}/edit");
+    private void NavigateToEdit(int id) => Navigation.NavigateTo($"/subcontract-orders/{id}");
 
-    private async Task SyncAll()
+    private async Task SyncAllAsync(bool silent = false)
     {
-        isSyncing = true; StateHasChanged();
+        if (!silent) { isSyncing = true; StateHasChanged(); }
         try
         {
             var result = await SubcontractService.SyncAllAsync();
-            if (result.Success) { Snackbar.Add("同步完成", Severity.Success); await Search(); await LoadProcurementStatus(); }
-            else { Snackbar.Add(result.Message ?? "同步失败", Severity.Error); }
+            if (result.Success)
+            {
+                if (!silent) Snackbar.Add("同步完成", Severity.Success);
+                await Search();
+                await LoadProcurementStatus();
+                await LoadOrderMismatches();
+            }
+            else if (!silent)
+            {
+                Snackbar.Add(result.Message ?? "同步失败", Severity.Error);
+            }
         }
-        catch (Exception ex) { Snackbar.Add($"同步失败: {ex.Message}", Severity.Error); }
-        finally { isSyncing = false; StateHasChanged(); }
+        catch (Exception ex)
+        {
+            if (!silent) Snackbar.Add($"同步失败: {ex.Message}", Severity.Error);
+        }
+        finally { if (!silent) { isSyncing = false; StateHasChanged(); } }
     }
 
     // ========== 打印 ==========
@@ -373,6 +509,16 @@
         }
     }
 
-    private static Color GetStatusColor(string status) => status switch { "Sent" => Color.Info, "PartialReturned" => Color.Warning, "Completed" => Color.Success, "Cancelled" => Color.Default, _ => Color.Default };
-    private static string GetStatusText(string status) => status switch { "Sent" => "已发出", "PartialReturned" => "部分收回", "Completed" => "已完成", "Cancelled" => "已取消", _ => status };
+    private static Color GetStatusColor(SubcontractOrderStatus status) => status switch { SubcontractOrderStatus.Sent => Color.Info, SubcontractOrderStatus.PartialReturned => Color.Warning, SubcontractOrderStatus.Completed => Color.Success, SubcontractOrderStatus.Cancelled => Color.Default, _ => Color.Default };
+    private static string GetStatusText(SubcontractOrderStatus status) => status switch { SubcontractOrderStatus.Sent => "已发出", SubcontractOrderStatus.PartialReturned => "部分收回", SubcontractOrderStatus.Completed => "已完成", SubcontractOrderStatus.Cancelled => "已取消", _ => status.ToString() };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#subcontract-orders-list-table"))
+                _isArrowNavSetup = false;
+        }
+    }
 }

@@ -13,7 +13,7 @@
 @inject IJSRuntime JS
 @attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
 
-<MudContainer Class="mt-4" Style="max-width:100%;">
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
@@ -75,7 +75,7 @@
                             </MudButton>
                         </MudPaper>
 
-                        <MudTable Items="@semiPlans" Dense="true" Hover="true" Elevation="0" Striped="true"
+                        <MudTable Items="@semiPlans" Dense="true" Hover="true" Elevation="0" Striped="true" Class="auto-table"
                                   Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
                             <HeaderContent>
                                 <MudTh>计划日期</MudTh>
@@ -126,7 +126,7 @@
                             </MudButton>
                         </MudPaper>
 
-                        <MudTable Items="@finishPlans" Dense="true" Hover="true" Elevation="0" Striped="true"
+                        <MudTable Items="@finishPlans" Dense="true" Hover="true" Elevation="0" Striped="true" Class="auto-table"
                                   Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
                             <HeaderContent>
                                 <MudTh>计划日期</MudTh>
@@ -183,7 +183,7 @@
                             </MudButton>
                         </MudPaper>
 
-                        <MudTable Items="@inventoryPlans" Dense="true" Hover="true" Elevation="0" Striped="true"
+                        <MudTable Items="@inventoryPlans" Dense="true" Hover="true" Elevation="0" Striped="true" Class="auto-table"
                                   Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
                             <HeaderContent>
                                 <MudTh>计划日期</MudTh>
@@ -241,7 +241,7 @@
                             </MudButton>
                         </MudPaper>
 
-                        <MudTable Items="@reworkPlans" Dense="true" Hover="true" Elevation="0" Striped="true"
+                        <MudTable Items="@reworkPlans" Dense="true" Hover="true" Elevation="0" Striped="true" Class="auto-table"
                                   Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
                             <HeaderContent>
                                 <MudTh>计划日期</MudTh>
@@ -621,10 +621,10 @@
     private string GetInvPct() => CalcPct(workOrder?.LengthStatus, inventoryPlans.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple), inventoryPlans.Sum(p => p.UsedWeight));
     private string GetReworkPct() => CalcPct(workOrder?.LengthStatus, reworkPlans.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple), reworkPlans.Sum(p => p.UsedWeight));
 
-    private string CalcPct(string? lengthStatus, decimal qtySum, decimal wtSum)
+    private string CalcPct(LengthStatus? lengthStatus, decimal qtySum, decimal wtSum)
     {
         if (workOrder == null) return "0%";
-        var isFixed = string.Equals(lengthStatus, "Fixed", StringComparison.OrdinalIgnoreCase);
+        var isFixed = lengthStatus == LengthStatus.Fixed;
         if (isFixed)
         {
             var total = workOrder.TotalQuantity > 0 ? workOrder.TotalQuantity : 1;
@@ -723,8 +723,8 @@
     private static string FormatLocation(string? area, string? rack)
     {
         if (string.IsNullOrEmpty(area) && string.IsNullOrEmpty(rack)) return "-";
-        if (string.IsNullOrEmpty(area)) return rack;
-        if (string.IsNullOrEmpty(rack)) return area;
+        if (string.IsNullOrEmpty(area)) return rack ?? "-";
+        if (string.IsNullOrEmpty(rack)) return area ?? "-";
         return $"{area}/{rack}";
     }
 

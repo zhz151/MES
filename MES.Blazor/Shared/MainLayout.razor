@@ -16,7 +16,7 @@
             <MudText Typo="Typo.h6" Class="mr-4" Style="white-space: nowrap; color: #fff;">MES 制造执行系统</MudText>
 
             <!-- 水平导航菜单 -->
-            <div class="top-nav" style="display: flex; align-items: center; gap: 2px; overflow-x: auto; flex: 1; white-space: nowrap;">
+            <div class="top-nav" style="display: flex; align-items: center; gap: 2px; flex: 1; overflow: visible;">
                 <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("")" OnClick='() => NavigateTo("/")'>仪表板</MudButton>
 
                 <!-- 订单模块 -->
@@ -39,8 +39,14 @@
 
                 <!-- 批次模块 -->
                 <AuthorizeView Roles="BatchStaff,BatchDirector,Admin">
-                    <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("batches")" OnClick='() => NavigateTo("/batches")'>批次管理</MudButton>
+                    <MudMenu Label="批次管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("batches","production-records","section-outsources","material-checks")">
+                        <MudMenuItem Class="@GetMenuItemClass("/batches")" OnClick='() => NavigateTo("/batches")'>批次首页</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/production-records")" OnClick='() => NavigateTo("/production-records")'>生产记录</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/section-outsources")" OnClick='() => NavigateTo("/section-outsources")'>工段委外</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/material-checks")" OnClick='() => NavigateTo("/material-checks")'>检验到料</MudMenuItem>
+                    </MudMenu>
                     <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("mobile-report")" OnClick='() => NavigateTo("/mobile-report")'>扫码报工</MudButton>
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("process-card-print")" OnClick='() => NavigateTo("/process-card-print")'>工艺卡打印</MudButton>
                 </AuthorizeView>
 
                 <!-- 质量模块 -->
@@ -65,11 +71,11 @@
 
                 <!-- 物料模块 -->
                 <AuthorizeView Roles="MaterialStaff,MaterialDirector,Admin">
-                    <MudMenu Label="物料管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("materials","suppliers","purchase-orders","subcontract-orders")">
-                        <MudMenuItem Class="@GetMenuItemClass("/materials")" OnClick='() => NavigateTo("/materials")'>物料档案</MudMenuItem>
-                        <MudMenuItem Class="@GetMenuItemClass("/suppliers")" OnClick='() => NavigateTo("/suppliers")'>供应商管理</MudMenuItem>
+                    <MudMenu Label="物料管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("purchase-orders","subcontract-orders","suppliers","materials")">
                         <MudMenuItem Class="@GetMenuItemClass("/purchase-orders")" OnClick='() => NavigateTo("/purchase-orders")'>采购订单</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/subcontract-orders")" OnClick='() => NavigateTo("/subcontract-orders")'>委外加工</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/suppliers")" OnClick='() => NavigateTo("/suppliers")'>供应商管理</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/materials")" OnClick='() => NavigateTo("/materials")'>物料档案</MudMenuItem>
                     </MudMenu>
                 </AuthorizeView>
 

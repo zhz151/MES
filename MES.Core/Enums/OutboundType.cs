@@ -31,19 +31,14 @@ public enum OutboundType
     ScrapOut,
 
     /// <summary>
+    /// 检验领用
+    /// </summary>
+    InspectionPick,
+
+    /// <summary>
     /// 移库出库
     /// </summary>
     TransferOut,
-
-    /// <summary>
-    /// 盘亏出库
-    /// </summary>
-    InventoryLoss,
-
-    /// <summary>
-    /// 样品出库
-    /// </summary>
-    SampleOut,
 
     /// <summary>
     /// 其他出库

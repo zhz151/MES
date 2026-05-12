@@ -14,6 +14,11 @@ public class BatchOutboundRequest
     public string OutboundType { get; set; } = string.Empty;
 
     /// <summary>
+    /// 物料单号（委外关联）
+    /// </summary>
+    public string? SourceOrderNo { get; set; }
+
+    /// <summary>
     /// 目标单位
     /// </summary>
     public string? TargetCompany { get; set; }
@@ -59,6 +64,12 @@ public class OutboundItemRequest
     /// </summary>
     [Range(0, double.MaxValue, ErrorMessage = "出库重量必须大于等于0")]
     public decimal OutboundWeight { get; set; }
+
+    // 行级可覆盖字段（row ?? request 回退）
+    public string? OutboundType { get; set; }
+    public string? SourceOrderNo { get; set; }
+    public string? TargetCompany { get; set; }
+    public string? Remark { get; set; }
 }
 
 /// <summary>

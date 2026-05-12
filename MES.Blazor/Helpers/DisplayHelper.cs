@@ -1,3 +1,4 @@
+using MES.Core.Enums;
 using MudBlazor;
 
 namespace MES.Blazor.Helpers;
@@ -31,64 +32,74 @@ public static class DisplayHelper
     }
 
     /// <summary>
+    /// 格式化可空 int 值
+    /// </summary>
+    public static string FormatNullableInt(int? value) => value?.ToString() ?? "";
+
+    /// <summary>
+    /// 格式化可空日期值
+    /// </summary>
+    public static string FormatNullableDate(DateTime? value) => value?.ToString("yyyy-MM-dd") ?? "";
+
+    /// <summary>
     /// 获取长度状态中文文本
     /// </summary>
-    public static string GetLengthStatusText(string status)
+    public static string GetLengthStatusText(LengthStatus status)
     {
         return status switch
         {
-            "Fixed" => "定尺",
-            "Range" => "范围尺",
-            "NonFixed" => "非定尺",
-            _ => status
+            LengthStatus.Fixed => "定尺",
+            LengthStatus.Range => "范围尺",
+            LengthStatus.NonFixed => "非定尺",
+            _ => status.ToString()
         };
     }
 
     /// <summary>
     /// 获取交货状态中文文本
     /// </summary>
-    public static string GetDeliveryStateText(string state)
+    public static string GetDeliveryStateText(DeliveryState state)
     {
         return state switch
         {
-            "SolutionAnnealedAndPickled" => "固溶酸洗",
-            "SolutionAnnealedAndPickledUTube" => "固溶酸洗-U型管",
-            "SolutionAnnealedAndPickledExternalPolished" => "固溶酸洗-外抛光",
-            "SolutionAnnealedAndPickledInternalPolished" => "固溶酸洗-内抛光",
-            "SolutionAnnealedAndPickledBothPolished" => "固溶酸洗-内外抛光",
-            "SolutionAnnealedAndPickledCoiled" => "固溶酸洗-盘管",
-            "Bright" => "光亮",
-            "BrightUTube" => "光亮-U型管",
-            "BrightCoiled" => "光亮-盘管",
-            "Hard" => "硬态",
-            _ => state
+            DeliveryState.SolutionAnnealedAndPickled => "固溶酸洗",
+            DeliveryState.SolutionAnnealedAndPickledUTube => "固溶酸洗-U型管",
+            DeliveryState.SolutionAnnealedAndPickledExternalPolished => "固溶酸洗-外抛光",
+            DeliveryState.SolutionAnnealedAndPickledInternalPolished => "固溶酸洗-内抛光",
+            DeliveryState.SolutionAnnealedAndPickledBothPolished => "固溶酸洗-内外抛光",
+            DeliveryState.SolutionAnnealedAndPickledCoiled => "固溶酸洗-盘管",
+            DeliveryState.Bright => "光亮",
+            DeliveryState.BrightUTube => "光亮-U型管",
+            DeliveryState.BrightCoiled => "光亮-盘管",
+            DeliveryState.Hard => "硬态",
+            _ => state.ToString()
         };
     }
 
     /// <summary>
     /// 获取物料名称中文文本
     /// </summary>
-    public static string GetMaterialNameText(string materialName)
+    public static string GetMaterialNameText(MaterialName materialName)
     {
         return materialName switch
         {
-            "SeamlessPipe" => "无缝管",
-            "WeldedPipe" => "焊管",
-            _ => materialName
+            MaterialName.SeamlessPipe => "无缝管",
+            MaterialName.WeldedPipe => "焊管",
+            _ => materialName.ToString()
         };
     }
 
     /// <summary>
     /// 获取结算方式中文文本
     /// </summary>
-    public static string GetSettlementMethodText(string method)
+    public static string GetSettlementMethodText(SettlementMethod method)
     {
         return method switch
         {
-            "Theoretical" => "理算",
-            "Weighing" => "过磅",
-            "WeighingNegative" => "过磅-负",
-            _ => method
+            SettlementMethod.Theoretical => "理算",
+            SettlementMethod.Weighing => "过磅",
+            SettlementMethod.WeighingNegative => "过磅-负",
+            _ => method.ToString()
         };
     }
 
@@ -103,14 +114,14 @@ public static class DisplayHelper
     /// <summary>
     /// 获取工单状态对应的颜色
     /// </summary>
-    public static Color GetWorkOrderStatusColor(int status)
+    public static Color GetWorkOrderStatusColor(WorkOrderStatus status)
     {
         return status switch
         {
-            0 => Color.Default,
-            1 => Color.Success,
-            2 => Color.Warning,
-            3 => Color.Error,
+            WorkOrderStatus.NotGenerated => Color.Default,
+            WorkOrderStatus.Confirmed => Color.Success,
+            WorkOrderStatus.Pending => Color.Warning,
+            WorkOrderStatus.Cancelled => Color.Error,
             _ => Color.Default
         };
     }
@@ -118,15 +129,146 @@ public static class DisplayHelper
     /// <summary>
     /// 获取工单状态中文文本
     /// </summary>
-    public static string GetWorkOrderStatusText(int status)
+    public static string GetWorkOrderStatusText(WorkOrderStatus status)
     {
         return status switch
         {
-            0 => "未编制",
-            1 => "已确定",
-            2 => "待修正",
-            3 => "已取消",
+            WorkOrderStatus.NotGenerated => "未编制",
+            WorkOrderStatus.Confirmed => "已确定",
+            WorkOrderStatus.Pending => "待修正",
+            WorkOrderStatus.Cancelled => "已取消",
             _ => "未知"
+        };
+    }
+
+    // ========== 批次状态 ==========
+
+    /// <summary>
+    /// 获取批次状态对应的颜色
+    /// </summary>
+    public static Color GetBatchStatusColor(string status)
+    {
+        return status switch
+        {
+            "None" => Color.Default,
+            "InProgress" => Color.Info,
+            "Completed" => Color.Success,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
+    /// 获取批次状态中文文本
+    /// </summary>
+    public static string GetBatchStatusText(string status)
+    {
+        return status switch
+        {
+            "None" => "未产",
+            "InProgress" => "在产",
+            "Completed" => "完成",
+            _ => status
+        };
+    }
+
+    // ========== 工段委外状态 ==========
+
+    /// <summary>
+    /// 获取工段委外状态颜色
+    /// </summary>
+    public static Color GetSectionOutsourceStatusColor(string status)
+    {
+        return status switch
+        {
+            "PendingRecovery" => Color.Warning,
+            "Recovered" => Color.Success,
+            "InProgress" => Color.Info,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
+    /// 获取工段委外状态中文文本
+    /// </summary>
+    public static string GetSectionOutsourceStatusText(string status)
+    {
+        return status switch
+        {
+            "PendingRecovery" => "待回收",
+            "Recovered" => "已回收",
+            "InProgress" => "在轧",
+            _ => status
+        };
+    }
+
+    // ========== 生产类型 ==========
+
+    /// <summary>
+    /// 获取生产类型中文文本
+    /// </summary>
+    public static string GetProductionTypeText(string? productionType)
+    {
+        return productionType switch
+        {
+            "RoughTube" => "荒管生产",
+            "InProcess" => "在制生产",
+            "Inventory" => "库存",
+            "OutsourcedPurchased" => "外购",
+            "Rework" => "返整",
+            "Subcontract" => "委外生产",
+            "ExternalProcessing" => "对外加工",
+            _ => productionType ?? ""
+        };
+    }
+
+    // ========== 入库来源 ==========
+
+    /// <summary>
+    /// 获取入库来源中文文本
+    /// </summary>
+    public static string GetInboundSourceText(string? inboundSource)
+    {
+        return inboundSource switch
+        {
+            "Purchase" => "外购",
+            "Subcontract" => "委外",
+            "ReturnIn" => "退货入库",
+            "ProductionInbound" => "生产入库",
+            "InspectionInbound" => "检验入库",
+            "TransferIn" => "移库入库",
+            "Other" => "其它",
+            _ => inboundSource ?? ""
+        };
+    }
+
+    // ========== 长度状态（字符串版本） ==========
+
+    /// <summary>
+    /// 获取长度状态中文文本（字符串版本）
+    /// </summary>
+    public static string GetLengthStatusText(string? lengthStatus)
+    {
+        return lengthStatus switch
+        {
+            "Fixed" => "定尺",
+            "Range" => "范围尺",
+            "NonFixed" => "非定尺",
+            _ => lengthStatus ?? ""
+        };
+    }
+
+    // ========== 技术要求 ==========
+
+    /// <summary>
+    /// 获取技术要求中文文本
+    /// </summary>
+    public static string GetTechnicalRequirementsText(string? technicalRequirements)
+    {
+        return technicalRequirements switch
+        {
+            "Normal" => "普通",
+            "Special" => "特殊",
+            _ => technicalRequirements ?? ""
         };
     }
 }

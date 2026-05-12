@@ -5,9 +5,10 @@
 @inject MaterialService MaterialService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "MaterialStaff,MaterialDirector,Admin")]
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
@@ -15,13 +16,11 @@
                     <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Primary" />
                     新建物料
                 </MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">创建新的物料档案，可批量添加多条记录</MudText>
             </CardHeaderContent>
             <CardHeaderActions>
                 <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAll" Disabled="@isSubmitting">
-                    @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> }
-                    else { <span>保存</span> }
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAll" Loading="@isSubmitting">
+                    保存
                 </MudButton>
             </CardHeaderActions>
         </MudCardHeader>
@@ -32,78 +31,69 @@
                 <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow">添加物料</MudButton>
             </div>
 
-            @if (rows.Count == 0)
-            {
-                <MudAlert Severity="Severity.Info">请点击"添加物料"按钮添加记录</MudAlert>
-            }
-            else
-            {
-                <MudAlert Severity="Severity.Warning" Class="mb-3">点击右上角"保存"按钮一次性提交所有记录。</MudAlert>
-
-                <div style="overflow-x: auto;">
-                    <MudTable T="MaterialRow" Items="@rows" Dense="true" Hover="true" Elevation="0">
-                        <HeaderContent>
-                            <MudTh Style="width: 50px;">行号</MudTh>
-                            <MudTh Style="width: 130px;">物料分类</MudTh>
-                            <MudTh Style="width: 130px;">厂内钢种</MudTh>
-                            <MudTh Style="min-width: 150px;">名义规格</MudTh>
-                            <MudTh Style="width: 70px;">启用</MudTh>
-                            <MudTh Style="min-width: 200px;">备注</MudTh>
-                            <MudTh Style="width: 60px;">操作</MudTh>
-                        </HeaderContent>
-                        <RowTemplate Context="row">
-                            <MudTd>
-                                <MudText Typo="Typo.body2">@row.Sequence</MudText>
-                            </MudTd>
-                            <MudTd>
-                                <MudSelect T="string" @bind-Value="row.MaterialCategory"
-                                           Dense="true" Variant="Variant.Outlined" Size="Size.Small" Immediate="true">
-                                    @foreach (var cat in materialCategories)
-                                    {
-                                        <MudSelectItem Value="cat">@cat</MudSelectItem>
-                                    }
-                                </MudSelect>
-                            </MudTd>
-                            <MudTd>
-                                <MudTextField T="string"
-                                              @bind-Value="row.PlantGrade"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Size="Size.Small"
-                                              Immediate="true" />
-                            </MudTd>
-                            <MudTd>
-                                <MudTextField T="string"
-                                              @bind-Value="row.Specification"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Size="Size.Small"
-                                              Immediate="true" />
-                            </MudTd>
-                            <MudTd>
-                                <MudCheckBox @bind-Value="row.IsActive" Dense="true" Size="Size.Small" />
-                            </MudTd>
-                            <MudTd>
-                                <MudTextField T="string"
-                                              @bind-Value="row.Remark"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Size="Size.Small"
-                                              Immediate="true" />
-                            </MudTd>
-                            <MudTd>
-                                @if (rows.Count > 1)
+            <div id="materials-create-table" style="overflow-x: auto;">
+                <MudTable T="MaterialRow" Items="@rows" Dense="true" Hover="true" Elevation="0" Class="auto-table">
+                    <HeaderContent>
+                        <MudTh Style="width: 50px;">行号</MudTh>
+                        <MudTh Style="width: 130px;">物料分类<span class="required-star">*</span></MudTh>
+                        <MudTh Style="width: 130px;">厂内钢种<span class="required-star">*</span></MudTh>
+                        <MudTh Style="width:150px;">名义规格<span class="required-star">*</span></MudTh>
+                        <MudTh Style="width: 70px;">启用</MudTh>
+                        <MudTh Style="width:200px;">备注</MudTh>
+                        <MudTh Style="width: 60px;">操作</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="row">
+                        <MudTd>
+                            <MudText Typo="Typo.body2">@row.Sequence</MudText>
+                        </MudTd>
+                        <MudTd>
+                            <MudSelect T="string" @bind-Value="row.MaterialCategory"
+                                       Dense="true" Variant="Variant.Outlined" Size="Size.Small">
+                                @foreach (var cat in materialCategories)
                                 {
-                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                                   Color="Color.Error"
-                                                   Size="Size.Small"
-                                                   OnClick="() => RemoveRow(row)" />
+                                    <MudSelectItem Value="cat">@cat</MudSelectItem>
                                 }
-                            </MudTd>
-                        </RowTemplate>
-                    </MudTable>
-                </div>
-            }
+                            </MudSelect>
+                        </MudTd>
+                        <MudTd>
+                            <MudTextField T="string"
+                                          @bind-Value="row.PlantGrade"
+                                          Dense="true"
+                                          Variant="Variant.Outlined"
+                                          Size="Size.Small"
+                                          />
+                        </MudTd>
+                        <MudTd>
+                            <MudTextField T="string"
+                                          @bind-Value="row.Specification"
+                                          Dense="true"
+                                          Variant="Variant.Outlined"
+                                          Size="Size.Small"
+                                          />
+                        </MudTd>
+                        <MudTd>
+                            <MudCheckBox @bind-Value="row.IsActive" />
+                        </MudTd>
+                        <MudTd>
+                            <MudTextField T="string"
+                                          @bind-Value="row.Remark"
+                                          Dense="true"
+                                          Variant="Variant.Outlined"
+                                          Size="Size.Small"
+                                          />
+                        </MudTd>
+                        <MudTd>
+                            @if (rows.Count > 1)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Color="Color.Error"
+                                               Size="Size.Small"
+                                               OnClick="() => RemoveRow(row)" />
+                            }
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </div>
         </MudCardContent>
     </MudCard>
 </MudContainer>
@@ -112,6 +102,7 @@
     private List<MaterialRow> rows = new();
     private bool isSubmitting;
     private List<string> materialCategories = new();
+    private bool _isArrowNavSetup;
 
     private class MaterialRow
     {
@@ -132,6 +123,16 @@
                 "次品圆棒", "次品荒管", "次品中间品", "次品成品", "报废品", "余库料" };
         }
         AddRow();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#materials-create-table"))
+                _isArrowNavSetup = false;
+        }
     }
 
     private void AddRow()

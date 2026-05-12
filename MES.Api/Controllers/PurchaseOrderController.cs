@@ -131,6 +131,14 @@ public class PurchaseOrderController : ControllerBase
         return Ok(ApiResponse<List<ProcurementStatusDto>>.Ok(result, "查询成功"));
     }
 
+    [HttpGet("mismatched-orders")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<OrderMismatchInfo>>>> GetMismatchedOrders()
+    {
+        var result = await _service.GetMismatchedPurchaseOrdersAsync();
+        return Ok(ApiResponse<List<OrderMismatchInfo>>.Ok(result, "查询成功"));
+    }
+
     // ========== 打印 ==========
 
     [HttpGet("{id}/print")]

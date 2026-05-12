@@ -159,4 +159,73 @@ public class InventoryController : ControllerBase
         await _service.HardDeleteOutboundRecordAsync(id);
         return Ok(ApiResponse<object>.Ok(null!, "删除成功"));
     }
+
+    /// <summary>
+    /// 验证来源单号
+    /// </summary>
+    [HttpPost("validate-source-order")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<SourceOrderValidationResult>>> ValidateSourceOrder(
+        [FromBody] SourceOrderValidationRequest request)
+    {
+        var result = await _service.ValidateSourceOrderAsync(request.SourceOrderNo, request.InboundSource, request.SourceOrderSequence);
+        return Ok(ApiResponse<SourceOrderValidationResult>.Ok(result, "验证完成"));
+    }
+
+    /// <summary>
+    /// 验证仓库内入库数据中的工单号是否在工单管理上下文中存在
+    /// </summary>
+    [HttpGet("validate-workorder-nos/{warehouseId}")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<string>>>> ValidateWorkOrderNos(int warehouseId)
+    {
+        var result = await _service.ValidateWarehouseWorkOrderNosAsync(warehouseId);
+        return Ok(ApiResponse<List<string>>.Ok(result, "验证完成"));
+    }
+
+    // ========== 打印 ==========
+
+    /// <summary>
+    /// 打印全部库存/入库记录
+    /// </summary>
+    [HttpPost("print-inventory-all")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintInventoryAll([FromBody] InventoryPrintAllRequest request)
+    {
+        var pdfBytes = await _service.PrintInventoryAllAsync(request);
+        return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes), "打印成功"));
+    }
+
+    /// <summary>
+    /// 打印选中库存/入库记录
+    /// </summary>
+    [HttpPost("print-inventory-selected")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintInventorySelected([FromBody] InventoryPrintSelectedRequest request)
+    {
+        var pdfBytes = await _service.PrintInventorySelectedAsync(request);
+        return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes), "打印成功"));
+    }
+
+    /// <summary>
+    /// 打印全部出库记录
+    /// </summary>
+    [HttpPost("print-outbound-all")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintOutboundAll([FromBody] OutboundPrintAllRequest request)
+    {
+        var pdfBytes = await _service.PrintOutboundAllAsync(request);
+        return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes), "打印成功"));
+    }
+
+    /// <summary>
+    /// 打印选中出库记录
+    /// </summary>
+    [HttpPost("print-outbound-selected")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintOutboundSelected([FromBody] OutboundPrintSelectedRequest request)
+    {
+        var pdfBytes = await _service.PrintOutboundSelectedAsync(request);
+        return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes), "打印成功"));
+    }
 }

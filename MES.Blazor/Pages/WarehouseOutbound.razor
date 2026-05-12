@@ -7,9 +7,11 @@
 @inject OutboundStateService OutboundState
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 @attribute [Authorize]
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
@@ -30,31 +32,42 @@
             <!-- ============ 出库批次明细 ============ -->
             @if (_items.Count == 0)
             {
-                <MudAlert Severity="Severity.Warning" Class="mb-4">
-                    未选择出库批次，请先到仓库页面选择需要出库的批次。
-                </MudAlert>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GoToWarehouse">
                     前往仓库选择
                 </MudButton>
             }
             else
             {
-                <MudTable Items="@_items" Dense="true" Hover="true" Elevation="0" Striped="true" Class="mb-4">
+            <div class="inbound-table-scroll">
+                <MudTable Items="@_items" Dense="true" Hover="true" Elevation="0" Striped="true" Class="auto-table mb-4">
                     <HeaderContent>
                         <MudTh>批次号</MudTh>
                         <MudTh>工厂牌号</MudTh>
                         <MudTh>规格</MudTh>
                         <MudTh>剩余支数</MudTh>
                         <MudTh>剩余重量(kg)</MudTh>
-                        <MudTh>出库支数 *</MudTh>
-                        <MudTh>出库重量(kg) *</MudTh>
+                        <MudTh>出库日期<span class="required-star">*</span></MudTh>
+                        <MudTh>出库支数<span class="required-star">*</span></MudTh>
+                        <MudTh>出库重量(kg)<span class="required-star">*</span></MudTh>
+                        <MudTh>出库类型<span class="required-star">*</span></MudTh>
+                        <MudTh>物料单号</MudTh>
+                        <MudTh>目标单位</MudTh>
+                        <MudTh>备注</MudTh>
+                        <MudTh Style="width:100px;">操作</MudTh>
                     </HeaderContent>
                     <RowTemplate Context="item">
+                        @{
+                            var idx = _items.IndexOf(item);
+                        }
                         <MudTd><small>@item.BatchNo</small></MudTd>
                         <MudTd><small>@item.PlantGrade</small></MudTd>
                         <MudTd><small>@item.Specification</small></MudTd>
                         <MudTd><MudChip Size="Size.Small" Color="Color.Success">@item.RemainingQuantity</MudChip></MudTd>
-                        <MudTd><small>@item.RemainingWeight.ToString("G29")</small></MudTd>
+                        <MudTd><MudChip Size="Size.Small" Color="Color.Success">@item.RemainingWeight.ToString("G29")</MudChip></MudTd>
+                        <MudTd>
+                            <MudTextField T="string" @bind-Value="_dateText"
+                                          Variant="Variant.Outlined" Dense="true" />
+                        </MudTd>
                         <MudTd>
                             <MudNumericField T="int"
                                              @bind-Value="item.OutboundQuantity"
@@ -63,59 +76,61 @@
                                              Class="qty-input" HideSpinButtons="true" />
                         </MudTd>
                         <MudTd>
-                            <MudNumericField T="decimal"
+                            <MudNumericField T="decimal" Format="G29"
                                              @bind-Value="item.OutboundWeight"
                                              Min="0" Max="@item.RemainingWeight"
                                              Variant="Variant.Outlined" Dense="true"
                                              Class="qty-input" HideSpinButtons="true" />
                         </MudTd>
+                        <MudTd>
+                            <MudSelect T="string" @bind-Value="item.OutboundType"
+                                        Variant="Variant.Outlined" Dense="true">
+                                <MudSelectItem Value="@("SalesOut")">销售出库</MudSelectItem>
+                                <MudSelectItem Value="@("SubcontractOut")">委外出库</MudSelectItem>
+                                <MudSelectItem Value="@("ReturnOut")">退货出库</MudSelectItem>
+                                <MudSelectItem Value="@("ProductionPick")">生产领用</MudSelectItem>
+                                <MudSelectItem Value="@("InspectionPick")">检验领用</MudSelectItem>
+                                <MudSelectItem Value="@("TransferOut")">移库出库</MudSelectItem>
+                                <MudSelectItem Value="@("OtherOut")">其他出库</MudSelectItem>
+                            </MudSelect>
+                        </MudTd>
+                        <MudTd>
+                            <MudTextField T="string" @bind-Value="item.SourceOrderNo"
+                                          Variant="Variant.Outlined" Dense="true" />
+                        </MudTd>
+                        <MudTd>
+                            <MudTextField T="string" @bind-Value="item.TargetCompany"
+                                          Variant="Variant.Outlined" Dense="true" />
+                        </MudTd>
+                        <MudTd>
+                            <MudTextField T="string" @bind-Value="item.Remark"
+                                          Variant="Variant.Outlined" Dense="true" />
+                        </MudTd>
+                        <MudTd>
+                            <div class="d-flex flex-nowrap gap-1" style="gap:2px;">
+                                @if (idx > 0)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small"
+                                                   Color="Color.Info" Title="自动填充"
+                                                   OnClick="() => AutoFill(idx)" />
+                                }
+                                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                                               Color="Color.Error" Title="取消此条"
+                                               OnClick="() => RemoveItem(item)" />
+                            </div>
+                        </MudTd>
                     </RowTemplate>
                 </MudTable>
+            </div>
 
                 <!-- 合计 -->
                 <MudText Typo="Typo.body2" Class="font-weight-bold mb-4">
                     合计出库：@_items.Sum(i => i.OutboundQuantity) 支 / @_items.Sum(i => i.OutboundWeight).ToString("G29") kg
                 </MudText>
 
-                <!-- ============ 出库信息 ============ -->
-                <MudPaper Class="pa-4 mb-4" Elevation="0">
-                    <MudText Typo="Typo.h6" Class="mb-4">
-                        <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-2" Color="Color.Info" />
-                        出库信息
-                    </MudText>
-                    <MudGrid>
-                        <MudItem xs="12" md="6">
-                            <MudSelect T="string" Label="出库类型 *" @bind-Value="_outboundType"
-                                        Required="true" RequiredError="请选择出库类型"
-                                        Variant="Variant.Outlined">
-                                <MudSelectItem Value="@("ProductionPick")">生产领用</MudSelectItem>
-                                <MudSelectItem Value="@("SalesOut")">销售出库</MudSelectItem>
-                                <MudSelectItem Value="@("ReturnOut")">退货出库</MudSelectItem>
-                                <MudSelectItem Value="@("SubcontractOut")">委外出库</MudSelectItem>
-                                <MudSelectItem Value="@("ScrapOut")">报废出库</MudSelectItem>
-                                <MudSelectItem Value="@("TransferOut")">移库出库</MudSelectItem>
-                                <MudSelectItem Value="@("SampleOut")">取样出库</MudSelectItem>
-                                <MudSelectItem Value="@("OtherOut")">其他出库</MudSelectItem>
-                            </MudSelect>
-                        </MudItem>
-                        <MudItem xs="12" md="6">
-                            <MudTextField T="string" Label="出库日期" @bind-Value="_dateText"
-                                          Placeholder="yyyy-MM-dd" Variant="Variant.Outlined" />
-                        </MudItem>
-                        <MudItem xs="12" md="6">
-                            <MudTextField T="string" Label="目标单位" @bind-Value="_targetCompany"
-                                          Variant="Variant.Outlined" />
-                        </MudItem>
-                        <MudItem xs="12" md="6">
-                            <MudTextField T="string" Label="备注" @bind-Value="_remark"
-                                          Variant="Variant.Outlined" />
-                        </MudItem>
-                    </MudGrid>
-                </MudPaper>
-
                 @if (!string.IsNullOrEmpty(_errorMessage))
                 {
-                    <MudAlert Severity="Severity.Error" Class="mb-4">@_errorMessage</MudAlert>
+                    <MudText Typo="Typo.body2" Color="Color.Error" Class="mb-4">@_errorMessage</MudText>
                 }
 
                 <MudGrid Class="mt-4">
@@ -135,22 +150,33 @@
 </MudContainer>
 
 @code {
-    // ========== 出库条目模型 ==========
+    // ========== 出库条目模型（独立 DTO，不继承，避免 new 隐藏基类属性） ==========
 
-    private class OutboundItem : InventoryBatchDto
+    private class OutboundItem
     {
+        public int Id { get; set; }
+        public string BatchNo { get; set; } = string.Empty;
+        public int WarehouseId { get; set; }
+        public string? WarehouseName { get; set; }
+        public string? MaterialType { get; set; }
+        public string PlantGrade { get; set; } = string.Empty;
+        public string Specification { get; set; } = string.Empty;
+        public int RemainingQuantity { get; set; }
+        public decimal RemainingWeight { get; set; }
         public int OutboundQuantity { get; set; }
         public decimal OutboundWeight { get; set; }
+        public string OutboundType { get; set; } = "ProductionPick";
+        public string? SourceOrderNo { get; set; }
+        public string? TargetCompany { get; set; }
+        public string? Remark { get; set; }
     }
 
     // ========== 状态 ==========
 
     private List<OutboundItem> _items = new();
-    private string _outboundType = "ProductionPick";
     private string _dateText = DateTime.Today.ToString("yyyy-MM-dd");
-    private string _targetCompany = string.Empty;
-    private string _remark = string.Empty;
     private bool _isSubmitting;
+    private bool _isArrowNavSetup;
     private string _errorMessage = string.Empty;
 
     // ========== 初始化 ==========
@@ -178,6 +204,16 @@
         }
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", ".inbound-table-scroll"))
+                _isArrowNavSetup = false;
+        }
+    }
+
     // ========== 提交 ==========
 
     private async Task Submit()
@@ -185,9 +221,6 @@
         _errorMessage = string.Empty;
 
         var errors = new List<string>();
-
-        if (string.IsNullOrEmpty(_outboundType))
-            errors.Add("请选择出库类型");
 
         // 解析日期
         DateTime? parsedDate = null;
@@ -201,6 +234,8 @@
         for (int i = 0; i < _items.Count; i++)
         {
             var item = _items[i];
+            if (string.IsNullOrEmpty(item.OutboundType))
+                errors.Add($"第{i + 1}行（{item.BatchNo}）：出库类型不能为空");
             if (item.OutboundQuantity < 1)
                 errors.Add($"第{i + 1}行（{item.BatchNo}）：出库支数必须大于0");
             if (item.OutboundQuantity > item.RemainingQuantity)
@@ -217,6 +252,8 @@
             return;
         }
 
+        var first = _items[0];
+
         _isSubmitting = true;
         StateHasChanged();
 
@@ -224,15 +261,20 @@
         {
             var request = new BatchOutboundRequest
             {
-                OutboundType = _outboundType,
-                TargetCompany = string.IsNullOrEmpty(_targetCompany) ? null : _targetCompany,
+                OutboundType = first.OutboundType,
+                SourceOrderNo = string.IsNullOrEmpty(first.SourceOrderNo) ? null : first.SourceOrderNo,
+                TargetCompany = string.IsNullOrEmpty(first.TargetCompany) ? null : first.TargetCompany,
                 OutboundDate = parsedDate!.Value,
-                Remark = string.IsNullOrEmpty(_remark) ? null : _remark,
+                Remark = string.IsNullOrEmpty(first.Remark) ? null : first.Remark,
                 Items = _items.Select(i => new OutboundItemRequest
                 {
                     InventoryBatchId = i.Id,
                     OutboundQuantity = i.OutboundQuantity,
                     OutboundWeight = i.OutboundWeight,
+                    OutboundType = i.OutboundType,
+                    SourceOrderNo = string.IsNullOrEmpty(i.SourceOrderNo) ? null : i.SourceOrderNo,
+                    TargetCompany = string.IsNullOrEmpty(i.TargetCompany) ? null : i.TargetCompany,
+                    Remark = string.IsNullOrEmpty(i.Remark) ? null : i.Remark,
                 }).ToList()
             };
 
@@ -259,6 +301,24 @@
             _isSubmitting = false;
             StateHasChanged();
         }
+    }
+
+    // ========== 行操作 ==========
+
+    private void AutoFill(int idx)
+    {
+        if (idx <= 0 || idx >= _items.Count) return;
+        var prev = _items[idx - 1];
+        var curr = _items[idx];
+        curr.OutboundType = prev.OutboundType;
+        curr.SourceOrderNo = prev.SourceOrderNo;
+        curr.TargetCompany = prev.TargetCompany;
+        curr.Remark = prev.Remark;
+    }
+
+    private void RemoveItem(OutboundItem item)
+    {
+        _items.Remove(item);
     }
 
     // ========== 导航 ==========

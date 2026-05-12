@@ -26,11 +26,10 @@ public class ProductRequirementController : ControllerBase
     /// <summary>
     /// 获取指定订单项次的产品要求
     /// </summary>
-    /// <param name="orderId">订单ID（仅用于路由，实际未使用）</param>
     /// <param name="itemId">订单项次ID</param>
     [HttpGet]
     [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<ProductRequirementDto>>> Get(int orderId, int itemId)
+    public async Task<ActionResult<ApiResponse<ProductRequirementDto>>> Get(int itemId)
     {
         var result = await _service.GetByOrderItemIdAsync(itemId);
         if (result == null)
@@ -44,13 +43,11 @@ public class ProductRequirementController : ControllerBase
     /// <summary>
     /// 创建或更新订单项次的产品要求
     /// </summary>
-    /// <param name="orderId">订单ID（仅用于路由）</param>
     /// <param name="itemId">订单项次ID</param>
     /// <param name="request">产品要求请求</param>
     [HttpPost]
     [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<ProductRequirementDto>>> CreateOrUpdate(
-        int orderId,
         int itemId,
         [FromBody] CreateProductRequirementRequest request)
     {

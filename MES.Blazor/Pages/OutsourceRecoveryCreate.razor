@@ -1,0 +1,331 @@
+@page "/section-outsources/create-recovery"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using MES.Blazor.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inject SectionOutsourceService SectionOutsourceService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = "BatchStaff,BatchDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Recycling" Class="mr-2" Color="Color.Success" />
+                    批量回收
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">待回收 @_items.Count 项</MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="GoBack">返回工段委外</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <div id="outsource-recovery-create-table">
+                @if (_items.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Warning" Class="mb-4">
+                        未选择委外记录，请先到工段委外页面选择需要回收的委外记录。
+                    </MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GoBack">
+                        前往选择
+                    </MudButton>
+                }
+                else
+                {
+                <div class="inbound-table-scroll" style="max-height: calc(100vh - 320px); overflow-y: auto; overflow-x: auto;">
+                    <MudTable Items="@_items" Dense="true" Hover="true" Elevation="0" Striped="true" Class="auto-table mb-4" SortMode="SortMode.None">
+                        <HeaderContent>
+                            <MudTh>批次号</MudTh>
+                            <MudTh>委外单位</MudTh>
+                            <MudTh>工序名称</MudTh>
+                            <MudTh>工段名称</MudTh>
+                            <MudTh>制造规格</MudTh>
+                            <MudTh>发出支数</MudTh>
+                            <MudTh>发出重量</MudTh>
+                            <MudTh>回收日期<span class="required-star">*</span></MudTh>
+                            <MudTh>正常回收(支)</MudTh>
+                            <MudTh>正常回收(重)</MudTh>
+                            <MudTh>非正常回收(支)</MudTh>
+                            <MudTh>非正常回收(重)</MudTh>
+                            <MudTh>备注</MudTh>
+                            <MudTh Style="width:100px;">操作</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="item">
+                            @{
+                                var idx = _items.IndexOf(item);
+                            }
+                            <MudTd><small>@item.BatchNo</small></MudTd>
+                            <MudTd><small>@item.OutsourceVendor</small></MudTd>
+                            <MudTd><small>@item.ProcessName</small></MudTd>
+                            <MudTd><small>@item.SectionName</small></MudTd>
+                            <MudTd><small>@DisplayHelper.FormatSpecification(item.ManufacturingSpec)</small></MudTd>
+                            <MudTd><small>@DisplayHelper.FormatNullableInt(item.SendQuantity)</small></MudTd>
+                            <MudTd><small>@DisplayHelper.FormatNullableDecimal(item.SendWeight)</small></MudTd>
+                            <MudTd>
+                                <MudTextField @bind-Value="item.RecoveryDateText"
+                                               Dense="true" Variant="Variant.Outlined" Size="Size.Small"
+                                               Clearable="true" Placeholder="yyyy-MM-dd"
+                                               Immediate="true" DebounceInterval="500" />
+                            </MudTd>
+                            <MudTd>
+                                <MudNumericField T="int?"
+                                                 @bind-Value="item.RecoveryQuantity"
+                                                 Variant="Variant.Outlined" Size="Size.Small" Dense="true"
+                                                 Class="qty-input" HideSpinButtons="true" Clearable="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudNumericField T="decimal?" Format="G29"
+                                                 @bind-Value="item.RecoveryWeight"
+                                                 Variant="Variant.Outlined" Size="Size.Small" Dense="true"
+                                                 Class="qty-input" HideSpinButtons="true" Clearable="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudNumericField T="int?"
+                                                 @bind-Value="item.UnprocessedQuantity"
+                                                 Variant="Variant.Outlined" Size="Size.Small" Dense="true"
+                                                 Class="qty-input" HideSpinButtons="true" Clearable="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudNumericField T="decimal?" Format="G29"
+                                                 @bind-Value="item.UnprocessedWeight"
+                                                 Variant="Variant.Outlined" Size="Size.Small" Dense="true"
+                                                 Class="qty-input" HideSpinButtons="true" Clearable="true" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string" @bind-Value="item.Remark"
+                                              Variant="Variant.Outlined" Size="Size.Small" Dense="true" />
+                            </MudTd>
+                            <MudTd>
+                                <div class="d-flex flex-nowrap gap-1" style="gap:2px;">
+                                    @if (idx > 0)
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small"
+                                                       Color="Color.Info" Title="自动填充"
+                                                       OnClick="() => AutoFill(idx)" />
+                                    }
+                                    <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                                                   Color="Color.Error" Title="取消此条"
+                                                   OnClick="() => RemoveItem(item)" />
+                                </div>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+
+                    <!-- 合计 -->
+                    <MudText Typo="Typo.body2" Class="font-weight-bold mb-4">
+                        合计回收：@_items.Sum(i => i.RecoveryQuantity ?? 0) 支 /
+                        @_items.Sum(i => i.RecoveryWeight ?? 0).ToString("G29") kg（正常）
+                        ｜ @_items.Sum(i => i.UnprocessedQuantity ?? 0) 支 /
+                        @_items.Sum(i => i.UnprocessedWeight ?? 0).ToString("G29") kg（非正常）
+                    </MudText>
+
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Error" Class="mb-4">@_errorMessage</MudText>
+                    }
+
+                    <MudGrid Class="mt-4">
+                        <MudItem xs="12" Class="d-flex justify-end">
+                            <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="GoBack" Class="mr-2">取消</MudButton>
+                            <MudButton Variant="Variant.Filled" Color="Color.Success"
+                                       StartIcon="@Icons.Material.Filled.Recycling"
+                                       OnClick="Submit" Loading="@_isSubmitting"
+                                       Size="Size.Large">
+                                确认回收 (@_items.Count 项)
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+                }
+            </div>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    // ========== 回收条目模型 ==========
+
+    private class RecoveryItem
+    {
+        // 只读（来自委外记录）
+        public int SectionOutsourceId { get; set; }
+        public string BatchNo { get; set; } = string.Empty;
+        public string OutsourceVendor { get; set; } = string.Empty;
+        public string ProcessName { get; set; } = string.Empty;
+        public string SectionName { get; set; } = string.Empty;
+        public string? ManufacturingSpec { get; set; }
+        public int? SendQuantity { get; set; }
+        public decimal? SendWeight { get; set; }
+
+        // 可编辑（回收数据）
+        public string? RecoveryDateText { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
+        public DateTime? RecoveryDate => DateTime.TryParse(RecoveryDateText, out var d) ? d : null;
+        public int? RecoveryQuantity { get; set; }
+        public decimal? RecoveryWeight { get; set; }
+        public int? UnprocessedQuantity { get; set; }
+        public decimal? UnprocessedWeight { get; set; }
+        public string? Remark { get; set; }
+    }
+
+    // ========== 状态 ==========
+
+    private List<RecoveryItem> _items = new();
+    private bool _isSubmitting;
+    private bool _isArrowNavSetup;
+    private string _errorMessage = string.Empty;
+
+    // ========== 初始化 ==========
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = Navigation.Uri;
+        var qsIdx = uri.IndexOf('?');
+        string? idsParam = null;
+        if (qsIdx >= 0)
+        {
+            var qs = uri.Substring(qsIdx + 1);
+            var parts = qs.Split('&', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var part in parts)
+            {
+                var kv = part.Split('=', 2);
+                if (kv.Length == 2 && kv[0].Equals("ids", StringComparison.OrdinalIgnoreCase))
+                {
+                    idsParam = Uri.UnescapeDataString(kv[1]);
+                    break;
+                }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(idsParam))
+        {
+            var ids = idsParam.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(int.Parse).ToArray();
+
+            var result = await SectionOutsourceService.GetByIdsAsync(ids);
+            if (result.Success && result.Data != null)
+            {
+                _items = result.Data.Select(s => new RecoveryItem
+                {
+                    SectionOutsourceId = s.Id,
+                    BatchNo = s.BatchNo,
+                    OutsourceVendor = s.OutsourceVendor,
+                    ProcessName = s.ProcessName,
+                    SectionName = s.SectionName,
+                    ManufacturingSpec = s.ManufacturingSpec,
+                    SendQuantity = s.SendQuantity,
+                    SendWeight = s.SendWeight
+                }).ToList();
+            }
+            else
+            {
+                Snackbar.Add("获取委外记录失败", Severity.Error);
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#outsource-recovery-create-table"))
+                _isArrowNavSetup = false;
+        }
+    }
+
+    // ========== 提交 ==========
+
+    private async Task Submit()
+    {
+        _errorMessage = string.Empty;
+
+        var errors = new List<string>();
+
+        for (int i = 0; i < _items.Count; i++)
+        {
+            var item = _items[i];
+            if (item.RecoveryDate == null)
+                errors.Add($"第{i + 1}行（{item.BatchNo}）：回收日期不能为空");
+            else if (item.RecoveryQuantity == null && item.RecoveryWeight == null
+                && item.UnprocessedQuantity == null && item.UnprocessedWeight == null)
+                errors.Add($"第{i + 1}行（{item.BatchNo}）：请至少输入一项回收数据");
+        }
+
+        if (errors.Any())
+        {
+            _errorMessage = string.Join("；", errors);
+            return;
+        }
+
+        _isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var requests = _items.Select(i => new CreateOutsourceRecoveryRequest
+            {
+                SectionOutsourceId = i.SectionOutsourceId,
+                RecoveryDate = i.RecoveryDate!.Value,
+                RecoveryQuantity = i.RecoveryQuantity,
+                RecoveryWeight = i.RecoveryWeight,
+                UnprocessedQuantity = i.UnprocessedQuantity,
+                UnprocessedWeight = i.UnprocessedWeight,
+                Remark = i.Remark?.Trim()
+            }).ToList();
+
+            var result = await SectionOutsourceService.BatchCreateRecoveriesAsync(requests);
+
+            if (result.Success && result.Data != null)
+            {
+                Snackbar.Add($"批量回收成功，共{result.Data.Count}条", Severity.Success);
+                Navigation.NavigateTo("/outsource-recoveries");
+            }
+            else
+            {
+                _errorMessage = result.Message ?? "批量回收失败";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"网络错误: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    // ========== 行操作 ==========
+
+    private void AutoFill(int idx)
+    {
+        if (idx <= 0 || idx >= _items.Count) return;
+        var prev = _items[idx - 1];
+        var curr = _items[idx];
+        curr.RecoveryDateText = prev.RecoveryDateText;
+        curr.RecoveryQuantity = prev.RecoveryQuantity;
+        curr.RecoveryWeight = prev.RecoveryWeight;
+        curr.UnprocessedQuantity = prev.UnprocessedQuantity;
+        curr.UnprocessedWeight = prev.UnprocessedWeight;
+        curr.Remark = prev.Remark;
+    }
+
+    private void RemoveItem(RecoveryItem item)
+    {
+        _items.Remove(item);
+    }
+
+    // ========== 导航 ==========
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/section-outsources");
+    }
+}

@@ -3,6 +3,7 @@
 @using MES.Blazor.Services
 @using MES.Core.DTOs
 @using MES.Core.Models
+@using MES.Blazor.Helpers
 @using Microsoft.AspNetCore.Authorization
 @inject WarehouseService WarehouseService
 @inject InventoryService InventoryService
@@ -10,17 +11,13 @@
 @inject ISnackbar Snackbar
 @inject ColumnPrefsService ColumnPrefs
 @inject OutboundStateService OutboundState
+@inject IJSRuntime JS
 @attribute [Authorize]
-
-<style>
-    .column-selector-wrapper { position: relative; display: inline-block; }
-    .column-selector-panel { position: absolute; right: 0; top: 42px; z-index: 1000; }
-</style>
 
 @if (string.IsNullOrEmpty(Code))
 {
     @* ======== 仓库首页：4个仓库卡片入口 ======== *@
-    <div class="mt-4">
+    <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
         <MudCard>
             <MudCardHeader>
                 <CardHeaderContent>
@@ -28,7 +25,6 @@
                         <MudIcon Icon="@Icons.Material.Filled.Warehouse" Class="mr-2" Color="Color.Primary" />
                         仓库管理
                     </MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">选择仓库查看库存批次</MudText>
                 </CardHeaderContent>
                 <CardHeaderActions>
                     <MudButton Variant="Variant.Filled"
@@ -57,12 +53,12 @@
                 </MudGrid>
             </MudCardContent>
         </MudCard>
-    </div>
+    </MudContainer>
 }
 else
 {
     @* ======== 单个仓库详情页 ======== *@
-    <div class="mt-4">
+    <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
         <MudCard>
             <MudCardHeader>
                 <CardHeaderContent>
@@ -91,6 +87,14 @@ else
                                OnClick="NavigateToInbound">
                         入库
                     </MudButton>
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Info"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="LoadWarehouseMismatches"
+                               Class="ml-2">
+                        即时更新
+                    </MudButton>
                 </CardHeaderActions>
             </MudCardHeader>
 
@@ -98,27 +102,18 @@ else
                 <!-- 顶部：模糊搜索 + 出库筛选切换 -->
                 <MudGrid Class="mb-2">
                     <MudItem xs="12" md="5">
-                        <MudGrid>
-                            <MudItem xs="8">
-                                <MudTextField T="string"
-                                              @bind-Value="_keyword"
-                                              Placeholder="模糊搜索（物料 工厂牌号 规格 炉号...，多词空格分隔）"
-                                              Variant="Variant.Outlined"
-                                              Dense="true"
-                                              Adornment="Adornment.Start"
-                                              AdornmentIcon="@Icons.Material.Filled.Search"
-                                              OnKeyDown="HandleKeywordKeyDown" />
-                            </MudItem>
-                            <MudItem xs="4">
-                                <MudButton Variant="Variant.Filled"
-                                           Color="Color.Primary"
-                                           OnClick="DoKeywordSearch"
-                                           Size="Size.Small"
-                                           FullWidth="true">
-                                    搜索
-                                </MudButton>
-                            </MudItem>
-                        </MudGrid>
+                        <MudTextField T="string"
+                                      Value="_keyword"
+                                      ValueChanged="@OnSearchChanged"
+                                      Label="模糊搜索"
+                                      Variant="Variant.Outlined"
+                                      Dense="true"
+                                      Immediate="true"
+                                      DebounceInterval="500"
+                                      Clearable="true"
+                                      ClearButton="true"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search" />
                     </MudItem>
                     <MudItem xs="12" md="7" Class="d-flex align-center justify-end">
                         <MudButton Variant="@(_outboundMode ? Variant.Filled : Variant.Outlined)"
@@ -151,94 +146,70 @@ else
                 </MudGrid>
 
                 <!-- 数据表格 -->
+                <div style="overflow-x:auto; max-width:100%;">
                 <MudTable @ref="table"
                           T="InventoryBatchDto"
                           ServerData="OnServerData"
                           Loading="@isLoading"
                           Dense="true"
                           Hover="true"
-                          Class="mt-1"
+                          Class="auto-table"
                           Elevation="0"
                           RowsPerPageLabel="每页行数:"
                           Striped="true"
-                          MultiSelection="_outboundMode"
+                          MultiSelection="true"
                           @bind-SelectedItems="_selectedItems">
                     <ToolBarContent>
-                        <MudText Typo="Typo.body2" Class="mr-4 d-flex align-center">
-                            共 @totalCount 条记录
-                        </MudText>
+                        <ColumnDisplaySelect Columns="_allColumns"
+                                             OnColumnToggle="OnColumnToggle"
+                                             OnMoveUp="MoveColumnUp"
+                                             OnMoveDown="MoveColumnDown" />
+                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                   Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.RestartAlt"
+                                   OnClick="ResetColumnDisplay" Class="ml-2">
+                            重置
+                        </MudButton>
+                        <MudSpacer />
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                                   Color="Color.Info"
+                                   StartIcon="@Icons.Material.Filled.Print"
+                                   Disabled="@(!_selectedItems.Any())"
+                                   OnClick="PrintSelected" Class="mr-1">
+                            打印选中 (@_selectedItems.Count)
+                        </MudButton>
+                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                   Color="Color.Info"
+                                   StartIcon="@Icons.Material.Filled.Print"
+                                   OnClick="PrintAll" Class="mr-4">
+                            打印全部
+                        </MudButton>
                         @if (_outboundMode)
                         {
                             <MudText Typo="Typo.body2" Class="d-flex align-center" Style="color: var(--mud-palette-warning);">
                                 已选 @_selectedItems.Count 项
                             </MudText>
                         }
-                        <MudSpacer />
-                        <div class="column-selector-wrapper">
-                            <MudButton Variant="Variant.Outlined" Size="Size.Small"
-                                       Color="Color.Primary"
-                                       StartIcon="@Icons.Material.Filled.ViewColumn"
-                                       OnClick="@(() => _columnMenuOpen = !_columnMenuOpen)">
-                                列选择
-                            </MudButton>
-                            @if (_columnMenuOpen)
-                            {
-                                <MudOverlay Visible="true" OnClick="@(() => _columnMenuOpen = false)" />
-                                <MudPaper Class="pa-4 column-selector-panel" Elevation="8" Style="max-height:400px; overflow-y:auto; min-width:260px;">
-                                    @* 适用列 *@
-                                    <MudText Typo="Typo.body2" Class="font-weight-bold mb-2" Color="Color.Primary">适用字段</MudText>
-                                    @foreach (var col in _allColumns.Where(c => c.IsApplicable))
-                                    {
-                                        <MudGrid Class="d-flex align-center" Style="flex-wrap:nowrap;">
-                                            <MudItem>
-                                                <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowUp"
-                                                               Size="Size.Small"
-                                                               Disabled="@(_allColumns.IndexOf(col) == 0)"
-                                                               OnClick="@(() => MoveColumnUp(col))" />
-                                            </MudItem>
-                                            <MudItem>
-                                                <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowDown"
-                                                               Size="Size.Small"
-                                                               Disabled="@(_allColumns.IndexOf(col) == _allColumns.Count - 1)"
-                                                               OnClick="@(() => MoveColumnDown(col))" />
-                                            </MudItem>
-                                            <MudItem>
-                                                <MudSwitch T="bool" Value="col.Visible"
-                                                           ValueChanged="@((bool v) => OnColumnToggle(col, v))"
-                                                           Color="Color.Primary" Dense="true">
-                                                    @col.Label
-                                                </MudSwitch>
-                                            </MudItem>
-                                        </MudGrid>
-                                    }
-                                    @* 分隔线 *@
-                                    <MudDivider Class="my-2" />
-                                    @* 不适用列 *@
-                                    <MudText Typo="Typo.body2" Class="font-weight-bold mb-2" Color="Color.Error">不适用字段</MudText>
-                                    @foreach (var col in _allColumns.Where(c => !c.IsApplicable))
-                                    {
-                                        <MudGrid Class="d-flex align-center" Style="flex-wrap:nowrap;opacity:0.5;">
-                                            <MudItem>
-                                                <MudIconButton Icon="@Icons.Material.Filled.Block"
-                                                               Size="Size.Small"
-                                                               Disabled="true"
-                                                               Color="Color.Error" />
-                                            </MudItem>
-                                            <MudItem Style="pointer-events:none;">
-                                                <MudSwitch T="bool" Value="false" Disabled="true" Color="Color.Error" Dense="true">
-                                                    @col.Label
-                                                </MudSwitch>
-                                            </MudItem>
-                                        </MudGrid>
-                                    }
-                                </MudPaper>
-                            }
-                        </div>
                     </ToolBarContent>
                     <HeaderContent>
                         @foreach (var col in _visibleColumns)
                         {
-                            <MudTh><span class="th-label">@col.Label</span></MudTh>
+                            <MudTh>
+                                @if (!string.IsNullOrEmpty(col.SortKey))
+                                {
+                                    <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
+                                        @col.Label
+                                        @if (sortColumn == col.SortKey)
+                                        {
+                                            <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
+                                        }
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="th-label">@col.Label</span>
+                                }
+                            </MudTh>
                         }
                     </HeaderContent>
                     <RowTemplate Context="item">
@@ -248,15 +219,17 @@ else
                         }
                     </RowTemplate>
                     <PagerContent>
+                        <MudText Typo="Typo.body2" Class="d-flex align-center mr-auto">共 @totalCount 条记录</MudText>
                         <MudTablePager />
                     </PagerContent>
                     <NoRecordsContent>
                         <MudText Class="d-flex justify-center pa-4" Color="Color.Secondary">暂无数据</MudText>
                     </NoRecordsContent>
                 </MudTable>
+                </div>
             </MudCardContent>
         </MudCard>
-    </div>
+    </MudContainer>
 }
 
 @code {
@@ -280,6 +253,29 @@ else
     // 关键字搜索
     private string? _keyword;
 
+    // 排序状态
+    private string sortColumn = "inbounddate";
+    private bool sortDescending = true;
+
+    private string GetSortIndicator(string column)
+    {
+        if (sortColumn != column) return "";
+        return sortDescending ? "\u25BC" : "\u25B2";
+    }
+
+    private async Task ToggleSort(string column)
+    {
+        if (sortColumn == column)
+            sortDescending = !sortDescending;
+        else
+        {
+            sortColumn = column;
+            sortDescending = false;
+        }
+        if (table != null)
+            await table.ReloadServerData();
+    }
+
     // 列定义
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns =>
@@ -288,57 +284,50 @@ else
     // 多选
     private HashSet<InventoryBatchDto> _selectedItems = new();
 
-    // 列选择菜单
-    private bool _columnMenuOpen;
-
     // ========== 列定义 ==========
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        // 通用列（默认全显示）
-        new() { Key = "BatchNo",             Label = "批次号" },
-        new() { Key = "MaterialType",        Label = "物料" },
-        new() { Key = "InboundSource",       Label = "来源" },
+        new() { Key = "BatchNo",             Label = "批次号",   SortKey = "batchno" },
+        new() { Key = "InboundDate",         Label = "入库日期", SortKey = "inbounddate" },
+        new() { Key = "InboundSource",       Label = "来源",     SortKey = "inboundsource" },
+        new() { Key = "SourceOrderNo",       Label = "物料单号" },
+        new() { Key = "MaterialType",        Label = "物料",     SortKey = "materialtype" },
         new() { Key = "SourceName",          Label = "来料单位" },
-        new() { Key = "InboundDate",         Label = "入库日期" },
-        new() { Key = "HeatNo",              Label = "炉号" },
-        new() { Key = "PlantGrade",          Label = "工厂牌号" },
-        new() { Key = "Specification",       Label = "名义规格" },
-        new() { Key = "RemainingQuantity",   Label = "剩余支数" },
-        new() { Key = "RemainingWeight",     Label = "剩余重量" },
-        new() { Key = "UnitWeight",          Label = "单支重" },
+        new() { Key = "SurfaceCondition",    Label = "物料状态", SortKey = "surfacecondition" },
+        new() { Key = "LocationArea",        Label = "区域" },
         new() { Key = "LocationRack",        Label = "框架" },
-        new() { Key = "Remark",              Label = "备注" },
-        // 长度相关
-        new() { Key = "LengthStatus",        Label = "长度状态" },
+        new() { Key = "HeatNo",              Label = "炉号",     SortKey = "heatno" },
+        new() { Key = "PlantGrade",          Label = "工厂牌号", SortKey = "plantgrade" },
+        new() { Key = "Specification",       Label = "名义规格", SortKey = "specification" },
+        new() { Key = "LengthStatus",        Label = "长度状态", SortKey = "lengthstatus" },
         new() { Key = "MinLength",           Label = "最小长度" },
         new() { Key = "MaxLength",           Label = "最大长度" },
-        // 数量重量
-        new() { Key = "InitialQuantity",     Label = "支数" },
-        new() { Key = "InitialWeight",       Label = "重量(kg)" },
+        new() { Key = "InitialQuantity",     Label = "支数",     SortKey = "initialquantity" },
+        new() { Key = "InitialWeight",       Label = "重量(kg)", SortKey = "initialweight" },
+        new() { Key = "UnitWeight",          Label = "单支重",   SortKey = "unitweight" },
         new() { Key = "Meters",              Label = "米数" },
+        new() { Key = "Remark",              Label = "备注" },
+        // 剩余量（自动汇总，在关联工单之前）
+        new() { Key = "RemainingQuantity",   Label = "剩余支数", SortKey = "remainingquantity" },
+        new() { Key = "RemainingWeight",     Label = "剩余重量", SortKey = "remainingweight" },
+        // 工单
+        new() { Key = "IsLinkedToWorkOrder", Label = "关联工单" },
+        new() { Key = "WorkOrderNo",         Label = "工单号",   SortKey = "workorderno" },
+        new() { Key = "SalesOrderNo",        Label = "订单号",   SortKey = "salesorderno" },
+        new() { Key = "OrderItemIds",        Label = "项次" },
+        // 生产
+        new() { Key = "ProductionBatchNo",   Label = "生产批号", SortKey = "productionbatchno" },
         // 实际规格
         new() { Key = "ActualSpecification", Label = "实际规格" },
         new() { Key = "ActualOuterDiameter", Label = "外径" },
         new() { Key = "ActualWallThickness", Label = "壁厚" },
-        // 位置
-        new() { Key = "SurfaceCondition",    Label = "物料状态" },
-        new() { Key = "LocationArea",        Label = "区域" },
         // 次品
         new() { Key = "DefectReason",        Label = "次品原因" },
         new() { Key = "LiabilityType",       Label = "责任类型" },
         new() { Key = "OriginalSupplier",    Label = "原始来料" },
         new() { Key = "TagNo",               Label = "挂牌号" },
         new() { Key = "DefectRemark",        Label = "次品备注" },
-        // 生产
-        new() { Key = "ProductionBatchNo",   Label = "生产批号" },
-        // 工单
-        new() { Key = "IsLinkedToWorkOrder", Label = "关联工单" },
-        new() { Key = "WorkOrderNo",         Label = "工单号" },
-        new() { Key = "SalesOrderNo",        Label = "订单号" },
-        new() { Key = "OrderItemIds",        Label = "项次" },
-        // 物料
-        new() { Key = "SourceOrderNo",       Label = "物料单号" },
     };
 
     private static void ApplyWarehouseDefaults(List<ColumnDef> cols, string whCode)
@@ -368,13 +357,12 @@ else
                 SetNotApplicable(cols, "DefectRemark");
                 break;
             case "FG":
-                // 成品库模板不含：次品相关、物料单号
+                // 成品库模板不含：次品相关
                 SetNotApplicable(cols, "DefectReason");
                 SetNotApplicable(cols, "LiabilityType");
                 SetNotApplicable(cols, "OriginalSupplier");
                 SetNotApplicable(cols, "TagNo");
                 SetNotApplicable(cols, "DefectRemark");
-                SetNotApplicable(cols, "SourceOrderNo");
                 break;
             case "DEFECT":
                 // 次品库模板不含：米数、实际规格、外径、壁厚、物料单号
@@ -431,7 +419,7 @@ else
                 builder.AddContent(0, item.MaterialType);
                 break;
             case "InboundSource":
-                builder.AddContent(0, GetInboundSourceDisplay(item.InboundSource));
+                builder.AddContent(0, DisplayHelper.GetInboundSourceText(item.InboundSource));
                 break;
             case "SourceName":
                 builder.AddContent(0, TruncateSourceName(item.SourceName));
@@ -449,7 +437,7 @@ else
                 builder.AddContent(0, item.Specification);
                 break;
             case "LengthStatus":
-                builder.AddContent(0, item.LengthStatus);
+                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
                 break;
             case "MinLength":
                 if (item.MinLength.HasValue)
@@ -562,19 +550,6 @@ else
         }
     };
 
-    // ========== 入库来源中文映射 ==========
-    private static string GetInboundSourceDisplay(string? source) => source switch
-    {
-        "Purchase" => "外购",
-        "ProductionInbound" => "生产入库",
-        "InspectionInbound" => "检验入库",
-        "SubcontractPiercing" => "委外穿孔",
-        "SelfProduced" => "自产",
-        "TransferIn" => "移库入库",
-        "ReturnIn" => "退货入库",
-        _ => source ?? ""
-    };
-
     // ========== 来料单位截断 ==========
     private static string TruncateSourceName(string? name)
     {
@@ -601,6 +576,9 @@ else
             await ResolveWarehouse();
             if (table != null)
                 await table.ReloadServerData();
+            // 页面加载时静默验证工单号（仅首次）
+            if (!_mismatchLoaded)
+                await LoadWarehouseMismatches();
         }
     }
 
@@ -661,9 +639,8 @@ else
 
     // ========== 列管理 ==========
 
-    private async Task OnColumnToggle(ColumnDef col, bool visible)
+    private async Task OnColumnToggle(ColumnDef col)
     {
-        col.Visible = visible;
         await SaveColumnPrefs();
     }
 
@@ -672,24 +649,27 @@ else
         await ColumnPrefs.SaveAsync("inventory", warehouseCode, _allColumns);
     }
 
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        ApplyWarehouseDefaults(_allColumns, warehouseCode);
+        foreach (var c in _allColumns)
+        {
+            if (c.IsApplicable) c.Visible = true;
+        }
+        await SaveColumnPrefs();
+        if (table != null)
+            await table.ReloadServerData();
+    }
+
     private async Task MoveColumnUp(ColumnDef col)
     {
-        var idx = _allColumns.IndexOf(col);
-        if (idx > 0)
-        {
-            (_allColumns[idx], _allColumns[idx - 1]) = (_allColumns[idx - 1], _allColumns[idx]);
-            await SaveColumnPrefs();
-        }
+        await SaveColumnPrefs();
     }
 
     private async Task MoveColumnDown(ColumnDef col)
     {
-        var idx = _allColumns.IndexOf(col);
-        if (idx < _allColumns.Count - 1)
-        {
-            (_allColumns[idx], _allColumns[idx + 1]) = (_allColumns[idx + 1], _allColumns[idx]);
-            await SaveColumnPrefs();
-        }
+        await SaveColumnPrefs();
     }
 
     // ========== 服务端数据 ==========
@@ -705,8 +685,8 @@ else
             {
                 PageIndex = state.Page + 1,
                 PageSize = state.PageSize,
-                SortBy = "InboundDate",
-                IsDescending = true,
+                SortBy = sortColumn,
+                IsDescending = sortDescending,
                 Keyword = string.IsNullOrWhiteSpace(_keyword) ? null : _keyword,
                 WarehouseId = warehouseId,
                 OnlyWithStock = true
@@ -752,17 +732,11 @@ else
     }
 
     // ========== 关键字搜索 ==========
-    private async Task DoKeywordSearch()
+    private async Task OnSearchChanged(string value)
     {
-        await OnFilterChanged();
-    }
-
-    private async Task HandleKeywordKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter")
-        {
-            await DoKeywordSearch();
-        }
+        _keyword = value ?? string.Empty;
+        if (table != null)
+            await table.ReloadServerData();
     }
 
     private async Task OnFilterChanged()
@@ -797,6 +771,54 @@ else
         Navigation.NavigateTo("/warehouse/outbound");
     }
 
+    // ========== 打印 ==========
+
+    private async Task PrintSelected()
+    {
+        if (!_selectedItems.Any())
+        {
+            Snackbar.Add("请先选择要打印的批次", Severity.Warning);
+            return;
+        }
+        try
+        {
+            var columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+            var ids = _selectedItems.Select(i => i.Id).ToArray();
+            var result = await InventoryService.PrintInventorySelectedAsync(new InventoryPrintSelectedRequest
+            {
+                Ids = ids,
+                Columns = columns
+            });
+            if (result.Success && result.Data != null)
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
+    }
+
+    private async Task PrintAll()
+    {
+        try
+        {
+            var columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+            var result = await InventoryService.PrintInventoryAllAsync(new InventoryPrintAllRequest
+            {
+                Keyword = string.IsNullOrWhiteSpace(_keyword) ? null : _keyword,
+                SortBy = sortColumn,
+                IsDescending = sortDescending,
+                WarehouseId = warehouseId,
+                OnlyWithStock = true,
+                Columns = columns
+            });
+            if (result.Success && result.Data != null)
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
+    }
+
     // ========== 导航 ==========
     private void NavigateToInboundFromHome() => Navigation.NavigateTo("/warehouse/inbound");
     private void NavigateToInbound() => Navigation.NavigateTo($"/warehouse/inbound/{warehouseCode.ToLowerInvariant()}");
@@ -816,4 +838,45 @@ else
         "WIP" => Icons.Material.Filled.PrecisionManufacturing,
         _ => Icons.Material.Filled.Warehouse
     };
+
+    // ========== 工单号即时更新验证 ==========
+
+    private bool _mismatchLoaded;
+
+    private async Task LoadWarehouseMismatches()
+    {
+        if (warehouseId <= 0) return;
+
+        try
+        {
+            var result = await InventoryService.ValidateWorkOrderNosAsync(warehouseId);
+            if (result.Success && result.Data != null && result.Data.Count > 0)
+            {
+                var woNos = string.Join("、", result.Data);
+                Snackbar.Add($"入库数据中包含已不存在的工单号：{woNos}，需修改！",
+                    Severity.Warning, config =>
+                    {
+                        config.VisibleStateDuration = 20000;
+                        config.Action = "忽略";
+                    });
+            }
+            else if (_mismatchLoaded)
+            {
+                // 用户主动点击时，没有异常则提示正常
+                Snackbar.Add("工单号验证通过，所有工单号均有效", Severity.Success, config =>
+                {
+                    config.VisibleStateDuration = 3000;
+                    config.Action = "忽略";
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"工单号验证失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _mismatchLoaded = true;
+        }
+    }
 }

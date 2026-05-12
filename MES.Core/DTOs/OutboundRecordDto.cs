@@ -10,11 +10,12 @@ public class OutboundRecordDto
     public string? BatchNo { get; set; }
     public string? WarehouseName { get; set; }
     public string OutboundType { get; set; } = string.Empty;
+    public string? SourceOrderNo { get; set; }
     public string? TargetCompany { get; set; }
     public int OutboundQuantity { get; set; }
     public decimal OutboundWeight { get; set; }
     public DateTime OutboundDate { get; set; }
-    public string Operator { get; set; } = string.Empty;
     public string? Remark { get; set; }
+    public string? CreatedBy { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
 }

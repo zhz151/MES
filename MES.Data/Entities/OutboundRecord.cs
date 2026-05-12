@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Data.Entities;
 
 /// <summary>
@@ -11,7 +13,7 @@ namespace MES.Data.Entities;
 /// 4. AppDbContext.SaveChangesAsync 对非 BaseEntity 的实体不走自动审计，
 ///    由 Service 层在创建时手动填充 CreatedTime/CreatedBy 等字段
 /// </remarks>
-public class OutboundRecord
+public class OutboundRecord : IAuditableEntity
 {
     /// <summary>
     /// 主键，自增(bigint)
@@ -26,7 +28,12 @@ public class OutboundRecord
     /// <summary>
     /// 出库类型
     /// </summary>
-    public string OutboundType { get; set; } = null!;
+    public OutboundType OutboundType { get; set; }
+
+    /// <summary>
+    /// 物料单号（委外关联）
+    /// </summary>
+    public string? SourceOrderNo { get; set; }
 
     /// <summary>
     /// 目标单位
@@ -49,34 +56,14 @@ public class OutboundRecord
     public DateTime OutboundDate { get; set; }
 
     /// <summary>
-    /// 操作人
-    /// </summary>
-    public string Operator { get; set; } = null!;
-
-    /// <summary>
     /// 备注
     /// </summary>
     public string? Remark { get; set; }
 
-    // ========== 审计字段（手动定义，因Id为bigint不继承BaseEntity） ==========
+    // ========== 审计字段 ==========
 
-    /// <summary>
-    /// 创建时间
-    /// </summary>
     public DateTimeOffset CreatedTime { get; set; }
-
-    /// <summary>
-    /// 创建人
-    /// </summary>
-    public string CreatedBy { get; set; } = null!;
-
-    /// <summary>
-    /// 更新时间
-    /// </summary>
+    public string CreatedBy { get; set; } = string.Empty;
     public DateTimeOffset UpdatedTime { get; set; }
-
-    /// <summary>
-    /// 更新人
-    /// </summary>
-    public string UpdatedBy { get; set; } = null!;
+    public string UpdatedBy { get; set; } = string.Empty;
 }

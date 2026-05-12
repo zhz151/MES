@@ -11,19 +11,19 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "MaterialStaff,MaterialDirector,Admin")]
 
-<MudContainer Class="mt-2 px-3" Style="max-width:100%;">
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
                 <MudText Typo="Typo.h5" Class="font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Class="mr-2" Color="Color.Primary" />新建采购订单</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">可批量添加多条采购记录，点击右上角保存一次性提交</MudText>
             </CardHeaderContent>
             <CardHeaderActions>
                 <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAll" Disabled="@isSubmitting">
-                    @if (isSubmitting) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> } else { <span>保存</span> }
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAll" Loading="@isSubmitting">
+                    保存
                 </MudButton>
             </CardHeaderActions>
         </MudCardHeader>
@@ -45,7 +45,7 @@
                     @if (showProcurementStatus)
                     {
                         <div style="overflow-x: auto; overflow-y: auto; margin-top: 8px; max-height: 25vh;">
-                            <MudTable T="ProcurementStatusDto" Items="@procurementItems" Dense="true" Hover="true" Elevation="0">
+                            <MudTable T="ProcurementStatusDto" Items="@procurementItems" Dense="true" Hover="true" Elevation="0" Class="auto-table">
                                 <HeaderContent>
                                     <MudTh Style="width: 120px;">工单号</MudTh>
                                     <MudTh Style="width: 90px;">物料分类</MudTh>
@@ -83,27 +83,21 @@
                 <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow">添加订单</MudButton>
             </div>
 
-            @if (rows.Count == 0)
-            {
-                <MudAlert Severity="Severity.Info">请点击"添加订单"按钮添加记录</MudAlert>
-            }
-            else
-            {
-                <div style="overflow-x: auto;">
-                    <MudTable T="PurchaseOrderRow" Items="@rows" Dense="true" Hover="true" Elevation="0">
+            <div id="purchase-order-create-table"><div style="overflow-x: auto;">
+                    <MudTable T="PurchaseOrderRow" Items="@rows" Dense="true" Hover="true" Elevation="0" Class="auto-table">
                         <HeaderContent>
                             <MudTh Style="width: 40px;">行号</MudTh>
                             <MudTh Style="width: 120px;">下单日期</MudTh>
-                            <MudTh Style="min-width: 180px;">来源工单号</MudTh>
-                            <MudTh Style="width: 100px;">物料分类</MudTh>
-                            <MudTh Style="width: 100px;">厂内钢种</MudTh>
-                            <MudTh Style="width: 120px;">规格</MudTh>
+                            <MudTh Style="width: 140px;">来源工单号</MudTh>
+                            <MudTh Style="width: 100px;">物料分类<span class="required-star">*</span></MudTh>
+                            <MudTh Style="width: 100px;">厂内钢种<span class="required-star">*</span></MudTh>
+                            <MudTh Style="width: 120px;">规格<span class="required-star">*</span></MudTh>
                             <MudTh Style="width: 90px;">单支重量</MudTh>
                             <MudTh Style="width: 80px;">支数</MudTh>
-                            <MudTh Style="width: 100px;">采购重量</MudTh>
+                            <MudTh Style="width: 100px;">采购重量<span class="required-star">*</span></MudTh>
                             <MudTh Style="width: 140px;">要求到货日期</MudTh>
-                            <MudTh Style="min-width: 140px;">备注</MudTh>
-                            <MudTh Style="width: 280px;">供应商</MudTh>
+                            <MudTh Style="width: 120px;">备注</MudTh>
+                            <MudTh Style="width: 140px;">供应商<span class="required-star">*</span></MudTh>
                             <MudTh Style="width: 70px;">单价</MudTh>
                             <MudTh Style="width: 50px;">操作</MudTh>
                         </HeaderContent>
@@ -114,7 +108,7 @@
                                               @bind-Value="row.OrderDateStr"
                                               Dense="true" Variant="Variant.Outlined" Size="Size.Small"
                                               Style="width: 100px;"
-                                              Immediate="true" />
+                                              />
                             </MudTd>
                             <MudTd>
                                 <div style="display: flex; align-items: center; gap: 4px;">
@@ -122,7 +116,7 @@
                                                   @bind-Value="row.SourceWorkOrderNo"
                                                   Dense="true" Variant="Variant.Outlined" Size="Size.Small"
                                                   Style="width: 110px;"
-                                                  Immediate="true" />
+                                                  />
                                     <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Info"
                                                OnClick="() => ToggleWorkOrderInfo(row)">
                                         @(row.ShowWorkOrderInfo ? "隐藏" : "展示")
@@ -157,40 +151,40 @@
                                 <MudTextField T="string"
                                               @bind-Value="row.MaterialCategory"
                                               Dense="true" Variant="Variant.Outlined" Size="Size.Small"
-                                              Immediate="true" />
+                                              />
                             </MudTd>
                             <MudTd>
                                 <MudTextField T="string"
                                               @bind-Value="row.PlantGrade"
                                               Dense="true" Variant="Variant.Outlined" Size="Size.Small"
-                                              Immediate="true" />
+                                              />
                             </MudTd>
                             <MudTd>
                                 <MudTextField T="string"
                                               @bind-Value="row.Specification"
                                               Dense="true" Variant="Variant.Outlined" Size="Size.Small"
-                                              Immediate="true" />
+                                              />
                             </MudTd>
                             <MudTd>
                                 <MudTextField T="string"
                                               @bind-Value="row.UnitWeightStr"
                                               Dense="true" Variant="Variant.Outlined" Size="Size.Small"
                                               Style="width: 70px;"
-                                              Immediate="true" />
+                                              />
                             </MudTd>
                             <MudTd>
                                 <MudTextField T="string"
                                               @bind-Value="row.QuantityStr"
                                               Dense="true" Variant="Variant.Outlined" Size="Size.Small"
                                               Style="width: 60px;"
-                                              Immediate="true" />
+                                              />
                             </MudTd>
                             <MudTd>
                                 <MudTextField T="string"
                                               @bind-Value="row.WeightStr"
                                               Dense="true" Variant="Variant.Outlined" Size="Size.Small"
                                               Style="width: 80px;"
-                                              Immediate="true" />
+                                              />
                             </MudTd>
                             <MudTd>
                                 <MudTextField T="string"
@@ -198,13 +192,13 @@
                                               Dense="true" Variant="Variant.Outlined" Size="Size.Small"
                                               Placeholder="yyyy-MM-dd"
                                               Style="width: 120px;"
-                                              Immediate="true" />
+                                              />
                             </MudTd>
                             <MudTd>
                                 <MudTextField T="string"
                                               @bind-Value="row.Remark"
                                               Dense="true" Variant="Variant.Outlined" Size="Size.Small"
-                                              Immediate="true" />
+                                              />
                             </MudTd>
                             <MudTd>
                                 <MudAutocomplete T="SupplierProfileDto"
@@ -215,14 +209,14 @@
                                                  SearchFunc="@(search => FilterSuppliers(row, search))"
                                                  ToStringFunc="@FormatSupplier"
                                                  Dense="true" Variant="Variant.Outlined" Size="Size.Small"
-                                                 Immediate="true" Clearable="true" />
+                                                 Clearable="true" />
                             </MudTd>
                             <MudTd>
                                 <MudTextField T="string"
                                               @bind-Value="row.UnitPriceStr"
                                               Dense="true" Variant="Variant.Outlined" Size="Size.Small"
                                               Style="width: 60px;"
-                                              Immediate="true" />
+                                              />
                             </MudTd>
                             <MudTd>
                                 <MudIconButton Icon="@Icons.Material.Filled.Delete"
@@ -231,8 +225,7 @@
                             </MudTd>
                         </RowTemplate>
                     </MudTable>
-                </div>
-            }
+                </div></div>
         </MudCardContent>
     </MudCard>
 </MudContainer>
@@ -240,6 +233,7 @@
 @code {
     private List<PurchaseOrderRow> rows = new();
     private bool isSubmitting;
+    private bool _isArrowNavSetup;
     private List<SupplierProfileDto> allSuppliers = new();
     private List<ProcurementStatusDto> procurementItems = new();
     private bool showProcurementStatus = false;
@@ -294,7 +288,7 @@
     private async Task AddRowFromProcurement(ProcurementStatusDto item)
     {
         // 获取用料计划详情
-        var result = await PurchaseService.GetPlanDetailAsync(item.WorkOrderNo, item.MaterialCategory);
+        var result = await PurchaseService.GetPlanDetailAsync(item.WorkOrderNo, item.MaterialCategory ?? "");
         if (!result.Success || result.Data == null)
         {
             Snackbar.Add($"未找到工单 {item.WorkOrderNo} 的用料计划", Severity.Warning);
@@ -407,18 +401,37 @@
         }
         if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
 
-        // 物料匹配检测
+        // 物料匹配检测（单次批量查询替代 N 次串行 HTTP）
         var unmatched = new List<(int Index, string Category, string Grade, string Spec)>();
-        for (int i = 0; i < rows.Count; i++)
+        var matchItems = rows
+            .Select((r, i) => (Row: r, Index: i + 1))
+            .Where(x => !string.IsNullOrWhiteSpace(x.Row.MaterialCategory) &&
+                        !string.IsNullOrWhiteSpace(x.Row.PlantGrade) &&
+                        !string.IsNullOrWhiteSpace(x.Row.Specification))
+            .ToList();
+
+        if (matchItems.Any())
         {
-            var r = rows[i];
-            if (!string.IsNullOrWhiteSpace(r.MaterialCategory) &&
-                !string.IsNullOrWhiteSpace(r.PlantGrade) &&
-                !string.IsNullOrWhiteSpace(r.Specification))
+            var batchResult = await MaterialService.BatchMatchAsync(
+                matchItems.Select(x => new BatchMaterialMatchItem
+                {
+                    Category = x.Row.MaterialCategory,
+                    Grade = x.Row.PlantGrade,
+                    Spec = x.Row.Specification
+                }).ToList());
+
+            if (batchResult?.Data != null && batchResult.Data.Count > 0)
             {
-                var result = await MaterialService.MatchAsync(r.MaterialCategory, r.PlantGrade, r.Specification);
-                if (result?.Data == null)
-                    unmatched.Add((i + 1, r.MaterialCategory, r.PlantGrade, r.Specification));
+                var unmatchedSet = batchResult.Data
+                    .Select(m => $"{m.Category}|{m.Grade}|{m.Spec}")
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var x in matchItems)
+                {
+                    var key = $"{x.Row.MaterialCategory}|{x.Row.PlantGrade}|{x.Row.Specification}";
+                    if (unmatchedSet.Contains(key))
+                        unmatched.Add((x.Index, x.Row.MaterialCategory, x.Row.PlantGrade, x.Row.Specification));
+                }
             }
         }
 
@@ -580,4 +593,14 @@
     }
 
     private void GoBack() => Navigation.NavigateTo("/purchase-orders");
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#purchase-order-create-table"))
+                _isArrowNavSetup = false;
+        }
+    }
 }

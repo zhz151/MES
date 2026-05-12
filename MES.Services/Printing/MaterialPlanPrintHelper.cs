@@ -3,6 +3,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using MES.Data.Entities;
 using MES.Core.Enums;
+using MES.Core.Exceptions;
 
 namespace MES.Services.Printing;
 
@@ -106,7 +107,7 @@ public static class MaterialPlanPrintHelper
     // ==============================
     public static Document CreateBatchSemiPlanDocument(List<(PurchaseSemiPlan plan, WorkOrder workOrder)> items)
     {
-        if (!items.Any()) throw new ArgumentException("items cannot be empty");
+        if (!items.Any()) throw new BusinessException("items cannot be empty");
         return Document.Create(container =>
         {
             container.Page(page =>
@@ -185,7 +186,7 @@ public static class MaterialPlanPrintHelper
     // ==============================
     public static Document CreateBatchFinishPlanDocument(List<(PurchaseFinishedPlan plan, WorkOrder workOrder)> items)
     {
-        if (!items.Any()) throw new ArgumentException("items cannot be empty");
+        if (!items.Any()) throw new BusinessException("items cannot be empty");
         return Document.Create(container =>
         {
             container.Page(page =>
@@ -281,7 +282,7 @@ public static class MaterialPlanPrintHelper
     // ==============================
     public static Document CreateBatchInventoryPlanDocument(List<(InventoryPlan plan, WorkOrder workOrder)> items)
     {
-        if (!items.Any()) throw new ArgumentException("items cannot be empty");
+        if (!items.Any()) throw new BusinessException("items cannot be empty");
         return Document.Create(container =>
         {
             container.Page(page =>
@@ -352,7 +353,7 @@ public static class MaterialPlanPrintHelper
     // ==============================
     public static Document CreateBatchReworkPlanDocument(List<(InventoryPlan plan, WorkOrder workOrder)> items)
     {
-        if (!items.Any()) throw new ArgumentException("items cannot be empty");
+        if (!items.Any()) throw new BusinessException("items cannot be empty");
         return Document.Create(container =>
         {
             container.Page(page =>

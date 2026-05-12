@@ -17,10 +17,28 @@ public class ColumnDef
     public bool Visible { get; set; } = true;
 
     /// <summary>
+    /// 排序字段名（null表示不可排序）
+    /// </summary>
+    [JsonIgnore]
+    public string? SortKey { get; set; }
+
+    /// <summary>
     /// 是否适用于当前仓库类型（仓库固有属性，不序列化到 localStorage）
     /// </summary>
     [JsonIgnore]
     public bool IsApplicable { get; set; } = true;
+
+    /// <summary>
+    /// 是否为公共字段（新增行时自动从上一行复制，不序列化到 localStorage）
+    /// </summary>
+    [JsonIgnore]
+    public bool IsCommon { get; set; }
+
+    /// <summary>
+    /// 是否为必填字段（表头显示红色星号，不序列化到 localStorage）
+    /// </summary>
+    [JsonIgnore]
+    public bool IsRequired { get; set; }
 }
 
 /// <summary>

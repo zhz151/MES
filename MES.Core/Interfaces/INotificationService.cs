@@ -18,7 +18,7 @@ public interface INotificationService
     /// <summary>
     /// 分页获取通知列表
     /// </summary>
-    Task<PagedResult<OrderChangeNotificationDto>> GetPagedNotificationsAsync(int pageIndex, int pageSize);
+    Task<PagedResult<NotificationDto>> GetPagedNotificationsAsync(int pageIndex, int pageSize);
 
     /// <summary>
     /// 标记单条通知为已读
@@ -34,4 +34,14 @@ public interface INotificationService
     /// 检查是否存在最近（N分钟内）的未读项次变更通知（用于去重）
     /// </summary>
     Task<bool> HasRecentItemChangedNotificationAsync(string orderNumber, int minutes);
+
+    /// <summary>
+    /// 获取指定类型的未读通知列表
+    /// </summary>
+    Task<List<NotificationDto>> GetUnreadByTypeAsync(string notificationType);
+
+    /// <summary>
+    /// 标记指定类型的所有通知为已读
+    /// </summary>
+    Task MarkAllByTypeAsReadAsync(string notificationType);
 }

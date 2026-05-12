@@ -2,6 +2,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using MES.Core.DTOs;
+using MES.Core.Enums;
 
 namespace MES.Services.Printing;
 
@@ -242,13 +243,13 @@ public static class SubcontractOrderPrintHelper
         });
     }
 
-    private static string GetStatusText(string status) => status switch
+    private static string GetStatusText(SubcontractOrderStatus status) => status switch
     {
-        "Sent" => "已发出",
-        "PartialReturned" => "部分收回",
-        "Completed" => "已完成",
-        "Cancelled" => "已取消",
-        _ => status
+        SubcontractOrderStatus.Sent => "已发出",
+        SubcontractOrderStatus.PartialReturned => "部分收回",
+        SubcontractOrderStatus.Completed => "已完成",
+        SubcontractOrderStatus.Cancelled => "已取消",
+        _ => status.ToString()
     };
 
     private static string FormatNullableDecimal(decimal? value)

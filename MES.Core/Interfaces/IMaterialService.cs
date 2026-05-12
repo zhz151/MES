@@ -10,6 +10,11 @@ public interface IMaterialService
     Task<List<MaterialDto>> GetActiveAsync();
     Task<List<string>> GetCategoriesAsync();
     Task<MaterialDto?> MatchAsync(string category, string grade, string spec);
+
+    /// <summary>
+    /// 批量匹配物料，返回不存在的物料列表
+    /// </summary>
+    Task<List<BatchMaterialMatchItem>> BatchMatchAsync(List<BatchMaterialMatchItem> items);
     Task<MaterialDto> CreateAsync(CreateMaterialRequest request);
     Task<List<MaterialDto>> CreateBatchAsync(List<CreateMaterialRequest> requests);
     Task<MaterialDto> UpdateAsync(int id, UpdateMaterialRequest request);

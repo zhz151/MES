@@ -92,7 +92,7 @@ public class WorkOrderServiceTests : TestBase
         var items = await ctx.OrderItems
             .Where(oi => oi.SalesOrderId == orderId)
             .ToListAsync();
-        var itemIds = items.Select(i => i.Id).ToList();
+        var itemIds = items.Select(i => i.Sequence).ToList();
 
         var svc = CreateService(ctx);
         var generated = await svc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
@@ -185,7 +185,7 @@ public class WorkOrderServiceTests : TestBase
         var items = await ctx.OrderItems
             .Where(oi => oi.SalesOrderId == orderId)
             .ToListAsync();
-        var itemIds = items.Select(i => i.Id).ToList();
+        var itemIds = items.Select(i => i.Sequence).ToList();
 
         var svc = CreateService(ctx);
 
@@ -220,7 +220,7 @@ public class WorkOrderServiceTests : TestBase
         var items = await ctx.OrderItems
             .Where(oi => oi.SalesOrderId == orderId)
             .ToListAsync();
-        var itemIds = items.Select(i => i.Id).ToList();
+        var itemIds = items.Select(i => i.Sequence).ToList();
 
         var svc = CreateService(ctx);
 
@@ -268,7 +268,7 @@ public class WorkOrderServiceTests : TestBase
             SalesOrderNo = orderNo,
             WorkOrders = new List<WorkOrderItemGroup>
             {
-                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = items.Select(i => i.Id).ToList() }
+                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
             }
         });
 
@@ -298,7 +298,7 @@ public class WorkOrderServiceTests : TestBase
             SalesOrderNo = orderNo,
             WorkOrders = new List<WorkOrderItemGroup>
             {
-                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = items.Select(i => i.Id).ToList() }
+                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
             }
         });
 
@@ -367,7 +367,7 @@ public class WorkOrderServiceTests : TestBase
             SalesOrderNo = orderNo,
             WorkOrders = new List<WorkOrderItemGroup>
             {
-                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = items.Select(i => i.Id).ToList() }
+                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
             }
         });
 
@@ -392,7 +392,7 @@ public class WorkOrderServiceTests : TestBase
             SalesOrderNo = orderNo,
             WorkOrders = new List<WorkOrderItemGroup>
             {
-                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = items.Select(i => i.Id).ToList() }
+                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
             }
         });
 
@@ -512,7 +512,7 @@ public class WorkOrderServiceTests : TestBase
 
         result.Should().NotBeNull();
         result.Items.Should().Contain(i => i.OrderNumber == orderNo);
-        result.Items[0].WorkOrderStatus.Should().Be("Confirmed");
+        result.Items[0].WorkOrderStatus.Should().Be(WorkOrderStatus.Confirmed);
     }
 
     [Fact]
@@ -533,7 +533,7 @@ public class WorkOrderServiceTests : TestBase
 
         result.Should().NotBeNull();
         result.Items.Should().Contain(i => i.OrderNumber == orderNo);
-        result.Items.All(i => i.WorkOrderStatus == "Confirmed").Should().BeTrue();
+        result.Items.All(i => i.WorkOrderStatus == WorkOrderStatus.Confirmed).Should().BeTrue();
     }
 
     [Fact]

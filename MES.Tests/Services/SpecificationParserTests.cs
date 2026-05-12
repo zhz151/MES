@@ -25,17 +25,17 @@ public class SpecificationParserTests
     }
 
     [Fact]
-    public void ParseOuterDiameter_空字符串_返回零()
+    public void ParseOuterDiameter_空字符串_返回Null()
     {
         var result = SpecificationParser.ParseOuterDiameter("");
-        result.Should().Be(0);
+        result.Should().BeNull();
     }
 
     [Fact]
-    public void ParseOuterDiameter_null_返回零()
+    public void ParseOuterDiameter_null_返回Null()
     {
         var result = SpecificationParser.ParseOuterDiameter(null!);
-        result.Should().Be(0);
+        result.Should().BeNull();
     }
 
     [Fact]
@@ -46,10 +46,10 @@ public class SpecificationParserTests
     }
 
     [Fact]
-    public void ParseOuterDiameter_非法格式_返回零()
+    public void ParseOuterDiameter_非法格式_返回Null()
     {
         var result = SpecificationParser.ParseOuterDiameter("abc*def");
-        result.Should().Be(0);
+        result.Should().BeNull();
     }
 
     [Fact]
@@ -76,31 +76,31 @@ public class SpecificationParserTests
     }
 
     [Fact]
-    public void ParseWallThickness_空字符串_返回零()
+    public void ParseWallThickness_空字符串_返回Null()
     {
         var result = SpecificationParser.ParseWallThickness("");
-        result.Should().Be(0);
+        result.Should().BeNull();
     }
 
     [Fact]
-    public void ParseWallThickness_null_返回零()
+    public void ParseWallThickness_null_返回Null()
     {
         var result = SpecificationParser.ParseWallThickness(null!);
-        result.Should().Be(0);
+        result.Should().BeNull();
     }
 
     [Fact]
-    public void ParseWallThickness_只有外径无星号_返回零()
+    public void ParseWallThickness_只有外径无星号_返回Null()
     {
         var result = SpecificationParser.ParseWallThickness("159");
-        result.Should().Be(0);
+        result.Should().BeNull();
     }
 
     [Fact]
-    public void ParseWallThickness_非法格式_返回零()
+    public void ParseWallThickness_非法格式_返回Null()
     {
         var result = SpecificationParser.ParseWallThickness("abc*def");
-        result.Should().Be(0);
+        result.Should().BeNull();
     }
 
     [Fact]

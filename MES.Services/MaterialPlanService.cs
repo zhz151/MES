@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MES.Core.DTOs;
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Interfaces;
@@ -24,14 +25,7 @@ public class MaterialPlanService : IMaterialPlanService
     /// <summary>
     /// 工厂牌号替代映射（高级可替低级）：key=低级, value=高级
     /// </summary>
-    private static readonly Dictionary<string, string> GradeSubstitutes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["30400"] = "304L0",
-        ["31600"] = "316L0",
-        ["316H0"] = "31600",
-        ["34700"] = "347H0",
-        ["22051"] = "22052"
-    };
+    private static readonly Dictionary<string, string> GradeSubstitutes = Core.Constants.GradeSubstitutes.Mapping;
 
     public MaterialPlanService(AppDbContext context, ILogger<MaterialPlanService> logger)
     {
@@ -228,6 +222,71 @@ public class MaterialPlanService : IMaterialPlanService
         return plan.ToDto();
     }
 
+    public async Task<List<PurchaseFinishedPlanDto>> CreateFinishedPlanBatchAsync(List<CreatePurchaseFinishedPlanRequest> requests)
+    {
+        if (requests.Count == 0)
+            return new List<PurchaseFinishedPlanDto>();
+
+        // 校验所有请求属于同一工单
+        var distinctWorkOrderIds = requests.Select(r => r.WorkOrderId).Distinct().ToList();
+        if (distinctWorkOrderIds.Count > 1)
+            throw new BusinessException("批量创建成品采购计划时所有记录必须属于同一工单");
+
+        var workOrderId = distinctWorkOrderIds[0];
+        var workOrder = await _context.WorkOrders.FindAsync(workOrderId);
+        if (workOrder == null)
+            throw new BusinessException("工单不存在");
+
+        var plans = new List<PurchaseFinishedPlan>();
+        foreach (var request in requests)
+        {
+            if (workOrder.LengthStatus == LengthStatus.Fixed && (request.RequiredPiece == null || request.RequiredPiece <= 0))
+                throw new BusinessException("定尺模式下采购支数不能为空");
+
+            plans.Add(new PurchaseFinishedPlan
+            {
+                WorkOrderId = workOrderId,
+                PlanDate = request.PlanDate,
+                ProductType = Enum.TryParse<FinishedProductType>(request.ProductType, out var pt)
+                    ? pt
+                    : throw new BusinessException($"无效的成品类型: {request.ProductType}"),
+                RequiredPiece = request.RequiredPiece,
+                RequiredWeight = request.RequiredWeight,
+                RequiredDate = request.RequiredDate,
+                Remark = request.Remark,
+                PlantGrade = request.PlantGrade,
+                Specification = request.Specification,
+                OuterDiameterNegative = request.OuterDiameterNegative,
+                OuterDiameterPositive = request.OuterDiameterPositive,
+                WallThicknessNegative = request.WallThicknessNegative,
+                WallThicknessPositive = request.WallThicknessPositive,
+                LengthStatus = Enum.TryParse<LengthStatus>(request.LengthStatus, out var ls)
+                    ? ls : LengthStatus.Fixed,
+                MinLength = request.MinLength,
+                MaxLength = request.MaxLength,
+                DeliveryState = Enum.TryParse<DeliveryState>(request.DeliveryState, out var ds)
+                    ? ds : DeliveryState.SolutionAnnealedAndPickled,
+            });
+        }
+
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            _context.PurchaseFinishedPlans.AddRange(plans);
+            await _context.SaveChangesAsync();
+            await UpdateMaterialPlanStatusAsync(workOrderId);
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+
+        _logger.LogInformation("批量创建成品采购计划成功: 工单ID {WorkOrderId}, 共 {Count} 条", workOrderId, plans.Count);
+        return plans.Select(p => p.ToDto()).ToList();
+    }
+
     public async Task DeleteFinishedPlanAsync(int id)
     {
         var plan = await _context.PurchaseFinishedPlans.FindAsync(id);
@@ -361,6 +420,102 @@ public class MaterialPlanService : IMaterialPlanService
         return plan.ToDto();
     }
 
+    public async Task<List<InventoryPlanDto>> CreateInventoryPlanBatchAsync(List<CreateInventoryPlanRequest> requests)
+    {
+        if (requests.Count == 0)
+            return new List<InventoryPlanDto>();
+
+        // 校验所有请求属于同一工单
+        var distinctWorkOrderIds = requests.Select(r => r.WorkOrderId).Distinct().ToList();
+        if (distinctWorkOrderIds.Count > 1)
+            throw new BusinessException("批量创建库存使用计划时所有记录必须属于同一工单");
+
+        var workOrderId = distinctWorkOrderIds[0];
+        var workOrder = await _context.WorkOrders.FindAsync(workOrderId);
+        if (workOrder == null)
+            throw new BusinessException("工单不存在");
+
+        // 一次性加载所有库存批次
+        var batchNos = requests.Select(r => r.InventoryBatchNo).Distinct().ToList();
+        var batches = await _context.InventoryBatches
+            .Where(b => batchNos.Contains(b.BatchNo))
+            .ToDictionaryAsync(b => b.BatchNo);
+
+        // 校验：批次未被其他工单的未取消库存使用计划引用（排除自身工单）
+        var conflictBatchNo = await _context.InventoryPlans
+            .Where(p => p.WorkOrderId != workOrderId
+                && batchNos.Contains(p.InventoryBatchNo)
+                && p.PlanStatus != InventoryPlanStatus.Cancelled)
+            .Select(p => p.InventoryBatchNo)
+            .FirstOrDefaultAsync();
+        if (conflictBatchNo != null)
+            throw new BusinessException($"库存批次 {conflictBatchNo} 已被其他工单的库存使用计划引用");
+
+        var plans = new List<InventoryPlan>();
+        foreach (var request in requests)
+        {
+            if (!batches.TryGetValue(request.InventoryBatchNo, out var batch))
+                throw new BusinessException($"库存批次不存在: {request.InventoryBatchNo}");
+
+            // 校验用量
+            if (request.UsageMode == "All")
+            {
+                request.UsedQuantity = batch.RemainingQuantity;
+                request.UsedWeight = batch.RemainingWeight;
+            }
+            else
+            {
+                if (request.UsedQuantity == null || request.UsedQuantity <= 0)
+                    throw new BusinessException($"批次 {request.InventoryBatchNo}：部分使用模式下出库支数必须大于0");
+                if (request.UsedWeight <= 0)
+                    throw new BusinessException($"批次 {request.InventoryBatchNo}：出库重量必须大于0");
+                if (request.UsedQuantity > batch.RemainingQuantity)
+                    throw new BusinessException($"批次 {request.InventoryBatchNo}：出库支数({request.UsedQuantity})超过库存剩余支数({batch.RemainingQuantity})");
+                if (request.UsedWeight > batch.RemainingWeight)
+                    throw new BusinessException($"批次 {request.InventoryBatchNo}：出库重量({request.UsedWeight})超过库存剩余重量({batch.RemainingWeight})");
+            }
+
+            plans.Add(new InventoryPlan
+            {
+                WorkOrderId = workOrderId,
+                PlanDate = request.PlanDate,
+                InventoryBatchNo = request.InventoryBatchNo,
+                BatchNo = batch.BatchNo,
+                MaterialType = batch.MaterialType,
+                PlantGrade = batch.PlantGrade,
+                Specification = batch.Specification,
+                LocationArea = batch.LocationArea,
+                LocationRack = batch.LocationRack,
+                InputMultiple = request.InputMultiple,
+                UsageMode = request.UsageMode,
+                UsedQuantity = request.UsedQuantity,
+                UsedWeight = request.UsedWeight,
+                RequiredDate = request.RequiredDate,
+                PlanStatus = InventoryPlanStatus.Planned,
+                Remark = request.Remark,
+                ReworkType = request.ReworkType != null ? Enum.Parse<ReworkType>(request.ReworkType) : null,
+                ProcessPlan = request.ProcessPlan
+            });
+        }
+
+        _context.InventoryPlans.AddRange(plans);
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+            await UpdateMaterialPlanStatusAsync(workOrderId);
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+
+        _logger.LogInformation("批量创建库存使用计划成功: 工单ID {WorkOrderId}, 共 {Count} 条", workOrderId, plans.Count);
+        return plans.Select(p => p.ToDto()).ToList();
+    }
+
     public async Task DeleteInventoryPlanAsync(int id)
     {
         var plan = await _context.InventoryPlans.FindAsync(id);
@@ -396,8 +551,13 @@ public class MaterialPlanService : IMaterialPlanService
             throw new BusinessException("工单不存在");
 
         // 解析外径和壁厚
-        var od = SpecificationParser.ParseOuterDiameter(workOrder.Specification);
-        var wt = SpecificationParser.ParseWallThickness(workOrder.Specification);
+        var odOrNull = SpecificationParser.ParseOuterDiameter(workOrder.Specification);
+        var wtOrNull = SpecificationParser.ParseWallThickness(workOrder.Specification);
+        if (odOrNull == null || wtOrNull == null)
+            return new List<AvailableInventoryBatchDto>();
+
+        var od = odOrNull.Value;
+        var wt = wtOrNull.Value;
 
         // 计算实际OD和WT（公差中值）
         var odActual = od - 0.5m * workOrder.OuterDiameterNegative + 0.5m * workOrder.OuterDiameterPositive;
@@ -447,7 +607,7 @@ public class MaterialPlanService : IMaterialPlanService
         var query = _context.InventoryBatches
             .AsNoTracking()
             .Where(b => b.RemainingWeight > 0
-                && (b.MaterialType == "备料成品" || b.MaterialType == "余库料")
+                && InventoryMaterialTypes.InventoryPlanUsable.Contains(b.MaterialType)
                 && !usedBatchNos.Contains(b.BatchNo));
 
         // 牌号条件：精确匹配 或 高级替代
@@ -527,7 +687,7 @@ public class MaterialPlanService : IMaterialPlanService
         return available;
     }
 
-    public async Task<List<AvailableInventoryBatchDto>> GetAvailableReworkInventoryAsync(int workOrderId, string reworkType)
+    public async Task<List<AvailableInventoryBatchDto>> GetAvailableReworkInventoryAsync(int workOrderId, ReworkType reworkType)
     {
         var workOrder = await _context.WorkOrders.AsNoTracking()
             .FirstOrDefaultAsync(wo => wo.Id == workOrderId);
@@ -535,8 +695,13 @@ public class MaterialPlanService : IMaterialPlanService
             throw new BusinessException("工单不存在");
 
         // 解析名义外径和壁厚
-        var nominalOd = SpecificationParser.ParseOuterDiameter(workOrder.Specification);
-        var nominalWt = SpecificationParser.ParseWallThickness(workOrder.Specification);
+        var nominalOdOrNull = SpecificationParser.ParseOuterDiameter(workOrder.Specification);
+        var nominalWtOrNull = SpecificationParser.ParseWallThickness(workOrder.Specification);
+        if (nominalOdOrNull == null || nominalWtOrNull == null)
+            return new List<AvailableInventoryBatchDto>();
+
+        var nominalOd = nominalOdOrNull.Value;
+        var nominalWt = nominalWtOrNull.Value;
 
         // 计算测算OD/WT（公差中值法）
         var calculatedOd = nominalOd - 0.5m * workOrder.OuterDiameterNegative + 0.5m * workOrder.OuterDiameterPositive;
@@ -594,17 +759,13 @@ public class MaterialPlanService : IMaterialPlanService
         // 物料名称筛选
         query = reworkType switch
         {
-            "EmptyDrawing" or "FewerPass" => query.Where(b =>
-                b.MaterialType == "备料成品"
-                || (b.MaterialType == "中间品" && !b.IsLinkedToWorkOrder)
-                || b.MaterialType == "余库料"
-                || (b.MaterialType == "次品中间品" && b.LiabilityType == "厂部")
-                || (b.MaterialType == "次品成品" && b.LiabilityType == "厂部")),
-            "ManualSelect" => query.Where(b =>
-                b.MaterialType != "圆棒"
-                && b.MaterialType != "次品圆棒"
-                && b.MaterialType != "次品荒管"
-                && b.MaterialType != "报废品"),
+            ReworkType.EmptyDrawing or ReworkType.FewerPass => query.Where(b =>
+                InventoryMaterialTypes.EmptyDrawingReworkUsable.Contains(b.MaterialType)
+                || (b.MaterialType == InventoryMaterialTypes.SemiFinished && !b.IsLinkedToWorkOrder)
+                || (b.MaterialType == InventoryMaterialTypes.DefectSemi && b.LiabilityType == "厂部")
+                || (b.MaterialType == InventoryMaterialTypes.DefectFinished && b.LiabilityType == "厂部")),
+            ReworkType.ManualSelect => query.Where(b =>
+                !InventoryMaterialTypes.ManualSelectReworkExcluded.Contains(b.MaterialType)),
             _ => query.Where(b => false) // 未知类型返回空
         };
 
@@ -613,23 +774,23 @@ public class MaterialPlanService : IMaterialPlanService
         // 计算各类型边界条件
         var odMin = reworkType switch
         {
-            "EmptyDrawing" => Math.Round(calculatedOd * 1.05m, 3),
-            "FewerPass" => Math.Round(calculatedOd * 1.1m, 3),
+            ReworkType.EmptyDrawing => Math.Round(calculatedOd * 1.05m, 3),
+            ReworkType.FewerPass => Math.Round(calculatedOd * 1.1m, 3),
             _ => 0m // ManualSelect: 不限外径
         };
         var odMax = Math.Round(calculatedOd * 2m, 3);
 
         var wtMin = reworkType switch
         {
-            "EmptyDrawing" => Math.Round(calculatedWt * 0.95m, 3),
-            "FewerPass" => Math.Round(calculatedWt * 1.05m, 3),
-            "ManualSelect" => Math.Round(calculatedWt, 3),
+            ReworkType.EmptyDrawing => Math.Round(calculatedWt * 0.95m, 3),
+            ReworkType.FewerPass => Math.Round(calculatedWt * 1.05m, 3),
+            ReworkType.ManualSelect => Math.Round(calculatedWt, 3),
             _ => 0m
         };
         var wtMax = reworkType switch
         {
-            "EmptyDrawing" => Math.Round(calculatedWt * 1.05m, 3),
-            "FewerPass" => Math.Round(calculatedWt * 2m, 3),
+            ReworkType.EmptyDrawing => Math.Round(calculatedWt * 1.05m, 3),
+            ReworkType.FewerPass => Math.Round(calculatedWt * 2m, 3),
             _ => decimal.MaxValue // ManualSelect: 不限壁厚上限
         };
 
@@ -639,7 +800,7 @@ public class MaterialPlanService : IMaterialPlanService
             .Where(b =>
             {
                 // 外径条件
-                if (reworkType != "ManualSelect" && b.ActualOuterDiameter.HasValue)
+                if (reworkType != ReworkType.ManualSelect && b.ActualOuterDiameter.HasValue)
                 {
                     if (b.ActualOuterDiameter < odMin || b.ActualOuterDiameter > odMax)
                         return false;
@@ -720,12 +881,15 @@ public class MaterialPlanService : IMaterialPlanService
         result.Density = gradeMapping?.Density ?? 7.93m; // 默认密度
 
         // 2. 解析外径
-        var od = SpecificationParser.ParseOuterDiameter(workOrder.Specification);
+        var odOrNull = SpecificationParser.ParseOuterDiameter(workOrder.Specification);
 
         // 3. 单米重量(kg/m) = π × 密度 × 调整壁厚 × (外径 - 调整壁厚) / 1000
         var adjustedWT = request.AdjustedWallThickness;
-        result.UnitWeightPerMeter = Math.Round(
-            (decimal)Math.PI * result.Density * adjustedWT * (od - adjustedWT) / 1000m, 6);
+        if (odOrNull.HasValue)
+        {
+            result.UnitWeightPerMeter = Math.Round(
+                (decimal)Math.PI * result.Density * adjustedWT * (odOrNull.Value - adjustedWT) / 1000m, 6);
+        }
 
         // 4. 非定尺：不计算单重
         if (workOrder.LengthStatus == LengthStatus.NonFixed)
@@ -1276,10 +1440,10 @@ internal static class MaterialPlanMappingExtensions
             OuterDiameterPositive = entity.OuterDiameterPositive,
             WallThicknessNegative = entity.WallThicknessNegative,
             WallThicknessPositive = entity.WallThicknessPositive,
-            LengthStatus = entity.LengthStatus.ToString(),
+            LengthStatus = entity.LengthStatus,
             MinLength = entity.MinLength,
             MaxLength = entity.MaxLength,
-            DeliveryState = entity.DeliveryState.ToString()
+            DeliveryState = entity.DeliveryState
         };
     }
 

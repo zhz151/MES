@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.DataExchange;
@@ -24,9 +25,9 @@ public class DataExchangeServiceTests : TestBase
     // ========== Registry 验证 ==========
 
     [Fact]
-    public void Registry_包含所有18个实体()
+    public void Registry_包含所有24个实体()
     {
-        DataExchangeService.Registry.Should().HaveCount(18);
+        DataExchangeService.Registry.Should().HaveCount(24);
     }
 
     [Fact]
@@ -110,13 +111,13 @@ public class DataExchangeServiceTests : TestBase
     }
 
     [Fact]
-    public async Task GenerateTemplateAsync_不支持的实体_抛出ArgumentException()
+    public async Task GenerateTemplateAsync_不支持的实体_抛出BusinessException()
     {
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
         var act = () => svc.GenerateTemplateAsync("NonExistent");
-        await act.Should().ThrowAsync<ArgumentException>();
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不支持*");
     }
 
     [Fact]
@@ -194,13 +195,13 @@ public class DataExchangeServiceTests : TestBase
     }
 
     [Fact]
-    public async Task ExportAsync_不支持的实体_抛出ArgumentException()
+    public async Task ExportAsync_不支持的实体_抛出BusinessException()
     {
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
         var act = () => svc.ExportAsync("NonExistent");
-        await act.Should().ThrowAsync<ArgumentException>();
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不支持*");
     }
 
     [Fact]

@@ -2,6 +2,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using MES.Core.DTOs;
+using MES.Core.Enums;
 
 namespace MES.Services.Printing;
 
@@ -113,13 +114,13 @@ public static class PurchaseOrderPrintHelper
         });
     }
 
-    private static string GetStatusText(string status) => status switch
+    private static string GetStatusText(PurchaseOrderStatus status) => status switch
     {
-        "Open" => "已下单",
-        "Partial" => "部分到货",
-        "Completed" => "已完成",
-        "Cancelled" => "已取消",
-        _ => status
+        PurchaseOrderStatus.Open => "已下单",
+        PurchaseOrderStatus.Partial => "部分到货",
+        PurchaseOrderStatus.Completed => "已完成",
+        PurchaseOrderStatus.Cancelled => "已取消",
+        _ => status.ToString()
     };
 
     private static IContainer CellHeaderStyle(IContainer container)

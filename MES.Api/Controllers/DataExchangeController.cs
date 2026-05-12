@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
+using MES.Core.Interfaces;
 using MES.Core.Models;
-using MES.Services.DataExchange;
 using MES.Shared.Constants;
 
 namespace MES.Api.Controllers;
@@ -15,10 +15,10 @@ namespace MES.Api.Controllers;
 [Authorize]
 public class DataExchangeController : ControllerBase
 {
-    private readonly DataExchangeService _service;
+    private readonly IDataExchangeService _service;
     private readonly ILogger<DataExchangeController> _logger;
 
-    public DataExchangeController(DataExchangeService service, ILogger<DataExchangeController> logger)
+    public DataExchangeController(IDataExchangeService service, ILogger<DataExchangeController> logger)
     {
         _service = service;
         _logger = logger;
@@ -29,15 +29,10 @@ public class DataExchangeController : ControllerBase
     /// </summary>
     [HttpGet("entities")]
     [Authorize]
-    public ActionResult<ApiResponse<List<object>>> GetEntities()
+    public async Task<ActionResult<ApiResponse<List<EntityInfo>>>> GetEntities()
     {
-        var entities = DataExchangeService.Registry.Select(kvp => new
-        {
-            key = kvp.Key,
-            name = kvp.Value.DisplayName,
-        }).ToList();
-
-        return Ok(ApiResponse<List<object>>.Ok(entities.Cast<object>().ToList(), "查询成功"));
+        var entities = await _service.GetEntitiesAsync();
+        return Ok(ApiResponse<List<EntityInfo>>.Ok(entities, "查询成功"));
     }
 
     /// <summary>
@@ -50,9 +45,8 @@ public class DataExchangeController : ControllerBase
         try
         {
             var data = await _service.ExportAsync(entityKey);
-
-            var def = DataExchangeService.Registry[entityKey];
-            var fileName = $"{def.DisplayName}_{DateTime.Today:yyyyMMdd}.xlsx";
+            var displayName = _service.GetEntityDisplayName(entityKey);
+            var fileName = $"{displayName}_{DateTime.Today:yyyyMMdd}.xlsx";
 
             return File(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
@@ -73,9 +67,8 @@ public class DataExchangeController : ControllerBase
         try
         {
             var data = await _service.GenerateTemplateAsync(entityKey);
-
-            var def = DataExchangeService.Registry[entityKey];
-            var fileName = $"{def.DisplayName}_模板.xlsx";
+            var displayName = _service.GetEntityDisplayName(entityKey);
+            var fileName = $"{displayName}_模板.xlsx";
 
             return File(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }

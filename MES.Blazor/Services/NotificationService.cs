@@ -35,17 +35,17 @@ public class NotificationService
     /// <summary>
     /// 分页获取通知列表
     /// </summary>
-    public async Task<ApiResponse<PagedResult<OrderChangeNotificationDto>>> GetPagedAsync(int pageIndex, int pageSize)
+    public async Task<ApiResponse<PagedResult<NotificationDto>>> GetPagedAsync(int pageIndex, int pageSize)
     {
         try
         {
             var url = $"{BaseUrl}/list?pageIndex={pageIndex}&pageSize={pageSize}";
-            var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<OrderChangeNotificationDto>>>(url);
-            return response ?? ApiResponse<PagedResult<OrderChangeNotificationDto>>.Fail("获取通知列表失败");
+            var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<NotificationDto>>>(url);
+            return response ?? ApiResponse<PagedResult<NotificationDto>>.Fail("获取通知列表失败");
         }
         catch (Exception ex)
         {
-            return ApiResponse<PagedResult<OrderChangeNotificationDto>>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<PagedResult<NotificationDto>>.Fail($"网络错误: {ex.Message}");
         }
     }
 
@@ -73,6 +73,38 @@ public class NotificationService
         try
         {
             var response = await _http.PostAsJsonAsync<object, ApiResponse<object>>($"{BaseUrl}/read-all", new { });
+            return response ?? ApiResponse<object>.Fail("标记失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<object>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 获取指定类型的未读通知列表
+    /// </summary>
+    public async Task<ApiResponse<List<NotificationDto>>> GetByTypeAsync(string type)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<NotificationDto>>>($"{BaseUrl}/by-type/{type}");
+            return response ?? ApiResponse<List<NotificationDto>>.Fail("获取通知失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<NotificationDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 标记指定类型的所有通知为已读
+    /// </summary>
+    public async Task<ApiResponse<object>> MarkAllByTypeAsReadAsync(string type)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<object, ApiResponse<object>>($"{BaseUrl}/mark-type/{type}/read", new { });
             return response ?? ApiResponse<object>.Fail("标记失败");
         }
         catch (Exception ex)

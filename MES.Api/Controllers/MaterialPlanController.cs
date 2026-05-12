@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
+using MES.Core.Enums;
 using MES.Core.Interfaces;
 using MES.Core.Exceptions;
 using MES.Core.Models;
@@ -90,6 +91,18 @@ public class MaterialPlanController : ControllerBase
         return Ok(ApiResponse<PurchaseFinishedPlanDto>.Ok(result, "创建成功"));
     }
 
+    [HttpPost("finished/batch")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<PurchaseFinishedPlanDto>>>> CreateFinishedPlanBatch(
+        [FromBody] List<CreatePurchaseFinishedPlanRequest> requests)
+    {
+        if (requests.Count == 0)
+            return BadRequest(ApiResponse<List<PurchaseFinishedPlanDto>>.Fail("请求列表不能为空"));
+
+        var result = await _materialPlanService.CreateFinishedPlanBatchAsync(requests);
+        return Ok(ApiResponse<List<PurchaseFinishedPlanDto>>.Ok(result, "批量创建成功"));
+    }
+
     [HttpDelete("finished/{id}")]
     [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse>> DeleteFinishedPlan(int id)
@@ -129,10 +142,8 @@ public class MaterialPlanController : ControllerBase
     [HttpGet("rework-inventory/{workOrderId}")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<AvailableInventoryBatchDto>>>> GetAvailableReworkInventory(
-        int workOrderId, [FromQuery] string reworkType)
+        int workOrderId, [FromQuery] ReworkType reworkType)
     {
-        if (string.IsNullOrEmpty(reworkType))
-            return BadRequest(ApiResponse<List<AvailableInventoryBatchDto>>.Fail("改制类型不能为空"));
         var result = await _materialPlanService.GetAvailableReworkInventoryAsync(workOrderId, reworkType);
         return Ok(ApiResponse<List<AvailableInventoryBatchDto>>.Ok(result, "查询成功"));
     }
@@ -147,6 +158,18 @@ public class MaterialPlanController : ControllerBase
 
         var result = await _materialPlanService.CreateInventoryPlanAsync(request);
         return Ok(ApiResponse<InventoryPlanDto>.Ok(result, "创建成功"));
+    }
+
+    [HttpPost("inventory/batch")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<InventoryPlanDto>>>> CreateInventoryPlanBatch(
+        [FromBody] List<CreateInventoryPlanRequest> requests)
+    {
+        if (requests.Count == 0)
+            return BadRequest(ApiResponse<List<InventoryPlanDto>>.Fail("请求列表不能为空"));
+
+        var result = await _materialPlanService.CreateInventoryPlanBatchAsync(requests);
+        return Ok(ApiResponse<List<InventoryPlanDto>>.Ok(result, "批量创建成功"));
     }
 
     [HttpDelete("inventory/{id}")]

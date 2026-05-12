@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Data.Entities;
 
 /// <summary>
@@ -26,14 +28,14 @@ public class SubcontractOrder : BaseEntity
     public string ProcessType { get; set; } = null!;
 
     /// <summary>
-    /// 状态（Sent/PartialReturned/Completed/Cancelled）
+    /// 状态
     /// </summary>
-    public string Status { get; set; } = "Sent";
+    public SubcontractOrderStatus Status { get; set; } = SubcontractOrderStatus.Sent;
 
     /// <summary>
-    /// 状态辅助（有值时覆盖Status自动逻辑）
+    /// 强制完成（true时状态固定为已完成，false时自动计算）
     /// </summary>
-    public string? ManualStatus { get; set; }
+    public bool IsForceCompleted { get; set; }
 
     /// <summary>
     /// 发出物料分类

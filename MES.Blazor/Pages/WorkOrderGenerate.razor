@@ -2,13 +2,15 @@
 @using MES.Blazor.Helpers
 @using MES.Blazor.Services
 @using MES.Core.DTOs
+@using MES.Core.Enums
 @using Microsoft.AspNetCore.Authorization
 @inject WorkOrderService WorkOrderService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4" id="workorder-generate-table">
     @if (isLoading)
     {
         <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
@@ -23,15 +25,19 @@
                         生成工单
                     </MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary">订单号：@salesOrderNo</MudText>
-                    @if (workOrderStatus == "Pending")
+                    @if (workOrderStatus == WorkOrderStatus.Pending.ToString())
                     {
-                        <MudChip Size="Size.Small" Color="Color.Warning" Class="ml-2">待修正（全新生成）</MudChip>
+                        <MudChip Size="Size.Small" Color="Color.Warning" Class="ml-2">待修正</MudChip>
                     }
-                    else if (workOrderStatus == "Confirmed" && isRegenerate)
+                    else if (generateMode == WorkOrderGenerateMode.Regenerate)
                     {
-                        <MudChip Size="Size.Small" Color="Color.Success" Class="ml-2">重新生成（保留原编号）</MudChip>
+                        <MudChip Size="Size.Small" Color="Color.Success" Class="ml-2">重新生成（删除重建）</MudChip>
                     }
-                    else if (workOrderStatus == "NotGenerated")
+                    else if (generateMode == WorkOrderGenerateMode.Update)
+                    {
+                        <MudChip Size="Size.Small" Color="Color.Info" Class="ml-2">更新修改（保留原工单号）</MudChip>
+                    }
+                    else if (workOrderStatus == WorkOrderStatus.NotGenerated.ToString())
                     {
                         <MudChip Size="Size.Small" Color="Color.Default" Class="ml-2">首次生成</MudChip>
                     }
@@ -54,53 +60,60 @@
             <MudCardContent>
                 @if (hasError)
                 {
-                    <MudAlert Severity="Severity.Error" Class="mb-4">
-                        <strong>加载失败：</strong>@errorMessage
+                    <MudPaper Class="pa-4 mb-4" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                        <MudText Typo="Typo.body2" Color="Color.Error"><strong>加载失败：</strong>@errorMessage</MudText>
                         <div class="mt-3">
                             <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="GoBack">返回工单列表</MudButton>
                         </div>
-                    </MudAlert>
+                    </MudPaper>
                 }
                 else if (orderItems == null || !orderItems.Any())
                 {
-                    <MudAlert Severity="Severity.Warning">该订单没有有效的项次，无法生成工单。</MudAlert>
                 }
                 else
                 {
-                    <MudAlert Severity="Severity.Info" Class="mb-3">
-                        <strong>说明：</strong>
-                        <ul class="mt-2 mb-0" style="margin-left: 20px;">
-                            <li>相同规格参数的项次会自动合并为同一主号（系统已按规则预分组）</li>
-                            <li>主号可以手动修改，但同一主号下的项次必须满足合并规则</li>
-                            <li>定尺模式下次号必填（格式：C + 两位数字）</li>
-                            <li>范围尺/非定尺模式下次号无需填写</li>
-                            @if (workOrderStatus == "Confirmed" && isRegenerate)
-                            {
-                                <li><strong>重新生成模式：将保留原主号/次号，可手动修改后提交</strong></li>
-                            }
-                            @if (workOrderStatus == "Pending")
-                            {
-                                <li><strong>待修正模式：订单项次已变更，将全新生成工单（不保留原编号）</strong></li>
-                            }
-                        </ul>
-                    </MudAlert>
+                    <!-- 模式切换（仅已有工单时显示） -->
+                    @if (hasExistingWorkOrders)
+                    {
+                        <MudPaper Class="pa-3 mb-3 d-flex align-center" Elevation="0" Style="background-color: #f5f5f5; border-radius: 8px;">
+                            <MudText Typo="Typo.body2" Class="mr-4"><strong>生成模式：</strong></MudText>
+                            <MudButton Variant="@(generateMode == WorkOrderGenerateMode.Regenerate ? Variant.Filled : Variant.Outlined)"
+                                       Color="Color.Success"
+                                       Class="mr-2"
+                                       OnClick="() => SetMode(WorkOrderGenerateMode.Regenerate)"
+                                       Size="Size.Small">
+                                @*<MudIcon Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" Class="mr-1" />*@
+                                重新生成
+                            </MudButton>
+                            <MudButton Variant="@(generateMode == WorkOrderGenerateMode.Update ? Variant.Filled : Variant.Outlined)"
+                                       Color="Color.Info"
+                                       Class="mr-2"
+                                       OnClick="() => SetMode(WorkOrderGenerateMode.Update)"
+                                       Size="Size.Small">
+                                @*<MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Class="mr-1" />*@
+                                更新修改
+                            </MudButton>
+                            <MudTooltip Text="重新生成：删除所有原工单后全新创建（工单号重新分配）；更新修改：保留原工单号/主号/次号，仅增删项次">
+                                <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Secondary" Class="ml-2" />
+                            </MudTooltip>
+                        </MudPaper>
+                    }
+
 
                     <!-- 项次统计信息 -->
-                    <MudAlert Severity="Severity.Info" Class="mb-3" Variant="Variant.Outlined">
+                    <MudText Typo="Typo.body2" Color="Color.Info" Class="mb-3">
                         <strong>项次统计：</strong> 共 @orderItems.Count 个项次
-                        @if (orderItems.Count > 30)
-                        {
-                            <span class="ml-2">项次较多，请在下方表格中滚动查看并填写</span>
-                        }
-                    </MudAlert>
+                        （原有项次 @_existingItemCount 个，新增项次 @_newItemCount 个）
+                    </MudText>
 
-                    <!-- 表格区域：固定高度400px，表头固定，关闭分页，保留排序 -->
+                    <!-- 表格区域：固定高度400px，表头固定，关闭分页 -->
                     <div style="max-height: 400px; overflow-y: auto; border-radius: 4px;">
                         <MudTable T="OrderItemForWorkOrderDto"
                                   Items="@orderItems"
                                   Dense="true"
                                   Hover="true"
                                   Elevation="0"
+                                  Class="auto-table"
                                   RowsPerPage="0"
                                   SortLabel="点击表头排序">
                             <HeaderContent>
@@ -118,6 +131,10 @@
                                 <MudTh SortBy="item => item.ContractWeight">合同重量</MudTh>
                                 <MudTh>主号</MudTh>
                                 <MudTh>次号</MudTh>
+                                @if (generateMode == WorkOrderGenerateMode.Update)
+                                {
+                                    <MudTh>状态</MudTh>
+                                }
                             </HeaderContent>
                             <RowTemplate Context="item">
                                 <MudTd>@item.Sequence</MudTd>
@@ -139,7 +156,7 @@
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
                                                   Style="width: 80px;"
-                                                  Immediate="true" />
+                                                  Class="@GetMainNoFieldClass(item)" />
                                 </MudTd>
                                 <MudTd>
                                     <MudTextField T="string"
@@ -148,16 +165,24 @@
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
                                                   Style="width: 80px;"
-                                                  Placeholder="定尺时必填"
-                                                  Immediate="true" />
+                                                  />
                                 </MudTd>
+                                @if (generateMode == WorkOrderGenerateMode.Update)
+                                {
+                                    <MudTd>
+                                        @if (string.IsNullOrEmpty(item.OriginalMainNo))
+                                        {
+                                            <MudChip Size="Size.Small" Color="Color.Warning">新增</MudChip>
+                                        }
+                                        else
+                                        {
+                                            <MudChip Size="Size.Small" Color="Color.Success">原项次</MudChip>
+                                        }
+                                    </MudTd>
+                                }
                             </RowTemplate>
                         </MudTable>
                     </div>
-
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
-                        提示：点击表头可按列排序，定尺模式下次号格式为 C+两位数字（如 C01）
-                    </MudText>
                 }
             </MudCardContent>
         </MudCard>
@@ -175,32 +200,96 @@
 
     [Parameter]
     [SupplyParameterFromQuery]
-    public bool isRegenerate { get; set; }
+    public bool? regenerate { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public bool? update { get; set; }
 
     private string workOrderStatus => status ?? "NotGenerated";
+
+    private WorkOrderGenerateMode generateMode = WorkOrderGenerateMode.FirstTime;
     private List<OrderItemForWorkOrderDto>? orderItems;
     private Dictionary<int, string> subNoMap = new();
     private bool isLoading = true;
     private bool isSubmitting;
     private bool hasError = false;
     private string errorMessage = string.Empty;
+    private bool hasExistingWorkOrders = false;
+    private int _existingItemCount;
+    private int _newItemCount;
 
     protected override async Task OnInitializedAsync()
     {
-        // 从 NavigationManager 解析查询参数
-        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
-        if (!string.IsNullOrEmpty(uri.Query))
-        {
-            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
-            if (string.IsNullOrEmpty(salesOrderNo))
-                salesOrderNo = query["salesOrderNo"] ?? salesOrderNo;
-            if (string.IsNullOrEmpty(status))
-                status = query["status"] ?? status;
-            if (bool.TryParse(query["regenerate"], out var reg))
-                isRegenerate = reg;
-        }
+        if (regenerate == true)
+            generateMode = WorkOrderGenerateMode.Regenerate;
+        else if (update == true)
+            generateMode = WorkOrderGenerateMode.Update;
 
         await LoadData();
+    }
+
+    private bool _isArrowNavSetup;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#workorder-generate-table"))
+                _isArrowNavSetup = false;
+        }
+    }
+
+    private void SetMode(WorkOrderGenerateMode mode)
+    {
+        if (generateMode == mode) return;
+        generateMode = mode;
+        ApplyModeDefaults();
+    }
+
+    private void ApplyModeDefaults()
+    {
+        if (orderItems == null) return;
+
+        foreach (var item in orderItems)
+        {
+            if (generateMode == WorkOrderGenerateMode.Update)
+            {
+                // 更新修改模式：原项次保留原主号/次号，新增项次清空
+                if (!string.IsNullOrEmpty(item.OriginalMainNo))
+                {
+                    item.SuggestedMainNo = item.OriginalMainNo;
+                    if (!string.IsNullOrEmpty(item.OriginalSubNo))
+                        subNoMap[item.Id] = item.OriginalSubNo;
+                    else if (subNoMap.ContainsKey(item.Id) && !string.IsNullOrEmpty(subNoMap[item.Id]))
+                        subNoMap[item.Id] = string.Empty;
+                }
+                else
+                {
+                    item.SuggestedMainNo = string.Empty;
+                    subNoMap[item.Id] = string.Empty;
+                }
+            }
+            else
+            {
+                // 重新生成/首次生成模式：预填原主号/次号
+                if (!string.IsNullOrEmpty(item.OriginalMainNo))
+                {
+                    item.SuggestedMainNo = item.OriginalMainNo;
+                    if (!string.IsNullOrEmpty(item.OriginalSubNo))
+                        subNoMap[item.Id] = item.OriginalSubNo;
+                }
+            }
+        }
+    }
+
+    private string GetMainNoFieldClass(OrderItemForWorkOrderDto item)
+    {
+        // 更新修改模式下，原有项次的主号只读显示
+        if (generateMode == WorkOrderGenerateMode.Update && !string.IsNullOrEmpty(item.OriginalMainNo))
+            return "readonly-field";
+        return string.Empty;
     }
 
     private async Task LoadData()
@@ -222,20 +311,28 @@
             if (result.Success && result.Data != null && result.Data.Any())
             {
                 orderItems = result.Data;
+
+                // 检查是否有现有工单（基于是否有 OriginalMainNo）
+                _existingItemCount = orderItems.Count(i => !string.IsNullOrEmpty(i.OriginalMainNo));
+                _newItemCount = orderItems.Count - _existingItemCount;
+                hasExistingWorkOrders = _existingItemCount > 0;
+
+                // 如果没有原始工单，强制使用首次生成模式
+                if (!hasExistingWorkOrders)
+                    generateMode = WorkOrderGenerateMode.FirstTime;
+
                 foreach (var item in orderItems)
                 {
                     subNoMap[item.Id] = string.Empty;
 
-                    // 覆盖生成（重新生成）时，预填原主号/次号
-                    if (isRegenerate && !string.IsNullOrEmpty(item.OriginalMainNo))
+                    if (generateMode == WorkOrderGenerateMode.FirstTime && !string.IsNullOrEmpty(item.OriginalMainNo))
                     {
-                        item.SuggestedMainNo = item.OriginalMainNo;
-                        if (!string.IsNullOrEmpty(item.OriginalSubNo))
-                        {
-                            subNoMap[item.Id] = item.OriginalSubNo;
-                        }
+                        // 首次生成但已有数据（待修正全新生成）— 清空预填
+                        item.SuggestedMainNo = string.Empty;
                     }
                 }
+
+                ApplyModeDefaults();
             }
             else
             {
@@ -278,15 +375,15 @@
         {
             var lengthStatus = item.LengthStatus;
             var subNo = subNoMap.GetValueOrDefault(item.Id);
-            if (lengthStatus == "Fixed" && string.IsNullOrEmpty(subNo))
+            if (lengthStatus == LengthStatus.Fixed && string.IsNullOrEmpty(subNo))
             {
                 errors.Add($"项次 {item.Sequence} 为定尺模式，次号不能为空（格式：C+两位数字）");
             }
-            else if (lengthStatus == "Fixed" && !string.IsNullOrEmpty(subNo) && !System.Text.RegularExpressions.Regex.IsMatch(subNo, @"^C\d{2}$"))
+            else if (lengthStatus == LengthStatus.Fixed && !string.IsNullOrEmpty(subNo) && !System.Text.RegularExpressions.Regex.IsMatch(subNo, @"^C\d{2}$"))
             {
                 errors.Add($"项次 {item.Sequence} 的次号格式错误，应为 C+两位数字（如 C01）");
             }
-            else if (lengthStatus != "Fixed" && !string.IsNullOrEmpty(subNo))
+            else if (lengthStatus != LengthStatus.Fixed && !string.IsNullOrEmpty(subNo))
             {
                 errors.Add($"项次 {item.Sequence} 为{DisplayHelper.GetLengthStatusText(lengthStatus)}模式，不需要填写次号");
             }
@@ -298,7 +395,7 @@
             return;
         }
 
-        // 按主号+次号分组（三者相同：订单号+主号+次号，才合并为一个工单）
+        // 按主号+次号分组
         var groups = new Dictionary<(string mainNo, string subNo), List<OrderItemForWorkOrderDto>>();
         foreach (var item in orderItems)
         {
@@ -356,7 +453,7 @@
             {
                 ProductionMainNo = mainNo,
                 ProductionSubNo = string.IsNullOrEmpty(subNo) ? null : subNo,
-                OrderItemIds = group.Value.Select(x => x.Id).ToList()
+                OrderItemIds = group.Value.Select(x => x.Sequence).ToList()
             });
         }
 
@@ -364,7 +461,7 @@
         {
             SalesOrderNo = salesOrderNo!,
             WorkOrders = workOrderGroups,
-            IsRegenerate = isRegenerate
+            GenerateMode = generateMode
         };
 
         isSubmitting = true;
@@ -375,7 +472,9 @@
             var result = await WorkOrderService.GenerateWorkOrdersAsync(request);
             if (result.Success && result.Data != null && result.Data.Any())
             {
-                Snackbar.Add($"成功生成 {result.Data.Count} 个工单", Severity.Success);
+                var modifiedCount = result.Data.Count(d => d.IsModified);
+                var totalCount = result.Data.Count;
+                Snackbar.Add($"成功处理 {totalCount} 个工单（修改 {modifiedCount} 个）", Severity.Success);
                 Navigation.NavigateTo("/workorders");
             }
             else

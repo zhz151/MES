@@ -12,7 +12,7 @@
 @inject IJSRuntime JS
 @attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
 
-<MudContainer Class="mt-4" Style="max-width:100%;">
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
@@ -27,6 +27,7 @@
         </MudCardHeader>
 
         <MudCardContent>
+            <div id="inventory-plan-create-table">
             @if (isLoadingWorkOrder)
             {
                 <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
@@ -46,9 +47,9 @@
                     </MudButton>
                     @if (errorMessage != null)
                     {
-                        <MudAlert Severity="Severity.Warning" Class="ml-3 pa-2" Dense="true">
+                        <MudText Typo="Typo.body2" Color="Color.Warning" Class="ml-3">
                             @errorMessage
-                        </MudAlert>
+                        </MudText>
                     }
                 </div>
 
@@ -63,22 +64,22 @@
                     </MudText>
 
                     <div Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;" Class="mb-3">
-                        <MudTable Items="@availableBatches" Dense="true" Hover="true" Striped="true" Elevation="0" Style="table-layout:fixed;">
+                        <MudTable Items="@availableBatches" Class="auto-table" Dense="true" Hover="true" Striped="true" Elevation="0" Style="table-layout:fixed;">
                             <HeaderContent>
                                 <MudTh Style="width:36px;">选择</MudTh>
-                                <MudTh Style="width:70px; white-space:nowrap;">物料名称</MudTh>
-                                <MudTh Style="width:70px; white-space:nowrap;">工厂牌号</MudTh>
-                                <MudTh Style="width:75px; white-space:nowrap;">名义规格</MudTh>
-                                <MudTh Style="width:55px; white-space:nowrap;">长度状态</MudTh>
-                                <MudTh Style="width:50px; white-space:nowrap;">最小长度</MudTh>
-                                <MudTh Style="width:50px; white-space:nowrap;">最大长度</MudTh>
-                                <MudTh Style="width:55px; white-space:nowrap;">剩余支数</MudTh>
-                                <MudTh Style="width:60px; white-space:nowrap;">剩余重量</MudTh>
-                                <MudTh Style="width:60px; white-space:nowrap;">理论单支重</MudTh>
-                                <MudTh Style="width:55px; white-space:nowrap;">物料状态</MudTh>
-                                <MudTh Style="width:60px; white-space:nowrap;">放置框架</MudTh>
-                                <MudTh Style="width:55px; white-space:nowrap;">实际外径</MudTh>
-                                <MudTh Style="width:55px; white-space:nowrap;">实际壁厚</MudTh>
+                                <MudTh Style="width:70px;">物料名称</MudTh>
+                                <MudTh Style="width:70px;">工厂牌号</MudTh>
+                                <MudTh Style="width:75px;">名义规格</MudTh>
+                                <MudTh Style="width:55px;">长度状态</MudTh>
+                                <MudTh Style="width:50px;">最小长度</MudTh>
+                                <MudTh Style="width:50px;">最大长度</MudTh>
+                                <MudTh Style="width:55px;">剩余支数</MudTh>
+                                <MudTh Style="width:60px;">剩余重量</MudTh>
+                                <MudTh Style="width:60px;">理论单支重</MudTh>
+                                <MudTh Style="width:55px;">物料状态</MudTh>
+                                <MudTh Style="width:60px;">放置框架</MudTh>
+                                <MudTh Style="width:55px;">实际外径</MudTh>
+                                <MudTh Style="width:55px;">实际壁厚</MudTh>
                                 <MudTh Style="background-color: rgba(255, 152, 0, 0.08);">投料倍率</MudTh>
                                 <MudTh Style="background-color: rgba(255, 152, 0, 0.08);">使用模式</MudTh>
                                 <MudTh Style="background-color: rgba(255, 152, 0, 0.08);">出库支数</MudTh>
@@ -93,7 +94,7 @@
                                 <MudTd DataLabel="物料名称">@context.MaterialType</MudTd>
                                 <MudTd DataLabel="工厂牌号">@context.PlantGrade</MudTd>
                                 <MudTd DataLabel="名义规格">@context.Specification</MudTd>
-                                <MudTd DataLabel="长度状态">@context.LengthStatus</MudTd>
+                                <MudTd DataLabel="长度状态">@DisplayHelper.GetLengthStatusText(context.LengthStatus)</MudTd>
                                 <MudTd DataLabel="最小长度">@DisplayHelper.FormatNullableDecimal(context.MinLength)</MudTd>
                                 <MudTd DataLabel="最大长度">@DisplayHelper.FormatNullableDecimal(context.MaxLength)</MudTd>
                                 <MudTd DataLabel="剩余支数">@context.RemainingQuantity</MudTd>
@@ -106,19 +107,18 @@
                                 <MudTd DataLabel="投料倍率" Style="background-color: rgba(255, 152, 0, 0.08);">
                                     @if (GetSelection(context.Id))
                                     {
-                                        <MudNumericField Value="@GetInputMultiple(context.Id)"
+                                        <MudNumericField Dense="true" HideSpinButtons="true" Value="@GetInputMultiple(context.Id)"
                                                          ValueChanged="@((int v) => OnInputMultipleChanged(context.Id, v))"
                                                          Size="Size.Small"
                                                          Variant="Variant.Outlined"
                                                          Min="1" Max="99"
-                                                         HideSpinButtons="true"
                                                          Class="my-n2" Style="width:60px;" />
                                     }
                                 </MudTd>
                                 <MudTd DataLabel="使用模式" Style="background-color: rgba(255, 152, 0, 0.08);">
                                     @if (GetSelection(context.Id))
                                     {
-                                        <MudSelect Value="@GetUsageMode(context.Id)"
+                                        <MudSelect Dense="true" Value="@GetUsageMode(context.Id)"
                                                    ValueChanged="@((string v) => OnUsageModeChanged(context.Id, v))"
                                                    Size="Size.Small"
                                                    Variant="Variant.Outlined"
@@ -131,12 +131,11 @@
                                 <MudTd DataLabel="出库支数" Style="background-color: rgba(255, 152, 0, 0.08);">
                                     @if (GetSelection(context.Id) && GetUsageMode(context.Id) == "Partial")
                                     {
-                                        <MudNumericField Value="@GetUsedQuantity(context.Id)"
+                                        <MudNumericField Dense="true" HideSpinButtons="true" Value="@GetUsedQuantity(context.Id)"
                                                          ValueChanged="@((int? v) => OnUsedQuantityChanged(context.Id, v))"
                                                          Size="Size.Small"
                                                          Variant="Variant.Outlined"
                                                          Min="1" Max="@context.RemainingQuantity"
-                                                         HideSpinButtons="true"
                                                          Class="my-n2" Style="width:60px;" />
                                     }
                                     else if (GetSelection(context.Id))
@@ -147,12 +146,11 @@
                                 <MudTd DataLabel="出库重量" Style="background-color: rgba(255, 152, 0, 0.08);">
                                     @if (GetSelection(context.Id) && GetUsageMode(context.Id) == "Partial")
                                     {
-                                        <MudNumericField Value="@GetUsedWeight(context.Id)"
+                                        <MudNumericField Dense="true" HideSpinButtons="true" Value="@GetUsedWeight(context.Id)" Format="G29"
                                                          ValueChanged="@((decimal? v) => OnUsedWeightChanged(context.Id, v))"
                                                          Size="Size.Small"
                                                          Variant="Variant.Outlined"
                                                          Min="0"
-                                                         HideSpinButtons="true"
                                                          Class="my-n2" Style="width:70px;" />
                                     }
                                     else if (GetSelection(context.Id))
@@ -168,12 +166,13 @@
                     <div class="d-flex justify-end mt-4">
                         <MudButton Variant="Variant.Text" OnClick="GoBack" Class="mr-2">取消</MudButton>
                         <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                   OnClick="SavePlans" Disabled="isSaving || selectedBatchIds.Count == 0">
-                            @(isSaving ? "保存中..." : "保存")
+                                   OnClick="SavePlans" Disabled="selectedBatchIds.Count == 0" Loading="@isSaving">
+                            保存
                         </MudButton>
                     </div>
                 }
             }
+            </div>
         </MudCardContent>
     </MudCard>
 </MudContainer>
@@ -200,6 +199,7 @@
     private Dictionary<int, decimal?> usedWeights = new();
 
     private HashSet<int> selectedBatchIds => selections.Where(s => s.Value).Select(s => s.Key).ToHashSet();
+    private bool _isArrowNavSetup;
 
     protected override async Task OnInitializedAsync()
     {
@@ -317,6 +317,16 @@
 
     private void GoBack() => Navigation.NavigateTo($"/workorders/{WorkOrderId}/inventory-plan");
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#inventory-plan-create-table"))
+                _isArrowNavSetup = false;
+        }
+    }
+
     private async Task SavePlans()
     {
         var selectedIds = selectedBatchIds.ToList();
@@ -351,7 +361,8 @@
 
         if (errors.Any())
         {
-            await JS.InvokeVoidAsync("alert", string.Join("\n", errors));
+            foreach (var err in errors)
+                Snackbar.Add(err, Severity.Warning);
             return;
         }
 
@@ -360,14 +371,14 @@
 
         try
         {
-            var successCount = 0;
+            var requests = new List<CreateInventoryPlanRequest>();
             foreach (var batchId in selectedIds)
             {
                 var batch = availableBatches.FirstOrDefault(b => b.Id == batchId);
                 if (batch == null) continue;
 
                 var mode = usageModes.GetValueOrDefault(batchId, "All");
-                var request = new CreateInventoryPlanRequest
+                requests.Add(new CreateInventoryPlanRequest
                 {
                     WorkOrderId = WorkOrderId,
                     PlanDate = DateTime.Today,
@@ -378,31 +389,28 @@
                     InputMultiple = inputMultiples.GetValueOrDefault(batchId, 1),
                     UsageMode = mode,
                     RequiredDate = null,
-                    Remark = null
-                };
-
-                if (mode == "Partial")
-                {
-                    request.UsedQuantity = usedQuantities.GetValueOrDefault(batchId);
-                    request.UsedWeight = usedWeights.GetValueOrDefault(batchId) ?? 0;
-                }
-
-                var result = await MaterialPlanService.CreateInventoryPlanAsync(request);
-                if (result.Success)
-                    successCount++;
-                else
-                    errors.Add($"批次 {batch.BatchNo}：{result.Message}");
+                    Remark = null,
+                    UsedQuantity = mode == "Partial" ? usedQuantities.GetValueOrDefault(batchId) : null,
+                    UsedWeight = mode == "Partial" ? usedWeights.GetValueOrDefault(batchId) ?? 0 : 0,
+                });
             }
 
-            if (successCount > 0)
+            var result = await MaterialPlanService.CreateInventoryPlanBatchAsync(requests);
+            if (result.Success)
             {
-                Snackbar.Add($"成功创建 {successCount} 条库存使用计划", Severity.Success);
+                var count = result.Data?.Count ?? 0;
+                Snackbar.Add($"成功创建 {count} 条库存使用计划", Severity.Success);
                 GoBack();
+            }
+            else
+            {
+                errors.Add(result.Message ?? "批量创建失败");
             }
 
             if (errors.Any())
             {
-                await JS.InvokeVoidAsync("alert", string.Join("\n", errors));
+                foreach (var err in errors)
+                    Snackbar.Add(err, Severity.Error);
             }
         }
         catch (Exception ex)

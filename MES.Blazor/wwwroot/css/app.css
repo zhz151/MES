@@ -3,7 +3,8 @@
    ============================================================ */
 
 html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: 'Helvetica Neue', Helvetica, Arial, '仿宋', 'FangSong', '华文仿宋', STFangsong, sans-serif;
+    font-size: 17px;
 }
 
 h1:focus {
@@ -131,6 +132,13 @@ code {
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
+    font-size: 0.875rem !important;
+}
+
+/* 全局表头统一字重 600 */
+th.mud-table-cell,
+.auto-table th {
+    font-weight: 600 !important;
 }
 
 /* ============================================================
@@ -147,30 +155,57 @@ code {
 }
 
 .mud-table .mud-input-outlined:focus-within .mud-input-outlined-border {
-    border-color: var(--mud-palette-primary) !important;
-    border-width: 1px !important;
+    border-color: transparent !important;
 }
 
+/* 用 box-shadow 替代边框作为焦点指示，避免边框线在单元格间产生视觉延申 */
+.mud-table .mud-input-outlined:focus-within {
+    box-shadow: inset 0 0 0 1px var(--mud-palette-primary) !important;
+}
+
+/* MudSelect input-slot */
+
 /* ============================================================
-   输入框字体和高度统一
+   输入框字体和高度统一 - 全局生效（不限表格内）
+   所有文本输入框统一 32px 高度、14px 字体
    ============================================================ */
 
-.mud-table .mud-input {
+.mud-input.mud-input-text {
     font-size: 0.875rem !important;
     font-family: inherit !important;
 }
 
-.mud-table .mud-input,
-.mud-table .mud-select,
-.mud-table .mud-numeric-field {
+.mud-input.mud-input-text,
+.mud-select,
+.mud-numeric-field,
+.mud-input-control.mud-input-text {
     height: 32px !important;
     min-height: 32px !important;
 }
 
-.mud-table .mud-input input,
-.mud-table .mud-select input {
+.mud-input.mud-input-text input,
+.mud-select input,
+.mud-numeric-field input,
+.mud-input-slot {
+    height: 32px !important;
     padding: 0 0 0 8px !important;
     line-height: 32px !important;
+    box-sizing: border-box !important;
+}
+
+/* MudSelect 文本区域（div.mud-input-slot）也有 MudBlazor 默认 padding，导致和箭头不在同一水平线 */
+.mud-select .mud-input-slot.mud-input-root-outlined {
+    padding: 0 0 0 8px !important;
+    line-height: 32px !important;
+    height: 32px !important;
+}
+
+/* 表头筛选输入框保持小尺寸（24px） */
+.mud-table .filter-input .mud-input.mud-input-text {
+    height: 24px !important;
+    min-height: 24px !important;
+    font-size: 0.7rem !important;
+    margin-top: 2px;
 }
 
 /* ============================================================
@@ -216,15 +251,23 @@ input[type="number"]::-webkit-outer-spin-button {
     min-width: 80px !important;
 }
 
-.mud-table .mud-select .mud-input {
+.mud-select .mud-input {
     padding-right: 24px !important;
 }
 
-.mud-table .mud-select .mud-select-arrow {
+.mud-select .mud-select-arrow {
     right: 4px !important;
 }
 
-.mud-table .mud-select .mud-input input {
+.mud-select .mud-input-adornment-end {
+    height: 32px !important;
+    max-height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.mud-select .mud-input input {
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
     overflow: hidden !important;
@@ -233,6 +276,14 @@ input[type="number"]::-webkit-outer-spin-button {
 .mud-select-item {
     white-space: normal !important;
     word-break: break-word !important;
+}
+
+/* 下拉选项键盘导航高亮 - JS 侧添加 .mud-selected-item 但 MudBlazor 自身 CSS 未定义该类的可见样式 */
+.mud-popover-open .mud-list-item.mud-selected-item {
+    background-color: var(--mud-palette-action-default-hover) !important;
+}
+.mud-popover-open .mud-list-item.mud-selected-item:hover {
+    background-color: var(--mud-palette-primary-hover, rgba(89, 74, 226, 0.12)) !important;
 }
 
 /* ============================================================
@@ -258,84 +309,6 @@ input[type="number"]::-webkit-outer-spin-button {
     width: 32px !important;
     height: 32px !important;
     padding: 4px !important;
-}
-
-/* ============================================================
-   隐藏箭头容器
-.mud-numeric-field .mud-input-adornment {
-    display: none !important;
-}
-
-/* 针对各种可能的情况 */
-.mud-numeric-field .mud-icon-button {
-    display: none !important;
-}
-
-.mud-numeric-field button {
-    display: none !important;
-}
-
-/* 隐藏所有数值输入框的箭头 - 全局强制 */
-input[type="number"] {
-    -moz-appearance: textfield !important;
-    appearance: textfield !important;
-}
-
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none !important;
-    margin: 0 !important;
-    display: none !important;
-    opacity: 0 !important;
-    visibility: hidden !important;
-}
-
-/* 方法1：隐藏箭头容器 */
-.mud-numeric-field .mud-input-adornment {
-    display: none !important;
-}
-
-/* 方法2：直接隐藏按钮 */
-.mud-numeric-field button {
-    display: none !important;
-}
-
-/* 方法3：针对上下箭头图标 */
-.mud-numeric-field .mud-icon-button {
-    display: none !important;
-}
-
-/* 方法4：隐藏所有可能的箭头元素 */
-button[mud:type="numeric-up"],
-button[mud:type="numeric-down"],
-button[aria-label*="increment"],
-button[aria-label*="decrement"],
-button[aria-label*="Increase"],
-button[aria-label*="Decrease"] {
-    display: none !important;
-}
-
-/* 确保输入框正常显示 */
-.mud-numeric-field input {
-    display: block !important;
-    visibility: visible !important;
-}
-
-/* 隐藏减少按钮的 SVG 图标 */
-svg[aria-label="Decrement"],
-svg[aria-label="Increment"] {
-    display: none !important;
-}
-
-/* 隐藏整个按钮容器 */
-.mud-numeric-field button {
-    display: none !important;
-}
-
-/* 确保输入框正常显示 */
-.mud-numeric-field input {
-    display: block !important;
-    visibility: visible !important;
 }
 
 /* ============================================================
@@ -378,6 +351,7 @@ svg[aria-label="Increment"] {
     padding: 4px 10px !important;
     border-radius: 4px !important;
     transition: all 0.15s ease !important;
+    white-space: nowrap !important;
 }
 
 .nav-btn:hover {
@@ -447,13 +421,9 @@ svg[aria-label="Increment"] {
     background-color: var(--mud-palette-primary, #1976d2);
 }
 
-/* 顶部导航容器滚动条隐藏（但不影响功能） */
-.top-nav::-webkit-scrollbar {
-    height: 0;
-}
+/* 顶部导航容器 - 确保下拉菜单不被裁剪 */
 .top-nav {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+    overflow: visible !important;
 }
 
 /* 表格内联编辑的验证样式 */
@@ -535,7 +505,7 @@ svg[aria-label="Increment"] {
 
 /* 表头列名文字 */
 .mud-table .th-label {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     font-weight: 600;
     white-space: nowrap;
     display: block;
@@ -666,6 +636,16 @@ svg[aria-label="Increment"] {
     font-size: 0.875rem !important;
 }
 
+/* 更新修改模式：原项次主号只读样式 */
+.readonly-field .mud-input-input {
+    background-color: #f0f0f0 !important;
+    cursor: default !important;
+    color: #666 !important;
+}
+.readonly-field .mud-input .mud-input-outlined-border {
+    border-color: #e0e0e0 !important;
+}
+
 /* 必填红色星号 - 输入框内右上角 */
 .form-inline-row .form-input-required {
     position: relative;
@@ -709,6 +689,164 @@ svg[aria-label="Increment"] {
 }
 
 /* ============================================================
-   入库公共字段 - 两行 TABLE 样式
+   统一表格行高 - 查看模式与编辑模式行高一致
+   编辑模式下输入框 height:32px + padding:2px*2 = 36px，设为 38px 留有余地
+   查看模式下仅有文本，通过 height 拉伸至与编辑模式一致
+
+   注意：
+   - table-layout:fixed 下浏览器对 td height 解释不一致，
+     因此同时设置 height + min-height + line-height:normal
+     三重兜底（min-height 虽 CSS spec 不适用于 table-cell，
+     但实际浏览器大多支持；line-height:normal 防止被继承）。
    ============================================================ */
 
+.auto-table td.mud-table-cell,
+.auto-table td,
+.compact-table.mud-table .mud-table-cell,
+.mud-table-dense .mud-table-row .mud-table-cell {
+    height: 38px !important;
+    min-height: 38px;
+    line-height: normal;
+}
+
+/* ============================================================
+   全局列表自动压缩样式 - 列多时自动压缩，不出现横向滚动条
+   ============================================================ */
+
+.auto-table {
+    width: 100%;
+}
+
+.auto-table td.mud-table-cell,
+.auto-table th.mud-table-cell {
+    padding: 2px 6px !important;
+}
+
+.auto-table .mud-input,
+.auto-table .mud-select,
+.auto-table .mud-numeric-field {
+    margin: 0 !important;
+}
+
+.auto-table .mud-input {
+    width: 100%;
+    min-width: 0;
+}
+
+.auto-table th.mud-table-cell {
+    white-space: nowrap !important;
+    font-size: 0.875rem !important;
+}
+
+.auto-table th {
+    font-size: 0.875rem !important;
+}
+
+/* 单行表单 MudSimpleTable 的 <th>/<td> 表头截断 */
+.auto-table th,
+.auto-table td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ============================================================
+   批次新建页面 - 上下结构表单样式
+   ============================================================ */
+
+.batch-create-table {
+    width: 100%;
+}
+
+.batch-create-table thead th {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--mud-palette-primary);
+    padding: 4px 8px 2px 8px;
+    border-bottom: 1px solid var(--mud-palette-lines-default);
+    white-space: nowrap;
+}
+
+.batch-create-table tbody td {
+    padding: 2px 8px 6px 8px;
+    vertical-align: top;
+    font-size: 0.875rem;
+}
+
+.batch-create-table .mud-input-outlined .mud-input-outlined-border {
+    border-color: transparent !important;
+    transition: border-color 0.2s ease;
+}
+
+.batch-create-table .mud-input-outlined:hover .mud-input-outlined-border {
+    border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+.batch-create-table .mud-input-outlined:focus-within .mud-input-outlined-border {
+    border-color: transparent !important;
+}
+
+/* batch-create-table 用 box-shadow 替代边框作为焦点指示，与表格内联编辑一致 */
+.batch-create-table .mud-input-outlined:focus-within {
+    box-shadow: inset 0 0 0 1px var(--mud-palette-primary) !important;
+}
+
+/* ============================================================
+   状态标签（MudChip）统一字体尺寸
+   所有 Size="Size.Small" 的 MudChip 统一为 0.875rem（与表格文字一致）
+   ============================================================ */
+
+.mud-chip.mud-chip-size-small {
+    font-size: 0.875rem !important;
+}
+
+/* 批次表格内禁止 MudNumericField 箭头 (MudTextField 替代方案) */
+.batch-create-table input[type="number"] {
+    -moz-appearance: textfield !important;
+    appearance: textfield !important;
+}
+
+.batch-create-table input[type="number"]::-webkit-inner-spin-button,
+.batch-create-table input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+    display: none !important;
+}
+
+/* ============================================================
+   单行表单规范全局样式
+   ============================================================ */
+
+/* 输入框文字使用默认色，禁止浅色弱化 */
+.auto-table input,
+.auto-table .mud-input input {
+    color: var(--mud-palette-text-primary) !important;
+}
+
+/* 表格行内编辑紧凑输入框 */
+.compact-input {
+    min-width: 0 !important;
+    max-width: 130px !important;
+}
+.compact-input .mud-input.mud-input-text {
+    font-size: 0.75rem !important;
+    margin-top: 0 !important;
+}
+.compact-input .mud-input-outlined-border {
+    border-width: 1px !important;
+}
+
+/* 必填字段红色星号标记（用于表头） */
+.required-star {
+    color: var(--mud-palette-error);
+    font-weight: bold;
+    margin-left: 1px;
+}
+
+/* 卡片标题与内容间距缩短 */
+.compact-card.mud-card .mud-card-header {
+    padding-bottom: 4px;
+}
+.compact-card.mud-card .mud-card-content {
+    padding-top: 0;
+}

@@ -27,6 +27,11 @@ public interface IOrderService
     Task<OrderItemDto> UpdateItemAsync(int orderId, int itemId, UpdateOrderItemRequest request);
     Task DeleteItemAsync(int orderId, int itemId);
 
+    /// <summary>
+    /// 批量保存订单（头更新 + 全部项次增删改，单事务）
+    /// </summary>
+    Task<SaveAllOrderResponse> SaveAllAsync(int id, SaveAllOrderRequest request);
+
     // ========== 打印 ==========
 
     /// <summary>

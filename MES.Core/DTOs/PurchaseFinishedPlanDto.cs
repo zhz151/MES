@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs;
 
 /// <summary>
@@ -23,10 +25,10 @@ public class PurchaseFinishedPlanDto
     public decimal OuterDiameterPositive { get; set; }
     public decimal WallThicknessNegative { get; set; }
     public decimal WallThicknessPositive { get; set; }
-    public string LengthStatus { get; set; } = null!;
+    public LengthStatus LengthStatus { get; set; }
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
-    public string DeliveryState { get; set; } = null!;
+    public DeliveryState DeliveryState { get; set; }
 }
 
 /// <summary>

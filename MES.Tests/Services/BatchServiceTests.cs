@@ -1,0 +1,829 @@
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using MES.Core.DTOs;
+using MES.Core.Enums;
+using MES.Core.Exceptions;
+using MES.Core.Interfaces;
+using MES.Core.Models;
+using MES.Data.Entities;
+using MES.Services;
+using MES.Services.Order;
+using MES.Tests.Tests;
+using MES.Data;
+using Moq;
+using QuestPDF.Infrastructure;
+
+namespace MES.Tests.Services;
+
+/// <summary>
+/// 批次服务测试：创建、查询、更新、删除、工序组、打印
+/// </summary>
+public class BatchServiceTests : TestBase
+{
+    static BatchServiceTests()
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+    }
+
+    private BatchService CreateService(AppDbContext ctx)
+    {
+        var loggerMock = new Mock<ILogger<BatchService>>();
+        return new BatchService(ctx, loggerMock.Object);
+    }
+
+    // ========== 种子数据辅助方法 ==========
+
+    /// <summary>
+    /// 种子一个工单（含订单），返回工单号
+    /// </summary>
+    private async Task<string> SeedWorkOrderAsync(AppDbContext ctx)
+    {
+        var cust = await SeedCustomerAsync(ctx);
+        var ps = await SeedStandardAsync(ctx);
+        var gm = await SeedGradeMappingAsync(ctx);
+
+        var notifMock = new Mock<INotificationService>();
+        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object);
+
+        var order = await orderSvc.CreateAsync(new CreateSalesOrderRequest
+        {
+            OrderNumber = $"WO-BATCH-{Guid.NewGuid():N}"[..15],
+            SignDate = DateTime.Today,
+            CustomerId = cust.Id,
+            Items = new List<CreateOrderItemRequest>
+            {
+                new()
+                {
+                    ProductionStandardId = ps.Id,
+                    StandardGrade = gm.StandardGrade,
+                    MaterialName = MaterialName.SeamlessPipe,
+                    OuterDiameter = 219m,
+                    WallThickness = 8m,
+                    OuterDiameterNegative = 0.5m,
+                    OuterDiameterPositive = 0.5m,
+                    WallThicknessNegative = 0.5m,
+                    WallThicknessPositive = 0.5m,
+                    LengthStatus = LengthStatus.Fixed,
+                    MinLength = 6000m,
+                    MaxLength = 6000m,
+                    Quantity = 10,
+                    ContractWeight = 2500m,
+                    DeliveryDate = DateTime.Today.AddMonths(1),
+                    SettlementMethod = SettlementMethod.Theoretical,
+                    DeliveryState = DeliveryState.SolutionAnnealedAndPickled
+                }
+            }
+        });
+
+        // 确认订单
+        await orderSvc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
+        {
+            Status = SalesOrderStatus.Confirmed.ToString(),
+            RowVersion = new byte[8]
+        });
+
+        // 生成工单
+        var items = await ctx.OrderItems.Where(oi => oi.SalesOrderId == order.Id).ToListAsync();
+        var itemIds = items.Select(i => i.Sequence).ToList();
+
+        var woSvc = new WorkOrderService(ctx, new Mock<ILogger<WorkOrderService>>().Object);
+        var generated = await woSvc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
+        {
+            SalesOrderNo = order.OrderNumber,
+            WorkOrders = new List<WorkOrderItemGroup>
+            {
+                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = itemIds }
+            }
+        });
+
+        return generated[0].WorkOrderNo;
+    }
+
+    /// <summary>
+    /// 种子一个测试仓库
+    /// </summary>
+    private async Task<Warehouse> SeedWarehouseAsync(AppDbContext ctx)
+    {
+        var wh = new Warehouse { Name = "原料仓库", Code = "WH-RAW" };
+        ctx.Warehouses.Add(wh);
+        await ctx.SaveChangesAsync();
+        return wh;
+    }
+
+    // ========== 创建批次 ==========
+
+    [Fact]
+    public async Task CreateAsync_无工单_创建成功()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            WorkOrderNo = "",
+            TagNo = "TAG-001",
+            ProductionType = "RoughTube",
+            Remark = "测试批次无工单"
+        });
+
+        result.Should().NotBeNull();
+        result.BatchNo.Should().NotBeNullOrEmpty();
+        result.BatchNo.Should().Match("*??-????"); // YYMM-XXXX 格式
+        result.TagNo.Should().Be("TAG-001");
+        result.Status.Should().Be("None");
+    }
+
+    [Fact]
+    public async Task CreateAsync_带工单_自动填充工单字段()
+    {
+        var ctx = CreateDbContext();
+        var workOrderNo = await SeedWorkOrderAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            WorkOrderNo = workOrderNo,
+            TagNo = "TAG-WO-001",
+            ProductionType = "RoughTube"
+        });
+
+        result.Should().NotBeNull();
+        result.WorkOrderNo.Should().Be(workOrderNo);
+
+        // 验证工单字段已复制
+        var detail = await svc.GetByIdAsync(result.Id);
+        detail.SalesOrderNo.Should().NotBeNullOrEmpty();
+        detail.PlantGrade.Should().NotBeNullOrEmpty();
+        detail.Specification.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task CreateAsync_工单不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            WorkOrderNo = "NONEXISTENT-WO",
+            TagNo = "TAG-ERR"
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*工单不存在*");
+    }
+
+    [Fact]
+    public async Task CreateAsync_带工序组_保存成功()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "TAG-PG",
+            ProductionType = "RoughTube",
+            Remark = "带工序组测试",
+            ProcessGroups = new List<CreateProcessGroupRequest>
+            {
+                new()
+                {
+                    ProcessName = "矫切酸检",
+                    ColdRollDraw = 1,
+                    Pickle = 2,
+                    Inspection = 3
+                },
+                new()
+                {
+                    ProcessName = "冷轧",
+                    ColdRollDraw = 4,
+                    Solution = 5
+                }
+            }
+        });
+
+        result.Should().NotBeNull();
+
+        // 验证工序组已保存
+        var groups = await svc.GetProcessGroupsAsync(result.Id);
+        groups.Should().HaveCount(2);
+        groups[0].SequenceNumber.Should().Be(1);
+        groups[0].ProcessName.Should().Be("矫切酸检");
+        groups[1].SequenceNumber.Should().Be(2);
+        groups[1].ProcessName.Should().Be("冷轧");
+    }
+
+    [Fact]
+    public async Task CreateAsync_定尺状态_自动计算制几率()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "TAG-RATIO",
+            ProductionType = "RoughTube",
+            LengthStatus = "Fixed",
+            TotalWeight = 1000m,
+            TotalQuantity = 100,
+            InputWeight = 1200m,
+            InputQuantity = 100
+        });
+
+        result.Should().NotBeNull();
+
+        // 投料单重 = 1200/100 = 12, 工单单重 = 1000/100 = 10
+        // 制几率 = floor(12/10) = 1
+        var detail = await svc.GetByIdAsync(result.Id);
+        detail.ProductionRatio.Should().Be(1);
+    }
+
+    // ========== 查询批次详情 ==========
+
+    [Fact]
+    public async Task GetByIdAsync_存在_返回详情()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var created = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "TAG-DETAIL",
+            ProductionType = "RoughTube"
+        });
+
+        var detail = await svc.GetByIdAsync(created.Id);
+
+        detail.Should().NotBeNull();
+        detail.Id.Should().Be(created.Id);
+        detail.BatchNo.Should().Be(created.BatchNo);
+        detail.TagNo.Should().Be("TAG-DETAIL");
+        detail.Status.Should().Be("None");
+        detail.ProcessGroups.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.GetByIdAsync(99999);
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*生产批次不存在*");
+    }
+
+    // ========== 更新批次 ==========
+
+    [Fact]
+    public async Task UpdateAsync_部分字段_更新成功()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var created = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "TAG-OLD",
+            ProductionType = "RoughTube"
+        });
+
+        var detail = await svc.GetByIdAsync(created.Id);
+
+        var updated = await svc.UpdateAsync(created.Id, new UpdateProductionBatchRequest
+        {
+            TagNo = "TAG-NEW",
+            Remark = "备注已更新",
+            RowVersion = detail.RowVersion
+        });
+
+        updated.TagNo.Should().Be("TAG-NEW");
+        updated.Remark.Should().Be("备注已更新");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_RowVersion冲突_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var created = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "TAG-CONFLICT",
+            ProductionType = "RoughTube"
+        });
+
+        var act = () => svc.UpdateAsync(created.Id, new UpdateProductionBatchRequest
+        {
+            TagNo = "TAG-CONFLICT-NEW",
+            RowVersion = new byte[8] { 0, 0, 0, 0, 0, 0, 0, 1 } // 与默认的8个0不同
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*已被其他用户修改*");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.UpdateAsync(99999, new UpdateProductionBatchRequest
+        {
+            TagNo = "TAG",
+            RowVersion = new byte[8] { 0, 0, 0, 0, 0, 0, 0, 1 }
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*生产批次不存在*");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_更新工单字段_成功()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var created = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "TAG-WO-UPDATE",
+            ProductionType = "RoughTube"
+        });
+
+        var detail = await svc.GetByIdAsync(created.Id);
+
+        var updated = await svc.UpdateAsync(created.Id, new UpdateProductionBatchRequest
+        {
+            WorkOrderNo = "WO-MANUAL",
+            SalesOrderNo = "SO-MANUAL",
+            PlantGrade = "304",
+            Specification = "219*8",
+            RowVersion = detail.RowVersion
+        });
+
+        updated.WorkOrderNo.Should().Be("WO-MANUAL");
+        updated.SalesOrderNo.Should().Be("SO-MANUAL");
+        updated.PlantGrade.Should().Be("304");
+        updated.Specification.Should().Be("219*8");
+    }
+
+    // ========== 更新状态 ==========
+
+    [Fact]
+    public async Task UpdateStatusAsync_None到InProgress_成功()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var created = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "TAG-STATUS",
+            ProductionType = "RoughTube"
+        });
+
+        var detail = await svc.GetByIdAsync(created.Id);
+
+        await svc.UpdateStatusAsync(created.Id, new UpdateBatchStatusRequest
+        {
+            Status = "InProgress",
+            RowVersion = detail.RowVersion
+        });
+
+        var after = await svc.GetByIdAsync(created.Id);
+        after.Status.Should().Be("InProgress");
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_Completed回退_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var created = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "TAG-ROLLBACK",
+            ProductionType = "RoughTube"
+        });
+
+        var detail = await svc.GetByIdAsync(created.Id);
+
+        // 直接完成
+        await svc.UpdateStatusAsync(created.Id, new UpdateBatchStatusRequest
+        {
+            Status = "Completed",
+            RowVersion = detail.RowVersion
+        });
+
+        var completed = await svc.GetByIdAsync(created.Id);
+
+        // 回退尝试
+        var act = () => svc.UpdateStatusAsync(created.Id, new UpdateBatchStatusRequest
+        {
+            Status = "InProgress",
+            RowVersion = completed.RowVersion
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不能回退*");
+    }
+
+    // ========== 删除批次 ==========
+
+    [Fact]
+    public async Task DeleteAsync_级联删除工序组()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var created = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "TAG-DEL",
+            ProductionType = "RoughTube",
+            ProcessGroups = new List<CreateProcessGroupRequest>
+            {
+                new() { ProcessName = "矫切酸检", ColdRollDraw = 1 }
+            }
+        });
+
+        await svc.DeleteAsync(created.Id);
+
+        var act = () => svc.GetByIdAsync(created.Id);
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*生产批次不存在*");
+    }
+
+    [Fact]
+    public async Task DeleteAsync_不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.DeleteAsync(99999);
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*生产批次不存在*");
+    }
+
+    // ========== 工序组 ==========
+
+    [Fact]
+    public async Task AddProcessGroupAsync_成功添加()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var created = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "TAG-ADD-PG",
+            ProductionType = "RoughTube"
+        });
+
+        var pg = await svc.AddProcessGroupAsync(created.Id, new CreateProcessGroupRequest
+        {
+            ProcessName = "冷拔",
+            ManufacturingSpec = "100*10",
+            ColdRollDraw = 1,
+            Degrease = 2
+        });
+
+        pg.Should().NotBeNull();
+        pg.SequenceNumber.Should().Be(1);
+        pg.ProcessName.Should().Be("冷拔");
+        pg.ManufacturingSpec.Should().Be("100*10");
+    }
+
+    [Fact]
+    public async Task AddProcessGroupAsync_批次不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.AddProcessGroupAsync(99999, new CreateProcessGroupRequest
+        {
+            ProcessName = "冷拔"
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*生产批次不存在*");
+    }
+
+    [Fact]
+    public async Task DeleteProcessGroupAsync_成功删除()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var created = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "TAG-DEL-PG",
+            ProductionType = "RoughTube",
+            ProcessGroups = new List<CreateProcessGroupRequest>
+            {
+                new() { ProcessName = "矫切酸检", ColdRollDraw = 1 }
+            }
+        });
+
+        var groups = await svc.GetProcessGroupsAsync(created.Id);
+        groups.Should().HaveCount(1);
+
+        await svc.DeleteProcessGroupAsync(groups[0].Id);
+
+        var after = await svc.GetProcessGroupsAsync(created.Id);
+        after.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DeleteProcessGroupAsync_不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.DeleteProcessGroupAsync(99999);
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*工序组不存在*");
+    }
+
+    // ========== 分页查询 ==========
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "SEARCH-TAG",
+            ProductionType = "RoughTube"
+        });
+
+        var result = await svc.GetPagedAsync(new BatchQueryParams
+        {
+            Keyword = "SEARCH-TAG",
+            PageIndex = 1,
+            PageSize = 20
+        });
+
+        result.Items.Should().NotBeEmpty();
+        result.Items.Any(i => i.TagNo == "SEARCH-TAG").Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_状态筛选()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var created = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "STATUS-FILTER",
+            ProductionType = "RoughTube"
+        });
+
+        // 改状态为 InProgress
+        var detail = await svc.GetByIdAsync(created.Id);
+        await svc.UpdateStatusAsync(created.Id, new UpdateBatchStatusRequest
+        {
+            Status = "InProgress",
+            RowVersion = detail.RowVersion
+        });
+
+        var result = await svc.GetPagedAsync(new BatchQueryParams
+        {
+            Status = "InProgress",
+            PageIndex = 1,
+            PageSize = 20
+        });
+
+        result.Items.Should().NotBeEmpty();
+        result.Items.All(i => i.Status == "InProgress").Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_排序_默认降序()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "SORT-A",
+            ProductionType = "RoughTube"
+        });
+        await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "SORT-B",
+            ProductionType = "RoughTube"
+        });
+
+        var result = await svc.GetPagedAsync(new BatchQueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20
+        });
+
+        result.Items.Should().NotBeEmpty();
+        result.TotalCount.Should().BeGreaterThanOrEqualTo(2);
+    }
+
+    // ========== 编号生成 ==========
+
+    [Fact]
+    public async Task GetNextBatchNoAsync_返回YYMM_XXXX格式()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var batchNo = await svc.GetNextBatchNoAsync();
+
+        batchNo.Should().NotBeNullOrEmpty();
+        batchNo.Should().Match("*??-????");
+    }
+
+    [Fact]
+    public async Task GetNextBatchNoAsync_已有批次_序号递增()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var first = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "SEQ-NO-1",
+            ProductionType = "RoughTube"
+        });
+
+        var nextNo = await svc.GetNextBatchNoAsync();
+
+        nextNo.Should().NotBe(first.BatchNo);
+
+        // 解析序号验证递增
+        var firstSeq = int.Parse(first.BatchNo[5..9]);
+        var nextSeq = int.Parse(nextNo[5..9]);
+        nextSeq.Should().BeGreaterThanOrEqualTo(firstSeq);
+    }
+
+    // ========== 可用批次 ==========
+
+    [Fact]
+    public async Task GetAvailableBatchesAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var available = await svc.GetAvailableBatchesAsync();
+
+        available.Should().BeEmpty();
+    }
+
+    // ========== 复制上批次工序组 ==========
+
+    [Fact]
+    public async Task GetLastBatchProcessGroupsAsync_无批次_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var groups = await svc.GetLastBatchProcessGroupsAsync();
+
+        groups.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetLastBatchProcessGroupsAsync_有批次_返回工序组()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "COPY-SRC",
+            ProductionType = "RoughTube",
+            ProcessGroups = new List<CreateProcessGroupRequest>
+            {
+                new() { ProcessName = "矫切酸检", ColdRollDraw = 1, Pickle = 2 },
+                new() { ProcessName = "冷轧", ColdRollDraw = 3 }
+            }
+        });
+
+        var groups = await svc.GetLastBatchProcessGroupsAsync();
+
+        groups.Should().NotBeEmpty();
+        groups.Should().HaveCount(2);
+        groups[0].ProcessName.Should().Be("矫切酸检");
+        groups[1].ProcessName.Should().Be("冷轧");
+        groups[0].ColdRollDraw.Should().Be(1);
+    }
+
+    // ========== 打印 ==========
+
+    [Fact]
+    public async Task PrintBatchAsync_成功生成PDF()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var created = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "PRINT-TEST",
+            ProductionType = "RoughTube"
+        });
+
+        var pdfBytes = await svc.PrintBatchAsync(created.Id);
+
+        pdfBytes.Should().NotBeNull();
+        pdfBytes.Should().NotBeEmpty();
+        pdfBytes[0].Should().Be((byte)'%');
+        pdfBytes[1].Should().Be((byte)'P');
+        pdfBytes[2].Should().Be((byte)'D');
+        pdfBytes[3].Should().Be((byte)'F');
+    }
+
+    [Fact]
+    public async Task PrintBatchAsync_不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.PrintBatchAsync(99999);
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*生产批次不存在*");
+    }
+
+    [Fact]
+    public async Task PrintBatchAllAsync_成功生成PDF()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "PRINT-ALL",
+            ProductionType = "RoughTube"
+        });
+
+        var pdfBytes = await svc.PrintBatchAllAsync(new BatchPrintAllRequest());
+
+        pdfBytes.Should().NotBeNull();
+        pdfBytes.Should().NotBeEmpty();
+        pdfBytes[0].Should().Be((byte)'%');
+    }
+
+    [Fact]
+    public async Task PrintProcessCardAsync_选中批次_成功生成PDF()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var created = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "CARD-PRINT",
+            ProductionType = "RoughTube"
+        });
+
+        var pdfBytes = await svc.PrintProcessCardAsync(new ProcessCardPrintRequest
+        {
+            Ids = new[] { created.Id },
+            Columns = new List<ProcessCardColumnDef>
+            {
+                new() { BlockKey = "BatchInfo", Key = "BatchNo", Label = "生产编号", Visible = true },
+                new() { BlockKey = "BatchInfo", Key = "Status", Label = "状态", Visible = true },
+                new() { BlockKey = "BatchInfo", Key = "TagNo", Label = "挂牌号", Visible = true }
+            }
+        });
+
+        pdfBytes.Should().NotBeNull();
+        pdfBytes.Should().NotBeEmpty();
+        pdfBytes[0].Should().Be((byte)'%');
+    }
+
+    [Fact]
+    public async Task PrintProcessCardAsync_Ids为空_打印全部()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            TagNo = "CARD-ALL",
+            ProductionType = "RoughTube"
+        });
+
+        var pdfBytes = await svc.PrintProcessCardAsync(new ProcessCardPrintRequest
+        {
+            Ids = Array.Empty<int>(),
+            Columns = new List<ProcessCardColumnDef>
+            {
+                new() { BlockKey = "BatchInfo", Key = "BatchNo", Label = "生产编号", Visible = true }
+            }
+        });
+
+        pdfBytes.Should().NotBeNull();
+        pdfBytes.Should().NotBeEmpty();
+        pdfBytes[0].Should().Be((byte)'%');
+    }
+
+    [Fact]
+    public async Task PrintProcessCardAsync_无数据_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.PrintProcessCardAsync(new ProcessCardPrintRequest
+        {
+            Ids = Array.Empty<int>(),
+            Columns = new List<ProcessCardColumnDef>()
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*未找到批次数据*");
+    }
+}

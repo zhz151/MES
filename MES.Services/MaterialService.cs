@@ -127,6 +127,33 @@ public class MaterialService : IMaterialService
         return entity != null ? ToDto(entity) : null;
     }
 
+    public async Task<List<BatchMaterialMatchItem>> BatchMatchAsync(List<BatchMaterialMatchItem> items)
+    {
+        if (items == null || items.Count == 0)
+            return new List<BatchMaterialMatchItem>();
+
+        // 一次查询所有物料（组合索引 UK_Material_Combo 覆盖，(MaterialCategory, PlantGrade, Specification)）
+        var existingCategories = items.Select(i => i.Category).Distinct().ToList();
+        var existingGrades = items.Select(i => i.Grade).Distinct().ToList();
+        var existingSpecs = items.Select(i => i.Spec).Distinct().ToList();
+
+        var existingMaterials = await _context.Materials
+            .AsNoTracking()
+            .Where(m => existingCategories.Contains(m.MaterialCategory) &&
+                        existingGrades.Contains(m.PlantGrade) &&
+                        existingSpecs.Contains(m.Specification))
+            .Select(m => new { m.MaterialCategory, m.PlantGrade, m.Specification })
+            .ToListAsync();
+
+        var existingSet = existingMaterials
+            .Select(m => $"{m.MaterialCategory}|{m.PlantGrade}|{m.Specification}")
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return items
+            .Where(i => !existingSet.Contains($"{i.Category}|{i.Grade}|{i.Spec}"))
+            .ToList();
+    }
+
     public async Task<MaterialDto> CreateAsync(CreateMaterialRequest request)
     {
         var exists = await _context.Materials
@@ -257,7 +284,7 @@ public class MaterialService : IMaterialService
             {
                 result.Add(await GetByIdAsync(id));
             }
-            catch (BusinessException) { }
+            catch (BusinessException) { /* 跳过不存在的物料 */ }
         }
         return MaterialPrintHelper.GenerateBatchPdf(result);
     }
@@ -269,7 +296,7 @@ public class MaterialService : IMaterialService
             PageIndex = 1,
             PageSize = int.MaxValue,
             Keyword = keyword,
-            SortBy = sortBy,
+            SortBy = sortBy ?? "CreatedTime",
             IsDescending = isDescending
         };
         var paged = await GetPagedAsync(query);

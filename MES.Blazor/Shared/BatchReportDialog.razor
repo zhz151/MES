@@ -1,0 +1,375 @@
+@using MES.Core.DTOs
+@using MES.Blazor.Helpers
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.PostAdd" Class="mr-1" Color="Color.Primary" Size="Size.Small" />
+            批量报工
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-3" Color="Color.Secondary">
+            选择工序组后，列出所有工段并填入执行数据。序号由系统根据顺序自动计算。
+        </MudText>
+
+        <!-- 选择工序组 -->
+        <MudSelect T="ProcessGroupDto?"
+                   Label="选择工序组 *"
+                   Value="_selectedGroup"
+                   ValueChanged="OnGroupSelected"
+                   AnchorClass="mb-3"
+                   ToStringFunc="GroupToString">
+            @foreach (var g in ProcessGroups)
+            {
+                <MudSelectItem Value="g" />
+            }
+        </MudSelect>
+
+        @if (_editingRows.Any())
+        {
+            <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">
+                共 @_editingRows.Count 个工段，请填写执行数据
+            </MudText>
+            <div class="batch-report-table-wrapper" style="overflow-x:auto; max-height:420px; overflow-y:auto;">
+                <MudTable Items="@_editingRows" Dense="true" Hover="true" Elevation="0" Class="auto-table batch-report-table"
+                          SortMode="SortMode.None">
+                    <HeaderContent>
+                        <MudTh Style="width:50px;">序号</MudTh>
+                        <MudTh Style="width:100px;">工段名称</MudTh>
+                        <MudTh Style="width:100px;">执行日期 *</MudTh>
+                        <MudTh Style="width:100px;">设备名称</MudTh>
+                        <MudTh Style="width:80px;">操作人</MudTh>
+                        <MudTh Style="width:70px;">班次</MudTh>
+                        <MudTh Style="width:80px;">加工支数</MudTh>
+                        <MudTh Style="width:80px;">加工重量</MudTh>
+                        <MudTh Style="width:80px;">不合格支数</MudTh>
+                        <MudTh Style="width:80px;">不合格重量</MudTh>
+                        <MudTh Style="width:60px;">是否成品</MudTh>
+                        <MudTh Style="width:70px;">断切倍数</MudTh>
+                        <MudTh Style="width:100px;">成品断切长度</MudTh>
+                        <MudTh Style="width:80px;">切后支数</MudTh>
+                        <MudTh Style="width:100px;">挂牌号</MudTh>
+                        <MudTh Style="width:100px;">工厂牌号</MudTh>
+                        <MudTh Style="width:150px;">备注</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="r">
+                        <MudTd><MudText Typo="Typo.body2">@r.SequenceNumber</MudText></MudTd>
+                        <MudTd><MudText Typo="Typo.body2" Class="font-weight-bold">@r.SectionName</MudText></MudTd>
+                        <MudTd>
+                            <MudTextField @bind-Value="r.ExecDate"
+                                          Placeholder="yyyy-MM-dd"
+                                          Size="Size.Small" Variant="Variant.Outlined"
+                                          Class="my-n2" Style="width:130px;" />
+                        </MudTd>
+                        <MudTd>
+                            <MudTextField T="string"
+                                          Value="@r.EquipmentName"
+                                          ValueChanged="@((string? v) => r.EquipmentName = v ?? "")"
+                                          Size="Size.Small" Variant="Variant.Outlined"
+                                          Class="my-n2" Style="width:110px;" />
+                        </MudTd>
+                        <MudTd>
+                            <MudTextField T="string"
+                                          Value="@r.Operator"
+                                          ValueChanged="@((string? v) => r.Operator = v ?? "")"
+                                          Size="Size.Small" Variant="Variant.Outlined"
+                                          Class="my-n2" Style="width:80px;" />
+                        </MudTd>
+                        <MudTd>
+                            <MudSelect T="string"
+                                       Value="@r.Shift"
+                                       ValueChanged="@((string? v) => r.Shift = v ?? "")"
+                                       Size="Size.Small" Variant="Variant.Outlined"
+                                       Class="my-n2" Style="width:70px;">
+                                <MudSelectItem Value="@("白班")" />
+                                <MudSelectItem Value="@("中班")" />
+                                <MudSelectItem Value="@("夜班")" />
+                            </MudSelect>
+                        </MudTd>
+                        <MudTd>
+                            <MudNumericField T="int?"
+                                             Value="@r.Quantity"
+                                             ValueChanged="@((int? v) => r.Quantity = v)"
+                                             Size="Size.Small" Variant="Variant.Outlined"
+                                             Min="0" HideSpinButtons="true"
+                                             Class="my-n2" Style="width:80px;" />
+                        </MudTd>
+                        <MudTd>
+                            <MudNumericField T="decimal?"
+                                             Value="@r.Weight"
+                                             ValueChanged="@((decimal? v) => r.Weight = v)"
+                                             Size="Size.Small" Variant="Variant.Outlined"
+                                             Min="0" HideSpinButtons="true"
+                                             Class="my-n2" Style="width:80px;" />
+                        </MudTd>
+                        <MudTd>
+                            <MudNumericField T="int?"
+                                             Value="@r.DefectQuantity"
+                                             ValueChanged="@((int? v) => r.DefectQuantity = v)"
+                                             Size="Size.Small" Variant="Variant.Outlined"
+                                             Min="0" HideSpinButtons="true"
+                                             Class="my-n2" Style="width:80px;" />
+                        </MudTd>
+                        <MudTd>
+                            <MudNumericField T="decimal?"
+                                             Value="@r.DefectWeight"
+                                             ValueChanged="@((decimal? v) => r.DefectWeight = v)"
+                                             Size="Size.Small" Variant="Variant.Outlined"
+                                             Min="0" HideSpinButtons="true"
+                                             Class="my-n2" Style="width:80px;" />
+                        </MudTd>
+                        <MudTd>
+                            <MudCheckBox Value="@r.IsFinished"
+                                         ValueChanged="@((bool v) => r.IsFinished = v)"
+                                         Size="Size.Small" Class="my-n2" />
+                        </MudTd>
+                        <MudTd>
+                            <MudNumericField T="decimal?"
+                                             Value="@r.CuttingMultiple"
+                                             ValueChanged="@((decimal? v) => r.CuttingMultiple = v)"
+                                             Size="Size.Small" Variant="Variant.Outlined"
+                                             Min="0" HideSpinButtons="true"
+                                             Class="my-n2" Style="width:70px;" />
+                        </MudTd>
+                        <MudTd>
+                            <MudNumericField T="decimal?"
+                                             Value="@r.FinishedCutLength"
+                                             ValueChanged="@((decimal? v) => r.FinishedCutLength = v)"
+                                             Size="Size.Small" Variant="Variant.Outlined"
+                                             Min="0" HideSpinButtons="true"
+                                             Class="my-n2" Style="width:100px;" />
+                        </MudTd>
+                        <MudTd>
+                            <MudNumericField T="int?"
+                                             Value="@r.PostCutQuantity"
+                                             ValueChanged="@((int? v) => r.PostCutQuantity = v)"
+                                             Size="Size.Small" Variant="Variant.Outlined"
+                                             Min="0" HideSpinButtons="true"
+                                             Class="my-n2" Style="width:80px;" />
+                        </MudTd>
+                        <MudTd>
+                            <MudTextField T="string"
+                                          Value="@r.TagNo"
+                                          ValueChanged="@((string? v) => r.TagNo = v ?? "")"
+                                          Size="Size.Small" Variant="Variant.Outlined"
+                                          Class="my-n2" Style="width:100px;" />
+                        </MudTd>
+                        <MudTd>
+                            <MudTextField T="string"
+                                          Value="@r.PlantGrade"
+                                          ValueChanged="@((string? v) => r.PlantGrade = v ?? "")"
+                                          Size="Size.Small" Variant="Variant.Outlined"
+                                          Class="my-n2" Style="width:100px;" />
+                        </MudTd>
+                        <MudTd>
+                            <MudTextField T="string"
+                                          Value="@r.Remark"
+                                          ValueChanged="@((string? v) => r.Remark = v ?? "")"
+                                          Size="Size.Small" Variant="Variant.Outlined"
+                                          Class="my-n2" Style="width:150px;" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </div>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">取消</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   OnClick="Submit" Disabled="@(!_hasSelection || _submitting)"
+                   StartIcon="@Icons.Material.Filled.Save">
+            @(_submitting ? "提交中..." : "提交报工")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public int ProductionBatchId { get; set; }
+    [Parameter] public List<ProcessGroupDto> ProcessGroups { get; set; } = new();
+
+    private static string GroupToString(ProcessGroupDto? g)
+        => g == null ? "" : $"{g.SequenceNumber}. {g.ProcessName} ({g.ManufacturingSpec ?? "-"})";
+
+    private ProcessGroupDto? _selectedGroup;
+    private bool _hasSelection;
+    private bool _submitting;
+
+    /// <summary>
+    /// 编辑行数据（即 CreateProductionRecordRequest 的包装）
+    /// </summary>
+    private List<ReportRow> _editingRows = new();
+
+    private void OnGroupSelected(ProcessGroupDto? group)
+    {
+        _selectedGroup = group;
+        _hasSelection = group != null;
+        _editingRows.Clear();
+
+        if (group == null) return;
+
+        var sections = GetSections(group);
+        int seq = 1;
+        foreach (var (sectionName, order) in sections)
+        {
+            _editingRows.Add(new ReportRow
+            {
+                SequenceNumber = seq++,
+                SectionName = sectionName,
+                SectionOrder = order,
+                ExecDate = DateTime.Today.ToString("yyyy-MM-dd"),
+                ProcessName = group.ProcessName,
+                ManufacturingSpec = group.ManufacturingSpec,
+                ProcessGroupId = group.Id,
+                IsFinished = false
+            });
+        }
+    }
+
+    private async Task Submit()
+    {
+        // 验证：至少有一行填写了加工支数或重量
+        var validRows = _editingRows.Where(r => r.Quantity.HasValue || r.Weight.HasValue).ToList();
+        if (validRows.Count == 0)
+        {
+            Snackbar.Add("请至少填写一个工段的加工支数或重量", Severity.Warning);
+            return;
+        }
+
+        // 验证执行日期
+        if (validRows.Any(r => string.IsNullOrEmpty(r.ExecDate)))
+        {
+            Snackbar.Add("请填写所有工段的执行日期", Severity.Warning);
+            return;
+        }
+
+        _submitting = true;
+        StateHasChanged();
+
+        try
+        {
+            // 检查 ProcessName+ManufacturingSpec 是否重复，如有重复则加上 ProcessGroupId 区分
+            var hasRepeat = _editingRows.GroupBy(r => (r.ProcessName, r.ManufacturingSpec)).Any(g => g.Count() > 1);
+
+            var requests = validRows.Select(r =>
+            {
+                // 计算执行序号：ProcessName+ManufacturingSpec+SectionName 在整体工艺中的位置
+                // 先从全工序组收集所有工段，按 order 排序
+                var seq = ComputeSequenceNumber(r, hasRepeat);
+                return new CreateProductionRecordRequest
+                {
+                    ProductionBatchId = ProductionBatchId,
+                    ProcessGroupId = r.ProcessGroupId,
+                    ProcessName = r.ProcessName,
+                    ManufacturingSpec = r.ManufacturingSpec,
+                    SectionName = r.SectionName,
+                    SequenceNumber = seq,
+                    ExecDate = DateTime.Parse(r.ExecDate),
+                    EquipmentName = string.IsNullOrEmpty(r.EquipmentName) ? null : r.EquipmentName,
+                    Operator = string.IsNullOrEmpty(r.Operator) ? null : r.Operator,
+                    Shift = string.IsNullOrEmpty(r.Shift) ? null : r.Shift,
+                    Quantity = r.Quantity,
+                    Weight = r.Weight,
+                    DefectQuantity = r.DefectQuantity,
+                    DefectWeight = r.DefectWeight,
+                    IsFinished = r.IsFinished,
+                    CuttingMultiple = r.CuttingMultiple,
+                    FinishedCutLength = r.FinishedCutLength,
+                    PostCutQuantity = r.PostCutQuantity,
+                    TagNo = string.IsNullOrEmpty(r.TagNo) ? null : r.TagNo,
+                    PlantGrade = string.IsNullOrEmpty(r.PlantGrade) ? null : r.PlantGrade,
+                    Remark = string.IsNullOrEmpty(r.Remark) ? null : r.Remark,
+                };
+            }).ToList();
+
+            MudDialog.Close(DialogResult.Ok(requests));
+        }
+        finally
+        {
+            _submitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    // ========== 辅助方法 ==========
+
+    /// <summary>
+    /// 从工序组中提取所有有值的工段及顺序
+    /// </summary>
+    private static List<(string Name, int Order)> GetSections(ProcessGroupDto pg)
+    {
+        var list = new List<(string Name, int Order)>();
+        if (pg.ColdRollDraw.HasValue) list.Add(("冷轧拔", pg.ColdRollDraw.Value));
+        if (pg.OilPipeCut.HasValue) list.Add(("油管断", pg.OilPipeCut.Value));
+        if (pg.Degrease.HasValue) list.Add(("去油", pg.Degrease.Value));
+        if (pg.Solution.HasValue) list.Add(("固溶", pg.Solution.Value));
+        if (pg.Straighten.HasValue) list.Add(("矫直", pg.Straighten.Value));
+        if (pg.Cut.HasValue) list.Add(("断切", pg.Cut.Value));
+        if (pg.ThicknessMeasure.HasValue) list.Add(("测壁厚", pg.ThicknessMeasure.Value));
+        if (pg.Pickle.HasValue) list.Add(("酸洗", pg.Pickle.Value));
+        if (pg.OuterPolish.HasValue) list.Add(("外抛光", pg.OuterPolish.Value));
+        if (pg.InnerGrinding.HasValue) list.Add(("内修磨", pg.InnerGrinding.Value));
+        if (pg.OuterSpotGrinding.HasValue) list.Add(("外点磨", pg.OuterSpotGrinding.Value));
+        if (pg.Inspection.HasValue) list.Add(("检验", pg.Inspection.Value));
+        if (pg.WeldingHead.HasValue) list.Add(("打焊头", pg.WeldingHead.Value));
+        if (pg.Lubrication.HasValue) list.Add(("润滑", pg.Lubrication.Value));
+        if (pg.Warehouse.HasValue) list.Add(("入库", pg.Warehouse.Value));
+        return list.OrderBy(x => x.Order).ToList();
+    }
+
+    /// <summary>
+    /// 计算执行序号：按工段顺序+工序组
+    /// </summary>
+    private int ComputeSequenceNumber(ReportRow row, bool hasRepeat)
+    {
+        // 从当前选中的工序组中找到该工段的顺序
+        var sections = GetSections(_selectedGroup!);
+        var idx = sections.FindIndex(s => s.Name == row.SectionName);
+        if (idx < 0) return row.SequenceNumber;
+
+        // 基础序号 = 工段顺序号
+        var baseSeq = sections[idx].Order;
+
+        // 如果有重复的 ProcessName+ManufacturingSpec，加上 ProcessGroupId 作为高位
+        if (hasRepeat)
+        {
+            return row.ProcessGroupId * 1000 + baseSeq;
+        }
+
+        return baseSeq;
+    }
+
+    /// <summary>
+    /// 报工行数据模型
+    /// </summary>
+    private class ReportRow
+    {
+        public int SequenceNumber { get; set; }
+        public string SectionName { get; set; } = "";
+        public int SectionOrder { get; set; }
+        public int ProcessGroupId { get; set; }
+        public string ProcessName { get; set; } = "";
+        public string? ManufacturingSpec { get; set; }
+
+        public string? ExecDate { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
+        public string? EquipmentName { get; set; }
+        public string? Operator { get; set; }
+        public string? Shift { get; set; }
+        public int? Quantity { get; set; }
+        public decimal? Weight { get; set; }
+        public int? DefectQuantity { get; set; }
+        public decimal? DefectWeight { get; set; }
+        public bool IsFinished { get; set; }
+        public decimal? CuttingMultiple { get; set; }
+        public decimal? FinishedCutLength { get; set; }
+        public int? PostCutQuantity { get; set; }
+        public string? TagNo { get; set; }
+        public string? PlantGrade { get; set; }
+        public string? Remark { get; set; }
+    }
+}

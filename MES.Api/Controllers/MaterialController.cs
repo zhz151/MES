@@ -62,6 +62,16 @@ public class MaterialController : ControllerBase
         return Ok(ApiResponse<MaterialDto?>.Ok(result, result != null ? "匹配成功" : "未找到匹配物料"));
     }
 
+    [HttpPost("batch-match")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<BatchMaterialMatchItem>>>> BatchMatch([FromBody] List<BatchMaterialMatchItem> items)
+    {
+        if (items == null || items.Count == 0)
+            return Ok(ApiResponse<List<BatchMaterialMatchItem>>.Ok(new List<BatchMaterialMatchItem>(), "无匹配项"));
+        var result = await _service.BatchMatchAsync(items);
+        return Ok(ApiResponse<List<BatchMaterialMatchItem>>.Ok(result, "批量匹配完成"));
+    }
+
     [HttpPost]
     [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<MaterialDto>>> Create([FromBody] CreateMaterialRequest request)

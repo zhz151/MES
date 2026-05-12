@@ -36,6 +36,13 @@ public class TestAppDbContext : AppDbContext
                 else if (entry.State == EntityState.Modified)
                     entry.Property(nameof(WorkOrder.RowVersion)).OriginalValue = DefaultRowVersion;
             }
+            if (entry.Entity is ProductionBatch pb)
+            {
+                if (entry.State == EntityState.Added)
+                    pb.RowVersion = DefaultRowVersion;
+                else if (entry.State == EntityState.Modified)
+                    entry.Property(nameof(ProductionBatch.RowVersion)).OriginalValue = DefaultRowVersion;
+            }
         }
         return await base.SaveChangesAsync(cancellationToken);
     }

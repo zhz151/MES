@@ -264,7 +264,7 @@ public class ProductionStandardService : IProductionStandardService
             {
                 result.Add(await GetByIdAsync(id));
             }
-            catch (BusinessException) { }
+            catch (BusinessException) { /* 跳过不存在的生产标准 */ }
         }
         return StandardPrintHelper.GenerateBatchPdf(result);
     }
@@ -276,7 +276,7 @@ public class ProductionStandardService : IProductionStandardService
             PageIndex = 1,
             PageSize = int.MaxValue,
             Keyword = keyword,
-            SortBy = sortBy,
+            SortBy = sortBy ?? "CreatedTime",
             IsDescending = isDescending
         };
         var paged = await GetPagedAsync(query, isActive);

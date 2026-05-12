@@ -59,4 +59,36 @@ public interface IInventoryService
     /// 物理删除出库记录（仅管理员/主任）
     /// </summary>
     Task HardDeleteOutboundRecordAsync(long id);
+
+    /// <summary>
+    /// 验证来源单号
+    /// </summary>
+    Task<SourceOrderValidationResult> ValidateSourceOrderAsync(string sourceOrderNo, string inboundSource, int? sourceOrderSequence = null);
+
+    /// <summary>
+    /// 验证仓库内入库数据的工单号是否在工单管理上下文中存在
+    /// </summary>
+    Task<List<string>> ValidateWarehouseWorkOrderNosAsync(int warehouseId);
+
+    // ========== 打印 ==========
+
+    /// <summary>
+    /// 打印全部库存/入库记录
+    /// </summary>
+    Task<byte[]> PrintInventoryAllAsync(InventoryPrintAllRequest request);
+
+    /// <summary>
+    /// 打印选中库存/入库记录
+    /// </summary>
+    Task<byte[]> PrintInventorySelectedAsync(InventoryPrintSelectedRequest request);
+
+    /// <summary>
+    /// 打印全部出库记录
+    /// </summary>
+    Task<byte[]> PrintOutboundAllAsync(OutboundPrintAllRequest request);
+
+    /// <summary>
+    /// 打印选中出库记录
+    /// </summary>
+    Task<byte[]> PrintOutboundSelectedAsync(OutboundPrintSelectedRequest request);
 }

@@ -144,15 +144,20 @@ public static class SalesOrderPrintHelper
                 t.Span("签订日期：").Bold().FontSize(10);
                 t.Span(order.SignDate.ToString("yyyy-MM-dd")).FontSize(10);
             });
-            row.RelativeItem(5).Text(t =>
+            row.RelativeItem(2).Text(t =>
+            {
+                t.Span("业务员：").Bold().FontSize(10);
+                t.Span(order.Salesman).FontSize(10);
+            });
+            row.RelativeItem(3).Text(t =>
             {
                 t.Span("客户名称：").Bold().FontSize(10);
                 t.Span(order.CustomerName).FontSize(10);
             });
             row.RelativeItem(2).Text(t =>
             {
-                t.Span("业务员：").Bold().FontSize(10);
-                t.Span(order.Salesman).FontSize(10);
+                t.Span("最终客户：").Bold().FontSize(10);
+                t.Span(order.EndCustomer ?? "-").FontSize(10);
             });
             row.RelativeItem(2).Text(t =>
             {

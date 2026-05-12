@@ -36,12 +36,12 @@ public class NotificationController : ControllerBase
     /// 分页获取通知列表
     /// </summary>
     [HttpGet("list")]
-    public async Task<ActionResult<ApiResponse<PagedResult<OrderChangeNotificationDto>>>> GetPaged(
+    public async Task<ActionResult<ApiResponse<PagedResult<NotificationDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20)
     {
         var result = await _notificationService.GetPagedNotificationsAsync(pageIndex, pageSize);
-        return Ok(ApiResponse<PagedResult<OrderChangeNotificationDto>>.Ok(result));
+        return Ok(ApiResponse<PagedResult<NotificationDto>>.Ok(result));
     }
 
     /// <summary>
@@ -61,6 +61,26 @@ public class NotificationController : ControllerBase
     public async Task<ActionResult<ApiResponse>> MarkAllAsRead()
     {
         await _notificationService.MarkAllAsReadAsync();
+        return Ok(ApiResponse.Ok("已全部标记为已读"));
+    }
+
+    /// <summary>
+    /// 获取指定类型的未读通知列表
+    /// </summary>
+    [HttpGet("by-type/{type}")]
+    public async Task<ActionResult<ApiResponse<List<NotificationDto>>>> GetByType(string type)
+    {
+        var result = await _notificationService.GetUnreadByTypeAsync(type);
+        return Ok(ApiResponse<List<NotificationDto>>.Ok(result));
+    }
+
+    /// <summary>
+    /// 标记指定类型的所有通知为已读
+    /// </summary>
+    [HttpPost("mark-type/{type}/read")]
+    public async Task<ActionResult<ApiResponse>> MarkAllByTypeAsRead(string type)
+    {
+        await _notificationService.MarkAllByTypeAsReadAsync(type);
         return Ok(ApiResponse.Ok("已全部标记为已读"));
     }
 }

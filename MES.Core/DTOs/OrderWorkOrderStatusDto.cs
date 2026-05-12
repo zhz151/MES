@@ -1,5 +1,7 @@
 // 文件路径: MES.Core/DTOs/OrderWorkOrderStatusDto.cs
 
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs;
 
 /// <summary>
@@ -38,9 +40,39 @@ public class OrderWorkOrderStatusDto
     public string? EndCustomer { get; set; }
 
     /// <summary>
-    /// 工单状态（NotGenerated/Pending/Confirmed/Cancelled）
+    /// 交期起始（项次最小交货日期）
     /// </summary>
-    public string WorkOrderStatus { get; set; } = null!;
+    public DateTime? DeliveryStart { get; set; }
+
+    /// <summary>
+    /// 交期截止（项次最大交货日期）
+    /// </summary>
+    public DateTime? DeliveryEnd { get; set; }
+
+    /// <summary>
+    /// 延期罚款（项次中任意一个是则标为是）
+    /// </summary>
+    public bool HasDelayPenalty { get; set; }
+
+    /// <summary>
+    /// 订单总重量（合同重量汇总，取整）
+    /// </summary>
+    public int TotalContractWeight { get; set; }
+
+    /// <summary>
+    /// 含项次数
+    /// </summary>
+    public int ItemCount { get; set; }
+
+    /// <summary>
+    /// 现工单数
+    /// </summary>
+    public int WorkOrderCount { get; set; }
+
+    /// <summary>
+    /// 工单状态
+    /// </summary>
+    public WorkOrderStatus WorkOrderStatus { get; set; }
 
     /// <summary>
     /// 工单状态文本
@@ -51,10 +83,10 @@ public class OrderWorkOrderStatusDto
         {
             return WorkOrderStatus switch
             {
-                "NotGenerated" => "未编制",
-                "Pending" => "待修正",
-                "Confirmed" => "已确定",
-                "Cancelled" => "已取消",
+                WorkOrderStatus.NotGenerated => "未编制",
+                WorkOrderStatus.Pending => "待修正",
+                WorkOrderStatus.Confirmed => "已确定",
+                WorkOrderStatus.Cancelled => "已取消",
                 _ => "未知"
             };
         }

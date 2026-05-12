@@ -13,6 +13,32 @@ public class SalesOrderListDto
     public string CustomerName { get; set; } = null!;
     public string Salesman { get; set; } = null!;
     public string? EndCustomer { get; set; }
+
+    /// <summary>
+    /// 交期起始（项次最小交货日期）
+    /// </summary>
+    public DateTime? DeliveryStart { get; set; }
+
+    /// <summary>
+    /// 交期截止（项次最大交货日期）
+    /// </summary>
+    public DateTime? DeliveryEnd { get; set; }
+
+    /// <summary>
+    /// 延期罚款（项次中任意一个是则标为是）
+    /// </summary>
+    public bool HasDelayPenalty { get; set; }
+
+    /// <summary>
+    /// 订单总重量（合同重量汇总，取整）
+    /// </summary>
+    public int TotalContractWeight { get; set; }
+
+    /// <summary>
+    /// 含项次数
+    /// </summary>
+    public int ItemCount { get; set; }
+
     public SalesOrderStatus Status { get; set; }
     public string StatusText => Status.ToString();
     public byte[] RowVersion { get; set; } = null!;

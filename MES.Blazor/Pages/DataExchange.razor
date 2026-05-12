@@ -8,7 +8,7 @@
 @inject AuthenticationStateProvider AuthProvider
 @attribute [Authorize]
 
-<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <MudText Typo="Typo.h5" Class="font-weight-bold mb-4">
         <MudIcon Icon="@Icons.Material.Filled.SwapHoriz" Class="mr-2" Color="Color.Primary" />
         数据工具
@@ -111,9 +111,9 @@
                 </MudButton>
             }
 
-            <MudAlert Severity="Severity.Info" Class="mt-3" Variant="Variant.Outlined">
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-3">
                 支持 .xlsx 格式，表头须与模板一致。导入在事务内执行：先禁用外键约束 → 写入数据 → 校验约束 → 通过则提交，失败则回滚。
-            </MudAlert>
+            </MudText>
         </MudPaper>
 
         <!-- 预览结果 -->
@@ -138,7 +138,7 @@
                               Dense="true"
                               Hover="true"
                               Elevation="0"
-                              Class="mt-2">
+                              Class="auto-table mt-2">
                         <HeaderContent>
                             <MudTh>行号</MudTh>
                             <MudTh>结果</MudTh>
@@ -205,21 +205,21 @@
 
                 @if (importResult.HasRolledBack)
                 {
-                    <MudAlert Severity="Severity.Error" Class="mb-2">
+                    <MudText Typo="Typo.body2" Color="Color.Error" Class="mb-2">
                         导入失败，已回滚。共 @importResult.TotalRows 行，全部失败。
-                    </MudAlert>
+                    </MudText>
                 }
                 else
                 {
-                    <MudAlert Severity="Severity.Success" Class="mb-2">
+                    <MudText Typo="Typo.body2" Color="Color.Success" Class="mb-2">
                         导入完成: 共 @importResult.TotalRows 行，成功 @importResult.SuccessCount 行，
                         失败 @importResult.FailedCount 行，策略: @(importResult.Strategy == "overwrite" ? "覆盖" : "跳过")
-                    </MudAlert>
+                    </MudText>
                 }
 
                 @if (importResult.Errors.Any())
                 {
-                    <MudTable Items="@importResult.Errors" Dense="true" Hover="true" Elevation="0">
+                    <MudTable Items="@importResult.Errors" Dense="true" Hover="true" Elevation="0" Class="auto-table">
                         <HeaderContent>
                             <MudTh>行号</MudTh>
                             <MudTh>错误信息</MudTh>

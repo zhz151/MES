@@ -10,15 +10,38 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject ColumnPrefsService ColumnPrefs
+@inject IJSRuntime JS
 @attribute [Authorize]
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+<style>
+    .outbound-edit-table td.mud-table-cell,
+    .outbound-edit-table th.mud-table-cell {
+        padding: 1px 4px !important;
+    }
+    .outbound-edit-table .mud-input-input-control {
+        margin-top: 0;
+    }
+    .outbound-edit-table .mud-input {
+        font-size: 13px;
+        width: 100%;
+        min-width: 0;
+    }
+    .outbound-edit-table th.mud-table-cell {
+        white-space: nowrap;
+    }
+</style>
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
                 <MudText Typo="Typo.h5" Class="font-weight-bold">
                     <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-2" Color="Color.Warning" />
                     出库历史记录查询及更正
+                    @if (!string.IsNullOrEmpty(_warehouseName))
+                    {
+                        <span Class="font-weight-light" Style="font-size:0.8em;"> — @_warehouseName</span>
+                    }
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -28,130 +51,138 @@
 
         <MudCardContent>
             <!-- 筛选栏 -->
-            <MudGrid Class="mb-4">
-                <MudItem xs="12" md="3">
-                    <MudSelect T="string" Label="出库类型" @bind-Value="_filterType"
-                               Variant="Variant.Outlined" Dense="true">
-                        <MudSelectItem Value="@_allTypeOption">全部</MudSelectItem>
-                        <MudSelectItem Value="@("ProductionPick")">生产领用</MudSelectItem>
-                        <MudSelectItem Value="@("SalesOut")">销售出库</MudSelectItem>
-                        <MudSelectItem Value="@("ReturnOut")">退货出库</MudSelectItem>
-                        <MudSelectItem Value="@("SubcontractOut")">委外出库</MudSelectItem>
-                        <MudSelectItem Value="@("ScrapOut")">报废出库</MudSelectItem>
-                        <MudSelectItem Value="@("TransferOut")">移库出库</MudSelectItem>
-                        <MudSelectItem Value="@("SampleOut")">取样出库</MudSelectItem>
-                        <MudSelectItem Value="@("OtherOut")">其他出库</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField T="string" Label="开始日期" @bind-Value="_filterStartDateText"
-                                  Placeholder="yyyy-MM-dd" Variant="Variant.Outlined" Dense="true" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField T="string" Label="结束日期" @bind-Value="_filterEndDateText"
-                                  Placeholder="yyyy-MM-dd" Variant="Variant.Outlined" Dense="true" />
-                </MudItem>
-                <MudItem xs="12" md="3" Class="d-flex align-center">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                               OnClick="DoFilter" Size="Size.Small" FullWidth="true">
-                        查询
-                    </MudButton>
+            <MudGrid Class="mb-2">
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  Value="_filterKeyword"
+                                  ValueChanged="@OnSearchChanged"
+                                  Label="模糊搜索"
+                                  Variant="Variant.Outlined"
+                                  Dense="true"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
             </MudGrid>
 
             <!-- 表格 -->
+            <div style="overflow-x:auto; max-width:100%;">
             <MudTable @ref="_table" T="OutboundRecordDto" ServerData="OnServerData"
                       Loading="_isLoading" Dense="true" Hover="true"
-                      Elevation="0" Striped="true" RowsPerPageLabel="每页行数:">
+                      Elevation="0" Striped="true" RowsPerPageLabel="每页行数:"
+                      MultiSelection="true" @bind-SelectedItems="_selectedItems"
+                      Class="auto-table outbound-edit-table">
+                <ToolBarContent>
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                    <MudSpacer />
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               Disabled="@(!_selectedItems.Any())"
+                               OnClick="PrintSelected" Class="mr-1">
+                        打印选中 (@_selectedItems.Count)
+                    </MudButton>
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll" Class="mr-4">
+                        打印全部
+                    </MudButton>
+                </ToolBarContent>
                 <HeaderContent>
-                    <MudTh>出库日期</MudTh>
-                    <MudTh>批次号</MudTh>
-                    <MudTh>仓库</MudTh>
-                    <MudTh>出库类型</MudTh>
-                    <MudTh>目标单位</MudTh>
-                    <MudTh>出库支数</MudTh>
-                    <MudTh>出库重量</MudTh>
-                    <MudTh>操作人</MudTh>
-                    <MudTh Style="width:120px;">操作</MudTh>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTh>
+                            @if (!string.IsNullOrEmpty(col.SortKey))
+                            {
+                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
+                                    @col.Label
+                                    @if (col.IsRequired)
+                                    {
+                                        <span class="required-star">*</span>
+                                    }
+                                    @if (sortColumn == col.SortKey)
+                                    {
+                                        <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
+                                    }
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="th-label">
+                                    @col.Label
+                                    @if (col.IsRequired)
+                                    {
+                                        <span class="required-star">*</span>
+                                    }
+                                </span>
+                            }
+                        </MudTh>
+                    }
+                    <MudTh Style="width:150px;">操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
-                    <MudTd><small>@item.OutboundDate.ToString("yyyy-MM-dd")</small></MudTd>
-                    <MudTd><small>@item.BatchNo</small></MudTd>
-                    <MudTd><small>@item.WarehouseName</small></MudTd>
-                    <MudTd><MudChip Size="Size.Small" Color="Color.Warning">@GetOutboundTypeText(item.OutboundType)</MudChip></MudTd>
-                    <MudTd><span class="table-cell-clamp-1">@item.TargetCompany</span></MudTd>
-                    <MudTd Class="text-right">@item.OutboundQuantity</MudTd>
-                    <MudTd Class="text-right">@item.OutboundWeight.ToString("G29")</MudTd>
-                    <MudTd><small>@item.Operator</small></MudTd>
-                    <MudTd>
-                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
-                                       Size="Size.Small" Title="更正"
-                                       OnClick="() => OpenEdit(item)" />
-                        <MudIconButton Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Error"
-                                       Size="Size.Small" Title="物理删除"
-                                       OnClick="() => ConfirmDelete(item)" />
-                    </MudTd>
+                    @if (_editingRowId == item.Id)
+                    {
+                        @foreach (var col in _visibleColumns)
+                        {
+                            <MudTd>@RenderInlineEditor(item, col)</MudTd>
+                        }
+                        <MudTd>
+                            <MudButton Variant="Variant.Filled" Size="Size.Small"
+                                       Color="Color.Primary"
+                                       OnClick="() => SaveRow(item)"
+                                       Disabled="@_savingItemId.HasValue"
+                                       Class="mr-1">
+                                确认更改
+                            </MudButton>
+                            <MudButton Variant="Variant.Text" Size="Size.Small"
+                                       Color="Color.Default"
+                                       OnClick="CancelEdit">
+                                取消
+                            </MudButton>
+                        </MudTd>
+                    }
+                    else
+                    {
+                        @foreach (var col in _visibleColumns)
+                        {
+                            <MudTd>@RenderCell(item, col)</MudTd>
+                        }
+                        <MudTd>
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                                       Color="Color.Primary"
+                                       OnClick="() => StartEdit(item)"
+                                       Class="mr-1">
+                                更改
+                            </MudButton>
+                            <MudIconButton Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Error"
+                                           Size="Size.Small" Title="物理删除"
+                                           OnClick="() => ConfirmDelete(item)" />
+                        </MudTd>
+                    }
                 </RowTemplate>
                 <PagerContent>
+                    <MudText Typo="Typo.body2" Class="d-flex align-center mr-auto">共 @_totalCount 条记录</MudText>
                     <MudTablePager />
                 </PagerContent>
                 <NoRecordsContent>
                     <MudText Class="d-flex justify-center pa-4" Color="Color.Secondary">暂无出库记录</MudText>
                 </NoRecordsContent>
             </MudTable>
-
-            @* ===== 内联编辑面板 ===== *@
-            @if (_editingItem != null)
-            {
-                <MudPaper Class="pa-4 mt-4" Elevation="1">
-                    <MudText Typo="Typo.h6" Class="mb-4">
-                        <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" Color="Color.Primary" />
-                        更正出库记录 — @_editingItem.BatchNo
-                    </MudText>
-                    <MudGrid>
-                        <MudItem xs="12" md="6">
-                            <MudSelect T="string" Label="出库类型" @bind-Value="_editOutboundType"
-                                        Variant="Variant.Outlined" Dense="true">
-                                <MudSelectItem Value="@("ProductionPick")">生产领用</MudSelectItem>
-                                <MudSelectItem Value="@("SalesOut")">销售出库</MudSelectItem>
-                                <MudSelectItem Value="@("ReturnOut")">退货出库</MudSelectItem>
-                                <MudSelectItem Value="@("SubcontractOut")">委外出库</MudSelectItem>
-                                <MudSelectItem Value="@("ScrapOut")">报废出库</MudSelectItem>
-                                <MudSelectItem Value="@("TransferOut")">移库出库</MudSelectItem>
-                                <MudSelectItem Value="@("SampleOut")">取样出库</MudSelectItem>
-                                <MudSelectItem Value="@("OtherOut")">其他出库</MudSelectItem>
-                            </MudSelect>
-                        </MudItem>
-                        <MudItem xs="12" md="6">
-                            <MudTextField T="string" Label="出库日期 (yyyy-MM-dd)" @bind-Value="_editOutboundDateText"
-                                          Variant="Variant.Outlined" Dense="true" />
-                        </MudItem>
-                        <MudItem xs="12" md="6">
-                            <MudTextField T="string" Label="目标单位" @bind-Value="_editTargetCompany"
-                                          Variant="Variant.Outlined" Dense="true" />
-                        </MudItem>
-                        <MudItem xs="12" md="3">
-                            <MudNumericField T="int" Label="出库支数" @bind-Value="_editQuantity"
-                                             Variant="Variant.Outlined" Dense="true" HideSpinButtons="true" />
-                        </MudItem>
-                        <MudItem xs="12" md="3">
-                            <MudNumericField T="decimal" Label="出库重量(kg)" @bind-Value="_editWeight"
-                                             Variant="Variant.Outlined" Dense="true" HideSpinButtons="true" />
-                        </MudItem>
-                        <MudItem xs="12" md="12">
-                            <MudTextField T="string" Label="备注" @bind-Value="_editRemark"
-                                          Variant="Variant.Outlined" Dense="true" />
-                        </MudItem>
-                    </MudGrid>
-                    <MudGrid Class="mt-4">
-                        <MudItem xs="12" Class="d-flex justify-end">
-                            <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CancelEdit" Class="mr-2">取消</MudButton>
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                       OnClick="SubmitEdit" Loading="_isEditing">保存</MudButton>
-                        </MudItem>
-                    </MudGrid>
-                </MudPaper>
-            }
+            </div>
         </MudCardContent>
     </MudCard>
 </MudContainer>
@@ -161,36 +192,387 @@
     public string? Code { get; set; }
 
     private int? _filterWarehouseId;
-    private readonly string _allTypeOption = string.Empty;
-    private string _filterType = string.Empty;
-    private string _filterStartDateText = string.Empty;
-    private string _filterEndDateText = string.Empty;
+    private string _warehouseName = string.Empty;
+    private string _filterKeyword = string.Empty;
+    private int _totalCount;
+
+    // 排序状态
+    private string sortColumn = "outbounddate";
+    private bool sortDescending = true;
+
+    private string GetSortIndicator(string column)
+    {
+        if (sortColumn != column) return "";
+        return sortDescending ? "\u25BC" : "\u25B2";
+    }
+
+    private async Task ToggleSort(string column)
+    {
+        if (sortColumn == column)
+            sortDescending = !sortDescending;
+        else
+        {
+            sortColumn = column;
+            sortDescending = false;
+        }
+        ClearEditState();
+        if (_table != null)
+            await _table.ReloadServerData();
+    }
+
+    private async Task OnSearchChanged(string value)
+    {
+        _filterKeyword = value ?? string.Empty;
+        ClearEditState();
+        if (_table != null)
+            await _table.ReloadServerData();
+    }
+
     private bool _isLoading;
+    private int? _savingItemId;
+    private long? _editingRowId;
     private MudTable<OutboundRecordDto>? _table;
 
-    // 编辑状态
-    private OutboundRecordDto? _editingItem;
-    private string _editOutboundType = "ProductionPick";
-    private string _editOutboundDateText = string.Empty;
-    private string _editTargetCompany = string.Empty;
-    private int _editQuantity;
-    private decimal _editWeight;
-    private string _editRemark = string.Empty;
-#pragma warning disable CS0414 // 在 Razor 模板 Loading 参数中使用
-    private bool _isEditing;
-#pragma warning restore CS0414
+    // 编辑暂存状态
+    private Dictionary<long, string> _editDateStrings = new();
+    private Dictionary<long, string> _editOutboundTypes = new();
+
+    private void ClearEditState()
+    {
+        _editingRowId = null;
+        _editDateStrings.Clear();
+        _editOutboundTypes.Clear();
+    }
+
+    // ========== 列定义 ==========
+
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns =>
+        _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
+    private static List<ColumnDef> GetAllColumnDefs() => new()
+    {
+        new() { Key = "BatchNo",          Label = "批次号",   SortKey = "batchno" },
+        new() { Key = "OutboundDate",     Label = "出库日期", SortKey = "outbounddate",     IsRequired = true },
+        new() { Key = "OutboundType",     Label = "出库类型", SortKey = "outboundtype",     IsRequired = true },
+        new() { Key = "SourceOrderNo",    Label = "物料单号" },
+        new() { Key = "TargetCompany",    Label = "目标单位", SortKey = "targetcompany" },
+        new() { Key = "OutboundQuantity", Label = "出库支数", SortKey = "outboundquantity", IsRequired = true },
+        new() { Key = "OutboundWeight",   Label = "出库重量", SortKey = "outboundweight",   IsRequired = true },
+        new() { Key = "Remark",           Label = "备注" },
+        new() { Key = "CreatedBy",        Label = "创建人",   SortKey = "createdby" },
+    };
+
+    private static void ApplyWarehouseDefaults(List<ColumnDef> cols, string whCode)
+    {
+        foreach (var c in cols)
+        {
+            c.IsApplicable = true;
+            c.Visible = true;
+        }
+
+        switch (whCode)
+        {
+            case "RAW":
+                // 原料仓库：全部字段适用
+                break;
+            case "FG":
+                // 成品仓库：全部字段适用
+                break;
+            case "DEFECT":
+                // 次品仓库：全部字段适用
+                break;
+            case "WIP":
+                // 在制品仓库：全部字段适用
+                break;
+        }
+    }
+
+    // ========== 列选择操作 ==========
+
+    private async Task OnColumnToggle(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task SaveColumnPrefs()
+    {
+        var whCode = Code?.ToUpperInvariant() ?? "";
+        await ColumnPrefs.SaveAsync("outbound_history", whCode, _allColumns);
+    }
+
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        ApplyWarehouseDefaults(_allColumns, Code?.ToUpperInvariant() ?? "");
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnUp(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnDown(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    // ========== 编辑器类型推断 ==========
+
+    private static string GetEditorType(string key) => key switch
+    {
+        "OutboundType" => "select",
+        "OutboundQuantity" => "int",
+        "OutboundWeight" => "decimal",
+        "OutboundDate" => "date",
+        _ => "text"
+    };
+
+    private static bool IsReadOnlyField(string key) => key switch
+    {
+        "BatchNo" or "CreatedBy" => true,
+        _ => false
+    };
+
+    private readonly List<(string Value, string Text)> _outboundTypeOptions = new()
+    {
+        ("SalesOut", "销售出库"),
+        ("SubcontractOut", "委外出库"),
+        ("ReturnOut", "退货出库"),
+        ("ProductionPick", "生产领用"),
+        ("InspectionPick", "检验领用"),
+        ("TransferOut", "移库出库"),
+        ("OtherOut", "其他出库"),
+    };
+
+    // ========== 只读单元格渲染 ==========
+
+    private RenderFragment RenderCell(OutboundRecordDto item, ColumnDef col) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "BatchNo":
+                builder.AddContent(0, item.BatchNo);
+                break;
+            case "OutboundDate":
+                builder.AddContent(0, item.OutboundDate.ToString("yyyy-MM-dd"));
+                break;
+            case "OutboundType":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", Color.Warning);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetOutboundTypeText(item.OutboundType))));
+                builder.CloseComponent();
+                break;
+            case "SourceOrderNo":
+                if (!string.IsNullOrEmpty(item.SourceOrderNo))
+                    builder.AddContent(0, item.SourceOrderNo);
+                break;
+            case "TargetCompany":
+                builder.AddContent(0, item.TargetCompany);
+                break;
+            case "OutboundQuantity":
+                builder.AddContent(0, item.OutboundQuantity);
+                break;
+            case "OutboundWeight":
+                builder.AddContent(0, item.OutboundWeight.ToString("G29"));
+                break;
+            case "Remark":
+                builder.AddContent(0, item.Remark);
+                break;
+            case "CreatedBy":
+                builder.AddContent(0, item.CreatedBy);
+                break;
+        }
+    };
+
+    // ========== 内联编辑渲染 ==========
+
+    private RenderFragment RenderInlineEditor(OutboundRecordDto item, ColumnDef col) => builder =>
+    {
+        if (IsReadOnlyField(col.Key))
+        {
+            RenderCell(item, col)(builder);
+            return;
+        }
+
+        switch (GetEditorType(col.Key))
+        {
+            case "select":
+                if (!_editOutboundTypes.ContainsKey(item.Id))
+                    _editOutboundTypes[item.Id] = item.OutboundType;
+                var selVal = _editOutboundTypes[item.Id];
+                builder.OpenComponent<MudSelect<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Value", selVal);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v =>
+                {
+                    _editOutboundTypes[item.Id] = v ?? item.OutboundType;
+                }));
+                builder.AddAttribute(5, "ChildContent", (RenderFragment)(b2 =>
+                {
+                    foreach (var opt in _outboundTypeOptions)
+                    {
+                        b2.OpenComponent<MudSelectItem<string>>(0);
+                        b2.AddAttribute(1, "Value", opt.Value);
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Text)));
+                        b2.CloseComponent();
+                    }
+                }));
+                builder.CloseComponent();
+                break;
+
+            case "int":
+                builder.OpenComponent<MudNumericField<int>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "HideSpinButtons", true);
+                builder.AddAttribute(3, "Value", item.OutboundQuantity);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<int>(this, v => item.OutboundQuantity = v));
+                builder.CloseComponent();
+                break;
+
+            case "decimal":
+                builder.OpenComponent<MudNumericField<decimal>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "HideSpinButtons", true);
+                builder.AddAttribute(3, "Format", "G29");
+                builder.AddAttribute(4, "Value", item.OutboundWeight);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<decimal>(this, v => item.OutboundWeight = v));
+                builder.CloseComponent();
+                break;
+
+            case "date":
+                if (!_editDateStrings.ContainsKey(item.Id))
+                    _editDateStrings[item.Id] = item.OutboundDate.ToString("yyyy-MM-dd");
+                var dateVal = _editDateStrings[item.Id];
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Value", dateVal);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v =>
+                {
+                    _editDateStrings[item.Id] = v ?? item.OutboundDate.ToString("yyyy-MM-dd");
+                    if (DateTime.TryParse(v, out var dt))
+                        item.OutboundDate = dt;
+                }));
+                builder.CloseComponent();
+                break;
+
+            default: // text
+                var txtVal = col.Key switch
+                {
+                    "SourceOrderNo" => item.SourceOrderNo,
+                    "TargetCompany" => item.TargetCompany,
+                    "Remark" => item.Remark,
+                    _ => ""
+                };
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Value", txtVal);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v =>
+                {
+                    switch (col.Key)
+                    {
+                        case "SourceOrderNo": item.SourceOrderNo = v; break;
+                        case "TargetCompany": item.TargetCompany = v; break;
+                        case "Remark": item.Remark = v; break;
+                    }
+                }));
+                builder.CloseComponent();
+                break;
+        }
+    };
+
+    // ========== 编辑状态管理 ==========
+
+    private void StartEdit(OutboundRecordDto item)
+    {
+        _editingRowId = item.Id;
+        _editDateStrings[item.Id] = item.OutboundDate.ToString("yyyy-MM-dd");
+        _editOutboundTypes[item.Id] = item.OutboundType;
+    }
+
+    private void CancelEdit()
+    {
+        ClearEditState();
+    }
+
+    // ========== 初始化 ==========
 
     protected override async Task OnInitializedAsync()
     {
+        // 预加载仓库列表
+        var warehouses = await WarehouseService.GetAllAsync(true);
+        if (warehouses.Success && warehouses.Data != null)
+            _warehouses = warehouses.Data;
+
+        await ResolveWarehouse();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
         if (!string.IsNullOrEmpty(Code))
         {
-            var result = await WarehouseService.GetAllAsync(true);
-            if (result.Success && result.Data != null)
+            await ResolveWarehouse();
+            ClearEditState();
+            if (_table != null)
+                await _table.ReloadServerData();
+        }
+    }
+
+    private List<WarehouseDto> _warehouses = new();
+
+    private async Task ResolveWarehouse()
+    {
+        _filterKeyword = string.Empty;
+        var whCode = Code?.ToUpperInvariant() ?? "";
+        var wh = _warehouses.FirstOrDefault(w => w.Code.Equals(whCode, StringComparison.OrdinalIgnoreCase));
+        if (wh != null)
+        {
+            _filterWarehouseId = wh.Id;
+            _warehouseName = wh.Name;
+        }
+        else if (!string.IsNullOrEmpty(Code))
+        {
+            _filterWarehouseId = null;
+            _warehouseName = Code;
+        }
+
+        // 列定义
+        _allColumns = GetAllColumnDefs();
+        ApplyWarehouseDefaults(_allColumns, whCode);
+
+        // 加载用户偏好
+        var saved = await ColumnPrefs.LoadAsync("outbound_history", whCode);
+        if (saved.Count > 0)
+        {
+            foreach (var s in saved)
             {
-                var wh = result.Data.FirstOrDefault(w => w.Code.Equals(Code, StringComparison.OrdinalIgnoreCase));
-                if (wh != null)
-                    _filterWarehouseId = wh.Id;
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
             }
+            var reordered = new List<ColumnDef>();
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
+        }
+
+        // 不适用列强制隐藏
+        foreach (var c in _allColumns)
+        {
+            if (!c.IsApplicable) c.Visible = false;
         }
     }
 
@@ -203,18 +585,16 @@
             {
                 PageIndex = state.Page + 1,
                 PageSize = state.PageSize,
-                SortBy = "OutboundDate",
-                IsDescending = true,
+                SortBy = sortColumn,
+                IsDescending = sortDescending,
                 WarehouseId = _filterWarehouseId,
-                OutboundType = string.IsNullOrEmpty(_filterType) ? null : _filterType,
+                Keyword = string.IsNullOrWhiteSpace(_filterKeyword) ? null : _filterKeyword,
             };
-
-            if (DateTime.TryParse(_filterStartDateText, out var startDate)) query.StartDate = startDate;
-            if (DateTime.TryParse(_filterEndDateText, out var endDate)) query.EndDate = endDate;
 
             var result = await InventoryService.GetOutboundRecordsAsync(query);
             if (result.Success && result.Data != null)
             {
+                _totalCount = result.Data.TotalCount;
                 return new TableData<OutboundRecordDto>
                 {
                     Items = result.Data.Items,
@@ -231,34 +611,23 @@
 
     private async Task DoFilter()
     {
+        ClearEditState();
         if (_table != null) await _table.ReloadServerData();
     }
 
-    private void OpenEdit(OutboundRecordDto item)
-    {
-        _editingItem = item;
-        _editOutboundType = item.OutboundType;
-        _editOutboundDateText = item.OutboundDate.ToString("yyyy-MM-dd");
-        _editTargetCompany = item.TargetCompany ?? "";
-        _editQuantity = item.OutboundQuantity;
-        _editWeight = item.OutboundWeight;
-        _editRemark = item.Remark ?? "";
-    }
+    // ========== 行保存 ==========
 
-    private void CancelEdit()
+    private async Task SaveRow(OutboundRecordDto item)
     {
-        _editingItem = null;
-    }
-
-    private async Task SubmitEdit()
-    {
-        if (_editingItem == null) return;
-
         var errors = new List<string>();
-        if (string.IsNullOrWhiteSpace(_editOutboundDateText)) errors.Add("出库日期不能为空");
-        if (!DateTime.TryParse(_editOutboundDateText, out var parsedDate)) errors.Add("出库日期无效，请按 yyyy-MM-dd 格式输入");
-        if (_editQuantity < 1) errors.Add("出库支数必须大于0");
-        if (_editWeight <= 0) errors.Add("出库重量必须大于0");
+        var parsedDate = item.OutboundDate;
+        if (_editDateStrings.TryGetValue(item.Id, out var dateStr))
+        {
+            if (!DateTime.TryParse(dateStr, out parsedDate))
+                errors.Add("出库日期无效，请按 yyyy-MM-dd 格式输入");
+        }
+        if (item.OutboundQuantity < 1) errors.Add("出库支数必须大于0");
+        if (item.OutboundWeight <= 0) errors.Add("出库重量必须大于0");
 
         if (errors.Any())
         {
@@ -266,31 +635,39 @@
             return;
         }
 
-        _isEditing = true;
+        _savingItemId = 1;
         StateHasChanged();
 
         try
         {
+            var outboundType = _editOutboundTypes.TryGetValue(item.Id, out var typ) ? typ : item.OutboundType;
+
             var request = new UpdateOutboundRecordRequest
             {
-                OutboundType = _editOutboundType,
+                OutboundType = outboundType,
                 OutboundDate = parsedDate,
-                TargetCompany = string.IsNullOrEmpty(_editTargetCompany) ? null : _editTargetCompany,
-                OutboundQuantity = _editQuantity,
-                OutboundWeight = _editWeight,
-                Remark = string.IsNullOrEmpty(_editRemark) ? null : _editRemark,
+                SourceOrderNo = string.IsNullOrEmpty(item.SourceOrderNo) ? null : item.SourceOrderNo,
+                TargetCompany = string.IsNullOrEmpty(item.TargetCompany) ? null : item.TargetCompany,
+                OutboundQuantity = item.OutboundQuantity,
+                OutboundWeight = item.OutboundWeight,
+                Remark = string.IsNullOrEmpty(item.Remark) ? null : item.Remark,
             };
 
-            var result = await InventoryService.UpdateOutboundRecordAsync(_editingItem.Id, request);
+            var result = await InventoryService.UpdateOutboundRecordAsync(item.Id, request);
             if (result.Success)
             {
-                Snackbar.Add("更新成功", Severity.Success);
-                _editingItem = null;
-                await DoFilter();
+                Snackbar.Add("更改成功", Severity.Success);
+                item.OutboundDate = parsedDate;
+                item.OutboundType = outboundType;
+                _editingRowId = null;
+                _editDateStrings.Remove(item.Id);
+                _editOutboundTypes.Remove(item.Id);
+                if (_table != null)
+                    await _table.ReloadServerData();
             }
             else
             {
-                Snackbar.Add(result.Message ?? "更新失败", Severity.Error);
+                Snackbar.Add(result.Message ?? "更改失败", Severity.Error);
             }
         }
         catch (Exception ex)
@@ -299,18 +676,20 @@
         }
         finally
         {
-            _isEditing = false;
+            _savingItemId = null;
             StateHasChanged();
         }
     }
 
+    // ========== 删除 ==========
+
     private async Task ConfirmDelete(OutboundRecordDto item)
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认删除",
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认",
             new DialogParameters
             {
                 { "ContentText", $"确认物理删除出库记录（批次：{item.BatchNo}，日期：{item.OutboundDate:yyyy-MM-dd}）？\n此操作不可恢复！" },
-                { "ConfirmText", "删除" },
+                { "ConfirmText", "确认删除" },
                 { "Color", Color.Error }
             });
         var dialogResult = await dialog.Result;
@@ -322,6 +701,7 @@
             if (result.Success)
             {
                 Snackbar.Add("出库记录已删除", Severity.Success);
+                ClearEditState();
                 await DoFilter();
             }
             else
@@ -335,16 +715,66 @@
         }
     }
 
+    // ========== 多选 ==========
+    private HashSet<OutboundRecordDto> _selectedItems = new();
+
+    // ========== 打印 ==========
+
+    private async Task PrintSelected()
+    {
+        if (!_selectedItems.Any())
+        {
+            Snackbar.Add("请先选择要打印的出库记录", Severity.Warning);
+            return;
+        }
+        try
+        {
+            var columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+            var ids = _selectedItems.Select(i => i.Id).ToArray();
+            var result = await InventoryService.PrintOutboundSelectedAsync(new OutboundPrintSelectedRequest
+            {
+                Ids = ids,
+                Columns = columns
+            });
+            if (result.Success && result.Data != null)
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
+    }
+
+    private async Task PrintAll()
+    {
+        try
+        {
+            var columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+            var result = await InventoryService.PrintOutboundAllAsync(new OutboundPrintAllRequest
+            {
+                Keyword = string.IsNullOrEmpty(_filterKeyword) ? null : _filterKeyword,
+                SortBy = sortColumn,
+                IsDescending = sortDescending,
+                WarehouseId = _filterWarehouseId,
+                Columns = columns
+            });
+            if (result.Success && result.Data != null)
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
+    }
+
+    // ========== 辅助方法 ==========
+
     private static string GetOutboundTypeText(string type) => type switch
     {
-        "ProductionPick" => "生产领用",
         "SalesOut" => "销售出库",
-        "ReturnOut" => "退货出库",
         "SubcontractOut" => "委外出库",
-        "ScrapOut" => "报废出库",
+        "ReturnOut" => "退货出库",
+        "ProductionPick" => "生产领用",
+        "InspectionPick" => "检验领用",
         "TransferOut" => "移库出库",
-        "InventoryLoss" => "盘亏出库",
-        "SampleOut" => "取样出库",
         "OtherOut" => "其他出库",
         _ => type
     };

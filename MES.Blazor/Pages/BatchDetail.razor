@@ -1,0 +1,397 @@
+@page "/batches/{Id:int}"
+@using MES.Blazor.Helpers
+@using MES.Blazor.Services
+@using MES.Blazor.Shared
+@using MES.Core.DTOs
+@using MES.Core.Enums
+@using Microsoft.AspNetCore.Authorization
+@inject BatchService BatchService
+@inject ProductionRecordService ProdRecordService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = "BatchStaff,BatchDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    @if (isLoading)
+    {
+        <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+    }
+    else if (batch == null)
+    {
+        <MudText Typo="Typo.body2" Color="Color.Error">批次不存在</MudText>
+    }
+    else
+    {
+        <!-- ===== 页眉 ===== -->
+        <MudPaper Class="pa-3 mb-2" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+            <div class="d-flex align-center justify-space-between flex-wrap" Style="gap:4px;">
+                <div class="d-flex align-center flex-wrap" Style="gap:6px;">
+                    <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Color="Color.Primary" Size="Size.Small" />
+                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold mr-1">批次详情</MudText>
+                    <MudChip Size="Size.Small" Color="@DisplayHelper.GetBatchStatusColor(batch.Status)">@DisplayHelper.GetBatchStatusText(batch.Status)</MudChip>
+                    <MudText Typo="Typo.body2" Color="Color.Primary" Class="font-weight-bold ml-1">@batch.BatchNo</MudText>
+                </div>
+                <div class="d-flex align-center flex-wrap" Style="gap:4px;">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                               Size="Size.Small" StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAsync" Class="ml-1">打印</MudButton>
+                    @if (CanEdit)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Warning"
+                                   Size="Size.Small" StartIcon="@Icons.Material.Filled.Edit"
+                                   OnClick="EnterEditMode" Class="ml-1">编辑</MudButton>
+                    }
+                    @if (CanDelete)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                       Size="Size.Small" OnClick="DeleteAsync" Title="删除" />
+                    }
+                    <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="GoBack" Class="ml-1">返回列表</MudButton>
+                </div>
+            </div>
+        </MudPaper>
+
+        <!-- ===== 区块一：批次基本信息 ===== -->
+        <MudPaper Class="pa-4 mb-3" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background:#fafafa;">
+            <MudText Typo="Typo.subtitle2" Class="font-weight-bold mb-3" Style="color:#37474F;">
+                <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-1" Size="Size.Small" />批次基本信息
+            </MudText>
+            <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">生产编号</MudText><MudText Typo="Typo.body2">@batch.BatchNo</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">挂牌号</MudText><MudText Typo="Typo.body2">@(batch.TagNo ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">生产类型</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetProductionTypeText(batch.ProductionType))</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">制几率</MudText><MudText Typo="Typo.body2">@(batch.ProductionRatio?.ToString() ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">备注</MudText><MudText Typo="Typo.body2">@(batch.Remark ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetBatchStatusText(batch.Status)</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">创建人</MudText><MudText Typo="Typo.body2">@batch.CreatedBy</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">创建时间</MudText><MudText Typo="Typo.body2">@batch.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">最后更新</MudText><MudText Typo="Typo.body2">@batch.UpdatedBy / @batch.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")</MudText></div>
+            </div>
+        </MudPaper>
+
+        <!-- ===== 区块二：执行信息 ===== -->
+        <MudPaper Class="pa-4 mb-3" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background:#fafafa;">
+            <MudText Typo="Typo.subtitle2" Class="font-weight-bold mb-3" Style="color:#37474F;">
+                <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Class="mr-1" Size="Size.Small" />执行信息
+            </MudText>
+            <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">截止执行日</MudText><MudText Typo="Typo.body2">@(batch.CurrentExecDate?.ToString("yyyy-MM-dd") ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">当前工序</MudText><MudText Typo="Typo.body2">@(batch.CurrentGroupName ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">当前工段</MudText><MudText Typo="Typo.body2">@(batch.CurrentSectionName ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">当前设备</MudText><MudText Typo="Typo.body2">@(batch.CurrentEquipmentName ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">当前委外</MudText><MudText Typo="Typo.body2">@(batch.CurrentOutsource ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">当前规格</MudText><MudText Typo="Typo.body2">@(batch.CurrentSpec ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">下一工段</MudText><MudText Typo="Typo.body2">@(batch.NextSectionName ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">对应规格</MudText><MudText Typo="Typo.body2">@(batch.CorrespondingSpec ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">强制完成</MudText><MudText Typo="Typo.body2">@(batch.IsForceCompleted ? "是" : "否")</MudText></div>
+                <div class="d-flex align-center" Style="gap:4px; width:100%;">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="RefreshTracking" Class="mt-1">刷新执行状态</MudButton>
+                </div>
+            </div>
+        </MudPaper>
+
+        <!-- ===== 区块三：质量要求 ===== -->
+        <MudPaper Class="pa-4 mb-3" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background:#fafafa;">
+            <MudText Typo="Typo.subtitle2" Class="font-weight-bold mb-3" Style="color:#37474F;">
+                <MudIcon Icon="@Icons.Material.Filled.FactCheck" Class="mr-1" Size="Size.Small" />质量要求
+            </MudText>
+            <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
+                <div style="min-width:300px; flex:1;"><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">固溶参数</MudText><MudText Typo="Typo.body2">@(batch.SolutionParams ?? "-")</MudText></div>
+                <div style="min-width:300px; flex:1;"><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">质量备注</MudText><MudText Typo="Typo.body2">@(batch.QualityRemark ?? "-")</MudText></div>
+            </div>
+        </MudPaper>
+
+        <!-- ===== 区块四：仓库来源信息 ===== -->
+        <MudPaper Class="pa-4 mb-3" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background:#fafafa;">
+            <MudText Typo="Typo.subtitle2" Class="font-weight-bold mb-3" Style="color:#37474F;">
+                <MudIcon Icon="@Icons.Material.Filled.Warehouse" Class="mr-1" Size="Size.Small" />仓库来源信息
+            </MudText>
+            @if (string.IsNullOrEmpty(batch.SourceBatchNo))
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">无来源库存批次信息</MudText>
+            }
+            else
+            {
+                <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
+                    <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">来源库存批次</MudText><MudText Typo="Typo.body2">@batch.SourceBatchNo</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">仓库名称</MudText><MudText Typo="Typo.body2">@(batch.WarehouseName ?? "-")</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">来源工单号</MudText><MudText Typo="Typo.body2">@batch.WorkOrderNo</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">原料类型</MudText><MudText Typo="Typo.body2">@(batch.SourceMaterialType ?? "-")</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">入库来源</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetInboundSourceText(batch.InboundSource)</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">来料单位</MudText><MudText Typo="Typo.body2">@(batch.SourceName ?? "-")</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">入库日期</MudText><MudText Typo="Typo.body2">@(batch.InboundDate?.ToString("yyyy-MM-dd") ?? "-")</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">炉号</MudText><MudText Typo="Typo.body2">@(batch.SourceHeatNo ?? "-")</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">工厂牌号</MudText><MudText Typo="Typo.body2">@(batch.SourcePlantGrade ?? "-")</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">名义规格</MudText><MudText Typo="Typo.body2">@(batch.SourceSpecification ?? "-")</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">长度状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(batch.SourceLengthStatus)</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">单支重</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.SourceUnitWeight) kg</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">领料支数</MudText><MudText Typo="Typo.body2">@(batch.InputQuantity?.ToString() ?? "-") 支</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">领料重量</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.InputWeight) kg</MudText></div>
+                </div>
+            }
+        </MudPaper>
+
+        <!-- ===== 区块五：工单信息（只读快照） ===== -->
+        <MudPaper Class="pa-4 mb-3" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background:#fafafa;">
+            <MudText Typo="Typo.subtitle2" Class="font-weight-bold mb-3" Style="color:#37474F;">
+                <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-1" Size="Size.Small" />工单信息（创建时快照，只读）
+            </MudText>
+            <!-- 第1组 -->
+            <MudText Typo="Typo.caption" Class="font-weight-bold mb-2" Style="color:#78909C;">基本信息</MudText>
+            <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">工单号</MudText><MudText Typo="Typo.body2">@batch.WorkOrderNo</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">源订单号</MudText><MudText Typo="Typo.body2">@batch.SalesOrderNo</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">主号</MudText><MudText Typo="Typo.body2">@batch.ProductionMainNo</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">次号</MudText><MudText Typo="Typo.body2">@(batch.ProductionSubNo ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">项次ID</MudText><MudText Typo="Typo.body2">@batch.OrderItemIds</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">签订日期</MudText><MudText Typo="Typo.body2">@batch.SignDate.ToString("yyyy-MM-dd")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">业务员</MudText><MudText Typo="Typo.body2">@batch.Salesman</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">最终用户</MudText><MudText Typo="Typo.body2">@(batch.EndCustomer ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">交货日期</MudText><MudText Typo="Typo.body2">@batch.DeliveryDate.ToString("yyyy-MM-dd")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">延期罚款</MudText><MudText Typo="Typo.body2">@(batch.DelayPenalty ? "是" : "否")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">物料名称</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetMaterialNameText(Enum.TryParse<MaterialName>(batch.MaterialName, ignoreCase: true, out var mn) ? mn : default)</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">结算方式</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetSettlementMethodText(Enum.TryParse<SettlementMethod>(batch.SettlementMethod, ignoreCase: true, out var sm) ? sm : default)</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">标准编码</MudText><MudText Typo="Typo.body2">@batch.StandardCode</MudText></div>
+            </div>
+
+            <MudDivider Class="my-3" />
+            <!-- 第2组 -->
+            <MudText Typo="Typo.caption" Class="font-weight-bold mb-2" Style="color:#78909C;">工艺参数及汇总</MudText>
+            <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">交货状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetDeliveryStateText(Enum.TryParse<DeliveryState>(batch.DeliveryState, ignoreCase: true, out var ds) ? ds : default)</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">工厂牌号</MudText><MudText Typo="Typo.body2">@batch.PlantGrade</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">规格</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatSpecification(batch.Specification)</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">外径公差</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatTolerance(batch.OuterDiameterNegative, batch.OuterDiameterPositive)</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">壁厚公差</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatTolerance(batch.WallThicknessNegative, batch.WallThicknessPositive)</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">长度状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(batch.LengthStatus)</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">最小长度</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.MinLength) mm</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">最大长度</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.MaxLength) mm</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">总支数</MudText><MudText Typo="Typo.body2">@batch.TotalQuantity 支</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">总米数</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(batch.TotalMeters) m</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">总重量</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(batch.TotalWeight) kg</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">技术要求</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetTechnicalRequirementsText(batch.TechnicalRequirements)</MudText></div>
+            </div>
+
+            <MudDivider Class="my-3" />
+            <!-- 第3组 -->
+            <MudText Typo="Typo.caption" Class="font-weight-bold mb-2" Style="color:#78909C;">项次及明细</MudText>
+            <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">总项次数</MudText><MudText Typo="Typo.body2">@batch.TotalItemCount</MudText></div>
+                <div style="flex:1; min-width:200px;">
+                    <MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">明细</MudText>
+                    <MudText Typo="Typo.body2" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; display:block;" title="@batch.ItemDetails">
+                        @(batch.ItemDetails ?? "-")
+                    </MudText>
+                </div>
+            </div>
+        </MudPaper>
+
+        <!-- ===== 区块六：工序组列表 ===== -->
+        <MudPaper Class="pa-4 mb-3" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background:#fafafa;">
+            <MudText Typo="Typo.subtitle2" Class="font-weight-bold mb-3" Style="color:#37474F;">
+                <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-1" Size="Size.Small" />工序组
+            </MudText>
+            @if (batch.ProcessGroups.Count == 0)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">无工序组数据</MudText>
+            }
+            else
+            {
+                <div style="overflow-x:auto;">
+                    <MudTable T="ProcessGroupDto" Items="batch.ProcessGroups" Dense="true" Hover="true" Elevation="0" ReadOnly="true" Class="auto-table">
+                        <HeaderContent>
+                            <MudTh>序号</MudTh>
+                            <MudTh>工序名称</MudTh>
+                            <MudTh>制造规格</MudTh>
+                            <MudTh>外径公差</MudTh>
+                            <MudTh>壁厚公差</MudTh>
+                            <MudTh>制造长度</MudTh>
+                            <MudTh>断切处理</MudTh>
+                            <MudTh>备注</MudTh>
+                            <MudTh>冷轧拔</MudTh>
+                            <MudTh>油管断</MudTh>
+                            <MudTh>去油</MudTh>
+                            <MudTh>固溶</MudTh>
+                            <MudTh>矫直</MudTh>
+                            <MudTh>断切</MudTh>
+                            <MudTh>测壁厚</MudTh>
+                            <MudTh>酸洗</MudTh>
+                            <MudTh>外抛光</MudTh>
+                            <MudTh>内修磨</MudTh>
+                            <MudTh>外点磨</MudTh>
+                            <MudTh>检验</MudTh>
+                            <MudTh>打焊头</MudTh>
+                            <MudTh>润滑</MudTh>
+                            <MudTh>入库</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd><MudText Typo="Typo.body2">@context.SequenceNumber</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2" Class="font-weight-bold">@context.ProcessName</MudText></MudTd>
+                            <MudTd title="@context.ManufacturingSpec"><MudText Typo="Typo.body2">@(context.ManufacturingSpec ?? "-")</MudText></MudTd>
+                            <MudTd title="@context.OuterDiameterTolerance"><MudText Typo="Typo.body2">@(context.OuterDiameterTolerance ?? "-")</MudText></MudTd>
+                            <MudTd title="@context.WallThicknessTolerance"><MudText Typo="Typo.body2">@(context.WallThicknessTolerance ?? "-")</MudText></MudTd>
+                            <MudTd title="@context.ManufacturingLength"><MudText Typo="Typo.body2">@(context.ManufacturingLength ?? "-")</MudText></MudTd>
+                            <MudTd title="@context.CuttingTreatment"><MudText Typo="Typo.body2">@(context.CuttingTreatment ?? "-")</MudText></MudTd>
+                            <MudTd title="@context.Remark"><MudText Typo="Typo.body2">@(context.Remark ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.ColdRollDraw?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.OilPipeCut?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.Degrease?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.Solution?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.Straighten?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.Cut?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.ThicknessMeasure?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.Pickle?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.OuterPolish?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.InnerGrinding?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.OuterSpotGrinding?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.Inspection?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.WeldingHead?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.Lubrication?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.Warehouse?.ToString() ?? "-")</MudText></MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+            }
+        </MudPaper>
+
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private ProductionBatchDetailDto? batch;
+    private bool isLoading = true;
+
+
+    private bool CanEdit => IsInRole("BatchDirector,Admin");
+    private bool CanDelete => IsInRole("Admin");
+
+    private static bool IsInRole(string roles)
+    {
+        // 由 Blazor [Authorize] 保证页面级权限，按钮级权限不做严格检查
+        return true;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        if (Id <= 0)
+        {
+            Snackbar.Add("无效的批次ID", Severity.Error);
+            isLoading = false;
+            return;
+        }
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await BatchService.GetByIdAsync(Id);
+            if (result.Success && result.Data != null)
+            {
+                batch = result.Data;
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "加载批次详情失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // ========== 操作 ==========
+
+    private void EnterEditMode()
+    {
+        Navigation.NavigateTo($"/batches/{Id}/edit");
+    }
+
+    private async Task PrintAsync()
+    {
+        try
+        {
+            var result = await BatchService.PrintBatchAsync(Id);
+            if (result.Success && !string.IsNullOrEmpty(result.Data))
+            {
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认删除", new DialogParameters
+        {
+            ["ContentText"] = $"确定删除生产批次 {batch?.BatchNo} 吗？关联的工序组将一并删除，且不可恢复。",
+            ["ConfirmText"] = "删除",
+            ["Color"] = Color.Error
+        });
+        var result = await dialog.Result;
+        if (result.Canceled) return;
+
+        try
+        {
+            var apiResult = await BatchService.DeleteAsync(Id);
+            if (apiResult.Success)
+            {
+                Snackbar.Add("删除成功", Severity.Success);
+                Navigation.NavigateTo("/batches");
+            }
+            else
+            {
+                Snackbar.Add(apiResult.Message ?? "删除失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/batches");
+
+    private async Task RefreshTracking()
+    {
+        try
+        {
+            var result = await ProdRecordService.RefreshBatchTrackingAsync(Id);
+            if (result.Success)
+            {
+                Snackbar.Add("执行状态已刷新", Severity.Success);
+                await LoadData();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "刷新失败", Severity.Error);
+            }
+        }
+        catch (Exception ex) { Snackbar.Add($"刷新失败: {ex.Message}", Severity.Error); }
+    }
+
+}

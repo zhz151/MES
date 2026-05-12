@@ -62,13 +62,21 @@ public static class DtoMapper
         SalesOrderNo = entity.SalesOrderNo,
         ProductionMainNo = entity.ProductionMainNo,
         ProductionSubNo = entity.ProductionSubNo,
-        PlantGrade = entity.PlantGrade,
-        MaterialName = entity.MaterialName.ToString(),
-        Specification = entity.Specification,
+        SignDate = entity.SignDate,
+        Salesman = entity.Salesman,
+        EndCustomer = entity.EndCustomer,
         DeliveryDate = entity.DeliveryDate,
-        LengthStatus = entity.LengthStatus.ToString(),
+        DelayPenalty = entity.DelayPenalty,
+        SettlementMethod = entity.SettlementMethod,
+        PlantGrade = entity.PlantGrade,
+        MaterialName = entity.MaterialName,
+        Specification = entity.Specification,
+        LengthStatus = entity.LengthStatus,
+        MaxLength = entity.MaxLength,
         TotalQuantity = entity.TotalQuantity,
         TotalWeight = entity.TotalWeight,
+        DeliveryState = entity.DeliveryState,
+        TotalItemCount = entity.TotalItemCount,
         Status = (int)entity.Status,
         MaterialPlanStatus = (int)entity.MaterialPlanStatus,
         MaterialPlanRate = entity.MaterialPlanRate,
@@ -89,17 +97,17 @@ public static class DtoMapper
         EndCustomer = entity.EndCustomer,
         DeliveryDate = entity.DeliveryDate,
         DelayPenalty = entity.DelayPenalty,
-        MaterialName = entity.MaterialName.ToString(),
-        SettlementMethod = entity.SettlementMethod.ToString(),
+        MaterialName = entity.MaterialName,
+        SettlementMethod = entity.SettlementMethod,
         StandardCode = entity.StandardCode,
-        DeliveryState = entity.DeliveryState.ToString(),
+        DeliveryState = entity.DeliveryState,
         PlantGrade = entity.PlantGrade,
         Specification = entity.Specification,
         OuterDiameterNegative = entity.OuterDiameterNegative,
         OuterDiameterPositive = entity.OuterDiameterPositive,
         WallThicknessNegative = entity.WallThicknessNegative,
         WallThicknessPositive = entity.WallThicknessPositive,
-        LengthStatus = entity.LengthStatus.ToString(),
+        LengthStatus = entity.LengthStatus,
         MinLength = entity.MinLength,
         MaxLength = entity.MaxLength,
         TotalQuantity = entity.TotalQuantity,
@@ -124,7 +132,7 @@ public static class DtoMapper
 
         var nominalOd = SpecificationParser.ParseOuterDiameter(entity.Specification);
         var nominalWt = SpecificationParser.ParseWallThickness(entity.Specification);
-        if (nominalOd <= 0 || nominalWt <= 0) return null;
+        if (nominalOd == null || nominalWt == null || nominalOd <= 0 || nominalWt <= 0) return null;
 
         var odActual = nominalOd - 0.5m * entity.OuterDiameterNegative + 0.5m * entity.OuterDiameterPositive;
         var wtActual = nominalWt - 0.5m * entity.WallThicknessNegative + 0.5m * entity.WallThicknessPositive;
@@ -137,7 +145,7 @@ public static class DtoMapper
             : 4500m;
         var unitWeight = weightPerMeter * maxLengthMm / 1000m;
 
-        return Math.Round(unitWeight, 3);
+        return unitWeight.HasValue ? Math.Round(unitWeight.Value, 3) : null;
     }
 
     public static ProductRequirementDto ToDto(this ProductRequirement entity, int sequence) => new()
@@ -213,13 +221,123 @@ public static class DtoMapper
     {
         Id = entity.Id,
         InventoryBatchId = entity.InventoryBatchId,
-        OutboundType = entity.OutboundType,
+        OutboundType = entity.OutboundType.ToString(),
+        SourceOrderNo = entity.SourceOrderNo,
         TargetCompany = entity.TargetCompany,
         OutboundQuantity = entity.OutboundQuantity,
         OutboundWeight = entity.OutboundWeight,
         OutboundDate = entity.OutboundDate,
-        Operator = entity.Operator,
         Remark = entity.Remark,
+        CreatedBy = entity.CreatedBy,
         CreatedTime = entity.CreatedTime
+    };
+
+    // ========== 批次上下文 Mapping ==========
+
+    public static ProductionBatchListDto ToListDto(this ProductionBatch entity) => new()
+    {
+        Id = entity.Id,
+        BatchNo = entity.BatchNo,
+        Status = entity.Status.ToString(),
+        TagNo = entity.TagNo,
+        WorkOrderNo = entity.WorkOrderNo,
+        CurrentGroupName = entity.CurrentGroupName,
+        CurrentSectionName = entity.CurrentSectionName,
+        CurrentExecDate = entity.CurrentExecDate,
+        CreatedTime = entity.CreatedTime,
+        CreatedBy = entity.CreatedBy
+    };
+
+    public static ProductionBatchDetailDto ToDetailDto(this ProductionBatch entity) => new()
+    {
+        Id = entity.Id,
+        BatchNo = entity.BatchNo,
+        Status = entity.Status.ToString(),
+        TagNo = entity.TagNo,
+        IsForceCompleted = entity.IsForceCompleted,
+        QualityRemark = entity.QualityRemark,
+        SolutionParams = entity.SolutionParams,
+        CurrentExecDate = entity.CurrentExecDate,
+        CurrentGroupName = entity.CurrentGroupName,
+        CurrentSectionName = entity.CurrentSectionName,
+        CurrentEquipmentName = entity.CurrentEquipmentName,
+        CurrentOutsource = entity.CurrentOutsource,
+        NextSectionName = entity.NextSectionName,
+        Remark = entity.Remark,
+        WorkOrderNo = entity.WorkOrderNo,
+        SalesOrderNo = entity.SalesOrderNo,
+        ProductionMainNo = entity.ProductionMainNo,
+        ProductionSubNo = entity.ProductionSubNo,
+        OrderItemIds = entity.OrderItemIds,
+        SignDate = entity.SignDate,
+        Salesman = entity.Salesman,
+        EndCustomer = entity.EndCustomer,
+        DeliveryDate = entity.DeliveryDate,
+        DelayPenalty = entity.DelayPenalty,
+        MaterialName = entity.MaterialName,
+        SettlementMethod = entity.SettlementMethod,
+        StandardCode = entity.StandardCode,
+        DeliveryState = entity.DeliveryState,
+        PlantGrade = entity.PlantGrade,
+        Specification = entity.Specification,
+        OuterDiameterNegative = entity.OuterDiameterNegative,
+        OuterDiameterPositive = entity.OuterDiameterPositive,
+        WallThicknessNegative = entity.WallThicknessNegative,
+        WallThicknessPositive = entity.WallThicknessPositive,
+        LengthStatus = entity.LengthStatus,
+        MinLength = entity.MinLength,
+        MaxLength = entity.MaxLength,
+        TotalQuantity = entity.TotalQuantity,
+        TotalMeters = entity.TotalMeters,
+        TotalWeight = entity.TotalWeight,
+        TotalItemCount = entity.TotalItemCount,
+        ItemDetails = entity.ItemDetails,
+        TechnicalRequirements = entity.TechnicalRequirements,
+        SourceBatchNo = entity.SourceBatchNo,
+        WarehouseId = entity.WarehouseId,
+        SourceMaterialType = entity.SourceMaterialType,
+        InboundSource = entity.InboundSource,
+        SourceName = entity.SourceName,
+        InboundDate = entity.InboundDate,
+        SourceHeatNo = entity.SourceHeatNo,
+        InputQuantity = entity.InputQuantity,
+        InputWeight = entity.InputWeight,
+        CreatedTime = entity.CreatedTime,
+        CreatedBy = entity.CreatedBy,
+        UpdatedTime = entity.UpdatedTime,
+        UpdatedBy = entity.UpdatedBy,
+        RowVersion = entity.RowVersion,
+        ProcessGroups = entity.ProcessGroups?.Select(ToGroupDto).ToList() ?? new()
+    };
+
+    public static ProcessGroupDto ToGroupDto(this ProcessGroup entity) => new()
+    {
+        Id = entity.Id,
+        ProductionBatchId = entity.ProductionBatchId,
+        SequenceNumber = entity.SequenceNumber,
+        ProcessName = entity.ProcessName,
+        ManufacturingSpec = entity.ManufacturingSpec,
+        OuterDiameterTolerance = entity.OuterDiameterTolerance,
+        WallThicknessTolerance = entity.WallThicknessTolerance,
+        ManufacturingLength = entity.ManufacturingLength,
+        CuttingTreatment = entity.CuttingTreatment,
+        Remark = entity.Remark,
+        ColdRollDraw = entity.ColdRollDraw,
+        OilPipeCut = entity.OilPipeCut,
+        Degrease = entity.Degrease,
+        Solution = entity.Solution,
+        Straighten = entity.Straighten,
+        Cut = entity.Cut,
+        ThicknessMeasure = entity.ThicknessMeasure,
+        Pickle = entity.Pickle,
+        OuterPolish = entity.OuterPolish,
+        InnerGrinding = entity.InnerGrinding,
+        OuterSpotGrinding = entity.OuterSpotGrinding,
+        Inspection = entity.Inspection,
+        WeldingHead = entity.WeldingHead,
+        Lubrication = entity.Lubrication,
+        Warehouse = entity.Warehouse,
+        CreatedTime = entity.CreatedTime,
+        CreatedBy = entity.CreatedBy
     };
 }

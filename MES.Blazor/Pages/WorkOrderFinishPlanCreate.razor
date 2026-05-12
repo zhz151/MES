@@ -17,13 +17,13 @@
     }
     .finish-create-table table th,
     .finish-create-table table td {
+        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap;
     }
 </style>
 
-<MudContainer Class="mt-4" Style="max-width:100%;">
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
@@ -38,6 +38,7 @@
         </MudCardHeader>
 
         <MudCardContent>
+            <div id="finish-plan-create-table">
             @if (isLoadingWorkOrder)
             {
                 <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
@@ -62,7 +63,7 @@
                 @if (rows.Any())
                 {
                     <div Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;" Class="mb-3">
-                        <MudTable Items="@rows" Class="finish-create-table" Dense="true" Hover="true" Striped="true" Elevation="0" RowsPerPage="10" RowsPerPageLabel="每页行数:">
+                        <MudTable Items="@rows" Class="finish-create-table auto-table" Dense="true" Hover="true" Striped="true" Elevation="0" RowsPerPage="10" RowsPerPageLabel="每页行数:">
                             <HeaderContent>
                                 <MudTh Style="width:80px;">成品类型</MudTh>
                                 <MudTh Style="width:55px;">工厂牌号</MudTh>
@@ -80,7 +81,7 @@
                             </HeaderContent>
                             <RowTemplate Context="item">
                                 <MudTd>
-                                    <MudSelect T="string"
+                                    <MudSelect Dense="true" T="string"
                                                Value="@item.ProductType"
                                                ValueChanged="@((string v) => { item.ProductType = v; })"
                                                Size="Size.Small"
@@ -91,7 +92,7 @@
                                     </MudSelect>
                                 </MudTd>
                                 <MudTd>
-                                    <MudTextField T="string"
+                                    <MudTextField Dense="true" T="string"
                                                   Value="@item.PlantGrade"
                                                   ValueChanged="@((string v) => { item.PlantGrade = v; })"
                                                   Size="Size.Small"
@@ -99,7 +100,7 @@
                                                   Class="my-n2" Style="width:50px;" />
                                 </MudTd>
                                 <MudTd>
-                                    <MudTextField T="string"
+                                    <MudTextField Dense="true" T="string"
                                                   Value="@item.Specification"
                                                   ValueChanged="@((string v) => { item.Specification = v; })"
                                                   Size="Size.Small"
@@ -107,7 +108,7 @@
                                                   Class="my-n2" Style="width:50px;" />
                                 </MudTd>
                                 <MudTd>
-                                    <MudTextField T="string"
+                                    <MudTextField Dense="true" T="string"
                                                   Value="@item.OdToleranceStr"
                                                   ValueChanged="@((string v) => { item.OdToleranceStr = v; })"
                                                   Size="Size.Small"
@@ -115,7 +116,7 @@
                                                   Class="my-n2" Style="width:65px;" />
                                 </MudTd>
                                 <MudTd>
-                                    <MudTextField T="string"
+                                    <MudTextField Dense="true" T="string"
                                                   Value="@item.WtToleranceStr"
                                                   ValueChanged="@((string v) => { item.WtToleranceStr = v; })"
                                                   Size="Size.Small"
@@ -123,7 +124,7 @@
                                                   Class="my-n2" Style="width:65px;" />
                                 </MudTd>
                                 <MudTd>
-                                    <MudSelect T="string"
+                                    <MudSelect Dense="true" T="string"
                                                Value="@item.LengthStatus"
                                                ValueChanged="@((string v) => { item.LengthStatus = v; })"
                                                Size="Size.Small"
@@ -136,27 +137,25 @@
                                 </MudTd>
                                 <MudTd>
                                     <div class="d-flex" Style="gap:2px;">
-                                        <MudNumericField T="decimal?"
+                                        <MudNumericField Dense="true" HideSpinButtons="true" T="decimal?" Format="G29"
                                                          Value="@item.MinLength"
                                                          ValueChanged="@((decimal? v) => { item.MinLength = v; })"
                                                          Size="Size.Small"
                                                          Variant="Variant.Outlined"
-                                                         HideSpinButtons="true"
                                                          Placeholder="最小"
                                                          Class="my-n2" Style="width:32px;" />
                                         <MudText Typo="Typo.body2" Class="my-n2 align-self-center">~</MudText>
-                                        <MudNumericField T="decimal?"
+                                        <MudNumericField Dense="true" HideSpinButtons="true" T="decimal?" Format="G29"
                                                          Value="@item.MaxLength"
                                                          ValueChanged="@((decimal? v) => { item.MaxLength = v; })"
                                                          Size="Size.Small"
                                                          Variant="Variant.Outlined"
-                                                         HideSpinButtons="true"
                                                          Placeholder="最大"
                                                          Class="my-n2" Style="width:32px;" />
                                     </div>
                                 </MudTd>
                                 <MudTd>
-                                    <MudSelect T="string"
+                                    <MudSelect Dense="true" T="string"
                                                Value="@item.DeliveryState"
                                                ValueChanged="@((string v) => { item.DeliveryState = v; })"
                                                Size="Size.Small"
@@ -168,27 +167,25 @@
                                     </MudSelect>
                                 </MudTd>
                                 <MudTd>
-                                    <MudNumericField T="int?"
+                                    <MudNumericField Dense="true" HideSpinButtons="true" T="int?"
                                                      Value="@item.RequiredPiece"
                                                      ValueChanged="@((int? v) => { item.RequiredPiece = v; })"
                                                      Size="Size.Small"
                                                      Variant="Variant.Outlined"
                                                      Min="0"
-                                                     HideSpinButtons="true"
                                                      Class="my-n2" Style="width:42px;" />
                                 </MudTd>
                                 <MudTd>
-                                    <MudNumericField T="decimal"
+                                    <MudNumericField Dense="true" HideSpinButtons="true" T="decimal" Format="G29"
                                                      Value="@item.RequiredWeight"
                                                      ValueChanged="@((decimal v) => { item.RequiredWeight = v; })"
                                                      Size="Size.Small"
                                                      Variant="Variant.Outlined"
                                                      Min="0"
-                                                     HideSpinButtons="true"
                                                      Class="my-n2" Style="width:48px;" />
                                 </MudTd>
                                 <MudTd>
-                                    <MudTextField T="string"
+                                    <MudTextField Dense="true" T="string"
                                                   Value="@item.RequiredDateStr"
                                                   ValueChanged="@((string v) => { item.RequiredDateStr = v; })"
                                                   Size="Size.Small"
@@ -197,7 +194,7 @@
                                                   Class="my-n2" Style="width:65px;" />
                                 </MudTd>
                                 <MudTd>
-                                    <MudTextField T="string"
+                                    <MudTextField Dense="true" T="string"
                                                   Value="@item.Remark"
                                                   ValueChanged="@((string v) => { item.Remark = v; })"
                                                   Size="Size.Small"
@@ -217,7 +214,7 @@
 
                     @if (!string.IsNullOrEmpty(validationMessage))
                     {
-                        <MudAlert Severity="Severity.Warning" Class="mb-2">@validationMessage</MudAlert>
+                        <MudText Typo="Typo.body2" Color="Color.Warning" Class="mb-2">@validationMessage</MudText>
                     }
 
                     <div class="d-flex justify-end mt-2">
@@ -228,6 +225,7 @@
                     </div>
                 }
             }
+            </div>
         </MudCardContent>
     </MudCard>
 </MudContainer>
@@ -238,6 +236,7 @@
     private WorkOrderDetailDto? workOrder;
     private bool isLoadingWorkOrder = true;
     private bool isSaving = false;
+    private bool _isArrowNavSetup;
     private string validationMessage = string.Empty;
 
     private List<FinishPlanRow> rows = new();
@@ -299,10 +298,10 @@
             Specification = workOrder.Specification ?? string.Empty,
             OdToleranceStr = $"-{workOrder.OuterDiameterNegative:G29}/+{workOrder.OuterDiameterPositive:G29}",
             WtToleranceStr = $"-{workOrder.WallThicknessNegative:G29}/+{workOrder.WallThicknessPositive:G29}",
-            LengthStatus = workOrder.LengthStatus ?? "Fixed",
+            LengthStatus = workOrder.LengthStatus.ToString(),
             MinLength = workOrder.MinLength,
             MaxLength = workOrder.MaxLength,
-            DeliveryState = workOrder.DeliveryState ?? "SolutionAnnealedAndPickled",
+            DeliveryState = workOrder.DeliveryState.ToString(),
         };
         rows.Add(row);
     }
@@ -352,10 +351,9 @@
         isSaving = true;
         try
         {
-            var successCount = 0;
+            var requests = new List<CreatePurchaseFinishedPlanRequest>();
             foreach (var row in rows)
             {
-                // 解析公差字符串 "-0.5/+0.5" → 数值
                 decimal odNeg = 0, odPos = 0, wtNeg = 0, wtPos = 0;
                 ParseTolerance(row.OdToleranceStr, out odNeg, out odPos);
                 ParseTolerance(row.WtToleranceStr, out wtNeg, out wtPos);
@@ -364,7 +362,7 @@
                 if (!string.IsNullOrWhiteSpace(row.RequiredDateStr) && DateTime.TryParse(row.RequiredDateStr, out var parsedDate))
                     requiredDate = parsedDate;
 
-                var request = new CreatePurchaseFinishedPlanRequest
+                requests.Add(new CreatePurchaseFinishedPlanRequest
                 {
                     WorkOrderId = WorkOrderId,
                     PlanDate = DateTime.Today,
@@ -383,19 +381,19 @@
                     MinLength = row.MinLength,
                     MaxLength = row.MaxLength,
                     DeliveryState = row.DeliveryState,
-                };
-
-                var result = await MaterialPlanService.CreateFinishedPlanAsync(request);
-                if (result.Success)
-                    successCount++;
-                else
-                    errors.Add(result.Message ?? "创建失败");
+                });
             }
 
-            if (successCount > 0)
+            var result = await MaterialPlanService.CreateFinishedPlanBatchAsync(requests);
+            if (result.Success)
             {
-                Snackbar.Add($"成功创建 {successCount} 条成品采购计划", Severity.Success);
+                var count = result.Data?.Count ?? 0;
+                Snackbar.Add($"成功创建 {count} 条成品采购计划", Severity.Success);
                 GoBack();
+            }
+            else
+            {
+                errors.Add(result.Message ?? "批量创建失败");
             }
 
             if (errors.Any())
@@ -429,5 +427,15 @@
     private void GoBack()
     {
         Navigation.NavigateTo($"/workorders/{WorkOrderId}/finish-plan");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#finish-plan-create-table"))
+                _isArrowNavSetup = false;
+        }
     }
 }

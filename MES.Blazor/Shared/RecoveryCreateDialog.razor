@@ -1,0 +1,204 @@
+@namespace MES.Blazor.Shared
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@inject SectionOutsourceService SectionOutsourceService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6" Class="font-weight-bold">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Success" />
+            新建委外回收
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudAutocomplete T="SectionOutsourceDto"
+                                 Label="搜索委外记录 - 批次号/委外单位"
+                                 SearchFunc="@SearchOutsourceRecords"
+                                 ToStringFunc="@FormatOutsource"
+                                 @bind-Value="_selectedOutsource"
+                                 Dense="true" Variant="Variant.Outlined"
+                                 Clearable="true" />
+            </MudItem>
+
+            @if (_selectedOutsource != null)
+            {
+                <MudItem xs="12">
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudText Typo="Typo.body2" Class="font-weight-bold mb-2">已选委外记录</MudText>
+                        <MudGrid>
+                            <MudItem xs="6" sm="3">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">批次号</MudText>
+                                <MudText Typo="Typo.body2">@_selectedOutsource.BatchNo</MudText>
+                            </MudItem>
+                            <MudItem xs="6" sm="3">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">委外单位</MudText>
+                                <MudText Typo="Typo.body2">@_selectedOutsource.OutsourceVendor</MudText>
+                            </MudItem>
+                            <MudItem xs="6" sm="3">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">工序</MudText>
+                                <MudText Typo="Typo.body2">@_selectedOutsource.ProcessName</MudText>
+                            </MudItem>
+                            <MudItem xs="6" sm="3">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">发出重量</MudText>
+                                <MudText Typo="Typo.body2">@(_selectedOutsource.SendWeight?.ToString("G29") ?? "-")</MudText>
+                            </MudItem>
+                            <MudItem xs="6" sm="3">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">工段</MudText>
+                                <MudText Typo="Typo.body2">@_selectedOutsource.SectionName</MudText>
+                            </MudItem>
+                            <MudItem xs="6" sm="3">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">已回收(重)</MudText>
+                                <MudText Typo="Typo.body2">@(_selectedOutsource.TotalRecoveredWeight?.ToString("G29") ?? "0")</MudText>
+                            </MudItem>
+                            <MudItem xs="6" sm="3">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">非正常(重)</MudText>
+                                <MudText Typo="Typo.body2">@(_selectedOutsource.TotalUnprocessedWeight?.ToString("G29") ?? "0")</MudText>
+                            </MudItem>
+                            <MudItem xs="6" sm="3">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">状态</MudText>
+                                <MudText Typo="Typo.body2">
+                                    <MudChip Size="Size.Small" Color="@(_selectedOutsource.Status == "Recovered" ? Color.Success : Color.Warning)">
+                                        @_selectedOutsource.Status
+                                    </MudChip>
+                                </MudText>
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+                </MudItem>
+            }
+
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+            </MudItem>
+
+            <MudItem xs="12" sm="4">
+                <MudDatePicker Label="回收日期 *"
+                               Date="@_recoveryDate"
+                               DateChanged="@((DateTime? d) => { if (d.HasValue) _recoveryDate = d.Value; })"
+                               Dense="true" Variant="Variant.Outlined"
+                               AutoClose="true" />
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudText Typo="Typo.body2" Class="font-weight-bold mt-2">正常回收</MudText>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudNumericField T="int?"
+                                 Label="支数"
+                                 @bind-Value="_qty"
+                                 Dense="true" Variant="Variant.Outlined"
+                                 HideSpinButtons="true" />
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudNumericField T="decimal?"
+                                 Label="重量"
+                                 @bind-Value="_wt"
+                                 Dense="true" Variant="Variant.Outlined"
+                                 HideSpinButtons="true" />
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudText Typo="Typo.body2" Class="font-weight-bold mt-2">非正常回收</MudText>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudNumericField T="int?"
+                                 Label="支数"
+                                 @bind-Value="_unprocessedQty"
+                                 Dense="true" Variant="Variant.Outlined"
+                                 HideSpinButtons="true" />
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudNumericField T="decimal?"
+                                 Label="重量"
+                                 @bind-Value="_unprocessedWt"
+                                 Dense="true" Variant="Variant.Outlined"
+                                 HideSpinButtons="true" />
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudTextField T="string"
+                              Label="备注"
+                              @bind-Value="_remark"
+                              Dense="true" Variant="Variant.Outlined"
+                              Clearable="true" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" Color="Color.Default"
+                   OnClick="Cancel" Disabled="@_submitting">
+            取消
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Success"
+                   OnClick="Submit" Disabled="@_submitting"
+                   StartIcon="@Icons.Material.Filled.Save">
+            提交
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    private SectionOutsourceDto? _selectedOutsource;
+    private DateTime _recoveryDate = DateTime.Today;
+    private int? _qty;
+    private decimal? _wt;
+    private int? _unprocessedQty;
+    private decimal? _unprocessedWt;
+    private string? _remark;
+    private bool _submitting;
+
+    private async Task<IEnumerable<SectionOutsourceDto>> SearchOutsourceRecords(string search)
+    {
+        var result = await SectionOutsourceService.GetPagedAsync(
+            pageIndex: 1, pageSize: 20,
+            keyword: string.IsNullOrWhiteSpace(search) ? null : search.Trim());
+        return result.Data?.Items ?? new List<SectionOutsourceDto>();
+    }
+
+    private static string FormatOutsource(SectionOutsourceDto? o)
+    {
+        return o == null ? "" : $"{o.BatchNo} | {o.OutsourceVendor} | {o.ProcessName}";
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        if (_selectedOutsource == null)
+        {
+            Snackbar.Add("请先选择委外记录", Severity.Warning);
+            return;
+        }
+
+        if (_qty == null && _wt == null && _unprocessedQty == null && _unprocessedWt == null)
+        {
+            Snackbar.Add("请至少输入一项回收数据", Severity.Warning);
+            return;
+        }
+
+        _submitting = true;
+        try
+        {
+            var request = new CreateOutsourceRecoveryRequest
+            {
+                SectionOutsourceId = _selectedOutsource.Id,
+                RecoveryDate = _recoveryDate,
+                RecoveryQuantity = _qty,
+                RecoveryWeight = _wt,
+                UnprocessedQuantity = _unprocessedQty,
+                UnprocessedWeight = _unprocessedWt,
+                Remark = _remark?.Trim()
+            };
+            MudDialog.Close(DialogResult.Ok(request));
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+}

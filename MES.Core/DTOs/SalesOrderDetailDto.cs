@@ -39,6 +39,11 @@ public class SalesOrderDetailDto
     public string Salesman { get; set; } = null!;
 
     /// <summary>
+    /// 最终客户
+    /// </summary>
+    public string? EndCustomer { get; set; }
+
+    /// <summary>
     /// 订单状态（枚举值，用于逻辑判断）
     /// </summary>
     public SalesOrderStatus Status { get; set; }

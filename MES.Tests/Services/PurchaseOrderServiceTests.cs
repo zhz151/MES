@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs;
+using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Models;
 using MES.Data.Entities;
@@ -25,7 +26,7 @@ public class PurchaseOrderServiceTests : TestBase
         return entity.Id;
     }
 
-    private async Task<PurchaseOrder> SeedOrderAsync(AppDbContext ctx, int supplierId, string status = "Open",
+    private async Task<PurchaseOrder> SeedOrderAsync(AppDbContext ctx, int supplierId, PurchaseOrderStatus status = PurchaseOrderStatus.Open,
         DateTime? orderDate = null, DateTime? requiredDate = null, int? quantity = 100)
     {
         var order = new PurchaseOrder
@@ -74,7 +75,7 @@ public class PurchaseOrderServiceTests : TestBase
             OrderNo = "CG20260101001",
             SupplierId = sid,
             OrderDate = DateTime.Today,
-            Status = "Open",
+            Status = PurchaseOrderStatus.Open,
             MaterialCategory = "钢管",
             PlantGrade = "304",
             Specification = "273*10",
@@ -110,7 +111,7 @@ public class PurchaseOrderServiceTests : TestBase
             OrderNo = "CG20260101002",
             SupplierId = sid2,
             OrderDate = DateTime.Today,
-            Status = "Open",
+            Status = PurchaseOrderStatus.Open,
             MaterialCategory = "钢管",
             PlantGrade = "304",
             Specification = "273*10",
@@ -133,15 +134,15 @@ public class PurchaseOrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var sid = await SeedSupplierAsync(ctx);
-        await SeedOrderAsync(ctx, sid, status: "Open");
-        await SeedOrderAsync(ctx, sid, status: "Completed", quantity: 200);
+        await SeedOrderAsync(ctx, sid, status: PurchaseOrderStatus.Open);
+        await SeedOrderAsync(ctx, sid, status: PurchaseOrderStatus.Completed, quantity: 200);
         var svc = CreateService(ctx);
 
         var result = await svc.GetPagedAsync(new PurchaseOrderQueryParams
         { PageIndex = 1, PageSize = 20, Status = "Completed" });
 
         result.Items.Should().HaveCount(1);
-        result.Items[0].Status.Should().Be("Completed");
+        result.Items[0].Status.Should().Be(PurchaseOrderStatus.Completed);
     }
 
     [Fact]
@@ -300,7 +301,7 @@ public class PurchaseOrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var sid = await SeedSupplierAsync(ctx);
-        var order = await SeedOrderAsync(ctx, sid, status: "Cancelled");
+        var order = await SeedOrderAsync(ctx, sid, status: PurchaseOrderStatus.Cancelled);
         var svc = CreateService(ctx);
 
         var act = () => svc.UpdateAsync(order.Id, new UpdatePurchaseOrderRequest
@@ -349,7 +350,7 @@ public class PurchaseOrderServiceTests : TestBase
         var updated = await ctx.PurchaseOrders.FindAsync(order.Id);
         updated!.ReceivedQuantity.Should().Be(30);
         updated.ReceivedWeight.Should().Be(300m);
-        updated.Status.Should().Be("Partial");
+        updated.Status.Should().Be(PurchaseOrderStatus.Partial);
     }
 
     [Fact]
@@ -379,7 +380,7 @@ public class PurchaseOrderServiceTests : TestBase
         await svc.SyncSingleAsync(order.Id);
 
         var updated = await ctx.PurchaseOrders.FindAsync(order.Id);
-        updated!.Status.Should().Be("Completed");
+        updated!.Status.Should().Be(PurchaseOrderStatus.Completed);
     }
 
     [Fact]
@@ -394,7 +395,7 @@ public class PurchaseOrderServiceTests : TestBase
 
         var updated = await ctx.PurchaseOrders.FindAsync(order.Id);
         updated!.ReceivedQuantity.Should().Be(0);
-        updated.Status.Should().Be("Open");
+        updated.Status.Should().Be(PurchaseOrderStatus.Open);
     }
 
     [Fact]
@@ -417,10 +418,10 @@ public class PurchaseOrderServiceTests : TestBase
         var order = await SeedOrderAsync(ctx, sid);
         var svc = CreateService(ctx);
 
-        await svc.UpdateStatusAsync(order.Id, new UpdateOrderStatusRequest { ManualStatus = "Completed" });
+        await svc.UpdateStatusAsync(order.Id, new UpdateOrderStatusRequest { IsForceCompleted = true });
 
         var updated = await ctx.PurchaseOrders.FindAsync(order.Id);
-        updated!.ManualStatus.Should().Be("Completed");
+        updated!.IsForceCompleted.Should().BeTrue();
     }
 
     [Fact]
@@ -429,7 +430,7 @@ public class PurchaseOrderServiceTests : TestBase
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        var act = () => svc.UpdateStatusAsync(999, new UpdateOrderStatusRequest { ManualStatus = "Completed" });
+        var act = () => svc.UpdateStatusAsync(999, new UpdateOrderStatusRequest { IsForceCompleted = true });
         await act.Should().ThrowAsync<BusinessException>().WithMessage("采购单不存在");
     }
 
@@ -454,7 +455,7 @@ public class PurchaseOrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var sid = await SeedSupplierAsync(ctx);
-        var order = await SeedOrderAsync(ctx, sid, status: "Cancelled");
+        var order = await SeedOrderAsync(ctx, sid, status: PurchaseOrderStatus.Cancelled);
         var svc = CreateService(ctx);
 
         var act = () => svc.DeleteAsync(order.Id);
@@ -466,7 +467,7 @@ public class PurchaseOrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var sid = await SeedSupplierAsync(ctx);
-        var order = await SeedOrderAsync(ctx, sid, status: "Completed");
+        var order = await SeedOrderAsync(ctx, sid, status: PurchaseOrderStatus.Completed);
         var svc = CreateService(ctx);
 
         var act = () => svc.DeleteAsync(order.Id);

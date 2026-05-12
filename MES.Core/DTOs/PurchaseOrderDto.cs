@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs;
 
 public class PurchaseOrderDto
@@ -7,8 +9,8 @@ public class PurchaseOrderDto
     public int SupplierId { get; set; }
     public string SupplierName { get; set; } = null!;
     public DateTime OrderDate { get; set; }
-    public string Status { get; set; } = null!;
-    public string? ManualStatus { get; set; }
+    public PurchaseOrderStatus Status { get; set; }
+    public bool IsForceCompleted { get; set; }
     public string MaterialCategory { get; set; } = null!;
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
@@ -24,6 +26,25 @@ public class PurchaseOrderDto
     public string? SourceWorkOrderNo { get; set; }
     public string? Remark { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
+
+    // ========== 工单来源字段（从 WorkOrder 关联查询） ==========
+    public string? WoSalesOrderNo { get; set; }
+    public string? WoProductionMainNo { get; set; }
+    public string? WoProductionSubNo { get; set; }
+    public DateTime? WoSignDate { get; set; }
+    public string? WoSalesman { get; set; }
+    public string? WoEndCustomer { get; set; }
+    public DateTime? WoDeliveryDate { get; set; }
+    public bool WoDelayPenalty { get; set; }
+    public SettlementMethod? WoSettlementMethod { get; set; }
+    public string? WoPlantGrade { get; set; }
+    public string? WoSpecification { get; set; }
+    public LengthStatus? WoLengthStatus { get; set; }
+    public decimal? WoMaxLength { get; set; }
+    public int? WoTotalQuantity { get; set; }
+    public decimal? WoTotalWeight { get; set; }
+    public DeliveryState? WoDeliveryState { get; set; }
+    public int? WoTotalItemCount { get; set; }
 }
 
 public class CreatePurchaseOrderRequest
@@ -59,5 +80,5 @@ public class UpdatePurchaseOrderRequest
 
 public class UpdateOrderStatusRequest
 {
-    public string? ManualStatus { get; set; }
+    public bool IsForceCompleted { get; set; }
 }

@@ -135,6 +135,11 @@ builder.Services.AddScoped<IMaterialPlanService, MaterialPlanService>();
 builder.Services.AddScoped<IWarehouseService, WarehouseService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 
+// Register batch context services
+builder.Services.AddScoped<IBatchService, BatchService>();
+builder.Services.AddScoped<IProductionRecordService, ProductionRecordService>();
+builder.Services.AddScoped<ISectionOutsourceService, SectionOutsourceService>();
+
 // Register material context services
 builder.Services.AddScoped<IMaterialService, MaterialService>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
@@ -142,7 +147,7 @@ builder.Services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
 builder.Services.AddScoped<ISubcontractOrderService, SubcontractOrderService>();
 
 // 数据导入导出服务
-builder.Services.AddScoped<DataExchangeService>();
+builder.Services.AddScoped<IDataExchangeService, DataExchangeService>();
 
 builder.Services.AddHttpContextAccessor();
 

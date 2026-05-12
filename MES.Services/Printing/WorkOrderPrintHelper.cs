@@ -411,10 +411,10 @@ public static class WorkOrderPrintHelper
 
         var nominalOd = SpecificationParser.ParseOuterDiameter(entity.Specification);
         var nominalWt = SpecificationParser.ParseWallThickness(entity.Specification);
-        if (nominalOd <= 0 || nominalWt <= 0) return null;
+        if (nominalOd == null || nominalWt == null || nominalOd <= 0 || nominalWt <= 0) return null;
 
-        var odActual = nominalOd - 0.5m * entity.OuterDiameterNegative + 0.5m * entity.OuterDiameterPositive;
-        var wtActual = nominalWt - 0.5m * entity.WallThicknessNegative + 0.5m * entity.WallThicknessPositive;
+        var odActual = nominalOd.Value - 0.5m * entity.OuterDiameterNegative + 0.5m * entity.OuterDiameterPositive;
+        var wtActual = nominalWt.Value - 0.5m * entity.WallThicknessNegative + 0.5m * entity.WallThicknessPositive;
 
         if (odActual <= 0 || wtActual <= 0) return null;
 

@@ -55,14 +55,14 @@ public class HangfireJobService
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
             var cutoff = DateTimeOffset.Now.AddDays(-30);
-            var oldNotifications = await context.OrderChangeNotifications
+            var oldNotifications = await context.Notifications
                 .Where(n => n.CreatedTime < cutoff)
                 .ToListAsync();
             var count = oldNotifications.Count;
 
             if (count > 0)
             {
-                context.OrderChangeNotifications.RemoveRange(oldNotifications);
+                context.Notifications.RemoveRange(oldNotifications);
                 await context.SaveChangesAsync();
             }
 

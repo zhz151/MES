@@ -1,0 +1,1235 @@
+@page "/batches/create"
+@using MES.Blazor.Services
+@using MES.Blazor.Helpers
+@using MES.Blazor.Shared
+@using MES.Core.DTOs
+@using MES.Core.Constants
+@using Microsoft.AspNetCore.Authorization
+@inject BatchService BatchService
+@inject WorkOrderService WorkOrderService
+@inject GradeMappingService GradeMappingService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject ColumnPrefsService ColumnPrefs
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = "BatchDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4" id="batch-create-table">
+    <MudCard Class="mb-4 compact-card">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Primary" />
+                    新建生产批次
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" Color="Color.Default" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="GoBack" Class="mr-2">返回批次列表</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Submit" Loading="@isSubmitting" StartIcon="@Icons.Material.Filled.Save">
+                    保存批次
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+    </MudCard>
+
+    <!-- ==================== Block A: 仓库信息 ==================== -->
+    <MudCard Class="mb-4 compact-card">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Warehouse" Class="mr-1" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6" Class="font-weight-bold">仓库信息</MudText>
+                </div>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info"
+                           StartIcon="@(showAvailablePanel ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                           OnClick="ToggleAvailablePanel">
+                    @(showAvailablePanel ? "隐藏可用批次" : "显示可用批次")
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+        <MudCardContent>
+            @if (showAvailablePanel)
+            {
+                <MudPaper Class="pa-3 mb-4" Elevation="1" Style="border:1px solid #e0e0e0; border-radius:8px;">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Info">
+                        <MudIcon Icon="@Icons.Material.Filled.Inventory" Class="mr-1" Size="Size.Small" />
+                        可用库存批次（已出库生产领用且尚未被引用）
+                        <MudTextField T="string" @bind-Value="searchText" Label="筛选" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Immediate="true" DebounceInterval="500" Style="width:160px; margin-left:12px;" />
+                    </MudText>
+                    @if (availableBatchesLoading)
+                    {
+                        <MudProgressCircular Indeterminate Size="Size.Small" Class="my-2" />
+                    }
+                    else if (availableBatches.Count == 0)
+                    {
+                    }
+                    else
+                    {
+                        <div style="overflow-x:auto; max-height:250px; overflow-y:auto;">
+                            <MudTable T="AvailableBatchDto" Items="@sortedAvailableBatches" RowsPerPage="5" Dense="true" Hover="true" Elevation="0" Class="auto-table" Style="cursor:pointer;">
+                                <HeaderContent>
+                                    <MudTh Style="width:100px;">
+                                        <span Class="sortable-header" @onclick="@(() => ToggleSort("BatchNo"))">
+                                            批次号
+                                            @if (sortColumn == "BatchNo") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
+                                        </span>
+                                    </MudTh>
+                                    <MudTh Style="width:80px;">
+                                        <span Class="sortable-header" @onclick="@(() => ToggleSort("MaterialType"))">
+                                            原料类型
+                                            @if (sortColumn == "MaterialType") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
+                                        </span>
+                                    </MudTh>
+                                    <MudTh Style="width:80px;">
+                                        <span Class="sortable-header" @onclick="@(() => ToggleSort("InboundSource"))">
+                                            入库来源
+                                            @if (sortColumn == "InboundSource") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
+                                        </span>
+                                    </MudTh>
+                                    <MudTh Style="width:100px;">
+                                        <span Class="sortable-header" @onclick="@(() => ToggleSort("SourceName"))">
+                                            来料单位
+                                            @if (sortColumn == "SourceName") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
+                                        </span>
+                                    </MudTh>
+                                    <MudTh Style="width:80px;">
+                                        <span Class="sortable-header" @onclick="@(() => ToggleSort("InboundDate"))">
+                                            入库日期
+                                            @if (sortColumn == "InboundDate") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
+                                        </span>
+                                    </MudTh>
+                                    <MudTh Style="width:80px;">
+                                        <span Class="sortable-header" @onclick="@(() => ToggleSort("HeatNo"))">
+                                            炉号
+                                            @if (sortColumn == "HeatNo") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
+                                        </span>
+                                    </MudTh>
+                                    <MudTh Style="width:80px;">
+                                        <span Class="sortable-header" @onclick="@(() => ToggleSort("PlantGrade"))">
+                                            工厂牌号
+                                            @if (sortColumn == "PlantGrade") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
+                                        </span>
+                                    </MudTh>
+                                    <MudTh Style="width:80px;">
+                                        <span Class="sortable-header" @onclick="@(() => ToggleSort("Specification"))">
+                                            名义规格
+                                            @if (sortColumn == "Specification") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
+                                        </span>
+                                    </MudTh>
+                                    <MudTh Style="width:60px;">
+                                        <span Class="sortable-header" @onclick="@(() => ToggleSort("LengthStatus"))">
+                                            长度状态
+                                            @if (sortColumn == "LengthStatus") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
+                                        </span>
+                                    </MudTh>
+                                    <MudTh Style="width:60px;" Class="text-right">
+                                        <span Class="sortable-header" @onclick="@(() => ToggleSort("UnitWeight"))">
+                                            单支重
+                                            @if (sortColumn == "UnitWeight") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
+                                        </span>
+                                    </MudTh>
+                                    <MudTh Style="width:60px;" Class="text-right">
+                                        <span Class="sortable-header" @onclick="@(() => ToggleSort("OutboundQuantity"))">
+                                            支数
+                                            @if (sortColumn == "OutboundQuantity") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
+                                        </span>
+                                    </MudTh>
+                                    <MudTh Style="width:80px;" Class="text-right">
+                                        <span Class="sortable-header" @onclick="@(() => ToggleSort("OutboundWeight"))">
+                                            重量(kg)
+                                            @if (sortColumn == "OutboundWeight") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
+                                        </span>
+                                    </MudTh>
+                                    <MudTh Style="width:100px;">
+                                        <span Class="sortable-header" @onclick="@(() => ToggleSort("WorkOrderNo"))">
+                                            关联工单号
+                                            @if (sortColumn == "WorkOrderNo") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
+                                        </span>
+                                    </MudTh>
+                                </HeaderContent>
+                                <RowTemplate Context="batch">
+                                    <MudTd @onclick="() => FillFromAvailableBatch(batch)" Style="cursor:pointer;color:#1976D2;"><b>@batch.BatchNo</b></MudTd>
+                                    <MudTd @onclick="() => FillFromAvailableBatch(batch)">@batch.MaterialType</MudTd>
+                                    <MudTd @onclick="() => FillFromAvailableBatch(batch)">@DisplayHelper.GetInboundSourceText(batch.InboundSource)</MudTd>
+                                    <MudTd @onclick="() => FillFromAvailableBatch(batch)">@batch.SourceName</MudTd>
+                                    <MudTd @onclick="() => FillFromAvailableBatch(batch)">@batch.InboundDate?.ToString("yyyy-MM-dd")</MudTd>
+                                    <MudTd @onclick="() => FillFromAvailableBatch(batch)">@batch.HeatNo</MudTd>
+                                    <MudTd @onclick="() => FillFromAvailableBatch(batch)">@batch.PlantGrade</MudTd>
+                                    <MudTd @onclick="() => FillFromAvailableBatch(batch)">@batch.Specification</MudTd>
+                                    <MudTd @onclick="() => FillFromAvailableBatch(batch)">@DisplayHelper.GetLengthStatusText(batch.LengthStatus)</MudTd>
+                                    <MudTd @onclick="() => FillFromAvailableBatch(batch)" Class="text-right">@batch.UnitWeight?.ToString("G29")</MudTd>
+                                    <MudTd @onclick="() => FillFromAvailableBatch(batch)" Class="text-right">@batch.OutboundQuantity</MudTd>
+                                    <MudTd @onclick="() => FillFromAvailableBatch(batch)" Class="text-right">@batch.OutboundWeight?.ToString("G29")</MudTd>
+                                    <MudTd @onclick="() => FillFromAvailableBatch(batch)">@batch.WorkOrderNo</MudTd>
+                                </RowTemplate>
+                                <PagerContent>
+                                    <MudTablePager />
+                                </PagerContent>
+                            </MudTable>
+                        </div>
+                    }
+                </MudPaper>
+            }
+
+            <MudSimpleTable Dense="true" Class="auto-table">
+                <thead>
+                    <tr>
+                        <th>来源库存批次号</th>
+                        <th>原料类型</th>
+                        <th>入库来源</th>
+                        <th>来料单位</th>
+                        <th>入库日期</th>
+                        <th>炉号</th>
+                        <th>工厂牌号</th>
+                        <th>名义规格</th>
+                        <th>长度状态</th>
+                        <th>单支重(kg)</th>
+                        <th>领料支数</th>
+                        <th>领料重量(kg)</th>
+                        <th>仓库名称</th>
+                        <th>来源工单号</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><MudTextField T="string" @bind-Value="request.SourceBatchNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
+                        <td><MudTextField T="string" @bind-Value="request.SourceMaterialType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
+                        <td><MudTextField T="string" @bind-Value="request.InboundSource" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
+                        <td><MudTextField T="string" @bind-Value="request.SourceName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
+                        <td><MudTextField T="string" @bind-Value="inboundDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
+                        <td><MudTextField T="string" @bind-Value="request.SourceHeatNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
+                        <td><MudTextField T="string" @bind-Value="request.SourcePlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
+                        <td><MudTextField T="string" @bind-Value="request.SourceSpecification" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
+                        <td><MudTextField T="string" @bind-Value="request.SourceLengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
+                        <td><MudNumericField T="decimal?" @bind-Value="request.SourceUnitWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td>
+                        <td><MudNumericField T="int?" @bind-Value="request.InputQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></td>
+                        <td><MudNumericField T="decimal?" @bind-Value="request.InputWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td>
+                        <td><MudTextField T="string" Value="@warehouseName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Disabled="true" /></td>
+                        <td><MudTextField T="string" Value="@sourceWorkOrderNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Disabled="true" /></td>
+                    </tr>
+                </tbody>
+            </MudSimpleTable>
+        </MudCardContent>
+    </MudCard>
+
+    <!-- ==================== Block B: 工单字段信息 ==================== -->
+    <MudCard Class="mb-4 compact-card">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-1" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6" Class="font-weight-bold">工单字段信息</MudText>
+                    <span Class="ml-3 text-caption" Style="color:#999;">（@visibleFieldCount 字段可见/共29字段）</span>
+                </div>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <ColumnDisplaySelect Columns="workOrderCols" ShowCommonFields="false"
+                                   OnColumnToggle="OnWorkOrderColumnToggle"
+                                   OnMoveUp="OnWorkOrderColumnMove"
+                                   OnMoveDown="OnWorkOrderColumnMove" />
+                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Warning"
+                           StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetWorkOrderColumns">重置</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+        <MudCardContent>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:8px; flex:1; max-width:400px;">
+                    <MudTextField T="string" Placeholder="工单号" @bind-Value="request.WorkOrderNo"
+                                  Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="flex:1;" />
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                               OnClick="ConfirmWorkOrder" Disabled="@workOrderLoading">
+                        @if (workOrderLoading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate Color="Color.Inherit" />
+                        }
+                        else
+                        {
+                            <span>确认</span>
+                        }
+                    </MudButton>
+                </div>
+            </div>
+
+            @if (visibleFieldCount == 0)
+            {
+            }
+            else
+            {
+                <MudSimpleTable Dense="true" Class="auto-table">
+                    <thead>
+                        <tr>
+                            @if (GetCol("SalesOrderNo").Visible) { <th>源订单号</th> }
+                            @if (GetCol("ProductionMainNo").Visible) { <th>主号</th> }
+                            @if (GetCol("ProductionSubNo").Visible) { <th>次号</th> }
+                            @if (GetCol("OrderItemIds").Visible) { <th>项次ID列表</th> }
+                            @if (GetCol("SignDate").Visible) { <th>签订日期</th> }
+                            @if (GetCol("Salesman").Visible) { <th>业务员</th> }
+                            @if (GetCol("EndCustomer").Visible) { <th>最终用户</th> }
+                            @if (GetCol("DeliveryDate").Visible) { <th>交货日期</th> }
+                            @if (GetCol("DelayPenalty").Visible) { <th>延期罚款</th> }
+                            @if (GetCol("MaterialName").Visible) { <th>物料名称</th> }
+                            @if (GetCol("SettlementMethod").Visible) { <th>结算方式</th> }
+                            @if (GetCol("StandardCode").Visible) { <th>产品标准编码</th> }
+                            @if (GetCol("DeliveryState").Visible) { <th>交货状态</th> }
+                            @if (GetCol("PlantGrade").Visible) { <th>工厂牌号</th> }
+                            @if (GetCol("Specification").Visible) { <th>规格</th> }
+                            @if (GetCol("OuterDiameterNegative").Visible) { <th>外径负公差</th> }
+                            @if (GetCol("OuterDiameterPositive").Visible) { <th>外径正公差</th> }
+                            @if (GetCol("WallThicknessNegative").Visible) { <th>壁厚负公差</th> }
+                            @if (GetCol("WallThicknessPositive").Visible) { <th>壁厚正公差</th> }
+                            @if (GetCol("LengthStatus").Visible) { <th>长度状态</th> }
+                            @if (GetCol("MinLength").Visible) { <th>最小长度(mm)</th> }
+                            @if (GetCol("MaxLength").Visible) { <th>最大长度(mm)</th> }
+                            @if (GetCol("TotalQuantity").Visible) { <th>总支数</th> }
+                            @if (GetCol("TotalMeters").Visible) { <th>总米数</th> }
+                            @if (GetCol("TotalWeight").Visible) { <th>总重量(kg)</th> }
+                            @if (GetCol("TotalItemCount").Visible) { <th>总项次数</th> }
+                            @if (GetCol("ItemDetails").Visible) { <th>明细</th> }
+                            @if (GetCol("TechnicalRequirements").Visible) { <th>技术要求</th> }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            @if (GetCol("SalesOrderNo").Visible) { <td><MudTextField T="string" @bind-Value="request.SalesOrderNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                            @if (GetCol("ProductionMainNo").Visible) { <td><MudTextField T="string" @bind-Value="request.ProductionMainNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                            @if (GetCol("ProductionSubNo").Visible) { <td><MudTextField T="string" @bind-Value="request.ProductionSubNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                            @if (GetCol("OrderItemIds").Visible) { <td><MudTextField T="string" @bind-Value="request.OrderItemIds" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                            @if (GetCol("SignDate").Visible) { <td><MudTextField T="string" @bind-Value="signDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                            @if (GetCol("Salesman").Visible) { <td><MudTextField T="string" @bind-Value="request.Salesman" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                            @if (GetCol("EndCustomer").Visible) { <td><MudTextField T="string" @bind-Value="request.EndCustomer" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                            @if (GetCol("DeliveryDate").Visible) { <td><MudTextField T="string" @bind-Value="deliveryDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                            @if (GetCol("DelayPenalty").Visible) { <td><MudCheckBox @bind-Value="delayPenaltyValue" Color="Color.Warning" /></td> }
+                            @if (GetCol("MaterialName").Visible) { <td><MudTextField T="string" @bind-Value="request.MaterialName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                            @if (GetCol("SettlementMethod").Visible) { <td><MudTextField T="string" @bind-Value="request.SettlementMethod" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                            @if (GetCol("StandardCode").Visible) { <td><MudTextField T="string" @bind-Value="request.StandardCode" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                            @if (GetCol("DeliveryState").Visible) { <td><MudTextField T="string" @bind-Value="request.DeliveryState" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                            @if (GetCol("PlantGrade").Visible) { <td><MudTextField T="string" @bind-Value="request.PlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                            @if (GetCol("Specification").Visible) { <td><MudTextField T="string" @bind-Value="request.Specification" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                            @if (GetCol("OuterDiameterNegative").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.OuterDiameterNegative" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
+                            @if (GetCol("OuterDiameterPositive").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.OuterDiameterPositive" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
+                            @if (GetCol("WallThicknessNegative").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.WallThicknessNegative" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
+                            @if (GetCol("WallThicknessPositive").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.WallThicknessPositive" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
+                            @if (GetCol("LengthStatus").Visible) { <td><MudTextField T="string" @bind-Value="request.LengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                            @if (GetCol("MinLength").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.MinLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
+                            @if (GetCol("MaxLength").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.MaxLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
+                            @if (GetCol("TotalQuantity").Visible) { <td><MudNumericField T="int?" @bind-Value="request.TotalQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></td> }
+                            @if (GetCol("TotalMeters").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.TotalMeters" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
+                            @if (GetCol("TotalWeight").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.TotalWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
+                            @if (GetCol("TotalItemCount").Visible) { <td><MudNumericField T="int?" @bind-Value="request.TotalItemCount" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></td> }
+                            @if (GetCol("ItemDetails").Visible) { <td><MudTextField T="string" @bind-Value="request.ItemDetails" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                            @if (GetCol("TechnicalRequirements").Visible) { <td><MudTextField T="string" @bind-Value="request.TechnicalRequirements" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            }
+        </MudCardContent>
+    </MudCard>
+
+    <!-- ==================== Block C: 质量要求信息 ==================== -->
+    <MudCard Class="mb-4 compact-card">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.NewReleases" Class="mr-1" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6" Class="font-weight-bold">质量要求信息</MudText>
+                </div>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudSimpleTable Dense="true" Class="auto-table">
+                <thead>
+                    <tr>
+                        <th>固溶参数</th>
+                        <th>质量备注</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><MudTextField T="string" @bind-Value="request.SolutionParams" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
+                        <td><MudTextField T="string" @bind-Value="request.QualityRemark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
+                    </tr>
+                </tbody>
+            </MudSimpleTable>
+        </MudCardContent>
+    </MudCard>
+
+    <!-- ==================== Block D: 基础信息 ==================== -->
+    <MudCard Class="mb-4 compact-card">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-1" Color="Color.Primary" />
+                    基础信息
+                </MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudSimpleTable Dense="true" Class="auto-table">
+                <thead>
+                    <tr>
+                        <th>生产编号</th>
+                        <th>挂牌号</th>
+                        <th>生产类型</th>
+                        <th>制几率</th>
+                        <th>备注</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><MudTextField T="string" Value="@batchNoDisplay" Disabled="true" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
+                        <td><MudTextField T="string" @bind-Value="request.TagNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
+                        <td>
+                            <MudSelect T="string" @bind-Value="request.ProductionType" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
+                                <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
+                                <MudSelectItem Value="@("RoughTube")">荒管生产</MudSelectItem>
+                                <MudSelectItem Value="@("InProcess")">在制生产</MudSelectItem>
+                                <MudSelectItem Value="@("Inventory")">库存</MudSelectItem>
+                                <MudSelectItem Value="@("OutsourcedPurchased")">外购</MudSelectItem>
+                                <MudSelectItem Value="@("Rework")">返整</MudSelectItem>
+                                <MudSelectItem Value="@("Subcontract")">委外生产</MudSelectItem>
+                                <MudSelectItem Value="@("ExternalProcessing")">对外加工</MudSelectItem>
+                            </MudSelect>
+                        </td>
+                        <td><MudNumericField T="int?" @bind-Value="request.ProductionRatio" Disabled="true" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></td>
+                        <td><MudTextField T="string" @bind-Value="request.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
+                    </tr>
+                </tbody>
+            </MudSimpleTable>
+        </MudCardContent>
+    </MudCard>
+
+    <!-- ==================== Block E: 工序组 ==================== -->
+    <MudCard Class="mb-4 compact-card">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Factory" Class="mr-1" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6" Class="font-weight-bold">工序组</MudText>
+                </div>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyLastBatchProcessGroups" Class="mr-2"
+                           Disabled="@lastBatchLoading">
+                    @if (lastBatchLoading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate Color="Color.Inherit" />
+                    }
+                    else
+                    {
+                        <span>复制上个工序组</span>
+                    }
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Add" OnClick="AddProcessGroupRow">新增工序</MudButton>
+                <ColumnDisplaySelect Columns="pgCols" ShowCommonFields="false"
+                                   OnColumnToggle="OnPgColumnToggle"
+                                   OnMoveUp="OnPgColumnMove"
+                                   OnMoveDown="OnPgColumnMove" />
+                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Warning"
+                           StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetPgColumns">重置</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+        <MudCardContent>
+            @if (request.ProcessGroups == null || request.ProcessGroups.Count == 0)
+            {
+            }
+            else
+            {
+                <div style="overflow-x: auto;">
+                    <MudTable T="CreateProcessGroupRequest" Items="@request.ProcessGroups" Dense="true" Hover="true" Elevation="0" Class="auto-table compact-table">
+                        <HeaderContent>
+                            <MudTh Style="width:40px;">#</MudTh>
+                            @if (GetPgCol("ProcessName").Visible) { <MudTh Style="width:100px;">工序名称</MudTh> }
+                            @if (GetPgCol("ManufacturingSpec").Visible) { <MudTh Style="width:100px;">制造规格</MudTh> }
+                            @if (GetPgCol("OuterDiameterTolerance").Visible) { <MudTh Style="width:80px;">外径公差</MudTh> }
+                            @if (GetPgCol("WallThicknessTolerance").Visible) { <MudTh Style="width:80px;">壁厚公差</MudTh> }
+                            @if (GetPgCol("ManufacturingLength").Visible) { <MudTh Style="width:90px;">制造长度</MudTh> }
+                            @if (GetPgCol("CuttingTreatment").Visible) { <MudTh Style="width:90px;">断切处理</MudTh> }
+                            @if (GetPgCol("Remark").Visible) { <MudTh Style="width:100px;">备注</MudTh> }
+                            @if (GetPgCol("ColdRollDraw").Visible) { <MudTh Style="width:70px;">冷轧拔</MudTh> }
+                            @if (GetPgCol("OilPipeCut").Visible) { <MudTh Style="width:70px;">油管断</MudTh> }
+                            @if (GetPgCol("Degrease").Visible) { <MudTh Style="width:60px;">去油</MudTh> }
+                            @if (GetPgCol("Solution").Visible) { <MudTh Style="width:60px;">固溶</MudTh> }
+                            @if (GetPgCol("Straighten").Visible) { <MudTh Style="width:60px;">矫直</MudTh> }
+                            @if (GetPgCol("Cut").Visible) { <MudTh Style="width:60px;">断切</MudTh> }
+                            @if (GetPgCol("ThicknessMeasure").Visible) { <MudTh Style="width:60px;">测壁厚</MudTh> }
+                            @if (GetPgCol("Pickle").Visible) { <MudTh Style="width:60px;">酸洗</MudTh> }
+                            @if (GetPgCol("OuterPolish").Visible) { <MudTh Style="width:65px;">外抛光</MudTh> }
+                            @if (GetPgCol("InnerGrinding").Visible) { <MudTh Style="width:65px;">内修磨</MudTh> }
+                            @if (GetPgCol("OuterSpotGrinding").Visible) { <MudTh Style="width:65px;">外点磨</MudTh> }
+                            @if (GetPgCol("Inspection").Visible) { <MudTh Style="width:60px;">检验</MudTh> }
+                            @if (GetPgCol("WeldingHead").Visible) { <MudTh Style="width:65px;">打焊头</MudTh> }
+                            @if (GetPgCol("Lubrication").Visible) { <MudTh Style="width:60px;">润滑</MudTh> }
+                            @if (GetPgCol("Warehouse").Visible) { <MudTh Style="width:60px;">入库</MudTh> }
+                            <MudTh Style="width:45px;">操作</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="pg">
+                            <MudTd>@(request.ProcessGroups!.IndexOf(pg) + 1)</MudTd>
+                            @if (GetPgCol("ProcessName").Visible)
+                            {
+                                <MudTd>
+                                    <MudSelect T="string" @bind-Value="pg.ProcessName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:90px;">
+                                        <MudSelectItem Value="@("荒管处理")">荒管处理</MudSelectItem>
+                                        <MudSelectItem Value="@("在制修检")">在制修检</MudSelectItem>
+                                        <MudSelectItem Value="@("冷轧")">冷轧</MudSelectItem>
+                                        <MudSelectItem Value="@("冷拔")">冷拔</MudSelectItem>
+                                    </MudSelect>
+                                </MudTd>
+                            }
+                            @if (GetPgCol("ManufacturingSpec").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.ManufacturingSpec" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:90px;" /></MudTd> }
+                            @if (GetPgCol("OuterDiameterTolerance").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.OuterDiameterTolerance" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:70px;" /></MudTd> }
+                            @if (GetPgCol("WallThicknessTolerance").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.WallThicknessTolerance" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:70px;" /></MudTd> }
+                            @if (GetPgCol("ManufacturingLength").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.ManufacturingLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:80px;" /></MudTd> }
+                            @if (GetPgCol("CuttingTreatment").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.CuttingTreatment" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:80px;" /></MudTd> }
+                            @if (GetPgCol("Remark").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:90px;" /></MudTd> }
+                            @if (GetPgCol("ColdRollDraw").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.ColdRollDraw" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("OilPipeCut").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.OilPipeCut" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Degrease").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Degrease" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Solution").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Solution" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Straighten").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Straighten" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Cut").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Cut" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("ThicknessMeasure").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.ThicknessMeasure" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Pickle").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Pickle" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("OuterPolish").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.OuterPolish" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("InnerGrinding").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.InnerGrinding" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("OuterSpotGrinding").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.OuterSpotGrinding" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Inspection").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Inspection" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("WeldingHead").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.WeldingHead" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Lubrication").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Lubrication" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Warehouse").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Warehouse" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
+                            <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteProcessGroupRow(pg))" /></MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+            }
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    [Inject] private IJSRuntime JS { get; set; } = null!;
+
+    private CreateProductionBatchRequest request = new()
+    {
+        WorkOrderNo = "",
+        ProcessGroups = new List<CreateProcessGroupRequest>()
+    };
+    private bool isSubmitting;
+    private bool workOrderLoading;
+    private string batchNoDisplay = "加载中...";
+
+    private List<AvailableBatchDto> availableBatches = new();
+    private bool availableBatchesLoading;
+    private bool showAvailablePanel;
+    private string searchText = "";
+
+    private string sortColumn = "BatchNo";
+    private bool sortAscending = true;
+
+    private List<AvailableBatchDto> sortedAvailableBatches
+    {
+        get
+        {
+            var filtered = string.IsNullOrWhiteSpace(searchText)
+                ? availableBatches
+                : availableBatches.Where(b =>
+                    (b.BatchNo?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (b.MaterialType?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (b.InboundSource?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (b.SourceName?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (b.InboundDate?.ToString("yyyy-MM-dd")?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (b.HeatNo?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (b.OutboundQuantity?.ToString()?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (b.OutboundWeight?.ToString("G29")?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (b.WorkOrderNo?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (b.PlantGrade?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (b.Specification?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (b.LengthStatus?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (b.UnitWeight?.ToString("G29")?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false))
+                .ToList();
+
+            var sorted = sortColumn switch
+            {
+                "BatchNo" => filtered.OrderBy(b => b.BatchNo),
+                "MaterialType" => filtered.OrderBy(b => b.MaterialType),
+                "InboundSource" => filtered.OrderBy(b => b.InboundSource),
+                "SourceName" => filtered.OrderBy(b => b.SourceName),
+                "InboundDate" => filtered.OrderBy(b => b.InboundDate),
+                "HeatNo" => filtered.OrderBy(b => b.HeatNo),
+                "OutboundQuantity" => filtered.OrderBy(b => b.OutboundQuantity),
+                "OutboundWeight" => filtered.OrderBy(b => b.OutboundWeight),
+                "WorkOrderNo" => filtered.OrderBy(b => b.WorkOrderNo),
+                "PlantGrade" => filtered.OrderBy(b => b.PlantGrade),
+                "Specification" => filtered.OrderBy(b => b.Specification),
+                "LengthStatus" => filtered.OrderBy(b => b.LengthStatus),
+                "UnitWeight" => filtered.OrderBy(b => b.UnitWeight),
+                _ => filtered.OrderBy(b => b.BatchNo)
+            };
+            return sortAscending ? sorted.ToList() : sorted.Reverse().ToList();
+        }
+    }
+
+    private void ToggleSort(string column)
+    {
+        if (sortColumn == column)
+            sortAscending = !sortAscending;
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+    }
+
+    private string? warehouseName;
+    private string? sourceWorkOrderNo;
+
+    // ========== 日期字符串绑定 ==========
+    private string? inboundDateStr
+    {
+        get => request.InboundDate?.ToString("yyyy-MM-dd");
+        set
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                request.InboundDate = null;
+            else if (DateTime.TryParse(value, out var dt))
+                request.InboundDate = dt;
+        }
+    }
+    private string? signDateStr
+    {
+        get => request.SignDate?.ToString("yyyy-MM-dd");
+        set
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                request.SignDate = null;
+            else if (DateTime.TryParse(value, out var dt))
+                request.SignDate = dt;
+        }
+    }
+    private string? deliveryDateStr
+    {
+        get => request.DeliveryDate?.ToString("yyyy-MM-dd");
+        set
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                request.DeliveryDate = null;
+            else if (DateTime.TryParse(value, out var dt))
+                request.DeliveryDate = dt;
+        }
+    }
+
+    // ========== 工单字段列显示 ==========
+    private List<ColumnDef> workOrderCols = new();
+    private const string WoColPrefsKey = "batch_create_workorder";
+
+    private bool delayPenaltyValue
+    {
+        get => request.DelayPenalty ?? false;
+        set => request.DelayPenalty = value;
+    }
+
+    private bool lastBatchLoading;
+
+    // ========== 工序组列显示 ==========
+    private List<ColumnDef> pgCols = new();
+    private const string PgColPrefsKey = "batch_create_pg";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.WhenAll(
+            InitWorkOrderColumnsAsync(),
+            InitProcessGroupColumnsAsync(),
+            LoadNextBatchNoAsync(),
+            LoadAvailableBatchesAsync());
+    }
+
+    private bool _isArrowNavSetup;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#batch-create-table"))
+                _isArrowNavSetup = false;
+        }
+    }
+
+    private int visibleFieldCount => workOrderCols.Count(c => c.Visible);
+
+    private async Task LoadNextBatchNoAsync()
+    {
+        try
+        {
+            var result = await BatchService.GetNextBatchNoAsync();
+            if (result.Success && result.Data != null)
+                batchNoDisplay = result.Data;
+            else
+                batchNoDisplay = "自动生成";
+        }
+        catch
+        {
+            batchNoDisplay = "自动生成";
+        }
+    }
+
+    private void ToggleAvailablePanel()
+    {
+        showAvailablePanel = !showAvailablePanel;
+    }
+
+    private async Task LoadAvailableBatchesAsync()
+    {
+        availableBatchesLoading = true;
+        try
+        {
+            var result = await BatchService.GetAvailableBatchesAsync();
+            if (result.Success && result.Data != null)
+                availableBatches = result.Data;
+            else if (!result.Success)
+                Snackbar.Add($"加载可用批次失败: {result.Message}", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载可用批次异常: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            availableBatchesLoading = false;
+        }
+    }
+
+    private async Task FillFromAvailableBatch(AvailableBatchDto batch)
+    {
+        request.SourceBatchNo = batch.BatchNo;
+        request.WarehouseId = batch.WarehouseId;
+        request.SourceMaterialType = batch.MaterialType;
+        request.InboundSource = DisplayHelper.GetInboundSourceText(batch.InboundSource);
+        request.SourceName = batch.SourceName;
+        request.InboundDate = batch.InboundDate;
+        request.SourceHeatNo = batch.HeatNo;
+        request.SourcePlantGrade = batch.PlantGrade;
+        request.SourceSpecification = batch.Specification;
+        request.SourceLengthStatus = DisplayHelper.GetLengthStatusText(batch.LengthStatus);
+        request.SourceUnitWeight = batch.UnitWeight;
+        request.InputQuantity = batch.OutboundQuantity;
+        request.InputWeight = batch.OutboundWeight;
+        warehouseName = batch.WarehouseName;
+        sourceWorkOrderNo = batch.WorkOrderNo;
+
+        if (!string.IsNullOrWhiteSpace(batch.WorkOrderNo) && string.IsNullOrWhiteSpace(request.WorkOrderNo))
+        {
+            request.WorkOrderNo = batch.WorkOrderNo;
+            Snackbar.Add($"已自动填充工单号 {batch.WorkOrderNo}，正在加载工单字段...", Severity.Info);
+            await ConfirmWorkOrder();
+        }
+        else
+        {
+            RecalcProductionRatio();
+            Snackbar.Add($"已填充批次 {batch.BatchNo} 的仓库信息", Severity.Success);
+        }
+    }
+
+    private async Task ConfirmWorkOrder()
+    {
+        if (string.IsNullOrWhiteSpace(request.WorkOrderNo))
+        {
+            // 工单号为空：工厂牌号默认与仓库一致，物料名称默认"无缝管"，其它字段清空
+            request.PlantGrade = request.SourcePlantGrade;
+            request.MaterialName = "无缝管";
+            ClearWorkOrderFields();
+            request.ProductionRatio = null;
+            Snackbar.Add("工单号为空，已设置默认值（可手工修改）", Severity.Info);
+            return;
+        }
+
+        workOrderLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await WorkOrderService.GetByWorkOrderNoAsync(request.WorkOrderNo);
+            if (result.Success && result.Data != null)
+            {
+                var wo = result.Data;
+                request.SalesOrderNo = wo.SalesOrderNo;
+                request.ProductionMainNo = wo.ProductionMainNo;
+                request.ProductionSubNo = wo.ProductionSubNo;
+                request.OrderItemIds = wo.OrderItemIds;
+                request.SignDate = wo.SignDate;
+                request.Salesman = wo.Salesman;
+                request.EndCustomer = wo.EndCustomer;
+                request.DeliveryDate = wo.DeliveryDate;
+                request.DelayPenalty = wo.DelayPenalty;
+                request.MaterialName = DisplayHelper.GetMaterialNameText(wo.MaterialName);
+                request.SettlementMethod = DisplayHelper.GetSettlementMethodText(wo.SettlementMethod);
+                request.StandardCode = wo.StandardCode;
+                request.DeliveryState = DisplayHelper.GetDeliveryStateText(wo.DeliveryState);
+                request.PlantGrade = wo.PlantGrade;
+                request.Specification = wo.Specification;
+                request.OuterDiameterNegative = wo.OuterDiameterNegative;
+                request.OuterDiameterPositive = wo.OuterDiameterPositive;
+                request.WallThicknessNegative = wo.WallThicknessNegative;
+                request.WallThicknessPositive = wo.WallThicknessPositive;
+                request.LengthStatus = DisplayHelper.GetLengthStatusText(wo.LengthStatus);
+                request.MinLength = wo.MinLength;
+                request.MaxLength = wo.MaxLength;
+                request.TotalQuantity = wo.TotalQuantity;
+                request.TotalMeters = wo.TotalMeters;
+                request.TotalWeight = wo.TotalWeight;
+                request.TotalItemCount = wo.TotalItemCount;
+                request.ItemDetails = wo.ItemDetails;
+                request.TechnicalRequirements = DisplayHelper.GetTechnicalRequirementsText(wo.TechnicalRequirements);
+
+                // 计算制几率
+                RecalcProductionRatio();
+
+                Snackbar.Add($"已从工单 {request.WorkOrderNo} 填充工单字段（中文显示）", Severity.Success);
+
+                await AutoFillSolutionParamsAsync(wo.PlantGrade);
+            }
+            else
+            {
+                Snackbar.Add($"未找到工单: {result.Message}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"获取工单信息失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            workOrderLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// 清空工单相关字段（不含 PlantGrade/MaterialName 已由调用方设置）
+    /// </summary>
+    private void ClearWorkOrderFields()
+    {
+        request.SalesOrderNo = null;
+        request.ProductionMainNo = null;
+        request.ProductionSubNo = null;
+        request.OrderItemIds = null;
+        request.SignDate = null;
+        request.Salesman = null;
+        request.EndCustomer = null;
+        request.DeliveryDate = null;
+        request.DelayPenalty = null;
+        request.SettlementMethod = null;
+        request.StandardCode = null;
+        request.DeliveryState = null;
+        request.Specification = null;
+        request.OuterDiameterNegative = null;
+        request.OuterDiameterPositive = null;
+        request.WallThicknessNegative = null;
+        request.WallThicknessPositive = null;
+        request.LengthStatus = null;
+        request.MinLength = null;
+        request.MaxLength = null;
+        request.TotalQuantity = null;
+        request.TotalMeters = null;
+        request.TotalWeight = null;
+        request.TotalItemCount = null;
+        request.ItemDetails = null;
+        request.TechnicalRequirements = null;
+    }
+
+    /// <summary>
+    /// 计算制几率：定尺时 = floor(投料单重 / 工单单重)
+    /// </summary>
+    private void RecalcProductionRatio()
+    {
+        var lengthStatus = request.LengthStatus ?? "";
+        if (lengthStatus != "定尺")
+        {
+            request.ProductionRatio = null;
+            return;
+        }
+
+        if (request.InputWeight == null || request.InputQuantity == null || request.InputQuantity <= 0)
+            return;
+
+        if (request.TotalWeight == null || request.TotalQuantity == null || request.TotalQuantity <= 0)
+            return;
+
+        var unitInputWeight = request.InputWeight.Value / (decimal)request.InputQuantity.Value;
+        var unitWorkWeight = request.TotalWeight.Value / (decimal)request.TotalQuantity.Value;
+
+        if (unitWorkWeight <= 0)
+            return;
+
+        request.ProductionRatio = (int)Math.Floor(unitInputWeight / unitWorkWeight);
+    }
+
+    private async Task AutoFillSolutionParamsAsync(string plantGrade)
+    {
+        try
+        {
+            var mappings = await GradeMappingService.GetAllAsync();
+            var match = mappings.FirstOrDefault(m =>
+                m.PlantGrade.Equals(plantGrade, StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(m.HeatTreatment));
+
+            if (match != null)
+            {
+                request.SolutionParams = match.HeatTreatment;
+                Snackbar.Add($"已根据牌号对照自动填充固溶参数: {match.HeatTreatment}", Severity.Info);
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    // ========== 工单字段列显示 ==========
+
+    private async Task InitWorkOrderColumnsAsync()
+    {
+        workOrderCols = new List<ColumnDef>
+        {
+            new() { Key = "SalesOrderNo", Label = "源订单号", Visible = true },
+            new() { Key = "ProductionMainNo", Label = "主号", Visible = true },
+            new() { Key = "ProductionSubNo", Label = "次号", Visible = true },
+            new() { Key = "OrderItemIds", Label = "项次ID列表", Visible = true },
+            new() { Key = "SignDate", Label = "签订日期", Visible = true },
+            new() { Key = "Salesman", Label = "业务员", Visible = true },
+            new() { Key = "EndCustomer", Label = "最终用户", Visible = true },
+            new() { Key = "DeliveryDate", Label = "交货日期", Visible = true },
+            new() { Key = "DelayPenalty", Label = "延期罚款", Visible = true },
+            new() { Key = "MaterialName", Label = "物料名称", Visible = true },
+            new() { Key = "SettlementMethod", Label = "结算方式", Visible = true },
+            new() { Key = "StandardCode", Label = "产品标准编码", Visible = true },
+            new() { Key = "DeliveryState", Label = "交货状态", Visible = true },
+            new() { Key = "PlantGrade", Label = "工厂牌号", Visible = true },
+            new() { Key = "Specification", Label = "规格", Visible = true },
+            new() { Key = "OuterDiameterNegative", Label = "外径负公差", Visible = true },
+            new() { Key = "OuterDiameterPositive", Label = "外径正公差", Visible = true },
+            new() { Key = "WallThicknessNegative", Label = "壁厚负公差", Visible = true },
+            new() { Key = "WallThicknessPositive", Label = "壁厚正公差", Visible = true },
+            new() { Key = "LengthStatus", Label = "长度状态", Visible = true },
+            new() { Key = "MinLength", Label = "最小长度(mm)", Visible = true },
+            new() { Key = "MaxLength", Label = "最大长度(mm)", Visible = true },
+            new() { Key = "TotalQuantity", Label = "总支数", Visible = true },
+            new() { Key = "TotalMeters", Label = "总米数", Visible = true },
+            new() { Key = "TotalWeight", Label = "总重量(kg)", Visible = true },
+            new() { Key = "TotalItemCount", Label = "总项次数", Visible = true },
+            new() { Key = "ItemDetails", Label = "明细", Visible = true },
+            new() { Key = "TechnicalRequirements", Label = "技术要求", Visible = true },
+        };
+
+        var saved = await ColumnPrefs.LoadAsync(WoColPrefsKey, null);
+        if (saved.Count > 0)
+        {
+            foreach (var savedCol in saved)
+            {
+                var match = workOrderCols.FirstOrDefault(c => c.Key == savedCol.Key);
+                if (match != null) match.Visible = savedCol.Visible;
+            }
+            var ordered = new List<ColumnDef>();
+            foreach (var savedCol in saved)
+            {
+                var match = workOrderCols.FirstOrDefault(c => c.Key == savedCol.Key);
+                if (match != null) ordered.Add(match);
+            }
+            foreach (var col in workOrderCols)
+            {
+                if (!ordered.Contains(col)) ordered.Add(col);
+            }
+            workOrderCols = ordered;
+        }
+    }
+
+    private ColumnDef GetCol(string key) =>
+        workOrderCols.FirstOrDefault(c => c.Key == key) ?? new ColumnDef { Key = key, Label = key, Visible = true };
+
+    private async Task ResetWorkOrderColumns()
+    {
+        foreach (var col in workOrderCols) col.Visible = true;
+        await ColumnPrefs.SaveAsync(WoColPrefsKey, null, workOrderCols);
+        Snackbar.Add("已重置列显示", Severity.Normal);
+    }
+
+    private async Task OnWorkOrderColumnToggle(ColumnDef col) =>
+        await ColumnPrefs.SaveAsync(WoColPrefsKey, null, workOrderCols);
+
+    private async Task OnWorkOrderColumnMove(ColumnDef col) =>
+        await ColumnPrefs.SaveAsync(WoColPrefsKey, null, workOrderCols);
+
+    // ========== 工序组列显示 ==========
+
+    private async Task InitProcessGroupColumnsAsync()
+    {
+        pgCols = new List<ColumnDef>
+        {
+            new() { Key = "ProcessName", Label = "工序名称", Visible = true },
+            new() { Key = "ManufacturingSpec", Label = "制造规格", Visible = true },
+            new() { Key = "OuterDiameterTolerance", Label = "外径公差", Visible = true },
+            new() { Key = "WallThicknessTolerance", Label = "壁厚公差", Visible = true },
+            new() { Key = "ManufacturingLength", Label = "制造长度", Visible = true },
+            new() { Key = "CuttingTreatment", Label = "断切处理", Visible = true },
+            new() { Key = "Remark", Label = "备注", Visible = true },
+            new() { Key = "ColdRollDraw", Label = "冷轧拔", Visible = true },
+            new() { Key = "OilPipeCut", Label = "油管断", Visible = true },
+            new() { Key = "Degrease", Label = "去油", Visible = true },
+            new() { Key = "Solution", Label = "固溶", Visible = true },
+            new() { Key = "Straighten", Label = "矫直", Visible = true },
+            new() { Key = "Cut", Label = "断切", Visible = true },
+            new() { Key = "ThicknessMeasure", Label = "测壁厚", Visible = true },
+            new() { Key = "Pickle", Label = "酸洗", Visible = true },
+            new() { Key = "OuterPolish", Label = "外抛光", Visible = true },
+            new() { Key = "InnerGrinding", Label = "内修磨", Visible = true },
+            new() { Key = "OuterSpotGrinding", Label = "外点磨", Visible = true },
+            new() { Key = "Inspection", Label = "检验", Visible = true },
+            new() { Key = "WeldingHead", Label = "打焊头", Visible = true },
+            new() { Key = "Lubrication", Label = "润滑", Visible = true },
+            new() { Key = "Warehouse", Label = "入库", Visible = true },
+        };
+
+        var saved = await ColumnPrefs.LoadAsync(PgColPrefsKey, null);
+        if (saved.Count > 0)
+        {
+            foreach (var savedCol in saved)
+            {
+                var match = pgCols.FirstOrDefault(c => c.Key == savedCol.Key);
+                if (match != null) match.Visible = savedCol.Visible;
+            }
+            var ordered = new List<ColumnDef>();
+            foreach (var savedCol in saved)
+            {
+                var match = pgCols.FirstOrDefault(c => c.Key == savedCol.Key);
+                if (match != null) ordered.Add(match);
+            }
+            foreach (var col in pgCols)
+            {
+                if (!ordered.Contains(col)) ordered.Add(col);
+            }
+            pgCols = ordered;
+        }
+    }
+
+    private ColumnDef GetPgCol(string key) =>
+        pgCols.FirstOrDefault(c => c.Key == key) ?? new ColumnDef { Key = key, Label = key, Visible = true };
+
+    private async Task ResetPgColumns()
+    {
+        foreach (var col in pgCols) col.Visible = true;
+        await ColumnPrefs.SaveAsync(PgColPrefsKey, null, pgCols);
+        Snackbar.Add("已重置工序组列显示", Severity.Normal);
+    }
+
+    private async Task OnPgColumnToggle(ColumnDef col) =>
+        await ColumnPrefs.SaveAsync(PgColPrefsKey, null, pgCols);
+
+    private async Task OnPgColumnMove(ColumnDef col) =>
+        await ColumnPrefs.SaveAsync(PgColPrefsKey, null, pgCols);
+
+    // ========== 工序组操作 ==========
+
+    private void AddProcessGroupRow()
+    {
+        if (request.ProcessGroups == null)
+            request.ProcessGroups = new List<CreateProcessGroupRequest>();
+        request.ProcessGroups.Add(new CreateProcessGroupRequest { ProcessName = "荒管处理" });
+    }
+
+    private async Task DeleteProcessGroupRow(CreateProcessGroupRequest pg)
+    {
+        if (request.ProcessGroups == null) return;
+        request.ProcessGroups.Remove(pg);
+    }
+
+    private async Task CopyLastBatchProcessGroups()
+    {
+        if (request.ProcessGroups != null && request.ProcessGroups.Count > 0)
+        {
+            var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认覆盖", new DialogParameters
+            {
+                ["Title"] = "确认覆盖",
+                ["ContentText"] = "当前已有工序组数据，复制后将覆盖现有数据，是否继续？",
+                ["ConfirmText"] = "确认覆盖"
+            });
+            var result = await dialog.Result;
+            if (result.Canceled) return;
+        }
+
+        lastBatchLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var apiResult = await BatchService.GetLastBatchProcessGroupsAsync();
+            if (apiResult.Success && apiResult.Data != null && apiResult.Data.Count > 0)
+            {
+                request.ProcessGroups = apiResult.Data;
+                Snackbar.Add($"已从上一批次复制 {apiResult.Data.Count} 条工序组数据", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("没有找到上一批次的工序组数据", Severity.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"复制失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            lastBatchLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // ========== 提交 ==========
+
+    private async Task Submit()
+    {
+        var errors = new List<string>();
+
+        // 生产类型必填
+        if (string.IsNullOrWhiteSpace(request.ProductionType))
+            errors.Add("生产类型不能为空");
+
+        // 工厂牌号验证（高代低）
+        if (!GradeSubstitutes.IsSubstitutable(request.PlantGrade, request.SourcePlantGrade))
+            errors.Add("仓库工厂牌号与工单工厂牌号不一致，且不可替代（仅允许高代低）");
+
+        // 工序组验证
+        if (request.ProcessGroups != null)
+        {
+            for (int i = 0; i < request.ProcessGroups.Count; i++)
+            {
+                var pg = request.ProcessGroups[i];
+                if (string.IsNullOrWhiteSpace(pg.ProcessName))
+                    errors.Add($"工序组第{i + 1}行：工序名称不能为空");
+            }
+            ValidateProcessGroupValues(request.ProcessGroups, errors);
+        }
+
+        if (errors.Any())
+        {
+            Snackbar.Add(string.Join("；", errors), Severity.Warning);
+            return;
+        }
+
+        isSubmitting = true;
+        try
+        {
+            var result = await BatchService.CreateAsync(request);
+            if (result.Success)
+            {
+                Snackbar.Add($"创建成功，生产编号: {result.Data?.BatchNo}", Severity.Success);
+                // 重置表单，保留筛选
+                ResetForm();
+                await LoadAvailableBatchesAsync();
+                await LoadNextBatchNoAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "创建失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"创建失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/batches");
+
+    private void ResetForm()
+    {
+        request = new CreateProductionBatchRequest
+        {
+            WorkOrderNo = "",
+            ProcessGroups = new List<CreateProcessGroupRequest>()
+        };
+        warehouseName = null;
+        sourceWorkOrderNo = null;
+        batchNoDisplay = "加载中...";
+    }
+
+    /// <summary>
+    /// 工序组数值验证：至少1个工段有值、同组不重复、全局从1开始连续且不重复
+    /// </summary>
+    private static void ValidateProcessGroupValues(List<CreateProcessGroupRequest> processGroups, List<string> errors)
+    {
+        if (processGroups == null || processGroups.Count == 0) return;
+
+        var allValues = new List<int>();
+        var nameSpecCombos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < processGroups.Count; i++)
+        {
+            var pg = processGroups[i];
+            var values = GetWorkSectionValues(pg);
+            var nonNullValues = values.Where(v => v.HasValue).Select(v => v!.Value).ToList();
+
+            if (nonNullValues.Count == 0)
+            {
+                errors.Add($"工序组第{i + 1}行：至少需要1个工段有值");
+                continue;
+            }
+
+            // 同一工序组内不能重复
+            if (nonNullValues.Distinct().Count() != nonNullValues.Count)
+                errors.Add($"工序组第{i + 1}行：工段数值不能重复");
+
+            // 工序名称不为空时制造规格必填
+            if (!string.IsNullOrWhiteSpace(pg.ProcessName) && string.IsNullOrWhiteSpace(pg.ManufacturingSpec))
+                errors.Add($"工序组第{i + 1}行：工序名称「{pg.ProcessName}」已填写，制造规格不能为空");
+
+            // 工序名称+制造规格在批次内唯一
+            if (!string.IsNullOrWhiteSpace(pg.ProcessName))
+            {
+                var comboKey = $"{pg.ProcessName}|{pg.ManufacturingSpec ?? ""}";
+                if (!nameSpecCombos.Add(comboKey))
+                    errors.Add($"工序组第{i + 1}行：工序名称「{pg.ProcessName}」+制造规格「{pg.ManufacturingSpec ?? ""}」组合已在其他工序组中存在");
+            }
+
+            // 检查跨工序组重复
+            foreach (var v in nonNullValues)
+            {
+                if (allValues.Contains(v))
+                    errors.Add($"工段数值{v}在多个工序组中重复，同一批次中每个工段值必须唯一");
+                else
+                    allValues.Add(v);
+            }
+        }
+
+        // 全局连续性检查：从1开始连续
+        if (allValues.Count > 0)
+        {
+            allValues.Sort();
+            if (allValues[0] != 1)
+                errors.Add($"工段数值必须从1开始（当前最小值为{allValues[0]}）");
+            for (int i = 1; i < allValues.Count; i++)
+            {
+                if (allValues[i] != allValues[i - 1] + 1)
+                    errors.Add($"工段数值必须连续（1,2,3...），缺失值: {allValues[i - 1] + 1}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 获取工序组15个工段的数值列表
+    /// </summary>
+    private static List<int?> GetWorkSectionValues(CreateProcessGroupRequest pg)
+    {
+        return new List<int?>
+        {
+            pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
+            pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
+            pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
+            pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse
+        };
+    }
+}

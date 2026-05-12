@@ -6,6 +6,7 @@ namespace MES.Core.DTOs;
 public class UpdateOutboundRecordRequest
 {
     public string? OutboundType { get; set; }
+    public string? SourceOrderNo { get; set; }
     public string? TargetCompany { get; set; }
     public int? OutboundQuantity { get; set; }
     public decimal? OutboundWeight { get; set; }

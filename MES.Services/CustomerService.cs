@@ -235,7 +235,7 @@ public class CustomerService : ICustomerService
     }
 
     /// <summary>
-    /// Delete customer (soft delete)
+    /// Delete customer (物理删除)
     /// </summary>
     public async Task DeleteAsync(int id)
     {
@@ -268,7 +268,7 @@ public class CustomerService : ICustomerService
             {
                 result.Add(await GetByIdAsync(id));
             }
-            catch (BusinessException) { }
+            catch (BusinessException) { /* 跳过不存在的客户 */ }
         }
         return CustomerPrintHelper.GenerateBatchPdf(result);
     }
@@ -280,7 +280,7 @@ public class CustomerService : ICustomerService
             PageIndex = 1,
             PageSize = int.MaxValue,
             Keyword = keyword,
-            SortBy = sortBy,
+            SortBy = sortBy ?? "CreatedTime",
             IsDescending = isDescending
         };
         var paged = await GetPagedAsync(query);

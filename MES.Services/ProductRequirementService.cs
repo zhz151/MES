@@ -1,4 +1,4 @@
-// 文件路径: MES.Services/Order/ProductRequirementService.cs
+// 文件路径: MES.Services/ProductRequirementService.cs
 using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs;
 using MES.Core.Enums;
@@ -8,7 +8,7 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Mapping;
 
-namespace MES.Services.Order;
+namespace MES.Services;
 
 public class ProductRequirementService : IProductRequirementService
 {

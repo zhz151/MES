@@ -1,6 +1,6 @@
 namespace MES.Data.Entities;
 
-public abstract class BaseEntity
+public abstract class BaseEntity : IAuditableEntity
 {
     public int Id { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
