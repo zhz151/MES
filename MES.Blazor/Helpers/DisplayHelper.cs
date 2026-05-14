@@ -261,6 +261,28 @@ public static class DisplayHelper
         };
     }
 
+    // ========== 成品检验项目 ==========
+
+    /// <summary>
+    /// 获取成品检验项目中文文本
+    /// </summary>
+    public static string GetInspectionItemText(InspectionItem item)
+    {
+        return item switch
+        {
+            InspectionItem.PMIInspection => "PMI检验",
+            InspectionItem.VisualInspection => "表检",
+            InspectionItem.Dimension => "尺寸",
+            InspectionItem.Endoscopy => "内窥",
+            InspectionItem.HydrostaticPressure => "水压",
+            InspectionItem.UnderwaterPneumatic => "水下气压",
+            InspectionItem.EddyCurrent => "涡流",
+            InspectionItem.Ultrasonic => "超声波",
+            InspectionItem.PortColoring => "端口着色",
+            _ => item.ToString()
+        };
+    }
+
     // ========== 技术要求 ==========
 
     /// <summary>

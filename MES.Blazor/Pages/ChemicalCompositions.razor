@@ -77,14 +77,25 @@
                                Size="Size.Small"
                                Color="Color.Info"
                                StartIcon="@Icons.Material.Filled.Print"
-                               OnClick="PrintCurrentView">
-                        打印
+                               Disabled="@(!selectedIds.Any())"
+                               OnClick="PrintSelected">
+                        打印选中 (@selectedIds.Count)
+                    </MudButton>
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll">
+                        打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
                         共 @totalCount 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
+                    <MudTh Style="width: 40px;">
+                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
+                    </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
@@ -107,6 +118,12 @@
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
+                    <MudTd Style="width: 40px;">
+                        <MudCheckBox T="bool"
+                                     Value="@selectedIds.Contains(item.Id)"
+                                     ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); allSelected = records.Any() && records.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                     Dense="true" />
+                    </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTd>@RenderCell(item, col)</MudTd>
@@ -155,29 +172,50 @@
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "PlantGrade",   Label = "工厂牌号",   SortKey = "plantgrade" },
-        new() { Key = "Carbon",       Label = "C" },
-        new() { Key = "Silicon",      Label = "Si" },
-        new() { Key = "Manganese",    Label = "Mn" },
-        new() { Key = "Phosphorus",   Label = "P" },
-        new() { Key = "Sulfur",       Label = "S" },
-        new() { Key = "Nickel",       Label = "Ni" },
-        new() { Key = "Chromium",     Label = "Cr" },
-        new() { Key = "Molybdenum",   Label = "Mo" },
-        new() { Key = "Copper",       Label = "Cu" },
-        new() { Key = "Nitrogen",     Label = "N" },
-        new() { Key = "Niobium",      Label = "Nb" },
-        new() { Key = "Titanium",     Label = "Ti" },
-        new() { Key = "Iron",         Label = "Fe" },
-        new() { Key = "Aluminum",     Label = "Al" },
-        new() { Key = "Tungsten",     Label = "W" },
-        new() { Key = "PREN",         Label = "PREN腐蚀当量" },
+        new() { Key = "PlantGrade",   Label = "工厂牌号",     SortKey = "plantgrade" },
+        new() { Key = "Carbon",       Label = "C",           SortKey = "carbon" },
+        new() { Key = "Silicon",      Label = "Si",          SortKey = "silicon" },
+        new() { Key = "Manganese",    Label = "Mn",          SortKey = "manganese" },
+        new() { Key = "Phosphorus",   Label = "P",           SortKey = "phosphorus" },
+        new() { Key = "Sulfur",       Label = "S",           SortKey = "sulfur" },
+        new() { Key = "Nickel",       Label = "Ni",          SortKey = "nickel" },
+        new() { Key = "Chromium",     Label = "Cr",          SortKey = "chromium" },
+        new() { Key = "Molybdenum",   Label = "Mo",          SortKey = "molybdenum" },
+        new() { Key = "Copper",       Label = "Cu",          SortKey = "copper" },
+        new() { Key = "Nitrogen",     Label = "N",           SortKey = "nitrogen" },
+        new() { Key = "Niobium",      Label = "Nb",          SortKey = "niobium" },
+        new() { Key = "Titanium",     Label = "Ti",          SortKey = "titanium" },
+        new() { Key = "Iron",         Label = "Fe",          SortKey = "iron" },
+        new() { Key = "Aluminum",     Label = "Al",          SortKey = "aluminum" },
+        new() { Key = "Tungsten",     Label = "W",           SortKey = "tungsten" },
+        new() { Key = "PREN",         Label = "PREN腐蚀当量", SortKey = "pren" },
         new() { Key = "CreatedTime",  Label = "创建日期",   SortKey = "createdtime" },
         new() { Key = "UpdatedTime",  Label = "更新日期",   SortKey = "updatedtime" },
     };
 
     // ========== 内联编辑 ==========
 
+    private HashSet<int> selectedIds = new();
+    private bool allSelected
+    {
+        get => _allSelected;
+        set
+        {
+            if (_allSelected == value) return;
+            _allSelected = value;
+            if (value)
+            {
+                foreach (var item in records)
+                    selectedIds.Add(item.Id);
+            }
+            else
+            {
+                selectedIds.Clear();
+            }
+            StateHasChanged();
+        }
+    }
+    private bool _allSelected;
     private HashSet<int> _editingIds = new();
     private Dictionary<int, EditCache> _editCache = new();
     private bool _isSaving;
@@ -456,10 +494,78 @@
 
     // ========== 打印 ==========
 
-    private async Task PrintCurrentView()
+    private async Task PrintSelected()
     {
-        await JS.InvokeVoidAsync("printTable", "#chemical-composition-list-table", "牌号化学成分");
+        if (!selectedIds.Any())
+        {
+            Snackbar.Add("请先选择要打印的化学成分记录", Severity.Warning);
+            return;
+        }
+        await JS.InvokeVoidAsync("printTable", "#chemical-composition-list-table", "牌号化学成分（选中记录）");
     }
+
+    private async Task PrintAll()
+    {
+        var result = await ChemicalCompositionService.GetAllAsync(
+            1, 5000,
+            string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+            sortColumn, sortDescending);
+        if (!result.Success || result.Data == null || !result.Data.Items.Any())
+        {
+            Snackbar.Add("没有可打印的数据", Severity.Warning);
+            return;
+        }
+        var html = BuildPrintHtml(result.Data.Items);
+        await JS.InvokeVoidAsync("printRawHtml", html, "牌号化学成分");
+    }
+
+    private string BuildPrintHtml(IEnumerable<ChemicalCompositionDto> items)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("<table><thead><tr>");
+        foreach (var col in _visibleColumns)
+        {
+            sb.Append("<th>").Append(System.Net.WebUtility.HtmlEncode(col.Label)).Append("</th>");
+        }
+        sb.Append("</tr></thead><tbody>");
+        foreach (var item in items)
+        {
+            sb.Append("<tr>");
+            foreach (var col in _visibleColumns)
+            {
+                sb.Append("<td>");
+                sb.Append(System.Net.WebUtility.HtmlEncode(GetCellPrintValue(item, col)));
+                sb.Append("</td>");
+            }
+            sb.Append("</tr>");
+        }
+        sb.Append("</tbody></table>");
+        return sb.ToString();
+    }
+
+    private string GetCellPrintValue(ChemicalCompositionDto item, ColumnDef col) => col.Key switch
+    {
+        "PlantGrade" => item.PlantGrade,
+        "Carbon" => item.Carbon,
+        "Silicon" => item.Silicon,
+        "Manganese" => item.Manganese,
+        "Phosphorus" => item.Phosphorus,
+        "Sulfur" => item.Sulfur,
+        "Nickel" => item.Nickel,
+        "Chromium" => item.Chromium,
+        "Molybdenum" => item.Molybdenum,
+        "Copper" => item.Copper,
+        "Nitrogen" => item.Nitrogen,
+        "Niobium" => item.Niobium,
+        "Titanium" => item.Titanium,
+        "Iron" => item.Iron,
+        "Aluminum" => item.Aluminum,
+        "Tungsten" => item.Tungsten,
+        "PREN" => item.PREN,
+        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        _ => ""
+    };
 
     private async Task DeleteItem(ChemicalCompositionDto item)
     {

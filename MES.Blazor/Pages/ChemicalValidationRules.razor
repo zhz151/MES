@@ -77,14 +77,25 @@
                                Size="Size.Small"
                                Color="Color.Info"
                                StartIcon="@Icons.Material.Filled.Print"
-                               OnClick="PrintCurrentView">
-                        打印
+                               Disabled="@(!selectedIds.Any())"
+                               OnClick="PrintSelected">
+                        打印选中 (@selectedIds.Count)
+                    </MudButton>
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll">
+                        打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
                         共 @totalCount 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
+                    <MudTh Style="width: 40px;">
+                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
+                    </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
@@ -107,6 +118,11 @@
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
+                    <MudTd Style="width: 40px;">
+                        <MudCheckBox T="bool" Value="@selectedIds.Contains(item.Id)"
+                                     ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); allSelected = records.Any() && records.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                     Dense="true" />
+                    </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTd>@RenderCell(item, col)</MudTd>
@@ -156,42 +172,57 @@
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "PlantGrade",   Label = "工厂牌号",   SortKey = "plantgrade" },
-        new() { Key = "CMin",         Label = "C-", IsRequired = false },
-        new() { Key = "CMax",         Label = "C+" },
-        new() { Key = "SiMin",        Label = "Si-" },
-        new() { Key = "SiMax",        Label = "Si+" },
-        new() { Key = "MnMin",        Label = "Mn-" },
-        new() { Key = "MnMax",        Label = "Mn+" },
-        new() { Key = "PMin",         Label = "P-" },
-        new() { Key = "PMax",         Label = "P+" },
-        new() { Key = "SMin",         Label = "S-" },
-        new() { Key = "SMax",         Label = "S+" },
-        new() { Key = "NiMin",        Label = "Ni-" },
-        new() { Key = "NiMax",        Label = "Ni+" },
-        new() { Key = "CrMin",        Label = "Cr-" },
-        new() { Key = "CrMax",        Label = "Cr+" },
-        new() { Key = "MoMin",        Label = "Mo-" },
-        new() { Key = "MoMax",        Label = "Mo+" },
-        new() { Key = "CuMin",        Label = "Cu-" },
-        new() { Key = "CuMax",        Label = "Cu+" },
-        new() { Key = "NMin",         Label = "N-" },
-        new() { Key = "NMax",         Label = "N+" },
-        new() { Key = "NbMin",        Label = "Nb-" },
-        new() { Key = "NbMax",        Label = "Nb+" },
-        new() { Key = "TiMin",        Label = "Ti-" },
-        new() { Key = "TiMax",        Label = "Ti+" },
-        new() { Key = "FeMin",        Label = "Fe-" },
-        new() { Key = "FeMax",        Label = "Fe+" },
-        new() { Key = "AlMin",        Label = "Al-" },
-        new() { Key = "AlMax",        Label = "Al+" },
-        new() { Key = "WMin",         Label = "W-" },
-        new() { Key = "WMax",         Label = "W+" },
-        new() { Key = "PRENMin",      Label = "PREN腐蚀当量-" },
+        new() { Key = "CMin",         Label = "C-",         SortKey = "cmin", IsRequired = false },
+        new() { Key = "CMax",         Label = "C+",         SortKey = "cmax" },
+        new() { Key = "SiMin",        Label = "Si-",        SortKey = "simin" },
+        new() { Key = "SiMax",        Label = "Si+",        SortKey = "simax" },
+        new() { Key = "MnMin",        Label = "Mn-",        SortKey = "mnmin" },
+        new() { Key = "MnMax",        Label = "Mn+",        SortKey = "mnmax" },
+        new() { Key = "PMin",         Label = "P-",         SortKey = "pmin" },
+        new() { Key = "PMax",         Label = "P+",         SortKey = "pmax" },
+        new() { Key = "SMin",         Label = "S-",         SortKey = "smin" },
+        new() { Key = "SMax",         Label = "S+",         SortKey = "smax" },
+        new() { Key = "NiMin",        Label = "Ni-",        SortKey = "nimin" },
+        new() { Key = "NiMax",        Label = "Ni+",        SortKey = "nimax" },
+        new() { Key = "CrMin",        Label = "Cr-",        SortKey = "crmin" },
+        new() { Key = "CrMax",        Label = "Cr+",        SortKey = "crmax" },
+        new() { Key = "MoMin",        Label = "Mo-",        SortKey = "momin" },
+        new() { Key = "MoMax",        Label = "Mo+",        SortKey = "momax" },
+        new() { Key = "CuMin",        Label = "Cu-",        SortKey = "cumin" },
+        new() { Key = "CuMax",        Label = "Cu+",        SortKey = "cumax" },
+        new() { Key = "NMin",         Label = "N-",         SortKey = "nmin" },
+        new() { Key = "NMax",         Label = "N+",         SortKey = "nmax" },
+        new() { Key = "NbMin",        Label = "Nb-",        SortKey = "nbmin" },
+        new() { Key = "NbMax",        Label = "Nb+",        SortKey = "nbmax" },
+        new() { Key = "TiMin",        Label = "Ti-",        SortKey = "timin" },
+        new() { Key = "TiMax",        Label = "Ti+",        SortKey = "timax" },
+        new() { Key = "FeMin",        Label = "Fe-",        SortKey = "femin" },
+        new() { Key = "FeMax",        Label = "Fe+",        SortKey = "femax" },
+        new() { Key = "AlMin",        Label = "Al-",        SortKey = "almin" },
+        new() { Key = "AlMax",        Label = "Al+",        SortKey = "almax" },
+        new() { Key = "WMin",         Label = "W-",         SortKey = "wmin" },
+        new() { Key = "WMax",         Label = "W+",         SortKey = "wmax" },
+        new() { Key = "PRENMin",      Label = "PREN腐蚀当量-", SortKey = "prenmin" },
         new() { Key = "CreatedTime",  Label = "创建日期",   SortKey = "createdtime" },
         new() { Key = "UpdatedTime",  Label = "更新日期",   SortKey = "updatedtime" },
     };
 
     // ========== 内联编辑 ==========
+
+    private HashSet<int> selectedIds = new();
+    private bool _allSelected;
+    private bool allSelected
+    {
+        get => _allSelected;
+        set
+        {
+            if (_allSelected == value) return;
+            _allSelected = value;
+            if (value) { foreach (var item in records) selectedIds.Add(item.Id); }
+            else { selectedIds.Clear(); }
+            StateHasChanged();
+        }
+    }
 
     private HashSet<int> _editingIds = new();
     private Dictionary<int, EditCache> _editCache = new();
@@ -487,10 +518,74 @@
 
     // ========== 打印 ==========
 
-    private async Task PrintCurrentView()
+    private async Task PrintSelected()
     {
-        await JS.InvokeVoidAsync("printTable", "#chemical-validate-list-table", "牌号验证");
+        if (!selectedIds.Any()) { Snackbar.Add("请先选择要打印的牌号验证记录", Severity.Warning); return; }
+        await JS.InvokeVoidAsync("printTable", "#chemical-validate-list-table", "牌号验证（选中记录）");
     }
+
+    private async Task PrintAll()
+    {
+        var result = await ChemicalValidationRuleService.GetAllAsync(
+            1, 5000,
+            string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+            sortColumn, sortDescending);
+        if (!result.Success || result.Data == null || !result.Data.Items.Any())
+        {
+            Snackbar.Add("没有可打印的数据", Severity.Warning);
+            return;
+        }
+        var html = BuildPrintHtml(result.Data.Items);
+        await JS.InvokeVoidAsync("printRawHtml", html, "牌号验证");
+    }
+
+    private string BuildPrintHtml(IEnumerable<ChemicalValidationRuleDto> items)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("<table><thead><tr>");
+        foreach (var col in _visibleColumns)
+        {
+            sb.Append("<th>").Append(System.Net.WebUtility.HtmlEncode(col.Label)).Append("</th>");
+        }
+        sb.Append("</tr></thead><tbody>");
+        foreach (var item in items)
+        {
+            sb.Append("<tr>");
+            foreach (var col in _visibleColumns)
+            {
+                sb.Append("<td>");
+                sb.Append(System.Net.WebUtility.HtmlEncode(GetCellPrintValue(item, col)));
+                sb.Append("</td>");
+            }
+            sb.Append("</tr>");
+        }
+        sb.Append("</tbody></table>");
+        return sb.ToString();
+    }
+
+    private string GetCellPrintValue(ChemicalValidationRuleDto item, ColumnDef col) => col.Key switch
+    {
+        "PlantGrade" => item.PlantGrade,
+        "CMin" => item.CMin, "CMax" => item.CMax,
+        "SiMin" => item.SiMin, "SiMax" => item.SiMax,
+        "MnMin" => item.MnMin, "MnMax" => item.MnMax,
+        "PMin" => item.PMin, "PMax" => item.PMax,
+        "SMin" => item.SMin, "SMax" => item.SMax,
+        "NiMin" => item.NiMin, "NiMax" => item.NiMax,
+        "CrMin" => item.CrMin, "CrMax" => item.CrMax,
+        "MoMin" => item.MoMin, "MoMax" => item.MoMax,
+        "CuMin" => item.CuMin, "CuMax" => item.CuMax,
+        "NMin" => item.NMin, "NMax" => item.NMax,
+        "NbMin" => item.NbMin, "NbMax" => item.NbMax,
+        "TiMin" => item.TiMin, "TiMax" => item.TiMax,
+        "FeMin" => item.FeMin, "FeMax" => item.FeMax,
+        "AlMin" => item.AlMin, "AlMax" => item.AlMax,
+        "WMin" => item.WMin, "WMax" => item.WMax,
+        "PRENMin" => item.PRENMin,
+        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        _ => ""
+    };
 
     private async Task DeleteItem(ChemicalValidationRuleDto item)
     {

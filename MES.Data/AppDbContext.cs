@@ -77,6 +77,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<ChemicalComposition> ChemicalCompositions { get; set; } = null!;
     public DbSet<FurnaceRegistration> FurnaceRegistrations { get; set; } = null!;
     public DbSet<ChemicalValidationRule> ChemicalValidationRules { get; set; } = null!;
+    public DbSet<FinalInspection> FinalInspections { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -132,6 +133,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureChemicalComposition(builder);
         ConfigureFurnaceRegistration(builder);
         ConfigureChemicalValidationRule(builder);
+        ConfigureFinalInspection(builder);
 
         // 为所有继承 BaseEntity 的实体统一配置审计字段长度
         foreach (var entityType in builder.Model.GetEntityTypes())
@@ -1265,6 +1267,71 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
             entity.HasIndex(e => e.ProductionBatchId).HasDatabaseName("IX_ProcessInspection_BatchId");
             entity.HasIndex(e => e.ProcessGroupId).HasDatabaseName("IX_ProcessInspection_ProcessGroupId");
+        });
+    }
+
+    private static void ConfigureFinalInspection(ModelBuilder builder)
+    {
+        builder.Entity<FinalInspection>(entity =>
+        {
+            entity.ToTable("FinalInspection");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.InspectionItem).IsRequired().HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ProductionBatchId).IsRequired();
+
+            // 批次冗余字段
+            entity.Property(e => e.MaterialName).HasMaxLength(50);
+            entity.Property(e => e.TagNo).HasMaxLength(50);
+            entity.Property(e => e.WorkOrderNo).HasMaxLength(50);
+            entity.Property(e => e.SalesOrderNo).HasMaxLength(50);
+            entity.Property(e => e.SourceUnit).HasMaxLength(200);
+            entity.Property(e => e.FurnaceNo).HasMaxLength(50);
+            entity.Property(e => e.PlantGrade).HasMaxLength(50);
+            entity.Property(e => e.Specification).HasMaxLength(100);
+            entity.Property(e => e.FixedLength).HasMaxLength(50);
+
+            // 执行信息
+            entity.Property(e => e.EquipmentName).HasMaxLength(100);
+            entity.Property(e => e.Shift).HasMaxLength(10);
+            entity.Property(e => e.Operator).HasMaxLength(50);
+
+            // 数量/重量
+            entity.Property(e => e.Quantity);
+            entity.Property(e => e.Weight).HasColumnType("decimal(18,3)");
+
+            // 检验结果
+            entity.Property(e => e.QualifiedQuantity);
+            entity.Property(e => e.QualifiedWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.DefectReworkQuantity);
+            entity.Property(e => e.DefectWarehouseQuantity);
+            entity.Property(e => e.DefectScrapQuantity);
+            entity.Property(e => e.DefectDescription).HasMaxLength(500);
+
+            // 尺寸检验专用
+            entity.Property(e => e.OuterDiameterRange).HasMaxLength(100);
+            entity.Property(e => e.WallThicknessRange).HasMaxLength(100);
+            entity.Property(e => e.LengthAllowanceRange).HasMaxLength(100);
+
+            // 水压/水下气压专用
+            entity.Property(e => e.Pressure).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.HoldTime);
+
+            // 其他
+            entity.Property(e => e.Remark).HasMaxLength(500);
+
+            // 关系
+            entity.HasOne(e => e.ProductionBatch)
+                .WithMany()
+                .HasForeignKey(e => e.ProductionBatchId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // 索引
+            entity.HasIndex(e => e.BatchNo).HasDatabaseName("IX_FinalInspection_BatchNo");
+            entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_FinalInspection_InspectionDate");
+            entity.HasIndex(e => e.InspectionItem).HasDatabaseName("IX_FinalInspection_InspectionItem");
         });
     }
 }

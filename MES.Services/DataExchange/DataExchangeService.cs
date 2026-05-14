@@ -443,6 +443,39 @@ public class DataExchangeService : IDataExchangeService
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
+        ["FinalInspection"] = new EntityDef("成品检验", "成品检验", typeof(FinalInspection), 8, null, new List<ColumnDef>
+        {
+            new("生产编号", null!) { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
+            new("挂牌号", "TagNo", typeof(string), isRequired: false),
+            new("物料名称", "MaterialName", typeof(string), isRequired: false),
+            new("关联工单号", "WorkOrderNo", typeof(string), isRequired: false),
+            new("关联订单号", "SalesOrderNo", typeof(string), isRequired: false),
+            new("来料单位", "SourceUnit", typeof(string), isRequired: false),
+            new("炉号", "FurnaceNo", typeof(string), isRequired: false),
+            new("工厂牌号", "PlantGrade", typeof(string), isRequired: false),
+            new("规格", "Specification", typeof(string), isRequired: false),
+            new("定尺长度", "FixedLength", typeof(string), isRequired: false),
+            new("检验项目", "InspectionItem", typeof(InspectionItem), isEnum: true),
+            new("检验日期", "InspectionDate", typeof(DateTime)),
+            new("设备名称", "EquipmentName", typeof(string), isRequired: false),
+            new("班次", "Shift", typeof(string), isRequired: false),
+            new("操作员", "Operator", typeof(string), isRequired: false),
+            new("检验支数", "Quantity", typeof(int?), isRequired: false),
+            new("检验重量(kg)", "Weight", typeof(decimal?), isRequired: false),
+            new("合格支数", "QualifiedQuantity", typeof(int?), isRequired: false),
+            new("合格重量(kg)", "QualifiedWeight", typeof(decimal?), isRequired: false),
+            new("不合格返整支数", "DefectReworkQuantity", typeof(int?), isRequired: false),
+            new("不合格入库支数", "DefectWarehouseQuantity", typeof(int?), isRequired: false),
+            new("不合格报废支数", "DefectScrapQuantity", typeof(int?), isRequired: false),
+            new("不合格情况描述", "DefectDescription", typeof(string), isRequired: false),
+            new("外径范围", "OuterDiameterRange", typeof(string), isRequired: false),
+            new("壁厚范围", "WallThicknessRange", typeof(string), isRequired: false),
+            new("长度余量范围", "LengthAllowanceRange", typeof(string), isRequired: false),
+            new("压力Mpa", "Pressure", typeof(decimal?), isRequired: false),
+            new("保压时间s", "HoldTime", typeof(int?), isRequired: false),
+            new("检验备注", "Remark", typeof(string), isRequired: false),
+        }),
+
         ["BatchOperationLog"] = new EntityDef("批次操作日志", "批次操作日志", typeof(BatchOperationLog), 8, null, new List<ColumnDef>
         {
             new("批次号", null!) { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
@@ -664,7 +697,7 @@ public class DataExchangeService : IDataExchangeService
         "OrderItem", "ProductRequirement",
         "WorkOrder", "Material",
         "PurchaseOrder", "SubcontractOrder", "SubcontractReturnItem", "ProductionBatch",
-        "ProcessGroup", "ProductionRecord", "SectionOutsource", "OutsourceRecovery", "MaterialReceiveCheck", "ProcessInspection", "BatchOperationLog", "InventoryBatch", "OutboundRecord",
+        "ProcessGroup", "ProductionRecord", "SectionOutsource", "OutsourceRecovery", "MaterialReceiveCheck", "ProcessInspection", "FinalInspection", "BatchOperationLog", "InventoryBatch", "OutboundRecord",
         "InventoryPlan", "PurchaseSemiPlan", "PurchaseFinishedPlan",
     };
 

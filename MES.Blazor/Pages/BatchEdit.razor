@@ -36,7 +36,7 @@
                 </CardHeaderContent>
                 <CardHeaderActions>
                     <MudButton Variant="Variant.Text" Color="Color.Default" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="GoBack" Class="mr-2">返回批次列表</MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Loading="@isSubmitting" StartIcon="@Icons.Material.Filled.Save">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Loading="@_isSubmitting" StartIcon="@Icons.Material.Filled.Save">
                         保存批次
                     </MudButton>
                 </CardHeaderActions>
@@ -64,9 +64,9 @@
                 @if (showAvailablePanel)
                 {
                     <MudPaper Class="pa-3 mb-4" Elevation="1" Style="border:1px solid #e0e0e0; border-radius:8px;">
-                        <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Info">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">
                             <MudIcon Icon="@Icons.Material.Filled.Inventory" Class="mr-1" Size="Size.Small" />
-                            可用库存批次（已出库生产领用且尚未被引用）
+                            可用库存批次
                             <MudTextField T="string" @bind-Value="searchText" Label="筛选" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Immediate="true" DebounceInterval="500" Style="width:160px; margin-left:12px;" />
                         </MudText>
                         @if (availableBatchesLoading)
@@ -526,7 +526,7 @@
 
     private ProductionBatchDetailDto? originalBatch;
     private bool isLoading = true;
-    private bool isSubmitting;
+    private bool _isSubmitting;
     private bool _isArrowNavSetup;
 
     // ========== 主请求对象（编辑用，预填数据） ==========
@@ -1329,7 +1329,7 @@
             return;
         }
 
-        isSubmitting = true;
+        _isSubmitting = true;
         try
         {
             // ===== 构建批量保存请求（单次HTTP调用） =====
@@ -1426,7 +1426,7 @@
         }
         finally
         {
-            isSubmitting = false;
+            _isSubmitting = false;
             StateHasChanged();
         }
     }

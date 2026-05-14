@@ -142,6 +142,7 @@ builder.Services.AddScoped<IProcessInspectionService, ProcessInspectionService>(
 builder.Services.AddScoped<IChemicalCompositionService, ChemicalCompositionService>();
 builder.Services.AddScoped<IFurnaceRegistrationService, FurnaceRegistrationService>();
 builder.Services.AddScoped<IChemicalValidationRuleService, ChemicalValidationRuleService>();
+builder.Services.AddScoped<IFinalInspectionService, FinalInspectionService>();
 builder.Services.AddScoped<ISectionOutsourceService, SectionOutsourceService>();
 
 // Register material context services

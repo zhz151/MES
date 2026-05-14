@@ -48,6 +48,7 @@ builder.Services.AddScoped<ProcessInspectionService>();
 builder.Services.AddScoped<ChemicalCompositionService>();
 builder.Services.AddScoped<FurnaceRegistrationService>();
 builder.Services.AddScoped<ChemicalValidationRuleService>();
+builder.Services.AddScoped<FinalInspectionService>();
 builder.Services.AddScoped<SectionOutsourceService>();
 builder.Services.AddScoped<MaterialService>();
 builder.Services.AddScoped<SupplierService>();
