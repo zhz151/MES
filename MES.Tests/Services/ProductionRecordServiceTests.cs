@@ -1,0 +1,371 @@
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using MES.Core.DTOs;
+using MES.Core.Enums;
+using MES.Core.Exceptions;
+using MES.Core.Models;
+using MES.Data;
+using MES.Data.Entities;
+using MES.Services;
+using MES.Tests.Tests;
+
+namespace MES.Tests.Services;
+
+/// <summary>
+/// 生产记录服务测试：生产记录、工段委外、委外回收、检验到料
+/// </summary>
+public class ProductionRecordServiceTests : TestBase
+{
+    private ProductionRecordService CreateService(AppDbContext ctx)
+        => new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<ProductionRecordService>.Instance);
+
+    private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")
+    {
+        var batch = new ProductionBatch
+        {
+            BatchNo = batchNo,
+            MaterialName = "不锈钢管",
+            PlantGrade = "304",
+            Specification = "219*8",
+            Status = BatchStatus.InProgress,
+            ProductionType = "Internal",
+            WorkOrderNo = "WO-001",
+            SalesOrderNo = "SO-001",
+            ProductionMainNo = "M-001",
+            OrderItemIds = "1",
+            Salesman = "张三",
+            SettlementMethod = "现款现货",
+            StandardCode = "GB/T 14976",
+            DeliveryState = "冷拔态",
+            LengthStatus = "不定尺",
+            TechnicalRequirements = "无",
+            SignDate = DateTime.Today,
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            OuterDiameterNegative = 0.5m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.3m,
+            WallThicknessPositive = 0.3m,
+            TotalQuantity = 100,
+            TotalMeters = 1000m,
+            TotalWeight = 5000m,
+            TotalItemCount = 1
+        };
+        ctx.ProductionBatches.Add(batch);
+        await ctx.SaveChangesAsync();
+        return batch;
+    }
+
+    private async Task<ProcessGroup> SeedProcessGroupAsync(AppDbContext ctx, int batchId,
+        string processName = "冷轧", string mfgSpec = "219*8")
+    {
+        var pg = new ProcessGroup
+        {
+            ProductionBatchId = batchId,
+            SequenceNumber = 1,
+            ProcessName = processName,
+            ManufacturingSpec = mfgSpec,
+            ColdRollDraw = 1
+        };
+        ctx.ProcessGroups.Add(pg);
+        await ctx.SaveChangesAsync();
+        return pg;
+    }
+
+    // ========== 内部生产记录 ==========
+
+    [Fact]
+    public async Task GetProductionRecordsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetProductionRecordsAsync(batch.Id, new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CreateProductionRecordAsync_成功创建()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = "冷轧拔",
+            ExecDate = DateTime.Today,
+            Quantity = 10,
+            Weight = 1000m
+        });
+
+        result.Should().NotBeNull();
+        result.Quantity.Should().Be(10);
+        // 验证数据库已保存
+        var saved = await ctx.ProductionRecords.FirstAsync(r => r.Id == result.Id);
+        saved.Quantity.Should().Be(10);
+    }
+
+    [Fact]
+    public async Task CreateProductionRecordAsync_批次不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "NONEXISTENT",
+            ProcessName = "冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = "冷轧拔",
+            ExecDate = DateTime.Today
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
+    }
+
+    [Fact]
+    public async Task UpdateProductionRecordAsync_成功更新()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx);
+
+        var created = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001", ProcessName = "冷轧",
+            ManufacturingSpec = "219*8", SectionName = "冷轧拔",
+            ExecDate = DateTime.Today, Quantity = 10
+        });
+
+        var result = await svc.UpdateProductionRecordAsync(created.Id, new UpdateProductionRecordRequest
+        {
+            ExecDate = DateTime.Today,
+            Quantity = 15,
+            Weight = 1500m
+        });
+
+        result.Quantity.Should().Be(15);
+        result.Weight.Should().Be(1500m);
+    }
+
+    [Fact]
+    public async Task UpdateProductionRecordAsync_不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.UpdateProductionRecordAsync(999, new UpdateProductionRecordRequest { ExecDate = DateTime.Today });
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
+    }
+
+    [Fact]
+    public async Task DeleteProductionRecordAsync_成功删除()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx);
+
+        var created = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001", ProcessName = "冷轧",
+            ManufacturingSpec = "219*8", SectionName = "冷轧拔",
+            ExecDate = DateTime.Today
+        });
+
+        await svc.DeleteProductionRecordAsync(created.Id);
+
+        var deleted = await ctx.ProductionRecords.FindAsync(created.Id);
+        deleted.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task DeleteProductionRecordAsync_不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.DeleteProductionRecordAsync(999);
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
+    }
+
+    // ========== 跨批次查询 ==========
+
+    [Fact]
+    public async Task GetAllProductionRecordsAsync_无数据_返回空()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllProductionRecordsAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        result.Items.Should().BeEmpty();
+    }
+
+    // ========== 工段委外 ==========
+
+    [Fact]
+    public async Task CreateSectionOutsourceAsync_成功创建()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreateSectionOutsourceAsync(new CreateSectionOutsourceRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = "冷轧拔",
+            OutsourceVendor = "委外厂A",
+            SendOutDate = DateTime.Today,
+            SendQuantity = 10,
+            SendWeight = 1000m
+        });
+
+        result.Should().NotBeNull();
+        result.OutsourceVendor.Should().Be("委外厂A");
+    }
+
+    [Fact]
+    public async Task GetSectionOutsourcesAsync_无数据_返回空()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetSectionOutsourcesAsync(batch.Id, new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        result.Items.Should().BeEmpty();
+    }
+
+    // ========== 委外回收 ==========
+
+    [Fact]
+    public async Task CreateOutsourceRecoveryAsync_成功创建()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        var svc = CreateService(ctx);
+
+        // 先创建委外发出
+        var sectionOutsource = new SectionOutsource
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = "冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = "冷轧拔",
+            SequenceNumber = 1,
+            OutsourceVendor = "委外厂A",
+            SendOutDate = DateTime.Today,
+            SendQuantity = 10,
+            SendWeight = 1000m,
+            Status = SectionOutsourceStatus.PendingRecovery
+        };
+        ctx.SectionOutsources.Add(sectionOutsource);
+        await ctx.SaveChangesAsync();
+
+        var result = await svc.CreateOutsourceRecoveryAsync(new CreateOutsourceRecoveryRequest
+        {
+            SectionOutsourceId = sectionOutsource.Id,
+            RecoveryDate = DateTime.Today,
+            RecoveryQuantity = 8,
+            RecoveryWeight = 800m
+        });
+
+        result.Should().NotBeNull();
+        result.RecoveryQuantity.Should().Be(8);
+    }
+
+    [Fact]
+    public async Task DeleteOutsourceRecoveryAsync_成功删除()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var sectionOutsource = new SectionOutsource
+        {
+            ProductionBatchId = batch.Id, ProcessName = "冷轧",
+            ManufacturingSpec = "219*8", SectionName = "冷轧拔",
+            SequenceNumber = 1, OutsourceVendor = "委外厂A",
+            SendOutDate = DateTime.Today, Status = SectionOutsourceStatus.PendingRecovery
+        };
+        ctx.SectionOutsources.Add(sectionOutsource);
+        await ctx.SaveChangesAsync();
+
+        var recovery = await svc.CreateOutsourceRecoveryAsync(new CreateOutsourceRecoveryRequest
+        {
+            SectionOutsourceId = sectionOutsource.Id,
+            RecoveryDate = DateTime.Today,
+            RecoveryQuantity = 8
+        });
+
+        await svc.DeleteOutsourceRecoveryAsync(recovery.Id);
+
+        var deleted = await ctx.OutsourceRecoveries.FindAsync(recovery.Id);
+        deleted.Should().BeNull();
+    }
+
+    // ========== 检验到料 ==========
+
+    [Fact]
+    public async Task CreateMaterialReceiveCheckAsync_成功创建()
+    {
+        var ctx = CreateDbContext();
+        await SeedBatchAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreateMaterialReceiveCheckAsync(new CreateMaterialReceiveCheckRequest
+        {
+            BatchNo = "BATCH001",
+            ReceiveDate = DateTime.Today,
+            ReceivedQuantity = 10,
+            ReceivedWeight = 1000m
+        });
+
+        result.Should().NotBeNull();
+        result.ReceivedQuantity.Should().Be(10);
+    }
+
+    [Fact]
+    public async Task GetMaterialReceiveCheckAsync_存在_返回Dto()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        var svc = CreateService(ctx);
+
+        await svc.CreateMaterialReceiveCheckAsync(new CreateMaterialReceiveCheckRequest
+        {
+            BatchNo = "BATCH001",
+            ReceiveDate = DateTime.Today,
+            ReceivedQuantity = 10
+        });
+
+        var result = await svc.GetMaterialReceiveCheckAsync(batch.Id);
+
+        result.Should().NotBeNull();
+        result!.ReceivedQuantity.Should().Be(10);
+    }
+
+    [Fact]
+    public async Task GetMaterialReceiveCheckAsync_不存在_返回Null()
+    {
+        var ctx = CreateDbContext();
+        await SeedBatchAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetMaterialReceiveCheckAsync(999);
+
+        result.Should().BeNull();
+    }
+}

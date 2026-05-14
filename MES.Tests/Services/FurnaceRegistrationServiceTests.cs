@@ -1,0 +1,262 @@
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using MES.Core.DTOs;
+using MES.Core.Exceptions;
+using MES.Core.Models;
+using MES.Data;
+using MES.Data.Entities;
+using MES.Services;
+using MES.Tests.Tests;
+
+namespace MES.Tests.Services;
+
+/// <summary>
+/// 来料炉号登记服务测试：CRUD、关键字搜索、牌号映射查询、化学成分验证
+/// </summary>
+public class FurnaceRegistrationServiceTests : TestBase
+{
+    private FurnaceRegistrationService CreateService(AppDbContext ctx)
+        => new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FurnaceRegistrationService>.Instance);
+
+    private async Task SeedFurnaceAsync(AppDbContext ctx, string furnaceNo = "FUR001",
+        string unit = "钢厂A", string grade = "Q345B")
+    {
+        ctx.FurnaceRegistrations.Add(new FurnaceRegistration
+        {
+            IncomingDate = DateTime.Today,
+            RawMaterialUnit = unit,
+            RawMaterialType = "管坯",
+            RegisteredGrade = grade,
+            RelatedPlantGrade = grade,
+            FurnaceNumber = furnaceNo,
+            Specification = "219*8",
+            Quantity = 10,
+            Weight = 1000m
+        });
+        await ctx.SaveChangesAsync();
+    }
+
+    // ========== GetAllAsync ==========
+
+    [Fact]
+    public async Task GetAllAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_按炉号搜索_返回匹配结果()
+    {
+        var ctx = CreateDbContext();
+        await SeedFurnaceAsync(ctx, furnaceNo: "FUR001");
+        await SeedFurnaceAsync(ctx, furnaceNo: "FUR002");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "FUR001" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].FurnaceNumber.Should().Be("FUR001");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_关键字无匹配_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        await SeedFurnaceAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "NONEXISTENT" });
+
+        result.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetAllAsync_排序_成功()
+    {
+        var ctx = CreateDbContext();
+        await SeedFurnaceAsync(ctx, furnaceNo: "B-FUR");
+        await SeedFurnaceAsync(ctx, furnaceNo: "A-FUR");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams
+        { PageIndex = 1, PageSize = 20, SortBy = "furnacenumber", IsDescending = false });
+
+        result.Items[0].FurnaceNumber.Should().Be("A-FUR");
+    }
+
+    // ========== GetByIdAsync ==========
+
+    [Fact]
+    public async Task GetByIdAsync_存在_返回Dto()
+    {
+        var ctx = CreateDbContext();
+        await SeedFurnaceAsync(ctx);
+        var id = await ctx.FurnaceRegistrations.Select(f => f.Id).FirstAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetByIdAsync(id);
+
+        result.Should().NotBeNull();
+        result!.FurnaceNumber.Should().Be("FUR001");
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_不存在_返回Null()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetByIdAsync(999);
+
+        result.Should().BeNull();
+    }
+
+    // ========== BatchCreateAsync ==========
+
+    [Fact]
+    public async Task BatchCreateAsync_成功创建()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.BatchCreateAsync(new List<CreateFurnaceRegistrationRequest>
+        {
+            new()
+            {
+                IncomingDate = DateTime.Today, RawMaterialUnit = "钢厂A", RawMaterialType = "管坯",
+                RegisteredGrade = "Q345B", FurnaceNumber = "FUR001", Quantity = 10, Weight = 1000m
+            },
+            new()
+            {
+                IncomingDate = DateTime.Today, RawMaterialUnit = "钢厂B", RawMaterialType = "管坯",
+                RegisteredGrade = "20#", FurnaceNumber = "FUR002", Quantity = 20, Weight = 2000m
+            }
+        });
+
+        result.Should().HaveCount(2);
+        result[0].FurnaceNumber.Should().Be("FUR001");
+    }
+
+    [Fact]
+    public async Task BatchCreateAsync_空列表_返回空()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.BatchCreateAsync(new List<CreateFurnaceRegistrationRequest>());
+
+        result.Should().BeEmpty();
+    }
+
+    // ========== UpdateAsync ==========
+
+    [Fact]
+    public async Task UpdateAsync_成功更新()
+    {
+        var ctx = CreateDbContext();
+        await SeedFurnaceAsync(ctx);
+        var id = await ctx.FurnaceRegistrations.Select(f => f.Id).FirstAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.UpdateAsync(id, new UpdateFurnaceRegistrationRequest
+        {
+            IncomingDate = DateTime.Today,
+            RawMaterialUnit = "新钢厂",
+            RawMaterialType = "管坯",
+            RegisteredGrade = "304",
+            FurnaceNumber = "FUR001-NEW",
+            Quantity = 15
+        });
+
+        result.RawMaterialUnit.Should().Be("新钢厂");
+        result.Quantity.Should().Be(15);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.UpdateAsync(999, new UpdateFurnaceRegistrationRequest
+        {
+            IncomingDate = DateTime.Today, RawMaterialUnit = "钢厂", RawMaterialType = "管坯",
+            RegisteredGrade = "Q345B", FurnaceNumber = "FUR999"
+        });
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
+    }
+
+    // ========== DeleteAsync ==========
+
+    [Fact]
+    public async Task DeleteAsync_成功删除()
+    {
+        var ctx = CreateDbContext();
+        await SeedFurnaceAsync(ctx);
+        var id = await ctx.FurnaceRegistrations.Select(f => f.Id).FirstAsync();
+        var svc = CreateService(ctx);
+
+        await svc.DeleteAsync(id);
+
+        var deleted = await ctx.FurnaceRegistrations.FindAsync(id);
+        deleted.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task DeleteAsync_不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.DeleteAsync(999);
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
+    }
+
+    // ========== LookupPlantGradeAsync ==========
+
+    [Fact]
+    public async Task LookupPlantGradeAsync_存在映射_返回工厂牌号()
+    {
+        var ctx = CreateDbContext();
+        ctx.StandardGradeMappings.Add(new StandardGradeMapping
+        {
+            StandardGrade = "Q345B",
+            PlantGrade = "Q345B-Plant",
+            Density = 7.85m
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.LookupPlantGradeAsync("Q345B");
+
+        result.Should().Be("Q345B-Plant");
+    }
+
+    [Fact]
+    public async Task LookupPlantGradeAsync_不存在_返回Null()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.LookupPlantGradeAsync("NONEXISTENT");
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task LookupPlantGradeAsync_空参数_返回Null()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.LookupPlantGradeAsync("");
+
+        result.Should().BeNull();
+    }
+}

@@ -558,7 +558,7 @@ public class DataExchangeService : IDataExchangeService
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        ["PurchaseSemiPlan"] = new EntityDef("原料采购计划", "原料采购计划", typeof(PurchaseSemiPlan), 9, null, new List<ColumnDef>
+        ["PurchaseSemiPlan"] = new EntityDef("荒管采购计划", "荒管采购计划", typeof(PurchaseSemiPlan), 9, null, new List<ColumnDef>
         {
             new("工单号", null!) { IsFkColumn = true, FkEntityKey = "WorkOrder", FkLookupProperty = "WorkOrderNo", FkTargetProperty = "WorkOrderId" },
             new("计划日期", "PlanDate", typeof(DateTime)),
@@ -687,6 +687,26 @@ public class DataExchangeService : IDataExchangeService
             new("PREN腐蚀当量", "PREN", typeof(decimal?), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
+
+        ["RoundBarPiercingPlan"] = new EntityDef("圆棒穿孔计划", "圆棒穿孔计划", typeof(RoundBarPiercingPlan), 9, null, new List<ColumnDef>
+        {
+            new("工单号", null!) { IsFkColumn = true, FkEntityKey = "WorkOrder", FkLookupProperty = "WorkOrderNo", FkTargetProperty = "WorkOrderId" },
+            new("计划日期", "PlanDate", typeof(DateTime)),
+            new("调整成品壁厚(mm)", "AdjustedWallThickness", typeof(decimal)),
+            new("成材率(%)", "YieldRate", typeof(decimal)),
+            new("投料倍率", "InputMultiple", typeof(int)),
+            new("正品率(%)", "QualifiedRate", typeof(decimal)),
+            new("原料类型", "RawMaterialType", typeof(RawMaterialType), isEnum: true),
+            new("工厂牌号", "PlantGrade"),
+            new("圆棒规格", "RoundBarSpec"),
+            new("穿孔规格", "PiercingSpec"),
+            new("需求单重(kg/支)", "RequiredUnitWeight", typeof(decimal?), isRequired: false),
+            new("需求支数", "RequiredPieces", typeof(int?), isRequired: false),
+            new("需求重量(kg)", "RequiredWeight", typeof(decimal)),
+            new("要求到货日期", "RequiredDate", typeof(DateTime), isRequired: true),
+            new("工艺路线", "ProcessPlan", typeof(string), isRequired: false),
+            new("备注", "Remark", typeof(string), isRequired: false),
+        }),
     };
 
     public static readonly List<string> EntityOrder = new()
@@ -698,7 +718,7 @@ public class DataExchangeService : IDataExchangeService
         "WorkOrder", "Material",
         "PurchaseOrder", "SubcontractOrder", "SubcontractReturnItem", "ProductionBatch",
         "ProcessGroup", "ProductionRecord", "SectionOutsource", "OutsourceRecovery", "MaterialReceiveCheck", "ProcessInspection", "FinalInspection", "BatchOperationLog", "InventoryBatch", "OutboundRecord",
-        "InventoryPlan", "PurchaseSemiPlan", "PurchaseFinishedPlan",
+        "InventoryPlan", "PurchaseSemiPlan", "PurchaseFinishedPlan", "RoundBarPiercingPlan",
     };
 
     #endregion

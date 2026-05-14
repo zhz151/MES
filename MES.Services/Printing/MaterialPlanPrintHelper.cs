@@ -162,6 +162,7 @@ public static class MaterialPlanPrintHelper
                 {
                     RawMaterialType.SemiFinished => "荒管",
                     RawMaterialType.SemiProduct => "半成品",
+                    RawMaterialType.RoundBar => "圆棒",
                     _ => plan.RawMaterialType.ToString()
                 };
                 var processPlan = FormatProcessPlanText(plan.ProcessPlan);
@@ -344,6 +345,99 @@ public static class MaterialPlanPrintHelper
                 table.Cell().Element(CellStyle).Text(qtyText).FontSize(8);
                 table.Cell().Element(CellStyle).Text($"{plan.UsedWeight:G29} kg").FontSize(8);
                 table.Cell().Element(CellStyle).Text(location).FontSize(8);
+            }
+        });
+    }
+
+    // ==============================
+    // 5. 圆棒穿孔申请单
+    // ==============================
+    public static byte[] GeneratePiercingPlanPdf(RoundBarPiercingPlan plan, WorkOrder workOrder)
+    {
+        return CreatePiercingPlanDocument(plan, workOrder).GeneratePdf();
+    }
+
+    public static Document CreatePiercingPlanDocument(RoundBarPiercingPlan plan, WorkOrder workOrder)
+    {
+        return CreateBatchPiercingPlanDocument(new List<(RoundBarPiercingPlan, WorkOrder)> { (plan, workOrder) });
+    }
+
+    // ==============================
+    // 9. 批量打印 - 圆棒穿孔汇总
+    // ==============================
+    public static Document CreateBatchPiercingPlanDocument(List<(RoundBarPiercingPlan plan, WorkOrder workOrder)> items)
+    {
+        if (!items.Any()) throw new BusinessException("items cannot be empty");
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4.Landscape());
+                page.Margin(40);
+                page.DefaultTextStyle(x => x.FontSize(10).FontFamily("SimSun"));
+                page.Header().Element(h => ComposeDocHeader(h, "圆 棒 穿 孔 计 划（批量）"));
+                page.Content().Element(c => ComposeBatchPiercingContent(c, items));
+                page.Footer().Element(ComposeDocFooter);
+            });
+        });
+    }
+
+    private static void ComposeBatchPiercingContent(IContainer container, List<(RoundBarPiercingPlan plan, WorkOrder workOrder)> items)
+    {
+        container.Table(table =>
+        {
+            table.ColumnsDefinition(columns =>
+            {
+                columns.ConstantColumn(75);
+                columns.ConstantColumn(55);
+                columns.ConstantColumn(40);
+                columns.ConstantColumn(60);
+                columns.ConstantColumn(55);
+                columns.ConstantColumn(55);
+                columns.ConstantColumn(45);
+                columns.ConstantColumn(40);
+                columns.ConstantColumn(50);
+                columns.ConstantColumn(50);
+                columns.RelativeColumn();
+            });
+
+            table.Header(header =>
+            {
+                header.Cell().Element(CellHeaderStyle).Text("工单号").FontSize(8).AlignCenter();
+                header.Cell().Element(CellHeaderStyle).Text("计划日期").FontSize(8).AlignCenter();
+                header.Cell().Element(CellHeaderStyle).Text("原料类型").FontSize(8).AlignCenter();
+                header.Cell().Element(CellHeaderStyle).Text("工厂牌号").FontSize(8).AlignCenter();
+                header.Cell().Element(CellHeaderStyle).Text("圆棒规格").FontSize(8).AlignCenter();
+                header.Cell().Element(CellHeaderStyle).Text("穿孔规格").FontSize(8).AlignCenter();
+                header.Cell().Element(CellHeaderStyle).Text("需求单重").FontSize(8).AlignCenter();
+                header.Cell().Element(CellHeaderStyle).Text("需求支数").FontSize(8).AlignCenter();
+                header.Cell().Element(CellHeaderStyle).Text("需求重量").FontSize(8).AlignCenter();
+                header.Cell().Element(CellHeaderStyle).Text("要求到货日").FontSize(8).AlignCenter();
+                header.Cell().Element(CellHeaderStyle).Text("工艺路线").FontSize(8).AlignCenter();
+            });
+
+            foreach (var (plan, workOrder) in items)
+            {
+                var rawMatType = plan.RawMaterialType switch
+                {
+                    RawMaterialType.SemiFinished => "荒管",
+                    RawMaterialType.SemiProduct => "半成品",
+                    RawMaterialType.RoundBar => "圆棒",
+                    _ => plan.RawMaterialType.ToString()
+                };
+                var processPlan = FormatProcessPlanText(plan.ProcessPlan);
+
+                table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
+                table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
+                table.Cell().Element(CellStyle).Text(rawMatType).FontSize(8).AlignCenter();
+                table.Cell().Element(CellStyle).Text(plan.PlantGrade).FontSize(8).AlignCenter();
+                table.Cell().Element(CellStyle).Text(plan.RoundBarSpec).FontSize(8).AlignCenter();
+                table.Cell().Element(CellStyle).Text(plan.PiercingSpec).FontSize(8).AlignCenter();
+                table.Cell().Element(CellStyle).Text(plan.RequiredUnitWeight?.ToString("G29") is string uw ? $"{uw} kg/支" : "-").FontSize(8);
+                table.Cell().Element(CellStyle).Text(plan.RequiredPieces?.ToString() is string rp ? $"{rp} 支" : "-").FontSize(8);
+                table.Cell().Element(CellStyle).Text($"{plan.RequiredWeight:G29} kg").FontSize(8);
+                table.Cell().Element(CellStyle).Text(plan.RequiredDate.ToString("yyyy-MM-dd")).FontSize(8);
+                table.Cell().Element(CellStyle).Text(processPlan).FontSize(8);
             }
         });
     }

@@ -29,4 +29,9 @@ public class MaterialPlanBatchPrintRequest
     /// 是否包含库料改制计划
     /// </summary>
     public bool IncludeRework { get; set; }
+
+    /// <summary>
+    /// 是否包含圆棒穿孔计划
+    /// </summary>
+    public bool IncludeRoundBarPiercing { get; set; }
 }

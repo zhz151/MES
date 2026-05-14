@@ -1,4 +1,4 @@
-@page "/workorders/{WorkOrderId:int}/material-plan/create"
+@page "/workorders/{WorkOrderId:int}/piercing-plan/create"
 @using System.Text.Json
 @using MES.Blazor.Services
 @using MES.Core.DTOs
@@ -18,8 +18,8 @@
         <MudCardHeader>
             <CardHeaderContent>
                 <div class="d-flex align-center">
-                    <MudIcon Icon="@Icons.Material.Filled.Inventory2" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
-                    <MudText Typo="Typo.h5" Class="font-weight-bold">新增荒管采购计划</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.Handyman" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">新增圆棒穿孔计划</MudText>
                 </div>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -28,7 +28,7 @@
         </MudCardHeader>
 
         <MudCardContent>
-            <div id="material-plan-create-table">
+            <div id="piercing-plan-create-table">
             @if (isLoadingWorkOrder)
             {
                 <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
@@ -122,9 +122,9 @@
                     </MudTable>
                 </div>
 
-                <!-- ===== 二、原料信息 ===== -->
+                <!-- ===== 二、物料信息 ===== -->
                 <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2 mt-2">
-                    <MudIcon Icon="@Icons.Material.Filled.Inventory2" Size="Size.Small" Class="mr-1" />原料信息
+                    <MudIcon Icon="@Icons.Material.Filled.Inventory2" Size="Size.Small" Class="mr-1" />物料信息
                 </MudText>
 
                 <div Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;" Class="mb-3">
@@ -132,7 +132,8 @@
                         <HeaderContent>
                             <MudTh Style="width:110px;">原料类型</MudTh>
                             <MudTh Style="width:90px;">工厂牌号</MudTh>
-                            <MudTh Style="width:100px;">原料规格</MudTh>
+                            <MudTh Style="width:100px;">圆棒规格</MudTh>
+                            <MudTh Style="width:100px;">穿孔规格</MudTh>
                             <MudTh Style="width:90px;">需求单重(kg/支)</MudTh>
                             <MudTh Style="width:80px;">需求支数</MudTh>
                             <MudTh Style="width:100px;">需求重量(kg)</MudTh>
@@ -149,6 +150,7 @@
                                            Class="my-n2" Style="width:110px;">
                                     <MudSelectItem Value="@("SemiFinished")">荒管</MudSelectItem>
                                     <MudSelectItem Value="@("SemiProduct")">半成品</MudSelectItem>
+                                    <MudSelectItem Value="@("RoundBar")">圆棒</MudSelectItem>
                                 </MudSelect>
                             </MudTd>
                             <MudTd>
@@ -161,8 +163,16 @@
                             </MudTd>
                             <MudTd>
                                 <MudTextField Dense="true" T="string"
-                                              Value="@item.RawMaterialSpec"
-                                              ValueChanged="@((string v) => { item.RawMaterialSpec = v; })"
+                                              Value="@item.RoundBarSpec"
+                                              ValueChanged="@((string v) => { item.RoundBarSpec = v; })"
+                                              Size="Size.Small"
+                                              Variant="Variant.Outlined"
+                                              Class="my-n2" Style="width:90px;" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField Dense="true" T="string"
+                                              Value="@item.PiercingSpec"
+                                              ValueChanged="@((string v) => { item.PiercingSpec = v; })"
                                               Size="Size.Small"
                                               Variant="Variant.Outlined"
                                               Class="my-n2" Style="width:90px;" />
@@ -265,14 +275,15 @@
         public int InputMultiple { get; set; } = 1;
     }
 
-    // 原料信息（单行）
+    // 物料信息（单行）
     private List<MaterialRow> materialRows = new();
 
     private class MaterialRow
     {
-        public string RawMaterialType { get; set; } = "SemiFinished";
+        public string RawMaterialType { get; set; } = "RoundBar";
         public string PlantGrade { get; set; } = string.Empty;
-        public string? RawMaterialSpec { get; set; }
+        public string? RoundBarSpec { get; set; }
+        public string? PiercingSpec { get; set; }
         public decimal? RequiredUnitWeight { get; set; }
         public int? RequiredPieces { get; set; }
         public decimal? RequiredWeight { get; set; }
@@ -404,18 +415,20 @@
         if (calcRow.InputMultiple < 1)
             errors.Add("原料每支产成数不能小于1");
 
-        // 验证原料信息
+        // 验证物料信息
         var material = materialRows.FirstOrDefault();
         if (material == null)
         {
-            errors.Add("原料信息不存在");
+            errors.Add("物料信息不存在");
         }
         else
         {
             if (string.IsNullOrWhiteSpace(material.RawMaterialType))
                 errors.Add("请选择原料类型");
-            if (string.IsNullOrWhiteSpace(material.RawMaterialSpec))
-                errors.Add("请输入原料规格");
+            if (string.IsNullOrWhiteSpace(material.RoundBarSpec))
+                errors.Add("请输入圆棒规格");
+            if (string.IsNullOrWhiteSpace(material.PiercingSpec))
+                errors.Add("请输入穿孔规格");
             if (string.IsNullOrWhiteSpace(material.RequiredDateStr) || !DateTime.TryParse(material.RequiredDateStr, out _))
                 errors.Add("请填写要求到货日期");
             if (material.RequiredWeight == null || material.RequiredWeight <= 0)
@@ -437,7 +450,7 @@
         isSaving = true;
         try
         {
-            var request = new CreatePurchaseSemiPlanRequest
+            var request = new CreateRoundBarPiercingPlanRequest
             {
                 WorkOrderId = WorkOrderId,
                 PlanDate = planDate,
@@ -447,7 +460,8 @@
                 QualifiedRate = calcRow.QualifiedRate,
                 RawMaterialType = material!.RawMaterialType,
                 PlantGrade = material.PlantGrade,
-                RawMaterialSpec = material.RawMaterialSpec ?? string.Empty,
+                RoundBarSpec = material.RoundBarSpec ?? string.Empty,
+                PiercingSpec = material.PiercingSpec ?? string.Empty,
                 RequiredUnitWeight = material.RequiredUnitWeight,
                 RequiredPieces = material.RequiredPieces,
                 RequiredWeight = material.RequiredWeight ?? 0,
@@ -456,7 +470,7 @@
                 Remark = material.Remark
             };
 
-            var result = await MaterialPlanService.CreateSemiPlanAsync(request);
+            var result = await MaterialPlanService.CreatePiercingPlanAsync(request);
             if (result.Success)
             {
                 Snackbar.Add("创建成功", Severity.Success);
@@ -499,7 +513,7 @@
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
-            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#material-plan-create-table"))
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#piercing-plan-create-table"))
                 _isArrowNavSetup = false;
         }
     }

@@ -40,6 +40,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
     public DbSet<PurchaseSemiPlan> PurchaseSemiPlans { get; set; } = null!;
     public DbSet<PurchaseFinishedPlan> PurchaseFinishedPlans { get; set; } = null!;
+    public DbSet<RoundBarPiercingPlan> RoundBarPiercingPlans { get; set; } = null!;
 
     // ========== 仓库上下文 ==========
 
@@ -101,6 +102,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureRefreshToken(builder);
         ConfigurePurchaseSemiPlan(builder);
         ConfigurePurchaseFinishedPlan(builder);
+        ConfigureRoundBarPiercingPlan(builder);
         ConfigureInventoryPlan(builder);
 
         // ========== 物料上下文 ==========
@@ -474,6 +476,40 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.DeliveryState).IsRequired().HasConversion<string>().HasMaxLength(50);
 
             entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_PurchaseFinishedPlan_WorkOrderId");
+
+            entity.HasOne<WorkOrder>()
+                .WithMany()
+                .HasForeignKey(e => e.WorkOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureRoundBarPiercingPlan(ModelBuilder builder)
+    {
+        builder.Entity<RoundBarPiercingPlan>(entity =>
+        {
+            entity.ToTable("RoundBarPiercingPlan");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.WorkOrderId).IsRequired();
+            entity.Property(e => e.PlanDate).IsRequired().HasColumnType("date");
+            entity.Property(e => e.AdjustedWallThickness).IsRequired().HasColumnType("decimal(18,3)");
+            entity.Property(e => e.YieldRate).IsRequired().HasColumnType("decimal(5,2)");
+            entity.Property(e => e.InputMultiple).IsRequired().HasDefaultValue(1);
+            entity.Property(e => e.QualifiedRate).IsRequired().HasColumnType("decimal(5,2)");
+            entity.Property(e => e.Density).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.UnitWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.RawUnitWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.RequiredPieces);
+            entity.Property(e => e.RequiredWeight).IsRequired().HasColumnType("decimal(18,3)");
+            entity.Property(e => e.RawMaterialType).IsRequired().HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.RoundBarSpec).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.PiercingSpec).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.RequiredUnitWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.RequiredDate).IsRequired().HasColumnType("date");
+            entity.Property(e => e.ProcessPlan).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_RoundBarPiercingPlan_WorkOrderId");
 
             entity.HasOne<WorkOrder>()
                 .WithMany()

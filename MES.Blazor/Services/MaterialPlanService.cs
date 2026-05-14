@@ -237,6 +237,62 @@ public class MaterialPlanService
 
     #endregion
 
+    #region 圆棒穿孔计划
+
+    public async Task<ApiResponse<List<RoundBarPiercingPlanDto>>> GetPiercingPlansAsync(int workOrderId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<RoundBarPiercingPlanDto>>>($"{BaseUrl}/piercing/{workOrderId}");
+            return response ?? ApiResponse<List<RoundBarPiercingPlanDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<RoundBarPiercingPlanDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<RoundBarPiercingPlanDto>> GetPiercingPlanByIdAsync(int id)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<RoundBarPiercingPlanDto>>($"{BaseUrl}/piercing/detail/{id}");
+            return response ?? ApiResponse<RoundBarPiercingPlanDto>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<RoundBarPiercingPlanDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<RoundBarPiercingPlanDto>> CreatePiercingPlanAsync(CreateRoundBarPiercingPlanRequest request)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<CreateRoundBarPiercingPlanRequest, ApiResponse<RoundBarPiercingPlanDto>>($"{BaseUrl}/piercing", request);
+            return response ?? ApiResponse<RoundBarPiercingPlanDto>.Fail("创建失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<RoundBarPiercingPlanDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse> DeletePiercingPlanAsync(int id)
+    {
+        try
+        {
+            var response = await _http.DeleteFromJsonAsync<ApiResponse>($"{BaseUrl}/piercing/{id}");
+            return response ?? ApiResponse.Fail("删除失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    #endregion
+
     #region 测算
 
     public async Task<ApiResponse<MaterialCalculateResult>> CalculateAsync(MaterialCalculateRequest request)
@@ -330,6 +386,19 @@ public class MaterialPlanService
         try
         {
             var response = await _http.GetFromJsonAsync<ApiResponse<string>>($"{BaseUrl}/print/rework/{planId}");
+            return response ?? ApiResponse<string>.Fail("打印生成失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<string>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<string>> PrintPiercingPlanAsync(int planId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<string>>($"{BaseUrl}/print/piercing/{planId}");
             return response ?? ApiResponse<string>.Fail("打印生成失败");
         }
         catch (Exception ex)

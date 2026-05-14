@@ -630,10 +630,13 @@ public class WorkOrderService : IWorkOrderService
                     .Where(p => existingIds.Contains(p.WorkOrderId)).ToListAsync();
                 var invPlans = await _context.InventoryPlans
                     .Where(p => existingIds.Contains(p.WorkOrderId)).ToListAsync();
+                var piercingPlans = await _context.RoundBarPiercingPlans
+                    .Where(p => existingIds.Contains(p.WorkOrderId)).ToListAsync();
 
                 if (semiPlans.Any()) _context.PurchaseSemiPlans.RemoveRange(semiPlans);
                 if (finishPlans.Any()) _context.PurchaseFinishedPlans.RemoveRange(finishPlans);
                 if (invPlans.Any()) _context.InventoryPlans.RemoveRange(invPlans);
+                if (piercingPlans.Any()) _context.RoundBarPiercingPlans.RemoveRange(piercingPlans);
 
                 await _context.SaveChangesAsync();
             }
@@ -1056,10 +1059,13 @@ public class WorkOrderService : IWorkOrderService
                         .Where(p => p.WorkOrderId == wo.Id).ToListAsync();
                     var invPlans = await _context.InventoryPlans
                         .Where(p => p.WorkOrderId == wo.Id).ToListAsync();
+                    var piercingPlans = await _context.RoundBarPiercingPlans
+                        .Where(p => p.WorkOrderId == wo.Id).ToListAsync();
 
                     if (semiPlans.Any()) _context.PurchaseSemiPlans.RemoveRange(semiPlans);
                     if (finishPlans.Any()) _context.PurchaseFinishedPlans.RemoveRange(finishPlans);
                     if (invPlans.Any()) _context.InventoryPlans.RemoveRange(invPlans);
+                    if (piercingPlans.Any()) _context.RoundBarPiercingPlans.RemoveRange(piercingPlans);
 
                     _context.WorkOrders.Remove(wo);
                     _logger.LogInformation("更新修改删除工单（无项次）: {WorkOrderNo}", wo.WorkOrderNo);
@@ -1263,7 +1269,7 @@ public class WorkOrderService : IWorkOrderService
                 .Select(t => t.ToLowerInvariant())
                 .ToHashSet();
 
-            if (planTypes.Count > 0 && planTypes.Count < 4)
+            if (planTypes.Count > 0 && planTypes.Count < 5)
             {
                 var matchedIds = new HashSet<int>();
 
@@ -1296,6 +1302,14 @@ public class WorkOrderService : IWorkOrderService
                 {
                     var ids = await _context.InventoryPlans
                         .Where(p => p.ReworkType != null)
+                        .Select(p => p.WorkOrderId)
+                        .Distinct().ToListAsync();
+                    foreach (var id in ids) matchedIds.Add(id);
+                }
+
+                if (planTypes.Contains("piercing"))
+                {
+                    var ids = await _context.RoundBarPiercingPlans
                         .Select(p => p.WorkOrderId)
                         .Distinct().ToListAsync();
                     foreach (var id in ids) matchedIds.Add(id);
@@ -1378,17 +1392,19 @@ public class WorkOrderService : IWorkOrderService
                     workOrderQuery = query.IsDescending ? workOrderQuery.OrderByDescending(wo => wo.MaterialPlanRate) : workOrderQuery.OrderBy(wo => wo.MaterialPlanRate);
                     break;
                 case "latestplandate":
-                    // 4种用料计划中最新的计划日期（取最大值），关联子查询实现
+                    // 5种用料计划中最新的计划日期（取最大值），关联子查询实现
                     workOrderQuery = query.IsDescending
                         ? workOrderQuery.OrderByDescending(wo =>
                             _context.PurchaseSemiPlans.Where(p => p.WorkOrderId == wo.Id).Select(p => (DateTime?)p.PlanDate)
                                 .Concat(_context.PurchaseFinishedPlans.Where(p => p.WorkOrderId == wo.Id).Select(p => (DateTime?)p.PlanDate))
                                 .Concat(_context.InventoryPlans.Where(p => p.WorkOrderId == wo.Id).Select(p => (DateTime?)p.PlanDate))
+                                .Concat(_context.RoundBarPiercingPlans.Where(p => p.WorkOrderId == wo.Id).Select(p => (DateTime?)p.PlanDate))
                                 .Max())
                         : workOrderQuery.OrderBy(wo =>
                             _context.PurchaseSemiPlans.Where(p => p.WorkOrderId == wo.Id).Select(p => (DateTime?)p.PlanDate)
                                 .Concat(_context.PurchaseFinishedPlans.Where(p => p.WorkOrderId == wo.Id).Select(p => (DateTime?)p.PlanDate))
                                 .Concat(_context.InventoryPlans.Where(p => p.WorkOrderId == wo.Id).Select(p => (DateTime?)p.PlanDate))
+                                .Concat(_context.RoundBarPiercingPlans.Where(p => p.WorkOrderId == wo.Id).Select(p => (DateTime?)p.PlanDate))
                                 .Max());
                     break;
                 default:
@@ -1473,6 +1489,10 @@ public class WorkOrderService : IWorkOrderService
             .Where(p => allWorkOrderIds.Contains(p.WorkOrderId) && p.PlanStatus != InventoryPlanStatus.Cancelled)
             .ToListAsync();
 
+        var allPiercingPlans = await _context.RoundBarPiercingPlans
+            .Where(p => allWorkOrderIds.Contains(p.WorkOrderId))
+            .ToListAsync();
+
         // 1. 填充各计划类型重量汇总（按工单ID）
         var semiWeightByWo = allSemiPlans
             .GroupBy(p => p.WorkOrderId)
@@ -1506,7 +1526,14 @@ public class WorkOrderService : IWorkOrderService
             .GroupBy(p => p.WorkOrderId)
             .ToDictionary(g => g.Key, g => g.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple));
 
-        // 计算最新计划日期（4种计划中最晚的 PlanDate）
+        var piercingWeightByWo = allPiercingPlans
+            .GroupBy(p => p.WorkOrderId)
+            .ToDictionary(g => g.Key, g => g.Sum(p => p.RequiredWeight));
+        var piercingPiecesByWo = allPiercingPlans
+            .GroupBy(p => p.WorkOrderId)
+            .ToDictionary(g => g.Key, g => g.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple));
+
+        // 计算最新计划日期（所有计划中最晚的 PlanDate）
         var latestDateByWo = new Dictionary<int, DateTime>();
         void MergeMaxDate(IEnumerable<IGrouping<int, DateTime>> groups)
         {
@@ -1526,6 +1553,7 @@ public class WorkOrderService : IWorkOrderService
         MergeMaxDate(allSemiPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
         MergeMaxDate(allFinishPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
         MergeMaxDate(allInventoryPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
+        MergeMaxDate(allPiercingPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
 
         foreach (var item in items)
         {
@@ -1537,6 +1565,8 @@ public class WorkOrderService : IWorkOrderService
             if (inventoryPiecesByWo.TryGetValue(item.Id, out var invP)) item.InventoryPlanTotalPieces = invP;
             if (reworkWeightByWo.TryGetValue(item.Id, out var rewW)) item.ReworkPlanTotalWeight = rewW;
             if (reworkPiecesByWo.TryGetValue(item.Id, out var rewP)) item.ReworkPlanTotalPieces = rewP;
+            if (piercingWeightByWo.TryGetValue(item.Id, out var pW)) item.PiercingPlanTotalWeight = pW;
+            if (piercingPiecesByWo.TryGetValue(item.Id, out var pP)) item.PiercingPlanTotalPieces = pP;
             if (latestDateByWo.TryGetValue(item.Id, out var latestDate)) item.LatestPlanDate = latestDate;
         }
 
@@ -1558,8 +1588,9 @@ public class WorkOrderService : IWorkOrderService
             var groupInventoryAll = allInventoryPlans.Where(p => groupIds.Contains(p.WorkOrderId)).ToList();
             var groupInventoryPlans = groupInventoryAll.Where(p => p.ReworkType == null).ToList();
             var groupReworkPlans = groupInventoryAll.Where(p => p.ReworkType != null).ToList();
+            var groupPiercingPlans = allPiercingPlans.Where(p => groupIds.Contains(p.WorkOrderId)).ToList();
 
-            var (rate, status) = CalculateMainNoAggregation(groupWorkOrders, groupSemiPlans, groupFinishPlans, groupInventoryPlans, groupReworkPlans);
+            var (rate, status) = CalculateMainNoAggregation(groupWorkOrders, groupSemiPlans, groupFinishPlans, groupInventoryPlans, groupReworkPlans, groupPiercingPlans);
 
             foreach (var item in items.Where(i =>
                 i.SalesOrderNo == key.SalesOrderNo && i.ProductionMainNo == key.MainNo))
@@ -1600,7 +1631,8 @@ public class WorkOrderService : IWorkOrderService
         List<PurchaseSemiPlan> semiPlans,
         List<PurchaseFinishedPlan> finishPlans,
         List<InventoryPlan> inventoryPlans,
-        List<InventoryPlan> reworkPlans)
+        List<InventoryPlan> reworkPlans,
+        List<RoundBarPiercingPlan> piercingPlans)
     {
         var fixedOrders = workOrders.Where(wo => wo.LengthStatus == LengthStatus.Fixed).ToList();
         var nonFixedOrders = workOrders.Where(wo => wo.LengthStatus != LengthStatus.Fixed).ToList();
@@ -1618,9 +1650,12 @@ public class WorkOrderService : IWorkOrderService
             var fixedFinish = finishPlans.Where(p => fixedIds.Contains(p.WorkOrderId)).ToList();
             var fixedInventory = inventoryPlans.Where(p => fixedIds.Contains(p.WorkOrderId)).ToList();
             var fixedRework = reworkPlans.Where(p => fixedIds.Contains(p.WorkOrderId)).ToList();
+            var fixedPiercing = piercingPlans.Where(p => fixedIds.Contains(p.WorkOrderId)).ToList();
 
             // 原料采购：原料支数 × 投料倍率，不乘系数
             totalEffective += (int)fixedSemi.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple);
+            // 圆棒穿孔：原料支数 × 投料倍率，不乘系数（同原料采购）
+            totalEffective += (int)fixedPiercing.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple);
             // 成品采购：×1.02
             totalEffective += fixedFinish.Sum(p => p.RequiredPiece ?? 0) * 1.02m;
             // 库存使用：×1.02
@@ -1639,6 +1674,7 @@ public class WorkOrderService : IWorkOrderService
             var nonFixedFinish = finishPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
             var nonFixedInventory = inventoryPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
             var nonFixedRework = reworkPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
+            var nonFixedPiercing = piercingPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
 
             totalEffective += nonFixedSemi.Sum(p => p.RequiredWeight);
             // 成品采购：×1.05
@@ -1647,6 +1683,8 @@ public class WorkOrderService : IWorkOrderService
             totalEffective += nonFixedInventory.Sum(p => p.UsedWeight) * 1.05m;
             // 库料改制：不乘系数
             totalEffective += nonFixedRework.Sum(p => p.UsedWeight);
+            // 圆棒穿孔：不乘系数（同原料采购）
+            totalEffective += nonFixedPiercing.Sum(p => p.RequiredWeight);
         }
 
         if (totalDemand <= 0) return (0, MaterialPlanStatus.NotPlanned);
@@ -1762,9 +1800,11 @@ public class WorkOrderService : IWorkOrderService
         var semiPlans = await _context.PurchaseSemiPlans.Where(p => p.WorkOrderId == id).ToListAsync();
         var finishPlans = await _context.PurchaseFinishedPlans.Where(p => p.WorkOrderId == id).ToListAsync();
         var invPlans = await _context.InventoryPlans.Where(p => p.WorkOrderId == id).ToListAsync();
+        var piercingPlans = await _context.RoundBarPiercingPlans.Where(p => p.WorkOrderId == id).ToListAsync();
         if (semiPlans.Any()) _context.PurchaseSemiPlans.RemoveRange(semiPlans);
         if (finishPlans.Any()) _context.PurchaseFinishedPlans.RemoveRange(finishPlans);
         if (invPlans.Any()) _context.InventoryPlans.RemoveRange(invPlans);
+        if (piercingPlans.Any()) _context.RoundBarPiercingPlans.RemoveRange(piercingPlans);
 
         // 扫描引用该工单号的入库批次，生成通知（已执行数据，不级联）
         var affectedBatches = await _context.InventoryBatches

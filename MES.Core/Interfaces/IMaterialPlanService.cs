@@ -114,6 +114,28 @@ public interface IMaterialPlanService
     /// </summary>
     Task UpdateMaterialPlanStatusAsync(int workOrderId);
 
+    // ========== 圆棒穿孔计划 ==========
+
+    /// <summary>
+    /// 获取工单的圆棒穿孔计划列表
+    /// </summary>
+    Task<List<RoundBarPiercingPlanDto>> GetPiercingPlansAsync(int workOrderId);
+
+    /// <summary>
+    /// 获取单个圆棒穿孔计划详情
+    /// </summary>
+    Task<RoundBarPiercingPlanDto> GetPiercingPlanByIdAsync(int id);
+
+    /// <summary>
+    /// 创建圆棒穿孔计划（含测算）
+    /// </summary>
+    Task<RoundBarPiercingPlanDto> CreatePiercingPlanAsync(CreateRoundBarPiercingPlanRequest request);
+
+    /// <summary>
+    /// 删除圆棒穿孔计划
+    /// </summary>
+    Task DeletePiercingPlanAsync(int id);
+
     // ========== 打印 ==========
 
     /// <summary>
@@ -135,6 +157,11 @@ public interface IMaterialPlanService
     /// 生成库料改制单PDF（返回byte[]）
     /// </summary>
     Task<byte[]> PrintReworkPlanAsync(int planId);
+
+    /// <summary>
+    /// 生成圆棒穿孔计划PDF（返回byte[]）
+    /// </summary>
+    Task<byte[]> PrintPiercingPlanAsync(int planId);
 
     /// <summary>
     /// 批量打印选中工单的指定类型用料计划

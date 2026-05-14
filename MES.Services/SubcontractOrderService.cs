@@ -430,7 +430,7 @@ public class SubcontractOrderService : ISubcontractOrderService
 
     public async Task<List<ProcurementStatusDto>> GetProcurementStatusAsync()
     {
-        return await _purchaseService.GetProcurementStatusAsync();
+        return await _purchaseService.GetPiercingProcurementStatusAsync();
     }
 
     public async Task<List<OrderMismatchInfo>> GetMismatchedSubcontractOrdersAsync()

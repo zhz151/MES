@@ -848,6 +848,122 @@ public class MaterialPlanService : IMaterialPlanService
 
     #endregion
 
+    #region 圆棒穿孔计划
+
+    public async Task<List<RoundBarPiercingPlanDto>> GetPiercingPlansAsync(int workOrderId)
+    {
+        var plans = await _context.RoundBarPiercingPlans
+            .Where(p => p.WorkOrderId == workOrderId)
+            .OrderByDescending(p => p.CreatedTime)
+            .ToListAsync();
+
+        return plans.Select(p => p.ToDto()).ToList();
+    }
+
+    public async Task<RoundBarPiercingPlanDto> GetPiercingPlanByIdAsync(int id)
+    {
+        var plan = await _context.RoundBarPiercingPlans.FindAsync(id);
+        if (plan == null)
+            throw new BusinessException("圆棒穿孔计划不存在");
+        return plan.ToDto();
+    }
+
+    public async Task<RoundBarPiercingPlanDto> CreatePiercingPlanAsync(CreateRoundBarPiercingPlanRequest request)
+    {
+        var workOrder = await _context.WorkOrders.FindAsync(request.WorkOrderId);
+        if (workOrder == null)
+            throw new BusinessException("工单不存在");
+
+        // 非定尺: 支数不能为空
+        if (workOrder.LengthStatus == LengthStatus.NonFixed && request.RequiredPieces == null)
+            throw new BusinessException("非定尺模式下需求支数为必填");
+
+        // 执行测算
+        var calc = await CalculateInternalAsync(workOrder, new CreatePurchaseSemiPlanRequest
+        {
+            AdjustedWallThickness = request.AdjustedWallThickness,
+            YieldRate = request.YieldRate,
+            InputMultiple = request.InputMultiple,
+            QualifiedRate = request.QualifiedRate
+        });
+
+        var plan = new RoundBarPiercingPlan
+        {
+            WorkOrderId = request.WorkOrderId,
+            PlanDate = request.PlanDate,
+            AdjustedWallThickness = request.AdjustedWallThickness,
+            YieldRate = request.YieldRate,
+            InputMultiple = request.InputMultiple,
+            QualifiedRate = request.QualifiedRate,
+            Density = calc.Density,
+            UnitWeight = calc.UnitWeight,
+            RawUnitWeight = calc.RawUnitWeight,
+            PlantGrade = request.PlantGrade,
+            RawMaterialType = Enum.TryParse<RawMaterialType>(request.RawMaterialType, out var rt)
+                ? rt
+                : throw new BusinessException($"无效的原料类型: {request.RawMaterialType}"),
+            RoundBarSpec = request.RoundBarSpec,
+            PiercingSpec = request.PiercingSpec,
+            RequiredUnitWeight = request.RequiredUnitWeight,
+            RequiredPieces = request.RequiredPieces,
+            RequiredWeight = request.RequiredWeight,
+            RequiredDate = request.RequiredDate,
+            ProcessPlan = request.ProcessPlan,
+            Remark = request.Remark,
+        };
+
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            _context.RoundBarPiercingPlans.Add(plan);
+            await _context.SaveChangesAsync();
+
+            // 刷新工单状态（与创建在同一事务中）
+            await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+
+        _logger.LogInformation("创建圆棒穿孔计划成功: 工单ID {WorkOrderId}, 圆棒规格 {Spec}, 穿孔规格 {Piercing}, 重量 {Weight}",
+            request.WorkOrderId, request.RoundBarSpec, request.PiercingSpec, request.RequiredWeight);
+
+        return plan.ToDto();
+    }
+
+    public async Task DeletePiercingPlanAsync(int id)
+    {
+        var plan = await _context.RoundBarPiercingPlans.FindAsync(id);
+        if (plan == null)
+            throw new BusinessException("圆棒穿孔计划不存在");
+
+        var workOrderId = plan.WorkOrderId;
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            _context.RoundBarPiercingPlans.Remove(plan);
+            await _context.SaveChangesAsync();
+
+            // 刷新工单状态（与删除在同一事务中）
+            await UpdateMaterialPlanStatusAsync(workOrderId);
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+
+        _logger.LogInformation("删除圆棒穿孔计划成功: ID {Id}", id);
+    }
+
+    #endregion
+
     #region 用料测算
 
     public async Task<MaterialCalculateResult> CalculateAsync(MaterialCalculateRequest request)
@@ -1021,6 +1137,24 @@ public class MaterialPlanService : IMaterialPlanService
             });
         }
 
+        // 圆棒穿孔计划
+        var piercingPlans = await _context.RoundBarPiercingPlans
+            .Where(p => p.WorkOrderId == workOrderId)
+            .ToListAsync();
+        if (piercingPlans.Any())
+        {
+            var status = CalculatePlanStatus(workOrder, piercingPlans.Cast<BaseEntity>().ToList(), isSemi: false, isPiercing: true);
+            dto.Items.Add(new MaterialPlanItemDto
+            {
+                PlanType = "Piercing",
+                PlanTypeText = "圆棒穿孔",
+                RecordCount = piercingPlans.Count,
+                Summary = $"{piercingPlans.First().RoundBarSpec} → {piercingPlans.First().PiercingSpec} × {piercingPlans.Sum(p => p.RequiredPieces ?? 0)}支 / {piercingPlans.Sum(p => p.RequiredWeight)}kg",
+                RequiredDate = piercingPlans.Min(p => p.RequiredDate),
+                Status = status
+            });
+        }
+
         return dto;
     }
 
@@ -1045,12 +1179,17 @@ public class MaterialPlanService : IMaterialPlanService
         var regularInventory = inventoryPlans.Where(p => p.ReworkType == null).ToList();
         var reworkPlans = inventoryPlans.Where(p => p.ReworkType != null).ToList();
 
+        var piercingPlans = await _context.RoundBarPiercingPlans
+            .Where(p => p.WorkOrderId == workOrderId)
+            .ToListAsync();
+
         var hasSemi = semiPlans.Any();
         var hasFinish = finishPlans.Any();
         var hasInventory = regularInventory.Any();
         var hasRework = reworkPlans.Any();
+        var hasPiercing = piercingPlans.Any();
 
-        if (!hasSemi && !hasFinish && !hasInventory && !hasRework)
+        if (!hasSemi && !hasFinish && !hasInventory && !hasRework && !hasPiercing)
         {
             workOrder.MaterialPlanStatus = MaterialPlanStatus.NotPlanned;
             workOrder.MaterialPlanRate = 0;
@@ -1088,7 +1227,14 @@ public class MaterialPlanService : IMaterialPlanService
                 rates.Add(CalculateInventoryPlanRate(workOrder, reworkPlans));
             }
 
-            // 工单满足率 = 4种用料相加（总覆盖率）
+            if (hasPiercing)
+            {
+                var s = CalculatePlanStatus(workOrder, piercingPlans.Cast<BaseEntity>().ToList(), isSemi: false, isPiercing: true);
+                statuses.Add(s);
+                rates.Add(CalculatePlanRate(workOrder, piercingPlans.Cast<BaseEntity>().ToList(), isSemi: false, isPiercing: true));
+            }
+
+            // 工单满足率 = 5种用料相加（总覆盖率）
             var totalRate = Math.Min(rates.Sum(), 999m);
             workOrder.MaterialPlanRate = totalRate;
             workOrder.MaterialPlanStatus = CalculateOverallStatus(workOrder, totalRate);
@@ -1101,9 +1247,9 @@ public class MaterialPlanService : IMaterialPlanService
     /// 计算单个计划的状态（工单级，含"理论满足"）
     /// </summary>
     private MaterialPlanStatus CalculatePlanStatus(WorkOrder workOrder,
-        IReadOnlyCollection<BaseEntity> plans, bool isSemi)
+        IReadOnlyCollection<BaseEntity> plans, bool isSemi, bool isPiercing = false)
     {
-        var rate = CalculatePlanRate(workOrder, plans, isSemi);
+        var rate = CalculatePlanRate(workOrder, plans, isSemi, isPiercing);
 
         if (workOrder.LengthStatus == LengthStatus.Fixed)
         {
@@ -1127,7 +1273,7 @@ public class MaterialPlanService : IMaterialPlanService
     /// 计算满足率
     /// </summary>
     private decimal CalculatePlanRate(WorkOrder workOrder,
-        IReadOnlyCollection<BaseEntity> plans, bool isSemi)
+        IReadOnlyCollection<BaseEntity> plans, bool isSemi, bool isPiercing = false)
     {
         if (workOrder.LengthStatus == LengthStatus.Fixed)
         {
@@ -1139,6 +1285,12 @@ public class MaterialPlanService : IMaterialPlanService
                 // 原料采购：原料支数 × 投料倍率
                 var semiPlans = plans.Cast<PurchaseSemiPlan>();
                 effectivePieces = (int)semiPlans.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple);
+            }
+            else if (isPiercing)
+            {
+                // 圆棒穿孔：原料支数 × 投料倍率（同原料采购逻辑）
+                var piercingPlans = plans.Cast<RoundBarPiercingPlan>();
+                effectivePieces = (int)piercingPlans.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple);
             }
             else
             {
@@ -1159,6 +1311,12 @@ public class MaterialPlanService : IMaterialPlanService
             {
                 var semiPlans = plans.Cast<PurchaseSemiPlan>();
                 effectiveWeight = semiPlans.Sum(p => p.RequiredWeight);
+            }
+            else if (isPiercing)
+            {
+                // 圆棒穿孔：按需求重量（同原料采购逻辑）
+                var piercingPlans = plans.Cast<RoundBarPiercingPlan>();
+                effectiveWeight = piercingPlans.Sum(p => p.RequiredWeight);
             }
             else
             {
@@ -1289,6 +1447,20 @@ public class MaterialPlanService : IMaterialPlanService
         return MaterialPlanPrintHelper.GenerateInventoryPlanPdf(plan, workOrder);
     }
 
+    public async Task<byte[]> PrintPiercingPlanAsync(int planId)
+    {
+        var plan = await _context.RoundBarPiercingPlans.FindAsync(planId);
+        if (plan == null)
+            throw new BusinessException("圆棒穿孔计划不存在");
+
+        var workOrder = await _context.WorkOrders.AsNoTracking()
+            .FirstOrDefaultAsync(wo => wo.Id == plan.WorkOrderId);
+        if (workOrder == null)
+            throw new BusinessException("工单不存在");
+
+        return MaterialPlanPrintHelper.GeneratePiercingPlanPdf(plan, workOrder);
+    }
+
     public async Task<byte[]> PrintReworkPlanAsync(int planId)
     {
         var plan = await _context.InventoryPlans.FindAsync(planId);
@@ -1314,11 +1486,12 @@ public class MaterialPlanService : IMaterialPlanService
             .Where(wo => workOrderIds.Contains(wo.Id))
             .ToDictionaryAsync(wo => wo.Id);
 
-        // 按计划类型批量查询，固定最多 5 次数据库查询
+        // 按计划类型批量查询，固定最多 6 次数据库查询
         var semiItems = new List<(PurchaseSemiPlan, WorkOrder)>();
         var finishItems = new List<(PurchaseFinishedPlan, WorkOrder)>();
         var inventoryItems = new List<(InventoryPlan, WorkOrder)>();
         var reworkItems = new List<(InventoryPlan, WorkOrder)>();
+        var piercingItems = new List<(RoundBarPiercingPlan, WorkOrder)>();
 
         if (request.IncludeSemi)
         {
@@ -1364,6 +1537,17 @@ public class MaterialPlanService : IMaterialPlanService
                 .ToList();
         }
 
+        if (request.IncludeRoundBarPiercing)
+        {
+            var plans = await _context.RoundBarPiercingPlans
+                .Where(p => workOrderIds.Contains(p.WorkOrderId))
+                .ToListAsync();
+            piercingItems = plans
+                .Where(p => workOrders.ContainsKey(p.WorkOrderId))
+                .Select(p => (p, workOrders[p.WorkOrderId]))
+                .ToList();
+        }
+
         // 按计划类型生成汇总文档
         var documents = new List<IDocument>();
 
@@ -1375,6 +1559,8 @@ public class MaterialPlanService : IMaterialPlanService
             documents.Add(MaterialPlanPrintHelper.CreateBatchInventoryPlanDocument(inventoryItems));
         if (reworkItems.Any())
             documents.Add(MaterialPlanPrintHelper.CreateBatchReworkPlanDocument(reworkItems));
+        if (piercingItems.Any())
+            documents.Add(MaterialPlanPrintHelper.CreateBatchPiercingPlanDocument(piercingItems));
 
         if (documents.Count == 0)
             throw new BusinessException("没有找到符合条件的计划");
@@ -1409,6 +1595,35 @@ internal static class MaterialPlanMappingExtensions
             PlantGrade = entity.PlantGrade,
             RawMaterialType = entity.RawMaterialType.ToString(),
             RawMaterialSpec = entity.RawMaterialSpec,
+            RequiredUnitWeight = entity.RequiredUnitWeight,
+            RequiredPieces = entity.RequiredPieces,
+            RequiredWeight = entity.RequiredWeight,
+            RequiredDate = entity.RequiredDate,
+            ProcessPlan = entity.ProcessPlan,
+            Remark = entity.Remark,
+            CreatedTime = entity.CreatedTime,
+            CreatedBy = entity.CreatedBy
+        };
+    }
+
+    public static RoundBarPiercingPlanDto ToDto(this RoundBarPiercingPlan entity)
+    {
+        return new RoundBarPiercingPlanDto
+        {
+            Id = entity.Id,
+            WorkOrderId = entity.WorkOrderId,
+            PlanDate = entity.PlanDate,
+            AdjustedWallThickness = entity.AdjustedWallThickness,
+            YieldRate = entity.YieldRate,
+            InputMultiple = entity.InputMultiple,
+            QualifiedRate = entity.QualifiedRate,
+            Density = entity.Density,
+            UnitWeight = entity.UnitWeight,
+            RawUnitWeight = entity.RawUnitWeight,
+            PlantGrade = entity.PlantGrade,
+            RawMaterialType = entity.RawMaterialType.ToString(),
+            RoundBarSpec = entity.RoundBarSpec,
+            PiercingSpec = entity.PiercingSpec,
             RequiredUnitWeight = entity.RequiredUnitWeight,
             RequiredPieces = entity.RequiredPieces,
             RequiredWeight = entity.RequiredWeight,

@@ -19,7 +19,7 @@
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
-                <MudText Typo="Typo.h5" Class="font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.Handyman" Class="mr-2" Color="Color.Primary" />新建委外加工单</MudText>
+                <MudText Typo="Typo.h5" Class="font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.Handyman" Class="mr-2" Color="Color.Primary" />新建圆棒穿孔单</MudText>
             </CardHeaderContent>
             <CardHeaderActions>
                 <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
@@ -30,15 +30,15 @@
         </MudCardHeader>
 
         <MudCardContent>
-            @* ========== 工单用料计划执行状态（采购+委外总览） ========== *@
+            @* ========== 工单圆棒穿孔计划执行状态 ========== *@
             @if (procurementStatusLoaded)
             {
-                var noneCount = procurementItems.Count(x => x.StatusText == "未采购");
-                var partialCount = procurementItems.Count(x => x.StatusText == "部分采购");
+                var noneCount = procurementItems.Count(x => x.StatusText == "未穿孔");
+                var partialCount = procurementItems.Count(x => x.StatusText == "部分穿孔");
                 <MudPaper Class="pa-3 mb-3" Elevation="0" Style="border: 1px solid #e0e0e0; border-radius: 8px;">
                     <div Class="d-flex align-center" style="cursor: pointer;" @onclick="ToggleProcurementStatus">
                         <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Info" Class="mr-2" />
-                        <MudText Typo="Typo.body1" Class="font-weight-bold flex-grow-1">工单用料计划执行状态</MudText>
+                        <MudText Typo="Typo.body1" Class="font-weight-bold flex-grow-1">工单圆棒穿孔计划执行状态</MudText>
                         @if (!string.IsNullOrEmpty(procurementStatusError))
                         {
                             <MudChip Size="Size.Small" Color="Color.Error" Class="mr-1">加载失败</MudChip>
@@ -49,8 +49,8 @@
                         }
                         else
                         {
-                            <MudChip Size="Size.Small" Color="Color.Error" Class="mr-1">未采购 @noneCount</MudChip>
-                            <MudChip Size="Size.Small" Color="Color.Warning" Class="mr-1">部分采购 @partialCount</MudChip>
+                            <MudChip Size="Size.Small" Color="Color.Error" Class="mr-1">未穿孔 @noneCount</MudChip>
+                            <MudChip Size="Size.Small" Color="Color.Warning" Class="mr-1">部分穿孔 @partialCount</MudChip>
                         }
                         <MudIcon Icon="@(showProcurementStatus ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Color="Color.Default" />
                     </div>
@@ -71,7 +71,6 @@
                                         <MudTh Style="width: 120px;">工单号</MudTh>
                                         <MudTh Style="width: 90px;">物料分类</MudTh>
                                         <MudTh Style="width: 100px;" Class="text-right">计划总量(kg)</MudTh>
-                                        <MudTh Style="width: 100px;" Class="text-right">已采购(kg)</MudTh>
                                         <MudTh Style="width: 100px;" Class="text-right">已委外(kg)</MudTh>
                                         <MudTh Style="width: 100px;" Class="text-right">合计(kg)</MudTh>
                                         <MudTh Style="width: 90px;">状态</MudTh>
@@ -84,11 +83,10 @@
                                         </MudTd>
                                         <MudTd>@context.MaterialCategory</MudTd>
                                         <MudTd Class="text-right">@context.PlanWeight.ToString("G29")</MudTd>
-                                        <MudTd Class="text-right">@context.PurchaseWeight.ToString("G29")</MudTd>
                                         <MudTd Class="text-right">@context.SubcontractWeight.ToString("G29")</MudTd>
                                         <MudTd Class="text-right">@context.TotalWeight.ToString("G29")</MudTd>
                                         <MudTd>
-                                            <MudChip Size="Size.Small" Color="@(context.StatusText == "未采购" ? Color.Error : Color.Warning)">
+                                            <MudChip Size="Size.Small" Color="@(context.StatusText == "未穿孔" ? Color.Error : Color.Warning)">
                                                 @context.StatusText
                                             </MudChip>
                                         </MudTd>
@@ -280,7 +278,7 @@
         allSuppliers = await SupplierService.GetActiveAsync();
         try
         {
-            var statusResult = await PurchaseService.GetProcurementStatusAsync();
+            var statusResult = await SubcontractService.GetProcurementStatusAsync();
             if (statusResult.Success && statusResult.Data != null)
                 procurementItems = statusResult.Data;
             else

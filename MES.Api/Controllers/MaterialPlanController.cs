@@ -182,6 +182,46 @@ public class MaterialPlanController : ControllerBase
 
     #endregion
 
+    #region 圆棒穿孔计划
+
+    [HttpGet("piercing/{workOrderId}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<RoundBarPiercingPlanDto>>>> GetPiercingPlans(int workOrderId)
+    {
+        var result = await _materialPlanService.GetPiercingPlansAsync(workOrderId);
+        return Ok(ApiResponse<List<RoundBarPiercingPlanDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("piercing/detail/{id}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<RoundBarPiercingPlanDto>>> GetPiercingPlanById(int id)
+    {
+        var result = await _materialPlanService.GetPiercingPlanByIdAsync(id);
+        return Ok(ApiResponse<RoundBarPiercingPlanDto>.Ok(result, "查询成功"));
+    }
+
+    [HttpPost("piercing")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<RoundBarPiercingPlanDto>>> CreatePiercingPlan(
+        [FromBody] CreateRoundBarPiercingPlanRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<RoundBarPiercingPlanDto>.Fail("请求参数无效"));
+
+        var result = await _materialPlanService.CreatePiercingPlanAsync(request);
+        return Ok(ApiResponse<RoundBarPiercingPlanDto>.Ok(result, "创建成功"));
+    }
+
+    [HttpDelete("piercing/{id}")]
+    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse>> DeletePiercingPlan(int id)
+    {
+        await _materialPlanService.DeletePiercingPlanAsync(id);
+        return Ok(ApiResponse.Ok("删除成功"));
+    }
+
+    #endregion
+
     #region 用料测算
 
     [HttpPost("calculate")]
@@ -256,13 +296,22 @@ public class MaterialPlanController : ControllerBase
         return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
     }
 
+    [HttpGet("print/piercing/{id}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintPiercingPlan(int id)
+    {
+        var bytes = await _materialPlanService.PrintPiercingPlanAsync(id);
+        var base64 = Convert.ToBase64String(bytes);
+        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
+    }
+
     [HttpPost("print/batch")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintBatch([FromBody] MaterialPlanBatchPrintRequest request)
     {
         if (request.WorkOrderIds.Length == 0)
             return BadRequest(ApiResponse<string>.Fail("请选择工单"));
-        if (!request.IncludeSemi && !request.IncludeFinish && !request.IncludeInventory && !request.IncludeRework)
+        if (!request.IncludeSemi && !request.IncludeFinish && !request.IncludeInventory && !request.IncludeRework && !request.IncludeRoundBarPiercing)
             return BadRequest(ApiResponse<string>.Fail("请至少选择一种计划类型"));
 
         try

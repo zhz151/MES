@@ -671,6 +671,79 @@ public class PurchaseOrderService : IPurchaseOrderService
         return allPlanData;
     }
 
+    public async Task<List<ProcurementStatusDto>> GetPiercingProcurementStatusAsync()
+    {
+        // 1. 查询圆棒穿孔计划的工单ID
+        var piercingWorkOrderIds = await _context.RoundBarPiercingPlans
+            .AsNoTracking()
+            .Where(p => p.RequiredWeight > 0)
+            .Select(p => p.WorkOrderId)
+            .Distinct()
+            .ToListAsync();
+
+        if (piercingWorkOrderIds.Count == 0)
+            return new List<ProcurementStatusDto>();
+
+        // 2. 获取工单号映射
+        var workOrders = await _context.WorkOrders
+            .AsNoTracking()
+            .Where(w => piercingWorkOrderIds.Contains(w.Id))
+            .ToDictionaryAsync(w => w.Id, w => w.WorkOrderNo);
+
+        var allWorkOrderNos = workOrders.Values.ToList();
+
+        // 3. 圆棒穿孔计划：按工单号汇总
+        var piercingPlanData = await _context.RoundBarPiercingPlans
+            .AsNoTracking()
+            .Where(p => p.RequiredWeight > 0 && piercingWorkOrderIds.Contains(p.WorkOrderId))
+            .GroupBy(p => p.WorkOrderId)
+            .Select(g => new
+            {
+                WorkOrderId = g.Key,
+                PlanWeight = g.Sum(p => p.RequiredWeight)
+            })
+            .ToListAsync();
+
+        // 4. 按工单号聚合已委外重量
+        var subcontractWeights = new Dictionary<string, decimal>();
+        if (allWorkOrderNos.Count > 0)
+        {
+            var subcontractData = await _context.SubcontractReturnItems
+                .AsNoTracking()
+                .Where(r => r.SourceWorkOrderNo != null && allWorkOrderNos.Contains(r.SourceWorkOrderNo))
+                .GroupBy(r => r.SourceWorkOrderNo!)
+                .Select(g => new { SourceWorkOrderNo = g.Key, Weight = g.Sum(r => r.RequiredWeight ?? 0) })
+                .ToListAsync();
+            subcontractWeights = subcontractData.ToDictionary(x => x.SourceWorkOrderNo, x => x.Weight);
+        }
+
+        // 5. 合并数据，计算执行状态
+        var result = piercingPlanData
+            .Select(x =>
+            {
+                var workOrderNo = workOrders.GetValueOrDefault(x.WorkOrderId, "");
+                var subW = subcontractWeights.GetValueOrDefault(workOrderNo, 0);
+                return new ProcurementStatusDto
+                {
+                    WorkOrderNo = workOrderNo,
+                    MaterialName = workOrderNo,
+                    MaterialCategory = "圆棒穿孔",
+                    PlanWeight = x.PlanWeight,
+                    PurchaseWeight = 0,
+                    SubcontractWeight = subW,
+                    TotalWeight = subW,
+                    StatusText = subW == 0 ? "未穿孔"
+                        : subW < x.PlanWeight ? "部分穿孔"
+                        : "已穿孔"
+                };
+            })
+            .Where(x => x.StatusText != "已穿孔" && !string.IsNullOrEmpty(x.WorkOrderNo))
+            .OrderBy(x => x.WorkOrderNo)
+            .ToList();
+
+        return result;
+    }
+
     public async Task<List<OrderMismatchInfo>> GetMismatchedPurchaseOrdersAsync()
     {
         // 1. 获取所有涉及采购的工单号（有用料计划且需采购）

@@ -123,8 +123,10 @@
                                OnClick="PrintSelectedPlans">
                         打印选中 (@selectedWorkOrderIds.Count)
                     </MudButton>
-                    <MudCheckBox T="bool" Value="@includeSemi" ValueChanged="@((bool v) => OnPlanTypeFilterChanged(v, 1))" Dense="true" Class="ml-2" />
-                    <MudText Typo="Typo.body2" Class="mr-3">原料采购</MudText>
+                    <MudCheckBox T="bool" Value="@includePiercing" ValueChanged="@((bool v) => OnPlanTypeFilterChanged(v, 5))" Dense="true" Class="ml-2" />
+                    <MudText Typo="Typo.body2" Class="mr-3">圆棒穿孔</MudText>
+                    <MudCheckBox T="bool" Value="@includeSemi" ValueChanged="@((bool v) => OnPlanTypeFilterChanged(v, 1))" Dense="true" />
+                    <MudText Typo="Typo.body2" Class="mr-3">荒管采购</MudText>
                     <MudCheckBox T="bool" Value="@includeFinish" ValueChanged="@((bool v) => OnPlanTypeFilterChanged(v, 2))" Dense="true" />
                     <MudText Typo="Typo.body2" Class="mr-3">成品采购</MudText>
                     <MudCheckBox T="bool" Value="@includeInventory" ValueChanged="@((bool v) => OnPlanTypeFilterChanged(v, 3))" Dense="true" />
@@ -180,7 +182,6 @@
                     </MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
-                    <MudText Class="d-flex justify-center pa-4" Color="Color.Secondary">暂无工单数据</MudText>
                 </NoRecordsContent>
                 <PagerContent>
                     <MudTablePager PageSizeOptions="new int[]{10, 25, 50, 100}" />
@@ -233,7 +234,8 @@
     private bool includeFinish = true;
     private bool includeInventory = true;
     private bool includeRework = true;
-    private bool anyPlanTypeSelected => includeSemi || includeFinish || includeInventory || includeRework;
+    private bool includePiercing = true;
+    private bool anyPlanTypeSelected => includeSemi || includeFinish || includeInventory || includeRework || includePiercing;
 
     // 列定义
     private List<ColumnDef> _allColumns = new();
@@ -281,7 +283,8 @@
         if (includeFinish) types.Add("Finish");
         if (includeInventory) types.Add("Inventory");
         if (includeRework) types.Add("Rework");
-        return types.Count < 4 ? string.Join(",", types) : null;
+        if (includePiercing) types.Add("Piercing");
+        return types.Count < 5 ? string.Join(",", types) : null;
     }
 
     private async Task OnPlanTypeFilterChanged(bool value, int planType)
@@ -292,6 +295,7 @@
             case 2: includeFinish = value; break;
             case 3: includeInventory = value; break;
             case 4: includeRework = value; break;
+            case 5: includePiercing = value; break;
         }
         // 清除跨页选中，避免打印不存在的选中项
         selectedWorkOrderIds.Clear();
@@ -645,7 +649,8 @@
             IncludeSemi = includeSemi,
             IncludeFinish = includeFinish,
             IncludeInventory = includeInventory,
-            IncludeRework = includeRework
+            IncludeRework = includeRework,
+            IncludeRoundBarPiercing = includePiercing
         };
 
         try

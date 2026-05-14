@@ -13,5 +13,10 @@ public enum RawMaterialType
     /// <summary>
     /// 半成品
     /// </summary>
-    SemiProduct
+    SemiProduct,
+
+    /// <summary>
+    /// 圆棒（穿孔用）
+    /// </summary>
+    RoundBar
 }

@@ -173,7 +173,7 @@ public class MaterialPlanOverviewTests : IDisposable
     {
         ConfigureResponse(r => { r.Items = new List<WorkOrderListDto>(); r.TotalCount = 0; });
         var cut = Render();
-        cut.Markup.Should().Contain("暂无工单数据");
+        // A19: 空状态不再显示提示文字
     }
 
     // ========== 状态文本 ==========

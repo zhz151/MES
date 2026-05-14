@@ -377,7 +377,102 @@ public class WorkOrderServiceTests : TestBase
         await act.Should().ThrowAsync<BusinessException>().WithMessage("工单不存在");
     }
 
-    // ========== 订单工单关系查询 ==========
+    [Fact]
+    public async Task DeleteAsync_级联删除圆棒穿孔计划()
+    {
+        var ctx = CreateDbContext();
+        var (_, orderNo) = await SeedConfirmedOrderAsync(ctx);
+        var items = await ctx.OrderItems.ToListAsync();
+
+        var svc = CreateService(ctx);
+        var generated = await svc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
+        {
+            SalesOrderNo = orderNo,
+            WorkOrders = new List<WorkOrderItemGroup>
+            {
+                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
+            }
+        });
+
+        // 创建圆棒穿孔计划
+        var piercing = new RoundBarPiercingPlan
+        {
+            WorkOrderId = generated[0].Id,
+            PlanDate = DateTime.Today,
+            AdjustedWallThickness = 8.5m,
+            YieldRate = 85m,
+            InputMultiple = 1,
+            QualifiedRate = 95m,
+            PlantGrade = "20#",
+            RawMaterialType = RawMaterialType.RoundBar,
+            RoundBarSpec = "250*8",
+            PiercingSpec = "230*7",
+            RequiredPieces = 10,
+            RequiredWeight = 3000m,
+            RequiredDate = DateTime.Today.AddMonths(1)
+        };
+        ctx.RoundBarPiercingPlans.Add(piercing);
+        await ctx.SaveChangesAsync();
+
+        // 删除工单
+        await svc.DeleteAsync(generated[0].Id);
+
+        // 验证圆棒穿孔计划也被级联删除
+        var remaining = await ctx.RoundBarPiercingPlans
+            .Where(p => p.WorkOrderId == generated[0].Id)
+            .ToListAsync();
+        remaining.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task QueryAsync_物料计划聚合包含圆棒穿孔()
+    {
+        var ctx = CreateDbContext();
+        var (_, orderNo) = await SeedConfirmedOrderAsync(ctx);
+        var items = await ctx.OrderItems.ToListAsync();
+
+        var svc = CreateService(ctx);
+        var generated = await svc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
+        {
+            SalesOrderNo = orderNo,
+            WorkOrders = new List<WorkOrderItemGroup>
+            {
+                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
+            }
+        });
+
+        // 创建圆棒穿孔计划
+        var piercing = new RoundBarPiercingPlan
+        {
+            WorkOrderId = generated[0].Id,
+            PlanDate = DateTime.Today,
+            AdjustedWallThickness = 8.5m,
+            YieldRate = 85m,
+            InputMultiple = 1,
+            QualifiedRate = 95m,
+            PlantGrade = "20#",
+            RawMaterialType = RawMaterialType.RoundBar,
+            RoundBarSpec = "250*8",
+            PiercingSpec = "230*7",
+            RequiredPieces = 10,
+            RequiredWeight = 3000m,
+            RequiredDate = DateTime.Today.AddMonths(1)
+        };
+        ctx.RoundBarPiercingPlans.Add(piercing);
+        await ctx.SaveChangesAsync();
+
+        // 查询列表
+        var result = await svc.GetPagedAsync(new WorkOrderQueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20
+        });
+
+        result.Items.Should().Contain(i => i.Id == generated[0].Id);
+        var woDto = result.Items.First(i => i.Id == generated[0].Id);
+        woDto.PiercingPlanTotalWeight.Should().Be(3000m);
+        woDto.PiercingPlanTotalPieces.Should().Be(10);
+    }
 
     [Fact]
     public async Task GetOrderWorkOrderRelationAsync_成功返回关系()

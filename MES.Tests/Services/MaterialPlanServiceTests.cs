@@ -824,4 +824,208 @@ public class MaterialPlanServiceTests : TestBase
 
         available.Should().BeEmpty();
     }
+
+    // ========== 圆棒穿孔计划 CRUD ==========
+
+    [Fact]
+    public async Task GetPiercingPlansAsync_无计划_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var (woId, _) = await SeedWorkOrderAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var plans = await svc.GetPiercingPlansAsync(woId);
+
+        plans.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CreatePiercingPlanAsync_定尺_成功创建()
+    {
+        var ctx = CreateDbContext();
+        var (woId, _) = await SeedWorkOrderAsync(ctx, LengthStatus.Fixed);
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreatePiercingPlanAsync(new CreateRoundBarPiercingPlanRequest
+        {
+            WorkOrderId = woId,
+            PlanDate = DateTime.Today,
+            AdjustedWallThickness = 8.5m,
+            YieldRate = 85m,
+            InputMultiple = 1,
+            QualifiedRate = 95m,
+            PlantGrade = "20#",
+            RawMaterialType = "RoundBar",
+            RoundBarSpec = "250*8",
+            PiercingSpec = "230*7",
+            RequiredUnitWeight = 300m,
+            RequiredPieces = 10,
+            RequiredWeight = 3000m,
+            RequiredDate = DateTime.Today.AddMonths(1),
+            ProcessPlan = "[{\"step\":1,\"spec\":\"250*8\"},{\"step\":2,\"spec\":\"230*7\"}]",
+            Remark = "穿孔测试"
+        });
+
+        result.Should().NotBeNull();
+        result.WorkOrderId.Should().Be(woId);
+        result.RoundBarSpec.Should().Be("250*8");
+        result.PiercingSpec.Should().Be("230*7");
+        result.Density.Should().Be(7.85m);
+        result.RequiredPieces.Should().Be(10);
+        result.Remark.Should().Be("穿孔测试");
+
+        // 验证数据库中有记录
+        var plans = await ctx.RoundBarPiercingPlans.Where(p => p.WorkOrderId == woId).ToListAsync();
+        plans.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task CreatePiercingPlanAsync_非定尺_成功创建()
+    {
+        var ctx = CreateDbContext();
+        var (woId, _) = await SeedWorkOrderAsync(ctx, LengthStatus.NonFixed);
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreatePiercingPlanAsync(new CreateRoundBarPiercingPlanRequest
+        {
+            WorkOrderId = woId,
+            PlanDate = DateTime.Today,
+            AdjustedWallThickness = 8.5m,
+            YieldRate = 85m,
+            InputMultiple = 1,
+            QualifiedRate = 95m,
+            PlantGrade = "20#",
+            RawMaterialType = "RoundBar",
+            RoundBarSpec = "250*8",
+            PiercingSpec = "230*7",
+            RequiredPieces = 10,
+            RequiredWeight = 3000m,
+            RequiredDate = DateTime.Today.AddMonths(1)
+        });
+
+        result.Should().NotBeNull();
+        result.Should().NotBeNull();
+        // 非定尺：无 RequiredUnitWeight 但仍有支数/重量
+        result.RequiredPieces.Should().Be(10);
+        result.RequiredWeight.Should().Be(3000m);
+    }
+
+    [Fact]
+    public async Task CreatePiercingPlanAsync_工单不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.CreatePiercingPlanAsync(new CreateRoundBarPiercingPlanRequest
+        {
+            WorkOrderId = 999,
+            PlanDate = DateTime.Today,
+            AdjustedWallThickness = 8.5m,
+            YieldRate = 85m,
+            InputMultiple = 1,
+            QualifiedRate = 95m,
+            PlantGrade = "20#",
+            RawMaterialType = "RoundBar",
+            RoundBarSpec = "250*8",
+            PiercingSpec = "230*7",
+            RequiredWeight = 3000m,
+            RequiredDate = DateTime.Today.AddMonths(1)
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
+    }
+
+    [Fact]
+    public async Task DeletePiercingPlanAsync_成功删除()
+    {
+        var ctx = CreateDbContext();
+        var (woId, _) = await SeedWorkOrderAsync(ctx, LengthStatus.Fixed);
+        var svc = CreateService(ctx);
+
+        var created = await svc.CreatePiercingPlanAsync(new CreateRoundBarPiercingPlanRequest
+        {
+            WorkOrderId = woId,
+            PlanDate = DateTime.Today,
+            AdjustedWallThickness = 8.5m,
+            YieldRate = 85m,
+            InputMultiple = 1,
+            QualifiedRate = 95m,
+            PlantGrade = "20#",
+            RawMaterialType = "RoundBar",
+            RoundBarSpec = "250*8",
+            PiercingSpec = "230*7",
+            RequiredPieces = 10,
+            RequiredWeight = 3000m,
+            RequiredDate = DateTime.Today.AddMonths(1)
+        });
+
+        await svc.DeletePiercingPlanAsync(created.Id);
+
+        var act = () => svc.GetPiercingPlanByIdAsync(created.Id);
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
+    }
+
+    [Fact]
+    public async Task DeletePiercingPlanAsync_不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.DeletePiercingPlanAsync(999);
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
+    }
+
+    [Fact]
+    public async Task GetWorkOrderMaterialPlanAsync_包含圆棒穿孔计划()
+    {
+        var ctx = CreateDbContext();
+        var (woId, _) = await SeedWorkOrderAsync(ctx, LengthStatus.Fixed);
+        var svc = CreateService(ctx);
+
+        // 创建圆棒穿孔计划
+        await svc.CreatePiercingPlanAsync(new CreateRoundBarPiercingPlanRequest
+        {
+            WorkOrderId = woId,
+            PlanDate = DateTime.Today,
+            AdjustedWallThickness = 8.5m,
+            YieldRate = 85m,
+            InputMultiple = 1,
+            QualifiedRate = 95m,
+            PlantGrade = "20#",
+            RawMaterialType = "RoundBar",
+            RoundBarSpec = "250*8",
+            PiercingSpec = "230*7",
+            RequiredPieces = 10,
+            RequiredWeight = 3000m,
+            RequiredDate = DateTime.Today.AddMonths(1)
+        });
+
+        var tabs = await svc.GetWorkOrderMaterialPlanAsync(woId);
+
+        tabs.Should().NotBeNull();
+        tabs.Items.Should().Contain(i => i.PlanType == "Piercing");
+        var piercingTab = tabs.Items.First(i => i.PlanType == "Piercing");
+        piercingTab.RecordCount.Should().Be(1);
+        piercingTab.Summary.Should().Contain("250*8");
+    }
+
+    [Fact]
+    public async Task CalculateAsync_定尺_返回计算结果()
+    {
+        var ctx = CreateDbContext();
+        var (woId, _) = await SeedWorkOrderAsync(ctx, LengthStatus.Fixed);
+        var svc = CreateService(ctx);
+
+        var result = await svc.CalculateAsync(new MaterialCalculateRequest
+        {
+            WorkOrderId = woId,
+            AdjustedWallThickness = 8.5m,
+            YieldRate = 85m,
+            InputMultiple = 1,
+            QualifiedRate = 95m
+        });
+
+        result.Should().NotBeNull();
+        result.Density.Should().Be(7.85m);
+    }
 }

@@ -472,9 +472,11 @@ public async Task DeleteAsync(int id)
             var semiPlans = await _context.PurchaseSemiPlans.Where(p => woIds.Contains(p.WorkOrderId)).ToListAsync();
             var finishPlans = await _context.PurchaseFinishedPlans.Where(p => woIds.Contains(p.WorkOrderId)).ToListAsync();
             var invPlans = await _context.InventoryPlans.Where(p => woIds.Contains(p.WorkOrderId)).ToListAsync();
+            var piercingPlans = await _context.RoundBarPiercingPlans.Where(p => woIds.Contains(p.WorkOrderId)).ToListAsync();
             if (semiPlans.Any()) _context.PurchaseSemiPlans.RemoveRange(semiPlans);
             if (finishPlans.Any()) _context.PurchaseFinishedPlans.RemoveRange(finishPlans);
             if (invPlans.Any()) _context.InventoryPlans.RemoveRange(invPlans);
+            if (piercingPlans.Any()) _context.RoundBarPiercingPlans.RemoveRange(piercingPlans);
 
             // 扫描引用这些工单号的入库批次，生成通知（已执行数据，不级联）
             var affectedBatches = await _context.InventoryBatches

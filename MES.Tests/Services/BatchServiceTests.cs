@@ -29,7 +29,8 @@ public class BatchServiceTests : TestBase
     private BatchService CreateService(AppDbContext ctx)
     {
         var loggerMock = new Mock<ILogger<BatchService>>();
-        return new BatchService(ctx, loggerMock.Object);
+        var prodRecordMock = new Mock<IProductionRecordService>();
+        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object);
     }
 
     // ========== 种子数据辅助方法 ==========
@@ -189,6 +190,7 @@ public class BatchServiceTests : TestBase
                 new()
                 {
                     ProcessName = "矫切酸检",
+                    ManufacturingSpec = "Φ50×5",
                     ColdRollDraw = 1,
                     Pickle = 2,
                     Inspection = 3
@@ -196,6 +198,7 @@ public class BatchServiceTests : TestBase
                 new()
                 {
                     ProcessName = "冷轧",
+                    ManufacturingSpec = "Φ50×5",
                     ColdRollDraw = 4,
                     Solution = 5
                 }
@@ -391,7 +394,7 @@ public class BatchServiceTests : TestBase
     }
 
     [Fact]
-    public async Task UpdateStatusAsync_Completed回退_抛出BusinessException()
+    public async Task UpdateStatusAsync_Completed回退_清除强制完成标记()
     {
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
@@ -412,15 +415,19 @@ public class BatchServiceTests : TestBase
         });
 
         var completed = await svc.GetByIdAsync(created.Id);
+        completed.Status.Should().Be("Completed");
+        completed.IsForceCompleted.Should().BeTrue();
 
-        // 回退尝试
-        var act = () => svc.UpdateStatusAsync(created.Id, new UpdateBatchStatusRequest
+        // 回退到在产
+        await svc.UpdateStatusAsync(created.Id, new UpdateBatchStatusRequest
         {
             Status = "InProgress",
             RowVersion = completed.RowVersion
         });
 
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不能回退*");
+        var rollbacked = await svc.GetByIdAsync(created.Id);
+        rollbacked.Status.Should().Be("InProgress");
+        rollbacked.IsForceCompleted.Should().BeFalse();
     }
 
     // ========== 删除批次 ==========
@@ -437,7 +444,7 @@ public class BatchServiceTests : TestBase
             ProductionType = "RoughTube",
             ProcessGroups = new List<CreateProcessGroupRequest>
             {
-                new() { ProcessName = "矫切酸检", ColdRollDraw = 1 }
+                new() { ProcessName = "矫切酸检", ManufacturingSpec = "Φ50×5", ColdRollDraw = 1 }
             }
         });
 
@@ -511,7 +518,7 @@ public class BatchServiceTests : TestBase
             ProductionType = "RoughTube",
             ProcessGroups = new List<CreateProcessGroupRequest>
             {
-                new() { ProcessName = "矫切酸检", ColdRollDraw = 1 }
+                new() { ProcessName = "矫切酸检", ManufacturingSpec = "Φ50×5", ColdRollDraw = 1 }
             }
         });
 
@@ -691,8 +698,8 @@ public class BatchServiceTests : TestBase
             ProductionType = "RoughTube",
             ProcessGroups = new List<CreateProcessGroupRequest>
             {
-                new() { ProcessName = "矫切酸检", ColdRollDraw = 1, Pickle = 2 },
-                new() { ProcessName = "冷轧", ColdRollDraw = 3 }
+                new() { ProcessName = "矫切酸检", ManufacturingSpec = "Φ50×5", ColdRollDraw = 1, Pickle = 2 },
+                new() { ProcessName = "冷轧", ManufacturingSpec = "Φ50×5", ColdRollDraw = 3 }
             }
         });
 

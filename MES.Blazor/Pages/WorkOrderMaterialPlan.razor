@@ -57,7 +57,8 @@
 
                 <!-- 占比率概览 -->
                 <div class="d-flex justify-start mb-2">
-                    <MudChip Size="Size.Small" Color="Color.Primary" Class="mr-1">原:@GetSemiPct()</MudChip>
+                    <MudChip Size="Size.Small" Color="Color.Primary" Class="mr-1">穿:@GetPiercingPct()</MudChip>
+                    <MudChip Size="Size.Small" Color="Color.Primary" Class="mr-1">荒:@GetSemiPct()</MudChip>
                     <MudChip Size="Size.Small" Color="Color.Primary" Class="mr-1">成:@GetFinishPct()</MudChip>
                     <MudChip Size="Size.Small" Color="Color.Primary" Class="mr-1">库:@GetInvPct()</MudChip>
                     <MudChip Size="Size.Small" Color="Color.Primary">改:@GetReworkPct()</MudChip>
@@ -65,8 +66,60 @@
 
                 <!-- Tab页 -->
                 <MudTabs Position="Position.Top" Class="mt-4">
-                    <!-- Tab 1: 原料采购计划 -->
-                    <MudTabPanel Text="原料采购计划" Icon="@Icons.Material.Filled.Inventory2">
+                    <!-- Tab 1: 圆棒穿孔计划 -->
+                    <MudTabPanel Text="圆棒穿孔计划" Icon="@Icons.Material.Filled.Handyman">
+                        <MudPaper Class="pa-3 mb-4 d-flex justify-start" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Add"
+                                       OnClick="() => NavigateToCreate(5)">
+                                新增计划
+                            </MudButton>
+                        </MudPaper>
+
+                        <MudTable Items="@piercingPlans" Dense="true" Hover="true" Elevation="0" Striped="true" Class="auto-table"
+                                  Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                            <HeaderContent>
+                                <MudTh>计划日期</MudTh>
+                                <MudTh>原料类型</MudTh>
+                                <MudTh>工厂牌号</MudTh>
+                                <MudTh>圆棒规格</MudTh>
+                                <MudTh>穿孔规格</MudTh>
+                                <MudTh>需求单重(kg/支)</MudTh>
+                                <MudTh>需求支数</MudTh>
+                                <MudTh>需求重量(kg)</MudTh>
+                                <MudTh>要求到货日</MudTh>
+                                <MudTh>备注</MudTh>
+                                <MudTh>工艺路线</MudTh>
+                                <MudTh>操作</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="plan">
+                                <MudTd>@plan.PlanDate.ToString("yyyy-MM-dd")</MudTd>
+                                <MudTd>@GetRawMaterialTypeText(plan.RawMaterialType)</MudTd>
+                                <MudTd>@plan.PlantGrade</MudTd>
+                                <MudTd>@plan.RoundBarSpec</MudTd>
+                                <MudTd>@plan.PiercingSpec</MudTd>
+                                <MudTd>@(plan.RequiredUnitWeight?.ToString("G29") ?? "-")</MudTd>
+                                <MudTd>@(plan.RequiredPieces?.ToString() ?? "-")</MudTd>
+                                <MudTd>@plan.RequiredWeight.ToString("G29")</MudTd>
+                                <MudTd>@plan.RequiredDate.ToString("yyyy-MM-dd")</MudTd>
+                                <MudTd>@(plan.Remark ?? "-")</MudTd>
+                                <MudTd>@FormatProcessPlan(plan.ProcessPlan)</MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
+                                                   Color="Color.Info" OnClick="() => PrintPiercingPlan(plan.Id)"
+                                                   Title="打印采购申请单" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
+                                                   Color="Color.Error" OnClick="() => DeletePiercingPlan(plan.Id)"
+                                                   Title="取消" />
+                                </MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent>
+                            </NoRecordsContent>
+                        </MudTable>
+                    </MudTabPanel>
+
+                    <!-- Tab 2: 荒管采购计划 -->
+                    <MudTabPanel Text="荒管采购计划" Icon="@Icons.Material.Filled.Inventory2">
                         <MudPaper Class="pa-3 mb-4 d-flex justify-start" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                                        StartIcon="@Icons.Material.Filled.Add"
@@ -111,12 +164,11 @@
                                 </MudTd>
                             </RowTemplate>
                             <NoRecordsContent>
-                                <MudText Align="Align.Center" Color="Color.Secondary" Class="py-4">暂无原料采购计划</MudText>
                             </NoRecordsContent>
                         </MudTable>
                     </MudTabPanel>
 
-                    <!-- Tab 2: 成品采购计划 -->
+                    <!-- Tab 3: 成品采购计划 -->
                     <MudTabPanel Text="成品采购计划" Icon="@Icons.Material.Filled.Checklist">
                         <MudPaper Class="pa-3 mb-4 d-flex justify-start" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
@@ -168,12 +220,11 @@
                                 </MudTd>
                             </RowTemplate>
                             <NoRecordsContent>
-                                <MudText Align="Align.Center" Color="Color.Secondary" Class="py-4">暂无成品采购计划</MudText>
                             </NoRecordsContent>
                         </MudTable>
                     </MudTabPanel>
 
-                    <!-- Tab 3: 库存使用计划 -->
+                    <!-- Tab 4: 库存使用计划 -->
                     <MudTabPanel Text="库存使用计划" Icon="@Icons.Material.Filled.Warehouse">
                         <MudPaper Class="pa-3 mb-4 d-flex justify-start" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
@@ -226,12 +277,11 @@
                                 </MudTd>
                             </RowTemplate>
                             <NoRecordsContent>
-                                <MudText Align="Align.Center" Color="Color.Secondary" Class="py-4">暂无库存使用计划</MudText>
                             </NoRecordsContent>
                         </MudTable>
                     </MudTabPanel>
 
-                    <!-- Tab 4: 库料改制计划 -->
+                    <!-- Tab 5: 库料改制计划 -->
                     <MudTabPanel Text="库料改制计划" Icon="@Icons.Material.Filled.Construction">
                         <MudPaper Class="pa-3 mb-4 d-flex justify-start" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
@@ -288,7 +338,6 @@
                                 </MudTd>
                             </RowTemplate>
                             <NoRecordsContent>
-                                <MudText Align="Align.Center" Color="Color.Secondary" Class="py-4">暂无改制计划</MudText>
                             </NoRecordsContent>
                         </MudTable>
                     </MudTabPanel>
@@ -325,6 +374,10 @@
     private List<InventoryPlanDto> reworkPlans = new();
     private WorkOrderMaterialPlanDto? reworkSummary;
 
+    // 圆棒穿孔计划
+    private List<RoundBarPiercingPlanDto> piercingPlans = new();
+    private WorkOrderMaterialPlanDto? piercingSummary;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
@@ -351,13 +404,14 @@
                 await LoadSiblingWorkOrders();
             }
 
-            // 加载4种计划
+            // 加载5种计划
             var tasks = new Task[]
             {
                 LoadSemiPlansAsync(),
                 LoadFinishPlansAsync(),
                 LoadInventoryPlansAsync(),
-                LoadReworkPlansAsync()
+                LoadReworkPlansAsync(),
+                LoadPiercingPlansAsync()
             };
             await Task.WhenAll(tasks);
         }
@@ -409,7 +463,7 @@
     {
         var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认删除", new DialogParameters
         {
-            ["ContentText"] = "确定要删除该原料采购计划吗？\n\n删除后数据将不可恢复！",
+            ["ContentText"] = "确定要删除该荒管采购计划吗？\n\n删除后数据将不可恢复！",
             ["ConfirmText"] = "确认删除",
             ["Color"] = Color.Error
         });
@@ -614,12 +668,72 @@
         }
     }
 
+    // ===== 圆棒穿孔计划 =====
+
+    private async Task LoadPiercingPlansAsync()
+    {
+        var listResult = await MaterialPlanService.GetPiercingPlansAsync(WorkOrderId);
+        if (listResult.Success && listResult.Data != null)
+            piercingPlans = listResult.Data;
+
+        var summaryResult = await MaterialPlanService.GetSummaryAsync(WorkOrderId);
+        if (summaryResult.Success && summaryResult.Data != null)
+            piercingSummary = summaryResult.Data;
+    }
+
+    private async Task DeletePiercingPlan(int id)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认删除", new DialogParameters
+        {
+            ["ContentText"] = "确定要删除该圆棒穿孔计划吗？\n\n删除后数据将不可恢复！",
+            ["ConfirmText"] = "确认删除",
+            ["Color"] = Color.Error
+        });
+        var dialogResult = await dialog.Result;
+        if (dialogResult.Canceled) return;
+
+        try
+        {
+            var result = await MaterialPlanService.DeletePiercingPlanAsync(id);
+            if (result.Success)
+            {
+                Snackbar.Add("删除成功", Severity.Success);
+                await LoadPiercingPlansAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PrintPiercingPlan(int planId)
+    {
+        try
+        {
+            var result = await MaterialPlanService.PrintPiercingPlanAsync(planId);
+            if (result.Success && !string.IsNullOrEmpty(result.Data))
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印生成失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
     // ===== 占比率计算 =====
 
     private string GetSemiPct() => CalcPct(workOrder?.LengthStatus, semiPlans.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple), semiPlans.Sum(p => p.RequiredWeight));
     private string GetFinishPct() => CalcPct(workOrder?.LengthStatus, finishPlans.Sum(p => p.RequiredPiece ?? 0), finishPlans.Sum(p => p.RequiredWeight));
     private string GetInvPct() => CalcPct(workOrder?.LengthStatus, inventoryPlans.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple), inventoryPlans.Sum(p => p.UsedWeight));
     private string GetReworkPct() => CalcPct(workOrder?.LengthStatus, reworkPlans.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple), reworkPlans.Sum(p => p.UsedWeight));
+    private string GetPiercingPct() => CalcPct(workOrder?.LengthStatus, piercingPlans.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple), piercingPlans.Sum(p => p.RequiredWeight));
 
     private string CalcPct(LengthStatus? lengthStatus, decimal qtySum, decimal wtSum)
     {
@@ -647,6 +761,7 @@
             2 => $"/workorders/{WorkOrderId}/finish-plan/create",
             3 => $"/workorders/{WorkOrderId}/inventory-plan/create",
             4 => $"/workorders/{WorkOrderId}/rework-plan/create",
+            5 => $"/workorders/{WorkOrderId}/piercing-plan/create",
             _ => $"/workorders/{WorkOrderId}/material-plan/create"
         };
         Navigation.NavigateTo(path);
@@ -692,6 +807,7 @@
         {
             "SemiFinished" => "荒管",
             "SemiProduct" => "半成品",
+            "RoundBar" => "圆棒",
             _ => type
         };
     }

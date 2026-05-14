@@ -483,4 +483,113 @@ public class PurchaseOrderServiceTests : TestBase
         var act = () => svc.DeleteAsync(999);
         await act.Should().ThrowAsync<BusinessException>().WithMessage("采购单不存在");
     }
+
+    // ========== 圆棒穿孔采购状态 ==========
+
+    [Fact]
+    public async Task GetPiercingProcurementStatusAsync_有圆棒穿孔计划_返回状态()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var cust = await SeedCustomerAsync(ctx);
+        var ps = await SeedStandardAsync(ctx);
+        var gm = await SeedGradeMappingAsync(ctx);
+
+        // 使用 SeedConfirmedOrderAsync 模式创建工单
+        var order = new SalesOrder
+        {
+            OrderNumber = $"PO-PIERCE-{Guid.NewGuid():N}"[..15],
+            SignDate = DateTime.Today,
+            CustomerId = cust.Id,
+            Status = SalesOrderStatus.Confirmed,
+            RowVersion = new byte[8]
+        };
+        ctx.SalesOrders.Add(order);
+
+        var item = new OrderItem
+        {
+            SalesOrderId = order.Id,
+            Sequence = 1,
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            SettlementMethod = SettlementMethod.Theoretical,
+            MaterialName = MaterialName.SeamlessPipe,
+            ProductionStandardId = ps.Id,
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            StandardGrade = gm.StandardGrade,
+            PlantGrade = "20#",
+            Density = 7.85m,
+            OuterDiameter = 219m,
+            WallThickness = 8m,
+            Specification = "219*8",
+            OuterDiameterNegative = 0.5m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.5m,
+            WallThicknessPositive = 0.5m,
+            LengthStatus = LengthStatus.Fixed,
+            MinLength = 6000m,
+            MaxLength = 6000m,
+            Quantity = 10,
+            ContractWeight = 2500m,
+            TheoreticalWeight = 2500m
+        };
+        ctx.OrderItems.Add(item);
+        await ctx.SaveChangesAsync();
+
+        var wo = new WorkOrder
+        {
+            WorkOrderNo = $"WO-PIERCE-{Guid.NewGuid():N}"[..15],
+            SalesOrderNo = order.OrderNumber,
+            ProductionMainNo = "D01",
+            ProductionSubNo = "C01",
+            OrderItemIds = $"[{item.Id}]",
+            Status = WorkOrderStatus.Pending,
+            RowVersion = new byte[8],
+            SignDate = DateTime.Today,
+            Salesman = "测试",
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            MaterialName = MaterialName.SeamlessPipe,
+            SettlementMethod = SettlementMethod.Theoretical,
+            StandardCode = ps.StandardCode,
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            PlantGrade = "20#",
+            Specification = "219*8",
+            OuterDiameterNegative = 0.5m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.5m,
+            WallThicknessPositive = 0.5m,
+            LengthStatus = LengthStatus.Fixed,
+            TotalQuantity = 10,
+            TotalMeters = 60,
+            TotalWeight = 2500m,
+            TotalItemCount = 1
+        };
+        ctx.WorkOrders.Add(wo);
+        await ctx.SaveChangesAsync();
+
+        // 创建圆棒穿孔计划
+        var piercing = new RoundBarPiercingPlan
+        {
+            WorkOrderId = wo.Id,
+            PlanDate = DateTime.Today,
+            AdjustedWallThickness = 8.5m,
+            YieldRate = 85m,
+            InputMultiple = 1,
+            QualifiedRate = 95m,
+            PlantGrade = "20#",
+            RawMaterialType = RawMaterialType.RoundBar,
+            RoundBarSpec = "250*8",
+            PiercingSpec = "230*7",
+            RequiredPieces = 10,
+            RequiredWeight = 3000m,
+            RequiredDate = DateTime.Today.AddMonths(1)
+        };
+        ctx.RoundBarPiercingPlans.Add(piercing);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var statuses = await svc.GetPiercingProcurementStatusAsync();
+
+        statuses.Should().NotBeEmpty();
+        statuses.Should().Contain(s => s.WorkOrderNo == wo.WorkOrderNo);
+    }
 }
