@@ -1,0 +1,536 @@
+@page "/quality/furnace/create"
+@using MES.Core.DTOs
+@using MES.Blazor.Services
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
+@inject FurnaceRegistrationService FurnaceRegistrationService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject ColumnPrefsService ColumnPrefs
+@attribute [Authorize(Roles = "QualityStaff,QualityDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    <style>
+        .edit-table td.mud-table-cell,
+        .edit-table th.mud-table-cell {
+            padding: 1px 4px !important;
+        }
+        .edit-table .mud-input-input-control {
+            margin-top: 0;
+        }
+        .edit-table .mud-input {
+            font-size: 13px;
+            width: 100%;
+            min-width: 0;
+        }
+        .edit-table th.mud-table-cell {
+            white-space: nowrap;
+        }
+        .table-scroll {
+            max-height: calc(100vh - 280px);
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+    </style>
+
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.AddCircleOutline" Class="mr-2" Color="Color.Primary" />
+                    新建来料炉号登记
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="GoBack">返回</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <div id="furnace-registration-create-table">
+                @if (_rows.Any())
+                {
+                    <div class="d-flex align-center mb-2">
+                        <ColumnDisplaySelect Columns="_allColumns"
+                                             OnColumnToggle="OnColumnToggle"
+                                             OnMoveUp="MoveColumnUp"
+                                             OnMoveDown="MoveColumnDown" />
+                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                   Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.RestartAlt"
+                                   OnClick="ResetColumnDisplay" Class="ml-2">
+                            重置
+                        </MudButton>
+                        <MudSpacer />
+                        <MudText Typo="Typo.body2">共 @_rows.Count 行</MudText>
+                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                   Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.AddCircleOutline"
+                                   OnClick="AddRow" Class="ml-2">
+                            添加行
+                        </MudButton>
+                    </div>
+                    <div class="table-scroll">
+                        <MudTable Items="@_rows" Dense="true" Hover="true" Elevation="0" Striped="true"
+                                  Class="edit-table auto-table" SortMode="SortMode.None" FixedHeader="true">
+                            <HeaderContent>
+                                @foreach (var col in _visibleColumns)
+                                {
+                                    <MudTh>
+                                        @col.Label
+                                        @if (col.IsRequired)
+                                        {
+                                            <span class="required-star">*</span>
+                                        }
+                                    </MudTh>
+                                }
+                                <MudTh Style="width:60px;">操作</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="r">
+                                @foreach (var col in _visibleColumns)
+                                {
+                                    <MudTd>@RenderCell(r, col)</MudTd>
+                                }
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline"
+                                                   Color="Color.Error" Size="Size.Small"
+                                                   Title="删除"
+                                                   OnClick="() => RemoveRow(r)"
+                                                   Disabled="@(_rows.Count <= 1)" />
+                                </MudTd>
+                            </RowTemplate>
+                            <FooterContent>
+                                <MudTd colspan="@(_visibleColumns.Count + 1)">
+                                    <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline"
+                                                   Color="Color.Primary" Size="Size.Small"
+                                                   OnClick="AddRow" />
+                                </MudTd>
+                            </FooterContent>
+                        </MudTable>
+                    </div>
+                }
+            </div>
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <MudText Typo="Typo.body2" Color="Color.Error" Class="mt-4">@_errorMessage</MudText>
+            }
+
+            @if (_rows.Any())
+            {
+                <MudGrid Class="mt-4">
+                    <MudItem xs="12" Class="d-flex justify-end">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.CloudUpload"
+                                   OnClick="Submit" Loading="@_isSubmitting"
+                                   Size="Size.Large">
+                            确认提交 (@_rows.Count 条)
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            }
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private List<EditRow> _rows = new();
+    private bool _isSubmitting;
+    private bool _isArrowNavSetup;
+    private string _errorMessage = string.Empty;
+
+    // ========== 列定义 ==========
+
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns =>
+        _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
+
+    private static List<ColumnDef> GetAllColumnDefs() => new()
+    {
+        new() { Key = "IncomingDate",     Label = "来料日期", IsRequired = true },
+        new() { Key = "RawMaterialUnit",  Label = "原料单位", IsRequired = true },
+        new() { Key = "RawMaterialType",  Label = "原料类型", IsRequired = true },
+        new() { Key = "RegisteredGrade",  Label = "登记牌号", IsRequired = true },
+        new() { Key = "RelatedPlantGrade",Label = "关联工厂牌号" },
+        new() { Key = "FurnaceNumber",    Label = "炉号",     IsRequired = true },
+        new() { Key = "Specification",    Label = "规格" },
+        new() { Key = "Quantity",         Label = "支数" },
+        new() { Key = "Weight",           Label = "重量" },
+        new() { Key = "Carbon",           Label = "C" },
+        new() { Key = "Silicon",          Label = "Si" },
+        new() { Key = "Manganese",        Label = "Mn" },
+        new() { Key = "Phosphorus",       Label = "P" },
+        new() { Key = "Sulfur",           Label = "S" },
+        new() { Key = "Nickel",           Label = "Ni" },
+        new() { Key = "Chromium",         Label = "Cr" },
+        new() { Key = "Molybdenum",       Label = "Mo" },
+        new() { Key = "Copper",           Label = "Cu" },
+        new() { Key = "Nitrogen",         Label = "N" },
+        new() { Key = "Niobium",          Label = "Nb" },
+        new() { Key = "Titanium",         Label = "Ti" },
+        new() { Key = "Iron",             Label = "Fe" },
+        new() { Key = "Aluminum",         Label = "Al" },
+        new() { Key = "Tungsten",         Label = "W" },
+        new() { Key = "PREN",             Label = "PREN腐蚀当量" },
+        new() { Key = "Remark",           Label = "备注" },
+    };
+
+    private async Task OnColumnToggle(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task SaveColumnPrefs()
+    {
+        await ColumnPrefs.SaveAsync("furnace-registration-create", null, _allColumns);
+    }
+
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnUp(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnDown(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private class EditRow
+    {
+        public string IncomingDate { get; set; } = DateTime.Now.ToString("yyyy-MM-dd");
+        public string RawMaterialUnit { get; set; } = string.Empty;
+        public string RawMaterialType { get; set; } = string.Empty;
+        public string RegisteredGrade { get; set; } = string.Empty;
+        public string? RelatedPlantGrade { get; set; }
+        public string FurnaceNumber { get; set; } = string.Empty;
+        public string? Specification { get; set; }
+        public int? Quantity { get; set; }
+        public decimal? Weight { get; set; }
+        public decimal? Carbon { get; set; }
+        public decimal? Silicon { get; set; }
+        public decimal? Manganese { get; set; }
+        public decimal? Phosphorus { get; set; }
+        public decimal? Sulfur { get; set; }
+        public decimal? Nickel { get; set; }
+        public decimal? Chromium { get; set; }
+        public decimal? Molybdenum { get; set; }
+        public decimal? Copper { get; set; }
+        public decimal? Nitrogen { get; set; }
+        public decimal? Niobium { get; set; }
+        public decimal? Titanium { get; set; }
+        public decimal? Iron { get; set; }
+        public decimal? Aluminum { get; set; }
+        public decimal? Tungsten { get; set; }
+        public decimal? PREN { get; set; }
+        public string? Remark { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allColumns = GetAllColumnDefs();
+        var saved = await ColumnPrefs.LoadAsync("furnace-registration-create", null);
+        if (saved.Count > 0)
+        {
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
+            }
+            var reordered = new List<ColumnDef>();
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
+        }
+
+        if (!_rows.Any())
+        {
+            _rows.Add(new EditRow());
+            _rows.Add(new EditRow());
+            _rows.Add(new EditRow());
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#furnace-registration-create-table"))
+                _isArrowNavSetup = false;
+        }
+    }
+
+    private void AddRow()
+    {
+        _rows.Add(new EditRow());
+    }
+
+    private void RemoveRow(EditRow row)
+    {
+        if (_rows.Count <= 1) return;
+        _rows.Remove(row);
+    }
+
+    private async Task LookupAndSetPlantGrade(EditRow row)
+    {
+        if (string.IsNullOrWhiteSpace(row.RegisteredGrade))
+            return;
+
+        var result = await FurnaceRegistrationService.LookupPlantGradeAsync(row.RegisteredGrade);
+        if (result.Success && !string.IsNullOrEmpty(result.Data))
+        {
+            row.RelatedPlantGrade = result.Data;
+        }
+    }
+
+    private async Task Submit()
+    {
+        _errorMessage = string.Empty;
+
+        var errors = new List<string>();
+        for (int i = 0; i < _rows.Count; i++)
+        {
+            var r = _rows[i];
+            if (string.IsNullOrWhiteSpace(r.FurnaceNumber))
+                errors.Add($"第{i + 1}行：炉号不能为空");
+            if (string.IsNullOrWhiteSpace(r.RawMaterialUnit))
+                errors.Add($"第{i + 1}行：原料单位不能为空");
+            if (string.IsNullOrWhiteSpace(r.RawMaterialType))
+                errors.Add($"第{i + 1}行：原料类型不能为空");
+            if (string.IsNullOrWhiteSpace(r.RegisteredGrade))
+                errors.Add($"第{i + 1}行：登记牌号不能为空");
+        }
+
+        if (errors.Any())
+        {
+            Snackbar.Add(string.Join("；", errors), Severity.Error);
+            return;
+        }
+
+        _isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var requests = _rows.Select(r =>
+            {
+                DateTime.TryParse(r.IncomingDate, out var date);
+                return new CreateFurnaceRegistrationRequest
+                {
+                    IncomingDate = date == default ? DateTime.Now : date,
+                    RawMaterialUnit = r.RawMaterialUnit,
+                    RawMaterialType = r.RawMaterialType,
+                    RegisteredGrade = r.RegisteredGrade,
+                    RelatedPlantGrade = r.RelatedPlantGrade,
+                    FurnaceNumber = r.FurnaceNumber,
+                    Specification = r.Specification,
+                    Quantity = r.Quantity,
+                    Weight = r.Weight,
+                    Carbon = r.Carbon,
+                    Silicon = r.Silicon,
+                    Manganese = r.Manganese,
+                    Phosphorus = r.Phosphorus,
+                    Sulfur = r.Sulfur,
+                    Nickel = r.Nickel,
+                    Chromium = r.Chromium,
+                    Molybdenum = r.Molybdenum,
+                    Copper = r.Copper,
+                    Nitrogen = r.Nitrogen,
+                    Niobium = r.Niobium,
+                    Titanium = r.Titanium,
+                    Iron = r.Iron,
+                    Aluminum = r.Aluminum,
+                    Tungsten = r.Tungsten,
+                    PREN = r.PREN,
+                    Remark = r.Remark,
+                };
+            }).ToList();
+
+            var result = await FurnaceRegistrationService.BatchCreateAsync(requests);
+
+            if (result.Success && result.Data != null)
+            {
+                Snackbar.Add($"批量创建来料炉号登记成功，共{result.Data.Count}条", Severity.Success);
+                Navigation.NavigateTo("/quality/furnace");
+            }
+            else
+            {
+                _errorMessage = result.Message ?? "批量创建失败";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"网络错误: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/quality/furnace");
+    }
+
+    // ========== 单元格渲染 ==========
+
+    private RenderFragment RenderCell(EditRow r, ColumnDef col) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "IncomingDate":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.IncomingDate);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.IncomingDate = v ?? DateTime.Now.ToString("yyyy-MM-dd")));
+                builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd");
+                builder.CloseComponent();
+                break;
+            case "RawMaterialUnit":
+                RenderInputField(builder, r.RawMaterialUnit, v => r.RawMaterialUnit = v ?? "");
+                break;
+            case "RawMaterialType":
+                RenderInputField(builder, r.RawMaterialType, v => r.RawMaterialType = v ?? "");
+                break;
+            case "RegisteredGrade":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.RegisteredGrade);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v =>
+                {
+                    r.RegisteredGrade = v ?? "";
+                    _ = LookupAndSetPlantGrade(r);
+                }));
+                builder.CloseComponent();
+                break;
+            case "RelatedPlantGrade":
+                RenderInputField(builder, r.RelatedPlantGrade, v => r.RelatedPlantGrade = v);
+                break;
+            case "FurnaceNumber":
+                RenderInputField(builder, r.FurnaceNumber, v => r.FurnaceNumber = v ?? "");
+                break;
+            case "Specification":
+                RenderInputField(builder, r.Specification, v => r.Specification = v);
+                break;
+            case "Quantity":
+                RenderNumericField(builder, r.Quantity, v => r.Quantity = v);
+                break;
+            case "Weight":
+                RenderDecimalField(builder, r.Weight, v => r.Weight = v);
+                break;
+            case "Carbon":
+                RenderDecimalField(builder, r.Carbon, v => r.Carbon = v);
+                break;
+            case "Silicon":
+                RenderDecimalField(builder, r.Silicon, v => r.Silicon = v);
+                break;
+            case "Manganese":
+                RenderDecimalField(builder, r.Manganese, v => r.Manganese = v);
+                break;
+            case "Phosphorus":
+                RenderDecimalField(builder, r.Phosphorus, v => r.Phosphorus = v);
+                break;
+            case "Sulfur":
+                RenderDecimalField(builder, r.Sulfur, v => r.Sulfur = v);
+                break;
+            case "Nickel":
+                RenderDecimalField(builder, r.Nickel, v => r.Nickel = v);
+                break;
+            case "Chromium":
+                RenderDecimalField(builder, r.Chromium, v => r.Chromium = v);
+                break;
+            case "Molybdenum":
+                RenderDecimalField(builder, r.Molybdenum, v => r.Molybdenum = v);
+                break;
+            case "Copper":
+                RenderDecimalField(builder, r.Copper, v => r.Copper = v);
+                break;
+            case "Nitrogen":
+                RenderDecimalField(builder, r.Nitrogen, v => r.Nitrogen = v);
+                break;
+            case "Niobium":
+                RenderDecimalField(builder, r.Niobium, v => r.Niobium = v);
+                break;
+            case "Titanium":
+                RenderDecimalField(builder, r.Titanium, v => r.Titanium = v);
+                break;
+            case "Iron":
+                RenderDecimalField(builder, r.Iron, v => r.Iron = v);
+                break;
+            case "Aluminum":
+                RenderDecimalField(builder, r.Aluminum, v => r.Aluminum = v);
+                break;
+            case "Tungsten":
+                RenderDecimalField(builder, r.Tungsten, v => r.Tungsten = v);
+                break;
+            case "PREN":
+                RenderDecimalField(builder, r.PREN, v => r.PREN = v);
+                break;
+            case "Remark":
+                RenderInputField(builder, r.Remark, v => r.Remark = v);
+                break;
+            default:
+                builder.AddContent(0, "");
+                break;
+        }
+    };
+
+    private void RenderInputField(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder, string? value, Action<string?> setter)
+    {
+        builder.OpenComponent<MudTextField<string>>(0);
+        builder.AddAttribute(1, "Dense", true);
+        builder.AddAttribute(2, "Variant", Variant.Outlined);
+        builder.AddAttribute(3, "Size", Size.Small);
+        builder.AddAttribute(4, "Value", value);
+        builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, setter));
+        builder.CloseComponent();
+    }
+
+    private void RenderNumericField(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder, int? value, Action<int?> setter)
+    {
+        builder.OpenComponent<MudNumericField<int?>>(0);
+        builder.AddAttribute(1, "Dense", true);
+        builder.AddAttribute(2, "Variant", Variant.Outlined);
+        builder.AddAttribute(3, "Size", Size.Small);
+        builder.AddAttribute(4, "HideSpinButtons", true);
+        builder.AddAttribute(5, "Value", value);
+        builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, setter));
+        builder.CloseComponent();
+    }
+
+    private void RenderDecimalField(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder, decimal? value, Action<decimal?> setter)
+    {
+        builder.OpenComponent<MudNumericField<decimal?>>(0);
+        builder.AddAttribute(1, "Dense", true);
+        builder.AddAttribute(2, "Variant", Variant.Outlined);
+        builder.AddAttribute(3, "Size", Size.Small);
+        builder.AddAttribute(4, "HideSpinButtons", true);
+        builder.AddAttribute(5, "Format", "G29");
+        builder.AddAttribute(6, "Value", value);
+        builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, setter));
+        builder.CloseComponent();
+    }
+}

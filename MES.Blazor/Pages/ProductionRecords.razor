@@ -228,8 +228,6 @@
         new() { Key = "Shift",             Label = "班次" },
         new() { Key = "Quantity",          Label = "加工支数",   SortKey = "quantity" },
         new() { Key = "Weight",            Label = "加工重量",   SortKey = "weight" },
-        new() { Key = "DefectQuantity",    Label = "次品支数",   SortKey = "defectquantity" },
-        new() { Key = "DefectWeight",      Label = "次品重量",   SortKey = "defectweight" },
         new() { Key = "IsFinished",        Label = "是否成品" },
         new() { Key = "CuttingMultiple",   Label = "断切倍数",   SortKey = "cuttingmultiple" },
         new() { Key = "FinishedCutLength", Label = "成品长度",   SortKey = "finishedcutlength" },
@@ -255,8 +253,6 @@
         public string? Shift { get; set; }
         public int? Quantity { get; set; }
         public decimal? Weight { get; set; }
-        public int? DefectQuantity { get; set; }
-        public decimal? DefectWeight { get; set; }
         public bool IsFinished { get; set; }
         public decimal? CuttingMultiple { get; set; }
         public decimal? FinishedCutLength { get; set; }
@@ -277,8 +273,6 @@
             Shift = item.Shift,
             Quantity = item.Quantity,
             Weight = item.Weight,
-            DefectQuantity = item.DefectQuantity,
-            DefectWeight = item.DefectWeight,
             IsFinished = item.IsFinished,
             CuttingMultiple = item.CuttingMultiple,
             FinishedCutLength = item.FinishedCutLength,
@@ -318,8 +312,6 @@
                 Shift = cache.Shift,
                 Quantity = cache.Quantity,
                 Weight = cache.Weight,
-                DefectQuantity = cache.DefectQuantity,
-                DefectWeight = cache.DefectWeight,
                 IsFinished = cache.IsFinished,
                 CuttingMultiple = cache.CuttingMultiple,
                 FinishedCutLength = cache.FinishedCutLength,
@@ -338,8 +330,6 @@
                 item.Shift = result.Data.Shift;
                 item.Quantity = result.Data.Quantity;
                 item.Weight = result.Data.Weight;
-                item.DefectQuantity = result.Data.DefectQuantity;
-                item.DefectWeight = result.Data.DefectWeight;
                 item.IsFinished = result.Data.IsFinished;
                 item.CuttingMultiple = result.Data.CuttingMultiple;
                 item.FinishedCutLength = result.Data.FinishedCutLength;
@@ -564,7 +554,7 @@
     private bool IsCellEditable(string key) => key switch
     {
         "ExecDate" or "EquipmentName" or "Operator" or "Shift"
-            or "Quantity" or "Weight" or "DefectQuantity" or "DefectWeight"
+            or "Quantity" or "Weight"
             or "IsFinished" or "CuttingMultiple" or "FinishedCutLength"
             or "PostCutQuantity" or "TagNo" or "PlantGrade" or "Remark" => true,
         _ => false
@@ -682,37 +672,6 @@
                 else
                 {
                     builder.AddContent(0, DisplayHelper.FormatNullableDecimal(item.Weight));
-                }
-                break;
-            case "DefectQuantity":
-                if (isEditing && cache != null)
-                {
-                    builder.OpenComponent<MudNumericField<int?>>(0);
-                    builder.AddAttribute(1, "Value", cache.DefectQuantity);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => cache.DefectQuantity = v));
-                    builder.AddAttribute(3, "Class", "compact-input");
-                    builder.AddAttribute(4, "HideSpinButtons", true);
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.DefectQuantity));
-                }
-                break;
-            case "DefectWeight":
-                if (isEditing && cache != null)
-                {
-                    builder.OpenComponent<MudNumericField<decimal?>>(0);
-                    builder.AddAttribute(1, "Value", cache.DefectWeight);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => cache.DefectWeight = v));
-                    builder.AddAttribute(3, "Class", "compact-input");
-                    builder.AddAttribute(4, "HideSpinButtons", true);
-                    builder.AddAttribute(5, "Format", "G29");
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.AddContent(0, DisplayHelper.FormatNullableDecimal(item.DefectWeight));
                 }
                 break;
             case "IsFinished":

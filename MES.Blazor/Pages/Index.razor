@@ -1,10 +1,65 @@
 @page "/"
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using Microsoft.AspNetCore.Authorization
+@inject NavigationManager Navigation
+@attribute [Authorize]
 
-<h3>生产仪表板</h3>
-<p>欢迎使用 MES 系统，您已成功登录。</p>
-<AuthorizeView>
-    <Authorized>
-        <p>当前角色: @string.Join(", ", context.User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value))</p>
-    </Authorized>
-</AuthorizeView>
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="font-weight-bold mb-4">
+        <MudIcon Icon="@Icons.Material.Filled.Dashboard" Class="mr-2" Color="Color.Primary" />
+        生产仪表板
+    </MudText>
+
+    <MudText Typo="Typo.body1" Class="mb-4">欢迎使用 MES 系统，您已成功登录。</MudText>
+
+    <AuthorizeView>
+        <Authorized>
+            <MudText Typo="Typo.body2" Class="mb-4" Color="Color.Secondary">
+                当前角色: @string.Join(", ", context.User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value))
+            </MudText>
+        </Authorized>
+    </AuthorizeView>
+
+    <!-- 快捷导航卡片 -->
+    <MudText Typo="Typo.h6" Class="font-weight-bold mb-3">快捷导航</MudText>
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="4" lg="3">
+            <MudCard Class="pa-4" Style="cursor:pointer;" OnClick="() => Navigation.NavigateTo('/workorders')">
+                <MudCardContent>
+                    <div class="d-flex align-center">
+                        <MudIcon Icon="@Icons.Material.Filled.Assignment" Color="Color.Primary" Size="Size.Large" Class="mr-3" />
+                        <div>
+                            <MudText Typo="Typo.subtitle1" Class="font-weight-bold">工单管理</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">查看和管理生产工单</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4" lg="3">
+            <MudCard Class="pa-4" Style="cursor:pointer;" OnClick="() => Navigation.NavigateTo('/orders')">
+                <MudCardContent>
+                    <div class="d-flex align-center">
+                        <MudIcon Icon="@Icons.Material.Filled.Receipt" Color="Color.Info" Size="Size.Large" Class="mr-3" />
+                        <div>
+                            <MudText Typo="Typo.subtitle1" Class="font-weight-bold">订单管理</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">查看和管理销售订单</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4" lg="3">
+            <MudCard Class="pa-4" Style="cursor:pointer;" OnClick="() => Navigation.NavigateTo('/batches')">
+                <MudCardContent>
+                    <div class="d-flex align-center">
+                        <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Color="Color.Warning" Size="Size.Large" Class="mr-3" />
+                        <div>
+                            <MudText Typo="Typo.subtitle1" Class="font-weight-bold">生产批次</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">查看和管理生产批次</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</MudContainer>

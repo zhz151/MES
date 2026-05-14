@@ -39,34 +39,48 @@
 
                 <!-- 批次模块 -->
                 <AuthorizeView Roles="BatchStaff,BatchDirector,Admin">
-                    <MudMenu Label="批次管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("batches","production-records","section-outsources","material-checks")">
+                    <MudMenu Label="批次管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("batches","production-records","section-outsources")">
                         <MudMenuItem Class="@GetMenuItemClass("/batches")" OnClick='() => NavigateTo("/batches")'>批次首页</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/production-records")" OnClick='() => NavigateTo("/production-records")'>生产记录</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/section-outsources")" OnClick='() => NavigateTo("/section-outsources")'>工段委外</MudMenuItem>
-                        <MudMenuItem Class="@GetMenuItemClass("/material-checks")" OnClick='() => NavigateTo("/material-checks")'>检验到料</MudMenuItem>
                     </MudMenu>
-                    <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("mobile-report")" OnClick='() => NavigateTo("/mobile-report")'>扫码报工</MudButton>
                     <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("process-card-print")" OnClick='() => NavigateTo("/process-card-print")'>工艺卡打印</MudButton>
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("mobile-report")" OnClick='() => NavigateTo("/mobile-report")'>扫码报工</MudButton>
                 </AuthorizeView>
 
                 <!-- 质量模块 -->
                 <AuthorizeView Roles="QualityStaff,QualityDirector,Admin">
-                    <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("quality")" OnClick='() => NavigateTo("/quality")'>质量管理</MudButton>
+                    <MudMenu Label="质量管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("quality/furnace","quality/process-inspection","material-checks","quality/chemical-composition","quality/chemical-validate","quality/final-inspection","quality/lab-testing","quality/certificate")">
+                        <MudMenuItem Class="@GetMenuItemClass("/quality/furnace")">
+                            <span @onmouseenter="ShowFurnaceSub" @onmouseleave="StartFurnaceHideTimer"
+                                  style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
+                                <span>炉号登记</span>
+                                <span style="font-size: 10px; opacity: 0.6;">▶</span>
+                            </span>
+                        </MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/quality/furnace")"
+                                     Style="@(_showFurnaceSubmenu ? "padding-left: 28px;" : "display: none;")"
+                                     @onmouseenter="CancelFurnaceHideTimer" @onmouseleave="StartFurnaceHideTimer"
+                                     OnClick='() => NavigateTo("/quality/furnace")'>炉号登记</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/quality/chemical-composition")"
+                                     Style="@(_showFurnaceSubmenu ? "padding-left: 28px;" : "display: none;")"
+                                     @onmouseenter="CancelFurnaceHideTimer" @onmouseleave="StartFurnaceHideTimer"
+                                     OnClick='() => NavigateTo("/quality/chemical-composition")'>牌号化学</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/quality/chemical-validate")"
+                                     Style="@(_showFurnaceSubmenu ? "padding-left: 28px;" : "display: none;")"
+                                     @onmouseenter="CancelFurnaceHideTimer" @onmouseleave="StartFurnaceHideTimer"
+                                     OnClick='() => NavigateTo("/quality/chemical-validate")'>牌号验证</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/quality/process-inspection")" OnClick='() => NavigateTo("/quality/process-inspection")'>过程检验</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/material-checks")" OnClick='() => NavigateTo("/material-checks")'>检验到料</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/quality/final-inspection")" OnClick='() => NavigateTo("/quality/final-inspection")'>成品检验</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/quality/lab-testing")" OnClick='() => NavigateTo("/quality/lab-testing")'>理化检测</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/quality/certificate")" OnClick='() => NavigateTo("/quality/certificate")'>质量证明书</MudMenuItem>
+                    </MudMenu>
                 </AuthorizeView>
 
                 <!-- 设备模块 -->
                 <AuthorizeView Roles="EquipmentStaff,EquipmentDirector,Admin">
                     <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("equipment")" OnClick='() => NavigateTo("/equipment")'>设备管理</MudButton>
-                </AuthorizeView>
-
-                <!-- 仓库模块 -->
-                <AuthorizeView Roles="WarehouseStaff,WarehouseDirector,Admin">
-                    <MudMenu Label="仓库管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("warehouse/raw","warehouse/fg","warehouse/defect","warehouse/wip")">
-                        <MudMenuItem Class="@GetMenuItemClass("/warehouse/raw")" OnClick='() => NavigateTo("/warehouse/raw")'>原料库</MudMenuItem>
-                        <MudMenuItem Class="@GetMenuItemClass("/warehouse/fg")" OnClick='() => NavigateTo("/warehouse/fg")'>成品库</MudMenuItem>
-                        <MudMenuItem Class="@GetMenuItemClass("/warehouse/defect")" OnClick='() => NavigateTo("/warehouse/defect")'>次品库</MudMenuItem>
-                        <MudMenuItem Class="@GetMenuItemClass("/warehouse/wip")" OnClick='() => NavigateTo("/warehouse/wip")'>在制品库</MudMenuItem>
-                    </MudMenu>
                 </AuthorizeView>
 
                 <!-- 物料模块 -->
@@ -76,6 +90,16 @@
                         <MudMenuItem Class="@GetMenuItemClass("/subcontract-orders")" OnClick='() => NavigateTo("/subcontract-orders")'>委外加工</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/suppliers")" OnClick='() => NavigateTo("/suppliers")'>供应商管理</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/materials")" OnClick='() => NavigateTo("/materials")'>物料档案</MudMenuItem>
+                    </MudMenu>
+                </AuthorizeView>
+
+                <!-- 仓库模块 -->
+                <AuthorizeView Roles="WarehouseStaff,WarehouseDirector,Admin">
+                    <MudMenu Label="仓库管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("warehouse/raw","warehouse/fg","warehouse/defect","warehouse/wip")">
+                        <MudMenuItem Class="@GetMenuItemClass("/warehouse/raw")" OnClick='() => NavigateTo("/warehouse/raw")'>原料库</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/warehouse/fg")" OnClick='() => NavigateTo("/warehouse/fg")'>成品库</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/warehouse/defect")" OnClick='() => NavigateTo("/warehouse/defect")'>次品库</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/warehouse/wip")" OnClick='() => NavigateTo("/warehouse/wip")'>在制品库</MudMenuItem>
                     </MudMenu>
                 </AuthorizeView>
 
@@ -109,6 +133,33 @@
 
 @code {
     private AuthenticationState? _authenticationState;
+    private bool _showFurnaceSubmenu;
+    private CancellationTokenSource? _hideSubmenuCts;
+
+    private void ShowFurnaceSub()
+    {
+        _hideSubmenuCts?.Cancel();
+        _showFurnaceSubmenu = true;
+    }
+
+    private void CancelFurnaceHideTimer()
+    {
+        _hideSubmenuCts?.Cancel();
+    }
+
+    private async void StartFurnaceHideTimer()
+    {
+        _hideSubmenuCts?.Cancel();
+        _hideSubmenuCts = new CancellationTokenSource();
+        var token = _hideSubmenuCts.Token;
+        try
+        {
+            await Task.Delay(200, token);
+            _showFurnaceSubmenu = false;
+            StateHasChanged();
+        }
+        catch (TaskCanceledException) { }
+    }
 
     protected override async Task OnInitializedAsync()
     {

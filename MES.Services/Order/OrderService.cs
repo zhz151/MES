@@ -319,6 +319,14 @@ public class OrderService : IOrderService
         };
     }
 
+    public async Task<int?> GetIdByOrderNumberAsync(string orderNo)
+    {
+        var salesOrder = await _context.SalesOrders
+            .AsNoTracking()
+            .FirstOrDefaultAsync(so => so.OrderNumber == orderNo);
+        return salesOrder?.Id;
+    }
+
     public async Task<SalesOrderListDto> CreateAsync(CreateSalesOrderRequest request)
     {
         if (await _context.SalesOrders.AnyAsync(so => so.OrderNumber == request.OrderNumber))

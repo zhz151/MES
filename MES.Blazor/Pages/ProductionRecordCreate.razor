@@ -159,8 +159,6 @@
         new() { Key = "Shift",             Label = "班次" },                     // → Entity.Shift
         new() { Key = "Quantity",          Label = "加工支数" },                 // → Entity.Quantity
         new() { Key = "Weight",            Label = "加工重量" },                 // → Entity.Weight
-        new() { Key = "DefectQuantity",    Label = "次品支数" },                 // → Entity.DefectQuantity
-        new() { Key = "DefectWeight",      Label = "次品重量" },                 // → Entity.DefectWeight
         new() { Key = "IsFinished",        Label = "是否成品" },                 // → Entity.IsFinished
         new() { Key = "CuttingMultiple",   Label = "断切倍数" },                 // → Entity.CuttingMultiple
         new() { Key = "FinishedCutLength", Label = "成品长度" },                 // → Entity.FinishedCutLength
@@ -208,8 +206,6 @@
         public string? Shift { get; set; }                                                      // → Entity.Shift
         public int? Quantity { get; set; }                                                      // → Entity.Quantity
         public decimal? Weight { get; set; }                                                    // → Entity.Weight
-        public int? DefectQuantity { get; set; }                                                // → Entity.DefectQuantity
-        public decimal? DefectWeight { get; set; }                                              // → Entity.DefectWeight
         public bool IsFinished { get; set; }                                                    // → Entity.IsFinished
         public decimal? CuttingMultiple { get; set; }                                           // → Entity.CuttingMultiple
         public decimal? FinishedCutLength { get; set; }                                         // → Entity.FinishedCutLength
@@ -318,8 +314,6 @@
                 Shift = r.Shift,
                 Quantity = r.Quantity,
                 Weight = r.Weight,
-                DefectQuantity = r.DefectQuantity,
-                DefectWeight = r.DefectWeight,
                 IsFinished = r.IsFinished,
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
@@ -479,29 +473,6 @@
                 builder.AddAttribute(5, "Format", "G29");
                 builder.AddAttribute(6, "Value", r.Weight);
                 builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.Weight = v));
-                builder.AddAttribute(8, "Clearable", true);
-                builder.CloseComponent();
-                break;
-            case "DefectQuantity":
-                builder.OpenComponent<MudNumericField<int?>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(5, "HideSpinButtons",true);
-                builder.AddAttribute(5, "Value", r.DefectQuantity);
-                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.DefectQuantity = v));
-                builder.AddAttribute(7, "Clearable", true);
-                builder.CloseComponent();
-                break;
-            case "DefectWeight":
-                builder.OpenComponent<MudNumericField<decimal?>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(5, "HideSpinButtons",true);
-                builder.AddAttribute(5, "Format", "G29");
-                builder.AddAttribute(6, "Value", r.DefectWeight);
-                builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.DefectWeight = v));
                 builder.AddAttribute(8, "Clearable", true);
                 builder.CloseComponent();
                 break;

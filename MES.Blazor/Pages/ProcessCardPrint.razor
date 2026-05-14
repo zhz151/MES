@@ -340,6 +340,8 @@
         new() { BlockKey = "Warehouse", Key = "SourceUnitWeight", Label = "单支重(kg)", Visible = false },
         new() { BlockKey = "Warehouse", Key = "InputQuantity", Label = "领料支数", Visible = true },
         new() { BlockKey = "Warehouse", Key = "InputWeight", Label = "领料重量(kg)", Visible = true },
+        new() { BlockKey = "Warehouse", Key = "CurrentValidQty", Label = "有效原料支数", Visible = true },
+        new() { BlockKey = "Warehouse", Key = "CurrentValidWeight", Label = "有效原料重量(kg)", Visible = true },
 
         // === 工单信息 ===
         new() { BlockKey = "WorkOrder", Key = "WorkOrderNo", Label = "工单号", Visible = true },
@@ -426,14 +428,30 @@
         }
 
         // 加载格式设置列偏好
-        allColumns = GetDefaultColumns();
+        var defaults = GetDefaultColumns();
+        allColumns = defaults.Select(d => new ProcessCardColumnDef
+        {
+            BlockKey = d.BlockKey, Key = d.Key, Label = d.Label, Visible = d.Visible
+        }).ToList();
         var saved = await ColumnPrefs.LoadAsync(PrefsKey, null);
         if (saved.Count > 0)
         {
+            var savedKeys = new HashSet<string>(saved.Select(s => s.Key), StringComparer.OrdinalIgnoreCase);
             foreach (var savedCol in saved)
             {
-                var match = allColumns.FirstOrDefault(c => c.Key == savedCol.Key);
+                var match = allColumns.FirstOrDefault(c =>
+                    c.Key.Equals(savedCol.Key, StringComparison.OrdinalIgnoreCase));
                 if (match != null) match.Visible = savedCol.Visible;
+            }
+            // 确保新增字段（默认 Visible=true 但不在已保存偏好中）保持可见
+            foreach (var def in defaults)
+            {
+                if (!savedKeys.Contains(def.Key) && def.Visible)
+                {
+                    var match = allColumns.FirstOrDefault(c =>
+                        c.Key.Equals(def.Key, StringComparison.OrdinalIgnoreCase));
+                    if (match != null) match.Visible = true;
+                }
             }
         }
     }

@@ -14,11 +14,13 @@ namespace MES.Api.Controllers;
 public class BatchController : ControllerBase
 {
     private readonly IBatchService _service;
+    private readonly IProductionRecordService _productionRecordService;
     private readonly ILogger<BatchController> _logger;
 
-    public BatchController(IBatchService service, ILogger<BatchController> logger)
+    public BatchController(IBatchService service, IProductionRecordService productionRecordService, ILogger<BatchController> logger)
     {
         _service = service;
+        _productionRecordService = productionRecordService;
         _logger = logger;
     }
 
@@ -206,6 +208,89 @@ public class BatchController : ControllerBase
         var query = new BatchQueryParams { WorkOrderNo = workOrderNo, PageSize = 5000 };
         var result = await _service.GetPagedAsync(query);
         return Ok(ApiResponse<List<ProductionBatchListDto>>.Ok(result.Items.ToList(), "查询成功"));
+    }
+
+    // ========== 批次跟踪可视化 ==========
+
+    [HttpGet("{id}/tracking")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<BatchTrackingVisualDto>>> GetTrackingVisual(int id)
+    {
+        try
+        {
+            var result = await _productionRecordService.GetTrackingVisualAsync(id);
+            return Ok(ApiResponse<BatchTrackingVisualDto>.Ok(result, "查询成功"));
+        }
+        catch (BusinessException ex)
+        {
+            return NotFound(ApiResponse<BatchTrackingVisualDto>.Fail(ex.Message));
+        }
+    }
+
+    // ========== 相邻批次导航 ==========
+
+    [HttpGet("{id}/adjacent")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<AdjacentBatchDto>>> GetAdjacentBatch(int id)
+    {
+        var result = await _service.GetAdjacentBatchAsync(id);
+        return Ok(ApiResponse<AdjacentBatchDto>.Ok(result, "查询成功"));
+    }
+
+    // ========== 按批次号调取工序组（用于前端快速复制） ==========
+
+    [HttpGet("{batchNo}/process-groups")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<CreateProcessGroupRequest>>>> GetProcessGroupsByBatchNo(string batchNo)
+    {
+        try
+        {
+            var batch = await _service.GetByBatchNoAsync(batchNo);
+            if (batch == null)
+                return NotFound(ApiResponse<List<CreateProcessGroupRequest>>.Fail($"批次号 {batchNo} 不存在"));
+
+            var result = batch.ProcessGroups.Select(pg => new CreateProcessGroupRequest
+            {
+                ProcessName = pg.ProcessName,
+                ManufacturingSpec = pg.ManufacturingSpec,
+                OuterDiameterTolerance = pg.OuterDiameterTolerance,
+                WallThicknessTolerance = pg.WallThicknessTolerance,
+                ManufacturingLength = pg.ManufacturingLength,
+                CuttingTreatment = pg.CuttingTreatment,
+                Remark = pg.Remark,
+                ColdRollDraw = pg.ColdRollDraw,
+                OilPipeCut = pg.OilPipeCut,
+                Degrease = pg.Degrease,
+                Solution = pg.Solution,
+                Straighten = pg.Straighten,
+                Cut = pg.Cut,
+                ThicknessMeasure = pg.ThicknessMeasure,
+                Pickle = pg.Pickle,
+                OuterPolish = pg.OuterPolish,
+                InnerGrinding = pg.InnerGrinding,
+                OuterSpotGrinding = pg.OuterSpotGrinding,
+                Inspection = pg.Inspection,
+                WeldingHead = pg.WeldingHead,
+                Lubrication = pg.Lubrication,
+                Warehouse = pg.Warehouse
+            }).ToList();
+
+            return Ok(ApiResponse<List<CreateProcessGroupRequest>>.Ok(result, "查询成功"));
+        }
+        catch (BusinessException ex)
+        {
+            return NotFound(ApiResponse<List<CreateProcessGroupRequest>>.Fail(ex.Message));
+        }
+    }
+
+    // ========== 批次操作日志 ==========
+
+    [HttpGet("{id}/operation-logs")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<BatchOperationLogDto>>>> GetOperationLogs(int id)
+    {
+        var result = await _service.GetOperationLogsAsync(id);
+        return Ok(ApiResponse<List<BatchOperationLogDto>>.Ok(result, "查询成功"));
     }
 
     // ========== 打印 ==========

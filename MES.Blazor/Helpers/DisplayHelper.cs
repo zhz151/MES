@@ -153,6 +153,8 @@ public static class DisplayHelper
             "None" => Color.Default,
             "InProgress" => Color.Info,
             "Completed" => Color.Success,
+            "Suspended" => Color.Warning,
+            "Cancelled" => Color.Error,
             _ => Color.Default
         };
     }
@@ -167,6 +169,8 @@ public static class DisplayHelper
             "None" => "未产",
             "InProgress" => "在产",
             "Completed" => "完成",
+            "Suspended" => "挂起",
+            "Cancelled" => "作废",
             _ => status
         };
     }

@@ -314,6 +314,16 @@ public class ProductionBatch : BaseEntity
     /// </summary>
     public decimal? InputWeight { get; set; }
 
+    /// <summary>
+    /// 现有效原料支数
+    /// </summary>
+    public int? CurrentValidQty { get; set; }
+
+    /// <summary>
+    /// 现有效原料重量
+    /// </summary>
+    public decimal? CurrentValidWeight { get; set; }
+
     // ========== 导航属性 ==========
 
     /// <summary>

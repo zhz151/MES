@@ -1,0 +1,593 @@
+@page "/quality/chemical-composition"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using MES.Blazor.Helpers
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
+@inject ChemicalCompositionService ChemicalCompositionService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+@inject ColumnPrefsService ColumnPrefs
+@attribute [Authorize(Roles = "QualityStaff,QualityDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Science" Class="mr-2" Color="Color.Primary" />
+                    牌号化学成分
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="NavigateToCreate"
+                           Class="mr-2">
+                    新建
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <!-- 搜索栏 -->
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string"
+                                  Label="模糊搜索 - 工厂牌号"
+                                  Value="searchKeyword"
+                                  ValueChanged="@OnSearchChanged"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+            </MudGrid>
+
+            <!-- 数据表格 -->
+            <div id="chemical-composition-list-table">
+            <MudTable @ref="table"
+                      T="ChemicalCompositionDto"
+                      ServerData="OnServerData"
+                      Loading="@isLoading"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-4 auto-table"
+                      Elevation="0"
+                      RowsPerPageLabel="每页行数:">
+                <ToolBarContent>
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                    <MudSpacer />
+                    <MudButton Variant="Variant.Outlined"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintCurrentView">
+                        打印
+                    </MudButton>
+                    <MudText Typo="Typo.body2" Class="ml-auto">
+                        共 @totalCount 条记录
+                    </MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTh>
+                            @if (!string.IsNullOrEmpty(col.SortKey))
+                            {
+                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
+                                    @col.Label
+                                </span>
+                                @if (sortColumn == col.SortKey)
+                                {
+                                    <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="th-label">@col.Label</span>
+                            }
+                        </MudTh>
+                    }
+                    <MudTh>操作</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="item">
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd>@RenderCell(item, col)</MudTd>
+                    }
+                    <MudTd Style="white-space: nowrap; width: 90px;">
+                        @{
+                            var isEditing = _editingIds.Contains(item.Id);
+                        }
+                        @if (isEditing)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small" OnClick="() => SaveEdit(item)" Disabled="@_isSaving" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Default" Size="Size.Small" OnClick="() => CancelEdit(item)" />
+                        }
+                        else
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => StartEdit(item)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItem(item)" />
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+            </div>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private MudTable<ChemicalCompositionDto>? table;
+    private List<ChemicalCompositionDto> records = new();
+    private bool _isArrowNavSetup;
+    private bool isLoading = false;
+    private string searchKeyword = string.Empty;
+    private int totalCount = 0;
+
+    private string sortColumn = "plantgrade";
+    private bool sortDescending = false;
+
+    // ========== 列定义 ==========
+
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns =>
+        _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
+
+    private static List<ColumnDef> GetAllColumnDefs() => new()
+    {
+        new() { Key = "PlantGrade",   Label = "工厂牌号",   SortKey = "plantgrade" },
+        new() { Key = "Carbon",       Label = "C" },
+        new() { Key = "Silicon",      Label = "Si" },
+        new() { Key = "Manganese",    Label = "Mn" },
+        new() { Key = "Phosphorus",   Label = "P" },
+        new() { Key = "Sulfur",       Label = "S" },
+        new() { Key = "Nickel",       Label = "Ni" },
+        new() { Key = "Chromium",     Label = "Cr" },
+        new() { Key = "Molybdenum",   Label = "Mo" },
+        new() { Key = "Copper",       Label = "Cu" },
+        new() { Key = "Nitrogen",     Label = "N" },
+        new() { Key = "Niobium",      Label = "Nb" },
+        new() { Key = "Titanium",     Label = "Ti" },
+        new() { Key = "Iron",         Label = "Fe" },
+        new() { Key = "Aluminum",     Label = "Al" },
+        new() { Key = "Tungsten",     Label = "W" },
+        new() { Key = "PREN",         Label = "PREN腐蚀当量" },
+        new() { Key = "CreatedTime",  Label = "创建日期",   SortKey = "createdtime" },
+        new() { Key = "UpdatedTime",  Label = "更新日期",   SortKey = "updatedtime" },
+    };
+
+    // ========== 内联编辑 ==========
+
+    private HashSet<int> _editingIds = new();
+    private Dictionary<int, EditCache> _editCache = new();
+    private bool _isSaving;
+
+    private class EditCache
+    {
+        public string PlantGrade { get; set; } = "";
+        public string? Carbon { get; set; }
+        public string? Silicon { get; set; }
+        public string? Manganese { get; set; }
+        public string? Phosphorus { get; set; }
+        public string? Sulfur { get; set; }
+        public string? Nickel { get; set; }
+        public string? Chromium { get; set; }
+        public string? Molybdenum { get; set; }
+        public string? Copper { get; set; }
+        public string? Nitrogen { get; set; }
+        public string? Niobium { get; set; }
+        public string? Titanium { get; set; }
+        public string? Iron { get; set; }
+        public string? Aluminum { get; set; }
+        public string? Tungsten { get; set; }
+        public string? PREN { get; set; }
+    }
+
+    private void StartEdit(ChemicalCompositionDto item)
+    {
+        _editingIds.Add(item.Id);
+        _editCache[item.Id] = new EditCache
+        {
+            PlantGrade = item.PlantGrade,
+            Carbon = item.Carbon,
+            Silicon = item.Silicon,
+            Manganese = item.Manganese,
+            Phosphorus = item.Phosphorus,
+            Sulfur = item.Sulfur,
+            Nickel = item.Nickel,
+            Chromium = item.Chromium,
+            Molybdenum = item.Molybdenum,
+            Copper = item.Copper,
+            Nitrogen = item.Nitrogen,
+            Niobium = item.Niobium,
+            Titanium = item.Titanium,
+            Iron = item.Iron,
+            Aluminum = item.Aluminum,
+            Tungsten = item.Tungsten,
+            PREN = item.PREN
+        };
+    }
+
+    private void CancelEdit(ChemicalCompositionDto item)
+    {
+        _editingIds.Remove(item.Id);
+        _editCache.Remove(item.Id);
+    }
+
+    private async Task SaveEdit(ChemicalCompositionDto item)
+    {
+        if (!_editCache.TryGetValue(item.Id, out var cache)) return;
+
+        if (string.IsNullOrWhiteSpace(cache.PlantGrade))
+        {
+            Snackbar.Add("工厂牌号不能为空", Severity.Error);
+            return;
+        }
+
+        _isSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            var request = new UpdateChemicalCompositionRequest
+            {
+                PlantGrade = cache.PlantGrade,
+                Carbon = cache.Carbon,
+                Silicon = cache.Silicon,
+                Manganese = cache.Manganese,
+                Phosphorus = cache.Phosphorus,
+                Sulfur = cache.Sulfur,
+                Nickel = cache.Nickel,
+                Chromium = cache.Chromium,
+                Molybdenum = cache.Molybdenum,
+                Copper = cache.Copper,
+                Nitrogen = cache.Nitrogen,
+                Niobium = cache.Niobium,
+                Titanium = cache.Titanium,
+                Iron = cache.Iron,
+                Aluminum = cache.Aluminum,
+                Tungsten = cache.Tungsten,
+                PREN = cache.PREN
+            };
+
+            var result = await ChemicalCompositionService.UpdateAsync(item.Id, request);
+            if (result.Success && result.Data != null)
+            {
+                item.PlantGrade = result.Data.PlantGrade;
+                item.Carbon = result.Data.Carbon;
+                item.Silicon = result.Data.Silicon;
+                item.Manganese = result.Data.Manganese;
+                item.Phosphorus = result.Data.Phosphorus;
+                item.Sulfur = result.Data.Sulfur;
+                item.Nickel = result.Data.Nickel;
+                item.Chromium = result.Data.Chromium;
+                item.Molybdenum = result.Data.Molybdenum;
+                item.Copper = result.Data.Copper;
+                item.Nitrogen = result.Data.Nitrogen;
+                item.Niobium = result.Data.Niobium;
+                item.Titanium = result.Data.Titanium;
+                item.Iron = result.Data.Iron;
+                item.Aluminum = result.Data.Aluminum;
+                item.Tungsten = result.Data.Tungsten;
+                item.PREN = result.Data.PREN;
+                item.UpdatedTime = result.Data.UpdatedTime;
+
+                _editingIds.Remove(item.Id);
+                _editCache.Remove(item.Id);
+                Snackbar.Add("更新成功", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "更新失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"更新失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    // ========== 列选择操作 ==========
+
+    private async Task OnColumnToggle(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task SaveColumnPrefs()
+    {
+        await ColumnPrefs.SaveAsync("chemical-composition", null, _allColumns);
+    }
+
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnUp(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnDown(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    // ========== 初始化 ==========
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allColumns = GetAllColumnDefs();
+        var saved = await ColumnPrefs.LoadAsync("chemical-composition", null);
+        if (saved.Count > 0)
+        {
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
+            }
+            var reordered = new List<ColumnDef>();
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#chemical-composition-list-table"))
+                _isArrowNavSetup = false;
+        }
+    }
+
+    private string GetSortIndicator(string column)
+    {
+        if (sortColumn != column) return "";
+        return sortDescending ? "\u25BC" : "\u25B2";
+    }
+
+    private async Task<TableData<ChemicalCompositionDto>> OnServerData(TableState state)
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await ChemicalCompositionService.GetAllAsync(
+                state.Page + 1, state.PageSize,
+                string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                sortColumn, sortDescending);
+
+            if (result.Success && result.Data != null)
+            {
+                records = result.Data.Items;
+                totalCount = result.Data.TotalCount;
+                return new TableData<ChemicalCompositionDto>
+                {
+                    Items = records,
+                    TotalItems = totalCount
+                };
+            }
+
+            return new TableData<ChemicalCompositionDto>
+            {
+                Items = new List<ChemicalCompositionDto>(),
+                TotalItems = 0
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"加载失败: {ex.Message}");
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+            return new TableData<ChemicalCompositionDto>
+            {
+                Items = new List<ChemicalCompositionDto>(),
+                TotalItems = 0
+            };
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleSort(string column)
+    {
+        if (sortColumn == column)
+            sortDescending = !sortDescending;
+        else
+        {
+            sortColumn = column;
+            sortDescending = false;
+        }
+        if (table != null)
+            await table.ReloadServerData();
+    }
+
+    private async Task OnSearchChanged(string value)
+    {
+        searchKeyword = value ?? string.Empty;
+        if (table != null)
+            await table.ReloadServerData();
+    }
+
+    private void NavigateToCreate() => Navigation.NavigateTo("/quality/chemical-composition/create");
+
+    // ========== 打印 ==========
+
+    private async Task PrintCurrentView()
+    {
+        await JS.InvokeVoidAsync("printTable", "#chemical-composition-list-table", "牌号化学成分");
+    }
+
+    private async Task DeleteItem(ChemicalCompositionDto item)
+    {
+        var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
+        {
+            ["ContentText"] = $"确定要删除工厂牌号 \"{item.PlantGrade}\" 的化学成分记录吗？\n\n删除后数据将不可恢复！",
+            ["ConfirmText"] = "确认删除",
+            ["Color"] = Color.Error
+        });
+        var dialogResult = await dialog.Result;
+        if (!dialogResult.Canceled)
+        {
+            try
+            {
+                var result = await ChemicalCompositionService.DeleteAsync(item.Id);
+                if (result.Success)
+                {
+                    Snackbar.Add("删除成功", Severity.Success);
+                    await OnSearchChanged(searchKeyword);
+                }
+                else
+                {
+                    Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    // ========== 单元格渲染 ==========
+
+    private RenderFragment RenderCell(ChemicalCompositionDto item, ColumnDef col) => builder =>
+    {
+        var isEditing = _editingIds.Contains(item.Id);
+        var cache = isEditing ? _editCache.GetValueOrDefault(item.Id) : null;
+
+        switch (col.Key)
+        {
+            case "PlantGrade":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", cache.PlantGrade);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.PlantGrade = v ?? ""));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, item.PlantGrade);
+                }
+                break;
+            case "Carbon":
+                RenderEditField(builder, isEditing, cache?.Carbon, v => { if (cache != null) cache.Carbon = v; }, item.Carbon);
+                break;
+            case "Silicon":
+                RenderEditField(builder, isEditing, cache?.Silicon, v => { if (cache != null) cache.Silicon = v; }, item.Silicon);
+                break;
+            case "Manganese":
+                RenderEditField(builder, isEditing, cache?.Manganese, v => { if (cache != null) cache.Manganese = v; }, item.Manganese);
+                break;
+            case "Phosphorus":
+                RenderEditField(builder, isEditing, cache?.Phosphorus, v => { if (cache != null) cache.Phosphorus = v; }, item.Phosphorus);
+                break;
+            case "Sulfur":
+                RenderEditField(builder, isEditing, cache?.Sulfur, v => { if (cache != null) cache.Sulfur = v; }, item.Sulfur);
+                break;
+            case "Nickel":
+                RenderEditField(builder, isEditing, cache?.Nickel, v => { if (cache != null) cache.Nickel = v; }, item.Nickel);
+                break;
+            case "Chromium":
+                RenderEditField(builder, isEditing, cache?.Chromium, v => { if (cache != null) cache.Chromium = v; }, item.Chromium);
+                break;
+            case "Molybdenum":
+                RenderEditField(builder, isEditing, cache?.Molybdenum, v => { if (cache != null) cache.Molybdenum = v; }, item.Molybdenum);
+                break;
+            case "Copper":
+                RenderEditField(builder, isEditing, cache?.Copper, v => { if (cache != null) cache.Copper = v; }, item.Copper);
+                break;
+            case "Nitrogen":
+                RenderEditField(builder, isEditing, cache?.Nitrogen, v => { if (cache != null) cache.Nitrogen = v; }, item.Nitrogen);
+                break;
+            case "Niobium":
+                RenderEditField(builder, isEditing, cache?.Niobium, v => { if (cache != null) cache.Niobium = v; }, item.Niobium);
+                break;
+            case "Titanium":
+                RenderEditField(builder, isEditing, cache?.Titanium, v => { if (cache != null) cache.Titanium = v; }, item.Titanium);
+                break;
+            case "Iron":
+                RenderEditField(builder, isEditing, cache?.Iron, v => { if (cache != null) cache.Iron = v; }, item.Iron);
+                break;
+            case "Aluminum":
+                RenderEditField(builder, isEditing, cache?.Aluminum, v => { if (cache != null) cache.Aluminum = v; }, item.Aluminum);
+                break;
+            case "Tungsten":
+                RenderEditField(builder, isEditing, cache?.Tungsten, v => { if (cache != null) cache.Tungsten = v; }, item.Tungsten);
+                break;
+            case "PREN":
+                RenderEditField(builder, isEditing, cache?.PREN, v => { if (cache != null) cache.PREN = v; }, item.PREN);
+                break;
+            case "CreatedTime":
+                builder.AddContent(0, item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
+                break;
+            case "UpdatedTime":
+                builder.AddContent(0, item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
+                break;
+            default:
+                builder.AddContent(0, "");
+                break;
+        }
+    };
+
+    private void RenderEditField(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder, bool isEditing, string? editValue, Action<string?> setter, string? displayValue)
+    {
+        if (isEditing)
+        {
+            builder.OpenComponent<MudTextField<string>>(0);
+            builder.AddAttribute(1, "Value", editValue);
+            builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string?>(this, setter));
+            builder.AddAttribute(3, "Class", "compact-input");
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddContent(0, displayValue);
+        }
+    }
+}

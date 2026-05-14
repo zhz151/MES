@@ -270,6 +270,19 @@ public class ProductionRecordService
         catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    /// <summary>
+    /// 获取批次跟踪可视化数据
+    /// </summary>
+    public async Task<ApiResponse<BatchTrackingVisualDto>> GetTrackingVisualAsync(int batchId)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<BatchTrackingVisualDto>>($"api/batch/{batchId}/tracking")
+                   ?? ApiResponse<BatchTrackingVisualDto>.Fail("获取跟踪数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<BatchTrackingVisualDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     // ========== 打印 ==========
 
     public async Task<ApiResponse<string>> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)

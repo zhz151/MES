@@ -17,6 +17,12 @@ public interface IOrderService
     Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, bool? hasTechnicalRequirement = null, List<SalesOrderStatus>? statuses = null);
 
     Task<SalesOrderDetailDto> GetByIdAsync(int id);
+
+    /// <summary>
+    /// 根据订单号获取订单ID（用于跳转详情页）
+    /// </summary>
+    Task<int?> GetIdByOrderNumberAsync(string orderNo);
+
     Task<SalesOrderListDto> CreateAsync(CreateSalesOrderRequest request);
     Task<SalesOrderListDto> UpdateAsync(int id, UpdateSalesOrderRequest request);
     Task DeleteAsync(int id);

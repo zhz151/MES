@@ -72,16 +72,6 @@ public class ProductionRecord : BaseEntity
     public decimal? Weight { get; set; }
 
     /// <summary>
-    /// 不合格支数
-    /// </summary>
-    public int? DefectQuantity { get; set; }
-
-    /// <summary>
-    /// 不合格重量(kg)
-    /// </summary>
-    public decimal? DefectWeight { get; set; }
-
-    /// <summary>
     /// 是否成品
     /// </summary>
     public bool IsFinished { get; set; }

@@ -32,9 +32,12 @@
                 <MudSelectItem Value="@entity.Key">@entity.Name</MudSelectItem>
             }
         </MudSelect>
+    </MudPaper>
 
-        @if (!string.IsNullOrEmpty(selectedEntity))
-        {
+    <!-- 数据操作（下载模板/导出/刷新） -->
+    @if (!string.IsNullOrEmpty(selectedEntity))
+    {
+        <MudPaper Class="pa-4 mb-4">
             <MudGrid>
                 <MudItem xs="12" sm="4">
                     <MudButton Variant="Variant.Filled"
@@ -68,8 +71,8 @@
                     </MudButton>
                 </MudItem>
             </MudGrid>
-        }
-    </MudPaper>
+        </MudPaper>
+    }
 
     <!-- 导入区域（仅管理员） -->
     @if (isAdmin)
@@ -115,7 +118,10 @@
                 支持 .xlsx 格式，表头须与模板一致。导入在事务内执行：先禁用外键约束 → 写入数据 → 校验约束 → 通过则提交，失败则回滚。
             </MudText>
         </MudPaper>
+    }
 
+    @if (isAdmin)
+    {
         <!-- 预览结果 -->
         @if (previewResult != null)
         {

@@ -344,6 +344,8 @@ public static class ProcessCardPrintHelper
             ["SourceUnitWeight"] = ("单支重(kg)", () => b.SourceUnitWeight?.ToString("G29") ?? "-"),
             ["InputQuantity"] = ("领料支数", () => b.InputQuantity?.ToString() ?? "-"),
             ["InputWeight"] = ("领料重量(kg)", () => b.InputWeight?.ToString("G29") ?? "-"),
+            ["CurrentValidQty"] = ("有效原料支数", () => b.CurrentValidQty?.ToString() ?? "-"),
+            ["CurrentValidWeight"] = ("有效原料重量(kg)", () => b.CurrentValidWeight?.ToString("G29") ?? "-"),
         };
         return BuildFieldList(visibleCols, "Warehouse", map);
     }

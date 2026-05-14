@@ -453,7 +453,7 @@
             {
                 ProductionMainNo = mainNo,
                 ProductionSubNo = string.IsNullOrEmpty(subNo) ? null : subNo,
-                OrderItemIds = group.Value.Select(x => x.Sequence).ToList()
+                OrderItemIds = group.Value.Select(x => x.Sequence).Distinct().ToList()
             });
         }
 

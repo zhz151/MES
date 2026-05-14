@@ -7,6 +7,8 @@
 @using Microsoft.AspNetCore.Authorization
 @inject BatchService BatchService
 @inject ProductionRecordService ProdRecordService
+@inject WorkOrderService WorkOrderService
+@inject OrderService OrderService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -32,6 +34,14 @@
                     <MudText Typo="Typo.subtitle1" Class="font-weight-bold mr-1">批次详情</MudText>
                     <MudChip Size="Size.Small" Color="@DisplayHelper.GetBatchStatusColor(batch.Status)">@DisplayHelper.GetBatchStatusText(batch.Status)</MudChip>
                     <MudText Typo="Typo.body2" Color="Color.Primary" Class="font-weight-bold ml-1">@batch.BatchNo</MudText>
+                </div>
+                <div class="d-flex align-center" Style="gap:2px;">
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small"
+                                   Disabled="@(!_hasPrev)" OnClick="NavigatePrev"
+                                   Title="@(_hasPrev ? $"上一个 ({_prevBatchNo})" : "已是第一个")" />
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small"
+                                   Disabled="@(!_hasNext)" OnClick="NavigateNext"
+                                   Title="@(_hasNext ? $"下一个 ({_nextBatchNo})" : "已是最后一个")" />
                 </div>
                 <div class="d-flex align-center flex-wrap" Style="gap:4px;">
                     <MudButton Variant="Variant.Outlined" Color="Color.Primary"
@@ -86,15 +96,149 @@
                 <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">下一工段</MudText><MudText Typo="Typo.body2">@(batch.NextSectionName ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">对应规格</MudText><MudText Typo="Typo.body2">@(batch.CorrespondingSpec ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">强制完成</MudText><MudText Typo="Typo.body2">@(batch.IsForceCompleted ? "是" : "否")</MudText></div>
-                <div class="d-flex align-center" Style="gap:4px; width:100%;">
+                <div class="d-flex align-center" Style="gap:6px; width:100%; flex-wrap:wrap;">
                     <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Info"
                                StartIcon="@Icons.Material.Filled.Refresh"
-                               OnClick="RefreshTracking" Class="mt-1">刷新执行状态</MudButton>
+                               OnClick="RefreshTracking">刷新执行状态</MudButton>
+                    @if (batch.Status == "None")
+                    {
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Error"
+                                   StartIcon="@Icons.Material.Filled.Cancel"
+                                   OnClick="CancelBatchAsync">作废</MudButton>
+                    }
+                    @if (batch.Status == "InProgress" || batch.Status == "Completed")
+                    {
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Warning"
+                                   StartIcon="@Icons.Material.Filled.PauseCircle"
+                                   OnClick="PauseBatchAsync">暂停</MudButton>
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Error"
+                                   StartIcon="@Icons.Material.Filled.Cancel"
+                                   OnClick="CancelBatchAsync">作废</MudButton>
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Error"
+                                   StartIcon="@Icons.Material.Filled.Verified"
+                                   OnClick="ForceCompleteAsync">强制完成</MudButton>
+                    }
+                    else if (batch.Status == "Suspended")
+                    {
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Success"
+                                   StartIcon="@Icons.Material.Filled.PlayCircle"
+                                   OnClick="ResumeBatchAsync">恢复</MudButton>
+                    }
+                    else if (batch.Status == "Cancelled")
+                    {
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Success"
+                                   StartIcon="@Icons.Material.Filled.Restore"
+                                   OnClick="ResumeBatchAsync">恢复</MudButton>
+                    }
+                    @if (batch.IsForceCompleted && batch.Status == "Completed")
+                    {
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.Undo"
+                                   OnClick="UnforceCompleteAsync">转为在产</MudButton>
+                    }
                 </div>
             </div>
         </MudPaper>
 
-        <!-- ===== 区块三：质量要求 ===== -->
+        <!-- ===== 区块三：批次执行进度 ===== -->
+        <MudPaper Class="pa-4 mb-3" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+            <MudText Typo="Typo.subtitle2" Class="font-weight-bold mb-3" Style="color:#37474F;">
+                <MudIcon Icon="@Icons.Material.Filled.Timeline" Class="mr-1" Size="Size.Small" />
+                批次执行进度
+            </MudText>
+
+            @if (_isTrackingLoading)
+            {
+                <MudProgressCircular Indeterminate Size="Size.Small" Class="mb-3" />
+            }
+            else if (_trackingVisual == null)
+            {
+                <MudText Typo="Typo.body2" Style="color:#999;">暂无执行记录</MudText>
+            }
+            else
+            {
+                <!-- 顶部统计条 -->
+                <div class="d-flex flex-wrap align-center mb-3" Style="gap: 8px 24px;">
+                    <MudChip Size="Size.Small" Color="Color.Tertiary">
+                        已执行 @_trackingVisual.CompletedSectionCount / @_trackingVisual.TotalSectionCount 工段
+                    </MudChip>
+                    @if (_trackingVisual.TotalSectionCount > 0)
+                    {
+                        <div Style="width:200px; height:8px; border-radius:4px; background:#e0e0e0; overflow:hidden; flex-shrink:0;">
+                            <div Style="height:100%; width:@(_trackingVisual.ProgressPercent)%; background:var(--mud-palette-success); border-radius:4px; transition:width 0.3s;"></div>
+                        </div>
+                        <MudText Typo="Typo.body2">@_trackingVisual.ProgressPercent%</MudText>
+                    }
+                    @if (_trackingVisual.InputQuantity.HasValue)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Primary">
+                            投料量：@_trackingVisual.InputQuantity 支 / @(_trackingVisual.InputWeight) kg
+                        </MudText>
+                    }
+                    @if (_trackingVisual.TargetQuantity.HasValue)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            目标量：@_trackingVisual.TargetQuantity 支 / @(_trackingVisual.TargetWeight) kg
+                        </MudText>
+                    }
+                </div>
+
+                <!-- 当前/下一工段摘要 -->
+                <div class="d-flex flex-wrap mb-3" Style="gap:4px 20px; padding:6px 10px; background:#f5f5f5; border-radius:6px;">
+                    @if (!string.IsNullOrEmpty(_trackingVisual.CurrentSectionName))
+                    {
+                        <MudText Typo="Typo.body2" Style="font-weight:600;">
+                            📍 当前：<span Style="color:#1976d2;">@_trackingVisual.CurrentGroupName</span> &gt;
+                            <span Style="color:#1976d2;">@_trackingVisual.CurrentSectionName</span>
+                        </MudText>
+                    }
+                    @if (!string.IsNullOrEmpty(_trackingVisual.CurrentEquipmentName))
+                    {
+                        <MudText Typo="Typo.body2">🔧 设备：@_trackingVisual.CurrentEquipmentName</MudText>
+                    }
+                    @if (!string.IsNullOrEmpty(_trackingVisual.CurrentOutsource))
+                    {
+                        <MudText Typo="Typo.body2" Style="color:#e65100;">🚚 委外中：@_trackingVisual.CurrentOutsource</MudText>
+                    }
+                    @if (!string.IsNullOrEmpty(_trackingVisual.NextSectionName))
+                    {
+                        <MudText Typo="Typo.body2" Style="color:#7b1fa2;">⏭ 下一工段：@_trackingVisual.NextSectionName</MudText>
+                    }
+                </div>
+
+                <!-- 流程图：工序组水平排列 -->
+                <div Style="overflow-x:auto; white-space:nowrap; padding:4px 0;">
+                    @foreach (var group in _trackingVisual.ProcessGroups)
+                    {
+                        <div Style="display:inline-flex; flex-direction:column; min-width:150px; margin-right:14px; vertical-align:top;">
+                            <!-- 组标题 -->
+                            <div Style="text-align:center; padding:4px 8px; background:#e3f2fd; border-radius:6px 6px 0 0; font-size:0.8125rem; font-weight:600; border:1px solid #bbdefb; border-bottom:none;">
+                                @group.ProcessName
+                                <span Style="font-weight:400; color:#666;">(@group.CompletedSections/@group.TotalSections)</span>
+                            </div>
+                            <!-- 工段卡片列表 -->
+                            <div Style="border:1px solid #e0e0e0; border-top:none; border-radius:0 0 6px 6px; padding:3px;">
+                                @foreach (var section in group.Sections)
+                                {
+                                    <div class="timeline-section d-flex align-center"
+                                         Style="border-radius:4px; margin:2px 0; padding:4px 6px; gap:6px; @GetSectionStyle(section.Status)"
+                                         title="@GetSectionTooltip(section)">
+                                        <span Style="font-size:0.75rem; min-width:18px; text-align:center;">@GetSectionIcon(section.Status)</span>
+                                        <span Style="font-size:0.8125rem; flex:1; overflow:hidden; text-overflow:ellipsis;">@(section.SectionName)</span>
+                                        @if (section.Status == "Outsource")
+                                        {
+                                            <MudChip Size="Size.Small" Color="Color.Warning" Class="ma-0" Style="font-size:0.6875rem;">委外</MudChip>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </MudPaper>
+
+        <!-- ===== 区块四：质量要求 ===== -->
         <MudPaper Class="pa-4 mb-3" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background:#fafafa;">
             <MudText Typo="Typo.subtitle2" Class="font-weight-bold mb-3" Style="color:#37474F;">
                 <MudIcon Icon="@Icons.Material.Filled.FactCheck" Class="mr-1" Size="Size.Small" />质量要求
@@ -105,7 +249,7 @@
             </div>
         </MudPaper>
 
-        <!-- ===== 区块四：仓库来源信息 ===== -->
+        <!-- ===== 区块五：仓库来源信息 ===== -->
         <MudPaper Class="pa-4 mb-3" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background:#fafafa;">
             <MudText Typo="Typo.subtitle2" Class="font-weight-bold mb-3" Style="color:#37474F;">
                 <MudIcon Icon="@Icons.Material.Filled.Warehouse" Class="mr-1" Size="Size.Small" />仓库来源信息
@@ -131,11 +275,13 @@
                     <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">单支重</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.SourceUnitWeight) kg</MudText></div>
                     <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">领料支数</MudText><MudText Typo="Typo.body2">@(batch.InputQuantity?.ToString() ?? "-") 支</MudText></div>
                     <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">领料重量</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.InputWeight) kg</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">现有效原料支数</MudText><MudText Typo="Typo.body2">@(batch.CurrentValidQty?.ToString() ?? "-") 支</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">现有效原料重量</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.CurrentValidWeight) kg</MudText></div>
                 </div>
             }
         </MudPaper>
 
-        <!-- ===== 区块五：工单信息（只读快照） ===== -->
+        <!-- ===== 区块六：工单信息（只读快照） ===== -->
         <MudPaper Class="pa-4 mb-3" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background:#fafafa;">
             <MudText Typo="Typo.subtitle2" Class="font-weight-bold mb-3" Style="color:#37474F;">
                 <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-1" Size="Size.Small" />工单信息（创建时快照，只读）
@@ -143,8 +289,14 @@
             <!-- 第1组 -->
             <MudText Typo="Typo.caption" Class="font-weight-bold mb-2" Style="color:#78909C;">基本信息</MudText>
             <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
-                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">工单号</MudText><MudText Typo="Typo.body2">@batch.WorkOrderNo</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">源订单号</MudText><MudText Typo="Typo.body2">@batch.SalesOrderNo</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">工单号</MudText>
+                    <MudLink Typo="Typo.body2" Style="cursor:pointer; color:#1976d2;" OnClick="() => NavigateToWorkOrder(batch.WorkOrderNo)">
+                        @batch.WorkOrderNo
+                    </MudLink></div>
+                <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">源订单号</MudText>
+                    <MudLink Typo="Typo.body2" Style="cursor:pointer; color:#1976d2;" OnClick="() => NavigateToSalesOrder(batch.SalesOrderNo)">
+                        @batch.SalesOrderNo
+                    </MudLink></div>
                 <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">主号</MudText><MudText Typo="Typo.body2">@batch.ProductionMainNo</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">次号</MudText><MudText Typo="Typo.body2">@(batch.ProductionSubNo ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="font-weight-bold" Style="color:#37474F;">项次ID</MudText><MudText Typo="Typo.body2">@batch.OrderItemIds</MudText></div>
@@ -190,7 +342,7 @@
             </div>
         </MudPaper>
 
-        <!-- ===== 区块六：工序组列表 ===== -->
+        <!-- ===== 区块七：工序组列表 ===== -->
         <MudPaper Class="pa-4 mb-3" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background:#fafafa;">
             <MudText Typo="Typo.subtitle2" Class="font-weight-bold mb-3" Style="color:#37474F;">
                 <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-1" Size="Size.Small" />工序组
@@ -258,6 +410,53 @@
             }
         </MudPaper>
 
+        <!-- ===== 区块八：操作日志 ===== -->
+        <MudPaper Class="pa-4 mb-3" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; background:#fafafa;">
+            <div class="d-flex align-center mb-3">
+                <MudText Typo="Typo.subtitle2" Class="font-weight-bold" Style="color:#37474F;">
+                    <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-1" Size="Size.Small" />操作日志
+                </MudText>
+                <MudSpacer />
+                <MudButton Variant="Variant.Text" Size="Size.Small"
+                           StartIcon="@(_showOperationLog ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleOperationLog">
+                    @(_showOperationLog ? "收起" : "展开")
+                </MudButton>
+            </div>
+            @if (_showOperationLog)
+            {
+                @if (_operationLogsLoading)
+                {
+                    <MudProgressCircular Indeterminate Size="Size.Small" />
+                }
+                else if (_operationLogs.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Style="color:#999;">暂无操作记录</MudText>
+                }
+                else
+                {
+                    <MudTable Items="_operationLogs" Dense="true" Hover="true" Elevation="0" ReadOnly="true" Class="auto-table">
+                        <HeaderContent>
+                            <MudTh>操作类型</MudTh>
+                            <MudTh>详情</MudTh>
+                            <MudTh>操作人</MudTh>
+                            <MudTh>操作时间</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <MudChip Size="Size.Small" Color="@GetOperationLogColor(context.OperationType)">
+                                    @context.OperationType
+                                </MudChip>
+                            </MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.Detail ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@context.CreatedBy</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@context.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")</MudText></MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            }
+        </MudPaper>
+
     }
 </MudContainer>
 
@@ -267,6 +466,21 @@
     private ProductionBatchDetailDto? batch;
     private bool isLoading = true;
 
+    private BatchTrackingVisualDto? _trackingVisual;
+    private bool _isTrackingLoading;
+
+    // 操作日志
+    private List<BatchOperationLogDto> _operationLogs = new();
+    private bool _operationLogsLoading;
+    private bool _showOperationLog;
+
+    // 相邻批次导航
+    private bool _hasPrev;
+    private bool _hasNext;
+    private int? _prevId;
+    private int? _nextId;
+    private string? _prevBatchNo;
+    private string? _nextBatchNo;
 
     private bool CanEdit => IsInRole("BatchDirector,Admin");
     private bool CanDelete => IsInRole("Admin");
@@ -315,6 +529,15 @@
             isLoading = false;
             StateHasChanged();
         }
+
+        // 并行加载跟踪可视化数据
+        await LoadTrackingVisual();
+
+        // 加载相邻批次导航
+        await LoadAdjacentBatch();
+
+        // 加载操作日志
+        await LoadOperationLogs();
     }
 
     // ========== 操作 ==========
@@ -392,6 +615,274 @@
             }
         }
         catch (Exception ex) { Snackbar.Add($"刷新失败: {ex.Message}", Severity.Error); }
+    }
+
+    // ========== 操作日志 ==========
+
+    private void ToggleOperationLog()
+    {
+        _showOperationLog = !_showOperationLog;
+        if (_showOperationLog && _operationLogs.Count == 0)
+            _ = LoadOperationLogs();
+    }
+
+    private async Task LoadOperationLogs()
+    {
+        if (Id <= 0) return;
+        _operationLogsLoading = true;
+        try
+        {
+            var result = await BatchService.GetOperationLogsAsync(Id);
+            if (result.Success && result.Data != null)
+                _operationLogs = result.Data;
+        }
+        catch { }
+        finally
+        {
+            _operationLogsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private static Color GetOperationLogColor(string operationType) => operationType switch
+    {
+        "创建" => Color.Info,
+        "状态变更" => Color.Warning,
+        "强制完成" => Color.Error,
+        "删除" => Color.Error,
+        "更新工单" => Color.Primary,
+        _ => Color.Default
+    };
+
+    // ========== 批次操作 ==========
+
+    private async Task PauseBatchAsync()
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认暂停", new DialogParameters
+        {
+            ["ContentText"] = $"确定暂停批次 {batch?.BatchNo} 吗？暂停后不会自动执行工段。",
+            ["ConfirmText"] = "暂停",
+            ["Color"] = Color.Warning
+        });
+        var result = await dialog.Result;
+        if (result.Canceled) return;
+
+        await UpdateBatchStatusAsync("Suspended");
+    }
+
+    private async Task ResumeBatchAsync()
+    {
+        await UpdateBatchStatusAsync("InProgress");
+    }
+
+    private async Task ForceCompleteAsync()
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认强制完成", new DialogParameters
+        {
+            ["ContentText"] = $"确定强制完成批次 {batch?.BatchNo} 吗？此操作将跳过剩余工段。",
+            ["ConfirmText"] = "强制完成",
+            ["Color"] = Color.Error
+        });
+        var result = await dialog.Result;
+        if (result.Canceled) return;
+
+        await UpdateBatchStatusAsync("Completed");
+    }
+
+    private async Task UnforceCompleteAsync()
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认恢复", new DialogParameters
+        {
+            ["ContentText"] = $"确定将批次 {batch?.BatchNo} 转为在产状态吗？",
+            ["ConfirmText"] = "转为在产",
+            ["Color"] = Color.Warning
+        });
+        var result = await dialog.Result;
+        if (result.Canceled) return;
+
+        await UpdateBatchStatusAsync("InProgress");
+    }
+
+    private async Task CancelBatchAsync()
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认作废", new DialogParameters
+        {
+            ["ContentText"] = $"确定将批次 {batch?.BatchNo} 作废吗？",
+            ["ConfirmText"] = "作废",
+            ["Color"] = Color.Error
+        });
+        var result = await dialog.Result;
+        if (result.Canceled) return;
+
+        await UpdateBatchStatusAsync("Cancelled");
+    }
+
+    private async Task UpdateBatchStatusAsync(string newStatus)
+    {
+        if (batch == null) return;
+        try
+        {
+            var request = new UpdateBatchStatusRequest
+            {
+                Status = newStatus,
+                RowVersion = batch.RowVersion
+            };
+            var result = await BatchService.UpdateStatusAsync(Id, request);
+            if (result.Success)
+            {
+                Snackbar.Add("状态已更新", Severity.Success);
+                await LoadData();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "更新失败", Severity.Error);
+            }
+        }
+        catch (Exception ex) { Snackbar.Add($"更新失败: {ex.Message}", Severity.Error); }
+    }
+
+    private async Task NavigateToWorkOrder(string workOrderNo)
+    {
+        try
+        {
+            var result = await WorkOrderService.GetByWorkOrderNoAsync(workOrderNo);
+            if (result.Success && result.Data != null)
+            {
+                Navigation.NavigateTo($"/workorders/{result.Data.Id}");
+            }
+            else
+            {
+                Snackbar.Add($"未找到工单 {workOrderNo}", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"跳转失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task NavigateToSalesOrder(string salesOrderNo)
+    {
+        try
+        {
+            var result = await OrderService.GetIdByOrderNumberAsync(salesOrderNo);
+            if (result.Success && result.Data.HasValue)
+            {
+                Navigation.NavigateTo($"/orders/{result.Data.Value}");
+            }
+            else
+            {
+                Snackbar.Add($"未找到订单 {salesOrderNo}", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"跳转失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // ========== 相邻批次导航 ==========
+
+    private async Task LoadAdjacentBatch()
+    {
+        try
+        {
+            var result = await BatchService.GetAdjacentBatchAsync(Id);
+            if (result.Success && result.Data != null)
+            {
+                _prevId = result.Data.PrevId;
+                _nextId = result.Data.NextId;
+                _prevBatchNo = result.Data.PrevBatchNo;
+                _nextBatchNo = result.Data.NextBatchNo;
+                _hasPrev = _prevId.HasValue;
+                _hasNext = _nextId.HasValue;
+            }
+        }
+        catch { }
+    }
+
+    private void NavigatePrev()
+    {
+        if (_prevId.HasValue)
+            Navigation.NavigateTo($"/batches/{_prevId}");
+    }
+
+    private void NavigateNext()
+    {
+        if (_nextId.HasValue)
+            Navigation.NavigateTo($"/batches/{_nextId}");
+    }
+
+    // ========== 跟踪可视化 ==========
+
+    private async Task LoadTrackingVisual()
+    {
+        if (Id <= 0) return;
+
+        _isTrackingLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await ProdRecordService.GetTrackingVisualAsync(Id);
+            if (result.Success && result.Data != null)
+            {
+                _trackingVisual = result.Data;
+            }
+            else
+            {
+                _trackingVisual = null;
+            }
+        }
+        catch
+        {
+            _trackingVisual = null;
+        }
+        finally
+        {
+            _isTrackingLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private static string GetSectionStyle(string status) => status switch
+    {
+        "Completed" => "background:#e8f5e9; opacity:0.85;",
+        "InProgress" => "background:#e3f2fd; border-left:3px solid #1976d2;",
+        "Outsource" => "background:#fff3e0; border-left:3px solid #f57c00;",
+        "Next" => "background:#f3e5f5; border:1px dashed #9c27b0;",
+        _ => "background:#fafafa; opacity:0.6;"
+    };
+
+    private static string GetSectionIcon(string status) => status switch
+    {
+        "Completed" => "✅",
+        "InProgress" => "🔄",
+        "Outsource" => "🚚",
+        "Next" => "⏭",
+        _ => "⭕"
+    };
+
+    private static string GetSectionTooltip(SectionVisualDto section)
+    {
+        var parts = new List<string> { section.SectionName };
+        if (section.ExecDate.HasValue)
+            parts.Add($"执行日: {section.ExecDate:yyyy-MM-dd}");
+        if (section.EquipmentName != null)
+            parts.Add($"设备: {section.EquipmentName}");
+        if (section.Quantity.HasValue)
+            parts.Add($"数量: {section.Quantity}支");
+        if (section.Weight.HasValue)
+            parts.Add($"重量: {section.Weight:G29}kg");
+        if (section.Operator != null)
+            parts.Add($"操作人: {section.Operator}");
+        if (section.OutsourceVendor != null)
+        {
+            parts.Add($"委外: {section.OutsourceVendor}");
+            if (section.OutsourceProgress.HasValue)
+                parts.Add($"回收进度: {section.OutsourceProgress}%");
+        }
+        return string.Join(" | ", parts);
     }
 
 }

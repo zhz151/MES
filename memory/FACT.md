@@ -106,7 +106,7 @@
 
 ## 批次上下文
 ### 核心实体
-- **ProductionBatch**：批次主表，批次号/钢种/规格/类型/比例等
+- **ProductionBatch**：批次主表，批次号/钢种/规格/类型/比例等。状态枚举：None/InProgress/Completed/**Suspended(挂起)**
 - **ProcessGroup**：工序组（=工艺卡一行），工序名称/制造规格/公差/15个工段执行顺序字段
   - `SequenceNumber` = 组内序号（int，批次内排序索引 1,2,3...）
   - 15个工段字段（`ColdRollDraw`/`Straighten`/`Cut`/`Pickle` 等 `int?`）
@@ -114,6 +114,8 @@
   - `SequenceNumber` = 从 ProcessGroup 工段字段解析的执行序号
 - **SectionOutsource**：委外发出记录
   - `SequenceNumber` = 同上
+- **BatchOperationLog**：操作日志，记录状态变更等关键操作
+  - 关联 ProductionBatch（级联删除），字段：OperationType/Detail
 
 ### SequenceNumber 语义
 - `ProcessGroup.SequenceNumber` ≠ `ProductionRecord/SectionOutsource.SequenceNumber`
@@ -125,6 +127,33 @@
 - 截止执行日 = max(生产记录ExecDate, 委外SendOutDate, 回收RecoveryDate)
 - 当前工序/工段/设备/委外/规格：取最大SequenceNumber所在记录
 - 下一工段：最大SeqNum+1，在全局工段列表查找匹配项
+
+### 批次状态操作（2026-05-13）
+- **暂停**：InProgress → Suspended，详情页"暂停"按钮
+- **恢复**：Suspended → InProgress，详情页"恢复"按钮
+- **强制完成**：InProgress → Completed（IsForceCompleted=true）
+- **转为在产**：Completed(IsForceCompleted=true) → InProgress（IsForceCompleted=false）
+- 所有状态变更自动记录到 BatchOperationLog，与状态变更在同一事务
+
+### 相邻批次导航（2026-05-13）
+- 详情页页眉左右箭头，按 CreatedTime 排序
+- 后端 `GetAdjacentBatchAsync()` 返回 AdjacentBatchDto（PrevId/PrevBatchNo/NextId/NextBatchNo）
+
+### 跟踪可视化（2026-05-13）
+- 8阶段卡片：荒管处理/在制修检/冷轧/冷拔/委外/断切/精整/完工入库
+- 每阶段：待执行/执行中/已完成/不涉及
+- 后端 `GetTrackingVisualAsync()` 返回 BatchTrackingVisualDto
+
+### 工序组调取（2026-05-13）
+- 创建/编辑页工序组工具栏支持按批次号调取工序组
+- 输入框（右侧上方）→ 调取工序按钮（最右侧，130px宽）
+- 快捷复制：复制上个工序组
+- 布局：输入框在上，按钮行在下，整体右对齐
+
+### 页面布局规范补充（2026-05-13）
+- 创建/编辑页"质量要求信息"Block C 无标题/图标，使用水平flex布局
+- "基础信息"Block D 使用水平flex布局，生产编号加粗黑色
+- 详情页8区块：批次基本信息 → 跟踪可视化 → 执行信息 → 质量要求 → 仓库来源 → 工单信息 → 工序组 → 操作日志
 
 ## 表格方向键导航关键实现（2026-05-12）
 - JS 文件：`MES.Blazor/wwwroot/js/table-nav.js`

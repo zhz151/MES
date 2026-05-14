@@ -60,6 +60,14 @@ public class OrderController : ControllerBase
         return Ok(ApiResponse<SalesOrderDetailDto>.Ok(result, "查询成功"));
     }
 
+    [HttpGet("by-number/{orderNo}")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<int?>>> GetIdByOrderNumber(string orderNo)
+    {
+        var id = await _orderService.GetIdByOrderNumberAsync(orderNo);
+        return Ok(ApiResponse<int?>.Ok(id, "查询成功"));
+    }
+
     [HttpPost]
     [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<SalesOrderListDto>>> Create([FromBody] CreateSalesOrderRequest request)

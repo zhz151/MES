@@ -144,6 +144,8 @@ public class BatchService : IBatchService
                 CurrentSpec = b.CurrentSpec,
                 NextSectionName = b.NextSectionName,
                 CorrespondingSpec = b.CorrespondingSpec,
+                CurrentValidQty = b.CurrentValidQty,
+                CurrentValidWeight = b.CurrentValidWeight,
                 CreatedBy = b.CreatedBy
             })
             .ToListAsync();
@@ -191,6 +193,29 @@ public class BatchService : IBatchService
             throw new BusinessException($"生产批次不存在 (BatchNo={batchNo})");
 
         return ToDetailDto(entity);
+    }
+
+    public async Task<AdjacentBatchDto> GetAdjacentBatchAsync(int currentId)
+    {
+        // 获取所有批次ID（按创建时间排序），找到当前批次的相邻记录
+        var allIds = await _context.ProductionBatches
+            .AsNoTracking()
+            .OrderBy(b => b.CreatedTime)
+            .ThenBy(b => b.Id)
+            .Select(b => new { b.Id, b.BatchNo })
+            .ToListAsync();
+
+        var currentIndex = allIds.FindIndex(x => x.Id == currentId);
+        if (currentIndex < 0)
+            return new AdjacentBatchDto();
+
+        return new AdjacentBatchDto
+        {
+            PrevId = currentIndex > 0 ? allIds[currentIndex - 1].Id : null,
+            PrevBatchNo = currentIndex > 0 ? allIds[currentIndex - 1].BatchNo : null,
+            NextId = currentIndex < allIds.Count - 1 ? allIds[currentIndex + 1].Id : null,
+            NextBatchNo = currentIndex < allIds.Count - 1 ? allIds[currentIndex + 1].BatchNo : null
+        };
     }
 
     public async Task<ProductionBatchListDto> CreateAsync(CreateProductionBatchRequest request)
@@ -243,6 +268,8 @@ public class BatchService : IBatchService
             SourceUnitWeight = request.SourceUnitWeight,
             InputQuantity = request.InputQuantity,
             InputWeight = request.InputWeight,
+            CurrentValidQty = request.CurrentValidQty,
+            CurrentValidWeight = request.CurrentValidWeight,
 
             // 从工单复制冗余字段（29个，优先使用前端传入值）
             WorkOrderNo = request.WorkOrderNo ?? workOrder?.WorkOrderNo ?? "",
@@ -381,6 +408,10 @@ public class BatchService : IBatchService
         entity.SourceUnitWeight = request.SourceUnitWeight;
         entity.InputQuantity = request.InputQuantity;
         entity.InputWeight = request.InputWeight;
+        var oldValidQty = entity.CurrentValidQty;
+        var oldValidWeight = entity.CurrentValidWeight;
+        entity.CurrentValidQty = request.CurrentValidQty;
+        entity.CurrentValidWeight = request.CurrentValidWeight;
         if (request.IsForceCompleted.HasValue) entity.IsForceCompleted = request.IsForceCompleted.Value;
 
         // 工单冗余字段（non-nullable 保留守卫防崩溃）
@@ -416,6 +447,14 @@ public class BatchService : IBatchService
 
         await _context.SaveChangesAsync();
 
+        // 记录有效数量变更日志
+        if (oldValidQty != request.CurrentValidQty || oldValidWeight != request.CurrentValidWeight)
+        {
+            var detail = $"有效数量变更: 有效支数={oldValidQty}→{request.CurrentValidQty}" +
+                         $", 有效重量={oldValidWeight?.ToString("G29")}→{request.CurrentValidWeight?.ToString("G29")}kg";
+            await AddOperationLogAsync(id, "有效数量变更", detail);
+        }
+
         _logger.LogInformation("更新生产批次 {BatchNo} (Id={Id})", entity.BatchNo, id);
 
         var dto = ToDetailDto(entity);
@@ -445,17 +484,32 @@ public class BatchService : IBatchService
         if (!Enum.TryParse<BatchStatus>(request.Status, out var newStatus))
             throw new BusinessException($"无效的批次状态: {request.Status}");
 
-        // 状态流转校验：禁止从Completed回退
-        if (entity.Status == BatchStatus.Completed && newStatus != BatchStatus.Completed)
-            throw new BusinessException("已完成批次不能回退状态");
-
+        var oldStatus = entity.Status;
         entity.Status = newStatus;
 
         // 强制完成逻辑
-        if (request.Status == BatchStatus.Completed.ToString())
+        if (newStatus == BatchStatus.Completed)
             entity.IsForceCompleted = true;
 
-        await _context.SaveChangesAsync();
+        // 从强制完成恢复时清除标记
+        if (oldStatus == BatchStatus.Completed && entity.IsForceCompleted && newStatus != BatchStatus.Completed)
+            entity.IsForceCompleted = false;
+
+        // 使用事务包裹状态变更和日志写入
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+            var logDetail = $"状态变更: {oldStatus} → {newStatus}";
+            await AddOperationLogAsync(id, "状态变更", logDetail);
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
 
         _logger.LogInformation("更新批次状态 {BatchNo} → {Status}", entity.BatchNo, newStatus);
     }
@@ -509,6 +563,10 @@ public class BatchService : IBatchService
         entity.SourceUnitWeight = request.SourceUnitWeight;
         entity.InputQuantity = request.InputQuantity;
         entity.InputWeight = request.InputWeight;
+        var oldValidQty = entity.CurrentValidQty;
+        var oldValidWeight = entity.CurrentValidWeight;
+        entity.CurrentValidQty = request.CurrentValidQty;
+        entity.CurrentValidWeight = request.CurrentValidWeight;
         if (request.IsForceCompleted.HasValue) entity.IsForceCompleted = request.IsForceCompleted.Value;
 
         // 工单冗余字段（non-nullable 保留守卫防崩溃）
@@ -548,9 +606,6 @@ public class BatchService : IBatchService
             if (!Enum.TryParse<BatchStatus>(request.Status, out var newStatus))
                 throw new BusinessException($"无效的批次状态: {request.Status}");
 
-            if (entity.Status == BatchStatus.Completed && newStatus != BatchStatus.Completed)
-                throw new BusinessException("已完成批次不能回退状态");
-
             entity.Status = newStatus;
 
             if (newStatus == BatchStatus.Completed)
@@ -559,6 +614,7 @@ public class BatchService : IBatchService
 
         // ===== 3. 全量替换工序组 =====
         // 3a. 删除旧工序组（跳过有生产记录或委外记录引用的）
+        HashSet<int> referencedIds = new();
         if (entity.ProcessGroups.Any())
         {
             var oldIds = entity.ProcessGroups.Select(pg => pg.Id).ToList();
@@ -575,7 +631,7 @@ public class BatchService : IBatchService
                 .Distinct()
                 .ToListAsync();
 
-            var referencedIds = new HashSet<int>(referencedByRecord.Concat(referencedByOutsource));
+            referencedIds = new HashSet<int>(referencedByRecord.Concat(referencedByOutsource));
             var toRemove = entity.ProcessGroups.Where(pg => !referencedIds.Contains(pg.Id)).ToList();
 
             if (toRemove.Count > 0)
@@ -593,14 +649,51 @@ public class BatchService : IBatchService
             }
         }
 
-        // 3b. 创建新工序组
+        // 3b. 先提交删除，避免后续 INSERT 与旧记录主键冲突
+        await _context.SaveChangesAsync();
+
+        // 3c. 创建新工序组
+        //  - 若请求项与保留的被引用工序组序列号相同 → 原地更新（避免唯一键冲突）
+        //  - 否则 → 新增插入（旧记录已在 3b 删除，同序列号可安全插入）
         for (int i = 0; i < request.ProcessGroups.Count; i++)
         {
             var pgReq = request.ProcessGroups[i];
+            var seq = i + 1;
+
+            // 若有被引用保留的同序列号工序组，原地更新
+            var existingReferenced = entity.ProcessGroups
+                .FirstOrDefault(pg => referencedIds.Contains(pg.Id) && pg.SequenceNumber == seq);
+            if (existingReferenced != null)
+            {
+                existingReferenced.ProcessName = pgReq.ProcessName;
+                existingReferenced.ManufacturingSpec = pgReq.ManufacturingSpec;
+                existingReferenced.OuterDiameterTolerance = pgReq.OuterDiameterTolerance;
+                existingReferenced.WallThicknessTolerance = pgReq.WallThicknessTolerance;
+                existingReferenced.ManufacturingLength = pgReq.ManufacturingLength;
+                existingReferenced.CuttingTreatment = pgReq.CuttingTreatment;
+                existingReferenced.Remark = pgReq.Remark;
+                existingReferenced.ColdRollDraw = pgReq.ColdRollDraw;
+                existingReferenced.OilPipeCut = pgReq.OilPipeCut;
+                existingReferenced.Degrease = pgReq.Degrease;
+                existingReferenced.Solution = pgReq.Solution;
+                existingReferenced.Straighten = pgReq.Straighten;
+                existingReferenced.Cut = pgReq.Cut;
+                existingReferenced.ThicknessMeasure = pgReq.ThicknessMeasure;
+                existingReferenced.Pickle = pgReq.Pickle;
+                existingReferenced.OuterPolish = pgReq.OuterPolish;
+                existingReferenced.InnerGrinding = pgReq.InnerGrinding;
+                existingReferenced.OuterSpotGrinding = pgReq.OuterSpotGrinding;
+                existingReferenced.Inspection = pgReq.Inspection;
+                existingReferenced.WeldingHead = pgReq.WeldingHead;
+                existingReferenced.Lubrication = pgReq.Lubrication;
+                existingReferenced.Warehouse = pgReq.Warehouse;
+                continue;
+            }
+
             var pg = new ProcessGroup
             {
                 ProductionBatchId = id,
-                SequenceNumber = i + 1,
+                SequenceNumber = seq,
                 ProcessName = pgReq.ProcessName,
                 ManufacturingSpec = pgReq.ManufacturingSpec,
                 OuterDiameterTolerance = pgReq.OuterDiameterTolerance,
@@ -627,8 +720,16 @@ public class BatchService : IBatchService
             _context.ProcessGroups.Add(pg);
         }
 
-        // ===== 4. 单次 SaveChanges =====
+        // ===== 4. 提交新增工序组（此时仅有 INSERT，无冲突） =====
         await _context.SaveChangesAsync();
+
+        // 记录有效数量变更日志
+        if (oldValidQty != request.CurrentValidQty || oldValidWeight != request.CurrentValidWeight)
+        {
+            var detail = $"有效数量变更: 有效支数={oldValidQty}→{request.CurrentValidQty}" +
+                         $", 有效重量={oldValidWeight?.ToString("G29")}→{request.CurrentValidWeight?.ToString("G29")}kg";
+            await AddOperationLogAsync(id, "有效数量变更", detail);
+        }
 
         // ===== 5. 工序组已变更，刷新批次跟踪字段 =====
         await _productionRecordService.BatchUpdateBatchTrackingAsync(new[] { id });
@@ -1216,6 +1317,8 @@ public class BatchService : IBatchService
             SourceUnitWeight = entity.SourceUnitWeight,
             InputQuantity = entity.InputQuantity,
             InputWeight = entity.InputWeight,
+            CurrentValidQty = entity.CurrentValidQty,
+            CurrentValidWeight = entity.CurrentValidWeight,
 
             // 审计
             CreatedTime = entity.CreatedTime,
@@ -1321,5 +1424,37 @@ public class BatchService : IBatchService
                     throw new BusinessException($"工段数值必须连续（1,2,3...），缺失值: {allValues[i - 1] + 1}");
             }
         }
+    }
+
+    // ========== 批次操作日志 ==========
+
+    public async Task AddOperationLogAsync(int batchId, string operationType, string? detail = null)
+    {
+        var log = new BatchOperationLog
+        {
+            ProductionBatchId = batchId,
+            OperationType = operationType,
+            Detail = detail,
+            CreatedBy = "system",
+            CreatedTime = DateTimeOffset.UtcNow
+        };
+        _context.BatchOperationLogs.Add(log);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<List<BatchOperationLogDto>> GetOperationLogsAsync(int batchId)
+    {
+        return await _context.BatchOperationLogs
+            .Where(l => l.ProductionBatchId == batchId)
+            .OrderByDescending(l => l.CreatedTime)
+            .Select(l => new BatchOperationLogDto
+            {
+                Id = l.Id,
+                OperationType = l.OperationType,
+                Detail = l.Detail,
+                CreatedBy = l.CreatedBy,
+                CreatedTime = l.CreatedTime
+            })
+            .ToListAsync();
     }
 }

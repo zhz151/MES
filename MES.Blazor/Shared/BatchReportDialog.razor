@@ -44,8 +44,6 @@
                         <MudTh Style="width:70px;">班次</MudTh>
                         <MudTh Style="width:80px;">加工支数</MudTh>
                         <MudTh Style="width:80px;">加工重量</MudTh>
-                        <MudTh Style="width:80px;">不合格支数</MudTh>
-                        <MudTh Style="width:80px;">不合格重量</MudTh>
                         <MudTh Style="width:60px;">是否成品</MudTh>
                         <MudTh Style="width:70px;">断切倍数</MudTh>
                         <MudTh Style="width:100px;">成品断切长度</MudTh>
@@ -100,22 +98,6 @@
                             <MudNumericField T="decimal?"
                                              Value="@r.Weight"
                                              ValueChanged="@((decimal? v) => r.Weight = v)"
-                                             Size="Size.Small" Variant="Variant.Outlined"
-                                             Min="0" HideSpinButtons="true"
-                                             Class="my-n2" Style="width:80px;" />
-                        </MudTd>
-                        <MudTd>
-                            <MudNumericField T="int?"
-                                             Value="@r.DefectQuantity"
-                                             ValueChanged="@((int? v) => r.DefectQuantity = v)"
-                                             Size="Size.Small" Variant="Variant.Outlined"
-                                             Min="0" HideSpinButtons="true"
-                                             Class="my-n2" Style="width:80px;" />
-                        </MudTd>
-                        <MudTd>
-                            <MudNumericField T="decimal?"
-                                             Value="@r.DefectWeight"
-                                             ValueChanged="@((decimal? v) => r.DefectWeight = v)"
                                              Size="Size.Small" Variant="Variant.Outlined"
                                              Min="0" HideSpinButtons="true"
                                              Class="my-n2" Style="width:80px;" />
@@ -273,8 +255,6 @@
                     Shift = string.IsNullOrEmpty(r.Shift) ? null : r.Shift,
                     Quantity = r.Quantity,
                     Weight = r.Weight,
-                    DefectQuantity = r.DefectQuantity,
-                    DefectWeight = r.DefectWeight,
                     IsFinished = r.IsFinished,
                     CuttingMultiple = r.CuttingMultiple,
                     FinishedCutLength = r.FinishedCutLength,
@@ -362,8 +342,6 @@
         public string? Shift { get; set; }
         public int? Quantity { get; set; }
         public decimal? Weight { get; set; }
-        public int? DefectQuantity { get; set; }
-        public decimal? DefectWeight { get; set; }
         public bool IsFinished { get; set; }
         public decimal? CuttingMultiple { get; set; }
         public decimal? FinishedCutLength { get; set; }

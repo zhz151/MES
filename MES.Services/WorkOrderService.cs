@@ -710,7 +710,7 @@ public class WorkOrderService : IWorkOrderService
                     SalesOrderNo = request.SalesOrderNo,
                     ProductionMainNo = workOrderGroup.ProductionMainNo,
                     ProductionSubNo = workOrderGroup.ProductionSubNo,
-                    OrderItemIds = string.Join(",", workOrderGroup.OrderItemIds),
+                    OrderItemIds = string.Join(",", workOrderGroup.OrderItemIds.Distinct()),
                     Status = WorkOrderStatus.Confirmed,
                     SignDate = salesOrder.SignDate,
                     Salesman = salesOrderCustomer?.Salesman ?? string.Empty,
@@ -938,7 +938,7 @@ public class WorkOrderService : IWorkOrderService
                         if (firstItem.LengthStatus == LengthStatus.Fixed && minLength.HasValue)
                             finalMaxLength = minLength;
 
-                        existingWo.OrderItemIds = string.Join(",", group.OrderItemIds);
+                        existingWo.OrderItemIds = string.Join(",", group.OrderItemIds.Distinct());
                         existingWo.DeliveryDate = firstItem.DeliveryDate;
                         existingWo.DelayPenalty = firstItem.DelayPenalty;
                         existingWo.MaterialName = firstItem.MaterialName;
@@ -1009,7 +1009,7 @@ public class WorkOrderService : IWorkOrderService
                         SalesOrderNo = request.SalesOrderNo,
                         ProductionMainNo = group.ProductionMainNo,
                         ProductionSubNo = group.ProductionSubNo,
-                        OrderItemIds = string.Join(",", group.OrderItemIds),
+                        OrderItemIds = string.Join(",", group.OrderItemIds.Distinct()),
                         Status = WorkOrderStatus.Confirmed,
                         SignDate = salesOrder.SignDate,
                         Salesman = customer?.Salesman ?? string.Empty,

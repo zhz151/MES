@@ -50,6 +50,16 @@ public class BatchService
         catch (Exception ex) { return ApiResponse<ProductionBatchDetailDto>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    public async Task<ApiResponse<AdjacentBatchDto>> GetAdjacentBatchAsync(int currentId)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<AdjacentBatchDto>>($"{BaseUrl}/{currentId}/adjacent")
+                   ?? ApiResponse<AdjacentBatchDto>.Fail("获取导航信息失败");
+        }
+        catch (Exception ex) { return ApiResponse<AdjacentBatchDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     public async Task<ApiResponse<ProductionBatchListDto>> CreateAsync(CreateProductionBatchRequest request)
     {
         try
@@ -221,5 +231,29 @@ public class BatchService
             return response ?? ApiResponse<string>.Fail("打印工艺卡失败");
         }
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    // ========== 按批次号调取工序组 ==========
+
+    public async Task<ApiResponse<List<CreateProcessGroupRequest>>> GetProcessGroupsByBatchNoAsync(string batchNo)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<CreateProcessGroupRequest>>>($"{BaseUrl}/{batchNo}/process-groups");
+            return response ?? ApiResponse<List<CreateProcessGroupRequest>>.Fail("获取失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<CreateProcessGroupRequest>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    // ========== 批次操作日志 ==========
+
+    public async Task<ApiResponse<List<BatchOperationLogDto>>> GetOperationLogsAsync(int batchId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<BatchOperationLogDto>>>($"{BaseUrl}/{batchId}/operation-logs");
+            return response ?? ApiResponse<List<BatchOperationLogDto>>.Fail("获取失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<BatchOperationLogDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 }

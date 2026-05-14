@@ -437,7 +437,12 @@
         switch (key)
         {
             case "batchno":
-                builder.AddContent(0, item.BatchNo);
+                builder.OpenComponent<MudLink>(0);
+                builder.AddAttribute(1, "Typo", Typo.body2);
+                builder.AddAttribute(2, "Style", "cursor:pointer; color:#1976d2;");
+                builder.AddAttribute(3, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => Navigation.NavigateTo($"/batches/{item.ProductionBatchId}")));
+                builder.AddAttribute(4, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.BatchNo)));
+                builder.CloseComponent();
                 break;
             case "processname":
                 builder.AddContent(0, item.ProcessName);

@@ -11,6 +11,8 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject WorkOrderService WorkOrderService
+@inject OrderService OrderService
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
 @attribute [Authorize(Roles = "BatchStaff,BatchDirector,Admin")]
@@ -89,6 +91,8 @@
                         <MudSelectItem Value="@("None")">未产</MudSelectItem>
                         <MudSelectItem Value="@("InProgress")">在产</MudSelectItem>
                         <MudSelectItem Value="@("Completed")">完成</MudSelectItem>
+                        <MudSelectItem Value="@("Suspended")">挂起</MudSelectItem>
+                        <MudSelectItem Value="@("Cancelled")">作废</MudSelectItem>
                     </MudSelect>
                 </MudItem>
             </MudGrid>
@@ -516,6 +520,36 @@
             case "UpdatedTime":
                 builder.AddContent(0, item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
+            case "WorkOrderNo":
+                if (!string.IsNullOrEmpty(item.WorkOrderNo))
+                {
+                    builder.OpenComponent<MudLink>(0);
+                    builder.AddAttribute(1, "Typo", Typo.body2);
+                    builder.AddAttribute(2, "Style", "cursor:pointer; color:#1976d2;");
+                    builder.AddAttribute(3, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => NavigateToWorkOrder(item.WorkOrderNo)));
+                    builder.AddAttribute(4, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.WorkOrderNo)));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, "");
+                }
+                break;
+            case "SalesOrderNo":
+                if (!string.IsNullOrEmpty(item.SalesOrderNo))
+                {
+                    builder.OpenComponent<MudLink>(0);
+                    builder.AddAttribute(1, "Typo", Typo.body2);
+                    builder.AddAttribute(2, "Style", "cursor:pointer; color:#1976d2;");
+                    builder.AddAttribute(3, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => NavigateToSalesOrder(item.SalesOrderNo)));
+                    builder.AddAttribute(4, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.SalesOrderNo)));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, "");
+                }
+                break;
             case "CurrentExecDate":
                 builder.AddContent(0, item.CurrentExecDate?.ToString("yyyy-MM-dd") ?? "");
                 break;
@@ -543,6 +577,48 @@
         "CorrespondingSpec" => item.CorrespondingSpec ?? "",
         _ => ""
     };
+
+    // ========== 工单/订单跳转 ==========
+
+    private async Task NavigateToWorkOrder(string workOrderNo)
+    {
+        try
+        {
+            var result = await WorkOrderService.GetByWorkOrderNoAsync(workOrderNo);
+            if (result.Success && result.Data != null)
+            {
+                Navigation.NavigateTo($"/workorders/{result.Data.Id}");
+            }
+            else
+            {
+                Snackbar.Add($"未找到工单 {workOrderNo}", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"跳转失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task NavigateToSalesOrder(string salesOrderNo)
+    {
+        try
+        {
+            var result = await OrderService.GetIdByOrderNumberAsync(salesOrderNo);
+            if (result.Success && result.Data.HasValue)
+            {
+                Navigation.NavigateTo($"/orders/{result.Data.Value}");
+            }
+            else
+            {
+                Snackbar.Add($"未找到订单 {salesOrderNo}", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"跳转失败: {ex.Message}", Severity.Error);
+        }
+    }
 
     // ========== 打印方法 ==========
 

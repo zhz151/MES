@@ -110,4 +110,21 @@ public interface IBatchService
     /// 根据批次号获取批次详情（含工序组，用于前端自动填充）
     /// </summary>
     Task<ProductionBatchDetailDto> GetByBatchNoAsync(string batchNo);
+
+    /// <summary>
+    /// 获取相邻批次导航信息（上一条/下一条）
+    /// </summary>
+    Task<AdjacentBatchDto> GetAdjacentBatchAsync(int currentId);
+
+    // ========== 批次操作日志 ==========
+
+    /// <summary>
+    /// 添加操作日志
+    /// </summary>
+    Task AddOperationLogAsync(int batchId, string operationType, string? detail = null);
+
+    /// <summary>
+    /// 获取批次操作日志列表
+    /// </summary>
+    Task<List<BatchOperationLogDto>> GetOperationLogsAsync(int batchId);
 }

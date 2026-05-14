@@ -22,8 +22,6 @@ public class ProductionRecordDto
     public string? Shift { get; set; }
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
-    public int? DefectQuantity { get; set; }
-    public decimal? DefectWeight { get; set; }
     public bool IsFinished { get; set; }
     public decimal? CuttingMultiple { get; set; }
     public decimal? FinishedCutLength { get; set; }
@@ -95,8 +93,6 @@ public class CreateProductionRecordRequest
 
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
-    public int? DefectQuantity { get; set; }
-    public decimal? DefectWeight { get; set; }
     public bool IsFinished { get; set; }
     public decimal? CuttingMultiple { get; set; }
     public decimal? FinishedCutLength { get; set; }
@@ -131,8 +127,6 @@ public class UpdateProductionRecordRequest
 
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
-    public int? DefectQuantity { get; set; }
-    public decimal? DefectWeight { get; set; }
     public bool IsFinished { get; set; }
     public decimal? CuttingMultiple { get; set; }
     public decimal? FinishedCutLength { get; set; }

@@ -69,6 +69,14 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<SectionOutsource> SectionOutsources { get; set; } = null!;
     public DbSet<OutsourceRecovery> OutsourceRecoveries { get; set; } = null!;
     public DbSet<MaterialReceiveCheck> MaterialReceiveChecks { get; set; } = null!;
+    public DbSet<BatchOperationLog> BatchOperationLogs { get; set; } = null!;
+
+    // ========== 质量上下文 ==========
+
+    public DbSet<ProcessInspection> ProcessInspections { get; set; } = null!;
+    public DbSet<ChemicalComposition> ChemicalCompositions { get; set; } = null!;
+    public DbSet<FurnaceRegistration> FurnaceRegistrations { get; set; } = null!;
+    public DbSet<ChemicalValidationRule> ChemicalValidationRules { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -117,6 +125,13 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureSectionOutsource(builder);
         ConfigureOutsourceRecovery(builder);
         ConfigureMaterialReceiveCheck(builder);
+        ConfigureBatchOperationLog(builder);
+
+        // ========== 质量上下文 ==========
+        ConfigureProcessInspection(builder);
+        ConfigureChemicalComposition(builder);
+        ConfigureFurnaceRegistration(builder);
+        ConfigureChemicalValidationRule(builder);
 
         // 为所有继承 BaseEntity 的实体统一配置审计字段长度
         foreach (var entityType in builder.Model.GetEntityTypes())
@@ -868,6 +883,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.SourceLengthStatus).HasMaxLength(20);
             entity.Property(e => e.SourceUnitWeight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.InputWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.CurrentValidQty);
+            entity.Property(e => e.CurrentValidWeight).HasColumnType("decimal(18,3)");
 
             // 索引
             entity.HasIndex(e => e.BatchNo).IsUnique().HasDatabaseName("UK_ProductionBatch_BatchNo");
@@ -948,8 +965,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Shift).HasMaxLength(10);
             entity.Property(e => e.Quantity);
             entity.Property(e => e.Weight).HasColumnType("decimal(18,3)");
-            entity.Property(e => e.DefectQuantity);
-            entity.Property(e => e.DefectWeight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.IsFinished).IsRequired().HasDefaultValue(false);
             entity.Property(e => e.CuttingMultiple).HasColumnType("decimal(5,2)");
             entity.Property(e => e.FinishedCutLength).HasColumnType("decimal(18,2)");
@@ -1065,6 +1080,191 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => e.ProductionBatchId)
                 .IsUnique()
                 .HasDatabaseName("UK_MaterialReceiveCheck_BatchId");
+        });
+    }
+
+    private static void ConfigureBatchOperationLog(ModelBuilder builder)
+    {
+        builder.Entity<BatchOperationLog>(entity =>
+        {
+            entity.ToTable("BatchOperationLog");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.OperationType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Detail).HasMaxLength(2000);
+
+            entity.HasOne(e => e.ProductionBatch)
+                .WithMany()
+                .HasForeignKey(e => e.ProductionBatchId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ProductionBatchId)
+                .HasDatabaseName("IX_BatchOperationLog_BatchId");
+        });
+    }
+
+    // ================================================================
+    //                      质量上下文配置
+    // ================================================================
+
+    private static void ConfigureChemicalComposition(ModelBuilder builder)
+    {
+        builder.Entity<ChemicalComposition>(entity =>
+        {
+            entity.ToTable("ChemicalComposition");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Carbon).HasMaxLength(100);
+            entity.Property(e => e.Silicon).HasMaxLength(100);
+            entity.Property(e => e.Manganese).HasMaxLength(100);
+            entity.Property(e => e.Phosphorus).HasMaxLength(100);
+            entity.Property(e => e.Sulfur).HasMaxLength(100);
+            entity.Property(e => e.Nickel).HasMaxLength(100);
+            entity.Property(e => e.Chromium).HasMaxLength(100);
+            entity.Property(e => e.Molybdenum).HasMaxLength(100);
+            entity.Property(e => e.Copper).HasMaxLength(100);
+            entity.Property(e => e.Nitrogen).HasMaxLength(100);
+            entity.Property(e => e.Niobium).HasMaxLength(100);
+            entity.Property(e => e.Titanium).HasMaxLength(100);
+            entity.Property(e => e.Iron).HasMaxLength(100);
+            entity.Property(e => e.Aluminum).HasMaxLength(100);
+            entity.Property(e => e.Tungsten).HasMaxLength(100);
+            entity.Property(e => e.PREN).HasMaxLength(100);
+
+            entity.HasIndex(e => e.PlantGrade)
+                .IsUnique()
+                .HasDatabaseName("UK_ChemicalComposition_PlantGrade");
+        });
+    }
+
+    private static void ConfigureFurnaceRegistration(ModelBuilder builder)
+    {
+        builder.Entity<FurnaceRegistration>(entity =>
+        {
+            entity.ToTable("FurnaceRegistration");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.IncomingDate).IsRequired().HasColumnType("date");
+            entity.Property(e => e.RawMaterialUnit).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.RawMaterialType).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.RegisteredGrade).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.RelatedPlantGrade).HasMaxLength(100);
+            entity.Property(e => e.FurnaceNumber).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Specification).HasMaxLength(100);
+            entity.Property(e => e.Weight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Carbon).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Silicon).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Manganese).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Phosphorus).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Sulfur).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Nickel).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Chromium).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Molybdenum).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Copper).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Nitrogen).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Niobium).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Titanium).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Iron).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Aluminum).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Tungsten).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.PREN).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Remark).HasMaxLength(500);
+
+            entity.HasIndex(e => e.FurnaceNumber)
+                .HasDatabaseName("IX_FurnaceRegistration_FurnaceNumber");
+        });
+    }
+
+    private static void ConfigureChemicalValidationRule(ModelBuilder builder)
+    {
+        builder.Entity<ChemicalValidationRule>(entity =>
+        {
+            entity.ToTable("ChemicalValidationRule");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.CMin).HasMaxLength(50);
+            entity.Property(e => e.CMax).HasMaxLength(50);
+            entity.Property(e => e.SiMin).HasMaxLength(50);
+            entity.Property(e => e.SiMax).HasMaxLength(50);
+            entity.Property(e => e.MnMin).HasMaxLength(50);
+            entity.Property(e => e.MnMax).HasMaxLength(50);
+            entity.Property(e => e.PMin).HasMaxLength(50);
+            entity.Property(e => e.PMax).HasMaxLength(50);
+            entity.Property(e => e.SMin).HasMaxLength(50);
+            entity.Property(e => e.SMax).HasMaxLength(50);
+            entity.Property(e => e.NiMin).HasMaxLength(50);
+            entity.Property(e => e.NiMax).HasMaxLength(50);
+            entity.Property(e => e.CrMin).HasMaxLength(50);
+            entity.Property(e => e.CrMax).HasMaxLength(50);
+            entity.Property(e => e.MoMin).HasMaxLength(50);
+            entity.Property(e => e.MoMax).HasMaxLength(50);
+            entity.Property(e => e.CuMin).HasMaxLength(50);
+            entity.Property(e => e.CuMax).HasMaxLength(50);
+            entity.Property(e => e.NMin).HasMaxLength(50);
+            entity.Property(e => e.NMax).HasMaxLength(50);
+            entity.Property(e => e.NbMin).HasMaxLength(50);
+            entity.Property(e => e.NbMax).HasMaxLength(50);
+            entity.Property(e => e.TiMin).HasMaxLength(50);
+            entity.Property(e => e.TiMax).HasMaxLength(50);
+            entity.Property(e => e.FeMin).HasMaxLength(50);
+            entity.Property(e => e.FeMax).HasMaxLength(50);
+            entity.Property(e => e.AlMin).HasMaxLength(50);
+            entity.Property(e => e.AlMax).HasMaxLength(50);
+            entity.Property(e => e.WMin).HasMaxLength(50);
+            entity.Property(e => e.WMax).HasMaxLength(50);
+            entity.Property(e => e.PRENMin).HasMaxLength(50);
+
+            entity.HasIndex(e => e.PlantGrade)
+                .IsUnique()
+                .HasDatabaseName("UK_ChemicalValidationRule_PlantGrade");
+        });
+    }
+
+    private static void ConfigureProcessInspection(ModelBuilder builder)
+    {
+        builder.Entity<ProcessInspection>(entity =>
+        {
+            entity.ToTable("ProcessInspection");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.ProductionBatchId).IsRequired();
+            entity.Property(e => e.ProcessGroupId).IsRequired();
+            entity.Property(e => e.ProcessName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ManufacturingSpec).HasMaxLength(100);
+            entity.Property(e => e.SectionName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.SequenceNumber).IsRequired();
+            entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.EquipmentName).HasMaxLength(100);
+            entity.Property(e => e.Inspector).HasMaxLength(50);
+            entity.Property(e => e.Shift).HasMaxLength(10);
+            entity.Property(e => e.Quantity);
+            entity.Property(e => e.Weight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.InspectionItem).HasMaxLength(100);
+            entity.Property(e => e.QualifiedQuantity);
+            entity.Property(e => e.QualifiedWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.DefectReworkQuantity);
+            entity.Property(e => e.DefectWarehouseQuantity);
+            entity.Property(e => e.DefectScrapQuantity);
+            entity.Property(e => e.DefectDescription).HasMaxLength(500);
+            entity.Property(e => e.SourceUnit).HasMaxLength(200);
+            entity.Property(e => e.TagNo).HasMaxLength(50);
+            entity.Property(e => e.PlantGrade).HasMaxLength(50);
+            entity.Property(e => e.Remark).HasMaxLength(500);
+
+            entity.HasOne(e => e.ProductionBatch)
+                .WithMany()
+                .HasForeignKey(e => e.ProductionBatchId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ProcessGroup)
+                .WithMany()
+                .HasForeignKey(e => e.ProcessGroupId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasIndex(e => e.ProductionBatchId).HasDatabaseName("IX_ProcessInspection_BatchId");
+            entity.HasIndex(e => e.ProcessGroupId).HasDatabaseName("IX_ProcessInspection_ProcessGroupId");
         });
     }
 }

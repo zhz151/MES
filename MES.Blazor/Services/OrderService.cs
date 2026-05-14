@@ -57,6 +57,22 @@ public class OrderService
         }
     }
 
+    /// <summary>
+    /// 根据订单号获取订单ID
+    /// </summary>
+    public async Task<ApiResponse<int?>> GetIdByOrderNumberAsync(string orderNo)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<int?>>($"{BaseUrl}/by-number/{Uri.EscapeDataString(orderNo)}");
+            return response ?? ApiResponse<int?>.Fail("获取订单ID失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<int?>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
     public async Task<ApiResponse<SalesOrderListDto>> CreateAsync(CreateSalesOrderRequest request)
     {
         try

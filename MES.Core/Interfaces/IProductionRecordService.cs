@@ -108,6 +108,11 @@ public interface IProductionRecordService
     /// </summary>
     Task BatchUpdateBatchTrackingAsync(ICollection<int> batchIds);
 
+    /// <summary>
+    /// 获取批次跟踪可视化数据（前端进度图展示用）
+    /// </summary>
+    Task<BatchTrackingVisualDto> GetTrackingVisualAsync(int batchId);
+
     // ========== 跨批次查询（用于独立页面） ==========
 
     /// <summary>

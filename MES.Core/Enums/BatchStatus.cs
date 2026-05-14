@@ -18,5 +18,15 @@ public enum BatchStatus
     /// <summary>
     /// 完成
     /// </summary>
-    Completed = 2
+    Completed = 2,
+
+    /// <summary>
+    /// 挂起（人工暂停）
+    /// </summary>
+    Suspended = 3,
+
+    /// <summary>
+    /// 作废
+    /// </summary>
+    Cancelled = 4
 }

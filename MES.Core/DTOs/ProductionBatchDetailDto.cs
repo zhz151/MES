@@ -71,6 +71,8 @@ public class ProductionBatchDetailDto
     public decimal? SourceUnitWeight { get; set; }
     public int? InputQuantity { get; set; }
     public decimal? InputWeight { get; set; }
+    public int? CurrentValidQty { get; set; }
+    public decimal? CurrentValidWeight { get; set; }
 
     // ========== 审计字段 ==========
     public DateTimeOffset CreatedTime { get; set; }

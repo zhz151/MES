@@ -382,6 +382,7 @@ input[type="number"]::-webkit-outer-spin-button {
     border-radius: 6px !important;
     margin-top: 4px !important;
     min-width: 140px !important;
+    overflow: visible !important;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
 }
 
@@ -846,6 +847,16 @@ input[type="number"]::-webkit-outer-spin-button {
 /* 卡片标题与内容间距缩短 */
 .compact-card.mud-card .mud-card-header {
     padding-bottom: 4px;
+}
+
+/* 批次时间线工段卡片悬浮效果 */
+.timeline-section {
+    transition: all 0.15s ease;
+    cursor: default;
+}
+.timeline-section:hover {
+    transform: translateX(2px);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
 }
 .compact-card.mud-card .mud-card-content {
     padding-top: 0;

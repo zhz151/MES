@@ -105,7 +105,9 @@ public static class EnumHelper
 
         Register<BatchStatus>(("None", "未产"),
                                ("InProgress", "在产"),
-                               ("Completed", "完成"));
+                               ("Completed", "完成"),
+                               ("Suspended", "挂起"),
+                               ("Cancelled", "作废"));
 
         Register<PurchaseOrderStatus>(("Open", "未到货"),
                                        ("Partial", "部分到货"),

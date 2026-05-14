@@ -1,0 +1,528 @@
+@page "/quality/furnace/{id:int}"
+@using MES.Blazor.Services
+@using MES.Blazor.Helpers
+@using MES.Core.DTOs
+@using Microsoft.AspNetCore.Authorization
+@inject FurnaceRegistrationService FurnaceRegistrationService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject ColumnPrefsService ColumnPrefs
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = "QualityStaff,QualityDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    @if (_isLoading) { <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" /> }
+    else if (_item == null) { <MudText Typo="Typo.body2" Color="Color.Error">记录不存在</MudText> }
+    else
+    {
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">
+                        <MudIcon Icon="@Icons.Material.Filled.LocalFireDepartment" Class="mr-2" Color="Color.Primary" />
+                        来料炉号登记详情
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">炉号：@_item.FurnaceNumber</MudText>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                    @if (_isEditMode)
+                    {
+                        <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CancelEdit">取消</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Loading="@_isSubmitting">
+                            保存
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <AuthorizeView Roles="QualityDirector,Admin">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑</MudButton>
+                        </AuthorizeView>
+                    }
+                </CardHeaderActions>
+            </MudCardHeader>
+            <MudCardContent>
+                <div class="d-flex align-center mb-2">
+                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold">
+                        <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />基本信息
+                    </MudText>
+                    <ColumnDisplaySelect Columns="@_allColumns"
+                                         OnColumnToggle="@OnColumnToggle"
+                                         OnMoveUp="@OnMoveUp"
+                                         OnMoveDown="@OnMoveDown" />
+                </div>
+
+                <div id="furnace-registration-detail-table" style="overflow-x: auto;">
+                    <MudTable Items="@_singleItemList" Dense="true" Hover="true" Elevation="0"
+                              Class="auto-table">
+                        <HeaderContent>
+                            @foreach (var col in _visibleColumns)
+                            {
+                                <MudTh>
+                                    @col.Label
+                                    @if (col.IsRequired && _isEditMode) { <span class="required-star">*</span> }
+                                </MudTh>
+                            }
+                        </HeaderContent>
+                        <RowTemplate Context="item">
+                            @foreach (var col in _visibleColumns)
+                            {
+                                <MudTd>@RenderCell(item, col)</MudTd>
+                            }
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+            </MudCardContent>
+        </MudCard>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private FurnaceRegistrationDto? _item;
+    private bool _isLoading = true;
+    private bool _isEditMode;
+    private bool _isSubmitting;
+    private bool _isArrowNavSetup;
+
+    private EditModel _editItem = new();
+
+    private List<FurnaceRegistrationDto> _singleItemList =>
+        _item != null ? new List<FurnaceRegistrationDto> { _item } : new();
+
+    // ========== 列定义 ==========
+
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns => _allColumns.Where(c => c.Visible).ToList();
+
+    private class EditModel
+    {
+        public DateTime IncomingDate { get; set; }
+        public string RawMaterialUnit { get; set; } = "";
+        public string RawMaterialType { get; set; } = "";
+        public string RegisteredGrade { get; set; } = "";
+        public string? RelatedPlantGrade { get; set; }
+        public string FurnaceNumber { get; set; } = "";
+        public string? Specification { get; set; }
+        public int? Quantity { get; set; }
+        public decimal? Weight { get; set; }
+        public decimal? Carbon { get; set; }
+        public decimal? Silicon { get; set; }
+        public decimal? Manganese { get; set; }
+        public decimal? Phosphorus { get; set; }
+        public decimal? Sulfur { get; set; }
+        public decimal? Nickel { get; set; }
+        public decimal? Chromium { get; set; }
+        public decimal? Molybdenum { get; set; }
+        public decimal? Copper { get; set; }
+        public decimal? Nitrogen { get; set; }
+        public decimal? Niobium { get; set; }
+        public decimal? Titanium { get; set; }
+        public decimal? Iron { get; set; }
+        public decimal? Aluminum { get; set; }
+        public decimal? Tungsten { get; set; }
+        public decimal? PREN { get; set; }
+        public string? Remark { get; set; }
+    }
+
+    // ========== 初始化 ==========
+
+    protected override async Task OnInitializedAsync()
+    {
+        InitColumns();
+        var saved = await ColumnPrefs.LoadAsync("furnace-registration-detail", null);
+        ApplyColumnPrefs(saved);
+        await LoadData();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_isEditMode && !_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#furnace-registration-detail-table"))
+                _isArrowNavSetup = false;
+        }
+    }
+
+    private void InitColumns()
+    {
+        _allColumns = new()
+        {
+            new() { Key = "IncomingDate",     Label = "来料日期",     IsRequired = true },
+            new() { Key = "RawMaterialUnit",  Label = "原料单位",     IsRequired = true },
+            new() { Key = "RawMaterialType",  Label = "原料类型",     IsRequired = true },
+            new() { Key = "RegisteredGrade",  Label = "登记牌号",     IsRequired = true },
+            new() { Key = "RelatedPlantGrade",Label = "关联工厂牌号" },
+            new() { Key = "FurnaceNumber",    Label = "炉号",         IsRequired = true },
+            new() { Key = "Specification",    Label = "规格" },
+            new() { Key = "Quantity",         Label = "支数" },
+            new() { Key = "Weight",           Label = "重量" },
+            new() { Key = "Carbon",           Label = "C" },
+            new() { Key = "Silicon",          Label = "Si" },
+            new() { Key = "Manganese",        Label = "Mn" },
+            new() { Key = "Phosphorus",       Label = "P" },
+            new() { Key = "Sulfur",           Label = "S" },
+            new() { Key = "Nickel",           Label = "Ni" },
+            new() { Key = "Chromium",         Label = "Cr" },
+            new() { Key = "Molybdenum",       Label = "Mo" },
+            new() { Key = "Copper",           Label = "Cu" },
+            new() { Key = "Nitrogen",         Label = "N" },
+            new() { Key = "Niobium",          Label = "Nb" },
+            new() { Key = "Titanium",         Label = "Ti" },
+            new() { Key = "Iron",             Label = "Fe" },
+            new() { Key = "Aluminum",         Label = "Al" },
+            new() { Key = "Tungsten",         Label = "W" },
+            new() { Key = "PREN",             Label = "PREN腐蚀当量" },
+            new() { Key = "Remark",           Label = "备注" },
+            new() { Key = "CreatedTime",      Label = "创建日期",     IsApplicable = false },
+            new() { Key = "UpdatedTime",      Label = "更新日期",     IsApplicable = false },
+        };
+    }
+
+    private void ApplyColumnPrefs(List<ColumnDef> saved)
+    {
+        if (saved.Count == 0) return;
+        foreach (var s in saved)
+        {
+            var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+            if (match != null) match.Visible = s.Visible;
+        }
+        var reordered = new List<ColumnDef>();
+        foreach (var s in saved)
+        {
+            var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+            if (match != null && !reordered.Contains(match)) reordered.Add(match);
+        }
+        foreach (var c in _allColumns)
+        {
+            if (!reordered.Contains(c)) reordered.Add(c);
+        }
+        _allColumns = reordered;
+    }
+
+    private async Task LoadData()
+    {
+        _isLoading = true;
+        StateHasChanged();
+        try
+        {
+            var result = await FurnaceRegistrationService.GetByIdAsync(Id);
+            if (result.Success && result.Data != null)
+            {
+                _item = result.Data;
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "加载失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void EnterEditMode()
+    {
+        if (_item == null) return;
+        _editItem = new EditModel
+        {
+            IncomingDate = _item.IncomingDate,
+            RawMaterialUnit = _item.RawMaterialUnit,
+            RawMaterialType = _item.RawMaterialType,
+            RegisteredGrade = _item.RegisteredGrade,
+            RelatedPlantGrade = _item.RelatedPlantGrade,
+            FurnaceNumber = _item.FurnaceNumber,
+            Specification = _item.Specification,
+            Quantity = _item.Quantity,
+            Weight = _item.Weight,
+            Carbon = _item.Carbon,
+            Silicon = _item.Silicon,
+            Manganese = _item.Manganese,
+            Phosphorus = _item.Phosphorus,
+            Sulfur = _item.Sulfur,
+            Nickel = _item.Nickel,
+            Chromium = _item.Chromium,
+            Molybdenum = _item.Molybdenum,
+            Copper = _item.Copper,
+            Nitrogen = _item.Nitrogen,
+            Niobium = _item.Niobium,
+            Titanium = _item.Titanium,
+            Iron = _item.Iron,
+            Aluminum = _item.Aluminum,
+            Tungsten = _item.Tungsten,
+            PREN = _item.PREN,
+            Remark = _item.Remark,
+        };
+        _isEditMode = true;
+    }
+
+    private void CancelEdit()
+    {
+        _isEditMode = false;
+        _isArrowNavSetup = false;
+    }
+
+    private async Task Save()
+    {
+        if (_item == null) return;
+
+        if (string.IsNullOrWhiteSpace(_editItem.FurnaceNumber))
+        {
+            Snackbar.Add("炉号不能为空", Severity.Error);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_editItem.RawMaterialUnit))
+        {
+            Snackbar.Add("原料单位不能为空", Severity.Error);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_editItem.RawMaterialType))
+        {
+            Snackbar.Add("原料类型不能为空", Severity.Error);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_editItem.RegisteredGrade))
+        {
+            Snackbar.Add("登记牌号不能为空", Severity.Error);
+            return;
+        }
+
+        _isSubmitting = true;
+        StateHasChanged();
+        try
+        {
+            var request = new UpdateFurnaceRegistrationRequest
+            {
+                IncomingDate = _editItem.IncomingDate,
+                RawMaterialUnit = _editItem.RawMaterialUnit,
+                RawMaterialType = _editItem.RawMaterialType,
+                RegisteredGrade = _editItem.RegisteredGrade,
+                RelatedPlantGrade = _editItem.RelatedPlantGrade,
+                FurnaceNumber = _editItem.FurnaceNumber,
+                Specification = _editItem.Specification,
+                Quantity = _editItem.Quantity,
+                Weight = _editItem.Weight,
+                Carbon = _editItem.Carbon,
+                Silicon = _editItem.Silicon,
+                Manganese = _editItem.Manganese,
+                Phosphorus = _editItem.Phosphorus,
+                Sulfur = _editItem.Sulfur,
+                Nickel = _editItem.Nickel,
+                Chromium = _editItem.Chromium,
+                Molybdenum = _editItem.Molybdenum,
+                Copper = _editItem.Copper,
+                Nitrogen = _editItem.Nitrogen,
+                Niobium = _editItem.Niobium,
+                Titanium = _editItem.Titanium,
+                Iron = _editItem.Iron,
+                Aluminum = _editItem.Aluminum,
+                Tungsten = _editItem.Tungsten,
+                PREN = _editItem.PREN,
+                Remark = _editItem.Remark,
+            };
+
+            var result = await FurnaceRegistrationService.UpdateAsync(_item.Id, request);
+            if (result.Success && result.Data != null)
+            {
+                _item = result.Data;
+                _isEditMode = false;
+                _isArrowNavSetup = false;
+                Snackbar.Add("更新成功", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "更新失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"更新失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/quality/furnace");
+
+    // ========== 列操作 ==========
+
+    private async Task OnColumnToggle(ColumnDef col) => await SaveColumnPrefs();
+    private async Task OnMoveUp(ColumnDef col) => await SaveColumnPrefs();
+    private async Task OnMoveDown(ColumnDef col) => await SaveColumnPrefs();
+    private async Task SaveColumnPrefs() => await ColumnPrefs.SaveAsync("furnace-registration-detail", null, _allColumns);
+
+    // ========== 单元格渲染 ==========
+
+    private RenderFragment RenderCell(FurnaceRegistrationDto item, ColumnDef col) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "IncomingDate":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Dense", true);
+                    builder.AddAttribute(2, "Variant", Variant.Outlined);
+                    builder.AddAttribute(3, "Size", Size.Small);
+                    builder.AddAttribute(4, "Value", _editItem.IncomingDate.ToString("yyyy-MM-dd"));
+                    builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v =>
+                    {
+                        if (DateTime.TryParse(v, out var dt)) _editItem.IncomingDate = dt;
+                    }));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, item.IncomingDate.ToString("yyyy-MM-dd"));
+                }
+                break;
+            case "RawMaterialUnit":
+                RenderEditField(builder, _editItem.RawMaterialUnit, v => _editItem.RawMaterialUnit = v ?? "", item.RawMaterialUnit);
+                break;
+            case "RawMaterialType":
+                RenderEditField(builder, _editItem.RawMaterialType, v => _editItem.RawMaterialType = v ?? "", item.RawMaterialType);
+                break;
+            case "RegisteredGrade":
+                RenderEditField(builder, _editItem.RegisteredGrade, v => _editItem.RegisteredGrade = v ?? "", item.RegisteredGrade);
+                break;
+            case "RelatedPlantGrade":
+                RenderEditField(builder, _editItem.RelatedPlantGrade, v => _editItem.RelatedPlantGrade = v, item.RelatedPlantGrade);
+                break;
+            case "FurnaceNumber":
+                RenderEditField(builder, _editItem.FurnaceNumber, v => _editItem.FurnaceNumber = v ?? "", item.FurnaceNumber);
+                break;
+            case "Specification":
+                RenderEditField(builder, _editItem.Specification, v => _editItem.Specification = v, item.Specification);
+                break;
+            case "Quantity":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudNumericField<int?>>(0);
+                    builder.AddAttribute(1, "Dense", true);
+                    builder.AddAttribute(2, "Variant", Variant.Outlined);
+                    builder.AddAttribute(3, "Size", Size.Small);
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.AddAttribute(5, "Value", _editItem.Quantity);
+                    builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => _editItem.Quantity = v));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, item.Quantity?.ToString());
+                }
+                break;
+            case "Weight":
+                RenderDecimalField(builder, _editItem.Weight, v => _editItem.Weight = v, item.Weight);
+                break;
+            case "Carbon":
+                RenderDecimalField(builder, _editItem.Carbon, v => _editItem.Carbon = v, item.Carbon);
+                break;
+            case "Silicon":
+                RenderDecimalField(builder, _editItem.Silicon, v => _editItem.Silicon = v, item.Silicon);
+                break;
+            case "Manganese":
+                RenderDecimalField(builder, _editItem.Manganese, v => _editItem.Manganese = v, item.Manganese);
+                break;
+            case "Phosphorus":
+                RenderDecimalField(builder, _editItem.Phosphorus, v => _editItem.Phosphorus = v, item.Phosphorus);
+                break;
+            case "Sulfur":
+                RenderDecimalField(builder, _editItem.Sulfur, v => _editItem.Sulfur = v, item.Sulfur);
+                break;
+            case "Nickel":
+                RenderDecimalField(builder, _editItem.Nickel, v => _editItem.Nickel = v, item.Nickel);
+                break;
+            case "Chromium":
+                RenderDecimalField(builder, _editItem.Chromium, v => _editItem.Chromium = v, item.Chromium);
+                break;
+            case "Molybdenum":
+                RenderDecimalField(builder, _editItem.Molybdenum, v => _editItem.Molybdenum = v, item.Molybdenum);
+                break;
+            case "Copper":
+                RenderDecimalField(builder, _editItem.Copper, v => _editItem.Copper = v, item.Copper);
+                break;
+            case "Nitrogen":
+                RenderDecimalField(builder, _editItem.Nitrogen, v => _editItem.Nitrogen = v, item.Nitrogen);
+                break;
+            case "Niobium":
+                RenderDecimalField(builder, _editItem.Niobium, v => _editItem.Niobium = v, item.Niobium);
+                break;
+            case "Titanium":
+                RenderDecimalField(builder, _editItem.Titanium, v => _editItem.Titanium = v, item.Titanium);
+                break;
+            case "Iron":
+                RenderDecimalField(builder, _editItem.Iron, v => _editItem.Iron = v, item.Iron);
+                break;
+            case "Aluminum":
+                RenderDecimalField(builder, _editItem.Aluminum, v => _editItem.Aluminum = v, item.Aluminum);
+                break;
+            case "Tungsten":
+                RenderDecimalField(builder, _editItem.Tungsten, v => _editItem.Tungsten = v, item.Tungsten);
+                break;
+            case "PREN":
+                RenderDecimalField(builder, _editItem.PREN, v => _editItem.PREN = v, item.PREN);
+                break;
+            case "Remark":
+                RenderEditField(builder, _editItem.Remark, v => _editItem.Remark = v, item.Remark);
+                break;
+            case "CreatedTime":
+                builder.AddContent(0, item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
+                break;
+            case "UpdatedTime":
+                builder.AddContent(0, item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
+                break;
+            default:
+                builder.AddContent(0, "");
+                break;
+        }
+    };
+
+    private void RenderEditField(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder, string? editValue, Action<string?> setter, string? display)
+    {
+        if (_isEditMode)
+        {
+            builder.OpenComponent<MudTextField<string>>(0);
+            builder.AddAttribute(1, "Dense", true);
+            builder.AddAttribute(2, "Variant", Variant.Outlined);
+            builder.AddAttribute(3, "Size", Size.Small);
+            builder.AddAttribute(4, "Value", editValue);
+            builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, setter));
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddContent(0, display);
+        }
+    }
+
+    private void RenderDecimalField(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder, decimal? editValue, Action<decimal?> setter, decimal? display)
+    {
+        if (_isEditMode)
+        {
+            builder.OpenComponent<MudNumericField<decimal?>>(0);
+            builder.AddAttribute(1, "Dense", true);
+            builder.AddAttribute(2, "Variant", Variant.Outlined);
+            builder.AddAttribute(3, "Size", Size.Small);
+            builder.AddAttribute(4, "HideSpinButtons", true);
+            builder.AddAttribute(5, "Format", "G29");
+            builder.AddAttribute(6, "Value", editValue);
+            builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, setter));
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddContent(0, display?.ToString("G29"));
+        }
+    }
+}

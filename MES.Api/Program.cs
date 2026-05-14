@@ -138,6 +138,10 @@ builder.Services.AddScoped<IInventoryService, InventoryService>();
 // Register batch context services
 builder.Services.AddScoped<IBatchService, BatchService>();
 builder.Services.AddScoped<IProductionRecordService, ProductionRecordService>();
+builder.Services.AddScoped<IProcessInspectionService, ProcessInspectionService>();
+builder.Services.AddScoped<IChemicalCompositionService, ChemicalCompositionService>();
+builder.Services.AddScoped<IFurnaceRegistrationService, FurnaceRegistrationService>();
+builder.Services.AddScoped<IChemicalValidationRuleService, ChemicalValidationRuleService>();
 builder.Services.AddScoped<ISectionOutsourceService, SectionOutsourceService>();
 
 // Register material context services

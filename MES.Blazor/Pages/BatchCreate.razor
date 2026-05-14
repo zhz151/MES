@@ -329,29 +329,17 @@
 
     <!-- ==================== Block C: 质量要求信息 ==================== -->
     <MudCard Class="mb-4 compact-card">
-        <MudCardHeader>
-            <CardHeaderContent>
-                <div class="d-flex align-center">
-                    <MudIcon Icon="@Icons.Material.Filled.NewReleases" Class="mr-1" Color="Color.Primary" />
-                    <MudText Typo="Typo.h6" Class="font-weight-bold">质量要求信息</MudText>
-                </div>
-            </CardHeaderContent>
-        </MudCardHeader>
         <MudCardContent>
-            <MudSimpleTable Dense="true" Class="auto-table">
-                <thead>
-                    <tr>
-                        <th>固溶参数</th>
-                        <th>质量备注</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><MudTextField T="string" @bind-Value="request.SolutionParams" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
-                        <td><MudTextField T="string" @bind-Value="request.QualityRemark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
-                    </tr>
-                </tbody>
-            </MudSimpleTable>
+            <div class="d-flex flex-wrap" style="gap:8px 24px;">
+                <div class="d-flex align-center" style="gap:6px;">
+                    <span style="white-space:nowrap; font-weight:500;">固溶参数</span>
+                    <MudTextField T="string" @bind-Value="request.SolutionParams" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:180px;" />
+                </div>
+                <div class="d-flex align-center" style="gap:6px;">
+                    <span style="white-space:nowrap; font-weight:500;">质量备注</span>
+                    <MudTextField T="string" @bind-Value="request.QualityRemark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:500px;" />
+                </div>
+            </div>
         </MudCardContent>
     </MudCard>
 
@@ -366,37 +354,45 @@
             </CardHeaderContent>
         </MudCardHeader>
         <MudCardContent>
-            <MudSimpleTable Dense="true" Class="auto-table">
-                <thead>
-                    <tr>
-                        <th>生产编号</th>
-                        <th>挂牌号</th>
-                        <th>生产类型</th>
-                        <th>制几率</th>
-                        <th>备注</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><MudTextField T="string" Value="@batchNoDisplay" Disabled="true" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
-                        <td><MudTextField T="string" @bind-Value="request.TagNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
-                        <td>
-                            <MudSelect T="string" @bind-Value="request.ProductionType" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
-                                <MudSelectItem Value="@("RoughTube")">荒管生产</MudSelectItem>
-                                <MudSelectItem Value="@("InProcess")">在制生产</MudSelectItem>
-                                <MudSelectItem Value="@("Inventory")">库存</MudSelectItem>
-                                <MudSelectItem Value="@("OutsourcedPurchased")">外购</MudSelectItem>
-                                <MudSelectItem Value="@("Rework")">返整</MudSelectItem>
-                                <MudSelectItem Value="@("Subcontract")">委外生产</MudSelectItem>
-                                <MudSelectItem Value="@("ExternalProcessing")">对外加工</MudSelectItem>
-                            </MudSelect>
-                        </td>
-                        <td><MudNumericField T="int?" @bind-Value="request.ProductionRatio" Disabled="true" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></td>
-                        <td><MudTextField T="string" @bind-Value="request.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
-                    </tr>
-                </tbody>
-            </MudSimpleTable>
+            <div class="d-flex flex-wrap" style="gap:8px 24px;">
+                <div class="d-flex align-center" style="gap:6px;">
+                    <span style="white-space:nowrap; font-weight:500;">生产编号</span>
+                    <MudTextField T="string" Value="@batchNoDisplay" Disabled="true" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:130px; font-weight:700; color:#000000;" />
+                </div>
+                <div class="d-flex align-center" style="gap:6px;">
+                    <span style="white-space:nowrap; font-weight:500;">挂牌号</span>
+                    <MudTextField T="string" @bind-Value="request.TagNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:130px;" />
+                </div>
+                <div class="d-flex align-center" style="gap:6px;">
+                    <span style="white-space:nowrap; font-weight:500;">生产类型</span>
+                    <MudSelect T="string" @bind-Value="request.ProductionType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:130px;">
+                        <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
+                        <MudSelectItem Value="@("RoughTube")">荒管生产</MudSelectItem>
+                        <MudSelectItem Value="@("InProcess")">在制生产</MudSelectItem>
+                        <MudSelectItem Value="@("Inventory")">库存</MudSelectItem>
+                        <MudSelectItem Value="@("OutsourcedPurchased")">外购</MudSelectItem>
+                        <MudSelectItem Value="@("Rework")">返整</MudSelectItem>
+                        <MudSelectItem Value="@("Subcontract")">委外生产</MudSelectItem>
+                        <MudSelectItem Value="@("ExternalProcessing")">对外加工</MudSelectItem>
+                    </MudSelect>
+                </div>
+                <div class="d-flex align-center" style="gap:6px;">
+                    <span style="white-space:nowrap; font-weight:500;">制几率</span>
+                    <MudNumericField T="int?" @bind-Value="request.ProductionRatio" Disabled="true" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" Style="width:70px;" />
+                </div>
+                <div class="d-flex align-center" style="gap:6px;">
+                    <span style="white-space:nowrap; font-weight:500;">有效支数</span>
+                    <MudNumericField T="int?" @bind-Value="request.CurrentValidQty" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" Style="width:70px;" />
+                </div>
+                <div class="d-flex align-center" style="gap:6px;">
+                    <span style="white-space:nowrap; font-weight:500;">有效重量(kg)</span>
+                    <MudNumericField T="decimal?" @bind-Value="request.CurrentValidWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" Style="width:100px;" />
+                </div>
+                <div class="d-flex align-center" style="gap:6px;">
+                    <span style="white-space:nowrap; font-weight:500;">备注</span>
+                    <MudTextField T="string" @bind-Value="request.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:280px;" />
+                </div>
+            </div>
         </MudCardContent>
     </MudCard>
 
@@ -409,9 +405,17 @@
                     <MudText Typo="Typo.h6" Class="font-weight-bold">工序组</MudText>
                 </div>
             </CardHeaderContent>
-            <CardHeaderActions>
+        </MudCardHeader>
+        <MudCardContent>
+            <div style="margin-bottom:8px; display:flex; justify-content:flex-end;">
+                <div style="width:130px;">
+                    <MudTextField T="string" @bind-Value="_copyBatchNo" Placeholder="输入批次号"
+                                  Dense="true" Variant="Variant.Outlined" Size="Size.Small" />
+                </div>
+            </div>
+            <div class="d-flex flex-wrap align-center" style="gap:8px; margin-bottom:12px; justify-content:flex-end;">
                 <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
-                           StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyLastBatchProcessGroups" Class="mr-2"
+                           StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyLastBatchProcessGroups"
                            Disabled="@lastBatchLoading">
                     @if (lastBatchLoading)
                     {
@@ -430,9 +434,14 @@
                                    OnMoveDown="OnPgColumnMove" />
                 <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Warning"
                            StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetPgColumns">重置</MudButton>
-            </CardHeaderActions>
-        </MudCardHeader>
-        <MudCardContent>
+                <MudButton Variant="Variant.Outlined" Color="Color.Tertiary" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.FileCopy"
+                           OnClick="CopyProcessGroupsByBatchNo"
+                           Disabled="@_copyBatchLoading"
+                           Style="width:130px;">
+                    调取工序
+                </MudButton>
+            </div>
             @if (request.ProcessGroups == null || request.ProcessGroups.Count == 0)
             {
             }
@@ -632,6 +641,8 @@
     }
 
     private bool lastBatchLoading;
+    private string _copyBatchNo = string.Empty;
+    private bool _copyBatchLoading;
 
     // ========== 工序组列显示 ==========
     private List<ColumnDef> pgCols = new();
@@ -717,6 +728,8 @@
         request.SourceUnitWeight = batch.UnitWeight;
         request.InputQuantity = batch.OutboundQuantity;
         request.InputWeight = batch.OutboundWeight;
+        request.CurrentValidQty = batch.OutboundQuantity;
+        request.CurrentValidWeight = batch.OutboundWeight;
         warehouseName = batch.WarehouseName;
         sourceWorkOrderNo = batch.WorkOrderNo;
 
@@ -1042,6 +1055,53 @@
     {
         if (request.ProcessGroups == null) return;
         request.ProcessGroups.Remove(pg);
+    }
+
+    private async Task CopyProcessGroupsByBatchNo()
+    {
+        if (string.IsNullOrWhiteSpace(_copyBatchNo))
+        {
+            Snackbar.Add("请输入批次号", Severity.Warning);
+            return;
+        }
+
+        if (request.ProcessGroups != null && request.ProcessGroups.Count > 0)
+        {
+            var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认覆盖", new DialogParameters
+            {
+                ["Title"] = "确认覆盖",
+                ["ContentText"] = "当前已有工序组数据，调取后将覆盖现有数据，是否继续？",
+                ["ConfirmText"] = "确认覆盖"
+            });
+            var result = await dialog.Result;
+            if (result.Canceled) return;
+        }
+
+        _copyBatchLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var apiResult = await BatchService.GetProcessGroupsByBatchNoAsync(_copyBatchNo.Trim());
+            if (apiResult.Success && apiResult.Data != null && apiResult.Data.Count > 0)
+            {
+                request.ProcessGroups = apiResult.Data;
+                Snackbar.Add($"已从批次 {_copyBatchNo} 复制 {apiResult.Data.Count} 条工序组数据", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add($"未找到批次 {_copyBatchNo} 的工序组数据", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"调取失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _copyBatchLoading = false;
+            StateHasChanged();
+        }
     }
 
     private async Task CopyLastBatchProcessGroups()

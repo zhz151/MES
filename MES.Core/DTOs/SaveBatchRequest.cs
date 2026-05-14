@@ -50,6 +50,10 @@ public class SaveBatchRequest
 
     public decimal? InputWeight { get; set; }
 
+    public int? CurrentValidQty { get; set; }
+
+    public decimal? CurrentValidWeight { get; set; }
+
     public bool? IsForceCompleted { get; set; }
 
     // ========== 工单冗余字段（全部可空，有值时更新） ==========

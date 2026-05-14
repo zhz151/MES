@@ -24,5 +24,7 @@ public class ProductionBatchListDto
     public string? CurrentSpec { get; set; }
     public string? NextSectionName { get; set; }
     public string? CorrespondingSpec { get; set; }
+    public int? CurrentValidQty { get; set; }
+    public decimal? CurrentValidWeight { get; set; }
     public string CreatedBy { get; set; } = null!;
 }

@@ -55,6 +55,16 @@ public class QueryParams
     public DateTime? ExecDateTo { get; set; }
 
     /// <summary>
+    /// 检验日期范围筛选-开始（仅过程检验使用）
+    /// </summary>
+    public DateTime? InspectionDateFrom { get; set; }
+
+    /// <summary>
+    /// 检验日期范围筛选-结束（仅过程检验使用）
+    /// </summary>
+    public DateTime? InspectionDateTo { get; set; }
+
+    /// <summary>
     /// 发出日期范围筛选-开始（仅工段委外使用）
     /// </summary>
     public DateTime? SendOutDateFrom { get; set; }
