@@ -31,7 +31,7 @@ public class BatchService : IBatchService
             .AsNoTracking()
             .AsQueryable();
 
-        // 关键字搜索（匹配生产编号、工单号、挂牌号、订单号、主号、次号）
+        // 关键字搜索
         if (!string.IsNullOrEmpty(query.Keyword))
         {
             var kw = query.Keyword;
@@ -41,7 +41,15 @@ public class BatchService : IBatchService
                 b.SalesOrderNo.Contains(kw) ||
                 b.ProductionMainNo.Contains(kw) ||
                 (b.ProductionSubNo != null && b.ProductionSubNo.Contains(kw)) ||
-                (b.TagNo != null && b.TagNo.Contains(kw)));
+                (b.TagNo != null && b.TagNo.Contains(kw)) ||
+                b.CreatedBy.Contains(kw) ||
+                (b.CurrentGroupName != null && b.CurrentGroupName.Contains(kw)) ||
+                (b.CurrentSectionName != null && b.CurrentSectionName.Contains(kw)) ||
+                (b.CurrentEquipmentName != null && b.CurrentEquipmentName.Contains(kw)) ||
+                (b.CurrentOutsource != null && b.CurrentOutsource.Contains(kw)) ||
+                (b.CurrentSpec != null && b.CurrentSpec.Contains(kw)) ||
+                (b.NextSectionName != null && b.NextSectionName.Contains(kw)) ||
+                (b.CorrespondingSpec != null && b.CorrespondingSpec.Contains(kw)));
         }
 
         // 筛选条件
@@ -114,6 +122,12 @@ public class BatchService : IBatchService
             "nextsectionname" => query.IsDescending
                 ? queryable.OrderByDescending(b => b.NextSectionName ?? "")
                 : queryable.OrderBy(b => b.NextSectionName ?? ""),
+            "currentspec" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.CurrentSpec ?? "")
+                : queryable.OrderBy(b => b.CurrentSpec ?? ""),
+            "correspondingspec" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.CorrespondingSpec ?? "")
+                : queryable.OrderBy(b => b.CorrespondingSpec ?? ""),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(b => b.CreatedTime)
                 : queryable.OrderBy(b => b.CreatedTime)
@@ -1006,7 +1020,15 @@ public class BatchService : IBatchService
                 b.SalesOrderNo.Contains(kw) ||
                 b.ProductionMainNo.Contains(kw) ||
                 (b.ProductionSubNo != null && b.ProductionSubNo.Contains(kw)) ||
-                (b.TagNo != null && b.TagNo.Contains(kw)));
+                (b.TagNo != null && b.TagNo.Contains(kw)) ||
+                b.CreatedBy.Contains(kw) ||
+                (b.CurrentGroupName != null && b.CurrentGroupName.Contains(kw)) ||
+                (b.CurrentSectionName != null && b.CurrentSectionName.Contains(kw)) ||
+                (b.CurrentEquipmentName != null && b.CurrentEquipmentName.Contains(kw)) ||
+                (b.CurrentOutsource != null && b.CurrentOutsource.Contains(kw)) ||
+                (b.CurrentSpec != null && b.CurrentSpec.Contains(kw)) ||
+                (b.NextSectionName != null && b.NextSectionName.Contains(kw)) ||
+                (b.CorrespondingSpec != null && b.CorrespondingSpec.Contains(kw)));
         }
         if (!string.IsNullOrEmpty(request.WorkOrderNo))
             queryable = queryable.Where(b => b.WorkOrderNo.Contains(request.WorkOrderNo));

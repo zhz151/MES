@@ -368,4 +368,51 @@ public class ProductionRecordServiceTests : TestBase
 
         result.Should().BeNull();
     }
+
+    // ========== B11 专项测试 ==========
+
+    [Fact]
+    public async Task GetAllProductionRecordsAsync_关键词搜索制造规格_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-REC-SPEC");
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx);
+
+        await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH-REC-SPEC", ProcessName = "冷轧",
+            ManufacturingSpec = "273*10", SectionName = "冷轧拔",
+            ExecDate = DateTime.Today, Quantity = 10, Weight = 1000m
+        });
+
+        var result = await svc.GetAllProductionRecordsAsync(new QueryParams
+        { PageIndex = 1, PageSize = 20, Keyword = "273*10" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].ManufacturingSpec.Should().Be("273*10");
+    }
+
+    [Fact]
+    public async Task GetAllProductionRecordsAsync_关键词搜索备注_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-REC-REM");
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx);
+
+        await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH-REC-REM", ProcessName = "冷轧",
+            ManufacturingSpec = "219*8", SectionName = "冷轧拔",
+            ExecDate = DateTime.Today, Quantity = 10, Weight = 1000m,
+            Remark = "生产记录备注测试"
+        });
+
+        var result = await svc.GetAllProductionRecordsAsync(new QueryParams
+        { PageIndex = 1, PageSize = 20, Keyword = "生产记录备注" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Remark.Should().Be("生产记录备注测试");
+    }
 }

@@ -244,4 +244,46 @@ public class SupplierServiceTests : TestBase
         var act = () => svc.DeleteAsync(999);
         await act.Should().ThrowAsync<BusinessException>().WithMessage("供应商不存在");
     }
+
+    // ========== B11 专项测试 ==========
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索地址_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        ctx.SupplierProfiles.Add(new SupplierProfile
+        {
+            SupplierCode = $"S{Guid.NewGuid():N}"[..10],
+            SupplierName = "地址测试供应商",
+            Address = "上海市浦东新区",
+            IsActive = true
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "浦东" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Address.Should().Be("上海市浦东新区");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索备注_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        ctx.SupplierProfiles.Add(new SupplierProfile
+        {
+            SupplierCode = $"S{Guid.NewGuid():N}"[..10],
+            SupplierName = "备注测试供应商",
+            Remark = "优质供应商备注",
+            IsActive = true
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "优质供应商" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Remark.Should().Be("优质供应商备注");
+    }
 }

@@ -500,4 +500,58 @@ public class InventoryServiceTests : TestBase
         result.Items[0].BatchNo.Should().Be(batch.BatchNo);
         result.TotalCount.Should().Be(1);
     }
+
+    // ========== B11 专项测试 ==========
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索区域_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx);
+        var svc = CreateService(ctx);
+
+        await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id, MaterialType = "无缝管",
+            PlantGrade = "Q345B", Specification = "219*8",
+            InboundSource = "采购", SourceName = "供应商A",
+            InitialQuantity = 10, InitialWeight = 1000m
+        });
+
+        var batch = await ctx.InventoryBatches.OrderByDescending(b => b.Id).FirstAsync();
+        batch.LocationArea = "A区-3排";
+        await ctx.SaveChangesAsync();
+
+        var result = await svc.GetPagedAsync(new InventoryQueryParams
+        { PageIndex = 0, PageSize = 10, Keyword = "A区" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].LocationArea.Should().Be("A区-3排");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索备注_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx);
+        var svc = CreateService(ctx);
+
+        await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id, MaterialType = "无缝管",
+            PlantGrade = "Q345B", Specification = "219*8",
+            InboundSource = "采购", SourceName = "供应商A",
+            InitialQuantity = 10, InitialWeight = 1000m
+        });
+
+        var batch = await ctx.InventoryBatches.OrderByDescending(b => b.Id).FirstAsync();
+        batch.Remark = "库存批次备注";
+        await ctx.SaveChangesAsync();
+
+        var result = await svc.GetPagedAsync(new InventoryQueryParams
+        { PageIndex = 0, PageSize = 10, Keyword = "库存批次" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Remark.Should().Be("库存批次备注");
+    }
 }

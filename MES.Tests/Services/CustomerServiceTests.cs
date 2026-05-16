@@ -272,4 +272,48 @@ public class CustomerServiceTests : TestBase
         var act = () => svc.DeleteAsync(999);
         await act.Should().ThrowAsync<BusinessException>().WithMessage("客户不存在");
     }
+
+    // ========== B11 专项测试 ==========
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索联系人_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        ctx.CustomerProfiles.Add(new CustomerProfile
+        {
+            CustomerCode = "C-CONTACT",
+            CustomerUnit = "联系人测试客户",
+            ContactPerson = "李经理",
+            Salesman = "测试业务员",
+            Status = CustomerStatus.Active
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "李经理" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].ContactPerson.Should().Be("李经理");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索地址_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        ctx.CustomerProfiles.Add(new CustomerProfile
+        {
+            CustomerCode = "C-ADDR",
+            CustomerUnit = "地址测试客户",
+            Address = "北京市海淀区",
+            Salesman = "测试业务员",
+            Status = CustomerStatus.Active
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "海淀" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Address.Should().Be("北京市海淀区");
+    }
 }

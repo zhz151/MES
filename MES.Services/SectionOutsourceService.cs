@@ -83,7 +83,11 @@ public class SectionOutsourceService : ISectionOutsourceService
                 s.ProcessName.Contains(kw) ||
                 s.SectionName.Contains(kw) ||
                 s.ProductionBatch.BatchNo.Contains(kw) ||
-                (s.TagNo != null && s.TagNo.Contains(kw)));
+                (s.TagNo != null && s.TagNo.Contains(kw)) ||
+                (s.ManufacturingSpec != null && s.ManufacturingSpec.Contains(kw)) ||
+                (s.PlantGrade != null && s.PlantGrade.Contains(kw)) ||
+                (s.OutsourceSpec != null && s.OutsourceSpec.Contains(kw)) ||
+                (s.Remark != null && s.Remark.Contains(kw)));
         }
 
         // 发出日期范围筛选
@@ -133,6 +137,22 @@ public class SectionOutsourceService : ISectionOutsourceService
             ("status", true) => queryable.OrderByDescending(s => s.Status),
             ("expectedreturndate", false) => queryable.OrderBy(s => s.ExpectedReturnDate ?? DateTime.MaxValue),
             ("expectedreturndate", true) => queryable.OrderByDescending(s => s.ExpectedReturnDate),
+            ("manufacturingspec", false) => queryable.OrderBy(s => s.ManufacturingSpec ?? ""),
+            ("manufacturingspec", true) => queryable.OrderByDescending(s => s.ManufacturingSpec ?? ""),
+            ("sequencenumber", false) => queryable.OrderBy(s => s.SequenceNumber),
+            ("sequencenumber", true) => queryable.OrderByDescending(s => s.SequenceNumber),
+            ("tagno", false) => queryable.OrderBy(s => s.TagNo ?? ""),
+            ("tagno", true) => queryable.OrderByDescending(s => s.TagNo ?? ""),
+            ("plantgrade", false) => queryable.OrderBy(s => s.PlantGrade ?? ""),
+            ("plantgrade", true) => queryable.OrderByDescending(s => s.PlantGrade ?? ""),
+            ("outsourcespec", false) => queryable.OrderBy(s => s.OutsourceSpec ?? ""),
+            ("outsourcespec", true) => queryable.OrderByDescending(s => s.OutsourceSpec ?? ""),
+            ("isurgent", false) => queryable.OrderBy(s => s.IsUrgent),
+            ("isurgent", true) => queryable.OrderByDescending(s => s.IsUrgent),
+            ("remark", false) => queryable.OrderBy(s => s.Remark ?? ""),
+            ("remark", true) => queryable.OrderByDescending(s => s.Remark ?? ""),
+            ("updatedtime", false) => queryable.OrderBy(s => s.UpdatedTime),
+            ("updatedtime", true) => queryable.OrderByDescending(s => s.UpdatedTime),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(s => s.CreatedTime)
                 : queryable.OrderBy(s => s.CreatedTime)

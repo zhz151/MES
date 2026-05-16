@@ -122,6 +122,35 @@ public static class EnumHelper
         Register<SectionOutsourceStatus>(("PendingRecovery", "待回收"),
                                           ("Recovered", "已回收"),
                                           ("InProgress", "在轧"));
+
+        Register<RepairPriority>(("Normal", "普通"),
+                                  ("Urgent", "紧急"),
+                                  ("Emergency", "特急"));
+
+        Register<LifecycleStatus>(("Active", "在用"),
+                                   ("Standby", "备用"),
+                                   ("Scrapped", "报废"));
+
+        Register<UsageType>(("Primary", "主生产设备"),
+                             ("Secondary", "辅生产设备"),
+                             ("Other", "其它"));
+
+        Register<RunningStatus>(("Normal", "正常"),
+                                 ("Pending", "待维修"),
+                                 ("InProgress", "维修中"));
+
+        Register<RepairOrderStatus>(("Pending", "待维修"),
+                                     ("InProgress", "维修中"),
+                                     ("Completed", "完成"));
+
+        Register<EquipmentTaskStatus>(("NotApplicable", "不适用"),
+                                       ("Pending", "待执行"),
+                                       ("Normal", "正常"),
+                                       ("Overdue", "逾期"));
+
+        Register<TaskOrderStatus>(("Pending", "待执行"),
+                                   ("Completed", "已完成"),
+                                   ("Overdue", "已逾期"));
     }
 
     private static void Register<T>(params (string value, string display)[] mappings) where T : Enum

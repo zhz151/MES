@@ -33,7 +33,40 @@ public class ChemicalValidationRuleService : IChemicalValidationRuleService
 
         if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
-            queryable = queryable.Where(r => r.PlantGrade.Contains(query.Keyword));
+            var kw = query.Keyword;
+            queryable = queryable.Where(r =>
+                r.PlantGrade.Contains(kw) ||
+                (r.CMin != null && r.CMin.Contains(kw)) ||
+                (r.CMax != null && r.CMax.Contains(kw)) ||
+                (r.SiMin != null && r.SiMin.Contains(kw)) ||
+                (r.SiMax != null && r.SiMax.Contains(kw)) ||
+                (r.MnMin != null && r.MnMin.Contains(kw)) ||
+                (r.MnMax != null && r.MnMax.Contains(kw)) ||
+                (r.PMin != null && r.PMin.Contains(kw)) ||
+                (r.PMax != null && r.PMax.Contains(kw)) ||
+                (r.SMin != null && r.SMin.Contains(kw)) ||
+                (r.SMax != null && r.SMax.Contains(kw)) ||
+                (r.NiMin != null && r.NiMin.Contains(kw)) ||
+                (r.NiMax != null && r.NiMax.Contains(kw)) ||
+                (r.CrMin != null && r.CrMin.Contains(kw)) ||
+                (r.CrMax != null && r.CrMax.Contains(kw)) ||
+                (r.MoMin != null && r.MoMin.Contains(kw)) ||
+                (r.MoMax != null && r.MoMax.Contains(kw)) ||
+                (r.CuMin != null && r.CuMin.Contains(kw)) ||
+                (r.CuMax != null && r.CuMax.Contains(kw)) ||
+                (r.NMin != null && r.NMin.Contains(kw)) ||
+                (r.NMax != null && r.NMax.Contains(kw)) ||
+                (r.NbMin != null && r.NbMin.Contains(kw)) ||
+                (r.NbMax != null && r.NbMax.Contains(kw)) ||
+                (r.TiMin != null && r.TiMin.Contains(kw)) ||
+                (r.TiMax != null && r.TiMax.Contains(kw)) ||
+                (r.FeMin != null && r.FeMin.Contains(kw)) ||
+                (r.FeMax != null && r.FeMax.Contains(kw)) ||
+                (r.AlMin != null && r.AlMin.Contains(kw)) ||
+                (r.AlMax != null && r.AlMax.Contains(kw)) ||
+                (r.WMin != null && r.WMin.Contains(kw)) ||
+                (r.WMax != null && r.WMax.Contains(kw)) ||
+                (r.PRENMin != null && r.PRENMin.Contains(kw)));
         }
 
         var totalCount = await queryable.CountAsync();

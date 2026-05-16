@@ -1,0 +1,792 @@
+@page "/repair-orders"
+@using MES.Blazor.Services
+@using MES.Blazor.Helpers
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
+@inject RepairOrderService RepairOrderService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+@inject ColumnPrefsService ColumnPrefs
+@attribute [Authorize(Roles = "EquipmentStaff,EquipmentDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Build" Class="mr-2" Color="Color.Primary" />
+                    维修工单
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="NavigateToCreate">
+                    新建报修
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <!-- 搜索栏 -->
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string"
+                                  Label="模糊搜索 - 工单号/故障描述/报修人/维修人"
+                                  Value="searchKeyword"
+                                  ValueChanged="@OnSearchChanged"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+            </MudGrid>
+
+            <!-- 数据表格 -->
+            <div id="repair-orders-list-table">
+            <MudTable @ref="table"
+                      T="RepairOrderListDto"
+                      ServerData="OnServerData"
+                      Loading="@isLoading"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-4 auto-table"
+                      Elevation="0"
+                      RowsPerPageLabel="每页行数:">
+                <ToolBarContent>
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                    <MudSpacer />
+                    <MudButton Variant="Variant.Outlined"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               Disabled="@(!selectedIds.Any())"
+                               OnClick="PrintSelected">
+                        打印选中 (@selectedIds.Count)
+                    </MudButton>
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll">
+                        打印全部
+                    </MudButton>
+                    <MudText Typo="Typo.body2" Class="ml-auto">
+                        共 @totalCount 条记录
+                    </MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh Style="width: 40px;">
+                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
+                    </MudTh>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTh>
+                            @if (!string.IsNullOrEmpty(col.SortKey))
+                            {
+                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
+                                    @col.Label
+                                </span>
+                                @if (sortColumn == col.SortKey)
+                                {
+                                    <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="th-label">@col.Label</span>
+                            }
+                        </MudTh>
+                    }
+                    <MudTh Style="width: 110px;">操作</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="item">
+                    <MudTd Style="width: 40px;">
+                        @if (!_editingIds.Contains(item.Id))
+                        {
+                            <MudCheckBox T="bool"
+                                         Value="@selectedIds.Contains(item.Id)"
+                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = items.Any() && items.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                         Dense="true" />
+                        }
+                    </MudTd>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd>@RenderCell(item, col)</MudTd>
+                    }
+                    <MudTd>
+                        @if (_editingIds.Contains(item.Id))
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Save" Color="Color.Primary" Size="Size.Small" Title="保存" OnClick="() => SaveEdit(item.Id)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Default" Size="Size.Small" Title="取消" OnClick="() => CancelEdit(item.Id)" />
+                        }
+                        else
+                        {
+                            <AuthorizeView Roles="EquipmentDirector,Admin">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" Title="编辑" OnClick="() => StartEdit(item)" />
+                            </AuthorizeView>
+                            <AuthorizeView Roles="EquipmentDirector,Admin">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="() => DeleteItem(item)" />
+                            </AuthorizeView>
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+            </div>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private MudTable<RepairOrderListDto>? table;
+    private List<RepairOrderListDto> items = new();
+    private bool _isArrowNavSetup;
+    private bool isLoading;
+    private string searchKeyword = string.Empty;
+    private int totalCount;
+
+    private string sortColumn = "reporttime";
+    private bool sortDescending = true;
+
+    // ========== 多选打印 ==========
+    private HashSet<int> selectedIds = new();
+    private bool _allSelected;
+    private bool allSelected
+    {
+        get => _allSelected;
+        set
+        {
+            if (_allSelected == value) return;
+            _allSelected = value;
+            if (value)
+            {
+                foreach (var item in items)
+                    selectedIds.Add(item.Id);
+            }
+            else
+            {
+                selectedIds.Clear();
+            }
+            StateHasChanged();
+        }
+    }
+
+    // ========== 内联编辑 ==========
+    private HashSet<int> _editingIds = new();
+    private Dictionary<int, RepairEditCache> _editCache = new();
+
+    private class RepairEditCache
+    {
+        public string FaultDescription { get; set; } = "";
+        public string? FaultType { get; set; }
+        public string Priority { get; set; } = "Normal";
+        public string ReportPerson { get; set; } = "";
+        public string ReportTimeText { get; set; } = "";
+        public string? RepairPerson { get; set; }
+        public string? RepairStartTimeText { get; set; }
+        public string? RepairEndTimeText { get; set; }
+        public string? RepairContent { get; set; }
+        public string? SparePartUsed { get; set; }
+    }
+
+    // ========== 列定义 ==========
+
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns =>
+        _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
+
+    private static List<ColumnDef> GetAllColumnDefs() => new()
+    {
+        new() { Key = "RepairOrderNo",    Label = "工单号",     SortKey = "repairorderno" },
+        new() { Key = "EquipmentName",    Label = "设备名称",    SortKey = "equipmentname" },
+        new() { Key = "EquipmentLocation", Label = "所在区域",   SortKey = "location" },
+        new() { Key = "EquipmentCode",    Label = "设备编号",    SortKey = "equipmentcode" },
+        new() { Key = "FaultDescription", Label = "故障描述",   SortKey = "faultdescription" },
+        new() { Key = "FaultType",      Label = "故障类型",   SortKey = "faulttype" },
+        new() { Key = "Priority",       Label = "优先级",     SortKey = "priority" },
+        new() { Key = "RepairStatus",   Label = "维修状态",   SortKey = "repairstatus" },
+        new() { Key = "ReportPerson",   Label = "报修人",     SortKey = "reportperson" },
+        new() { Key = "ReportTime",     Label = "报修时间",   SortKey = "reporttime" },
+        new() { Key = "RepairPerson",   Label = "维修人",     SortKey = "repairperson" },
+        new() { Key = "RepairStartTime",Label = "开始时间",   SortKey = "repairstarttime" },
+        new() { Key = "RepairEndTime",  Label = "完成时间",   SortKey = "repairendtime" },
+        new() { Key = "RepairContent",  Label = "维修内容" },
+        new() { Key = "SparePartUsed",  Label = "更换备件" },
+    };
+
+    // ========== 列选择操作 ==========
+
+    private async Task OnColumnToggle(ColumnDef col) => await SaveColumnPrefs();
+    private async Task MoveColumnUp(ColumnDef col) => await SaveColumnPrefs();
+    private async Task MoveColumnDown(ColumnDef col) => await SaveColumnPrefs();
+
+    private async Task SaveColumnPrefs()
+    {
+        await ColumnPrefs.SaveAsync("repair-orders", null, _allColumns);
+    }
+
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        await SaveColumnPrefs();
+    }
+
+    // ========== 初始化 ==========
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allColumns = GetAllColumnDefs();
+        var saved = await ColumnPrefs.LoadAsync("repair-orders", null);
+        if (saved.Count > 0)
+        {
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
+            }
+            var reordered = new List<ColumnDef>();
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#repair-orders-list-table"))
+                _isArrowNavSetup = false;
+        }
+    }
+
+    private async Task<TableData<RepairOrderListDto>> OnServerData(TableState state)
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var queryParams = new RepairOrderQueryParams
+            {
+                PageIndex = state.Page + 1,
+                PageSize = state.PageSize,
+                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                SortBy = sortColumn,
+                IsDescending = sortDescending
+            };
+
+            var result = await RepairOrderService.GetPagedAsync(queryParams);
+
+            if (result.Success && result.Data != null)
+            {
+                items = result.Data.Items;
+                totalCount = result.Data.TotalCount;
+                return new TableData<RepairOrderListDto>
+                {
+                    Items = items,
+                    TotalItems = totalCount
+                };
+            }
+
+            return new TableData<RepairOrderListDto>
+            {
+                Items = new List<RepairOrderListDto>(),
+                TotalItems = 0
+            };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+            return new TableData<RepairOrderListDto>
+            {
+                Items = new List<RepairOrderListDto>(),
+                TotalItems = 0
+            };
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Search()
+    {
+        if (table != null)
+            await table.ReloadServerData();
+    }
+
+    private async Task OnSearchChanged(string value)
+    {
+        searchKeyword = value ?? string.Empty;
+        if (table != null)
+            await table.ReloadServerData();
+    }
+
+    private string GetSortIndicator(string column)
+    {
+        if (sortColumn != column) return "";
+        return sortDescending ? "\u25BC" : "\u25B2";
+    }
+
+    private async Task ToggleSort(string column)
+    {
+        if (sortColumn == column)
+            sortDescending = !sortDescending;
+        else
+        {
+            sortColumn = column;
+            sortDescending = false;
+        }
+        if (table != null)
+            await table.ReloadServerData();
+    }
+
+    private void NavigateToCreate() => Navigation.NavigateTo("/repair-orders/create");
+
+    // ========== 内联编辑 ==========
+
+    private void StartEdit(RepairOrderListDto item)
+    {
+        _editingIds.Add(item.Id);
+        _editCache[item.Id] = new RepairEditCache
+        {
+            FaultDescription = item.FaultDescription,
+            FaultType = item.FaultType,
+            Priority = item.Priority,
+            ReportPerson = item.ReportPerson,
+            ReportTimeText = item.ReportTime.ToString("yyyy-MM-dd HH:mm"),
+            RepairPerson = item.RepairPerson,
+            RepairStartTimeText = item.RepairStartTime?.ToString("yyyy-MM-dd HH:mm"),
+            RepairEndTimeText = item.RepairEndTime?.ToString("yyyy-MM-dd HH:mm"),
+            RepairContent = item.RepairContent,
+            SparePartUsed = item.SparePartUsed,
+        };
+    }
+
+    private void CancelEdit(int id)
+    {
+        _editingIds.Remove(id);
+        _editCache.Remove(id);
+    }
+
+    private async Task SaveEdit(int id)
+    {
+        if (!_editCache.TryGetValue(id, out var cache)) return;
+
+        var errors = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(cache.FaultDescription))
+            errors.Add("故障描述不能为空");
+        if (string.IsNullOrWhiteSpace(cache.ReportPerson))
+            errors.Add("报修人不能为空");
+
+        DateTime? reportTime = null;
+        if (string.IsNullOrWhiteSpace(cache.ReportTimeText))
+            errors.Add("报修时间不能为空");
+        else if (!DateTime.TryParse(cache.ReportTimeText, out var parsedReport))
+            errors.Add("报修时间格式无效");
+        else
+            reportTime = parsedReport;
+
+        DateTime? repairStartTime = null;
+        if (!string.IsNullOrWhiteSpace(cache.RepairStartTimeText))
+        {
+            if (DateTime.TryParse(cache.RepairStartTimeText, out var parsedStart))
+                repairStartTime = parsedStart;
+            else
+                errors.Add("开始时间格式无效");
+        }
+
+        DateTime? repairEndTime = null;
+        if (!string.IsNullOrWhiteSpace(cache.RepairEndTimeText))
+        {
+            if (DateTime.TryParse(cache.RepairEndTimeText, out var parsedEnd))
+                repairEndTime = parsedEnd;
+            else
+                errors.Add("完成时间格式无效");
+        }
+
+        if (errors.Any())
+        {
+            Snackbar.Add(string.Join("；", errors), Severity.Error);
+            return;
+        }
+
+        try
+        {
+            var request = new UpdateRepairOrderRequest
+            {
+                FaultDescription = cache.FaultDescription,
+                FaultType = cache.FaultType,
+                Priority = cache.Priority,
+                ReportPerson = cache.ReportPerson,
+                ReportTime = reportTime,
+                RepairPerson = cache.RepairPerson,
+                RepairStartTime = repairStartTime,
+                RepairEndTime = repairEndTime,
+                RepairContent = cache.RepairContent,
+                SparePartUsed = cache.SparePartUsed,
+            };
+
+            var result = await RepairOrderService.UpdateAsync(id, request);
+            if (result.Success)
+            {
+                Snackbar.Add("保存成功", Severity.Success);
+                _editingIds.Remove(id);
+                _editCache.Remove(id);
+                await table?.ReloadServerData();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "保存失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // ========== 删除 ==========
+
+    private async Task DeleteItem(RepairOrderListDto item)
+    {
+        var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
+        {
+            ["ContentText"] = $"确定要删除维修工单 \"{item.RepairOrderNo}\" 吗？\n\n删除后数据将不可恢复！",
+            ["ConfirmText"] = "确认删除",
+            ["Color"] = Color.Error
+        });
+        var dialogResult = await dialog.Result;
+        if (!dialogResult.Canceled)
+        {
+            try
+            {
+                var result = await RepairOrderService.DeleteAsync(item.Id);
+                if (result.Success)
+                {
+                    Snackbar.Add("删除成功", Severity.Success);
+                    await Search();
+                }
+                else
+                {
+                    Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    // ========== 打印方法 ==========
+
+    private List<PrintColumnDef> GetPrintColumnDefs()
+    {
+        return _visibleColumns.Select(c => new PrintColumnDef
+        {
+            Key = c.Key,
+            Label = c.Label
+        }).ToList();
+    }
+
+    private async Task PrintSelected()
+    {
+        if (!selectedIds.Any())
+        {
+            Snackbar.Add("请先选择要打印的维修工单", Severity.Warning);
+            return;
+        }
+        try
+        {
+            var ids = selectedIds.ToArray();
+            var columns = GetPrintColumnDefs();
+            var result = await RepairOrderService.PrintBatchAsync(ids, columns);
+            if (result.Success && result.Data != null)
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PrintAll()
+    {
+        try
+        {
+            var columns = GetPrintColumnDefs();
+            var query = new RepairOrderQueryParams
+            {
+                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                SortBy = sortColumn,
+                IsDescending = sortDescending
+            };
+            var result = await RepairOrderService.PrintAllAsync(query, columns);
+            if (result.Success && result.Data != null)
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // ========== 单元格渲染 ==========
+
+    private RenderFragment RenderCell(RepairOrderListDto item, ColumnDef col) => builder =>
+    {
+        if (_editingIds.Contains(item.Id) && _editCache.TryGetValue(item.Id, out var cache))
+        {
+            // 系统/只读字段在编辑模式下仍然只读显示
+            if (col.Key is "RepairOrderNo" or "EquipmentName" or "EquipmentLocation" or "EquipmentCode" or "RepairStatus")
+            {
+                RenderReadonlyCell(item, col)(builder);
+                return;
+            }
+            RenderEditCell(cache, col)(builder);
+            return;
+        }
+
+        switch (col.Key)
+        {
+            case "RepairOrderNo":
+                builder.AddContent(0, item.RepairOrderNo);
+                break;
+            case "EquipmentName":
+                builder.AddContent(0, item.EquipmentName);
+                break;
+            case "EquipmentLocation":
+                builder.AddContent(0, item.EquipmentLocation);
+                break;
+            case "EquipmentCode":
+                builder.AddContent(0, item.EquipmentCode);
+                break;
+            case "FaultDescription":
+                builder.AddContent(0, item.FaultDescription);
+                break;
+            case "FaultType":
+                builder.AddContent(0, item.FaultType);
+                break;
+            case "Priority":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", DisplayHelper.GetPriorityColor(item.Priority));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetPriorityText(item.Priority))));
+                builder.CloseComponent();
+                break;
+            case "RepairStatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", DisplayHelper.GetRepairOrderStatusColor(item.RepairStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetRepairOrderStatusText(item.RepairStatus))));
+                builder.CloseComponent();
+                break;
+            case "ReportPerson":
+                builder.AddContent(0, item.ReportPerson);
+                break;
+            case "ReportTime":
+                builder.AddContent(0, item.ReportTime.ToString("yyyy-MM-dd HH:mm"));
+                break;
+            case "RepairPerson":
+                builder.AddContent(0, item.RepairPerson);
+                break;
+            case "RepairStartTime":
+                builder.AddContent(0, item.RepairStartTime?.ToString("yyyy-MM-dd HH:mm"));
+                break;
+            case "RepairEndTime":
+                builder.AddContent(0, item.RepairEndTime?.ToString("yyyy-MM-dd HH:mm"));
+                break;
+            case "RepairContent":
+                builder.AddContent(0, item.RepairContent);
+                break;
+            case "SparePartUsed":
+                builder.AddContent(0, item.SparePartUsed);
+                break;
+            default:
+                builder.AddContent(0, "");
+                break;
+        }
+    };
+
+    private RenderFragment RenderReadonlyCell(RepairOrderListDto item, ColumnDef col) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "RepairOrderNo":
+                builder.AddContent(0, item.RepairOrderNo);
+                break;
+            case "EquipmentName":
+                builder.AddContent(0, item.EquipmentName);
+                break;
+            case "EquipmentLocation":
+                builder.AddContent(0, item.EquipmentLocation);
+                break;
+            case "EquipmentCode":
+                builder.AddContent(0, item.EquipmentCode);
+                break;
+            case "RepairStatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", DisplayHelper.GetRepairOrderStatusColor(item.RepairStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetRepairOrderStatusText(item.RepairStatus))));
+                builder.CloseComponent();
+                break;
+            default:
+                builder.AddContent(0, "");
+                break;
+        }
+    };
+
+    private RenderFragment RenderEditCell(RepairEditCache cache, ColumnDef col) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "FaultDescription":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", cache.FaultDescription);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.FaultDescription = v));
+                builder.CloseComponent();
+                break;
+            case "FaultType":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", cache.FaultType);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => cache.FaultType = v));
+                builder.CloseComponent();
+                break;
+            case "Priority":
+                builder.OpenComponent<MudSelect<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", cache.Priority);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.Priority = v));
+                builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
+                {
+                    cb.OpenComponent<MudSelectItem<string>>(0);
+                    cb.AddAttribute(1, "Value", "Normal");
+                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "普通")));
+                    cb.CloseComponent();
+                    cb.OpenComponent<MudSelectItem<string>>(0);
+                    cb.AddAttribute(1, "Value", "Urgent");
+                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "紧急")));
+                    cb.CloseComponent();
+                    cb.OpenComponent<MudSelectItem<string>>(0);
+                    cb.AddAttribute(1, "Value", "Emergency");
+                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "特急")));
+                    cb.CloseComponent();
+                }));
+                builder.CloseComponent();
+                break;
+            case "ReportPerson":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", cache.ReportPerson);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.ReportPerson = v));
+                builder.CloseComponent();
+                break;
+            case "ReportTime":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", cache.ReportTimeText);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.ReportTimeText = v));
+                builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd HH:mm");
+                builder.CloseComponent();
+                break;
+            case "RepairPerson":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", cache.RepairPerson);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => cache.RepairPerson = v));
+                builder.CloseComponent();
+                break;
+            case "RepairStartTime":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", cache.RepairStartTimeText);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => cache.RepairStartTimeText = v));
+                builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd HH:mm");
+                builder.CloseComponent();
+                break;
+            case "RepairEndTime":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", cache.RepairEndTimeText);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => cache.RepairEndTimeText = v));
+                builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd HH:mm");
+                builder.CloseComponent();
+                break;
+            case "RepairContent":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", cache.RepairContent);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => cache.RepairContent = v));
+                builder.CloseComponent();
+                break;
+            case "SparePartUsed":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", cache.SparePartUsed);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => cache.SparePartUsed = v));
+                builder.CloseComponent();
+                break;
+        }
+    };
+}

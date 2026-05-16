@@ -667,4 +667,98 @@ public class WorkOrderServiceTests : TestBase
         result.Should().NotBeNull();
         result.Items.Should().Contain(i => i.OrderNumber == orderNo);
     }
+
+    // ========== B11 专项测试 ==========
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索牌号_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx);
+        var ps = await SeedStandardAsync(ctx);
+        var gm = await SeedGradeMappingAsync(ctx);
+
+        ctx.WorkOrders.Add(new WorkOrder
+        {
+            WorkOrderNo = $"WO-KW-{Guid.NewGuid():N}"[..15],
+            SalesOrderNo = "SO-KWTEST",
+            ProductionMainNo = "D01",
+            ProductionSubNo = "C01",
+            Status = WorkOrderStatus.Pending,
+            SignDate = DateTime.Today,
+            Salesman = "测试",
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            MaterialName = MaterialName.SeamlessPipe,
+            SettlementMethod = SettlementMethod.Theoretical,
+            StandardCode = ps.StandardCode,
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            PlantGrade = "20#",
+            Specification = "219*8",
+            OrderItemIds = "[1]",
+            OuterDiameterNegative = 0.5m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.5m,
+            WallThicknessPositive = 0.5m,
+            LengthStatus = LengthStatus.Fixed,
+            TotalQuantity = 10,
+            TotalMeters = 60,
+            TotalWeight = 2500m,
+            TotalItemCount = 1,
+            RowVersion = new byte[8]
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new WorkOrderQueryParams
+        { PageIndex = 1, PageSize = 20, Keyword = "20#" });
+
+        result.Items.Should().NotBeEmpty();
+        result.Items.Any(i => i.PlantGrade == "20#").Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索规格_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx);
+        var ps = await SeedStandardAsync(ctx);
+        var gm = await SeedGradeMappingAsync(ctx);
+
+        ctx.WorkOrders.Add(new WorkOrder
+        {
+            WorkOrderNo = $"WO-KW-{Guid.NewGuid():N}"[..15],
+            SalesOrderNo = "SO-KWTEST",
+            ProductionMainNo = "D01",
+            ProductionSubNo = "C01",
+            Status = WorkOrderStatus.Pending,
+            SignDate = DateTime.Today,
+            Salesman = "测试",
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            MaterialName = MaterialName.SeamlessPipe,
+            SettlementMethod = SettlementMethod.Theoretical,
+            StandardCode = ps.StandardCode,
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            PlantGrade = "20#",
+            Specification = "219*8",
+            OrderItemIds = "[1]",
+            OuterDiameterNegative = 0.5m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.5m,
+            WallThicknessPositive = 0.5m,
+            LengthStatus = LengthStatus.Fixed,
+            TotalQuantity = 10,
+            TotalMeters = 60,
+            TotalWeight = 2500m,
+            TotalItemCount = 1,
+            RowVersion = new byte[8]
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new WorkOrderQueryParams
+        { PageIndex = 1, PageSize = 20, Keyword = "219" });
+
+        result.Items.Should().NotBeEmpty();
+        result.Items.Any(i => i.Specification == "219*8").Should().BeTrue();
+    }
 }

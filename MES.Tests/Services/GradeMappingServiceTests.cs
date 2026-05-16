@@ -264,4 +264,26 @@ public class GradeMappingServiceTests : TestBase
         var act = () => svc.DeleteAsync(999);
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*does not exist*");
     }
+
+    // ========== B11 专项测试 ==========
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索特殊要求_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        ctx.StandardGradeMappings.Add(new StandardGradeMapping
+        {
+            StandardGrade = "TEST-SPECIAL",
+            PlantGrade = "TEST-PLANT",
+            Density = 7.85m,
+            SpecialNote = "特殊工艺要求"
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "特殊工艺" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].SpecialNote.Should().Be("特殊工艺要求");
+    }
 }

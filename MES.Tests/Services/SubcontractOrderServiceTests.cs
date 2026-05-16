@@ -492,4 +492,42 @@ public class SubcontractOrderServiceTests : TestBase
         var act = () => svc.DeleteAsync(999);
         await act.Should().ThrowAsync<BusinessException>().WithMessage("委外单不存在");
     }
+
+    // ========== B11 专项测试 ==========
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索炉号_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderAsync(ctx, sid);
+        var entity = await ctx.SubcontractOrders.FindAsync(order.Id);
+        entity!.FurnaceNumber = "FUR-WW-001";
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new SubcontractQueryParams
+        { PageIndex = 1, PageSize = 20, Keyword = "FUR-WW" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].FurnaceNumber.Should().Be("FUR-WW-001");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索备注_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderAsync(ctx, sid);
+        var entity = await ctx.SubcontractOrders.FindAsync(order.Id);
+        entity!.Remark = "委外备注信息";
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new SubcontractQueryParams
+        { PageIndex = 1, PageSize = 20, Keyword = "委外备注" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Remark.Should().Be("委外备注信息");
+    }
 }

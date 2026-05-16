@@ -297,4 +297,190 @@ public static class DisplayHelper
             _ => technicalRequirements ?? ""
         };
     }
+
+    // ========== 设备管理枚举 ==========
+
+    /// <summary>
+    /// 获取设备生命周期状态中文文本
+    /// </summary>
+    public static string GetLifecycleStatusText(string? status)
+    {
+        return status switch
+        {
+            "Active" => "在用",
+            "Standby" => "备用",
+            "Scrapped" => "报废",
+            _ => status ?? ""
+        };
+    }
+
+    /// <summary>
+    /// 获取设备生命周期状态颜色
+    /// </summary>
+    public static Color GetLifecycleStatusColor(string? status)
+    {
+        return status switch
+        {
+            "Active" => Color.Success,
+            "Standby" => Color.Warning,
+            "Scrapped" => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
+    /// 获取设备作用类型中文文本
+    /// </summary>
+    public static string GetUsageTypeText(string? usageType)
+    {
+        return usageType switch
+        {
+            "Primary" => "主生产",
+            "Secondary" => "辅生产",
+            "Other" => "其它",
+            _ => usageType ?? ""
+        };
+    }
+
+    /// <summary>
+    /// 获取设备运行状态中文文本
+    /// </summary>
+    public static string GetRunningStatusText(string? status)
+    {
+        return status switch
+        {
+            "Normal" => "正常",
+            "Pending" => "待维修",
+            "InProgress" => "维修中",
+            _ => status ?? ""
+        };
+    }
+
+    /// <summary>
+    /// 获取设备运行状态颜色
+    /// </summary>
+    public static Color GetRunningStatusColor(string? status)
+    {
+        return status switch
+        {
+            "Normal" => Color.Success,
+            "Pending" => Color.Warning,
+            "InProgress" => Color.Info,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
+    /// 获取设备任务状态（点检/保养状况）中文文本
+    /// </summary>
+    public static string GetEquipmentTaskStatusText(string? status)
+    {
+        return status switch
+        {
+            "NotApplicable" => "不适用",
+            "Pending" => "待执行",
+            "Normal" => "正常",
+            "Overdue" => "逾期",
+            _ => status ?? ""
+        };
+    }
+
+    /// <summary>
+    /// 获取设备任务状态颜色
+    /// </summary>
+    public static Color GetEquipmentTaskStatusColor(string? status)
+    {
+        return status switch
+        {
+            "NotApplicable" => Color.Default,
+            "Pending" => Color.Warning,
+            "Normal" => Color.Success,
+            "Overdue" => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
+    /// 获取维修工单状态中文文本
+    /// </summary>
+    public static string GetRepairOrderStatusText(string? status)
+    {
+        return status switch
+        {
+            "Pending" => "待维修",
+            "InProgress" => "维修中",
+            "Completed" => "完成",
+            _ => status ?? ""
+        };
+    }
+
+    /// <summary>
+    /// 获取维修工单状态颜色
+    /// </summary>
+    public static Color GetRepairOrderStatusColor(string? status)
+    {
+        return status switch
+        {
+            "Pending" => Color.Warning,
+            "InProgress" => Color.Info,
+            "Completed" => Color.Success,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
+    /// 获取优先级别中文文本
+    /// </summary>
+    public static string GetPriorityText(string? priority)
+    {
+        return priority switch
+        {
+            "Normal" => "普通",
+            "Urgent" => "紧急",
+            "Emergency" => "特急",
+            _ => priority ?? ""
+        };
+    }
+
+    /// <summary>
+    /// 获取优先级别颜色
+    /// </summary>
+    public static Color GetPriorityColor(string? priority)
+    {
+        return priority switch
+        {
+            "Emergency" => Color.Error,
+            "Urgent" => Color.Warning,
+            "Normal" => Color.Default,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
+    /// 获取保养/点检任务状态中文文本
+    /// </summary>
+    public static string GetTaskOrderStatusText(string? status)
+    {
+        return status switch
+        {
+            "Pending" => "待执行",
+            "Completed" => "已完成",
+            "Overdue" => "已逾期",
+            _ => status ?? ""
+        };
+    }
+
+    /// <summary>
+    /// 获取保养/点检任务状态颜色
+    /// </summary>
+    public static Color GetTaskOrderStatusColor(string? status)
+    {
+        return status switch
+        {
+            "Pending" => Color.Warning,
+            "Completed" => Color.Success,
+            "Overdue" => Color.Error,
+            _ => Color.Default
+        };
+    }
 }

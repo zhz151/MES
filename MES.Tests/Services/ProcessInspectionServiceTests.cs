@@ -268,4 +268,57 @@ public class ProcessInspectionServiceTests : TestBase
         var act = () => svc.DeleteAsync(999);
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
     }
+
+    // ========== B11 专项测试 ==========
+
+    [Fact]
+    public async Task GetAllAsync_关键词搜索规格_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH001");
+        ctx.ProcessInspections.Add(new ProcessInspection
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = "冷轧",
+            ManufacturingSpec = "273*10",
+            SectionName = "冷轧拔",
+            SequenceNumber = 1,
+            InspectionDate = DateTime.Today,
+            Quantity = 10,
+            Weight = 1000m
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "273" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].ManufacturingSpec.Should().Be("273*10");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_关键词搜索备注_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH001");
+        ctx.ProcessInspections.Add(new ProcessInspection
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = "冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = "冷轧拔",
+            SequenceNumber = 1,
+            InspectionDate = DateTime.Today,
+            Quantity = 10,
+            Weight = 1000m,
+            Remark = "过程备注测试"
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "过程备注" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Remark.Should().Be("过程备注测试");
+    }
 }

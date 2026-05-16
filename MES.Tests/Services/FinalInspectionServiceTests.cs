@@ -328,4 +328,73 @@ public class FinalInspectionServiceTests : TestBase
         var act = () => svc.DeleteAsync(999);
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
     }
+
+    // ========== B10/B11 专项测试 ==========
+
+    [Fact]
+    public async Task GetAllAsync_按更新时间排序_成功()
+    {
+        var ctx = CreateDbContext();
+        // 第一条记录的 UpdatedTime 默认会被设为当前时间
+        var i1 = await SeedInspectionAsync(ctx, batchNo: "BATCH001");
+        // 等待短暂时间再创建第二条，确保 UpdatedTime 不同
+        await Task.Delay(100);
+        var i2 = await SeedInspectionAsync(ctx, batchNo: "BATCH002");
+        var svc = CreateService(ctx);
+
+        // 降序：最新的在前
+        var resultAsc = await svc.GetAllAsync(new QueryParams
+        { PageIndex = 1, PageSize = 20, SortBy = "updatedtime", IsDescending = false });
+
+        resultAsc.Items.Should().HaveCount(2);
+        resultAsc.Items[0].Id.Should().Be(i1.Id);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_关键词搜索炉号_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH001");
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            ProductionBatchId = batch.Id,
+            Quantity = 10,
+            Weight = 1000m,
+            FurnaceNo = "FUR-001"
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "FUR-001" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].FurnaceNo.Should().Be("FUR-001");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_关键词搜索备注_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH001");
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            ProductionBatchId = batch.Id,
+            Quantity = 10,
+            Weight = 1000m,
+            Remark = "测试备注"
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "测试备注" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Remark.Should().Be("测试备注");
+    }
 }

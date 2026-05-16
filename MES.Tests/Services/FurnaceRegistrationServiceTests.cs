@@ -259,4 +259,57 @@ public class FurnaceRegistrationServiceTests : TestBase
 
         result.Should().BeNull();
     }
+
+    // ========== B11 专项测试 ==========
+
+    [Fact]
+    public async Task GetAllAsync_关键词搜索规格_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        ctx.FurnaceRegistrations.Add(new FurnaceRegistration
+        {
+            IncomingDate = DateTime.Today,
+            RawMaterialUnit = "钢厂A",
+            RawMaterialType = "管坯",
+            RegisteredGrade = "Q345B",
+            RelatedPlantGrade = "Q345B",
+            FurnaceNumber = "FUR-SPEC",
+            Specification = "325*12",
+            Quantity = 10,
+            Weight = 1000m
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "325*12" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Specification.Should().Be("325*12");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_关键词搜索备注_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        ctx.FurnaceRegistrations.Add(new FurnaceRegistration
+        {
+            IncomingDate = DateTime.Today,
+            RawMaterialUnit = "钢厂A",
+            RawMaterialType = "管坯",
+            RegisteredGrade = "Q345B",
+            RelatedPlantGrade = "Q345B",
+            FurnaceNumber = "FUR-REMARK",
+            Specification = "219*8",
+            Quantity = 10,
+            Weight = 1000m,
+            Remark = "炉号备注信息"
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "炉号备注" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Remark.Should().Be("炉号备注信息");
+    }
 }

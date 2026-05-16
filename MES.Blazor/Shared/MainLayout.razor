@@ -80,7 +80,12 @@
 
                 <!-- 设备模块 -->
                 <AuthorizeView Roles="EquipmentStaff,EquipmentDirector,Admin">
-                    <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("equipment")" OnClick='() => NavigateTo("/equipment")'>设备管理</MudButton>
+                    <MudMenu Label="设备管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("equipment","repair-orders","maintenance-orders","inspection-records")">
+                        <MudMenuItem Class="@GetMenuItemClass("/equipment")" OnClick='() => NavigateTo("/equipment")'>设备台账</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/repair-orders")" OnClick='() => NavigateTo("/repair-orders")'>维修工单</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/maintenance-orders")" OnClick='() => NavigateTo("/maintenance-orders")'>保养工单</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/inspection-records")" OnClick='() => NavigateTo("/inspection-records")'>点检记录</MudMenuItem>
+                    </MudMenu>
                 </AuthorizeView>
 
                 <!-- 物料模块 -->

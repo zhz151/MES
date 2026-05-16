@@ -32,7 +32,9 @@ public class MaterialService : IMaterialService
                 m.MaterialCode.Contains(kw) ||
                 m.MaterialCategory.Contains(kw) ||
                 m.PlantGrade.Contains(kw) ||
-                m.Specification.Contains(kw));
+                m.Specification.Contains(kw) ||
+                (m.Remark != null && m.Remark.Contains(kw)) ||
+                (m.CreatedBy != null && m.CreatedBy.Contains(kw)));
         }
 
         queryable = query.SortBy?.ToLower() switch
@@ -52,6 +54,12 @@ public class MaterialService : IMaterialService
             "isactive" => query.IsDescending
                 ? queryable.OrderByDescending(m => m.IsActive)
                 : queryable.OrderBy(m => m.IsActive),
+            "remark" => query.IsDescending
+                ? queryable.OrderByDescending(m => m.Remark ?? "")
+                : queryable.OrderBy(m => m.Remark ?? ""),
+            "createdby" => query.IsDescending
+                ? queryable.OrderByDescending(m => m.CreatedBy ?? "")
+                : queryable.OrderBy(m => m.CreatedBy ?? ""),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(m => m.CreatedTime)
                 : queryable.OrderBy(m => m.CreatedTime)

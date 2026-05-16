@@ -357,4 +357,28 @@ public class MaterialServiceTests : TestBase
         var deleted = await ctx.Materials.FindAsync(materialId);
         deleted.Should().BeNull();
     }
+
+    // ========== B11 专项测试 ==========
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索备注_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        ctx.Materials.Add(new Material
+        {
+            MaterialCode = $"M{Guid.NewGuid():N}"[..10],
+            MaterialCategory = "钢管",
+            PlantGrade = "20#",
+            Specification = "219*8",
+            IsActive = true,
+            Remark = "物料备注测试"
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "物料备注" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Remark.Should().Be("物料备注测试");
+    }
 }

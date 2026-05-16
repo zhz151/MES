@@ -1,0 +1,42 @@
+using MES.Core.DTOs;
+
+namespace MES.Services.Printing;
+
+/// <summary>
+/// 维修工单 PDF 打印模板（复用 TablePrintHelper）
+/// </summary>
+public static class RepairOrderPrintHelper
+{
+    /// <summary>
+    /// 按指定列定义生成PDF（用于前端按可见列打印）
+    /// </summary>
+    public static byte[] GenerateBatchPdf(List<RepairOrderListDto> orders, List<PrintColumnDef> columns)
+    {
+        var items = orders.Select(m =>
+        {
+            var dict = new Dictionary<string, object>
+            {
+                ["Id"] = m.Id,
+                ["RepairOrderNo"] = m.RepairOrderNo ?? "",
+                ["EquipmentId"] = m.EquipmentId,
+                ["EquipmentName"] = m.EquipmentName ?? "",
+                ["EquipmentCode"] = m.EquipmentCode ?? "",
+                ["EquipmentLocation"] = m.EquipmentLocation ?? "",
+                ["FaultDescription"] = m.FaultDescription ?? "",
+                ["FaultType"] = m.FaultType ?? "",
+                ["Priority"] = m.Priority ?? "",
+                ["RepairStatus"] = m.RepairStatus ?? "",
+                ["ReportPerson"] = m.ReportPerson ?? "",
+                ["ReportTime"] = m.ReportTime.ToString("yyyy-MM-dd HH:mm"),
+                ["RepairPerson"] = m.RepairPerson ?? "",
+                ["RepairStartTime"] = m.RepairStartTime?.ToString("yyyy-MM-dd HH:mm") ?? "",
+                ["RepairEndTime"] = m.RepairEndTime?.ToString("yyyy-MM-dd HH:mm") ?? "",
+                ["RepairContent"] = m.RepairContent ?? "",
+                ["SparePartUsed"] = m.SparePartUsed ?? ""
+            };
+            return dict;
+        }).ToList();
+
+        return TablePrintHelper.GeneratePdf("维修工单列表", items, columns);
+    }
+}

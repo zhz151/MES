@@ -1546,7 +1546,14 @@ public class ProductionRecordService : IProductionRecordService
         {
             queryable = queryable.Where(r => r.ProductionBatch.BatchNo.Contains(query.Keyword)
                 || r.ProcessName.Contains(query.Keyword)
-                || r.SectionName.Contains(query.Keyword));
+                || r.SectionName.Contains(query.Keyword)
+                || (r.ManufacturingSpec != null && r.ManufacturingSpec.Contains(query.Keyword))
+                || (r.EquipmentName != null && r.EquipmentName.Contains(query.Keyword))
+                || (r.Operator != null && r.Operator.Contains(query.Keyword))
+                || (r.Shift != null && r.Shift.Contains(query.Keyword))
+                || (r.TagNo != null && r.TagNo.Contains(query.Keyword))
+                || (r.PlantGrade != null && r.PlantGrade.Contains(query.Keyword))
+                || (r.Remark != null && r.Remark.Contains(query.Keyword)));
         }
 
         if (query.ExecDateFrom.HasValue)
@@ -1629,6 +1636,20 @@ public class ProductionRecordService : IProductionRecordService
             ("createdtime", true) => queryable.OrderByDescending(r => r.CreatedTime),
             ("updatedtime", false) => queryable.OrderBy(r => r.UpdatedTime),
             ("updatedtime", true) => queryable.OrderByDescending(r => r.UpdatedTime),
+            ("manufacturingspec", false) => queryable.OrderBy(r => r.ManufacturingSpec ?? ""),
+            ("manufacturingspec", true) => queryable.OrderByDescending(r => r.ManufacturingSpec ?? ""),
+            ("isfinished", false) => queryable.OrderBy(r => r.IsFinished),
+            ("isfinished", true) => queryable.OrderByDescending(r => r.IsFinished),
+            ("shift", false) => queryable.OrderBy(r => r.Shift ?? ""),
+            ("shift", true) => queryable.OrderByDescending(r => r.Shift ?? ""),
+            ("tagno", false) => queryable.OrderBy(r => r.TagNo ?? ""),
+            ("tagno", true) => queryable.OrderByDescending(r => r.TagNo ?? ""),
+            ("plantgrade", false) => queryable.OrderBy(r => r.PlantGrade ?? ""),
+            ("plantgrade", true) => queryable.OrderByDescending(r => r.PlantGrade ?? ""),
+            ("remark", false) => queryable.OrderBy(r => r.Remark ?? ""),
+            ("remark", true) => queryable.OrderByDescending(r => r.Remark ?? ""),
+            ("batchno", false) => queryable.OrderBy(r => r.ProductionBatch.BatchNo),
+            ("batchno", true) => queryable.OrderByDescending(r => r.ProductionBatch.BatchNo),
             _ => isDescending
                 ? queryable.OrderByDescending(r => r.CreatedTime)
                 : queryable.OrderBy(r => r.CreatedTime)
@@ -1661,6 +1682,30 @@ public class ProductionRecordService : IProductionRecordService
             ("outsourcevendor", true) => queryable.OrderByDescending(s => s.OutsourceVendor),
             ("sendoutdate", false) => queryable.OrderBy(s => s.SendOutDate),
             ("sendoutdate", true) => queryable.OrderByDescending(s => s.SendOutDate),
+            ("manufacturingspec", false) => queryable.OrderBy(s => s.ManufacturingSpec ?? ""),
+            ("manufacturingspec", true) => queryable.OrderByDescending(s => s.ManufacturingSpec ?? ""),
+            ("sequencenumber", false) => queryable.OrderBy(s => s.SequenceNumber),
+            ("sequencenumber", true) => queryable.OrderByDescending(s => s.SequenceNumber),
+            ("sendquantity", false) => queryable.OrderBy(s => s.SendQuantity ?? 0),
+            ("sendquantity", true) => queryable.OrderByDescending(s => s.SendQuantity ?? 0),
+            ("sendweight", false) => queryable.OrderBy(s => s.SendWeight ?? 0),
+            ("sendweight", true) => queryable.OrderByDescending(s => s.SendWeight ?? 0),
+            ("status", false) => queryable.OrderBy(s => s.Status),
+            ("status", true) => queryable.OrderByDescending(s => s.Status),
+            ("tagno", false) => queryable.OrderBy(s => s.TagNo ?? ""),
+            ("tagno", true) => queryable.OrderByDescending(s => s.TagNo ?? ""),
+            ("plantgrade", false) => queryable.OrderBy(s => s.PlantGrade ?? ""),
+            ("plantgrade", true) => queryable.OrderByDescending(s => s.PlantGrade ?? ""),
+            ("outsourcespec", false) => queryable.OrderBy(s => s.OutsourceSpec ?? ""),
+            ("outsourcespec", true) => queryable.OrderByDescending(s => s.OutsourceSpec ?? ""),
+            ("expectedreturndate", false) => queryable.OrderBy(s => s.ExpectedReturnDate ?? DateTime.MaxValue),
+            ("expectedreturndate", true) => queryable.OrderByDescending(s => s.ExpectedReturnDate),
+            ("isurgent", false) => queryable.OrderBy(s => s.IsUrgent),
+            ("isurgent", true) => queryable.OrderByDescending(s => s.IsUrgent),
+            ("remark", false) => queryable.OrderBy(s => s.Remark ?? ""),
+            ("remark", true) => queryable.OrderByDescending(s => s.Remark ?? ""),
+            ("updatedtime", false) => queryable.OrderBy(s => s.UpdatedTime),
+            ("updatedtime", true) => queryable.OrderByDescending(s => s.UpdatedTime),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(s => s.CreatedTime)
                 : queryable.OrderBy(s => s.CreatedTime)
@@ -1712,7 +1757,14 @@ public class ProductionRecordService : IProductionRecordService
         if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
             queryable = queryable.Where(r => r.SectionOutsource.OutsourceVendor.Contains(query.Keyword)
-                || r.SectionOutsource.ProcessName.Contains(query.Keyword));
+                || r.SectionOutsource.ProcessName.Contains(query.Keyword)
+                || (r.SectionOutsource.ProductionBatch != null && r.SectionOutsource.ProductionBatch.BatchNo.Contains(query.Keyword))
+                || (r.SectionOutsource.SectionName != null && r.SectionOutsource.SectionName.Contains(query.Keyword))
+                || (r.Remark != null && r.Remark.Contains(query.Keyword))
+                || (r.SectionOutsource.OutsourceSpec != null && r.SectionOutsource.OutsourceSpec.Contains(query.Keyword))
+                || (r.SectionOutsource.ManufacturingSpec != null && r.SectionOutsource.ManufacturingSpec.Contains(query.Keyword))
+                || (r.SectionOutsource.TagNo != null && r.SectionOutsource.TagNo.Contains(query.Keyword))
+                || (r.SectionOutsource.PlantGrade != null && r.SectionOutsource.PlantGrade.Contains(query.Keyword)));
         }
 
         var totalCount = await queryable.CountAsync();
@@ -1721,6 +1773,20 @@ public class ProductionRecordService : IProductionRecordService
         {
             ("recoverydate", false) => queryable.OrderBy(r => r.RecoveryDate),
             ("recoverydate", true) => queryable.OrderByDescending(r => r.RecoveryDate),
+            ("recoveryquantity", false) => queryable.OrderBy(r => r.RecoveryQuantity ?? 0),
+            ("recoveryquantity", true) => queryable.OrderByDescending(r => r.RecoveryQuantity ?? 0),
+            ("recoveryweight", false) => queryable.OrderBy(r => r.RecoveryWeight ?? 0),
+            ("recoveryweight", true) => queryable.OrderByDescending(r => r.RecoveryWeight ?? 0),
+            ("unprocessedquantity", false) => queryable.OrderBy(r => r.UnprocessedQuantity ?? 0),
+            ("unprocessedquantity", true) => queryable.OrderByDescending(r => r.UnprocessedQuantity ?? 0),
+            ("unprocessedweight", false) => queryable.OrderBy(r => r.UnprocessedWeight ?? 0),
+            ("unprocessedweight", true) => queryable.OrderByDescending(r => r.UnprocessedWeight ?? 0),
+            ("remark", false) => queryable.OrderBy(r => r.Remark ?? ""),
+            ("remark", true) => queryable.OrderByDescending(r => r.Remark ?? ""),
+            ("createdtime", false) => queryable.OrderBy(r => r.CreatedTime),
+            ("createdtime", true) => queryable.OrderByDescending(r => r.CreatedTime),
+            ("updatedtime", false) => queryable.OrderBy(r => r.UpdatedTime),
+            ("updatedtime", true) => queryable.OrderByDescending(r => r.UpdatedTime),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(r => r.CreatedTime)
                 : queryable.OrderBy(r => r.CreatedTime)
@@ -1765,7 +1831,9 @@ public class ProductionRecordService : IProductionRecordService
         if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
             queryable = queryable.Where(m => m.ProductionBatch.BatchNo.Contains(query.Keyword)
-                || (m.Checker != null && m.Checker.Contains(query.Keyword)));
+                || (m.Checker != null && m.Checker.Contains(query.Keyword))
+                || (m.Shift != null && m.Shift.Contains(query.Keyword))
+                || (m.Remark != null && m.Remark.Contains(query.Keyword)));
         }
 
         if (query.ReceiveDateFrom.HasValue)
@@ -1792,6 +1860,10 @@ public class ProductionRecordService : IProductionRecordService
             ("createdtime", true) => queryable.OrderByDescending(m => m.CreatedTime),
             ("updatedtime", false) => queryable.OrderBy(m => m.UpdatedTime),
             ("updatedtime", true) => queryable.OrderByDescending(m => m.UpdatedTime),
+            ("shift", false) => queryable.OrderBy(m => m.Shift ?? ""),
+            ("shift", true) => queryable.OrderByDescending(m => m.Shift ?? ""),
+            ("remark", false) => queryable.OrderBy(m => m.Remark ?? ""),
+            ("remark", true) => queryable.OrderByDescending(m => m.Remark ?? ""),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(m => m.CreatedTime)
                 : queryable.OrderBy(m => m.CreatedTime)

@@ -81,7 +81,21 @@ public class FinalInspectionService : IFinalInspectionService
                 r.BatchNo.Contains(kw) ||
                 (r.MaterialName != null && r.MaterialName.Contains(kw)) ||
                 (r.PlantGrade != null && r.PlantGrade.Contains(kw)) ||
-                (r.Specification != null && r.Specification.Contains(kw)));
+                (r.Specification != null && r.Specification.Contains(kw)) ||
+                (r.TagNo != null && r.TagNo.Contains(kw)) ||
+                (r.WorkOrderNo != null && r.WorkOrderNo.Contains(kw)) ||
+                (r.SalesOrderNo != null && r.SalesOrderNo.Contains(kw)) ||
+                (r.SourceUnit != null && r.SourceUnit.Contains(kw)) ||
+                (r.FurnaceNo != null && r.FurnaceNo.Contains(kw)) ||
+                (r.FixedLength != null && r.FixedLength.Contains(kw)) ||
+                (r.EquipmentName != null && r.EquipmentName.Contains(kw)) ||
+                (r.Shift != null && r.Shift.Contains(kw)) ||
+                (r.Operator != null && r.Operator.Contains(kw)) ||
+                (r.DefectDescription != null && r.DefectDescription.Contains(kw)) ||
+                (r.OuterDiameterRange != null && r.OuterDiameterRange.Contains(kw)) ||
+                (r.WallThicknessRange != null && r.WallThicknessRange.Contains(kw)) ||
+                (r.LengthAllowanceRange != null && r.LengthAllowanceRange.Contains(kw)) ||
+                (r.Remark != null && r.Remark.Contains(kw)));
         }
 
         if (query.InspectionDateFrom.HasValue)
@@ -524,6 +538,8 @@ public class FinalInspectionService : IFinalInspectionService
             ("remark", true) => queryable.OrderByDescending(r => r.Remark ?? ""),
             ("createdtime", false) => queryable.OrderBy(r => r.CreatedTime),
             ("createdtime", true) => queryable.OrderByDescending(r => r.CreatedTime),
+            ("updatedtime", false) => queryable.OrderBy(r => r.UpdatedTime),
+            ("updatedtime", true) => queryable.OrderByDescending(r => r.UpdatedTime),
             _ => queryable.OrderByDescending(r => r.CreatedTime)
         };
         return sorted;

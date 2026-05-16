@@ -33,7 +33,9 @@ public class SupplierService : ISupplierService
                 s.SupplierName.Contains(kw) ||
                 (s.MaterialCategory != null && s.MaterialCategory.Contains(kw)) ||
                 (s.ContactPerson != null && s.ContactPerson.Contains(kw)) ||
-                (s.ContactPhone != null && s.ContactPhone.Contains(kw)));
+                (s.ContactPhone != null && s.ContactPhone.Contains(kw)) ||
+                (s.Address != null && s.Address.Contains(kw)) ||
+                (s.Remark != null && s.Remark.Contains(kw)));
         }
 
         queryable = query.SortBy?.ToLower() switch
@@ -56,6 +58,12 @@ public class SupplierService : ISupplierService
             "isactive" => query.IsDescending
                 ? queryable.OrderByDescending(s => s.IsActive)
                 : queryable.OrderBy(s => s.IsActive),
+            "address" => query.IsDescending
+                ? queryable.OrderByDescending(s => s.Address ?? "")
+                : queryable.OrderBy(s => s.Address ?? ""),
+            "remark" => query.IsDescending
+                ? queryable.OrderByDescending(s => s.Remark ?? "")
+                : queryable.OrderBy(s => s.Remark ?? ""),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(s => s.CreatedTime)
                 : queryable.OrderBy(s => s.CreatedTime)

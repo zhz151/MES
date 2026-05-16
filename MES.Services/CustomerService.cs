@@ -51,7 +51,11 @@ public class CustomerService : ICustomerService
                     c.CustomerUnit.Contains(keyword) ||
                     c.Salesman.Contains(keyword) ||
                     (c.EndCustomer != null && c.EndCustomer.Contains(keyword)) ||
-                    (parsedStatus.HasValue && c.Status == parsedStatus.Value));
+                    (parsedStatus.HasValue && c.Status == parsedStatus.Value) ||
+                    (c.ContactPerson != null && c.ContactPerson.Contains(keyword)) ||
+                    (c.ContactPhone != null && c.ContactPhone.Contains(keyword)) ||
+                    (c.Address != null && c.Address.Contains(keyword)) ||
+                    (c.Remark != null && c.Remark.Contains(keyword)));
             }
         }
 
@@ -73,6 +77,18 @@ public class CustomerService : ICustomerService
             "status" => query.IsDescending
                 ? queryable.OrderByDescending(c => c.Status)
                 : queryable.OrderBy(c => c.Status),
+            "contactperson" => query.IsDescending
+                ? queryable.OrderByDescending(c => c.ContactPerson ?? "")
+                : queryable.OrderBy(c => c.ContactPerson ?? ""),
+            "contactphone" => query.IsDescending
+                ? queryable.OrderByDescending(c => c.ContactPhone ?? "")
+                : queryable.OrderBy(c => c.ContactPhone ?? ""),
+            "address" => query.IsDescending
+                ? queryable.OrderByDescending(c => c.Address ?? "")
+                : queryable.OrderBy(c => c.Address ?? ""),
+            "remark" => query.IsDescending
+                ? queryable.OrderByDescending(c => c.Remark ?? "")
+                : queryable.OrderBy(c => c.Remark ?? ""),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(c => c.CreatedTime)
                 : queryable.OrderBy(c => c.CreatedTime)

@@ -78,7 +78,10 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
                 r.FurnaceNumber.Contains(kw) ||
                 r.RawMaterialUnit.Contains(kw) ||
                 r.RegisteredGrade.Contains(kw) ||
-                (r.RelatedPlantGrade != null && r.RelatedPlantGrade.Contains(kw)));
+                (r.RelatedPlantGrade != null && r.RelatedPlantGrade.Contains(kw)) ||
+                r.RawMaterialType.Contains(kw) ||
+                (r.Specification != null && r.Specification.Contains(kw)) ||
+                (r.Remark != null && r.Remark.Contains(kw)));
         }
 
         var totalCount = await queryable.CountAsync();

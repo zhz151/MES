@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Helpers;
 using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
@@ -1255,7 +1256,9 @@ public class WorkOrderService : IWorkOrderService
                     wo.ProductionMainNo.Contains(keyword) ||
                     (wo.ProductionSubNo != null && wo.ProductionSubNo.Contains(keyword)) ||
                     wo.Salesman.Contains(keyword) ||
-                    (wo.EndCustomer != null && wo.EndCustomer.Contains(keyword)));
+                    (wo.EndCustomer != null && wo.EndCustomer.Contains(keyword)) ||
+                    wo.PlantGrade.Contains(keyword) ||
+                    wo.Specification.Contains(keyword));
             }
         }
 
@@ -1980,7 +1983,7 @@ workOrderItems.Add(new OrderItemBriefDto
     Sequence = item.Sequence,
     StandardGrade = item.StandardGrade,
     Specification = item.Specification,
-    LengthStatus = item.LengthStatus.ToString(),
+    LengthStatus = EnumHelper.GetDisplayName(item.LengthStatus),
     MinLength = item.MinLength,
     MaxLength = item.MaxLength,
     Quantity = item.Quantity,
@@ -1999,7 +2002,7 @@ result.WorkOrders.Add(new WorkOrderRelationDto
     ProductionSubNo = wo.ProductionSubNo,
     Status = (int)wo.Status,
     StatusText = GetStatusText(wo.Status),
-    MaterialName = wo.MaterialName.ToString(),
+    MaterialName = EnumHelper.GetDisplayName(wo.MaterialName),
     StandardGrade = workOrderItems.FirstOrDefault()?.StandardGrade ?? "",
     PlantGrade = wo.PlantGrade,
     Specification = wo.Specification,
@@ -2007,8 +2010,8 @@ result.WorkOrders.Add(new WorkOrderRelationDto
     OuterDiameterPositive = wo.OuterDiameterPositive,
     WallThicknessNegative = wo.WallThicknessNegative,
     WallThicknessPositive = wo.WallThicknessPositive,
-    DeliveryState = wo.DeliveryState.ToString(),
-    LengthStatus = wo.LengthStatus.ToString(),
+    DeliveryState = EnumHelper.GetDisplayName(wo.DeliveryState),
+    LengthStatus = EnumHelper.GetDisplayName(wo.LengthStatus),
     DeliveryDate = wo.DeliveryDate,
     TotalQuantity = wo.TotalQuantity,
     TotalWeight = wo.TotalWeight,

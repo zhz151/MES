@@ -388,4 +388,64 @@ public class SectionOutsourceServiceTests : TestBase
         var deleted = await ctx.OutsourceRecoveries.FindAsync(recovery.Id);
         deleted.Should().BeNull();
     }
+
+    // ========== B11 专项测试 ==========
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索规格_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-SPEC");
+        // 创建带不同规格的委外记录
+        ctx.SectionOutsources.Add(new SectionOutsource
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = "冷轧",
+            ManufacturingSpec = "273*10",
+            PlantGrade = "304",
+            OutsourceSpec = "273*10",
+            SectionName = "冷轧拔",
+            SequenceNumber = 1,
+            OutsourceVendor = "委外厂A",
+            SendOutDate = DateTime.Today,
+            SendQuantity = 10,
+            SendWeight = 1000m,
+            Status = SectionOutsourceStatus.PendingRecovery
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "273*10" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].ManufacturingSpec.Should().Be("273*10");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索备注_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-REM");
+        ctx.SectionOutsources.Add(new SectionOutsource
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = "冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = "冷轧拔",
+            SequenceNumber = 1,
+            OutsourceVendor = "委外厂A",
+            SendOutDate = DateTime.Today,
+            SendQuantity = 10,
+            SendWeight = 1000m,
+            Status = SectionOutsourceStatus.PendingRecovery,
+            Remark = "工段委外备注"
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "工段委外" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Remark.Should().Be("工段委外备注");
+    }
 }

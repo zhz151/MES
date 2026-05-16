@@ -151,6 +151,12 @@ builder.Services.AddScoped<ISupplierService, SupplierService>();
 builder.Services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
 builder.Services.AddScoped<ISubcontractOrderService, SubcontractOrderService>();
 
+// Register equipment context services
+builder.Services.AddScoped<IEquipmentService, EquipmentService>();
+builder.Services.AddScoped<IRepairOrderService, RepairOrderService>();
+builder.Services.AddScoped<IMaintenanceOrderService, MaintenanceOrderService>();
+builder.Services.AddScoped<IInspectionRecordService, InspectionRecordService>();
+
 // 数据导入导出服务
 builder.Services.AddScoped<IDataExchangeService, DataExchangeService>();
 

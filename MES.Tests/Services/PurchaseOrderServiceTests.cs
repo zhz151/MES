@@ -592,4 +592,24 @@ public class PurchaseOrderServiceTests : TestBase
         statuses.Should().NotBeEmpty();
         statuses.Should().Contain(s => s.WorkOrderNo == wo.WorkOrderNo);
     }
+
+    // ========== B11 专项测试 ==========
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索备注_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedOrderAsync(ctx, sid);
+        var order = await ctx.PurchaseOrders.FirstAsync();
+        order.Remark = "采购备注测试";
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new PurchaseOrderQueryParams
+        { PageIndex = 1, PageSize = 20, Keyword = "采购备注" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Remark.Should().Be("采购备注测试");
+    }
 }

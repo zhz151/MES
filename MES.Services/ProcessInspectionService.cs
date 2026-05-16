@@ -39,7 +39,17 @@ public class ProcessInspectionService : IProcessInspectionService
         {
             queryable = queryable.Where(r => r.ProductionBatch.BatchNo.Contains(query.Keyword)
                 || r.ProcessName.Contains(query.Keyword)
-                || r.SectionName.Contains(query.Keyword));
+                || r.SectionName.Contains(query.Keyword)
+                || (r.ManufacturingSpec != null && r.ManufacturingSpec.Contains(query.Keyword))
+                || (r.EquipmentName != null && r.EquipmentName.Contains(query.Keyword))
+                || (r.Inspector != null && r.Inspector.Contains(query.Keyword))
+                || (r.Shift != null && r.Shift.Contains(query.Keyword))
+                || (r.InspectionItem != null && r.InspectionItem.Contains(query.Keyword))
+                || (r.DefectDescription != null && r.DefectDescription.Contains(query.Keyword))
+                || (r.SourceUnit != null && r.SourceUnit.Contains(query.Keyword))
+                || (r.TagNo != null && r.TagNo.Contains(query.Keyword))
+                || (r.PlantGrade != null && r.PlantGrade.Contains(query.Keyword))
+                || (r.Remark != null && r.Remark.Contains(query.Keyword)));
         }
 
         if (query.InspectionDateFrom.HasValue)

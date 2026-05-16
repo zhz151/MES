@@ -44,7 +44,9 @@ public class SubcontractOrderService : ISubcontractOrderService
                 s.OutMaterialCategory.Contains(kw) ||
                 s.OutPlantGrade.Contains(kw) ||
                 s.OutSpecification.Contains(kw) ||
-                matchedSupplierIds.Contains(s.SupplierId));
+                matchedSupplierIds.Contains(s.SupplierId) ||
+                (s.FurnaceNumber != null && s.FurnaceNumber.Contains(kw)) ||
+                (s.Remark != null && s.Remark.Contains(kw)));
         }
 
         // 状态筛选
@@ -84,11 +86,26 @@ public class SubcontractOrderService : ISubcontractOrderService
                 ? queryable.OrderByDescending(s => s.ReturnDeadline)
                 : queryable.OrderBy(s => s.ReturnDeadline),
             "suppliername" => query.IsDescending
-                ? queryable.OrderByDescending(s => s.SupplierId)
-                : queryable.OrderBy(s => s.SupplierId),
+                ? queryable.Join(_context.SupplierProfiles, s => s.SupplierId, sp => sp.Id, (s, sp) => new { s, sp.SupplierName }).OrderByDescending(x => x.SupplierName).Select(x => x.s)
+                : queryable.Join(_context.SupplierProfiles, s => s.SupplierId, sp => sp.Id, (s, sp) => new { s, sp.SupplierName }).OrderBy(x => x.SupplierName).Select(x => x.s),
             "status" => query.IsDescending
                 ? queryable.OrderByDescending(s => s.Status)
                 : queryable.OrderBy(s => s.Status),
+            "isforcecompleted" => query.IsDescending
+                ? queryable.OrderByDescending(s => s.IsForceCompleted)
+                : queryable.OrderBy(s => s.IsForceCompleted),
+            "furnacenumber" => query.IsDescending
+                ? queryable.OrderByDescending(s => s.FurnaceNumber ?? "")
+                : queryable.OrderBy(s => s.FurnaceNumber ?? ""),
+            "inquantity" => query.IsDescending
+                ? queryable.OrderByDescending(s => s.InQuantity ?? 0)
+                : queryable.OrderBy(s => s.InQuantity ?? 0),
+            "inweight" => query.IsDescending
+                ? queryable.OrderByDescending(s => s.InWeight ?? 0)
+                : queryable.OrderBy(s => s.InWeight ?? 0),
+            "remark" => query.IsDescending
+                ? queryable.OrderByDescending(s => s.Remark ?? "")
+                : queryable.OrderBy(s => s.Remark ?? ""),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(s => s.CreatedTime)
                 : queryable.OrderBy(s => s.CreatedTime)

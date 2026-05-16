@@ -334,7 +334,6 @@
                 builder.AddAttribute(3, "Size", Size.Small);
                 builder.AddAttribute(4, "Value", r.BatchNo);
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.BatchNo = v));
-                builder.AddAttribute(6, "Placeholder", "输入批次号");
                 builder.CloseComponent();
                 break;
             case "ReceivedQuantity":

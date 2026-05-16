@@ -57,7 +57,8 @@ public class PurchaseOrderService : IPurchaseOrderService
                 p.Specification.Contains(kw) ||
                 (p.SourceWorkOrderNo != null && p.SourceWorkOrderNo.Contains(kw)) ||
                 (p.SourceWorkOrderNo != null && matchedWoNos.Contains(p.SourceWorkOrderNo)) ||
-                matchedSupplierIds.Contains(p.SupplierId));
+                matchedSupplierIds.Contains(p.SupplierId) ||
+                (p.Remark != null && p.Remark.Contains(kw)));
         }
 
         // 状态筛选
@@ -159,6 +160,36 @@ public class PurchaseOrderService : IPurchaseOrderService
             "wototalitemcount" => query.IsDescending
                 ? withWorkOrder.OrderByDescending(x => x.w.TotalItemCount).Select(x => x.p)
                 : withWorkOrder.OrderBy(x => x.w.TotalItemCount).Select(x => x.p),
+            "unitweight" => query.IsDescending
+                ? queryable.OrderByDescending(p => p.UnitWeight ?? 0)
+                : queryable.OrderBy(p => p.UnitWeight ?? 0),
+            "quantity" => query.IsDescending
+                ? queryable.OrderByDescending(p => p.Quantity)
+                : queryable.OrderBy(p => p.Quantity),
+            "weight" => query.IsDescending
+                ? queryable.OrderByDescending(p => p.Weight)
+                : queryable.OrderBy(p => p.Weight),
+            "unitprice" => query.IsDescending
+                ? queryable.OrderByDescending(p => p.UnitPrice ?? 0)
+                : queryable.OrderBy(p => p.UnitPrice ?? 0),
+            "totalamount" => query.IsDescending
+                ? queryable.OrderByDescending(p => p.TotalAmount ?? 0)
+                : queryable.OrderBy(p => p.TotalAmount ?? 0),
+            "lastarrivaldate" => query.IsDescending
+                ? queryable.OrderByDescending(p => p.LastArrivalDate)
+                : queryable.OrderBy(p => p.LastArrivalDate),
+            "receivedquantity" => query.IsDescending
+                ? queryable.OrderByDescending(p => p.ReceivedQuantity)
+                : queryable.OrderBy(p => p.ReceivedQuantity),
+            "receivedweight" => query.IsDescending
+                ? queryable.OrderByDescending(p => p.ReceivedWeight)
+                : queryable.OrderBy(p => p.ReceivedWeight),
+            "isforcecompleted" => query.IsDescending
+                ? queryable.OrderByDescending(p => p.IsForceCompleted)
+                : queryable.OrderBy(p => p.IsForceCompleted),
+            "remark" => query.IsDescending
+                ? queryable.OrderByDescending(p => p.Remark ?? "")
+                : queryable.OrderBy(p => p.Remark ?? ""),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(p => p.CreatedTime)
                 : queryable.OrderBy(p => p.CreatedTime)

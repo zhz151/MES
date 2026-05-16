@@ -34,7 +34,25 @@ public class ChemicalCompositionService : IChemicalCompositionService
 
         if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
-            queryable = queryable.Where(r => r.PlantGrade.Contains(query.Keyword));
+            var kw = query.Keyword;
+            queryable = queryable.Where(r =>
+                r.PlantGrade.Contains(kw) ||
+                (r.Carbon != null && r.Carbon.Contains(kw)) ||
+                (r.Silicon != null && r.Silicon.Contains(kw)) ||
+                (r.Manganese != null && r.Manganese.Contains(kw)) ||
+                (r.Phosphorus != null && r.Phosphorus.Contains(kw)) ||
+                (r.Sulfur != null && r.Sulfur.Contains(kw)) ||
+                (r.Nickel != null && r.Nickel.Contains(kw)) ||
+                (r.Chromium != null && r.Chromium.Contains(kw)) ||
+                (r.Molybdenum != null && r.Molybdenum.Contains(kw)) ||
+                (r.Copper != null && r.Copper.Contains(kw)) ||
+                (r.Nitrogen != null && r.Nitrogen.Contains(kw)) ||
+                (r.Niobium != null && r.Niobium.Contains(kw)) ||
+                (r.Titanium != null && r.Titanium.Contains(kw)) ||
+                (r.Iron != null && r.Iron.Contains(kw)) ||
+                (r.Aluminum != null && r.Aluminum.Contains(kw)) ||
+                (r.Tungsten != null && r.Tungsten.Contains(kw)) ||
+                (r.PREN != null && r.PREN.Contains(kw)));
         }
 
         var totalCount = await queryable.CountAsync();

@@ -55,4 +55,8 @@ builder.Services.AddScoped<SupplierService>();
 builder.Services.AddScoped<PurchaseOrderService>();
 builder.Services.AddScoped<SubcontractOrderService>();
 builder.Services.AddScoped<DataExchangeService>();
+builder.Services.AddScoped<EquipmentService>();
+builder.Services.AddScoped<RepairOrderService>();
+builder.Services.AddScoped<MaintenanceOrderService>();
+builder.Services.AddScoped<InspectionRecordService>();
 await builder.Build().RunAsync();

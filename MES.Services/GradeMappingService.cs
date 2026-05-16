@@ -51,7 +51,9 @@ public class GradeMappingService : IGradeMappingService
                     g.StandardGrade.Contains(keyword) ||
                     g.PlantGrade.Contains(keyword) ||
                     (g.HeatTreatment != null && g.HeatTreatment.Contains(keyword)) ||
-                    (parsedSpecial.HasValue && g.SpecialMaterial == parsedSpecial.Value));
+                    (parsedSpecial.HasValue && g.SpecialMaterial == parsedSpecial.Value) ||
+                    (g.SpecialNote != null && g.SpecialNote.Contains(keyword)) ||
+                    (g.Remark != null && g.Remark.Contains(keyword)));
             }
         }
 
@@ -73,6 +75,12 @@ public class GradeMappingService : IGradeMappingService
             "specialmaterial" => query.IsDescending
                 ? queryable.OrderByDescending(g => g.SpecialMaterial)
                 : queryable.OrderBy(g => g.SpecialMaterial),
+            "specialnote" => query.IsDescending
+                ? queryable.OrderByDescending(g => g.SpecialNote ?? "")
+                : queryable.OrderBy(g => g.SpecialNote ?? ""),
+            "remark" => query.IsDescending
+                ? queryable.OrderByDescending(g => g.Remark ?? "")
+                : queryable.OrderBy(g => g.Remark ?? ""),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(g => g.StandardGrade)
                 : queryable.OrderBy(g => g.StandardGrade)

@@ -485,6 +485,152 @@ namespace MES.Data.Migrations
                     b.ToTable("CustomerProfile", (string)null);
                 });
 
+            modelBuilder.Entity("MES.Data.Entities.Equipment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTime?>("CurrentInspectionStartDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("CurrentMaintStartDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("EquipmentCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("EquipmentName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("InspectionCycleDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(7);
+
+                    b.Property<string>("InspectionPerson")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("InstallationDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("LastInspectionDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("LastMaintDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("LastRepairDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("LifecycleStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Active");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("MaintCycleDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(30);
+
+                    b.Property<string>("MaintPerson")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Manufacturer")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModelNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("NeedInspection")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("NeedMaintenance")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("RelatedSection")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("TechnicalParams")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UsageType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Primary");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EquipmentCode")
+                        .IsUnique()
+                        .HasDatabaseName("UK_Equipment_Code");
+
+                    b.HasIndex("EquipmentName")
+                        .HasDatabaseName("IX_Equipment_Name");
+
+                    b.HasIndex("LifecycleStatus")
+                        .HasDatabaseName("IX_Equipment_LifecycleStatus");
+
+                    b.HasIndex("Location")
+                        .HasDatabaseName("IX_Equipment_Location");
+
+                    b.HasIndex("NeedInspection")
+                        .HasDatabaseName("IX_Equipment_NeedInspection");
+
+                    b.HasIndex("NeedMaintenance")
+                        .HasDatabaseName("IX_Equipment_NeedMaintenance");
+
+                    b.HasIndex("RelatedSection")
+                        .HasDatabaseName("IX_Equipment_RelatedSection");
+
+                    b.ToTable("Equipment", (string)null);
+                });
+
             modelBuilder.Entity("MES.Data.Entities.FinalInspection", b =>
                 {
                     b.Property<int>("Id")
@@ -755,6 +901,65 @@ namespace MES.Data.Migrations
                         .HasDatabaseName("IX_FurnaceRegistration_FurnaceNumber");
 
                     b.ToTable("FurnaceRegistration", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.InspectionRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ActualDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("EquipmentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ExecutionSummary")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Inspector")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("RecordNo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EquipmentId")
+                        .HasDatabaseName("IX_InspectionRecord_EquipmentId");
+
+                    b.HasIndex("RecordNo")
+                        .IsUnique()
+                        .HasDatabaseName("UK_InspectionRecord_No");
+
+                    b.ToTable("InspectionRecord", (string)null);
                 });
 
             modelBuilder.Entity("MES.Data.Entities.InventoryBatch", b =>
@@ -1106,6 +1311,65 @@ namespace MES.Data.Migrations
                         .HasDatabaseName("IX_InventoryPlan_WorkOrderId");
 
                     b.ToTable("InventoryPlan", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.MaintenanceOrder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ActualDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("EquipmentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ExecutionSummary")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Executor")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("MaintOrderNo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EquipmentId")
+                        .HasDatabaseName("IX_MaintenanceOrder_EquipmentId");
+
+                    b.HasIndex("MaintOrderNo")
+                        .IsUnique()
+                        .HasDatabaseName("UK_MaintenanceOrder_No");
+
+                    b.ToTable("MaintenanceOrder", (string)null);
                 });
 
             modelBuilder.Entity("MES.Data.Entities.Material", b =>
@@ -2766,6 +3030,105 @@ namespace MES.Data.Migrations
                     b.ToTable("RefreshToken", (string)null);
                 });
 
+            modelBuilder.Entity("MES.Data.Entities.RepairOrder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("EquipmentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FaultDescription")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("FaultType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Normal");
+
+                    b.Property<string>("RepairContent")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("RepairEndTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RepairOrderNo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("RepairPerson")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("RepairStartTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RepairStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Pending");
+
+                    b.Property<string>("ReportPerson")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("ReportTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SparePartUsed")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EquipmentId")
+                        .HasDatabaseName("IX_RepairOrder_EquipmentId");
+
+                    b.HasIndex("RepairOrderNo")
+                        .IsUnique()
+                        .HasDatabaseName("UK_RepairOrder_No");
+
+                    b.HasIndex("RepairStatus")
+                        .HasDatabaseName("IX_RepairOrder_Status");
+
+                    b.HasIndex("ReportTime")
+                        .HasDatabaseName("IX_RepairOrder_ReportTime");
+
+                    b.ToTable("RepairOrder", (string)null);
+                });
+
             modelBuilder.Entity("MES.Data.Entities.RoundBarPiercingPlan", b =>
                 {
                     b.Property<int>("Id")
@@ -3791,12 +4154,30 @@ namespace MES.Data.Migrations
                     b.Navigation("ProductionBatch");
                 });
 
+            modelBuilder.Entity("MES.Data.Entities.InspectionRecord", b =>
+                {
+                    b.HasOne("MES.Data.Entities.Equipment", null)
+                        .WithMany()
+                        .HasForeignKey("EquipmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("MES.Data.Entities.InventoryBatch", b =>
                 {
                     b.HasOne("MES.Data.Entities.Warehouse", null)
                         .WithMany()
                         .HasForeignKey("WarehouseId")
                         .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.MaintenanceOrder", b =>
+                {
+                    b.HasOne("MES.Data.Entities.Equipment", null)
+                        .WithMany()
+                        .HasForeignKey("EquipmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -3943,6 +4324,15 @@ namespace MES.Data.Migrations
                         .WithMany()
                         .HasForeignKey("WorkOrderId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.RepairOrder", b =>
+                {
+                    b.HasOne("MES.Data.Entities.Equipment", null)
+                        .WithMany()
+                        .HasForeignKey("EquipmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

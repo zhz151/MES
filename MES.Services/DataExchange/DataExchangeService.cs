@@ -105,6 +105,31 @@ public class DataExchangeService : IDataExchangeService
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
+        // === 设备台账 ===
+        ["Equipment"] = new EntityDef("设备", "设备台账", typeof(Equipment), 1, "EquipmentCode", new List<ColumnDef>
+        {
+            new("设备编号", "EquipmentCode"),
+            new("设备名称", "EquipmentName"),
+            new("型号规格", "ModelNumber", typeof(string), isRequired: false),
+            new("技术参数", "TechnicalParams", typeof(string), isRequired: false),
+            new("制造商", "Manufacturer", typeof(string), isRequired: false),
+            new("安装日期", "InstallationDate", typeof(DateTime?), isRequired: false),
+            new("所在区域", "Location", typeof(string), isRequired: false),
+            new("关联工段", "RelatedSection", typeof(string), isRequired: false),
+            new("是否需点检", "NeedInspection", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("点检负责人", "InspectionPerson", typeof(string), isRequired: false),
+            new("点检周期(天)", "InspectionCycleDays", typeof(int), isRequired: false),
+            new("本次点检日起始", "CurrentInspectionStartDate", typeof(DateTime?), isRequired: false),
+            new("是否需保养", "NeedMaintenance", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("保养负责人", "MaintPerson", typeof(string), isRequired: false),
+            new("保养周期(天)", "MaintCycleDays", typeof(int), isRequired: false),
+            new("本次保养日起始", "CurrentMaintStartDate", typeof(DateTime?), isRequired: false),
+            new("最近维修日期", "LastRepairDate", typeof(DateTime?), isRequired: false),
+            new("生命周期", "LifecycleStatus", typeof(LifecycleStatus), isEnum: true),
+            new("作用类型", "UsageType", typeof(UsageType), isEnum: true),
+            new("备注", "Remark", typeof(string), isRequired: false),
+        }),
+
         // === 第2批：依赖客户档案 ===
         ["SalesOrder"] = new EntityDef("销售订单", "销售订单", typeof(SalesOrder), 2, "OrderNumber", new List<ColumnDef>
         {
@@ -112,6 +137,44 @@ public class DataExchangeService : IDataExchangeService
             new("签订日期", "SignDate", typeof(DateTime)),
             new("客户编码", null!) { IsFkColumn = true, FkEntityKey = "CustomerProfile", FkLookupProperty = "CustomerCode", FkTargetProperty = "CustomerId" },
             new("状态", "Status", typeof(SalesOrderStatus), isEnum: true),
+        }),
+
+        // === 设备上下文（依赖设备台账） ===
+        ["RepairOrder"] = new EntityDef("维修工单", "维修工单", typeof(RepairOrder), 2, "RepairOrderNo", new List<ColumnDef>
+        {
+            new("工单编号", "RepairOrderNo", isSystem: true),
+            new("设备编号", null!) { IsFkColumn = true, FkEntityKey = "Equipment", FkLookupProperty = "EquipmentCode", FkTargetProperty = "EquipmentId" },
+            new("故障描述", "FaultDescription"),
+            new("故障类型", "FaultType", typeof(string), isRequired: false),
+            new("优先级", "Priority", typeof(RepairPriority), isEnum: true),
+            new("维修状态", "RepairStatus", typeof(RepairOrderStatus), isEnum: true),
+            new("报修人", "ReportPerson"),
+            new("报修时间", "ReportTime", typeof(DateTime)),
+            new("维修人", "RepairPerson", typeof(string), isRequired: false),
+            new("维修开始时间", "RepairStartTime", typeof(DateTime?), isRequired: false),
+            new("维修结束时间", "RepairEndTime", typeof(DateTime?), isRequired: false),
+            new("维修内容", "RepairContent", typeof(string), isRequired: false),
+            new("备件更换", "SparePartUsed", typeof(string), isRequired: false),
+        }),
+
+        ["MaintenanceOrder"] = new EntityDef("保养工单", "保养工单", typeof(MaintenanceOrder), 2, "MaintOrderNo", new List<ColumnDef>
+        {
+            new("工单编号", "MaintOrderNo", isSystem: true),
+            new("设备编号", null!) { IsFkColumn = true, FkEntityKey = "Equipment", FkLookupProperty = "EquipmentCode", FkTargetProperty = "EquipmentId" },
+            new("实际日期", "ActualDate", typeof(DateTime?), isRequired: false),
+            new("执行人", "Executor", typeof(string), isRequired: false),
+            new("执行简述", "ExecutionSummary", typeof(string), isRequired: false),
+            new("备注", "Remark", typeof(string), isRequired: false),
+        }),
+
+        ["InspectionRecord"] = new EntityDef("点检记录", "点检记录", typeof(InspectionRecord), 2, "RecordNo", new List<ColumnDef>
+        {
+            new("记录编号", "RecordNo", isSystem: true),
+            new("设备编号", null!) { IsFkColumn = true, FkEntityKey = "Equipment", FkLookupProperty = "EquipmentCode", FkTargetProperty = "EquipmentId" },
+            new("实际日期", "ActualDate", typeof(DateTime?), isRequired: false),
+            new("点检人", "Inspector", typeof(string), isRequired: false),
+            new("执行简述", "ExecutionSummary", typeof(string), isRequired: false),
+            new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
         // === 第3批：依赖销售订单、产品标准、牌号对照 ===
@@ -718,6 +781,7 @@ public class DataExchangeService : IDataExchangeService
         "WorkOrder", "Material",
         "PurchaseOrder", "SubcontractOrder", "SubcontractReturnItem", "ProductionBatch",
         "ProcessGroup", "ProductionRecord", "SectionOutsource", "OutsourceRecovery", "MaterialReceiveCheck", "ProcessInspection", "FinalInspection", "BatchOperationLog", "InventoryBatch", "OutboundRecord",
+        "Equipment", "RepairOrder", "MaintenanceOrder", "InspectionRecord",
         "InventoryPlan", "PurchaseSemiPlan", "PurchaseFinishedPlan", "RoundBarPiercingPlan",
     };
 
@@ -801,7 +865,23 @@ public class DataExchangeService : IDataExchangeService
 
                 if (colDef.IsEnum && colDef.EnumType != null)
                 {
-                    sheet.Cells[row, col + 1].Value = EnumHelper.GetDisplayName(colDef.EnumType, value);
+                    // value 可能是 string（字符串存储的枚举）或实际枚举值
+                    if (value is string strValue)
+                    {
+                        try
+                        {
+                            var parsedEnum = EnumHelper.Parse(strValue, colDef.EnumType);
+                            sheet.Cells[row, col + 1].Value = EnumHelper.GetDisplayName(colDef.EnumType, parsedEnum);
+                        }
+                        catch
+                        {
+                            sheet.Cells[row, col + 1].Value = strValue;
+                        }
+                    }
+                    else
+                    {
+                        sheet.Cells[row, col + 1].Value = EnumHelper.GetDisplayName(colDef.EnumType, value);
+                    }
                 }
                 else if (value is DateTime dt)
                 {
@@ -1960,7 +2040,11 @@ public class DataExchangeService : IDataExchangeService
         // 枚举类型
         if (colDef.IsEnum && colDef.EnumType != null)
         {
-            return EnumHelper.Parse(value, colDef.EnumType);
+            var enumValue = EnumHelper.Parse(value, colDef.EnumType);
+            // 实体属性为 string（字符串存储的枚举，如 LifecycleStatus/UsageType/Priority），返回枚举名称
+            if (targetType == typeof(string))
+                return enumValue.ToString()!;
+            return enumValue;
         }
 
         var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;

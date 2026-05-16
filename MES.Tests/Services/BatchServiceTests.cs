@@ -833,4 +833,68 @@ public class BatchServiceTests : TestBase
 
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*未找到批次数据*");
     }
+
+    // ========== B10/B11 专项测试 ==========
+
+    [Fact]
+    public async Task GetPagedAsync_按当前规格排序_成功()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { TagNo = "SORT-CS-1", ProductionType = "RoughTube" });
+        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { TagNo = "SORT-CS-2", ProductionType = "RoughTube" });
+
+        var entity1 = await ctx.ProductionBatches.FindAsync(b1.Id);
+        entity1!.CurrentSpec = "B-Spec";
+        var entity2 = await ctx.ProductionBatches.FindAsync(b2.Id);
+        entity2!.CurrentSpec = "A-Spec";
+        await ctx.SaveChangesAsync();
+
+        var result = await svc.GetPagedAsync(new BatchQueryParams
+        { PageIndex = 1, PageSize = 20, SortBy = "currentspec", IsDescending = false });
+
+        result.Items[0].CurrentSpec.Should().Be("A-Spec");
+        result.Items[1].CurrentSpec.Should().Be("B-Spec");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_按对应规格排序_成功()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { TagNo = "SORT-CORR-1", ProductionType = "RoughTube" });
+        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { TagNo = "SORT-CORR-2", ProductionType = "RoughTube" });
+
+        var entity1 = await ctx.ProductionBatches.FindAsync(b1.Id);
+        entity1!.CorrespondingSpec = "B-Corr";
+        var entity2 = await ctx.ProductionBatches.FindAsync(b2.Id);
+        entity2!.CorrespondingSpec = "A-Corr";
+        await ctx.SaveChangesAsync();
+
+        var result = await svc.GetPagedAsync(new BatchQueryParams
+        { PageIndex = 1, PageSize = 20, SortBy = "correspondingspec", IsDescending = false });
+
+        result.Items[0].CorrespondingSpec.Should().Be("A-Corr");
+        result.Items[1].CorrespondingSpec.Should().Be("B-Corr");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索创建人_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        await svc.CreateAsync(new CreateProductionBatchRequest { TagNo = "CREATOR-TEST", ProductionType = "RoughTube" });
+        var entity = await ctx.ProductionBatches.FirstAsync(b => b.TagNo == "CREATOR-TEST");
+        entity.CreatedBy = "测试创建人";
+        await ctx.SaveChangesAsync();
+
+        var result = await svc.GetPagedAsync(new BatchQueryParams
+        { PageIndex = 1, PageSize = 20, Keyword = "测试创建人" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].CreatedBy.Should().Be("测试创建人");
+    }
 }

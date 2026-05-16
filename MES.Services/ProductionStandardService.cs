@@ -48,7 +48,8 @@ public class ProductionStandardService : IProductionStandardService
                 queryable = queryable.Where(p =>
                     p.StandardCode.Contains(keyword) ||
                     p.StandardName.Contains(keyword) ||
-                    (parsedActive.HasValue && p.IsActive == parsedActive.Value));
+                    (parsedActive.HasValue && p.IsActive == parsedActive.Value) ||
+                    (p.Remark != null && p.Remark.Contains(keyword)));
             }
         }
 
@@ -73,6 +74,9 @@ public class ProductionStandardService : IProductionStandardService
             "isactive" => query.IsDescending
                 ? queryable.OrderByDescending(p => p.IsActive)
                 : queryable.OrderBy(p => p.IsActive),
+            "remark" => query.IsDescending
+                ? queryable.OrderByDescending(p => p.Remark ?? "")
+                : queryable.OrderBy(p => p.Remark ?? ""),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(p => p.SortOrder)
                 : queryable.OrderBy(p => p.SortOrder)

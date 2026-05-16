@@ -635,7 +635,7 @@
     {
         SalesOrderStatus.Pending => "待处理",
         SalesOrderStatus.Confirmed => "已确认",
-        _ => status.ToString()
+        _ => "未知"
     };
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
