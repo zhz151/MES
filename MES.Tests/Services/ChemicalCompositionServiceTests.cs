@@ -206,4 +206,21 @@ public class ChemicalCompositionServiceTests : TestBase
         var act = () => svc.DeleteAsync(999);
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
     }
+
+    // ========== B11 专项测试 ==========
+
+    [Fact]
+    public async Task GetAllAsync_关键词搜索碳含量_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedChemicalAsync(ctx, plantGrade: "Q345B", carbon: "0.12");
+        await SeedChemicalAsync(ctx, plantGrade: "Q235B", carbon: "0.20");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams
+        { PageIndex = 1, PageSize = 20, Keyword = "0.12" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Carbon.Should().Be("0.12");
+    }
 }

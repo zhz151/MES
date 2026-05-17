@@ -207,9 +207,17 @@
                         <tr>
                             <td><MudTextField T="string" @bind-Value="request.SourceBatchNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
                             <td><MudTextField T="string" @bind-Value="request.SourceMaterialType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
-                            <td><MudTextField T="string" Value="@editInboundSource" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Disabled="true" /></td>
+                            <td><MudSelect T="string" @bind-Value="request.InboundSource" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
+                                    <MudSelectItem Value="@("外购")">外购</MudSelectItem>
+                                    <MudSelectItem Value="@("委外")">委外</MudSelectItem>
+                                    <MudSelectItem Value="@("退货入库")">退货入库</MudSelectItem>
+                                    <MudSelectItem Value="@("生产入库")">生产入库</MudSelectItem>
+                                    <MudSelectItem Value="@("检验入库")">检验入库</MudSelectItem>
+                                    <MudSelectItem Value="@("移库入库")">移库入库</MudSelectItem>
+                                    <MudSelectItem Value="@("其它")">其它</MudSelectItem>
+                                </MudSelect></td>
                             <td><MudTextField T="string" @bind-Value="request.SourceName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
-                            <td><MudTextField T="string" Value="@editInboundDateStr" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Disabled="true" /></td>
+                            <td><MudTextField T="string" @bind-Value="editInboundDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
                             <td><MudTextField T="string" @bind-Value="request.SourceHeatNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
                             <td><MudTextField T="string" @bind-Value="request.SourcePlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
                             <td><MudTextField T="string" @bind-Value="request.SourceSpecification" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
@@ -217,8 +225,8 @@
                             <td><MudNumericField T="decimal?" @bind-Value="request.SourceUnitWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td>
                             <td><MudNumericField T="int?" @bind-Value="request.InputQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></td>
                             <td><MudNumericField T="decimal?" @bind-Value="request.InputWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td>
-                            <td><MudTextField T="string" Value="@editWarehouseName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Disabled="true" /></td>
-                            <td><MudTextField T="string" Value="@editSourceWorkOrderNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Disabled="true" /></td>
+                            <td><MudTextField T="string" @bind-Value="editWarehouseName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
+                            <td><MudTextField T="string" @bind-Value="editSourceWorkOrderNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
                         </tr>
                     </tbody>
                 </MudSimpleTable>
@@ -376,7 +384,25 @@
                     </div>
                     <div class="d-flex align-center" style="gap:6px;">
                         <span style="white-space:nowrap; font-weight:500;">生产类型</span>
-                        <MudTextField T="string" Value="@DisplayHelper.GetProductionTypeText(originalBatch.ProductionType)" Disabled="true" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:130px;" />
+                        <MudSelect T="string" @bind-Value="request.ProductionType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:130px;">
+                            <MudSelectItem Value="@("RoughTube")">荒管生产</MudSelectItem>
+                            <MudSelectItem Value="@("InProcess")">在制生产</MudSelectItem>
+                            <MudSelectItem Value="@("Inventory")">库存</MudSelectItem>
+                            <MudSelectItem Value="@("OutsourcedPurchased")">外购</MudSelectItem>
+                            <MudSelectItem Value="@("Rework")">返整</MudSelectItem>
+                            <MudSelectItem Value="@("Subcontract")">委外生产</MudSelectItem>
+                            <MudSelectItem Value="@("ExternalProcessing")">对外加工</MudSelectItem>
+                        </MudSelect>
+                    </div>
+                    <div class="d-flex align-center" style="gap:6px;">
+                        <span style="white-space:nowrap; font-weight:500;">制造物品</span>
+                        <MudSelect T="string" @bind-Value="request.ManufacturingItem" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:130px;">
+                            <MudSelectItem Value="@("OrderFinishedProduct")">订单成品</MudSelectItem>
+                            <MudSelectItem Value="@("PreparedMaterial")">备料成品</MudSelectItem>
+                            <MudSelectItem Value="@("SurplusStock")">余库料</MudSelectItem>
+                            <MudSelectItem Value="@("IntermediateProduct")">中间品</MudSelectItem>
+                            <MudSelectItem Value="@("SpecialDeliveryStatus")">特定交态成品</MudSelectItem>
+                        </MudSelect>
                     </div>
                     <div class="d-flex align-center" style="gap:6px;">
                         <span style="white-space:nowrap; font-weight:500;">制几率</span>
@@ -748,6 +774,8 @@
 
         // 基础信息
         request.TagNo = originalBatch.TagNo;
+        request.ProductionType = originalBatch.ProductionType;
+        request.ManufacturingItem = originalBatch.ManufacturingItem;
         request.Remark = originalBatch.Remark;
 
         // 质量要求
@@ -766,7 +794,10 @@
         request.InputQuantity = originalBatch.InputQuantity;
         request.InputWeight = originalBatch.InputWeight;
         editInboundSource = DisplayHelper.GetInboundSourceText(originalBatch.InboundSource);
+        request.InboundSource = DisplayHelper.GetInboundSourceText(originalBatch.InboundSource);
         editInboundDateStr = originalBatch.InboundDate?.ToString("yyyy-MM-dd");
+        request.InboundDate = originalBatch.InboundDate;
+        request.WarehouseId = originalBatch.WarehouseId;
         editWarehouseName = originalBatch.WarehouseName;
         editSourceWorkOrderNo = originalBatch.WorkOrderNo;
 
@@ -800,6 +831,8 @@
         request.TotalItemCount = originalBatch.TotalItemCount;
         request.ItemDetails = originalBatch.ItemDetails;
         request.TechnicalRequirements = originalBatch.TechnicalRequirements;
+        request.CurrentValidQty = originalBatch.CurrentValidQty;
+        request.CurrentValidWeight = originalBatch.CurrentValidWeight;
 
         // 工序组
         editProcessGroups = (originalBatch.ProcessGroups ?? new()).Select(pg => new EditProcessGroupItem
@@ -864,8 +897,10 @@
         request.SourceBatchNo = batch.BatchNo;
         request.SourceMaterialType = batch.MaterialType;
         editInboundSource = DisplayHelper.GetInboundSourceText(batch.InboundSource);
+        request.InboundSource = DisplayHelper.GetInboundSourceText(batch.InboundSource);
         request.SourceName = batch.SourceName;
         editInboundDateStr = batch.InboundDate?.ToString("yyyy-MM-dd");
+        request.InboundDate = batch.InboundDate;
         request.SourceHeatNo = batch.HeatNo;
         request.SourcePlantGrade = batch.PlantGrade;
         request.SourceSpecification = batch.Specification;
@@ -873,6 +908,7 @@
         request.SourceUnitWeight = batch.UnitWeight;
         request.InputQuantity = batch.OutboundQuantity;
         request.InputWeight = batch.OutboundWeight;
+        request.WarehouseId = batch.WarehouseId;
         editWarehouseName = batch.WarehouseName;
         editSourceWorkOrderNo = batch.WorkOrderNo;
 
@@ -1314,6 +1350,11 @@
         if (!string.IsNullOrEmpty(editInboundDateStr) && !DateTime.TryParse(editInboundDateStr, out _))
             errors.Add("入库日期格式无效（正确格式：yyyy-MM-dd）");
 
+        if (string.IsNullOrWhiteSpace(request.ProductionType))
+            errors.Add("生产类型不能为空");
+        if (string.IsNullOrWhiteSpace(request.ManufacturingItem))
+            errors.Add("制造物品不能为空");
+
         // 工厂牌号验证（高代低）
         if (!GradeSubstitutes.IsSubstitutable(request.PlantGrade, request.SourcePlantGrade))
             errors.Add("仓库工厂牌号与工单工厂牌号不一致，且不可替代（仅允许高代低）");
@@ -1336,6 +1377,10 @@
             var saveRequest = new SaveBatchRequest
             {
                 TagNo = request.TagNo,
+                ProductionType = request.ProductionType,
+                ManufacturingItem = request.ManufacturingItem,
+                InboundSource = request.InboundSource,
+                InboundDate = request.InboundDate,
                 QualityRemark = request.QualityRemark,
                 SolutionParams = request.SolutionParams,
                 Remark = request.Remark,

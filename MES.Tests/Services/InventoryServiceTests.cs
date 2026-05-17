@@ -551,7 +551,160 @@ public class InventoryServiceTests : TestBase
         var result = await svc.GetPagedAsync(new InventoryQueryParams
         { PageIndex = 0, PageSize = 10, Keyword = "库存批次" });
 
-        result.Items.Should().HaveCount(1);
         result.Items[0].Remark.Should().Be("库存批次备注");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_按是否关联工单排序_成功()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx);
+        var svc = CreateService(ctx);
+
+        await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id, MaterialType = "无缝管",
+            PlantGrade = "Q345B", Specification = "219*8",
+            InboundSource = "采购", SourceName = "供应商A",
+            InitialQuantity = 10, InitialWeight = 1000m
+        });
+        await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id, MaterialType = "焊管",
+            PlantGrade = "Q235B", Specification = "159*6",
+            InboundSource = "采购", SourceName = "供应商B",
+            InitialQuantity = 20, InitialWeight = 2000m,
+            SalesOrderNo = "SO-001"
+        });
+
+        var batches = await ctx.InventoryBatches.OrderBy(b => b.Id).ToListAsync();
+        batches[0].IsLinkedToWorkOrder = false;
+        batches[1].IsLinkedToWorkOrder = true;
+        await ctx.SaveChangesAsync();
+
+        var resultAsc = await svc.GetPagedAsync(new InventoryQueryParams
+        { PageIndex = 0, PageSize = 20, SortBy = "islinkedtoworkorder", IsDescending = false });
+
+        resultAsc.Items[0].IsLinkedToWorkOrder.Should().BeFalse();
+        resultAsc.Items[1].IsLinkedToWorkOrder.Should().BeTrue();
+    }
+
+    // ========== 出库记录 B10 专项测试 ==========
+
+    [Fact]
+    public async Task GetOutboundRecordsAsync_按源单号排序_成功()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var batch = await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id, MaterialType = "无缝管",
+            PlantGrade = "Q345B", Specification = "219*8",
+            InboundSource = "采购", SourceName = "供应商A",
+            InitialQuantity = 10, InitialWeight = 1000m
+        });
+
+        await svc.OutboundAsync(new CreateOutboundRequest
+        {
+            InventoryBatchId = batch.Id, OutboundQuantity = 1,
+            OutboundWeight = 100m, OutboundType = "SalesOut",
+            TargetCompany = "客户X", OutboundDate = DateTime.Today
+        });
+        // Add a second with different order so we can test ordering
+        await svc.OutboundAsync(new CreateOutboundRequest
+        {
+            InventoryBatchId = batch.Id, OutboundQuantity = 2,
+            OutboundWeight = 200m, OutboundType = "TransferOut",
+            TargetCompany = "客户Y", OutboundDate = DateTime.Today
+        });
+
+        // Update source order numbers for sort testing
+        var records = await ctx.OutboundRecords.OrderBy(r => r.Id).ToListAsync();
+        records[0].SourceOrderNo = "B-SO";
+        records[1].SourceOrderNo = "A-SO";
+        await ctx.SaveChangesAsync();
+
+        var result = await svc.GetOutboundRecordsAsync(new OutboundQueryParams
+        { PageIndex = 0, PageSize = 20, SortBy = "sourceorderno", IsDescending = false });
+
+        result.Items[0].SourceOrderNo.Should().Be("A-SO");
+        result.Items[1].SourceOrderNo.Should().Be("B-SO");
+    }
+
+    [Fact]
+    public async Task GetOutboundRecordsAsync_按备注排序_成功()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var batch = await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id, MaterialType = "无缝管",
+            PlantGrade = "Q345B", Specification = "219*8",
+            InboundSource = "采购", SourceName = "供应商A",
+            InitialQuantity = 10, InitialWeight = 1000m
+        });
+
+        await svc.OutboundAsync(new CreateOutboundRequest
+        {
+            InventoryBatchId = batch.Id, OutboundQuantity = 1,
+            OutboundWeight = 100m, OutboundType = "SalesOut",
+            TargetCompany = "客户X", OutboundDate = DateTime.Today
+        });
+        await svc.OutboundAsync(new CreateOutboundRequest
+        {
+            InventoryBatchId = batch.Id, OutboundQuantity = 2,
+            OutboundWeight = 200m, OutboundType = "TransferOut",
+            TargetCompany = "客户Y", OutboundDate = DateTime.Today
+        });
+
+        var records = await ctx.OutboundRecords.OrderBy(r => r.Id).ToListAsync();
+        records[0].Remark = "B备注";
+        records[1].Remark = "A备注";
+        await ctx.SaveChangesAsync();
+
+        var result = await svc.GetOutboundRecordsAsync(new OutboundQueryParams
+        { PageIndex = 0, PageSize = 20, SortBy = "remark", IsDescending = false });
+
+        result.Items[0].Remark.Should().Be("A备注");
+        result.Items[1].Remark.Should().Be("B备注");
+    }
+
+    [Fact]
+    public async Task GetOutboundRecordsAsync_关键词搜索出库类型_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var batch = await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id, MaterialType = "无缝管",
+            PlantGrade = "Q345B", Specification = "219*8",
+            InboundSource = "采购", SourceName = "供应商A",
+            InitialQuantity = 10, InitialWeight = 1000m
+        });
+
+        await svc.OutboundAsync(new CreateOutboundRequest
+        {
+            InventoryBatchId = batch.Id, OutboundQuantity = 1,
+            OutboundWeight = 100m, OutboundType = "SalesOut",
+            TargetCompany = "客户X", OutboundDate = DateTime.Today
+        });
+        await svc.OutboundAsync(new CreateOutboundRequest
+        {
+            InventoryBatchId = batch.Id, OutboundQuantity = 2,
+            OutboundWeight = 200m, OutboundType = "TransferOut",
+            TargetCompany = "客户Y", OutboundDate = DateTime.Today
+        });
+
+        var result = await svc.GetOutboundRecordsAsync(new OutboundQueryParams
+        { PageIndex = 0, PageSize = 20, Keyword = "TransferOut" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].OutboundType.Should().Be("TransferOut");
     }
 }

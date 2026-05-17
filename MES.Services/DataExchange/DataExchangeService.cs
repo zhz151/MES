@@ -273,6 +273,7 @@ public class DataExchangeService : IDataExchangeService
             new("状态", "Status", typeof(BatchStatus), isEnum: true),
             new("挂牌号", "TagNo", typeof(string), isRequired: false),
             new("生产类型", "ProductionType", typeof(string), isRequired: false),
+            new("制造物品", "ManufacturingItem"),
             new("制几率", "ProductionRatio", typeof(int?), isRequired: false),
             new("强制完成", "IsForceCompleted", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("质量备注", "QualityRemark", typeof(string), isRequired: false),

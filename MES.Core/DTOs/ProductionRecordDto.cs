@@ -30,6 +30,9 @@ public class ProductionRecordDto
     public string? PlantGrade { get; set; }
     public string? Remark { get; set; }
 
+    /// <summary>数据来源（SCAN=扫码报工，MANUAL=手动录入）</summary>
+    public string? DataSource { get; set; }
+
     /// <summary>批次号（冗余，用于跨批次列表展示）</summary>
     public string? BatchNo { get; set; }
 
@@ -106,11 +109,17 @@ public class CreateProductionRecordRequest
 
     [MaxLength(500)]
     public string? Remark { get; set; }
+
+    /// <summary>
+    /// 数据来源（SCAN=扫码报工，MANUAL=手动录入）
+    /// </summary>
+    [MaxLength(10)]
+    public string? DataSource { get; set; }
 }
 
 /// <summary>
-/// 更新生产记录请求（内联编辑用）
-/// </summary>
+    /// 更新生产记录请求（内联编辑用）
+    /// </summary>
 public class UpdateProductionRecordRequest
 {
     [Required(ErrorMessage = "执行日期不能为空")]

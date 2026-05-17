@@ -312,4 +312,36 @@ public class FurnaceRegistrationServiceTests : TestBase
         result.Items.Should().HaveCount(1);
         result.Items[0].Remark.Should().Be("炉号备注信息");
     }
+
+    // ========== B10 专项测试 ==========
+
+    [Fact]
+    public async Task GetAllAsync_按炉号排序_成功()
+    {
+        var ctx = CreateDbContext();
+        await SeedFurnaceAsync(ctx, furnaceNo: "FUR-B", grade: "Q345B");
+        await SeedFurnaceAsync(ctx, furnaceNo: "FUR-A", grade: "Q235B");
+        var svc = CreateService(ctx);
+
+        var resultAsc = await svc.GetAllAsync(new QueryParams
+        { PageIndex = 1, PageSize = 20, SortBy = "furnacenumber", IsDescending = false });
+
+        resultAsc.Items[0].FurnaceNumber.Should().Be("FUR-A");
+        resultAsc.Items[1].FurnaceNumber.Should().Be("FUR-B");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_按相关牌号排序_成功()
+    {
+        var ctx = CreateDbContext();
+        await SeedFurnaceAsync(ctx, furnaceNo: "FUR-001", grade: "B-Grade");
+        await SeedFurnaceAsync(ctx, furnaceNo: "FUR-002", grade: "A-Grade");
+        var svc = CreateService(ctx);
+
+        var resultAsc = await svc.GetAllAsync(new QueryParams
+        { PageIndex = 1, PageSize = 20, SortBy = "relatedplantgrade", IsDescending = false });
+
+        resultAsc.Items[0].RelatedPlantGrade.Should().Be("A-Grade");
+        resultAsc.Items[1].RelatedPlantGrade.Should().Be("B-Grade");
+    }
 }

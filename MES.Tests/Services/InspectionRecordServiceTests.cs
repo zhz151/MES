@@ -197,4 +197,44 @@ public class InspectionRecordServiceTests : TestBase
         });
         await ctx.SaveChangesAsync();
     }
+
+    // ========== B10 专项测试 ==========
+
+    [Fact]
+    public async Task GetPagedAsync_按执行摘要排序_成功()
+    {
+        var ctx = CreateDbContext();
+        var eq = await SeedEquipmentAsync(ctx);
+        ctx.InspectionRecords.AddRange(
+            new InspectionRecord { RecordNo = "DJ-002", EquipmentId = eq.Id, ActualDate = DateTime.Today, Inspector = "测试员", ExecutionSummary = "B摘要" },
+            new InspectionRecord { RecordNo = "DJ-001", EquipmentId = eq.Id, ActualDate = DateTime.Today, Inspector = "测试员", ExecutionSummary = "A摘要" }
+        );
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new InspectionRecordQueryParams
+        { PageIndex = 0, PageSize = 20, SortBy = "executionsummary", IsDescending = false });
+
+        result.Items[0].ExecutionSummary.Should().Be("A摘要");
+        result.Items[1].ExecutionSummary.Should().Be("B摘要");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_按备注排序_成功()
+    {
+        var ctx = CreateDbContext();
+        var eq = await SeedEquipmentAsync(ctx);
+        ctx.InspectionRecords.AddRange(
+            new InspectionRecord { RecordNo = "DJ-002", EquipmentId = eq.Id, ActualDate = DateTime.Today, Inspector = "测试员", ExecutionSummary = "正常", Remark = "B备注" },
+            new InspectionRecord { RecordNo = "DJ-001", EquipmentId = eq.Id, ActualDate = DateTime.Today, Inspector = "测试员", ExecutionSummary = "正常", Remark = "A备注" }
+        );
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new InspectionRecordQueryParams
+        { PageIndex = 0, PageSize = 20, SortBy = "remark", IsDescending = false });
+
+        result.Items[0].Remark.Should().Be("A备注");
+        result.Items[1].Remark.Should().Be("B备注");
+    }
 }

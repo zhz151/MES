@@ -202,23 +202,23 @@
     {
         _allColumns = new List<ColumnDef>
         {
-            new() { Key = "batchno", Label = "批次号", Visible = true },
-            new() { Key = "outsourcevendor", Label = "委外单位", Visible = true },
-            new() { Key = "processname", Label = "工序名称", Visible = true },
-            new() { Key = "sectionname", Label = "工段名称", Visible = true },
-            new() { Key = "manufacturingspec", Label = "制造规格", Visible = true },
-            new() { Key = "outsourcespec", Label = "委外规格", Visible = true },
-            new() { Key = "sendquantity", Label = "发出支数", Visible = true },
-            new() { Key = "sendweight", Label = "发出重量", Visible = true },
-            new() { Key = "tagno", Label = "挂牌号", Visible = false },
-            new() { Key = "plantgrade", Label = "工厂牌号", Visible = false },
+            new() { Key = "batchno", Label = "批次号", SortKey = "batchno", Visible = true },
+            new() { Key = "outsourcevendor", Label = "委外单位", SortKey = "outsourcevendor", Visible = true },
+            new() { Key = "processname", Label = "工序名称", SortKey = "processname", Visible = true },
+            new() { Key = "sectionname", Label = "工段名称", SortKey = "sectionname", Visible = true },
+            new() { Key = "manufacturingspec", Label = "制造规格", SortKey = "manufacturingspec", Visible = true },
+            new() { Key = "outsourcespec", Label = "委外规格", SortKey = "outsourcespec", Visible = true },
+            new() { Key = "sendquantity", Label = "发出支数", SortKey = "sendquantity", Visible = true },
+            new() { Key = "sendweight", Label = "发出重量", SortKey = "sendweight", Visible = true },
+            new() { Key = "tagno", Label = "挂牌号", SortKey = "tagno", Visible = false },
+            new() { Key = "plantgrade", Label = "工厂牌号", SortKey = "plantgrade", Visible = false },
             new() { Key = "recoverydate", Label = "回收日期", SortKey = "recoverydate", Visible = true },
             new() { Key = "recoveryquantity", Label = "正常回收(支)", SortKey = "recoveryquantity", Visible = true },
             new() { Key = "recoveryweight", Label = "正常回收(重)", SortKey = "recoveryweight", Visible = true },
             new() { Key = "unprocessedquantity", Label = "非正常回收(支)", SortKey = "unprocessedquantity", Visible = true },
             new() { Key = "unprocessedweight", Label = "非正常回收(重)", SortKey = "unprocessedweight", Visible = true },
-            new() { Key = "remark", Label = "备注", Visible = false },
-            new() { Key = "createdtime", Label = "创建时间", Visible = false }
+            new() { Key = "remark", Label = "备注", SortKey = "remark", Visible = false },
+            new() { Key = "createdtime", Label = "创建时间", SortKey = "createdtime", Visible = false }
         };
 
         var saved = await ColumnPrefs.LoadAsync(StorageKey, null);
@@ -336,23 +336,23 @@
     {
         _allColumns = new List<ColumnDef>
         {
-            new() { Key = "batchno", Label = "批次号", Visible = true },
-            new() { Key = "outsourcevendor", Label = "委外单位", Visible = true },
-            new() { Key = "processname", Label = "工序名称", Visible = true },
-            new() { Key = "sectionname", Label = "工段名称", Visible = true },
-            new() { Key = "manufacturingspec", Label = "制造规格", Visible = true },
-            new() { Key = "outsourcespec", Label = "委外规格", Visible = true },
-            new() { Key = "sendquantity", Label = "发出支数", Visible = true },
-            new() { Key = "sendweight", Label = "发出重量", Visible = true },
-            new() { Key = "tagno", Label = "挂牌号", Visible = false },
-            new() { Key = "plantgrade", Label = "工厂牌号", Visible = false },
+            new() { Key = "batchno", Label = "批次号", SortKey = "batchno", Visible = true },
+            new() { Key = "outsourcevendor", Label = "委外单位", SortKey = "outsourcevendor", Visible = true },
+            new() { Key = "processname", Label = "工序名称", SortKey = "processname", Visible = true },
+            new() { Key = "sectionname", Label = "工段名称", SortKey = "sectionname", Visible = true },
+            new() { Key = "manufacturingspec", Label = "制造规格", SortKey = "manufacturingspec", Visible = true },
+            new() { Key = "outsourcespec", Label = "委外规格", SortKey = "outsourcespec", Visible = true },
+            new() { Key = "sendquantity", Label = "发出支数", SortKey = "sendquantity", Visible = true },
+            new() { Key = "sendweight", Label = "发出重量", SortKey = "sendweight", Visible = true },
+            new() { Key = "tagno", Label = "挂牌号", SortKey = "tagno", Visible = false },
+            new() { Key = "plantgrade", Label = "工厂牌号", SortKey = "plantgrade", Visible = false },
             new() { Key = "recoverydate", Label = "回收日期", SortKey = "recoverydate", Visible = true },
             new() { Key = "recoveryquantity", Label = "正常回收(支)", SortKey = "recoveryquantity", Visible = true },
             new() { Key = "recoveryweight", Label = "正常回收(重)", SortKey = "recoveryweight", Visible = true },
             new() { Key = "unprocessedquantity", Label = "非正常回收(支)", SortKey = "unprocessedquantity", Visible = true },
             new() { Key = "unprocessedweight", Label = "非正常回收(重)", SortKey = "unprocessedweight", Visible = true },
-            new() { Key = "remark", Label = "备注", Visible = false },
-            new() { Key = "createdtime", Label = "创建时间", Visible = false }
+            new() { Key = "remark", Label = "备注", SortKey = "remark", Visible = false },
+            new() { Key = "createdtime", Label = "创建时间", SortKey = "createdtime", Visible = false }
         };
         _visibleColumns = _allColumns.Where(c => c.Visible).ToList();
         await ColumnPrefs.SaveAsync(StorageKey, null, _allColumns);

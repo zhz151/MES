@@ -166,22 +166,22 @@ public class ChemicalCompositionService : IChemicalCompositionService
             ?? throw new BusinessException($"牌号化学成分记录不存在(Id={id})");
 
         entity.PlantGrade = request.PlantGrade;
-        entity.Carbon = request.Carbon;
-        entity.Silicon = request.Silicon;
-        entity.Manganese = request.Manganese;
-        entity.Phosphorus = request.Phosphorus;
-        entity.Sulfur = request.Sulfur;
-        entity.Nickel = request.Nickel;
-        entity.Chromium = request.Chromium;
-        entity.Molybdenum = request.Molybdenum;
-        entity.Copper = request.Copper;
-        entity.Nitrogen = request.Nitrogen;
-        entity.Niobium = request.Niobium;
-        entity.Titanium = request.Titanium;
-        entity.Iron = request.Iron;
-        entity.Aluminum = request.Aluminum;
-        entity.Tungsten = request.Tungsten;
-        entity.PREN = request.PREN;
+        entity.Carbon = request.Carbon ?? entity.Carbon;
+        entity.Silicon = request.Silicon ?? entity.Silicon;
+        entity.Manganese = request.Manganese ?? entity.Manganese;
+        entity.Phosphorus = request.Phosphorus ?? entity.Phosphorus;
+        entity.Sulfur = request.Sulfur ?? entity.Sulfur;
+        entity.Nickel = request.Nickel ?? entity.Nickel;
+        entity.Chromium = request.Chromium ?? entity.Chromium;
+        entity.Molybdenum = request.Molybdenum ?? entity.Molybdenum;
+        entity.Copper = request.Copper ?? entity.Copper;
+        entity.Nitrogen = request.Nitrogen ?? entity.Nitrogen;
+        entity.Niobium = request.Niobium ?? entity.Niobium;
+        entity.Titanium = request.Titanium ?? entity.Titanium;
+        entity.Iron = request.Iron ?? entity.Iron;
+        entity.Aluminum = request.Aluminum ?? entity.Aluminum;
+        entity.Tungsten = request.Tungsten ?? entity.Tungsten;
+        entity.PREN = request.PREN ?? entity.PREN;
 
         await _context.SaveChangesAsync();
 

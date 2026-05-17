@@ -77,6 +77,27 @@ public static class DisplayHelper
     }
 
     /// <summary>
+    /// 获取交货状态中文文本（字符串版本）
+    /// </summary>
+    public static string GetDeliveryStateText(string? deliveryState)
+    {
+        return deliveryState switch
+        {
+            "SolutionAnnealedAndPickled" => "固溶酸洗",
+            "SolutionAnnealedAndPickledUTube" => "固溶酸洗-U型管",
+            "SolutionAnnealedAndPickledExternalPolished" => "固溶酸洗-外抛光",
+            "SolutionAnnealedAndPickledInternalPolished" => "固溶酸洗-内抛光",
+            "SolutionAnnealedAndPickledBothPolished" => "固溶酸洗-内外抛光",
+            "SolutionAnnealedAndPickledCoiled" => "固溶酸洗-盘管",
+            "Bright" => "光亮",
+            "BrightUTube" => "光亮-U型管",
+            "BrightCoiled" => "光亮-盘管",
+            "Hard" => "硬态",
+            _ => deliveryState ?? ""
+        };
+    }
+
+    /// <summary>
     /// 获取物料名称中文文本
     /// </summary>
     public static string GetMaterialNameText(MaterialName materialName)
@@ -86,6 +107,19 @@ public static class DisplayHelper
             MaterialName.SeamlessPipe => "无缝管",
             MaterialName.WeldedPipe => "焊管",
             _ => materialName.ToString()
+        };
+    }
+
+    /// <summary>
+    /// 获取物料名称中文文本（字符串版本）
+    /// </summary>
+    public static string GetMaterialNameText(string? materialName)
+    {
+        return materialName switch
+        {
+            "SeamlessPipe" => "无缝管",
+            "WeldedPipe" => "焊管",
+            _ => materialName ?? ""
         };
     }
 
@@ -100,6 +134,20 @@ public static class DisplayHelper
             SettlementMethod.Weighing => "过磅",
             SettlementMethod.WeighingNegative => "过磅-负",
             _ => method.ToString()
+        };
+    }
+
+    /// <summary>
+    /// 获取结算方式中文文本（字符串版本）
+    /// </summary>
+    public static string GetSettlementMethodText(string? method)
+    {
+        return method switch
+        {
+            "Theoretical" => "理算",
+            "Weighing" => "过磅",
+            "WeighingNegative" => "过磅-负",
+            _ => method ?? ""
         };
     }
 
@@ -242,6 +290,24 @@ public static class DisplayHelper
             "TransferIn" => "移库入库",
             "Other" => "其它",
             _ => inboundSource ?? ""
+        };
+    }
+
+    // ========== 制造物品 ==========
+
+    /// <summary>
+    /// 获取制造物品中文文本
+    /// </summary>
+    public static string GetManufacturingItemText(string? item)
+    {
+        return item switch
+        {
+            "OrderFinishedProduct" => "订单成品",
+            "PreparedMaterial" => "备料成品",
+            "SurplusStock" => "余库料",
+            "IntermediateProduct" => "中间品",
+            "SpecialDeliveryStatus" => "特定交态成品",
+            _ => item ?? ""
         };
     }
 

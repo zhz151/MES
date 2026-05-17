@@ -1,0 +1,424 @@
+@page "/mobile-report"
+@using MES.Core.DTOs
+@using MES.Blazor.Services
+@using Microsoft.AspNetCore.Authorization
+@implements IDisposable
+@inject ScanService ScanService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = "BatchStaff,BatchDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.QrCodeScanner" Class="mr-2" Color="Color.Primary" />
+                    扫码报工
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="GoBack">返回</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            @if (_step == ScanStep.Scan)
+            {
+                @* 扫描步骤 *@
+                <div class="d-flex flex-column align-center">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               Size="Size.Large"
+                               StartIcon="@Icons.Material.Filled.CameraAlt"
+                               OnClick="StartCamera"
+                               Disabled="@_isCameraStarted"
+                               Class="mb-4 pa-4"
+                               Style="font-size: 1.1rem;">
+                        @(_isCameraStarted ? "扫描中..." : "扫描二维码")
+                    </MudButton>
+
+                    @if (_isCameraStarted)
+                    {
+                        <div style="position: relative; width: 100%; max-width: 480px;">
+                            <video id="scan-video"
+                                   style="width: 100%; border: 2px solid #ccc; border-radius: 8px; background: #000;"></video>
+                            <canvas id="scan-canvas" style="display: none;"></canvas>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Error"
+                                       Size="Size.Small"
+                                       OnClick="StopCamera"
+                                       Class="mt-2"
+                                       FullWidth="true">
+                                取消扫描
+                            </MudButton>
+                        </div>
+                    }
+
+                    <MudText Typo="Typo.body2" Class="mt-4 mb-1" Color="Color.Secondary">或手动输入</MudText>
+                    <div style="width: 100%; max-width: 480px;">
+                        <MudTextField @bind-Value="_manualInput"
+                                      Label="输入批次号|工序组ID（如 BATCH-001|5）"
+                                      Variant="Variant.Outlined"
+                                      Class="mb-2"
+                                      Style="font-size: 0.875rem; height: 32px;" />
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                   FullWidth="true"
+                                   OnClick="ResolveManualInput"
+                                   Disabled="string.IsNullOrWhiteSpace(_manualInput)">
+                            解析
+                        </MudButton>
+                    </div>
+
+                </div>
+            }
+
+            @if (_step == ScanStep.Preview)
+            {
+                @* 批次信息预览 + 工段选择 *@
+                <MudText Typo="Typo.h6" Class="mb-2 font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Class="mr-1" />
+                    批次信息
+                </MudText>
+
+                <MudTable Items="@_batchInfoItems" Dense="true" Hover="true" Elevation="0" Class="auto-table mb-4">
+                    <HeaderContent>
+                        <MudTh>字段</MudTh>
+                        <MudTh>值</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="字段">@context.Label</MudTd>
+                        <MudTd DataLabel="值">@context.Value</MudTd>
+                    </RowTemplate>
+                </MudTable>
+
+                <MudText Typo="Typo.h6" Class="mb-2 font-weight-bold">报工信息</MudText>
+
+                <MudSelect @bind-Value="_selectedSection"
+                           Label="选择工段"
+                           Variant="Variant.Outlined"
+                           Class="mb-2"
+                           Style="font-size: 0.875rem; height: 32px;"
+                           For="@(() => _selectedSection)">
+                    @foreach (var sec in _resolveResult?.AvailableSections ?? new())
+                    {
+                        <MudSelectItem Value="@(sec.SectionName)">@sec.SectionName</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <MudTextField @bind-Value="_execDateText"
+                                  Label="执行日期"
+                                  Placeholder="yyyy-MM-dd"
+                                  Variant="Variant.Outlined"
+                                  Style="font-size: 0.875rem; height: 32px;" />
+                    <MudSelect @bind-Value="_shift"
+                               Label="班次"
+                               Variant="Variant.Outlined"
+                               Style="font-size: 0.875rem; height: 32px;">
+                        <MudSelectItem Value="@("白班")">白班</MudSelectItem>
+                        <MudSelectItem Value="@("中班")">中班</MudSelectItem>
+                        <MudSelectItem Value="@("夜班")">夜班</MudSelectItem>
+                    </MudSelect>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;" class="mt-2">
+                    <MudTextField @bind-Value="_operator"
+                                  Label="操作工（工号）"
+                                  Variant="Variant.Outlined"
+                                  Style="font-size: 0.875rem; height: 32px;" />
+                    <MudTextField @bind-Value="_equipmentName"
+                                  Label="设备名称"
+                                  Variant="Variant.Outlined"
+                                  Style="font-size: 0.875rem; height: 32px;" />
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;" class="mt-2">
+                    <MudNumericField T="int?"
+                                     @bind-Value="_quantity"
+                                     Label="生产支数"
+                                     Variant="Variant.Outlined"
+                                     HideSpinButtons="true"
+                                     Style="font-size: 0.875rem; height: 32px;" />
+                    <MudNumericField T="decimal?" Format="G29"
+                                     @bind-Value="_weight"
+                                     Label="重量(kg)"
+                                     Variant="Variant.Outlined"
+                                     HideSpinButtons="true"
+                                     Style="font-size: 0.875rem; height: 32px;" />
+                </div>
+
+                <MudTextField @bind-Value="_remark"
+                              Label="备注"
+                              Variant="Variant.Outlined"
+                              Style="font-size: 0.875rem; height: 32px;"
+                              Class="mt-2" />
+
+                <div class="d-flex mt-4" style="gap: 8px;">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               FullWidth="true"
+                               OnClick="SubmitReport"
+                               Disabled="string.IsNullOrWhiteSpace(_selectedSection) || _isSubmitting">
+                        @(_isSubmitting ? "提交中..." : "提交报工")
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Default"
+                               OnClick="ResetToScan">
+                        重新扫描
+                    </MudButton>
+                </div>
+            }
+
+            @if (_step == ScanStep.Done)
+            {
+                @* 提交成功 *@
+                <div class="d-flex flex-column align-center pa-4">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Color="Color.Success" Class="mb-2" Style="font-size: 64px;" />
+                    <MudText Typo="Typo.h5" Class="mb-1">报工成功</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                        批次：@_resolveResult?.BatchNo | 工段：@_submittedSection
+                    </MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               OnClick="ResetToScan">
+                        继续扫码报工
+                    </MudButton>
+                </div>
+            }
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private enum ScanStep { Scan, Preview, Done }
+
+    private ScanStep _step = ScanStep.Scan;
+    private bool _isCameraStarted;
+    private string? _manualInput;
+    private ScanResolveResultDto? _resolveResult;
+    private List<(string Label, string Value)> _batchInfoItems = new();
+
+    // 报工字段
+    private string? _selectedSection;
+    private string? _execDateText = DateTime.Today.ToString("yyyy-MM-dd");
+    private string? _shift = "白班";
+    private string? _operator;
+    private string? _equipmentName;
+    private int? _quantity;
+    private decimal? _weight;
+    private string? _remark;
+    private bool _isSubmitting;
+    private string? _submittedSection;
+
+    private DotNetObjectReference<ScanExecute>? _dotNetRef;
+
+    protected override void OnInitialized()
+    {
+        _dotNetRef = DotNetObjectReference.Create(this);
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/batches");
+    }
+
+    public void Dispose()
+    {
+        _ = StopCamera();
+        _dotNetRef?.Dispose();
+    }
+
+    // ========== 摄像头扫描 ==========
+
+    private async Task StartCamera()
+    {
+        try
+        {
+            _isCameraStarted = true;
+            StateHasChanged();
+
+            // 给 DOM 渲染时间
+            await Task.Delay(100);
+
+            var result = await JS.InvokeAsync<ScanResult>("window.startScanner",
+                "scan-video", "scan-canvas", _dotNetRef, "OnQrCodeDetected");
+
+            if (!result.Success)
+            {
+                Snackbar.Add(result.Error ?? "启动摄像头失败", Severity.Error);
+                _isCameraStarted = false;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"摄像头错误：{ex.Message}", Severity.Error);
+            _isCameraStarted = false;
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnQrCodeDetected(string data)
+    {
+        // 解析二维码内容：batchNo|processGroupId
+        try
+        {
+            var parts = data.Split('|');
+            if (parts.Length < 2 || !int.TryParse(parts[1], out var groupId))
+            {
+                Snackbar.Add("无效的二维码格式", Severity.Error);
+                StateHasChanged();
+                return;
+            }
+
+            await ResolveAndPreview(parts[0], groupId);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"解析失败：{ex.Message}", Severity.Error);
+            StateHasChanged();
+        }
+    }
+
+    private async Task StopCamera()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("window.stopScanner");
+        }
+        catch { }
+        _isCameraStarted = false;
+    }
+
+    // ========== 手动输入 ==========
+
+    private async Task ResolveManualInput()
+    {
+        if (string.IsNullOrWhiteSpace(_manualInput)) return;
+
+        var parts = _manualInput!.Trim().Split('|');
+        if (parts.Length < 2 || !int.TryParse(parts[1], out var groupId))
+        {
+            Snackbar.Add("输入格式无效，请使用：批次号|工序组ID", Severity.Error);
+            return;
+        }
+
+        await ResolveAndPreview(parts[0], groupId);
+    }
+
+    // ========== 解析与预览 ==========
+
+    private async Task ResolveAndPreview(string batchNo, int processGroupId)
+    {
+        var response = await ScanService.ResolveAsync(batchNo, processGroupId);
+        if (!response.Success)
+        {
+            Snackbar.Add(response.Message ?? "解析失败", Severity.Error);
+            StateHasChanged();
+            return;
+        }
+
+        _resolveResult = response.Data;
+        _batchInfoItems = new List<(string, string)>
+        {
+            ("批次号", _resolveResult.BatchNo),
+            ("状态", _resolveResult.Status),
+            ("钢种", _resolveResult.PlantGrade),
+            ("规格", _resolveResult.Specification),
+            ("挂牌号", _resolveResult.TagNo ?? "-"),
+            ("生产类型", _resolveResult.ProductionType ?? "-"),
+            ("工序", _resolveResult.ProcessName),
+            ("制造规格", _resolveResult.ManufacturingSpec ?? "-"),
+        };
+
+        // 重置报工字段
+        _selectedSection = null;
+        _execDateText = DateTime.Today.ToString("yyyy-MM-dd");
+        _shift = "白班";
+        _operator = null;
+        _equipmentName = null;
+        _quantity = null;
+        _weight = null;
+        _remark = null;
+
+        _step = ScanStep.Preview;
+        await StopCamera();
+        StateHasChanged();
+    }
+
+    // ========== 提交报工 ==========
+
+    private async Task SubmitReport()
+    {
+        if (string.IsNullOrWhiteSpace(_selectedSection) || _resolveResult == null)
+            return;
+
+        _isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var section = _resolveResult.AvailableSections
+                .FirstOrDefault(s => s.SectionName == _selectedSection);
+
+            var request = new CreateProductionRecordRequest
+            {
+                BatchNo = _resolveResult.BatchNo,
+                ProductionBatchId = 0, // 服务端自动解析
+                ProcessGroupId = _resolveResult.ProcessGroupId,
+                ProcessName = _resolveResult.ProcessName,
+                ManufacturingSpec = _resolveResult.ManufacturingSpec ?? "",
+                SectionName = _selectedSection,
+                SequenceNumber = section?.SequenceNumber ?? 0,
+                ExecDate = DateTime.TryParse(_execDateText, out var execDate) ? execDate : DateTime.Today,
+                EquipmentName = _equipmentName,
+                Operator = _operator,
+                Shift = _shift,
+                Quantity = _quantity,
+                Weight = _weight,
+                Remark = _remark,
+                DataSource = "SCAN"
+            };
+
+            var response = await ScanService.CreateProductionRecordAsync(request);
+            if (response.Success)
+            {
+                _submittedSection = _selectedSection;
+                _step = ScanStep.Done;
+                Snackbar.Add("报工提交成功", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(response.Message ?? "提交失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"提交失败：{ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    // ========== 重置 ==========
+
+    private async Task ResetToScan()
+    {
+        _step = ScanStep.Scan;
+        _resolveResult = null;
+        _batchInfoItems.Clear();
+        _manualInput = null;
+        _selectedSection = null;
+        await StopCamera();
+        StateHasChanged();
+    }
+
+    // ========== JS Interop 结果类型 ==========
+
+    public class ScanResult
+    {
+        public bool Success { get; set; }
+        public string? Error { get; set; }
+    }
+}

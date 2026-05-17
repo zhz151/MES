@@ -87,6 +87,10 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<MaintenanceOrder> MaintenanceOrders { get; set; } = null!;
     public DbSet<InspectionRecord> InspectionRecords { get; set; } = null!;
 
+    // ========== 读模型上下文 ==========
+
+    public DbSet<WorkOrderExecutionSummary> WorkOrderExecutionSummaries { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -149,6 +153,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureRepairOrder(builder);
         ConfigureMaintenanceOrder(builder);
         ConfigureInspectionRecord(builder);
+
+        // ========== 读模型上下文 ==========
+        ConfigureWorkOrderExecutionSummary(builder);
 
         // 为所有继承 BaseEntity 的实体统一配置审计字段长度
         foreach (var entityType in builder.Model.GetEntityTypes())
@@ -879,6 +886,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Status).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(BatchStatus.None);
             entity.Property(e => e.TagNo).HasMaxLength(50);
             entity.Property(e => e.ProductionType).HasMaxLength(20);
+            entity.Property(e => e.ManufacturingItem).IsRequired().HasMaxLength(30);
             entity.Property(e => e.IsForceCompleted).IsRequired().HasDefaultValue(false);
             entity.Property(e => e.QualityRemark).HasMaxLength(500);
             entity.Property(e => e.SolutionParams).HasMaxLength(500);
@@ -1023,6 +1031,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.TagNo).HasMaxLength(50);
             entity.Property(e => e.PlantGrade).HasMaxLength(50);
             entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.Property(e => e.DataSource).HasMaxLength(10).HasDefaultValue("MANUAL");
 
             entity.HasOne(e => e.ProductionBatch)
                 .WithMany()
@@ -1520,6 +1529,79 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
             entity.HasIndex(e => e.RecordNo).IsUnique().HasDatabaseName("UK_InspectionRecord_No");
             entity.HasIndex(e => e.EquipmentId).HasDatabaseName("IX_InspectionRecord_EquipmentId");
+        });
+    }
+
+    private static void ConfigureWorkOrderExecutionSummary(ModelBuilder builder)
+    {
+        builder.Entity<WorkOrderExecutionSummary>(entity =>
+        {
+            entity.ToTable("WorkOrderExecutionSummary");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.WorkOrderId).IsRequired();
+            entity.Property(e => e.WorkOrderNo).IsRequired().HasMaxLength(50);
+
+            // Group 1
+            entity.Property(e => e.Salesman).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.CustomerName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.SignDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.DeliveryDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.DelayPenalty).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.SettlementMethod).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.SalesOrderNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ProductionMainNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ProductionSubNo).HasMaxLength(50);
+            entity.Property(e => e.MaterialName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DeliveryState).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.LengthStatus).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.MinLength).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.MaxLength).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.TotalItemCount).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.TotalQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.TotalMeters).IsRequired().HasColumnType("decimal(18,2)").HasDefaultValue(0m);
+            entity.Property(e => e.TotalWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+
+            // Group 2
+            entity.Property(e => e.LatestPlanDate).HasColumnType("date");
+            entity.Property(e => e.MaterialPlanRate).HasColumnType("decimal(5,2)").HasDefaultValue(0m);
+            entity.Property(e => e.MaterialPlanStatus).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.MainNoMaterialPlanRate).HasColumnType("decimal(5,2)").HasDefaultValue(0m);
+            entity.Property(e => e.MainNoMaterialPlanStatus).IsRequired().HasDefaultValue(0);
+
+            // Group 3
+            entity.Property(e => e.InputStartDate).HasColumnType("date");
+            entity.Property(e => e.InputEndDate).HasColumnType("date");
+            entity.Property(e => e.TotalBatchCount).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.InputQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.InputWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.TheoreticalOutputQty).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.TheoreticalOutputWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.InputOutputRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
+            entity.Property(e => e.InputStatus).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.MainNoInputOutputRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
+            entity.Property(e => e.MainNoInputStatus).IsRequired().HasDefaultValue(0);
+
+            // Group 4
+            entity.Property(e => e.ValidBatchCount).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.ValidInputQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.ValidInputWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.ValidOutputQty).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.ValidOutputWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.ValidInputOutputRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
+            entity.Property(e => e.ValidInputStatus).IsRequired().HasDefaultValue(0);
+
+            // 刷新追踪
+            entity.Property(e => e.LastRefreshTime).HasColumnType("datetime2");
+
+            // 索引
+            entity.HasIndex(e => e.WorkOrderId).IsUnique().HasDatabaseName("UK_WES_WorkOrderId");
+            entity.HasIndex(e => e.WorkOrderNo).HasDatabaseName("IX_WES_WorkOrderNo");
+            entity.HasIndex(e => e.SalesOrderNo).HasDatabaseName("IX_WES_SalesOrderNo");
+            entity.HasIndex(e => e.ProductionMainNo).HasDatabaseName("IX_WES_ProductionMainNo");
+            entity.HasIndex(e => e.InputStatus).HasDatabaseName("IX_WES_InputStatus");
         });
     }
 }

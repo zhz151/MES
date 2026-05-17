@@ -14,11 +14,12 @@ public static class InventoryMaterialTypes
     public const string DefectRoundBar = "次品圆棒";
     public const string DefectRoughTube = "次品荒管";
     public const string Scrap = "报废品";
+    public const string SpecialDeliveryStatus = "特定交态成品";
 
     /// <summary>
     /// 库存使用计划可用的物料类型
     /// </summary>
-    public static readonly string[] InventoryPlanUsable = { Finished, Surplus };
+    public static readonly string[] InventoryPlanUsable = { Finished, Surplus, SpecialDeliveryStatus };
 
     /// <summary>
     /// 空拉/少道次改制可用的物料类型

@@ -259,6 +259,7 @@
         new() { Key = "ProductionMainNo",   Label = "主号",     SortKey = "productionmainno" },
         new() { Key = "ProductionSubNo",    Label = "次号",     SortKey = "productionsubno" },
         new() { Key = "ProductionType",     Label = "生产类型", SortKey = "productiontype" },
+        new() { Key = "ManufacturingItem",  Label = "制造物品", SortKey = "manufacturingitem" },
         new() { Key = "Status",             Label = "状态",     SortKey = "status" },
         new() { Key = "CurrentExecDate",    Label = "截止执行日", SortKey = "currentexecdate" },
         new() { Key = "CurrentGroupName",   Label = "当前工序", SortKey = "currentgroupname" },
@@ -309,6 +310,7 @@
         new() { BlockKey = "BatchInfo", Key = "Status", Label = "状态", Visible = true },
         new() { BlockKey = "BatchInfo", Key = "TagNo", Label = "挂牌号", Visible = true },
         new() { BlockKey = "BatchInfo", Key = "ProductionType", Label = "生产类型", Visible = false },
+        new() { BlockKey = "BatchInfo", Key = "ManufacturingItem", Label = "制造物品", Visible = false },
         new() { BlockKey = "BatchInfo", Key = "ProductionRatio", Label = "制几率", Visible = false },
         new() { BlockKey = "BatchInfo", Key = "IsForceCompleted", Label = "强制完成", Visible = true },
         new() { BlockKey = "BatchInfo", Key = "Remark", Label = "备注", Visible = true },
@@ -610,6 +612,7 @@
         "CurrentSpec" => item.CurrentSpec ?? "",
         "NextSectionName" => item.NextSectionName ?? "",
         "CorrespondingSpec" => item.CorrespondingSpec ?? "",
+        "ManufacturingItem" => DisplayHelper.GetManufacturingItemText(item.ManufacturingItem),
         _ => ""
     };
 

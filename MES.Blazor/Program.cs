@@ -59,4 +59,11 @@ builder.Services.AddScoped<EquipmentService>();
 builder.Services.AddScoped<RepairOrderService>();
 builder.Services.AddScoped<MaintenanceOrderService>();
 builder.Services.AddScoped<InspectionRecordService>();
+
+// ========== 读模型上下文 ==========
+builder.Services.AddScoped<MES.Blazor.Services.WorkOrderExecutionService>();
+
+// ========== 扫码执行 ==========
+builder.Services.AddScoped<ScanService>();
+
 await builder.Build().RunAsync();

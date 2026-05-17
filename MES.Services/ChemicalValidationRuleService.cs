@@ -136,22 +136,22 @@ public class ChemicalValidationRuleService : IChemicalValidationRuleService
             ?? throw new BusinessException($"牌号验证记录不存在(Id={id})");
 
         entity.PlantGrade = request.PlantGrade;
-        entity.CMin = request.CMin; entity.CMax = request.CMax;
-        entity.SiMin = request.SiMin; entity.SiMax = request.SiMax;
-        entity.MnMin = request.MnMin; entity.MnMax = request.MnMax;
-        entity.PMin = request.PMin; entity.PMax = request.PMax;
-        entity.SMin = request.SMin; entity.SMax = request.SMax;
-        entity.NiMin = request.NiMin; entity.NiMax = request.NiMax;
-        entity.CrMin = request.CrMin; entity.CrMax = request.CrMax;
-        entity.MoMin = request.MoMin; entity.MoMax = request.MoMax;
-        entity.CuMin = request.CuMin; entity.CuMax = request.CuMax;
-        entity.NMin = request.NMin; entity.NMax = request.NMax;
-        entity.NbMin = request.NbMin; entity.NbMax = request.NbMax;
-        entity.TiMin = request.TiMin; entity.TiMax = request.TiMax;
-        entity.FeMin = request.FeMin; entity.FeMax = request.FeMax;
-        entity.AlMin = request.AlMin; entity.AlMax = request.AlMax;
-        entity.WMin = request.WMin; entity.WMax = request.WMax;
-        entity.PRENMin = request.PRENMin;
+        entity.CMin = request.CMin ?? entity.CMin; entity.CMax = request.CMax ?? entity.CMax;
+        entity.SiMin = request.SiMin ?? entity.SiMin; entity.SiMax = request.SiMax ?? entity.SiMax;
+        entity.MnMin = request.MnMin ?? entity.MnMin; entity.MnMax = request.MnMax ?? entity.MnMax;
+        entity.PMin = request.PMin ?? entity.PMin; entity.PMax = request.PMax ?? entity.PMax;
+        entity.SMin = request.SMin ?? entity.SMin; entity.SMax = request.SMax ?? entity.SMax;
+        entity.NiMin = request.NiMin ?? entity.NiMin; entity.NiMax = request.NiMax ?? entity.NiMax;
+        entity.CrMin = request.CrMin ?? entity.CrMin; entity.CrMax = request.CrMax ?? entity.CrMax;
+        entity.MoMin = request.MoMin ?? entity.MoMin; entity.MoMax = request.MoMax ?? entity.MoMax;
+        entity.CuMin = request.CuMin ?? entity.CuMin; entity.CuMax = request.CuMax ?? entity.CuMax;
+        entity.NMin = request.NMin ?? entity.NMin; entity.NMax = request.NMax ?? entity.NMax;
+        entity.NbMin = request.NbMin ?? entity.NbMin; entity.NbMax = request.NbMax ?? entity.NbMax;
+        entity.TiMin = request.TiMin ?? entity.TiMin; entity.TiMax = request.TiMax ?? entity.TiMax;
+        entity.FeMin = request.FeMin ?? entity.FeMin; entity.FeMax = request.FeMax ?? entity.FeMax;
+        entity.AlMin = request.AlMin ?? entity.AlMin; entity.AlMax = request.AlMax ?? entity.AlMax;
+        entity.WMin = request.WMin ?? entity.WMin; entity.WMax = request.WMax ?? entity.WMax;
+        entity.PRENMin = request.PRENMin ?? entity.PRENMin;
 
         await _context.SaveChangesAsync();
 

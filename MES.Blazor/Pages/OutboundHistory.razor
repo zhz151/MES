@@ -254,11 +254,11 @@
         new() { Key = "BatchNo",          Label = "批次号",   SortKey = "batchno" },
         new() { Key = "OutboundDate",     Label = "出库日期", SortKey = "outbounddate",     IsRequired = true },
         new() { Key = "OutboundType",     Label = "出库类型", SortKey = "outboundtype",     IsRequired = true },
-        new() { Key = "SourceOrderNo",    Label = "物料单号" },
+        new() { Key = "SourceOrderNo",    Label = "物料单号", SortKey = "sourceorderno" },
         new() { Key = "TargetCompany",    Label = "目标单位", SortKey = "targetcompany" },
         new() { Key = "OutboundQuantity", Label = "出库支数", SortKey = "outboundquantity", IsRequired = true },
         new() { Key = "OutboundWeight",   Label = "出库重量", SortKey = "outboundweight",   IsRequired = true },
-        new() { Key = "Remark",           Label = "备注" },
+        new() { Key = "Remark",           Label = "备注", SortKey = "remark" },
         new() { Key = "CreatedBy",        Label = "创建人",   SortKey = "createdby" },
     };
 
@@ -776,7 +776,7 @@
         "InspectionPick" => "检验领用",
         "TransferOut" => "移库出库",
         "OtherOut" => "其他出库",
-        _ => type
+        _ => "未知"
     };
 
     private void GoBack() => Navigation.NavigateTo(!string.IsNullOrEmpty(Code) ? $"/warehouse/{Code.ToLowerInvariant()}" : "/warehouse");

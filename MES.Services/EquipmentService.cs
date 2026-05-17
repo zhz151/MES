@@ -39,7 +39,9 @@ public class EquipmentService : IEquipmentService
                 (e.RelatedSection != null && e.RelatedSection.Contains(kw)) ||
                 (e.Remark != null && e.Remark.Contains(kw)) ||
                 (e.InspectionPerson != null && e.InspectionPerson.Contains(kw)) ||
-                (e.MaintPerson != null && e.MaintPerson.Contains(kw)));
+                (e.MaintPerson != null && e.MaintPerson.Contains(kw)) ||
+                e.LifecycleStatus.Contains(kw) ||
+                e.UsageType.Contains(kw));
         }
 
         if (!string.IsNullOrEmpty(query.LifecycleStatus))
@@ -198,23 +200,23 @@ public class EquipmentService : IEquipmentService
 
         entity.EquipmentCode = request.EquipmentCode;
         entity.EquipmentName = request.EquipmentName;
-        entity.ModelNumber = request.ModelNumber;
-        entity.TechnicalParams = request.TechnicalParams;
-        entity.Manufacturer = request.Manufacturer;
-        entity.InstallationDate = request.InstallationDate;
-        entity.Remark = request.Remark;
+        entity.ModelNumber = request.ModelNumber ?? entity.ModelNumber;
+        entity.TechnicalParams = request.TechnicalParams ?? entity.TechnicalParams;
+        entity.Manufacturer = request.Manufacturer ?? entity.Manufacturer;
+        entity.InstallationDate = request.InstallationDate ?? entity.InstallationDate;
+        entity.Remark = request.Remark ?? entity.Remark;
         entity.Location = request.Location;
-        entity.RelatedSection = request.RelatedSection;
+        entity.RelatedSection = request.RelatedSection ?? entity.RelatedSection;
 
         entity.NeedInspection = request.NeedInspection;
-        entity.InspectionPerson = request.InspectionPerson;
+        entity.InspectionPerson = request.InspectionPerson ?? entity.InspectionPerson;
         entity.InspectionCycleDays = request.InspectionCycleDays;
-        entity.CurrentInspectionStartDate = request.CurrentInspectionStartDate;
+        entity.CurrentInspectionStartDate = request.CurrentInspectionStartDate ?? entity.CurrentInspectionStartDate;
 
         entity.NeedMaintenance = request.NeedMaintenance;
-        entity.MaintPerson = request.MaintPerson;
+        entity.MaintPerson = request.MaintPerson ?? entity.MaintPerson;
         entity.MaintCycleDays = request.MaintCycleDays;
-        entity.CurrentMaintStartDate = request.CurrentMaintStartDate;
+        entity.CurrentMaintStartDate = request.CurrentMaintStartDate ?? entity.CurrentMaintStartDate;
 
         entity.LifecycleStatus = request.LifecycleStatus;
         entity.UsageType = request.UsageType;

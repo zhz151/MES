@@ -72,6 +72,7 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">生产编号</MudText><MudText Typo="Typo.body2">@batch.BatchNo</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">挂牌号</MudText><MudText Typo="Typo.body2">@(batch.TagNo ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">生产类型</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetProductionTypeText(batch.ProductionType))</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">制造物品</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetManufacturingItemText(batch.ManufacturingItem))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">制几率</MudText><MudText Typo="Typo.body2">@(batch.ProductionRatio?.ToString() ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">备注</MudText><MudText Typo="Typo.body2">@(batch.Remark ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetBatchStatusText(batch.Status)</MudText></div>

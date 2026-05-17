@@ -59,6 +59,10 @@ public class InspectionRecordService : IInspectionRecordService
             ("location", false) => baseQuery.OrderBy(x => x.Equipment.Location),
             ("inspector", true) => baseQuery.OrderByDescending(x => x.Record.Inspector ?? ""),
             ("inspector", false) => baseQuery.OrderBy(x => x.Record.Inspector ?? ""),
+            ("executionsummary", true) => baseQuery.OrderByDescending(x => x.Record.ExecutionSummary ?? ""),
+            ("executionsummary", false) => baseQuery.OrderBy(x => x.Record.ExecutionSummary ?? ""),
+            ("remark", true) => baseQuery.OrderByDescending(x => x.Record.Remark ?? ""),
+            ("remark", false) => baseQuery.OrderBy(x => x.Record.Remark ?? ""),
             _ when query.IsDescending => baseQuery.OrderByDescending(x => x.Record.Id),
             _ => baseQuery.OrderBy(x => x.Record.Id)
         };
@@ -154,7 +158,7 @@ public class InspectionRecordService : IInspectionRecordService
             .FirstOrDefaultAsync(r => r.Id == id);
         if (entity == null) throw new BusinessException("点检记录不存在");
 
-        if (request.ActualDate.HasValue) entity.ActualDate = request.ActualDate;
+        entity.ActualDate = request.ActualDate ?? entity.ActualDate;
         if (request.Inspector != null) entity.Inspector = request.Inspector;
         if (request.ExecutionSummary != null) entity.ExecutionSummary = request.ExecutionSummary;
         if (request.Remark != null) entity.Remark = request.Remark;

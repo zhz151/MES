@@ -125,6 +125,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "",
             TagNo = "TAG-001",
             ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品",
             Remark = "测试批次无工单"
         });
 
@@ -146,7 +147,8 @@ public class BatchServiceTests : TestBase
         {
             WorkOrderNo = workOrderNo,
             TagNo = "TAG-WO-001",
-            ProductionType = "RoughTube"
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品"
         });
 
         result.Should().NotBeNull();
@@ -184,6 +186,7 @@ public class BatchServiceTests : TestBase
         {
             TagNo = "TAG-PG",
             ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品",
             Remark = "带工序组测试",
             ProcessGroups = new List<CreateProcessGroupRequest>
             {
@@ -226,6 +229,7 @@ public class BatchServiceTests : TestBase
         {
             TagNo = "TAG-RATIO",
             ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品",
             LengthStatus = "Fixed",
             TotalWeight = 1000m,
             TotalQuantity = 100,
@@ -252,7 +256,8 @@ public class BatchServiceTests : TestBase
         var created = await svc.CreateAsync(new CreateProductionBatchRequest
         {
             TagNo = "TAG-DETAIL",
-            ProductionType = "RoughTube"
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品"
         });
 
         var detail = await svc.GetByIdAsync(created.Id);
@@ -286,7 +291,8 @@ public class BatchServiceTests : TestBase
         var created = await svc.CreateAsync(new CreateProductionBatchRequest
         {
             TagNo = "TAG-OLD",
-            ProductionType = "RoughTube"
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品"
         });
 
         var detail = await svc.GetByIdAsync(created.Id);
@@ -294,6 +300,8 @@ public class BatchServiceTests : TestBase
         var updated = await svc.UpdateAsync(created.Id, new UpdateProductionBatchRequest
         {
             TagNo = "TAG-NEW",
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品",
             Remark = "备注已更新",
             RowVersion = detail.RowVersion
         });
@@ -311,7 +319,8 @@ public class BatchServiceTests : TestBase
         var created = await svc.CreateAsync(new CreateProductionBatchRequest
         {
             TagNo = "TAG-CONFLICT",
-            ProductionType = "RoughTube"
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品"
         });
 
         var act = () => svc.UpdateAsync(created.Id, new UpdateProductionBatchRequest
@@ -347,7 +356,8 @@ public class BatchServiceTests : TestBase
         var created = await svc.CreateAsync(new CreateProductionBatchRequest
         {
             TagNo = "TAG-WO-UPDATE",
-            ProductionType = "RoughTube"
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品"
         });
 
         var detail = await svc.GetByIdAsync(created.Id);
@@ -356,6 +366,8 @@ public class BatchServiceTests : TestBase
         {
             WorkOrderNo = "WO-MANUAL",
             SalesOrderNo = "SO-MANUAL",
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品",
             PlantGrade = "304",
             Specification = "219*8",
             RowVersion = detail.RowVersion
@@ -378,7 +390,8 @@ public class BatchServiceTests : TestBase
         var created = await svc.CreateAsync(new CreateProductionBatchRequest
         {
             TagNo = "TAG-STATUS",
-            ProductionType = "RoughTube"
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品"
         });
 
         var detail = await svc.GetByIdAsync(created.Id);
@@ -402,7 +415,8 @@ public class BatchServiceTests : TestBase
         var created = await svc.CreateAsync(new CreateProductionBatchRequest
         {
             TagNo = "TAG-ROLLBACK",
-            ProductionType = "RoughTube"
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品"
         });
 
         var detail = await svc.GetByIdAsync(created.Id);
@@ -442,6 +456,7 @@ public class BatchServiceTests : TestBase
         {
             TagNo = "TAG-DEL",
             ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品",
             ProcessGroups = new List<CreateProcessGroupRequest>
             {
                 new() { ProcessName = "矫切酸检", ManufacturingSpec = "Φ50×5", ColdRollDraw = 1 }
@@ -475,7 +490,8 @@ public class BatchServiceTests : TestBase
         var created = await svc.CreateAsync(new CreateProductionBatchRequest
         {
             TagNo = "TAG-ADD-PG",
-            ProductionType = "RoughTube"
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品"
         });
 
         var pg = await svc.AddProcessGroupAsync(created.Id, new CreateProcessGroupRequest
@@ -516,6 +532,7 @@ public class BatchServiceTests : TestBase
         {
             TagNo = "TAG-DEL-PG",
             ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品",
             ProcessGroups = new List<CreateProcessGroupRequest>
             {
                 new() { ProcessName = "矫切酸检", ManufacturingSpec = "Φ50×5", ColdRollDraw = 1 }
@@ -552,7 +569,8 @@ public class BatchServiceTests : TestBase
         await svc.CreateAsync(new CreateProductionBatchRequest
         {
             TagNo = "SEARCH-TAG",
-            ProductionType = "RoughTube"
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品"
         });
 
         var result = await svc.GetPagedAsync(new BatchQueryParams
@@ -575,7 +593,8 @@ public class BatchServiceTests : TestBase
         var created = await svc.CreateAsync(new CreateProductionBatchRequest
         {
             TagNo = "STATUS-FILTER",
-            ProductionType = "RoughTube"
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品"
         });
 
         // 改状态为 InProgress
@@ -606,12 +625,14 @@ public class BatchServiceTests : TestBase
         await svc.CreateAsync(new CreateProductionBatchRequest
         {
             TagNo = "SORT-A",
-            ProductionType = "RoughTube"
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品"
         });
         await svc.CreateAsync(new CreateProductionBatchRequest
         {
             TagNo = "SORT-B",
-            ProductionType = "RoughTube"
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品"
         });
 
         var result = await svc.GetPagedAsync(new BatchQueryParams
@@ -647,7 +668,8 @@ public class BatchServiceTests : TestBase
         var first = await svc.CreateAsync(new CreateProductionBatchRequest
         {
             TagNo = "SEQ-NO-1",
-            ProductionType = "RoughTube"
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品"
         });
 
         var nextNo = await svc.GetNextBatchNoAsync();
@@ -696,6 +718,7 @@ public class BatchServiceTests : TestBase
         {
             TagNo = "COPY-SRC",
             ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品",
             ProcessGroups = new List<CreateProcessGroupRequest>
             {
                 new() { ProcessName = "矫切酸检", ManufacturingSpec = "Φ50×5", ColdRollDraw = 1, Pickle = 2 },
@@ -723,7 +746,8 @@ public class BatchServiceTests : TestBase
         var created = await svc.CreateAsync(new CreateProductionBatchRequest
         {
             TagNo = "PRINT-TEST",
-            ProductionType = "RoughTube"
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品"
         });
 
         var pdfBytes = await svc.PrintBatchAsync(created.Id);
@@ -755,7 +779,8 @@ public class BatchServiceTests : TestBase
         await svc.CreateAsync(new CreateProductionBatchRequest
         {
             TagNo = "PRINT-ALL",
-            ProductionType = "RoughTube"
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品"
         });
 
         var pdfBytes = await svc.PrintBatchAllAsync(new BatchPrintAllRequest());
@@ -774,7 +799,8 @@ public class BatchServiceTests : TestBase
         var created = await svc.CreateAsync(new CreateProductionBatchRequest
         {
             TagNo = "CARD-PRINT",
-            ProductionType = "RoughTube"
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品"
         });
 
         var pdfBytes = await svc.PrintProcessCardAsync(new ProcessCardPrintRequest
@@ -802,7 +828,8 @@ public class BatchServiceTests : TestBase
         await svc.CreateAsync(new CreateProductionBatchRequest
         {
             TagNo = "CARD-ALL",
-            ProductionType = "RoughTube"
+            ProductionType = "RoughTube",
+            ManufacturingItem = "订单成品"
         });
 
         var pdfBytes = await svc.PrintProcessCardAsync(new ProcessCardPrintRequest
@@ -842,8 +869,8 @@ public class BatchServiceTests : TestBase
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { TagNo = "SORT-CS-1", ProductionType = "RoughTube" });
-        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { TagNo = "SORT-CS-2", ProductionType = "RoughTube" });
+        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { TagNo = "SORT-CS-1", ProductionType = "RoughTube", ManufacturingItem = "订单成品" });
+        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { TagNo = "SORT-CS-2", ProductionType = "RoughTube", ManufacturingItem = "订单成品" });
 
         var entity1 = await ctx.ProductionBatches.FindAsync(b1.Id);
         entity1!.CurrentSpec = "B-Spec";
@@ -864,8 +891,8 @@ public class BatchServiceTests : TestBase
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { TagNo = "SORT-CORR-1", ProductionType = "RoughTube" });
-        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { TagNo = "SORT-CORR-2", ProductionType = "RoughTube" });
+        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { TagNo = "SORT-CORR-1", ProductionType = "RoughTube", ManufacturingItem = "订单成品" });
+        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { TagNo = "SORT-CORR-2", ProductionType = "RoughTube", ManufacturingItem = "订单成品" });
 
         var entity1 = await ctx.ProductionBatches.FindAsync(b1.Id);
         entity1!.CorrespondingSpec = "B-Corr";
@@ -886,7 +913,7 @@ public class BatchServiceTests : TestBase
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        await svc.CreateAsync(new CreateProductionBatchRequest { TagNo = "CREATOR-TEST", ProductionType = "RoughTube" });
+        await svc.CreateAsync(new CreateProductionBatchRequest { TagNo = "CREATOR-TEST", ProductionType = "RoughTube", ManufacturingItem = "订单成品" });
         var entity = await ctx.ProductionBatches.FirstAsync(b => b.TagNo == "CREATOR-TEST");
         entity.CreatedBy = "测试创建人";
         await ctx.SaveChangesAsync();

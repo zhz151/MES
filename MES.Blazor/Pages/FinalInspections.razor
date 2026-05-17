@@ -646,7 +646,7 @@
         "InspectionItem" => DisplayHelper.GetInspectionItemText(item.InspectionItem),
         "InspectionDate" => item.InspectionDate.ToString("yyyy-MM-dd"),
         "BatchNo" => item.BatchNo,
-        "MaterialName" => item.MaterialName ?? "",
+        "MaterialName" => DisplayHelper.GetMaterialNameText(item.MaterialName),
         "TagNo" => item.TagNo ?? "",
         "WorkOrderNo" => item.WorkOrderNo ?? "",
         "SalesOrderNo" => item.SalesOrderNo ?? "",
@@ -719,7 +719,7 @@
                 builder.AddContent(0, item.BatchNo);
                 break;
             case "MaterialName":
-                builder.AddContent(0, item.MaterialName);
+                builder.AddContent(0, DisplayHelper.GetMaterialNameText(item.MaterialName));
                 break;
             case "TagNo":
                 builder.AddContent(0, item.TagNo);

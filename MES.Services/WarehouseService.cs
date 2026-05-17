@@ -28,7 +28,8 @@ public class WarehouseService : IWarehouseService
         {
             queryable = queryable.Where(w =>
                 w.Code.Contains(query.Keyword) ||
-                w.Name.Contains(query.Keyword));
+                w.Name.Contains(query.Keyword) ||
+                (w.Remark != null && w.Remark.Contains(query.Keyword)));
         }
 
         if (isActive.HasValue)

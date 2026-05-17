@@ -259,22 +259,22 @@ public class ProcessInspectionService : IProcessInspectionService
             ?? throw new BusinessException($"过程检验记录不存在(Id={id})");
 
         entity.InspectionDate = request.InspectionDate;
-        entity.EquipmentName = request.EquipmentName;
-        entity.Inspector = request.Inspector;
-        entity.Shift = request.Shift;
-        entity.Quantity = request.Quantity;
-        entity.Weight = request.Weight;
-        entity.InspectionItem = request.InspectionItem;
-        entity.QualifiedQuantity = request.QualifiedQuantity;
-        entity.QualifiedWeight = request.QualifiedWeight;
-        entity.DefectReworkQuantity = request.DefectReworkQuantity;
-        entity.DefectWarehouseQuantity = request.DefectWarehouseQuantity;
-        entity.DefectScrapQuantity = request.DefectScrapQuantity;
-        entity.DefectDescription = request.DefectDescription;
-        entity.SourceUnit = request.SourceUnit;
-        entity.TagNo = request.TagNo;
-        entity.PlantGrade = request.PlantGrade;
-        entity.Remark = request.Remark;
+        entity.EquipmentName = request.EquipmentName ?? entity.EquipmentName;
+        entity.Inspector = request.Inspector ?? entity.Inspector;
+        entity.Shift = request.Shift ?? entity.Shift;
+        entity.Quantity = request.Quantity ?? entity.Quantity;
+        entity.Weight = request.Weight ?? entity.Weight;
+        entity.InspectionItem = request.InspectionItem ?? entity.InspectionItem;
+        entity.QualifiedQuantity = request.QualifiedQuantity ?? entity.QualifiedQuantity;
+        entity.QualifiedWeight = request.QualifiedWeight ?? entity.QualifiedWeight;
+        entity.DefectReworkQuantity = request.DefectReworkQuantity ?? entity.DefectReworkQuantity;
+        entity.DefectWarehouseQuantity = request.DefectWarehouseQuantity ?? entity.DefectWarehouseQuantity;
+        entity.DefectScrapQuantity = request.DefectScrapQuantity ?? entity.DefectScrapQuantity;
+        entity.DefectDescription = request.DefectDescription ?? entity.DefectDescription;
+        entity.SourceUnit = request.SourceUnit ?? entity.SourceUnit;
+        entity.TagNo = request.TagNo ?? entity.TagNo;
+        entity.PlantGrade = request.PlantGrade ?? entity.PlantGrade;
+        entity.Remark = request.Remark ?? entity.Remark;
 
         await _context.SaveChangesAsync();
 

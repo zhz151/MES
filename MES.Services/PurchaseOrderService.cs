@@ -402,7 +402,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         if (entity.Status == PurchaseOrderStatus.Completed)
         {
             // 已完成：仅允许修改来源工单号
-            entity.SourceWorkOrderNo = request.SourceWorkOrderNo;
+            entity.SourceWorkOrderNo = request.SourceWorkOrderNo ?? entity.SourceWorkOrderNo;
         }
         else
         {
@@ -410,13 +410,13 @@ public class PurchaseOrderService : IPurchaseOrderService
             entity.MaterialCategory = request.MaterialCategory;
             entity.PlantGrade = request.PlantGrade;
             entity.Specification = request.Specification;
-            entity.UnitWeight = request.UnitWeight;
-            entity.Quantity = request.Quantity;
+            entity.UnitWeight = request.UnitWeight ?? entity.UnitWeight;
+            entity.Quantity = request.Quantity ?? entity.Quantity;
             entity.Weight = request.Weight;
             entity.RequiredDate = request.RequiredDate;
-            entity.UnitPrice = request.UnitPrice;
-            entity.SourceWorkOrderNo = request.SourceWorkOrderNo;
-            entity.Remark = request.Remark;
+            entity.UnitPrice = request.UnitPrice ?? entity.UnitPrice;
+            entity.SourceWorkOrderNo = request.SourceWorkOrderNo ?? entity.SourceWorkOrderNo;
+            entity.Remark = request.Remark ?? entity.Remark;
 
             // 重新计算总金额
             if (request.Quantity.HasValue && request.UnitPrice.HasValue)

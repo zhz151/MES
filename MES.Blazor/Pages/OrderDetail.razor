@@ -507,7 +507,7 @@
         SalesOrderStatus.Pending => "待处理",
         SalesOrderStatus.Confirmed => "已确认",
         SalesOrderStatus.Cancelled => "已取消",
-        _ => status.ToString()
+        _ => "未知"
     };
 
     private string GetCustomerNameById(int id) =>

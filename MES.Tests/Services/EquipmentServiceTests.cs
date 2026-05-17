@@ -373,4 +373,78 @@ public class EquipmentServiceTests : TestBase
         var deleted = await ctx.Equipment.FirstOrDefaultAsync(e => e.Id == entity.Id);
         deleted.Should().BeNull();
     }
+
+    // ========== B10/B11 专项测试 ==========
+
+    [Fact]
+    public async Task GetPagedAsync_按生命周期排序_成功()
+    {
+        var ctx = CreateDbContext();
+        ctx.Equipment.AddRange(
+            new Equipment { EquipmentCode = "EQ-B", EquipmentName = "设备B", Location = "A区", LifecycleStatus = "Standby", UsageType = "Primary" },
+            new Equipment { EquipmentCode = "EQ-A", EquipmentName = "设备A", Location = "A区", LifecycleStatus = "Active", UsageType = "Primary" }
+        );
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var resultAsc = await svc.GetPagedAsync(new EquipmentQueryParams
+        { PageIndex = 0, PageSize = 20, SortBy = "lifecyclestatus", IsDescending = false });
+
+        resultAsc.Items[0].LifecycleStatus.Should().Be("Active");
+        resultAsc.Items[1].LifecycleStatus.Should().Be("Standby");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_按使用类型排序_成功()
+    {
+        var ctx = CreateDbContext();
+        ctx.Equipment.AddRange(
+            new Equipment { EquipmentCode = "EQ-B", EquipmentName = "设备B", Location = "A区", LifecycleStatus = "Active", UsageType = "Secondary" },
+            new Equipment { EquipmentCode = "EQ-A", EquipmentName = "设备A", Location = "A区", LifecycleStatus = "Active", UsageType = "Primary" }
+        );
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var resultAsc = await svc.GetPagedAsync(new EquipmentQueryParams
+        { PageIndex = 0, PageSize = 20, SortBy = "usagetype", IsDescending = false });
+
+        resultAsc.Items[0].UsageType.Should().Be("Primary");
+        resultAsc.Items[1].UsageType.Should().Be("Secondary");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索生命周期_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        ctx.Equipment.AddRange(
+            new Equipment { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", LifecycleStatus = "Active", UsageType = "Primary" },
+            new Equipment { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区", LifecycleStatus = "Standby", UsageType = "Secondary" }
+        );
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new EquipmentQueryParams
+        { PageIndex = 0, PageSize = 20, Keyword = "Active" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].LifecycleStatus.Should().Be("Active");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_关键词搜索使用类型_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        ctx.Equipment.AddRange(
+            new Equipment { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", LifecycleStatus = "Active", UsageType = "Primary" },
+            new Equipment { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区", LifecycleStatus = "Standby", UsageType = "Secondary" }
+        );
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new EquipmentQueryParams
+        { PageIndex = 0, PageSize = 20, Keyword = "Secondary" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].UsageType.Should().Be("Secondary");
+    }
 }

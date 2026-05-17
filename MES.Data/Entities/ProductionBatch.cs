@@ -31,6 +31,11 @@ public class ProductionBatch : BaseEntity
     public string? ProductionType { get; set; }
 
     /// <summary>
+    /// 制造物品（订单成品/备料成品/余库料/中间品）
+    /// </summary>
+    public string ManufacturingItem { get; set; } = null!;
+
+    /// <summary>
     /// 制几率（定尺时= floor(投料单重/工单单重)）
     /// </summary>
     public int? ProductionRatio { get; set; }

@@ -385,11 +385,11 @@ public class SectionOutsourceService : ISectionOutsourceService
             .FirstOrDefaultAsync(s => s.Id == id)
             ?? throw new BusinessException($"工段委外记录不存在 (Id={id})");
 
-        if (request.SendQuantity.HasValue) entity.SendQuantity = request.SendQuantity;
-        if (request.SendWeight.HasValue) entity.SendWeight = request.SendWeight;
+        entity.SendQuantity = request.SendQuantity ?? entity.SendQuantity;
+        entity.SendWeight = request.SendWeight ?? entity.SendWeight;
         if (request.OutsourceVendor != null) entity.OutsourceVendor = request.OutsourceVendor;
         if (request.OutsourceSpec != null) entity.OutsourceSpec = request.OutsourceSpec;
-        if (request.ExpectedReturnDate.HasValue) entity.ExpectedReturnDate = request.ExpectedReturnDate;
+        entity.ExpectedReturnDate = request.ExpectedReturnDate ?? entity.ExpectedReturnDate;
         if (request.IsUrgent.HasValue) entity.IsUrgent = request.IsUrgent.Value;
         if (request.Remark != null) entity.Remark = request.Remark;
 
@@ -458,7 +458,13 @@ public class SectionOutsourceService : ISectionOutsourceService
             queryable = queryable.Where(r =>
                 r.SectionOutsource.OutsourceVendor.Contains(kw) ||
                 r.SectionOutsource.ProcessName.Contains(kw) ||
-                r.SectionOutsource.ProductionBatch.BatchNo.Contains(kw));
+                r.SectionOutsource.ProductionBatch.BatchNo.Contains(kw) ||
+                (r.Remark != null && r.Remark.Contains(kw)) ||
+                (r.SectionOutsource.SectionName != null && r.SectionOutsource.SectionName.Contains(kw)) ||
+                (r.SectionOutsource.OutsourceSpec != null && r.SectionOutsource.OutsourceSpec.Contains(kw)) ||
+                (r.SectionOutsource.ManufacturingSpec != null && r.SectionOutsource.ManufacturingSpec.Contains(kw)) ||
+                (r.SectionOutsource.TagNo != null && r.SectionOutsource.TagNo.Contains(kw)) ||
+                (r.SectionOutsource.PlantGrade != null && r.SectionOutsource.PlantGrade.Contains(kw)));
         }
 
         // 回收日期范围筛选
@@ -487,6 +493,28 @@ public class SectionOutsourceService : ISectionOutsourceService
             ("unprocessedquantity", true) => queryable.OrderByDescending(r => r.UnprocessedQuantity ?? 0),
             ("unprocessedweight", false) => queryable.OrderBy(r => r.UnprocessedWeight ?? 0),
             ("unprocessedweight", true) => queryable.OrderByDescending(r => r.UnprocessedWeight ?? 0),
+            ("remark", false) => queryable.OrderBy(r => r.Remark ?? ""),
+            ("remark", true) => queryable.OrderByDescending(r => r.Remark ?? ""),
+            ("batchno", false) => queryable.OrderBy(r => r.SectionOutsource.ProductionBatch.BatchNo),
+            ("batchno", true) => queryable.OrderByDescending(r => r.SectionOutsource.ProductionBatch.BatchNo),
+            ("outsourcevendor", false) => queryable.OrderBy(r => r.SectionOutsource.OutsourceVendor),
+            ("outsourcevendor", true) => queryable.OrderByDescending(r => r.SectionOutsource.OutsourceVendor),
+            ("processname", false) => queryable.OrderBy(r => r.SectionOutsource.ProcessName),
+            ("processname", true) => queryable.OrderByDescending(r => r.SectionOutsource.ProcessName),
+            ("sectionname", false) => queryable.OrderBy(r => r.SectionOutsource.SectionName),
+            ("sectionname", true) => queryable.OrderByDescending(r => r.SectionOutsource.SectionName),
+            ("manufacturingspec", false) => queryable.OrderBy(r => r.SectionOutsource.ManufacturingSpec ?? ""),
+            ("manufacturingspec", true) => queryable.OrderByDescending(r => r.SectionOutsource.ManufacturingSpec ?? ""),
+            ("outsourcespec", false) => queryable.OrderBy(r => r.SectionOutsource.OutsourceSpec ?? ""),
+            ("outsourcespec", true) => queryable.OrderByDescending(r => r.SectionOutsource.OutsourceSpec ?? ""),
+            ("tagno", false) => queryable.OrderBy(r => r.SectionOutsource.TagNo ?? ""),
+            ("tagno", true) => queryable.OrderByDescending(r => r.SectionOutsource.TagNo ?? ""),
+            ("plantgrade", false) => queryable.OrderBy(r => r.SectionOutsource.PlantGrade ?? ""),
+            ("plantgrade", true) => queryable.OrderByDescending(r => r.SectionOutsource.PlantGrade ?? ""),
+            ("sendquantity", false) => queryable.OrderBy(r => r.SectionOutsource.SendQuantity ?? 0),
+            ("sendquantity", true) => queryable.OrderByDescending(r => r.SectionOutsource.SendQuantity ?? 0),
+            ("sendweight", false) => queryable.OrderBy(r => r.SectionOutsource.SendWeight ?? 0),
+            ("sendweight", true) => queryable.OrderByDescending(r => r.SectionOutsource.SendWeight ?? 0),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(r => r.CreatedTime)
                 : queryable.OrderBy(r => r.CreatedTime)
@@ -636,10 +664,10 @@ public class SectionOutsourceService : ISectionOutsourceService
             ?? throw new BusinessException($"委外回收记录不存在 (Id={id})");
 
         if (request.RecoveryDate.HasValue) entity.RecoveryDate = request.RecoveryDate.Value;
-        if (request.RecoveryQuantity.HasValue) entity.RecoveryQuantity = request.RecoveryQuantity;
-        if (request.RecoveryWeight.HasValue) entity.RecoveryWeight = request.RecoveryWeight;
-        if (request.UnprocessedQuantity.HasValue) entity.UnprocessedQuantity = request.UnprocessedQuantity;
-        if (request.UnprocessedWeight.HasValue) entity.UnprocessedWeight = request.UnprocessedWeight;
+        entity.RecoveryQuantity = request.RecoveryQuantity ?? entity.RecoveryQuantity;
+        entity.RecoveryWeight = request.RecoveryWeight ?? entity.RecoveryWeight;
+        entity.UnprocessedQuantity = request.UnprocessedQuantity ?? entity.UnprocessedQuantity;
+        entity.UnprocessedWeight = request.UnprocessedWeight ?? entity.UnprocessedWeight;
         if (request.Remark != null) entity.Remark = request.Remark;
 
         await _context.SaveChangesAsync();

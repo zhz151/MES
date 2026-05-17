@@ -59,6 +59,10 @@ public class MaintenanceOrderService : IMaintenanceOrderService
             ("location", false) => baseQuery.OrderBy(x => x.Equipment.Location),
             ("executor", true) => baseQuery.OrderByDescending(x => x.Order.Executor ?? ""),
             ("executor", false) => baseQuery.OrderBy(x => x.Order.Executor ?? ""),
+            ("executionsummary", true) => baseQuery.OrderByDescending(x => x.Order.ExecutionSummary ?? ""),
+            ("executionsummary", false) => baseQuery.OrderBy(x => x.Order.ExecutionSummary ?? ""),
+            ("remark", true) => baseQuery.OrderByDescending(x => x.Order.Remark ?? ""),
+            ("remark", false) => baseQuery.OrderBy(x => x.Order.Remark ?? ""),
             _ when query.IsDescending => baseQuery.OrderByDescending(x => x.Order.Id),
             _ => baseQuery.OrderBy(x => x.Order.Id)
         };
@@ -153,7 +157,7 @@ public class MaintenanceOrderService : IMaintenanceOrderService
             .FirstOrDefaultAsync(m => m.Id == id);
         if (entity == null) throw new BusinessException("保养工单不存在");
 
-        if (request.ActualDate.HasValue) entity.ActualDate = request.ActualDate;
+        entity.ActualDate = request.ActualDate ?? entity.ActualDate;
         if (request.Executor != null) entity.Executor = request.Executor;
         if (request.ExecutionSummary != null) entity.ExecutionSummary = request.ExecutionSummary;
         if (request.Remark != null) entity.Remark = request.Remark;

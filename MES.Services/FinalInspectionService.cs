@@ -284,23 +284,23 @@ public class FinalInspectionService : IFinalInspectionService
             ?? throw new BusinessException("成品检验记录不存在");
 
         entity.InspectionDate = request.InspectionDate;
-        entity.EquipmentName = request.EquipmentName;
-        entity.Shift = request.Shift;
-        entity.Operator = request.Operator;
-        entity.Quantity = request.Quantity;
-        entity.Weight = request.Weight;
-        entity.QualifiedQuantity = request.QualifiedQuantity;
-        entity.QualifiedWeight = request.QualifiedWeight;
-        entity.DefectReworkQuantity = request.DefectReworkQuantity;
-        entity.DefectWarehouseQuantity = request.DefectWarehouseQuantity;
-        entity.DefectScrapQuantity = request.DefectScrapQuantity;
-        entity.DefectDescription = request.DefectDescription;
-        entity.OuterDiameterRange = request.OuterDiameterRange;
-        entity.WallThicknessRange = request.WallThicknessRange;
-        entity.LengthAllowanceRange = request.LengthAllowanceRange;
-        entity.Pressure = request.Pressure;
-        entity.HoldTime = request.HoldTime;
-        entity.Remark = request.Remark;
+        entity.EquipmentName = request.EquipmentName ?? entity.EquipmentName;
+        entity.Shift = request.Shift ?? entity.Shift;
+        entity.Operator = request.Operator ?? entity.Operator;
+        entity.Quantity = request.Quantity ?? entity.Quantity;
+        entity.Weight = request.Weight ?? entity.Weight;
+        entity.QualifiedQuantity = request.QualifiedQuantity ?? entity.QualifiedQuantity;
+        entity.QualifiedWeight = request.QualifiedWeight ?? entity.QualifiedWeight;
+        entity.DefectReworkQuantity = request.DefectReworkQuantity ?? entity.DefectReworkQuantity;
+        entity.DefectWarehouseQuantity = request.DefectWarehouseQuantity ?? entity.DefectWarehouseQuantity;
+        entity.DefectScrapQuantity = request.DefectScrapQuantity ?? entity.DefectScrapQuantity;
+        entity.DefectDescription = request.DefectDescription ?? entity.DefectDescription;
+        entity.OuterDiameterRange = request.OuterDiameterRange ?? entity.OuterDiameterRange;
+        entity.WallThicknessRange = request.WallThicknessRange ?? entity.WallThicknessRange;
+        entity.LengthAllowanceRange = request.LengthAllowanceRange ?? entity.LengthAllowanceRange;
+        entity.Pressure = request.Pressure ?? entity.Pressure;
+        entity.HoldTime = request.HoldTime ?? entity.HoldTime;
+        entity.Remark = request.Remark ?? entity.Remark;
 
         await _context.SaveChangesAsync();
 

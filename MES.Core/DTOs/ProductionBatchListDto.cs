@@ -15,6 +15,7 @@ public class ProductionBatchListDto
     public string ProductionMainNo { get; set; } = null!;
     public string? ProductionSubNo { get; set; }
     public string? ProductionType { get; set; }
+    public string ManufacturingItem { get; set; } = null!;
     public string Status { get; set; } = null!;
     public DateTime? CurrentExecDate { get; set; }
     public string? CurrentGroupName { get; set; }

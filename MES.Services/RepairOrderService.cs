@@ -38,7 +38,11 @@ public class RepairOrderService : IRepairOrderService
                 x.Equipment.EquipmentCode.Contains(kw) ||
                 x.Equipment.Location.Contains(kw) ||
                 (x.Order.RepairPerson != null && x.Order.RepairPerson.Contains(kw)) ||
-                (x.Order.FaultType != null && x.Order.FaultType.Contains(kw)));
+                (x.Order.FaultType != null && x.Order.FaultType.Contains(kw)) ||
+                x.Order.Priority.Contains(kw) ||
+                x.Order.RepairStatus.Contains(kw) ||
+                (x.Order.RepairContent != null && x.Order.RepairContent.Contains(kw)) ||
+                (x.Order.SparePartUsed != null && x.Order.SparePartUsed.Contains(kw)));
         }
 
         if (query.EquipmentId.HasValue)
@@ -87,6 +91,10 @@ public class RepairOrderService : IRepairOrderService
             ("repairstarttime", false) => baseQuery.OrderBy(x => x.Order.RepairStartTime),
             ("repairendtime", true) => baseQuery.OrderByDescending(x => x.Order.RepairEndTime),
             ("repairendtime", false) => baseQuery.OrderBy(x => x.Order.RepairEndTime),
+            ("repaircontent", true) => baseQuery.OrderByDescending(x => x.Order.RepairContent ?? ""),
+            ("repaircontent", false) => baseQuery.OrderBy(x => x.Order.RepairContent ?? ""),
+            ("sparepartused", true) => baseQuery.OrderByDescending(x => x.Order.SparePartUsed ?? ""),
+            ("sparepartused", false) => baseQuery.OrderBy(x => x.Order.SparePartUsed ?? ""),
             _ when query.IsDescending => baseQuery.OrderByDescending(x => x.Order.ReportTime),
             _ => baseQuery.OrderBy(x => x.Order.ReportTime)
         };
@@ -199,8 +207,8 @@ public class RepairOrderService : IRepairOrderService
         if (request.ReportPerson != null) entity.ReportPerson = request.ReportPerson;
         if (request.ReportTime.HasValue) entity.ReportTime = request.ReportTime.Value;
         if (request.RepairPerson != null) entity.RepairPerson = request.RepairPerson;
-        if (request.RepairStartTime.HasValue) entity.RepairStartTime = request.RepairStartTime;
-        if (request.RepairEndTime.HasValue) entity.RepairEndTime = request.RepairEndTime;
+        if (request.RepairStartTime.HasValue) entity.RepairStartTime = request.RepairStartTime.Value;
+        if (request.RepairEndTime.HasValue) entity.RepairEndTime = request.RepairEndTime.Value;
         if (request.RepairContent != null) entity.RepairContent = request.RepairContent;
         if (request.SparePartUsed != null) entity.SparePartUsed = request.SparePartUsed;
 

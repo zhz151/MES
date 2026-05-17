@@ -196,7 +196,16 @@
                     <tr>
                         <td><MudTextField T="string" @bind-Value="request.SourceBatchNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
                         <td><MudTextField T="string" @bind-Value="request.SourceMaterialType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
-                        <td><MudTextField T="string" @bind-Value="request.InboundSource" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
+                        <td><MudSelect T="string" @bind-Value="request.InboundSource" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
+                                <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
+                                <MudSelectItem Value="@("外购")">外购</MudSelectItem>
+                                <MudSelectItem Value="@("委外")">委外</MudSelectItem>
+                                <MudSelectItem Value="@("退货入库")">退货入库</MudSelectItem>
+                                <MudSelectItem Value="@("生产入库")">生产入库</MudSelectItem>
+                                <MudSelectItem Value="@("检验入库")">检验入库</MudSelectItem>
+                                <MudSelectItem Value="@("移库入库")">移库入库</MudSelectItem>
+                                <MudSelectItem Value="@("其它")">其它</MudSelectItem>
+                            </MudSelect></td>
                         <td><MudTextField T="string" @bind-Value="request.SourceName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
                         <td><MudTextField T="string" @bind-Value="inboundDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
                         <td><MudTextField T="string" @bind-Value="request.SourceHeatNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
@@ -374,6 +383,17 @@
                         <MudSelectItem Value="@("Rework")">返整</MudSelectItem>
                         <MudSelectItem Value="@("Subcontract")">委外生产</MudSelectItem>
                         <MudSelectItem Value="@("ExternalProcessing")">对外加工</MudSelectItem>
+                    </MudSelect>
+                </div>
+                <div class="d-flex align-center" style="gap:6px;">
+                    <span style="white-space:nowrap; font-weight:500;">制造物品</span>
+                    <MudSelect T="string" @bind-Value="request.ManufacturingItem" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:130px;">
+                        <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
+                        <MudSelectItem Value="@("OrderFinishedProduct")">订单成品</MudSelectItem>
+                        <MudSelectItem Value="@("PreparedMaterial")">备料成品</MudSelectItem>
+                        <MudSelectItem Value="@("SurplusStock")">余库料</MudSelectItem>
+                        <MudSelectItem Value="@("IntermediateProduct")">中间品</MudSelectItem>
+                        <MudSelectItem Value="@("SpecialDeliveryStatus")">特定交态成品</MudSelectItem>
                     </MudSelect>
                 </div>
                 <div class="d-flex align-center" style="gap:6px;">

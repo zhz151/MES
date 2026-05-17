@@ -126,7 +126,8 @@ public class ProductionRecordService : IProductionRecordService
             PostCutQuantity = request.PostCutQuantity,
             TagNo = request.TagNo ?? batch.TagNo,
             PlantGrade = request.PlantGrade ?? batch.PlantGrade,
-            Remark = request.Remark
+            Remark = request.Remark,
+            DataSource = request.DataSource ?? "MANUAL"
         };
 
         _context.ProductionRecords.Add(entity);
@@ -155,7 +156,8 @@ public class ProductionRecordService : IProductionRecordService
             PostCutQuantity = entity.PostCutQuantity,
             TagNo = entity.TagNo,
             PlantGrade = entity.PlantGrade,
-            Remark = entity.Remark
+            Remark = entity.Remark,
+            DataSource = entity.DataSource
         };
     }
 
@@ -420,18 +422,18 @@ public class ProductionRecordService : IProductionRecordService
             ?? throw new BusinessException("生产记录不存在");
 
         entity.ExecDate = request.ExecDate;
-        entity.EquipmentName = request.EquipmentName;
-        entity.Operator = request.Operator;
-        entity.Shift = request.Shift;
-        entity.Quantity = request.Quantity;
-        entity.Weight = request.Weight;
+        entity.EquipmentName = request.EquipmentName ?? entity.EquipmentName;
+        entity.Operator = request.Operator ?? entity.Operator;
+        entity.Shift = request.Shift ?? entity.Shift;
+        entity.Quantity = request.Quantity ?? entity.Quantity;
+        entity.Weight = request.Weight ?? entity.Weight;
         entity.IsFinished = request.IsFinished;
-        entity.CuttingMultiple = request.CuttingMultiple;
-        entity.FinishedCutLength = request.FinishedCutLength;
-        entity.PostCutQuantity = request.PostCutQuantity;
-        entity.TagNo = request.TagNo;
-        entity.PlantGrade = request.PlantGrade;
-        entity.Remark = request.Remark;
+        entity.CuttingMultiple = request.CuttingMultiple ?? entity.CuttingMultiple;
+        entity.FinishedCutLength = request.FinishedCutLength ?? entity.FinishedCutLength;
+        entity.PostCutQuantity = request.PostCutQuantity ?? entity.PostCutQuantity;
+        entity.TagNo = request.TagNo ?? entity.TagNo;
+        entity.PlantGrade = request.PlantGrade ?? entity.PlantGrade;
+        entity.Remark = request.Remark ?? entity.Remark;
 
         _context.ProductionRecords.Update(entity);
         await _context.SaveChangesAsync();
@@ -902,11 +904,11 @@ public class ProductionRecordService : IProductionRecordService
             ?? throw new BusinessException("检验到料记录不存在");
 
         entity.ReceiveDate = request.ReceiveDate;
-        entity.ReceivedQuantity = request.ReceivedQuantity;
-        entity.ReceivedWeight = request.ReceivedWeight;
-        entity.Shift = request.Shift;
-        entity.Checker = request.Checker;
-        entity.Remark = request.Remark;
+        entity.ReceivedQuantity = request.ReceivedQuantity ?? entity.ReceivedQuantity;
+        entity.ReceivedWeight = request.ReceivedWeight ?? entity.ReceivedWeight;
+        entity.Shift = request.Shift ?? entity.Shift;
+        entity.Checker = request.Checker ?? entity.Checker;
+        entity.Remark = request.Remark ?? entity.Remark;
 
         _context.MaterialReceiveChecks.Update(entity);
         await _context.SaveChangesAsync();
@@ -1553,7 +1555,8 @@ public class ProductionRecordService : IProductionRecordService
                 || (r.Shift != null && r.Shift.Contains(query.Keyword))
                 || (r.TagNo != null && r.TagNo.Contains(query.Keyword))
                 || (r.PlantGrade != null && r.PlantGrade.Contains(query.Keyword))
-                || (r.Remark != null && r.Remark.Contains(query.Keyword)));
+                || (r.Remark != null && r.Remark.Contains(query.Keyword))
+                || (r.DataSource != null && r.DataSource.Contains(query.Keyword)));
         }
 
         if (query.ExecDateFrom.HasValue)
@@ -1591,6 +1594,7 @@ public class ProductionRecordService : IProductionRecordService
                 TagNo = r.TagNo,
                 PlantGrade = r.PlantGrade,
                 Remark = r.Remark,
+                DataSource = r.DataSource,
                 BatchNo = r.ProductionBatch.BatchNo,
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime

@@ -309,14 +309,14 @@ public class SubcontractOrderService : ISubcontractOrderService
         {
             entity.SupplierId = request.SupplierId;
             entity.ProcessType = request.ProcessType;
-            entity.FurnaceNumber = request.FurnaceNumber;
+            entity.FurnaceNumber = request.FurnaceNumber ?? entity.FurnaceNumber;
             entity.OutMaterialCategory = request.OutMaterialCategory;
             entity.OutPlantGrade = request.OutPlantGrade;
             entity.OutSpecification = request.OutSpecification;
             entity.OutQuantity = request.OutQuantity;
             entity.OutWeight = request.OutWeight;
-            entity.ReturnDeadline = request.ReturnDeadline;
-            entity.Remark = request.Remark;
+            entity.ReturnDeadline = request.ReturnDeadline ?? entity.ReturnDeadline;
+            entity.Remark = request.Remark ?? entity.Remark;
 
             // 全量替换子表
             _context.SubcontractReturnItems.RemoveRange(entity.ReturnItems);

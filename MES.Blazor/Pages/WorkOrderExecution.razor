@@ -1,0 +1,486 @@
+@page "/workorder-execution"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using MES.Blazor.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inject WorkOrderExecutionService WorkOrderExecutionService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <!-- 页面顶部工具栏 -->
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5" Class="font-weight-bold">
+            <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" Color="Color.Primary" />
+            工单执行状况
+        </MudText>
+        <div class="d-flex align-center">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Info"
+                       StartIcon="@Icons.Material.Filled.Sync"
+                       OnClick="RefreshAll"
+                       Loading="@isRefreshing"
+                       Disabled="@isRefreshing"
+                       Class="ml-2">
+                即时更新
+            </MudButton>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Refresh"
+                       OnClick="Search"
+                       Class="ml-2">
+                刷新
+            </MudButton>
+        </div>
+    </div>
+
+    <MudCard>
+        <MudCardContent>
+            <!-- 筛选栏 -->
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  Label="工单号/订单号/业务员/客户/牌号/规格/主号"
+                                  Value="@searchKeyword"
+                                  ValueChanged="@OnSearchChanged"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+            </MudGrid>
+
+            <!-- 数据表格 -->
+            <div id="workorder-execution-table">
+            <MudTable @ref="table"
+                      T="WorkOrderExecutionSummaryDto"
+                      ServerData="OnServerData"
+                      Loading="@isLoading"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-4 auto-table"
+                      Elevation="0"
+                      RowsPerPageLabel="每页行数:">
+                <ToolBarContent>
+                    <MudText Typo="Typo.body2">
+                        共 @totalCount 条记录
+                        @if (lastRefreshTime.HasValue)
+                        {
+                            <span class="ml-4">最后更新：@lastRefreshTime.Value.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                        }
+                    </MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTh>
+                            @if (!string.IsNullOrEmpty(col.SortKey))
+                            {
+                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
+                                    @col.Label
+                                    @if (sortColumn == col.SortKey)
+                                    {
+                                        <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
+                                    }
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="th-label">@col.Label</span>
+                            }
+                        </MudTh>
+                    }
+                </HeaderContent>
+                <RowTemplate Context="item">
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd>@RenderCell(item, col)</MudTd>
+                    }
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+            </div>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private MudTable<WorkOrderExecutionSummaryDto>? table;
+    private List<WorkOrderExecutionSummaryDto> items = new();
+    private bool isLoading = false;
+    private bool isRefreshing = false;
+    private string searchKeyword = string.Empty;
+    private int totalCount = 0;
+
+    // 排序状态
+    private string sortColumn = "lastrefreshtime";
+    private bool sortDescending = true;
+
+    // 最后刷新时间
+    private DateTime? lastRefreshTime;
+
+    // ========== 列定义 ==========
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns =>
+        _allColumns.Where(c => c.Visible).ToList();
+
+    private static List<ColumnDef> GetAllColumnDefs() => new()
+    {
+        // Group 1
+        new() { Key = "workorderno",      Label = "工单号",      SortKey = "workorderno" },
+        new() { Key = "salesman",         Label = "业务员",      SortKey = "salesmanno" },
+        new() { Key = "customername",     Label = "往来单位",    SortKey = "customername" },
+        new() { Key = "signdate",         Label = "订单日期",    SortKey = "signdate" },
+        new() { Key = "deliverydate",     Label = "交货日期",    SortKey = "deliverydate" },
+        new() { Key = "delaypenalty",     Label = "延期罚款", SortKey = "delaypenalty" },
+        new() { Key = "settlementmethod", Label = "结算方式", SortKey = "settlementmethod" },
+        new() { Key = "salesorderno",     Label = "订单号",      SortKey = "salesorderno" },
+        new() { Key = "productionmainno", Label = "主号",        SortKey = "productionmainno" },
+        new() { Key = "productionsubno",  Label = "次号", SortKey = "productionsubno" },
+        new() { Key = "materialname",     Label = "物料名称", SortKey = "materialname" },
+        new() { Key = "deliverystate",    Label = "交货状态", SortKey = "deliverystate" },
+        new() { Key = "plantgrade",       Label = "工厂牌号",    SortKey = "plantgrade" },
+        new() { Key = "specification",    Label = "规格",        SortKey = "specification" },
+        new() { Key = "lengthstatus",     Label = "长度状态", SortKey = "lengthstatus" },
+        new() { Key = "minlength",        Label = "最小长度", SortKey = "minlength" },
+        new() { Key = "maxlength",        Label = "最大长度", SortKey = "maxlength" },
+        new() { Key = "totalitemcount",   Label = "含项次数", SortKey = "totalitemcount" },
+        new() { Key = "totalquantity",    Label = "总支数",      SortKey = "totalquantity" },
+        new() { Key = "totalmeters",      Label = "总米数", SortKey = "totalmeters" },
+        new() { Key = "totalweight",      Label = "总重量",      SortKey = "totalweight" },
+
+        // Group 2
+        new() { Key = "latestplandate",        Label = "用料计划截止日期", SortKey = "latestplandate" },
+        new() { Key = "materialplanrate",      Label = "工单满足率(%)", SortKey = "materialplanrate" },
+        new() { Key = "materialplanstatus",    Label = "工单用料计划状态" },
+        new() { Key = "mainnomaterialplanrate", Label = "主号满足率(%)", SortKey = "mainnomaterialplanrate" },
+        new() { Key = "mainnomaterialplanstatus", Label = "关联主号用料状态" },
+
+        // Group 3
+        new() { Key = "inputstartdate",          Label = "投料起始日", SortKey = "inputstartdate" },
+        new() { Key = "inputenddate",            Label = "投料截止日", SortKey = "inputenddate" },
+        new() { Key = "totalbatchcount",         Label = "投料总批次数", SortKey = "totalbatchcount" },
+        new() { Key = "inputquantity",           Label = "投料总支数",     SortKey = "inputquantity" },
+        new() { Key = "inputweight",             Label = "投料总重量",     SortKey = "inputweight" },
+        new() { Key = "theoreticaloutputqty",    Label = "理论生产成品支数", SortKey = "theoreticaloutputqty" },
+        new() { Key = "theoreticaloutputweight", Label = "理论生产成品重量", SortKey = "theoreticaloutputweight" },
+        new() { Key = "inputoutputratio",        Label = "工单投料成品比", SortKey = "inputoutputratio" },
+        new() { Key = "inputstatus",             Label = "工单投料状态" },
+        new() { Key = "mainnoinputratio",   Label = "关联主号投料成品比", SortKey = "mainnoinputratio" },
+        new() { Key = "mainnoinputstatus",  Label = "关联主号投料状态" },
+
+        // Group 4
+        new() { Key = "validbatchcount",     Label = "有效在产批次数", SortKey = "validbatchcount" },
+        new() { Key = "validinputquantity",  Label = "有效投料总支数", SortKey = "validinputquantity" },
+        new() { Key = "validinputweight",    Label = "有效投料总重量", SortKey = "validinputweight" },
+        new() { Key = "validoutputqty",      Label = "有效生产成品支数", SortKey = "validoutputqty" },
+        new() { Key = "validoutputweight",   Label = "有效生产成品重量", SortKey = "validoutputweight" },
+        new() { Key = "validinputoutputratio", Label = "有效工单投料成品比", SortKey = "validinputoutputratio" },
+        new() { Key = "validinputstatus",    Label = "有效工单投料状态" },
+    };
+
+    // ========== 排序 ==========
+
+    private string GetSortIndicator(string column)
+    {
+        if (sortColumn != column) return "";
+        return sortDescending ? "\u25BC" : "\u25B2";
+    }
+
+    private void ToggleSort(string column)
+    {
+        if (sortColumn == column)
+            sortDescending = !sortDescending;
+        else
+        {
+            sortColumn = column;
+            sortDescending = true;
+        }
+        if (table != null)
+            table.ReloadServerData();
+    }
+
+    // ========== 数据加载 ==========
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allColumns = GetAllColumnDefs();
+    }
+
+    private async Task<TableData<WorkOrderExecutionSummaryDto>> OnServerData(TableState state)
+    {
+        isLoading = true;
+        try
+        {
+            var query = new QueryParams
+            {
+                PageIndex = state.Page + 1,
+                PageSize = state.PageSize,
+                SortBy = sortColumn,
+                IsDescending = sortDescending,
+                Keyword = searchKeyword
+            };
+
+            var result = await WorkOrderExecutionService.GetPagedAsync(query);
+            if (result.Success && result.Data != null)
+            {
+                items = result.Data.Items;
+                totalCount = result.Data.TotalCount;
+                lastRefreshTime = items.Select(i => i.LastRefreshTime).Max();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "加载失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+
+        return new TableData<WorkOrderExecutionSummaryDto>
+        {
+            Items = items,
+            TotalItems = totalCount
+        };
+    }
+
+    private async Task Search()
+    {
+        if (table != null)
+            await table.ReloadServerData();
+    }
+
+    private async Task OnSearchChanged(string value)
+    {
+        searchKeyword = value;
+        await Search();
+    }
+
+    // ========== 单元格渲染 ==========
+
+    private RenderFragment RenderCell(WorkOrderExecutionSummaryDto item, ColumnDef col) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "workorderno":
+                builder.AddContent(0, item.WorkOrderNo);
+                break;
+            case "salesman":
+                builder.AddContent(0, item.Salesman);
+                break;
+            case "customername":
+                builder.AddContent(0, item.CustomerName);
+                break;
+            case "signdate":
+                builder.AddContent(0, item.SignDate.ToString("yyyy-MM-dd"));
+                break;
+            case "deliverydate":
+                builder.AddContent(0, item.DeliveryDate.ToString("yyyy-MM-dd"));
+                break;
+            case "delaypenalty":
+                builder.AddContent(0, item.DelayPenaltyText);
+                break;
+            case "settlementmethod":
+                builder.AddContent(0, DisplayHelper.GetSettlementMethodText(item.SettlementMethod));
+                break;
+            case "salesorderno":
+                builder.AddContent(0, item.SalesOrderNo);
+                break;
+            case "productionmainno":
+                builder.AddContent(0, item.ProductionMainNo);
+                break;
+            case "productionsubno":
+                builder.AddContent(0, item.ProductionSubNo ?? "-");
+                break;
+            case "materialname":
+                builder.AddContent(0, DisplayHelper.GetMaterialNameText(item.MaterialName));
+                break;
+            case "deliverystate":
+                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
+                break;
+            case "plantgrade":
+                builder.AddContent(0, item.PlantGrade);
+                break;
+            case "specification":
+                builder.AddContent(0, item.Specification);
+                break;
+            case "lengthstatus":
+                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                break;
+            case "minlength":
+                builder.AddContent(0, item.MinLength?.ToString("G29") ?? "-");
+                break;
+            case "maxlength":
+                builder.AddContent(0, item.MaxLength?.ToString("G29") ?? "-");
+                break;
+            case "totalitemcount":
+                builder.AddContent(0, item.TotalItemCount);
+                break;
+            case "totalquantity":
+                builder.AddContent(0, item.TotalQuantity);
+                break;
+            case "totalmeters":
+                builder.AddContent(0, item.TotalMeters.ToString("G29"));
+                break;
+            case "totalweight":
+                builder.AddContent(0, Math.Round(item.TotalWeight).ToString("F0"));
+                break;
+
+            // Group 2
+            case "latestplandate":
+                builder.AddContent(0, item.LatestPlanDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "materialplanrate":
+                builder.AddContent(0, item.MaterialPlanRate > 0 ? $"{item.MaterialPlanRate}%" : "-");
+                break;
+            case "materialplanstatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetPlanStatusColor(item.MaterialPlanStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.MaterialPlanStatusText)));
+                builder.CloseComponent();
+                break;
+            case "mainnomaterialplanrate":
+                builder.AddContent(0, item.MainNoMaterialPlanRate > 0 ? $"{item.MainNoMaterialPlanRate}%" : "-");
+                break;
+            case "mainnomaterialplanstatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetPlanStatusColor(item.MainNoMaterialPlanStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.MainNoMaterialPlanStatusText)));
+                builder.CloseComponent();
+                break;
+
+            // Group 3
+            case "inputstartdate":
+                builder.AddContent(0, item.InputStartDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "inputenddate":
+                builder.AddContent(0, item.InputEndDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "totalbatchcount":
+                builder.AddContent(0, item.TotalBatchCount);
+                break;
+            case "inputquantity":
+                builder.AddContent(0, item.InputQuantity);
+                break;
+            case "inputweight":
+                builder.AddContent(0, Math.Round(item.InputWeight).ToString("F0"));
+                break;
+            case "theoreticaloutputqty":
+                builder.AddContent(0, item.TheoreticalOutputQty.ToString("G29"));
+                break;
+            case "theoreticaloutputweight":
+                builder.AddContent(0, Math.Round(item.TheoreticalOutputWeight).ToString("F0"));
+                break;
+            case "inputoutputratio":
+                builder.AddContent(0, item.InputOutputRatio > 0 ? $"{item.InputOutputRatio}%" : "-");
+                break;
+            case "inputstatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetInputStatusColor(item.InputStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.InputStatusText)));
+                builder.CloseComponent();
+                break;
+            case "mainnoinputratio":
+                builder.AddContent(0, item.MainNoInputOutputRatio > 0 ? $"{item.MainNoInputOutputRatio}%" : "-");
+                break;
+            case "mainnoinputstatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetInputStatusColor(item.MainNoInputStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.MainNoInputStatusText)));
+                builder.CloseComponent();
+                break;
+
+            // Group 4
+            case "validbatchcount":
+                builder.AddContent(0, item.ValidBatchCount);
+                break;
+            case "validinputquantity":
+                builder.AddContent(0, item.ValidInputQuantity);
+                break;
+            case "validinputweight":
+                builder.AddContent(0, Math.Round(item.ValidInputWeight).ToString("F0"));
+                break;
+            case "validoutputqty":
+                builder.AddContent(0, item.ValidOutputQty.ToString("G29"));
+                break;
+            case "validoutputweight":
+                builder.AddContent(0, Math.Round(item.ValidOutputWeight).ToString("F0"));
+                break;
+            case "validinputoutputratio":
+                builder.AddContent(0, item.ValidInputOutputRatio > 0 ? $"{item.ValidInputOutputRatio}%" : "-");
+                break;
+            case "validinputstatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetInputStatusColor(item.ValidInputStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.ValidInputStatusText)));
+                builder.CloseComponent();
+                break;
+        }
+    };
+
+    // ========== 颜色 ==========
+
+    private static Color GetPlanStatusColor(int status) => status switch
+    {
+        0 => Color.Default,     // 未计划
+        1 => Color.Warning,     // 部分
+        2 => Color.Info,        // 理论满足
+        3 => Color.Success,     // 满足
+        4 => Color.Error,       // 超量
+        _ => Color.Default
+    };
+
+    private static Color GetInputStatusColor(int status) => status switch
+    {
+        0 => Color.Default,     // 未投料
+        1 => Color.Warning,     // 部分
+        2 => Color.Success,     // 满足
+        _ => Color.Default
+    };
+
+    // ========== 即时更新 ==========
+
+    private async Task RefreshAll()
+    {
+        isRefreshing = true;
+        try
+        {
+            var result = await WorkOrderExecutionService.RefreshAllAsync();
+            if (result.Success)
+            {
+                Snackbar.Add($"刷新完成，共{result.Data?.RefreshedCount ?? 0}条", Severity.Success);
+                await Search();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "刷新失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"刷新失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isRefreshing = false;
+        }
+    }
+}

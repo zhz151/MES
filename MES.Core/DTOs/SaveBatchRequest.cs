@@ -17,8 +17,19 @@ public class SaveBatchRequest
     [MaxLength(500)]
     public string? SolutionParams { get; set; }
 
+    [MaxLength(30)]
+    public string? ProductionType { get; set; }
+
     [MaxLength(500)]
     public string? Remark { get; set; }
+
+    [MaxLength(30)]
+    public string? ManufacturingItem { get; set; }
+
+    [MaxLength(30)]
+    public string? InboundSource { get; set; }
+
+    public DateTime? InboundDate { get; set; }
 
     // 仓库来源
     [MaxLength(50)]

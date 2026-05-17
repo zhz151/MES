@@ -160,6 +160,12 @@ builder.Services.AddScoped<IInspectionRecordService, InspectionRecordService>();
 // 数据导入导出服务
 builder.Services.AddScoped<IDataExchangeService, DataExchangeService>();
 
+// 扫码执行服务
+builder.Services.AddScoped<IScanService, ScanService>();
+
+// ========== 读模型上下文 ==========
+builder.Services.AddScoped<IWorkOrderExecutionService, WorkOrderExecutionService>();
+
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddCors(options =>

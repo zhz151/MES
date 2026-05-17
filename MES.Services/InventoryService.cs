@@ -256,6 +256,9 @@ public class InventoryService : IInventoryService
             "remark" => query.IsDescending
                 ? queryable.OrderByDescending(b => b.Remark ?? "")
                 : queryable.OrderBy(b => b.Remark ?? ""),
+            "islinkedtoworkorder" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.IsLinkedToWorkOrder)
+                : queryable.OrderBy(b => b.IsLinkedToWorkOrder),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(b => b.CreatedTime)
                 : queryable.OrderBy(b => b.CreatedTime)
@@ -628,6 +631,7 @@ public class InventoryService : IInventoryService
                     (r.CreatedBy != null && r.CreatedBy.Contains(keyword)) ||
                     (r.SourceOrderNo != null && r.SourceOrderNo.Contains(keyword)) ||
                     (r.Remark != null && r.Remark.Contains(keyword)) ||
+                    (r.OutboundType.ToString().Contains(keyword)) ||
                     _context.InventoryBatches.Any(b => b.Id == r.InventoryBatchId && b.BatchNo.Contains(keyword)));
             }
         }
@@ -661,6 +665,12 @@ public class InventoryService : IInventoryService
             "createdby" => query.IsDescending
                 ? queryable.OrderByDescending(r => r.CreatedBy ?? "")
                 : queryable.OrderBy(r => r.CreatedBy ?? ""),
+            "sourceorderno" => query.IsDescending
+                ? queryable.OrderByDescending(r => r.SourceOrderNo ?? "")
+                : queryable.OrderBy(r => r.SourceOrderNo ?? ""),
+            "remark" => query.IsDescending
+                ? queryable.OrderByDescending(r => r.Remark ?? "")
+                : queryable.OrderBy(r => r.Remark ?? ""),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(r => r.OutboundDate)
                 : queryable.OrderBy(r => r.OutboundDate)
@@ -718,36 +728,36 @@ public class InventoryService : IInventoryService
         var oldQuantity = entity.InitialQuantity;
         var oldWeight = entity.InitialWeight;
 
-        // 前端始终发送完整对象，直接赋值所有字段（null 表示清空）
-        entity.BatchNo = request.BatchNo;
-        entity.MaterialType = request.MaterialType;
-        entity.PlantGrade = request.PlantGrade;
-        entity.Specification = request.Specification;
-        entity.InboundSource = request.InboundSource;
-        entity.SourceName = request.SourceName;
+        // 所有可空 DTO 字段用 ?? entity.Field 防止空值覆盖
+        entity.BatchNo = request.BatchNo ?? entity.BatchNo;
+        entity.MaterialType = request.MaterialType ?? entity.MaterialType;
+        entity.PlantGrade = request.PlantGrade ?? entity.PlantGrade;
+        entity.Specification = request.Specification ?? entity.Specification;
+        entity.InboundSource = request.InboundSource ?? entity.InboundSource;
+        entity.SourceName = request.SourceName ?? entity.SourceName;
         if (request.InboundDate.HasValue) entity.InboundDate = request.InboundDate.Value;
-        entity.HeatNo = request.HeatNo;
-        entity.ProductionBatchNo = request.ProductionBatchNo;
-        entity.LengthStatus = request.LengthStatus;
-        entity.MinLength = request.MinLength;
-        entity.MaxLength = request.MaxLength;
+        entity.HeatNo = request.HeatNo ?? entity.HeatNo;
+        entity.ProductionBatchNo = request.ProductionBatchNo ?? entity.ProductionBatchNo;
+        entity.LengthStatus = request.LengthStatus ?? entity.LengthStatus;
+        entity.MinLength = request.MinLength ?? entity.MinLength;
+        entity.MaxLength = request.MaxLength ?? entity.MaxLength;
         // InitialQuantity/InitialWeight 在下方的剩余量计算块中处理（需先计算已出库差量）
-        entity.UnitWeight = request.UnitWeight;
-        entity.Meters = request.Meters;
-        entity.ActualSpecification = request.ActualSpecification;
-        entity.ActualOuterDiameter = request.ActualOuterDiameter;
-        entity.ActualWallThickness = request.ActualWallThickness;
-        entity.SurfaceCondition = request.SurfaceCondition;
-        entity.LocationArea = request.LocationArea;
-        entity.LocationRack = request.LocationRack;
-        entity.Remark = request.Remark;
-        entity.DefectReason = request.DefectReason;
-        entity.LiabilityType = request.LiabilityType;
-        entity.OriginalSupplier = request.OriginalSupplier;
-        entity.TagNo = request.TagNo;
-        entity.DefectRemark = request.DefectRemark;
+        entity.UnitWeight = request.UnitWeight ?? entity.UnitWeight;
+        entity.Meters = request.Meters ?? entity.Meters;
+        entity.ActualSpecification = request.ActualSpecification ?? entity.ActualSpecification;
+        entity.ActualOuterDiameter = request.ActualOuterDiameter ?? entity.ActualOuterDiameter;
+        entity.ActualWallThickness = request.ActualWallThickness ?? entity.ActualWallThickness;
+        entity.SurfaceCondition = request.SurfaceCondition ?? entity.SurfaceCondition;
+        entity.LocationArea = request.LocationArea ?? entity.LocationArea;
+        entity.LocationRack = request.LocationRack ?? entity.LocationRack;
+        entity.Remark = request.Remark ?? entity.Remark;
+        entity.DefectReason = request.DefectReason ?? entity.DefectReason;
+        entity.LiabilityType = request.LiabilityType ?? entity.LiabilityType;
+        entity.OriginalSupplier = request.OriginalSupplier ?? entity.OriginalSupplier;
+        entity.TagNo = request.TagNo ?? entity.TagNo;
+        entity.DefectRemark = request.DefectRemark ?? entity.DefectRemark;
         if (request.IsLinkedToWorkOrder.HasValue) entity.IsLinkedToWorkOrder = request.IsLinkedToWorkOrder.Value;
-        entity.WorkOrderNo = request.WorkOrderNo;
+        entity.WorkOrderNo = request.WorkOrderNo ?? entity.WorkOrderNo;
         if (request.WorkOrderNo != null)
         {
             var woEntity = await _context.WorkOrders
@@ -759,9 +769,9 @@ public class InventoryService : IInventoryService
                 entity.OrderItemIds = woEntity.OrderItemIds;
             }
         }
-        entity.SalesOrderNo = request.SalesOrderNo;
-        entity.OrderItemIds = request.OrderItemIds;
-        entity.SourceOrderNo = request.SourceOrderNo;
+        entity.SalesOrderNo = request.SalesOrderNo ?? entity.SalesOrderNo;
+        entity.OrderItemIds = request.OrderItemIds ?? entity.OrderItemIds;
+        entity.SourceOrderNo = request.SourceOrderNo ?? entity.SourceOrderNo;
 
         // 如果修改了数量或重量，基于已出库差量计算剩余量
         if (request.InitialQuantity.HasValue)
@@ -849,12 +859,12 @@ public class InventoryService : IInventoryService
         var oldWt = entity.OutboundWeight;
 
         if (request.OutboundType != null) entity.OutboundType = Enum.Parse<OutboundType>(request.OutboundType);
-        entity.SourceOrderNo = request.SourceOrderNo;
-        entity.TargetCompany = request.TargetCompany;
+        entity.SourceOrderNo = request.SourceOrderNo ?? entity.SourceOrderNo;
+        entity.TargetCompany = request.TargetCompany ?? entity.TargetCompany;
         if (request.OutboundQuantity.HasValue) entity.OutboundQuantity = request.OutboundQuantity.Value;
         if (request.OutboundWeight.HasValue) entity.OutboundWeight = request.OutboundWeight.Value;
         if (request.OutboundDate.HasValue) entity.OutboundDate = request.OutboundDate.Value;
-        entity.Remark = request.Remark;
+        entity.Remark = request.Remark ?? entity.Remark;
 
         // 数量/重量变化时，调整库存批次的剩余量（delta = new - old，剩余量 -= delta）
         var deltaQty = entity.OutboundQuantity - oldQty;

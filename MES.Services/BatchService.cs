@@ -49,7 +49,9 @@ public class BatchService : IBatchService
                 (b.CurrentOutsource != null && b.CurrentOutsource.Contains(kw)) ||
                 (b.CurrentSpec != null && b.CurrentSpec.Contains(kw)) ||
                 (b.NextSectionName != null && b.NextSectionName.Contains(kw)) ||
-                (b.CorrespondingSpec != null && b.CorrespondingSpec.Contains(kw)));
+                (b.CorrespondingSpec != null && b.CorrespondingSpec.Contains(kw)) ||
+                b.ManufacturingItem.Contains(kw) ||
+                (b.ProductionType != null && b.ProductionType.Contains(kw)));
         }
 
         // 筛选条件
@@ -101,6 +103,9 @@ public class BatchService : IBatchService
             "productiontype" => query.IsDescending
                 ? queryable.OrderByDescending(b => b.ProductionType ?? "")
                 : queryable.OrderBy(b => b.ProductionType ?? ""),
+            "manufacturingitem" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.ManufacturingItem)
+                : queryable.OrderBy(b => b.ManufacturingItem),
             "status" => query.IsDescending
                 ? queryable.OrderByDescending(b => b.Status)
                 : queryable.OrderBy(b => b.Status),
@@ -149,6 +154,7 @@ public class BatchService : IBatchService
                 ProductionMainNo = b.ProductionMainNo,
                 ProductionSubNo = b.ProductionSubNo,
                 ProductionType = b.ProductionType,
+                ManufacturingItem = b.ManufacturingItem,
                 Status = b.Status.ToString(),
                 CurrentExecDate = b.CurrentExecDate,
                 CurrentGroupName = b.CurrentGroupName,
@@ -251,6 +257,8 @@ public class BatchService : IBatchService
         // 生产类型必填
         if (string.IsNullOrWhiteSpace(request.ProductionType))
             throw new BusinessException("生产类型不能为空");
+        if (string.IsNullOrWhiteSpace(request.ManufacturingItem))
+            throw new BusinessException("制造物品不能为空");
 
         // 工厂牌号验证（高代低）
         if (!GradeSubstitutes.IsSubstitutable(request.PlantGrade, request.SourcePlantGrade))
@@ -262,6 +270,7 @@ public class BatchService : IBatchService
             Status = BatchStatus.None,
             TagNo = request.TagNo,
             ProductionType = request.ProductionType,
+            ManufacturingItem = request.ManufacturingItem ?? "",
             ProductionRatio = CalculateProductionRatio(request, workOrder),
             IsForceCompleted = false,
             QualityRemark = request.QualityRemark,
@@ -400,43 +409,51 @@ public class BatchService : IBatchService
         if (!request.RowVersion.SequenceEqual(entity.RowVersion))
             throw new BusinessException("数据已被其他用户修改，请刷新后重试");
 
+        // 生产类型 / 制造物品 不允许为空
+        if (string.IsNullOrWhiteSpace(request.ProductionType))
+            throw new BusinessException("生产类型不能为空");
+        if (string.IsNullOrWhiteSpace(request.ManufacturingItem))
+            throw new BusinessException("制造物品不能为空");
+
         // 工厂牌号验证（高代低）- 仅当任一牌号被更新时校验
         var effectivePlantGrade = request.PlantGrade ?? entity.PlantGrade;
         var effectiveSourcePlantGrade = request.SourcePlantGrade ?? entity.SourcePlantGrade;
         if (!GradeSubstitutes.IsSubstitutable(effectivePlantGrade, effectiveSourcePlantGrade))
             throw new BusinessException("仓库工厂牌号与工单工厂牌号不一致，且不可替代（仅允许高代低）");
 
-        // 更新可修改字段（nullable 字段直接赋值支持清空，non-nullable 保留守卫）
-        entity.TagNo = request.TagNo;
-        entity.QualityRemark = request.QualityRemark;
-        entity.SolutionParams = request.SolutionParams;
-        entity.Remark = request.Remark;
-        entity.SourceBatchNo = request.SourceBatchNo;
-        entity.WarehouseId = request.WarehouseId;
-        entity.SourceMaterialType = request.SourceMaterialType;
-        entity.SourceName = request.SourceName;
-        entity.SourceHeatNo = request.SourceHeatNo;
-        entity.SourcePlantGrade = request.SourcePlantGrade;
-        entity.SourceSpecification = request.SourceSpecification;
-        entity.SourceLengthStatus = request.SourceLengthStatus;
-        entity.SourceUnitWeight = request.SourceUnitWeight;
-        entity.InputQuantity = request.InputQuantity;
-        entity.InputWeight = request.InputWeight;
+        // 更新可修改字段（所有可空 DTO 字段用 ?? entity.Field 防止空值覆盖）
+        entity.TagNo = request.TagNo ?? entity.TagNo;
+        entity.ProductionType = request.ProductionType;
+        entity.ManufacturingItem = request.ManufacturingItem;
+        entity.QualityRemark = request.QualityRemark ?? entity.QualityRemark;
+        entity.SolutionParams = request.SolutionParams ?? entity.SolutionParams;
+        entity.Remark = request.Remark ?? entity.Remark;
+        entity.SourceBatchNo = request.SourceBatchNo ?? entity.SourceBatchNo;
+        entity.WarehouseId = request.WarehouseId ?? entity.WarehouseId;
+        entity.SourceMaterialType = request.SourceMaterialType ?? entity.SourceMaterialType;
+        entity.SourceName = request.SourceName ?? entity.SourceName;
+        entity.SourceHeatNo = request.SourceHeatNo ?? entity.SourceHeatNo;
+        entity.SourcePlantGrade = request.SourcePlantGrade ?? entity.SourcePlantGrade;
+        entity.SourceSpecification = request.SourceSpecification ?? entity.SourceSpecification;
+        entity.SourceLengthStatus = request.SourceLengthStatus ?? entity.SourceLengthStatus;
+        entity.SourceUnitWeight = request.SourceUnitWeight ?? entity.SourceUnitWeight;
+        entity.InputQuantity = request.InputQuantity ?? entity.InputQuantity;
+        entity.InputWeight = request.InputWeight ?? entity.InputWeight;
         var oldValidQty = entity.CurrentValidQty;
         var oldValidWeight = entity.CurrentValidWeight;
-        entity.CurrentValidQty = request.CurrentValidQty;
-        entity.CurrentValidWeight = request.CurrentValidWeight;
+        entity.CurrentValidQty = request.CurrentValidQty ?? entity.CurrentValidQty;
+        entity.CurrentValidWeight = request.CurrentValidWeight ?? entity.CurrentValidWeight;
         if (request.IsForceCompleted.HasValue) entity.IsForceCompleted = request.IsForceCompleted.Value;
 
-        // 工单冗余字段（non-nullable 保留守卫防崩溃）
+        // 工单冗余字段（non-nullable 保留守卫防崩溃；nullable 用 ?? 防止空值覆盖）
         if (request.WorkOrderNo != null) entity.WorkOrderNo = request.WorkOrderNo;
         if (request.SalesOrderNo != null) entity.SalesOrderNo = request.SalesOrderNo;
         if (request.ProductionMainNo != null) entity.ProductionMainNo = request.ProductionMainNo;
-        entity.ProductionSubNo = request.ProductionSubNo;
+        entity.ProductionSubNo = request.ProductionSubNo ?? entity.ProductionSubNo;
         if (request.OrderItemIds != null) entity.OrderItemIds = request.OrderItemIds;
         if (request.SignDate.HasValue) entity.SignDate = request.SignDate.Value;
         if (request.Salesman != null) entity.Salesman = request.Salesman;
-        entity.EndCustomer = request.EndCustomer;
+        entity.EndCustomer = request.EndCustomer ?? entity.EndCustomer;
         if (request.DeliveryDate.HasValue) entity.DeliveryDate = request.DeliveryDate.Value;
         if (request.DelayPenalty.HasValue) entity.DelayPenalty = request.DelayPenalty.Value;
         if (request.MaterialName != null) entity.MaterialName = request.MaterialName;
@@ -450,13 +467,13 @@ public class BatchService : IBatchService
         if (request.WallThicknessNegative.HasValue) entity.WallThicknessNegative = request.WallThicknessNegative.Value;
         if (request.WallThicknessPositive.HasValue) entity.WallThicknessPositive = request.WallThicknessPositive.Value;
         if (request.LengthStatus != null) entity.LengthStatus = request.LengthStatus;
-        entity.MinLength = request.MinLength;
-        entity.MaxLength = request.MaxLength;
+        entity.MinLength = request.MinLength ?? entity.MinLength;
+        entity.MaxLength = request.MaxLength ?? entity.MaxLength;
         if (request.TotalQuantity.HasValue) entity.TotalQuantity = request.TotalQuantity.Value;
         if (request.TotalMeters.HasValue) entity.TotalMeters = request.TotalMeters.Value;
         if (request.TotalWeight.HasValue) entity.TotalWeight = request.TotalWeight.Value;
         if (request.TotalItemCount.HasValue) entity.TotalItemCount = request.TotalItemCount.Value;
-        entity.ItemDetails = request.ItemDetails;
+        entity.ItemDetails = request.ItemDetails ?? entity.ItemDetails;
         if (request.TechnicalRequirements != null) entity.TechnicalRequirements = request.TechnicalRequirements;
 
         await _context.SaveChangesAsync();
@@ -561,37 +578,47 @@ public class BatchService : IBatchService
         if (request.ProcessGroups != null && request.ProcessGroups.Count > 0)
             ValidateProcessGroupValues(request.ProcessGroups);
 
-        // ===== 1. 更新批次头字段（nullable 直接赋值，non-nullable 保留守卫） =====
-        entity.TagNo = request.TagNo;
-        entity.QualityRemark = request.QualityRemark;
-        entity.SolutionParams = request.SolutionParams;
-        entity.Remark = request.Remark;
-        entity.SourceBatchNo = request.SourceBatchNo;
-        entity.WarehouseId = request.WarehouseId;
-        entity.SourceMaterialType = request.SourceMaterialType;
-        entity.SourceName = request.SourceName;
-        entity.SourceHeatNo = request.SourceHeatNo;
-        entity.SourcePlantGrade = request.SourcePlantGrade;
-        entity.SourceSpecification = request.SourceSpecification;
-        entity.SourceLengthStatus = request.SourceLengthStatus;
-        entity.SourceUnitWeight = request.SourceUnitWeight;
-        entity.InputQuantity = request.InputQuantity;
-        entity.InputWeight = request.InputWeight;
+        // 生产类型 / 制造物品 不允许为空
+        if (string.IsNullOrWhiteSpace(request.ProductionType))
+            throw new BusinessException("生产类型不能为空");
+        if (string.IsNullOrWhiteSpace(request.ManufacturingItem))
+            throw new BusinessException("制造物品不能为空");
+
+        // ===== 1. 更新批次头字段（所有可空 DTO 字段用 ?? entity.Field 防止空值覆盖） =====
+        entity.TagNo = request.TagNo ?? entity.TagNo;
+        entity.QualityRemark = request.QualityRemark ?? entity.QualityRemark;
+        entity.SolutionParams = request.SolutionParams ?? entity.SolutionParams;
+        entity.ProductionType = request.ProductionType;
+        entity.InboundSource = request.InboundSource ?? entity.InboundSource;
+        entity.InboundDate = request.InboundDate ?? entity.InboundDate;
+        entity.Remark = request.Remark ?? entity.Remark;
+        entity.ManufacturingItem = request.ManufacturingItem;
+        entity.SourceBatchNo = request.SourceBatchNo ?? entity.SourceBatchNo;
+        entity.WarehouseId = request.WarehouseId ?? entity.WarehouseId;
+        entity.SourceMaterialType = request.SourceMaterialType ?? entity.SourceMaterialType;
+        entity.SourceName = request.SourceName ?? entity.SourceName;
+        entity.SourceHeatNo = request.SourceHeatNo ?? entity.SourceHeatNo;
+        entity.SourcePlantGrade = request.SourcePlantGrade ?? entity.SourcePlantGrade;
+        entity.SourceSpecification = request.SourceSpecification ?? entity.SourceSpecification;
+        entity.SourceLengthStatus = request.SourceLengthStatus ?? entity.SourceLengthStatus;
+        entity.SourceUnitWeight = request.SourceUnitWeight ?? entity.SourceUnitWeight;
+        entity.InputQuantity = request.InputQuantity ?? entity.InputQuantity;
+        entity.InputWeight = request.InputWeight ?? entity.InputWeight;
         var oldValidQty = entity.CurrentValidQty;
         var oldValidWeight = entity.CurrentValidWeight;
-        entity.CurrentValidQty = request.CurrentValidQty;
-        entity.CurrentValidWeight = request.CurrentValidWeight;
+        entity.CurrentValidQty = request.CurrentValidQty ?? entity.CurrentValidQty;
+        entity.CurrentValidWeight = request.CurrentValidWeight ?? entity.CurrentValidWeight;
         if (request.IsForceCompleted.HasValue) entity.IsForceCompleted = request.IsForceCompleted.Value;
 
-        // 工单冗余字段（non-nullable 保留守卫防崩溃）
+        // 工单冗余字段（non-nullable 保留守卫防崩溃；nullable 用 ?? 防止空值覆盖）
         if (request.WorkOrderNo != null) entity.WorkOrderNo = request.WorkOrderNo;
         if (request.SalesOrderNo != null) entity.SalesOrderNo = request.SalesOrderNo;
         if (request.ProductionMainNo != null) entity.ProductionMainNo = request.ProductionMainNo;
-        entity.ProductionSubNo = request.ProductionSubNo;
+        entity.ProductionSubNo = request.ProductionSubNo ?? entity.ProductionSubNo;
         if (request.OrderItemIds != null) entity.OrderItemIds = request.OrderItemIds;
         if (request.SignDate.HasValue) entity.SignDate = request.SignDate.Value;
         if (request.Salesman != null) entity.Salesman = request.Salesman;
-        entity.EndCustomer = request.EndCustomer;
+        entity.EndCustomer = request.EndCustomer ?? entity.EndCustomer;
         if (request.DeliveryDate.HasValue) entity.DeliveryDate = request.DeliveryDate.Value;
         if (request.DelayPenalty.HasValue) entity.DelayPenalty = request.DelayPenalty.Value;
         if (request.MaterialName != null) entity.MaterialName = request.MaterialName;
@@ -605,13 +632,13 @@ public class BatchService : IBatchService
         if (request.WallThicknessNegative.HasValue) entity.WallThicknessNegative = request.WallThicknessNegative.Value;
         if (request.WallThicknessPositive.HasValue) entity.WallThicknessPositive = request.WallThicknessPositive.Value;
         if (request.LengthStatus != null) entity.LengthStatus = request.LengthStatus;
-        entity.MinLength = request.MinLength;
-        entity.MaxLength = request.MaxLength;
+        entity.MinLength = request.MinLength ?? entity.MinLength;
+        entity.MaxLength = request.MaxLength ?? entity.MaxLength;
         if (request.TotalQuantity.HasValue) entity.TotalQuantity = request.TotalQuantity.Value;
         if (request.TotalMeters.HasValue) entity.TotalMeters = request.TotalMeters.Value;
         if (request.TotalWeight.HasValue) entity.TotalWeight = request.TotalWeight.Value;
         if (request.TotalItemCount.HasValue) entity.TotalItemCount = request.TotalItemCount.Value;
-        entity.ItemDetails = request.ItemDetails;
+        entity.ItemDetails = request.ItemDetails ?? entity.ItemDetails;
         if (request.TechnicalRequirements != null) entity.TechnicalRequirements = request.TechnicalRequirements;
 
         // ===== 2. 更新状态（如有） =====
@@ -1028,7 +1055,9 @@ public class BatchService : IBatchService
                 (b.CurrentOutsource != null && b.CurrentOutsource.Contains(kw)) ||
                 (b.CurrentSpec != null && b.CurrentSpec.Contains(kw)) ||
                 (b.NextSectionName != null && b.NextSectionName.Contains(kw)) ||
-                (b.CorrespondingSpec != null && b.CorrespondingSpec.Contains(kw)));
+                (b.CorrespondingSpec != null && b.CorrespondingSpec.Contains(kw)) ||
+                b.ManufacturingItem.Contains(kw) ||
+                (b.ProductionType != null && b.ProductionType.Contains(kw)));
         }
         if (!string.IsNullOrEmpty(request.WorkOrderNo))
             queryable = queryable.Where(b => b.WorkOrderNo.Contains(request.WorkOrderNo));
@@ -1280,6 +1309,7 @@ public class BatchService : IBatchService
             Status = entity.Status.ToString(),
             TagNo = entity.TagNo,
             ProductionType = entity.ProductionType,
+            ManufacturingItem = entity.ManufacturingItem,
             ProductionRatio = entity.ProductionRatio,
             IsForceCompleted = entity.IsForceCompleted,
             QualityRemark = entity.QualityRemark,
