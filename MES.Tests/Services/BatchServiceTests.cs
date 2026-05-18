@@ -498,6 +498,7 @@ public class BatchServiceTests : TestBase
         {
             ProcessName = "冷拔",
             ManufacturingSpec = "100*10",
+            ManufacturingMultiple = 1,
             ColdRollDraw = 1,
             Degrease = 2
         });

@@ -12,7 +12,7 @@ public class ProductionBatchDetailDto
     public string? TagNo { get; set; }
     public string? ProductionType { get; set; }
     public string ManufacturingItem { get; set; } = null!;
-    public int? ProductionRatio { get; set; }
+    public int ProductionRatio { get; set; }
     public bool IsForceCompleted { get; set; }
     public string? QualityRemark { get; set; }
     public string? SolutionParams { get; set; }

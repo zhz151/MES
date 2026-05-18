@@ -20,6 +20,7 @@ public class BatchService
             if (!string.IsNullOrEmpty(query.Keyword)) url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
             if (!string.IsNullOrEmpty(query.WorkOrderNo)) url += $"&workOrderNo={Uri.EscapeDataString(query.WorkOrderNo)}";
             if (!string.IsNullOrEmpty(query.Status)) url += $"&status={Uri.EscapeDataString(query.Status)}";
+            if (!string.IsNullOrEmpty(query.ValidInputQuestion)) url += $"&validInputQuestion={Uri.EscapeDataString(query.ValidInputQuestion)}";
             if (!string.IsNullOrEmpty(query.TagNo)) url += $"&tagNo={Uri.EscapeDataString(query.TagNo)}";
             if (!string.IsNullOrEmpty(query.BatchNo)) url += $"&batchNo={Uri.EscapeDataString(query.BatchNo)}";
             if (query.StartDateFrom.HasValue) url += $"&startDateFrom={query.StartDateFrom:yyyy-MM-dd}";

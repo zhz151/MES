@@ -67,6 +67,8 @@ public class SaveBatchRequest
 
     public bool? IsForceCompleted { get; set; }
 
+    public int? ProductionRatio { get; set; }
+
     // ========== 工单冗余字段（全部可空，有值时更新） ==========
 
     [MaxLength(50)]

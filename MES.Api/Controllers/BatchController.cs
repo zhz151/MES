@@ -38,6 +38,7 @@ public class BatchController : ControllerBase
         [FromQuery] string? status = null,
         [FromQuery] string? tagNo = null,
         [FromQuery] string? batchNo = null,
+        [FromQuery] string? validInputQuestion = null,
         [FromQuery] DateTime? startDateFrom = null,
         [FromQuery] DateTime? startDateTo = null)
     {
@@ -53,6 +54,7 @@ public class BatchController : ControllerBase
             Status = status,
             TagNo = tagNo,
             BatchNo = batchNo,
+            ValidInputQuestion = validInputQuestion,
             StartDateFrom = startDateFrom,
             StartDateTo = startDateTo
         };
@@ -257,6 +259,7 @@ public class BatchController : ControllerBase
                 WallThicknessTolerance = pg.WallThicknessTolerance,
                 ManufacturingLength = pg.ManufacturingLength,
                 CuttingTreatment = pg.CuttingTreatment,
+                ManufacturingMultiple = pg.ManufacturingMultiple,
                 Remark = pg.Remark,
                 ColdRollDraw = pg.ColdRollDraw,
                 OilPipeCut = pg.OilPipeCut,

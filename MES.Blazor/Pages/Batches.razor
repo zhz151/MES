@@ -82,6 +82,18 @@
                 </MudItem>
                 <MudItem xs="6" md="3">
                     <MudSelect T="string"
+                               Label="有效投料疑问"
+                               Value="@_validInputQuestionFilter"
+                               ValueChanged="@OnValidInputQuestionFilterChanged"
+                               Clearable="true"
+                               Adornment="Adornment.End"
+                               AdornmentIcon="@Icons.Material.Filled.FilterList">
+                        <MudSelectItem Value="@("正常")">正常</MudSelectItem>
+                        <MudSelectItem Value="@("疑问")">疑问</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudSelect T="string"
                                Label="状态筛选"
                                Value="filterStatus"
                                ValueChanged="@OnStatusFilterChanged"
@@ -229,6 +241,7 @@
     private bool isLoading;
     private string _searchKeyword = string.Empty;
     private string filterStatus = string.Empty;
+    private string _validInputQuestionFilter = string.Empty;
     private int totalCount;
 
     private string sortColumn = "batchno";
@@ -261,6 +274,27 @@
         new() { Key = "CurrentSpec",        Label = "当前规格", SortKey = "currentspec" },
         new() { Key = "NextSectionName",    Label = "下一工段", SortKey = "nextsectionname" },
         new() { Key = "CorrespondingSpec",  Label = "对应规格", SortKey = "correspondingspec" },
+        new() { Key = "CurrentValidQty",    Label = "现有效原料支数", SortKey = "currentvalidqty" },
+        new() { Key = "CurrentValidWeight",  Label = "现有效原料重量", SortKey = "currentvalidweight" },
+        new() { Key = "ProductionRatio",    Label = "制几率",   SortKey = "productionratio" },
+        new() { Key = "SignDate",           Label = "签订日期", SortKey = "signdate" },
+        new() { Key = "Salesman",           Label = "业务员",   SortKey = "salesman" },
+        new() { Key = "EndCustomer",        Label = "最终用户", SortKey = "endcustomer" },
+        new() { Key = "DeliveryDate",       Label = "交货日期", SortKey = "deliverydate" },
+        new() { Key = "DelayPenalty",       Label = "延期罚款", SortKey = "delaypenalty" },
+        new() { Key = "MaterialName",       Label = "物料名称", SortKey = "materialname" },
+        new() { Key = "SettlementMethod",   Label = "结算方式", SortKey = "settlementmethod" },
+        new() { Key = "StandardCode",       Label = "产品标准", SortKey = "standardcode" },
+        new() { Key = "DeliveryState",      Label = "交货状态", SortKey = "deliverystate" },
+        new() { Key = "PlantGrade",         Label = "钢种",     SortKey = "plantgrade" },
+        new() { Key = "Specification",      Label = "规格",     SortKey = "specification" },
+        new() { Key = "LengthStatus",       Label = "长度状态", SortKey = "lengthstatus" },
+        new() { Key = "TotalQuantity",      Label = "总数量",   SortKey = "totalquantity" },
+        new() { Key = "TotalMeters",        Label = "总米数",   SortKey = "totalmeters" },
+        new() { Key = "TotalWeight",        Label = "总重量",   SortKey = "totalweight" },
+        new() { Key = "TechnicalRequirements", Label = "技术要求", SortKey = "technicalrequirements" },
+        new() { Key = "ValidInputQuestion",   Label = "有效投料疑问", SortKey = null },
+        new() { Key = "CreatedBy",          Label = "创建人",   SortKey = "createdby" },
     };
 
     // ========== 列选择操作 ==========
@@ -388,6 +422,7 @@
                 PageSize = state.PageSize,
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 Status = string.IsNullOrWhiteSpace(filterStatus) ? null : filterStatus,
+                ValidInputQuestion = string.IsNullOrWhiteSpace(_validInputQuestionFilter) ? null : _validInputQuestionFilter,
                 SortBy = sortColumn,
                 IsDescending = sortDescending
             };
@@ -456,6 +491,13 @@
     private async Task OnStatusFilterChanged(string value)
     {
         filterStatus = value ?? string.Empty;
+        if (table != null)
+            await table.ReloadServerData();
+    }
+
+    private async Task OnValidInputQuestionFilterChanged(string value)
+    {
+        _validInputQuestionFilter = value ?? string.Empty;
         if (table != null)
             await table.ReloadServerData();
     }
@@ -551,6 +593,17 @@
                     builder.AddContent(0, "");
                 }
                 break;
+            case "ValidInputQuestion":
+                var vq = item.ValidInputQuestion;
+                if (!string.IsNullOrEmpty(vq))
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", vq == "疑问" ? Color.Warning : Color.Success);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, vq)));
+                    builder.CloseComponent();
+                }
+                break;
             case "CurrentExecDate":
                 builder.AddContent(0, item.CurrentExecDate?.ToString("yyyy-MM-dd") ?? "");
                 break;
@@ -577,6 +630,27 @@
         "NextSectionName" => item.NextSectionName ?? "",
         "CorrespondingSpec" => item.CorrespondingSpec ?? "",
         "ManufacturingItem" => DisplayHelper.GetManufacturingItemText(item.ManufacturingItem),
+        "CurrentValidQty" => item.CurrentValidQty?.ToString("G29") ?? "",
+        "CurrentValidWeight" => item.CurrentValidWeight?.ToString("G29") ?? "",
+        "ProductionRatio" => item.ProductionRatio.ToString("G29"),
+        "SignDate" => item.SignDate.ToString("yyyy-MM-dd"),
+        "Salesman" => item.Salesman,
+        "EndCustomer" => item.EndCustomer ?? "",
+        "DeliveryDate" => item.DeliveryDate.ToString("yyyy-MM-dd"),
+        "DelayPenalty" => item.DelayPenalty ? "是" : "否",
+        "MaterialName" => DisplayHelper.GetMaterialNameText(item.MaterialName),
+        "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod),
+        "StandardCode" => item.StandardCode,
+        "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState),
+        "PlantGrade" => item.PlantGrade,
+        "Specification" => item.Specification,
+        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
+        "TotalQuantity" => item.TotalQuantity.ToString("G29"),
+        "TotalMeters" => item.TotalMeters.ToString("G29"),
+        "TotalWeight" => item.TotalWeight.ToString("G29"),
+        "TechnicalRequirements" => DisplayHelper.GetTechnicalRequirementsText(item.TechnicalRequirements),
+        "ValidInputQuestion" => item.ValidInputQuestion ?? "",
+        "CreatedBy" => item.CreatedBy,
         _ => ""
     };
 

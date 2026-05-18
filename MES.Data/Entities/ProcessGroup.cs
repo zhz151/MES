@@ -48,6 +48,11 @@ public class ProcessGroup : BaseEntity
     public string? CuttingTreatment { get; set; }
 
     /// <summary>
+    /// 制成倍数 — 最终理论成品支数 = 本工序材料支数 × 制成倍数
+    /// </summary>
+    public int ManufacturingMultiple { get; set; }
+
+    /// <summary>
     /// 备注
     /// </summary>
     public string? Remark { get; set; }

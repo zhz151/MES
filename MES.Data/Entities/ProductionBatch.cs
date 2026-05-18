@@ -38,7 +38,7 @@ public class ProductionBatch : BaseEntity
     /// <summary>
     /// 制几率（定尺时= floor(投料单重/工单单重)）
     /// </summary>
-    public int? ProductionRatio { get; set; }
+    public int ProductionRatio { get; set; }
 
     /// <summary>
     /// 状态辅助（false=自动计算，true=强制完成）

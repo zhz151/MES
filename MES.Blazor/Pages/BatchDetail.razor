@@ -73,7 +73,7 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">挂牌号</MudText><MudText Typo="Typo.body2">@(batch.TagNo ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">生产类型</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetProductionTypeText(batch.ProductionType))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">制造物品</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetManufacturingItemText(batch.ManufacturingItem))</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">制几率</MudText><MudText Typo="Typo.body2">@(batch.ProductionRatio?.ToString() ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">制几率</MudText><MudText Typo="Typo.body2">@(batch.ProductionRatio.ToString())</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">备注</MudText><MudText Typo="Typo.body2">@(batch.Remark ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetBatchStatusText(batch.Status)</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">创建人</MudText><MudText Typo="Typo.body2">@batch.CreatedBy</MudText></div>
@@ -173,7 +173,7 @@
                     @if (_trackingVisual.InputQuantity.HasValue)
                     {
                         <MudText Typo="Typo.body2" Color="Color.Primary">
-                            投料量：@_trackingVisual.InputQuantity 支 / @(_trackingVisual.InputWeight) kg
+                            现有效原料投料量：@_trackingVisual.InputQuantity 支 / @(_trackingVisual.InputWeight) kg
                         </MudText>
                     }
                     @if (_trackingVisual.TargetQuantity.HasValue)
@@ -225,7 +225,13 @@
                                          Style="border-radius:4px; margin:2px 0; padding:4px 6px; gap:6px; @GetSectionStyle(section.Status)"
                                          title="@GetSectionTooltip(section)">
                                         <span class="detail-section-icon">@GetSectionIcon(section.Status)</span>
-                                        <span class="detail-section-name">@(section.SectionName)</span>
+                                        <div class="d-flex flex-column" Style="gap:0;">
+                                            <span class="detail-section-name">@(section.SectionName)</span>
+                                            @if (section.ExecDate.HasValue)
+                                            {
+                                                <span Style="font-size:0.65rem; color:#888; line-height:1.2;">@(section.ExecDate.Value.ToString("MM-dd"))</span>
+                                            }
+                                        </div>
                                         @if (section.Status == "Outsource")
                                         {
                                             <MudChip Size="Size.Small" Color="Color.Warning" Class="detail-outsource-chip ma-0">委外</MudChip>
@@ -349,6 +355,7 @@
                 <div class="detail-table-scroll">
                     <MudTable T="ProcessGroupDto" Items="batch.ProcessGroups" Dense="true" Hover="true" Elevation="0" ReadOnly="true" Class="auto-table">
                         <HeaderContent>
+                            <MudTh>ID</MudTh>
                             <MudTh>序号</MudTh>
                             <MudTh>工序名称</MudTh>
                             <MudTh>制造规格</MudTh>
@@ -356,6 +363,7 @@
                             <MudTh>壁厚公差</MudTh>
                             <MudTh>制造长度</MudTh>
                             <MudTh>断切处理</MudTh>
+                            <MudTh>制成倍数</MudTh>
                             <MudTh>备注</MudTh>
                             <MudTh>冷轧拔</MudTh>
                             <MudTh>油管断</MudTh>
@@ -374,6 +382,7 @@
                             <MudTh>入库</MudTh>
                         </HeaderContent>
                         <RowTemplate>
+                            <MudTd><MudText Typo="Typo.body2" Class="text-muted">@context.Id</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@context.SequenceNumber</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2" Class="font-weight-bold">@context.ProcessName</MudText></MudTd>
                             <MudTd title="@context.ManufacturingSpec"><MudText Typo="Typo.body2">@(context.ManufacturingSpec ?? "-")</MudText></MudTd>
@@ -381,6 +390,7 @@
                             <MudTd title="@context.WallThicknessTolerance"><MudText Typo="Typo.body2">@(context.WallThicknessTolerance ?? "-")</MudText></MudTd>
                             <MudTd title="@context.ManufacturingLength"><MudText Typo="Typo.body2">@(context.ManufacturingLength ?? "-")</MudText></MudTd>
                             <MudTd title="@context.CuttingTreatment"><MudText Typo="Typo.body2">@(context.CuttingTreatment ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@context.ManufacturingMultiple</MudText></MudTd>
                             <MudTd title="@context.Remark"><MudText Typo="Typo.body2">@(context.Remark ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.ColdRollDraw?.ToString() ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.OilPipeCut?.ToString() ?? "-")</MudText></MudTd>

@@ -274,7 +274,7 @@ public class DataExchangeService : IDataExchangeService
             new("挂牌号", "TagNo", typeof(string), isRequired: false),
             new("生产类型", "ProductionType", typeof(string), isRequired: false),
             new("制造物品", "ManufacturingItem"),
-            new("制几率", "ProductionRatio", typeof(int?), isRequired: false),
+            new("制几率", "ProductionRatio", typeof(int), isRequired: false),
             new("强制完成", "IsForceCompleted", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("质量备注", "QualityRemark", typeof(string), isRequired: false),
             new("固溶参数", "SolutionParams", typeof(string), isRequired: false),
@@ -397,6 +397,7 @@ public class DataExchangeService : IDataExchangeService
             new("壁厚公差", "WallThicknessTolerance", typeof(string), isRequired: false),
             new("制造长度", "ManufacturingLength", typeof(string), isRequired: false),
             new("断切处理", "CuttingTreatment", typeof(string), isRequired: false),
+            new("制成倍数", "ManufacturingMultiple", typeof(int)),
             new("备注", "Remark", typeof(string), isRequired: false),
             new("冷轧拔", "ColdRollDraw", typeof(int?), isRequired: false),
             new("油管断", "OilPipeCut", typeof(int?), isRequired: false),
@@ -1078,7 +1079,8 @@ public class DataExchangeService : IDataExchangeService
                 .Where(c => c.IsSystem && c.Property != null && CodePrefixMap.ContainsKey(c.Property))
                 .ToDictionary(c => c.Property!, _ => new HashSet<string>());
 
-            // ProcessGroup 特殊处理：导入前清理目标批次下已有的工序组（避免唯一键冲突 UK_ProcessGroup_Seq）
+            // ProcessGroup 特殊处理：有子记录引用的工序组原地更新（保留ID），无引用的安全删除
+            // 避免 FK 约束冲突（FK_ProductionRecord_ProcessGroup_ProcessGroupId 等）
             if (entityKey == "ProcessGroup")
             {
                 var batchNoCol = def.Columns.FirstOrDefault(c => c.FkEntityKey == "ProductionBatch");
@@ -1096,11 +1098,104 @@ public class DataExchangeService : IDataExchangeService
                     var existing = await _context.Set<ProcessGroup>()
                         .Where(pg => batchIds.Contains(pg.ProductionBatchId))
                         .ToListAsync();
+
                     if (existing.Count > 0)
                     {
-                        _context.Set<ProcessGroup>().RemoveRange(existing);
-                        await _context.SaveChangesAsync();
-                        _logger.LogInformation("已清理 {Count} 个旧的工序组记录", existing.Count);
+                        // 检查哪些工序组有子记录引用
+                        var existingIds = existing.Select(e => e.Id).ToList();
+                        var referencedIds = new HashSet<int>();
+
+                        var prodRefs = await _context.Set<ProductionRecord>()
+                            .Where(r => existingIds.Contains(r.ProcessGroupId))
+                            .Select(r => r.ProcessGroupId)
+                            .Distinct()
+                            .ToListAsync();
+                        foreach (var id in prodRefs) referencedIds.Add(id);
+
+                        var soRefs = await _context.Set<SectionOutsource>()
+                            .Where(s => existingIds.Contains(s.ProcessGroupId))
+                            .Select(s => s.ProcessGroupId)
+                            .Distinct()
+                            .ToListAsync();
+                        foreach (var id in soRefs) referencedIds.Add(id);
+
+                        var piRefs = await _context.Set<ProcessInspection>()
+                            .Where(p => existingIds.Contains(p.ProcessGroupId))
+                            .Select(p => p.ProcessGroupId)
+                            .Distinct()
+                            .ToListAsync();
+                        foreach (var id in piRefs) referencedIds.Add(id);
+
+                        // 有引用的工序组：保留ID，按 (ProductionBatchId, SequenceNumber) 索引
+                        var referencedPgs = existing.Where(e => referencedIds.Contains(e.Id)).ToList();
+                        var pgByKey = referencedPgs.ToDictionary(
+                            pg => (pg.ProductionBatchId, pg.SequenceNumber));
+
+                        // 无引用的工序组：安全删除
+                        var unreferencedPgs = existing.Where(e => !referencedIds.Contains(e.Id)).ToList();
+                        if (unreferencedPgs.Count > 0)
+                        {
+                            _context.Set<ProcessGroup>().RemoveRange(unreferencedPgs);
+                            await _context.SaveChangesAsync();
+                            _logger.LogInformation("已清理 {Count} 个无引用的旧工序组记录", unreferencedPgs.Count);
+                        }
+
+                        // 对有引用的工序组，从导入行中匹配并原地更新属性
+                        if (referencedPgs.Count > 0)
+                        {
+                            var seqCol = def.Columns.FirstOrDefault(c => c.Property == "SequenceNumber");
+                            var propertyCache = BuildPropertyCache(def);
+                            var now = DateTimeOffset.Now;
+                            var rowsToSkip = new List<ImportRowData>();
+
+                            foreach (var row in rows)
+                            {
+                                var batchNo = row.Values.GetValueOrDefault(batchNoCol.Header, "");
+                                var batchId = batchLookup.GetValueOrDefault(batchNo);
+                                if (batchId <= 0) continue;
+
+                                var seqStr = seqCol != null ? row.Values.GetValueOrDefault(seqCol.Header, "") : "";
+                                if (!int.TryParse(seqStr, out var seq)) continue;
+
+                                if (pgByKey.TryGetValue((batchId, seq), out var existingPg))
+                                {
+                                    foreach (var colDef in def.Columns)
+                                    {
+                                        // 跳过系统列、FK列、SequenceNumber（匹配键不更新）
+                                        if (colDef.IsSystem || colDef.IsFkColumn) continue;
+                                        if (colDef.Property == "SequenceNumber") continue;
+                                        if (colDef.Property == null || !propertyCache.TryGetValue(colDef.Property, out var prop)) continue;
+                                        if (!row.Values.TryGetValue(colDef.Header, out var cellValue)) continue;
+
+                                        if (string.IsNullOrWhiteSpace(cellValue))
+                                        {
+                                            if (prop.PropertyType.IsGenericType &&
+                                                prop.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
+                                                prop.SetValue(existingPg, null);
+                                            continue;
+                                        }
+
+                                        var value = ConvertValue(cellValue, prop.PropertyType, colDef);
+                                        prop.SetValue(existingPg, value);
+                                    }
+
+                                    // 更新审计字段
+                                    if (existingPg is BaseEntity be)
+                                    {
+                                        be.UpdatedTime = now;
+                                        be.UpdatedBy = userName ?? "system";
+                                    }
+
+                                    rowsToSkip.Add(row);
+                                }
+                            }
+
+                            // 从导入行中移除已原地更新的行，避免重复创建
+                            foreach (var row in rowsToSkip)
+                                rows.Remove(row);
+
+                            _logger.LogInformation("已原地更新 {Count} 个有引用的工序组记录", referencedPgs.Count);
+                        }
                     }
                 }
             }

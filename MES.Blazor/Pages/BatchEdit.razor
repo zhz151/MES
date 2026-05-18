@@ -320,17 +320,17 @@
                                 @if (GetCol("EndCustomer").Visible) { <td><MudTextField T="string" @bind-Value="request.EndCustomer" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
                                 @if (GetCol("DeliveryDate").Visible) { <td><MudTextField T="string" @bind-Value="editDeliveryDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
                                 @if (GetCol("DelayPenalty").Visible) { <td><MudCheckBox @bind-Value="editDelayPenaltyValue" Color="Color.Warning" /></td> }
-                                @if (GetCol("MaterialName").Visible) { <td><MudTextField T="string" @bind-Value="request.MaterialName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
-                                @if (GetCol("SettlementMethod").Visible) { <td><MudTextField T="string" @bind-Value="request.SettlementMethod" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                                @if (GetCol("MaterialName").Visible) { <td><MudSelect T="string" @bind-Value="request.MaterialName" Dense="true" Variant="Variant.Outlined" Size="Size.Small"><MudSelectItem Value="@((string?)null)">请选择</MudSelectItem><MudSelectItem Value="@("SeamlessPipe")">无缝管</MudSelectItem><MudSelectItem Value="@("WeldedPipe")">焊管</MudSelectItem></MudSelect></td> }
+                                @if (GetCol("SettlementMethod").Visible) { <td><MudSelect T="string" @bind-Value="request.SettlementMethod" Dense="true" Variant="Variant.Outlined" Size="Size.Small"><MudSelectItem Value="@((string?)null)">请选择</MudSelectItem><MudSelectItem Value="@("Weighing")">过磅</MudSelectItem><MudSelectItem Value="@("WeighingNegative")">过磅-负</MudSelectItem><MudSelectItem Value="@("Theoretical")">理算</MudSelectItem></MudSelect></td> }
                                 @if (GetCol("StandardCode").Visible) { <td><MudTextField T="string" @bind-Value="request.StandardCode" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
-                                @if (GetCol("DeliveryState").Visible) { <td><MudTextField T="string" @bind-Value="request.DeliveryState" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                                @if (GetCol("DeliveryState").Visible) { <td><MudSelect T="string" @bind-Value="request.DeliveryState" Dense="true" Variant="Variant.Outlined" Size="Size.Small"><MudSelectItem Value="@((string?)null)">请选择</MudSelectItem><MudSelectItem Value="@("SolutionAnnealedAndPickled")">固溶酸洗</MudSelectItem><MudSelectItem Value="@("SolutionAnnealedAndPickledUTube")">固溶酸洗-U型管</MudSelectItem><MudSelectItem Value="@("SolutionAnnealedAndPickledExternalPolished")">固溶酸洗-外抛光</MudSelectItem><MudSelectItem Value="@("SolutionAnnealedAndPickledInternalPolished")">固溶酸洗-内抛光</MudSelectItem><MudSelectItem Value="@("SolutionAnnealedAndPickledBothPolished")">固溶酸洗-内外抛光</MudSelectItem><MudSelectItem Value="@("SolutionAnnealedAndPickledCoiled")">固溶酸洗-盘管</MudSelectItem><MudSelectItem Value="@("Bright")">光亮</MudSelectItem><MudSelectItem Value="@("BrightUTube")">光亮-U型管</MudSelectItem><MudSelectItem Value="@("BrightCoiled")">光亮-盘管</MudSelectItem><MudSelectItem Value="@("Hard")">硬态</MudSelectItem></MudSelect></td> }
                                 @if (GetCol("PlantGrade").Visible) { <td><MudTextField T="string" @bind-Value="request.PlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
                                 @if (GetCol("Specification").Visible) { <td><MudTextField T="string" @bind-Value="request.Specification" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
                                 @if (GetCol("OuterDiameterNegative").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.OuterDiameterNegative" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
                                 @if (GetCol("OuterDiameterPositive").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.OuterDiameterPositive" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
                                 @if (GetCol("WallThicknessNegative").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.WallThicknessNegative" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
                                 @if (GetCol("WallThicknessPositive").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.WallThicknessPositive" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
-                                @if (GetCol("LengthStatus").Visible) { <td><MudTextField T="string" @bind-Value="request.LengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                                @if (GetCol("LengthStatus").Visible) { <td><MudSelect T="string" @bind-Value="request.LengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small"><MudSelectItem Value="@((string?)null)">请选择</MudSelectItem><MudSelectItem Value="@("Fixed")">定尺</MudSelectItem><MudSelectItem Value="@("Range")">范围尺</MudSelectItem><MudSelectItem Value="@("NonFixed")">非定尺</MudSelectItem></MudSelect></td> }
                                 @if (GetCol("MinLength").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.MinLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
                                 @if (GetCol("MaxLength").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.MaxLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
                                 @if (GetCol("TotalQuantity").Visible) { <td><MudNumericField T="int?" @bind-Value="request.TotalQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></td> }
@@ -338,7 +338,7 @@
                                 @if (GetCol("TotalWeight").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.TotalWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
                                 @if (GetCol("TotalItemCount").Visible) { <td><MudNumericField T="int?" @bind-Value="request.TotalItemCount" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></td> }
                                 @if (GetCol("ItemDetails").Visible) { <td><MudTextField T="string" @bind-Value="request.ItemDetails" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
-                                @if (GetCol("TechnicalRequirements").Visible) { <td><MudTextField T="string" @bind-Value="request.TechnicalRequirements" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
+                                @if (GetCol("TechnicalRequirements").Visible) { <td><MudSelect T="string" @bind-Value="request.TechnicalRequirements" Dense="true" Variant="Variant.Outlined" Size="Size.Small"><MudSelectItem Value="@((string?)null)">请选择</MudSelectItem><MudSelectItem Value="@("Normal")">普通</MudSelectItem><MudSelectItem Value="@("Special")">特殊</MudSelectItem></MudSelect></td> }
                             </tr>
                         </tbody>
                     </MudSimpleTable>
@@ -406,15 +406,15 @@
                     </div>
                     <div class="d-flex align-center" style="gap:6px;">
                         <span style="white-space:nowrap; font-weight:500;">制几率</span>
-                        <MudTextField T="string" Value="@(originalBatch.ProductionRatio?.ToString() ?? "-")" Disabled="true" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:70px;" />
+                        <MudNumericField T="int?" @bind-Value="request.ProductionRatio" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" Style="width:70px;" Min="0" />
                     </div>
                     <div class="d-flex align-center" style="gap:6px;">
                         <span style="white-space:nowrap; font-weight:500;">有效支数</span>
-                        <MudNumericField T="int?" @bind-Value="request.CurrentValidQty" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" Style="width:70px;" />
+                        <MudNumericField T="int?" @bind-Value="request.CurrentValidQty" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" Style="width:70px;" @bind-Value:after="RecalcValidWeightOnQtyChange" />
                     </div>
                     <div class="d-flex align-center" style="gap:6px;">
                         <span style="white-space:nowrap; font-weight:500;">有效重量(kg)</span>
-                        <MudNumericField T="decimal?" @bind-Value="request.CurrentValidWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" Style="width:100px;" />
+                        <MudNumericField T="decimal?" @bind-Value="request.CurrentValidWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="0" HideSpinButtons="true" Style="width:100px;" />
                     </div>
                     <div class="d-flex align-center" style="gap:6px;">
                         <span style="white-space:nowrap; font-weight:500;">备注</span>
@@ -485,6 +485,7 @@
                                 @if (GetPgCol("WallThicknessTolerance").Visible) { <MudTh Style="width:80px;">壁厚公差</MudTh> }
                                 @if (GetPgCol("ManufacturingLength").Visible) { <MudTh Style="width:90px;">制造长度</MudTh> }
                                 @if (GetPgCol("CuttingTreatment").Visible) { <MudTh Style="width:90px;">断切处理</MudTh> }
+                                @if (GetPgCol("ManufacturingMultiple").Visible) { <MudTh Style="width:80px;">制成倍数</MudTh> }
                                 @if (GetPgCol("Remark").Visible) { <MudTh Style="width:100px;">备注</MudTh> }
                                 @if (GetPgCol("ColdRollDraw").Visible) { <MudTh Style="width:70px;">冷轧拔</MudTh> }
                                 @if (GetPgCol("OilPipeCut").Visible) { <MudTh Style="width:70px;">油管断</MudTh> }
@@ -521,6 +522,7 @@
                                 @if (GetPgCol("WallThicknessTolerance").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.WallThicknessTolerance" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:70px;" /></MudTd> }
                                 @if (GetPgCol("ManufacturingLength").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.ManufacturingLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:80px;" /></MudTd> }
                                 @if (GetPgCol("CuttingTreatment").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.CuttingTreatment" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:80px;" /></MudTd> }
+                                @if (GetPgCol("ManufacturingMultiple").Visible) { <MudTd><MudNumericField T="int" @bind-Value="pg.ManufacturingMultiple" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:60px;" HideSpinButtons="true" Min="1" /></MudTd> }
                                 @if (GetPgCol("Remark").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:90px;" /></MudTd> }
                                 @if (GetPgCol("ColdRollDraw").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.ColdRollDraw" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
                                 @if (GetPgCol("OilPipeCut").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.OilPipeCut" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
@@ -685,6 +687,7 @@
         public string? WallThicknessTolerance { get; set; }
         public string? ManufacturingLength { get; set; }
         public string? CuttingTreatment { get; set; }
+        public int ManufacturingMultiple { get; set; } = 1;
         public string? Remark { get; set; }
         public int? ColdRollDraw { get; set; }
         public int? OilPipeCut { get; set; }
@@ -833,6 +836,7 @@
         request.TechnicalRequirements = originalBatch.TechnicalRequirements;
         request.CurrentValidQty = originalBatch.CurrentValidQty;
         request.CurrentValidWeight = originalBatch.CurrentValidWeight;
+        request.ProductionRatio = originalBatch.ProductionRatio;
 
         // 工序组
         editProcessGroups = (originalBatch.ProcessGroups ?? new()).Select(pg => new EditProcessGroupItem
@@ -845,6 +849,7 @@
             WallThicknessTolerance = pg.WallThicknessTolerance,
             ManufacturingLength = pg.ManufacturingLength,
             CuttingTreatment = pg.CuttingTreatment,
+            ManufacturingMultiple = pg.ManufacturingMultiple,
             Remark = pg.Remark,
             ColdRollDraw = pg.ColdRollDraw,
             OilPipeCut = pg.OilPipeCut,
@@ -924,15 +929,28 @@
         }
     }
 
+    /// <summary>
+    /// 有效支数变更时自动计算有效重量：有效重量 = 领料重量 / 领料支数 * 有效支数
+    /// </summary>
+    private void RecalcValidWeightOnQtyChange()
+    {
+        if (request.CurrentValidQty is > 0
+            && request.InputQuantity is > 0
+            && request.InputWeight.HasValue)
+        {
+            request.CurrentValidWeight = request.InputWeight.Value / request.InputQuantity.Value * request.CurrentValidQty.Value;
+        }
+    }
+
     // ========== 工单确认 ==========
 
     private async Task ConfirmWorkOrder()
     {
         if (string.IsNullOrWhiteSpace(request.WorkOrderNo))
         {
-            // 工单号为空：工厂牌号默认与仓库一致，物料名称默认"无缝管"，其它字段清空
+            // 工单号为空：工厂牌号默认与仓库一致，物料名称默认"SeamlessPipe"，其它字段清空
             request.PlantGrade = request.SourcePlantGrade;
-            request.MaterialName = "无缝管";
+            request.MaterialName = "SeamlessPipe";
             ClearWorkOrderFields();
             Snackbar.Add("工单号为空，已设置默认值（可手工修改）", Severity.Info);
             return;
@@ -956,17 +974,17 @@
                 request.EndCustomer = wo.EndCustomer;
                 request.DeliveryDate = wo.DeliveryDate;
                 request.DelayPenalty = wo.DelayPenalty;
-                request.MaterialName = DisplayHelper.GetMaterialNameText(wo.MaterialName);
-                request.SettlementMethod = DisplayHelper.GetSettlementMethodText(wo.SettlementMethod);
+                request.MaterialName = wo.MaterialName.ToString();
+                request.SettlementMethod = wo.SettlementMethod.ToString();
                 request.StandardCode = wo.StandardCode;
-                request.DeliveryState = DisplayHelper.GetDeliveryStateText(wo.DeliveryState);
+                request.DeliveryState = wo.DeliveryState.ToString();
                 request.PlantGrade = wo.PlantGrade;
                 request.Specification = wo.Specification;
                 request.OuterDiameterNegative = wo.OuterDiameterNegative;
                 request.OuterDiameterPositive = wo.OuterDiameterPositive;
                 request.WallThicknessNegative = wo.WallThicknessNegative;
                 request.WallThicknessPositive = wo.WallThicknessPositive;
-                request.LengthStatus = DisplayHelper.GetLengthStatusText(wo.LengthStatus);
+                request.LengthStatus = wo.LengthStatus.ToString();
                 request.MinLength = wo.MinLength;
                 request.MaxLength = wo.MaxLength;
                 request.TotalQuantity = wo.TotalQuantity;
@@ -974,9 +992,9 @@
                 request.TotalWeight = wo.TotalWeight;
                 request.TotalItemCount = wo.TotalItemCount;
                 request.ItemDetails = wo.ItemDetails;
-                request.TechnicalRequirements = DisplayHelper.GetTechnicalRequirementsText(wo.TechnicalRequirements);
+                request.TechnicalRequirements = wo.TechnicalRequirements.ToString();
 
-                Snackbar.Add($"已从工单 {request.WorkOrderNo} 填充工单字段（中文显示）", Severity.Success);
+                Snackbar.Add($"已从工单 {request.WorkOrderNo} 填充工单字段", Severity.Success);
 
                 await AutoFillSolutionParamsAsync(wo.PlantGrade);
             }
@@ -1135,6 +1153,7 @@
             new() { Key = "WallThicknessTolerance", Label = "壁厚公差", Visible = true },
             new() { Key = "ManufacturingLength", Label = "制造长度", Visible = true },
             new() { Key = "CuttingTreatment", Label = "断切处理", Visible = true },
+            new() { Key = "ManufacturingMultiple", Label = "制成倍数", Visible = true },
             new() { Key = "Remark", Label = "备注", Visible = true },
             new() { Key = "ColdRollDraw", Label = "冷轧拔", Visible = true },
             new() { Key = "OilPipeCut", Label = "油管断", Visible = true },
@@ -1239,6 +1258,7 @@
                     WallThicknessTolerance = cpg.WallThicknessTolerance,
                     ManufacturingLength = cpg.ManufacturingLength,
                     CuttingTreatment = cpg.CuttingTreatment,
+                    ManufacturingMultiple = cpg.ManufacturingMultiple,
                     Remark = cpg.Remark,
                     ColdRollDraw = cpg.ColdRollDraw,
                     OilPipeCut = cpg.OilPipeCut,
@@ -1304,6 +1324,7 @@
                     WallThicknessTolerance = cpg.WallThicknessTolerance,
                     ManufacturingLength = cpg.ManufacturingLength,
                     CuttingTreatment = cpg.CuttingTreatment,
+                    ManufacturingMultiple = cpg.ManufacturingMultiple,
                     Remark = cpg.Remark,
                     ColdRollDraw = cpg.ColdRollDraw,
                     OilPipeCut = cpg.OilPipeCut,
@@ -1397,6 +1418,7 @@
                 InputWeight = request.InputWeight,
                 CurrentValidQty = request.CurrentValidQty,
                 CurrentValidWeight = request.CurrentValidWeight,
+                ProductionRatio = request.ProductionRatio,
                 WorkOrderNo = request.WorkOrderNo,
                 SalesOrderNo = request.SalesOrderNo,
                 ProductionMainNo = request.ProductionMainNo,
@@ -1436,6 +1458,7 @@
                     WallThicknessTolerance = epg.WallThicknessTolerance,
                     ManufacturingLength = epg.ManufacturingLength,
                     CuttingTreatment = epg.CuttingTreatment,
+                    ManufacturingMultiple = epg.ManufacturingMultiple,
                     Remark = epg.Remark,
                     ColdRollDraw = epg.ColdRollDraw,
                     OilPipeCut = epg.OilPipeCut,

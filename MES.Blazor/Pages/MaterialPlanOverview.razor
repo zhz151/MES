@@ -259,8 +259,10 @@
         new() { Key = "SettlementMethod",   Label = "结算方式",   SortKey = "settlementmethod" },
         new() { Key = "PlantGrade",         Label = "工厂牌号",   SortKey = "plantgrade" },
         new() { Key = "Specification",      Label = "规格",       SortKey = "specification" },
+        new() { Key = "MaterialName",       Label = "物料名称",   SortKey = "materialname" },
         new() { Key = "LengthStatus",       Label = "长度状态",   SortKey = "lengthstatus" },
         new() { Key = "MaxLength",          Label = "最大长度",   SortKey = "maxlength" },
+        new() { Key = "MinLength",          Label = "最小长度",   SortKey = "minlength" },
         new() { Key = "TotalQuantity",      Label = "总支数",     SortKey = "totalquantity" },
         new() { Key = "TotalWeight",        Label = "总重量",     SortKey = "totalweight" },
         new() { Key = "DeliveryState",      Label = "交货状态",   SortKey = "deliverystate" },
@@ -510,11 +512,17 @@
             case "Specification":
                 builder.AddContent(0, wo.Specification);
                 break;
+            case "MaterialName":
+                builder.AddContent(0, DisplayHelper.GetMaterialNameText(wo.MaterialName));
+                break;
             case "LengthStatus":
                 builder.AddContent(0, DisplayHelper.GetLengthStatusText(wo.LengthStatus));
                 break;
             case "MaxLength":
                 builder.AddContent(0, wo.MaxLength?.ToString("G29") ?? "-");
+                break;
+            case "MinLength":
+                builder.AddContent(0, wo.MinLength?.ToString("G29") ?? "-");
                 break;
             case "TotalQuantity":
                 builder.AddContent(0, wo.TotalQuantity);

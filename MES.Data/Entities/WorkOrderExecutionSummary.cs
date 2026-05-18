@@ -107,6 +107,12 @@ public class WorkOrderExecutionSummary : BaseEntity
     /// <summary>有效工单投料状态</summary>
     public int ValidInputStatus { get; set; }
 
+    /// <summary>现有效关联主号投料成品比(%)</summary>
+    public decimal MainNoValidInputOutputRatio { get; set; }
+
+    /// <summary>现有效关联主号投料状态(0=未计划 1=部分 2=满足)</summary>
+    public int MainNoValidInputStatus { get; set; }
+
     // ========== 刷新追踪 ==========
     /// <summary>最后刷新时间</summary>
     public DateTime? LastRefreshTime { get; set; }

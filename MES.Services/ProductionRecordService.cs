@@ -1000,6 +1000,17 @@ public class ProductionRecordService : IProductionRecordService
             })
             .ToListAsync();
 
+        // 3b. 加载所有过程检验
+        var allInspections = await _context.ProcessInspections
+            .Where(p => p.ProductionBatchId == batchId)
+            .ToListAsync();
+
+        // 3c. 加载检验到料（批次级，无工序组关联）
+        var materialReceiveCheck = await _context.MaterialReceiveChecks
+            .Where(m => m.ProductionBatchId == batchId)
+            .OrderByDescending(m => m.ReceiveDate)
+            .FirstOrDefaultAsync();
+
         // 4. 构建查询字典
         var recordByKey = allRecords
             .GroupBy(r => (r.ProcessGroupId, r.SectionName))
@@ -1008,6 +1019,14 @@ public class ProductionRecordService : IProductionRecordService
         var outsourceByKey = allOutsources
             .GroupBy(s => (s.ProcessGroupId, s.SectionName))
             .ToDictionary(g => g.Key, g => g.First());
+
+        // 4b. 过程检验查询字典
+        var inspectionByKey = allInspections
+            .GroupBy(p => (p.ProcessGroupId, p.SectionName))
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.InspectionDate).First());
+
+        // 4c. 找到最后一个工段的序号（用于检验到料日期兜底）
+        var lastSectionSeq = -1;
 
         // 5. 构建所有工段的完成状态
         var maxRecordSeq = allRecords.Count > 0 ? allRecords.Max(r => r.SequenceNumber) : -1;
@@ -1073,7 +1092,9 @@ public class ProductionRecordService : IProductionRecordService
                     SequenceNumber = seq,
                     ProcessGroupId = pg.Id,
                     Status = status,
-                    ExecDate = record?.ExecDate,
+                    ExecDate = record?.ExecDate
+                        ?? (inspectionByKey.TryGetValue(key, out var insp) ? insp.InspectionDate : (DateTime?)null)
+                        ?? (hasOutsource ? outsource.SendOutDate : (DateTime?)null),
                     EquipmentName = record?.EquipmentName,
                     Quantity = record?.Quantity,
                     Weight = record?.Weight,
@@ -1105,13 +1126,21 @@ public class ProductionRecordService : IProductionRecordService
             completedSectionCount += groupCompleted;
         }
 
+        // 5b. 检验到料日期兜底：若无其他日期，则取 MaterialReceiveCheck.ReceiveDate 作为最后工段日期
+        if (materialReceiveCheck != null && allSectionDtos.Count > 0)
+        {
+            var lastSection = allSectionDtos.MaxBy(s => s.SequenceNumber);
+            if (lastSection != null && !lastSection.ExecDate.HasValue)
+                lastSection.ExecDate = materialReceiveCheck.ReceiveDate;
+        }
+
         // 6. 计算投料量与目标量（使用现有效原料数据）
         int? inputQty = batch.CurrentValidQty;
         int? inputWt = batch.CurrentValidWeight.HasValue ? (int?)Math.Round(batch.CurrentValidWeight.Value) : null;
 
         // 目标支数 = 投料支数 × 制几率
-        int? targetQty = inputQty.HasValue && batch.ProductionRatio.HasValue
-            ? inputQty.Value * batch.ProductionRatio.Value
+        int? targetQty = batch.ProductionRatio > 0 && inputQty.HasValue
+            ? inputQty.Value * batch.ProductionRatio
             : null;
 
         // 目标重量 = 投料重量 × (1 - 有效工序组数 × 0.025)

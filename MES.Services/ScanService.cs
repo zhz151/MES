@@ -30,19 +30,20 @@ public class ScanService : IScanService
         ["OuterPolish"] = "外抛光",
         ["InnerGrinding"] = "内修磨",
         ["OuterSpotGrinding"] = "外点磨",
+        ["Inspection"] = "检验",
         ["WeldingHead"] = "打焊头",
         ["Lubrication"] = "润滑",
         ["Warehouse"] = "入库",
     };
 
     /// <summary>
-    /// ProcessGroup 中涉及的字段列表（对应15个工段，排除"检验"）
+    /// ProcessGroup 中涉及的字段列表（对应15个工段）
     /// </summary>
     private static readonly string[] SectionFields =
     [
         "ColdRollDraw", "OilPipeCut", "Degrease", "Solution", "Straighten",
         "Cut", "ThicknessMeasure", "Pickle", "OuterPolish", "InnerGrinding",
-        "OuterSpotGrinding", "WeldingHead", "Lubrication", "Warehouse"
+        "OuterSpotGrinding", "Inspection", "WeldingHead", "Lubrication", "Warehouse"
     ];
 
     public ScanService(AppDbContext context)
@@ -52,19 +53,55 @@ public class ScanService : IScanService
 
     public async Task<ScanResolveResultDto> ResolveAsync(string batchNo, int processGroupId)
     {
-        // 查找批次
-        var batch = await _context.ProductionBatches
-            .AsNoTracking()
-            .FirstOrDefaultAsync(b => b.BatchNo == batchNo)
-            ?? throw new BusinessException($"未找到批次：{batchNo}");
+        var batch = await FindBatchAsync(batchNo);
 
-        // 查找工序组
         var group = await _context.ProcessGroups
             .AsNoTracking()
             .FirstOrDefaultAsync(pg => pg.Id == processGroupId && pg.ProductionBatchId == batch.Id)
             ?? throw new BusinessException($"未找到工序组（ID={processGroupId}）");
 
-        // 根据 ProcessGroup 非 null 的工段字段构建可用工段列表
+        return BuildResult(batch, group);
+    }
+
+    public async Task<ScanBatchResolveResultDto> GetBatchProcessGroupsAsync(string batchNo)
+    {
+        var batch = await FindBatchAsync(batchNo);
+
+        var groups = await _context.ProcessGroups
+            .AsNoTracking()
+            .Where(pg => pg.ProductionBatchId == batch.Id)
+            .OrderBy(pg => pg.SequenceNumber)
+            .Select(pg => new ProcessGroupOption
+            {
+                Id = pg.Id,
+                SequenceNumber = pg.SequenceNumber,
+                ProcessName = pg.ProcessName,
+                ManufacturingSpec = pg.ManufacturingSpec
+            })
+            .ToListAsync();
+
+        return new ScanBatchResolveResultDto
+        {
+            BatchNo = batch.BatchNo,
+            Status = GetStatusText(batch.Status),
+            PlantGrade = batch.PlantGrade,
+            Specification = batch.Specification,
+            TagNo = batch.TagNo,
+            ProductionType = batch.ProductionType,
+            ProcessGroups = groups
+        };
+    }
+
+    private async Task<Data.Entities.ProductionBatch> FindBatchAsync(string batchNo)
+    {
+        return await _context.ProductionBatches
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.BatchNo == batchNo)
+            ?? throw new BusinessException($"未找到批次：{batchNo}");
+    }
+
+    private static ScanResolveResultDto BuildResult(Data.Entities.ProductionBatch batch, Data.Entities.ProcessGroup group)
+    {
         var availableSections = new List<SectionOption>();
         foreach (var field in SectionFields)
         {
@@ -111,6 +148,7 @@ public class ScanService : IScanService
             "OuterPolish" => group.OuterPolish,
             "InnerGrinding" => group.InnerGrinding,
             "OuterSpotGrinding" => group.OuterSpotGrinding,
+            "Inspection" => group.Inspection,
             "WeldingHead" => group.WeldingHead,
             "Lubrication" => group.Lubrication,
             "Warehouse" => group.Warehouse,

@@ -51,7 +51,17 @@ public class BatchService : IBatchService
                 (b.NextSectionName != null && b.NextSectionName.Contains(kw)) ||
                 (b.CorrespondingSpec != null && b.CorrespondingSpec.Contains(kw)) ||
                 b.ManufacturingItem.Contains(kw) ||
-                (b.ProductionType != null && b.ProductionType.Contains(kw)));
+                (b.ProductionType != null && b.ProductionType.Contains(kw)) ||
+                b.Salesman.Contains(kw) ||
+                (b.EndCustomer != null && b.EndCustomer.Contains(kw)) ||
+                b.MaterialName.Contains(kw) ||
+                b.SettlementMethod.Contains(kw) ||
+                b.StandardCode.Contains(kw) ||
+                b.DeliveryState.Contains(kw) ||
+                b.PlantGrade.Contains(kw) ||
+                b.Specification.Contains(kw) ||
+                b.LengthStatus.Contains(kw) ||
+                b.TechnicalRequirements.Contains(kw));
         }
 
         // 筛选条件
@@ -133,6 +143,66 @@ public class BatchService : IBatchService
             "correspondingspec" => query.IsDescending
                 ? queryable.OrderByDescending(b => b.CorrespondingSpec ?? "")
                 : queryable.OrderBy(b => b.CorrespondingSpec ?? ""),
+            "currentvalidqty" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.CurrentValidQty)
+                : queryable.OrderBy(b => b.CurrentValidQty),
+            "currentvalidweight" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.CurrentValidWeight)
+                : queryable.OrderBy(b => b.CurrentValidWeight),
+            "createdby" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.CreatedBy)
+                : queryable.OrderBy(b => b.CreatedBy),
+            "productionratio" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.ProductionRatio)
+                : queryable.OrderBy(b => b.ProductionRatio),
+            "signdate" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.SignDate)
+                : queryable.OrderBy(b => b.SignDate),
+            "salesman" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.Salesman)
+                : queryable.OrderBy(b => b.Salesman),
+            "endcustomer" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.EndCustomer ?? "")
+                : queryable.OrderBy(b => b.EndCustomer ?? ""),
+            "deliverydate" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.DeliveryDate)
+                : queryable.OrderBy(b => b.DeliveryDate),
+            "delaypenalty" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.DelayPenalty)
+                : queryable.OrderBy(b => b.DelayPenalty),
+            "materialname" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.MaterialName)
+                : queryable.OrderBy(b => b.MaterialName),
+            "settlementmethod" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.SettlementMethod)
+                : queryable.OrderBy(b => b.SettlementMethod),
+            "standardcode" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.StandardCode)
+                : queryable.OrderBy(b => b.StandardCode),
+            "deliverystate" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.DeliveryState)
+                : queryable.OrderBy(b => b.DeliveryState),
+            "plantgrade" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.PlantGrade)
+                : queryable.OrderBy(b => b.PlantGrade),
+            "specification" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.Specification)
+                : queryable.OrderBy(b => b.Specification),
+            "lengthstatus" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.LengthStatus)
+                : queryable.OrderBy(b => b.LengthStatus),
+            "totalquantity" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.TotalQuantity)
+                : queryable.OrderBy(b => b.TotalQuantity),
+            "totalmeters" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.TotalMeters)
+                : queryable.OrderBy(b => b.TotalMeters),
+            "totalweight" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.TotalWeight)
+                : queryable.OrderBy(b => b.TotalWeight),
+            "technicalrequirements" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.TechnicalRequirements)
+                : queryable.OrderBy(b => b.TechnicalRequirements),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(b => b.CreatedTime)
                 : queryable.OrderBy(b => b.CreatedTime)
@@ -156,6 +226,7 @@ public class BatchService : IBatchService
                 ProductionType = b.ProductionType,
                 ManufacturingItem = b.ManufacturingItem,
                 Status = b.Status.ToString(),
+                ProductionRatio = b.ProductionRatio,
                 CurrentExecDate = b.CurrentExecDate,
                 CurrentGroupName = b.CurrentGroupName,
                 CurrentSectionName = b.CurrentSectionName,
@@ -166,9 +237,69 @@ public class BatchService : IBatchService
                 CorrespondingSpec = b.CorrespondingSpec,
                 CurrentValidQty = b.CurrentValidQty,
                 CurrentValidWeight = b.CurrentValidWeight,
-                CreatedBy = b.CreatedBy
+                CreatedBy = b.CreatedBy,
+                SignDate = b.SignDate,
+                Salesman = b.Salesman,
+                EndCustomer = b.EndCustomer,
+                DeliveryDate = b.DeliveryDate,
+                DelayPenalty = b.DelayPenalty,
+                MaterialName = b.MaterialName,
+                SettlementMethod = b.SettlementMethod,
+                StandardCode = b.StandardCode,
+                DeliveryState = b.DeliveryState,
+                PlantGrade = b.PlantGrade,
+                Specification = b.Specification,
+                LengthStatus = b.LengthStatus,
+                TotalQuantity = b.TotalQuantity,
+                TotalMeters = b.TotalMeters,
+                TotalWeight = b.TotalWeight,
+                TechnicalRequirements = b.TechnicalRequirements
             })
             .ToListAsync();
+
+        // ========== 计算有效投料疑问 ==========
+        if (items.Count > 0)
+        {
+            var batchIds = items.Select(i => i.Id).ToList();
+            var allInspections = await _context.ProcessInspections
+                .Where(pi => batchIds.Contains(pi.ProductionBatchId))
+                .Include(pi => pi.ProcessGroup)
+                .ToListAsync();
+
+            var latestInspections = allInspections
+                .GroupBy(pi => pi.ProductionBatchId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(pi => pi.InspectionDate)
+                          .ThenByDescending(pi => pi.Id)
+                          .First());
+
+            foreach (var item in items)
+            {
+                if (latestInspections.TryGetValue(item.Id, out var inspection)
+                    && inspection.QualifiedQuantity.HasValue
+                    && inspection.ProcessGroup.ManufacturingMultiple > 0
+                    && item.CurrentValidQty is > 0
+                    && item.ProductionRatio > 0)
+                {
+                    var inspectionTheoryQty = inspection.QualifiedQuantity.Value * inspection.ProcessGroup.ManufacturingMultiple;
+                    var inputProductionQty = item.CurrentValidQty.Value * item.ProductionRatio;
+
+                    if (inputProductionQty > 0)
+                    {
+                        var ratio = (decimal)inspectionTheoryQty / inputProductionQty;
+                        item.ValidInputQuestion = (ratio > 1.02m || ratio < 0.98m) ? "疑问" : "正常";
+                    }
+                }
+            }
+        }
+
+        // ========== 有效投料疑问筛选（内存筛选，因该字段为计算字段） ==========
+        if (!string.IsNullOrEmpty(query.ValidInputQuestion))
+        {
+            items = items.Where(i => string.Equals(i.ValidInputQuestion, query.ValidInputQuestion, StringComparison.OrdinalIgnoreCase)).ToList();
+            totalCount = items.Count;
+        }
 
         return new PagedResult<ProductionBatchListDto>
         {
@@ -352,6 +483,7 @@ public class BatchService : IBatchService
                         WallThicknessTolerance = pg.WallThicknessTolerance,
                         ManufacturingLength = pg.ManufacturingLength,
                         CuttingTreatment = pg.CuttingTreatment,
+                        ManufacturingMultiple = pg.ManufacturingMultiple,
                         Remark = pg.Remark,
                         ColdRollDraw = pg.ColdRollDraw,
                         OilPipeCut = pg.OilPipeCut,
@@ -444,6 +576,7 @@ public class BatchService : IBatchService
         entity.CurrentValidQty = request.CurrentValidQty ?? entity.CurrentValidQty;
         entity.CurrentValidWeight = request.CurrentValidWeight ?? entity.CurrentValidWeight;
         if (request.IsForceCompleted.HasValue) entity.IsForceCompleted = request.IsForceCompleted.Value;
+        if (request.ProductionRatio.HasValue) entity.ProductionRatio = request.ProductionRatio.Value;
 
         // 工单冗余字段（non-nullable 保留守卫防崩溃；nullable 用 ?? 防止空值覆盖）
         if (request.WorkOrderNo != null) entity.WorkOrderNo = request.WorkOrderNo;
@@ -609,6 +742,7 @@ public class BatchService : IBatchService
         entity.CurrentValidQty = request.CurrentValidQty ?? entity.CurrentValidQty;
         entity.CurrentValidWeight = request.CurrentValidWeight ?? entity.CurrentValidWeight;
         if (request.IsForceCompleted.HasValue) entity.IsForceCompleted = request.IsForceCompleted.Value;
+        if (request.ProductionRatio.HasValue) entity.ProductionRatio = request.ProductionRatio.Value;
 
         // 工单冗余字段（non-nullable 保留守卫防崩溃；nullable 用 ?? 防止空值覆盖）
         if (request.WorkOrderNo != null) entity.WorkOrderNo = request.WorkOrderNo;
@@ -712,6 +846,7 @@ public class BatchService : IBatchService
                 existingReferenced.WallThicknessTolerance = pgReq.WallThicknessTolerance;
                 existingReferenced.ManufacturingLength = pgReq.ManufacturingLength;
                 existingReferenced.CuttingTreatment = pgReq.CuttingTreatment;
+                existingReferenced.ManufacturingMultiple = pgReq.ManufacturingMultiple;
                 existingReferenced.Remark = pgReq.Remark;
                 existingReferenced.ColdRollDraw = pgReq.ColdRollDraw;
                 existingReferenced.OilPipeCut = pgReq.OilPipeCut;
@@ -741,6 +876,7 @@ public class BatchService : IBatchService
                 WallThicknessTolerance = pgReq.WallThicknessTolerance,
                 ManufacturingLength = pgReq.ManufacturingLength,
                 CuttingTreatment = pgReq.CuttingTreatment,
+                ManufacturingMultiple = pgReq.ManufacturingMultiple,
                 Remark = pgReq.Remark,
                 ColdRollDraw = pgReq.ColdRollDraw,
                 OilPipeCut = pgReq.OilPipeCut,
@@ -820,6 +956,7 @@ public class BatchService : IBatchService
             WallThicknessTolerance = request.WallThicknessTolerance,
             ManufacturingLength = request.ManufacturingLength,
             CuttingTreatment = request.CuttingTreatment,
+            ManufacturingMultiple = request.ManufacturingMultiple,
             Remark = request.Remark,
             ColdRollDraw = request.ColdRollDraw,
             OilPipeCut = request.OilPipeCut,
@@ -950,6 +1087,7 @@ public class BatchService : IBatchService
                 WallThicknessTolerance = pg.WallThicknessTolerance,
                 ManufacturingLength = pg.ManufacturingLength,
                 CuttingTreatment = pg.CuttingTreatment,
+                ManufacturingMultiple = pg.ManufacturingMultiple,
                 Remark = pg.Remark,
                 ColdRollDraw = pg.ColdRollDraw,
                 OilPipeCut = pg.OilPipeCut,
@@ -1210,7 +1348,7 @@ public class BatchService : IBatchService
 
     // ========== 辅助方法 ==========
 
-    private static int? CalculateProductionRatio(CreateProductionBatchRequest request, WorkOrder? workOrder)
+    private static int CalculateProductionRatio(CreateProductionBatchRequest request, WorkOrder? workOrder)
     {
         // 仅在定尺(Fixed)状态下计算
         var lengthStatus = request.LengthStatus ?? workOrder?.LengthStatus.ToString() ?? "";
@@ -1397,6 +1535,7 @@ public class BatchService : IBatchService
             WallThicknessTolerance = entity.WallThicknessTolerance,
             ManufacturingLength = entity.ManufacturingLength,
             CuttingTreatment = entity.CuttingTreatment,
+            ManufacturingMultiple = entity.ManufacturingMultiple,
             Remark = entity.Remark,
             ColdRollDraw = entity.ColdRollDraw,
             OilPipeCut = entity.OilPipeCut,

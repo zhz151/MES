@@ -62,6 +62,8 @@ public class WorkOrderExecutionSummaryDto
     public decimal ValidOutputWeight { get; set; }
     public decimal ValidInputOutputRatio { get; set; }
     public int ValidInputStatus { get; set; }
+    public decimal MainNoValidInputOutputRatio { get; set; }
+    public int MainNoValidInputStatus { get; set; }
 
     // ========== 显示用 ==========
     public string MaterialPlanStatusText => MaterialPlanStatus switch
@@ -87,6 +89,11 @@ public class WorkOrderExecutionSummaryDto
     public string ValidInputStatusText => ValidInputStatus switch
     {
         0 => "未投料", 1 => "部分", 2 => "满足", _ => "未知"
+    };
+
+    public string MainNoValidInputStatusText => MainNoValidInputStatus switch
+    {
+        0 => "未计划", 1 => "部分", 2 => "满足", _ => "未知"
     };
 
     public string DelayPenaltyText => DelayPenalty ? "是" : "否";

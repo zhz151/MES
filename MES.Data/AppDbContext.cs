@@ -969,6 +969,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.WallThicknessTolerance).HasMaxLength(50);
             entity.Property(e => e.ManufacturingLength).HasMaxLength(100);
             entity.Property(e => e.CuttingTreatment).HasMaxLength(200);
+            entity.Property(e => e.ManufacturingMultiple).IsRequired();
             entity.Property(e => e.Remark).HasMaxLength(500);
 
             // 15个工段字段（int?，无默认值）
@@ -1592,6 +1593,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.ValidOutputWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
             entity.Property(e => e.ValidInputOutputRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
             entity.Property(e => e.ValidInputStatus).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.MainNoValidInputOutputRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
+            entity.Property(e => e.MainNoValidInputStatus).IsRequired().HasDefaultValue(0);
 
             // 刷新追踪
             entity.Property(e => e.LastRefreshTime).HasColumnType("datetime2");

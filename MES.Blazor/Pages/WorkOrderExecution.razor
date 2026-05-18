@@ -185,6 +185,10 @@
         new() { Key = "validoutputweight",   Label = "有效生产成品重量", SortKey = "validoutputweight" },
         new() { Key = "validinputoutputratio", Label = "有效工单投料成品比", SortKey = "validinputoutputratio" },
         new() { Key = "validinputstatus",    Label = "有效工单投料状态" },
+
+        // Group 4 - 现有效关联主号
+        new() { Key = "mainnovalidinputratio",  Label = "现有效关联主号投料成品比", SortKey = "validinputoutputratio" },
+        new() { Key = "mainnovalidinputstatus", Label = "现有效关联主号投料状态" },
     };
 
     // ========== 排序 ==========
@@ -433,6 +437,16 @@
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.ValidInputStatusText)));
                 builder.CloseComponent();
                 break;
+            case "mainnovalidinputratio":
+                builder.AddContent(0, item.MainNoValidInputOutputRatio > 0 ? $"{item.MainNoValidInputOutputRatio}%" : "-");
+                break;
+            case "mainnovalidinputstatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetValidMainNoStatusColor(item.MainNoValidInputStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.MainNoValidInputStatusText)));
+                builder.CloseComponent();
+                break;
         }
     };
 
@@ -451,6 +465,14 @@
     private static Color GetInputStatusColor(int status) => status switch
     {
         0 => Color.Default,     // 未投料
+        1 => Color.Warning,     // 部分
+        2 => Color.Success,     // 满足
+        _ => Color.Default
+    };
+
+    private static Color GetValidMainNoStatusColor(int status) => status switch
+    {
+        0 => Color.Default,     // 未计划
         1 => Color.Warning,     // 部分
         2 => Color.Success,     // 满足
         _ => Color.Default

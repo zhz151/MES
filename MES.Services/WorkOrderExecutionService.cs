@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MES.Core.DTOs;
+using MES.Core.Enums;
 using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
@@ -109,6 +110,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 ValidOutputWeight = e.ValidOutputWeight,
                 ValidInputOutputRatio = e.ValidInputOutputRatio,
                 ValidInputStatus = e.ValidInputStatus,
+                MainNoValidInputOutputRatio = e.MainNoValidInputOutputRatio,
+                MainNoValidInputStatus = e.MainNoValidInputStatus,
             })
             .ToListAsync();
 
@@ -329,10 +332,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var batchInputQty = batch.InputQuantity ?? 0;
             var batchInputWeight = batch.InputWeight ?? 0m;
 
-            // 理论成品支数 = 投料支数 × 制几率（仅定尺且有制几率时）
-            if (batch.ProductionRatio is > 0)
-                theorQty += batchInputQty * batch.ProductionRatio.GetValueOrDefault();
-            // 非定尺/范围尺/无制几率时，成品支数无意义，计为 0
+            // 理论成品支数 = 投料支数 × 制几率
+            if (batch.ProductionRatio > 0)
+                theorQty += batchInputQty * batch.ProductionRatio;
 
             // 理论成品重量 = 投料重量 × (1 - 有效工序组数 × 2.5%)
             var effectiveGroupCount = batch.ProcessGroups?
@@ -364,9 +366,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var batchInputQty = batch.CurrentValidQty ?? 0;
             var batchInputWeight = batch.CurrentValidWeight ?? 0m;
 
-            if (batch.ProductionRatio is > 0)
-                validTheorQty += batchInputQty * batch.ProductionRatio.GetValueOrDefault();
-            // 非定尺/范围尺/无制几率时，成品支数无意义，计为 0
+            if (batch.ProductionRatio > 0)
+                validTheorQty += batchInputQty * batch.ProductionRatio;
 
             var effectiveGroupCount = batch.ProcessGroups?
                 .Count(pg => HasAnySection(pg)) ?? 0;
@@ -469,16 +470,16 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var groupWorkOrders = group.Select(g => g.WorkOrder!).ToList();
             var groupSummaries = group.Select(g => g.Summary).ToList();
 
-            // Group 2: MainNo 级用料计划（从 WorkOrderListDto 现有逻辑迁移）
-            // 简化：同组内工单的 MaterialPlanRate 取平均
+            // Group 2: MainNo 级用料计划 — 率取平均，状态从率重新计算
             if (groupWorkOrders.Count > 0)
             {
-                var avgRate = groupWorkOrders.Average(wo => wo.MaterialPlanRate);
-                var maxStatus = groupWorkOrders.Max(wo => (int)wo.MaterialPlanStatus);
+                var avgRate = Math.Round(groupWorkOrders.Average(wo => wo.MaterialPlanRate), 2);
+                var isFixed = groupSummaries.First().LengthStatus == "Fixed";
+                var mainStatus = CalculateMainNoStatusFromRate(avgRate, isFixed);
                 foreach (var s in groupSummaries)
                 {
-                    s.MainNoMaterialPlanRate = Math.Round(avgRate, 2);
-                    s.MainNoMaterialPlanStatus = maxStatus;
+                    s.MainNoMaterialPlanRate = avgRate;
+                    s.MainNoMaterialPlanStatus = (int)mainStatus;
                 }
             }
 
@@ -519,6 +520,62 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                     s.MainNoInputStatus = mainStatus;
                 }
             }
+
+            // Group 4: 有效主号级投料聚合（排除作废批次，使用 ValidOutputQty/Weight）
+            var totalValidQty = groupSummaries.Sum(s => s.ValidOutputQty);
+            var totalValidWeight = groupSummaries.Sum(s => s.ValidOutputWeight);
+
+            if (totalQty > 0 || totalWeight > 0)
+            {
+                var isFixed = groupSummaries.First().LengthStatus == "Fixed";
+                decimal mainValidRatio;
+                if (isFixed)
+                {
+                    mainValidRatio = totalQty > 0
+                        ? Math.Round(totalValidQty / totalQty * 100, 2)
+                        : 0;
+                }
+                else
+                {
+                    mainValidRatio = totalWeight > 0
+                        ? Math.Round(totalValidWeight / totalWeight * 100, 2)
+                        : 0;
+                }
+
+                var mainValidStatus = mainValidRatio switch
+                {
+                    <= 0 => 0,       // 未计划
+                    >= 100 => 2,     // 满足（rate≥100%即满足）
+                    _ => 1           // 部分
+                };
+
+                foreach (var s in groupSummaries)
+                {
+                    s.MainNoValidInputOutputRatio = mainValidRatio;
+                    s.MainNoValidInputStatus = mainValidStatus;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 从聚合率计算主号级用料计划状态（与 WorkOrderService.CalculateMainNoStatus 阈值一致）
+    /// </summary>
+    private static MaterialPlanStatus CalculateMainNoStatusFromRate(decimal rate, bool isFixed)
+    {
+        if (rate <= 0) return MaterialPlanStatus.NotPlanned;
+
+        if (isFixed)
+        {
+            if (rate < 102m) return MaterialPlanStatus.Partial;
+            if (rate <= 110m) return MaterialPlanStatus.Satisfied;
+            return MaterialPlanStatus.Excess;
+        }
+        else
+        {
+            if (rate < 105m) return MaterialPlanStatus.Partial;
+            if (rate <= 120m) return MaterialPlanStatus.Satisfied;
+            return MaterialPlanStatus.Excess;
         }
     }
 
@@ -575,6 +632,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         target.ValidOutputWeight = source.ValidOutputWeight;
         target.ValidInputOutputRatio = source.ValidInputOutputRatio;
         target.ValidInputStatus = source.ValidInputStatus;
+        target.MainNoValidInputOutputRatio = source.MainNoValidInputOutputRatio;
+        target.MainNoValidInputStatus = source.MainNoValidInputStatus;
 
         // 刷新时间
         target.LastRefreshTime = source.LastRefreshTime;

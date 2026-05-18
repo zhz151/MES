@@ -26,6 +26,10 @@ public class CreateProcessGroupRequest
     [MaxLength(200)]
     public string? CuttingTreatment { get; set; }
 
+    [Required(ErrorMessage = "制成倍数不能为空")]
+    [Range(1, int.MaxValue, ErrorMessage = "制成倍数必须大于0")]
+    public int ManufacturingMultiple { get; set; }
+
     [MaxLength(500)]
     public string? Remark { get; set; }
 

@@ -19,7 +19,7 @@ public class CreateProductionBatchRequest
     [MaxLength(30)]
     public string? ManufacturingItem { get; set; }
 
-    public int? ProductionRatio { get; set; }
+    public int ProductionRatio { get; set; }
 
     [MaxLength(500)]
     public string? QualityRemark { get; set; }

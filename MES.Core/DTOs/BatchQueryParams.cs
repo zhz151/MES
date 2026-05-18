@@ -43,6 +43,11 @@ public class BatchQueryParams : QueryParams
     public string? ProductionSubNo { get; set; }
 
     /// <summary>
+    /// 有效投料疑问筛选（正常/疑问）
+    /// </summary>
+    public string? ValidInputQuestion { get; set; }
+
+    /// <summary>
     /// </summary>
     public DateTime? StartDateFrom { get; set; }
 

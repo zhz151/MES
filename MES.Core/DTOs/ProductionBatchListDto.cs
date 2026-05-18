@@ -17,6 +17,7 @@ public class ProductionBatchListDto
     public string? ProductionType { get; set; }
     public string ManufacturingItem { get; set; } = null!;
     public string Status { get; set; } = null!;
+    public int ProductionRatio { get; set; }
     public DateTime? CurrentExecDate { get; set; }
     public string? CurrentGroupName { get; set; }
     public string? CurrentSectionName { get; set; }
@@ -28,4 +29,27 @@ public class ProductionBatchListDto
     public int? CurrentValidQty { get; set; }
     public decimal? CurrentValidWeight { get; set; }
     public string CreatedBy { get; set; } = null!;
+
+    // ========== 工单冗余字段 ==========
+    public DateTime SignDate { get; set; }
+    public string Salesman { get; set; } = null!;
+    public string? EndCustomer { get; set; }
+    public DateTime DeliveryDate { get; set; }
+    public bool DelayPenalty { get; set; }
+    public string MaterialName { get; set; } = null!;
+    public string SettlementMethod { get; set; } = null!;
+    public string StandardCode { get; set; } = null!;
+    public string DeliveryState { get; set; } = null!;
+    public string PlantGrade { get; set; } = null!;
+    public string Specification { get; set; } = null!;
+    public string LengthStatus { get; set; } = null!;
+    public int TotalQuantity { get; set; }
+    public decimal TotalMeters { get; set; }
+    public decimal TotalWeight { get; set; }
+    public string TechnicalRequirements { get; set; } = null!;
+
+    /// <summary>
+    /// 有效投料疑问：基于最近过程检验计算，正常/疑问
+    /// </summary>
+    public string? ValidInputQuestion { get; set; }
 }

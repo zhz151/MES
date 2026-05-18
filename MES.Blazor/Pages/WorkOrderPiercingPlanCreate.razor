@@ -132,12 +132,12 @@
                         <HeaderContent>
                             <MudTh Style="width:110px;">原料类型</MudTh>
                             <MudTh Style="width:90px;">工厂牌号</MudTh>
-                            <MudTh Style="width:100px;">圆棒规格</MudTh>
-                            <MudTh Style="width:100px;">穿孔规格</MudTh>
+                            <MudTh Style="width:100px;">圆棒规格<span class="required-star">*</span></MudTh>
+                            <MudTh Style="width:100px;">穿孔规格<span class="required-star">*</span></MudTh>
                             <MudTh Style="width:90px;">需求单重(kg/支)</MudTh>
                             <MudTh Style="width:80px;">需求支数</MudTh>
-                            <MudTh Style="width:100px;">需求重量(kg)</MudTh>
-                            <MudTh Style="width:150px;">要求到货日期</MudTh>
+                            <MudTh Style="width:150px;">需求重量(kg)</MudTh>
+                            <MudTh Style="width:150px;">要求到货日期<span class="required-star">*</span></MudTh>
                             <MudTh Style="width:600px;">备注</MudTh>
                         </HeaderContent>
                         <RowTemplate Context="item">
@@ -203,7 +203,7 @@
                                                  Size="Size.Small"
                                                  Variant="Variant.Outlined"
                                                  Min="0"
-                                                 Class="my-n2" Style="width:200px;" />
+                                                 Class="my-n2" Style="width:150px;" />
                             </MudTd>
                             <MudTd>
                                 <MudTextField Dense="true" T="string"
@@ -211,7 +211,7 @@
                                               ValueChanged="@((string v) => { item.RequiredDateStr = v; })"
                                               Size="Size.Small"
                                               Variant="Variant.Outlined"
-                                              Class="my-n2" Style="width:90px;" />
+                                              Class="my-n2" Style="width:150px;" />
                             </MudTd>
                             <MudTd>
                                 <MudTextField Dense="true" T="string"

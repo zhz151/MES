@@ -85,6 +85,11 @@ public class WorkOrderListDto
     public LengthStatus LengthStatus { get; set; }
 
     /// <summary>
+    /// 最小长度
+    /// </summary>
+    public decimal? MinLength { get; set; }
+
+    /// <summary>
     /// 最大长度
     /// </summary>
     public decimal? MaxLength { get; set; }

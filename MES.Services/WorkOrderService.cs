@@ -702,12 +702,6 @@ public class WorkOrderService : IWorkOrderService
 
                 _logger.LogWarning($"生成工单号: {workOrderNo}");
 
-                decimal? finalMaxLength = maxLength;
-                if (firstItem.LengthStatus == LengthStatus.Fixed && minLength.HasValue)
-                {
-                    finalMaxLength = minLength;
-                }
-
                 var workOrder = new WorkOrder
                 {
                     WorkOrderNo = workOrderNo,
@@ -733,7 +727,7 @@ public class WorkOrderService : IWorkOrderService
                     WallThicknessPositive = firstItem.WallThicknessPositive,
                     LengthStatus = firstItem.LengthStatus,
                     MinLength = minLength,
-                    MaxLength = finalMaxLength,
+                    MaxLength = maxLength,
                     TotalQuantity = totalQuantity,
                     TotalMeters = totalMeters,
                     TotalWeight = totalWeight,
@@ -935,13 +929,6 @@ public class WorkOrderService : IWorkOrderService
                     {
                         ValidateSubNo(firstItem.LengthStatus, group.ProductionSubNo);
 
-                        var (minLength, maxLength, totalQuantity, totalMeters, totalWeight, itemDetails, technicalRequirements) =
-                            CalculateAggregates(groupItems, firstItem.LengthStatus);
-
-                        decimal? finalMaxLength = maxLength;
-                        if (firstItem.LengthStatus == LengthStatus.Fixed && minLength.HasValue)
-                            finalMaxLength = minLength;
-
                         existingWo.OrderItemIds = string.Join(",", group.OrderItemIds.Distinct());
                         existingWo.DeliveryDate = firstItem.DeliveryDate;
                         existingWo.DelayPenalty = firstItem.DelayPenalty;
@@ -956,28 +943,26 @@ public class WorkOrderService : IWorkOrderService
                         existingWo.WallThicknessNegative = firstItem.WallThicknessNegative;
                         existingWo.WallThicknessPositive = firstItem.WallThicknessPositive;
                         existingWo.LengthStatus = firstItem.LengthStatus;
-                        existingWo.MinLength = minLength;
-                        existingWo.MaxLength = finalMaxLength;
-                        existingWo.TotalQuantity = totalQuantity;
-                        existingWo.TotalMeters = totalMeters;
-                        existingWo.TotalWeight = totalWeight;
-                        existingWo.TotalItemCount = groupItems.Count;
-                        existingWo.ItemDetails = itemDetails;
-                        existingWo.TechnicalRequirements = technicalRequirements;
-                        existingWo.Status = WorkOrderStatus.Confirmed;
 
                         _logger.LogInformation("更新修改工单: {WorkOrderNo}, 项次 {OldCount}→{NewCount}",
                             existingWo.WorkOrderNo, oldItemIds.Count, newItemIds.Count);
                     }
-                    else
-                    {
-                        // 项次无变化，仅清除待修正标记
-                        if (existingWo.Status == WorkOrderStatus.Pending)
-                        {
-                            existingWo.Status = WorkOrderStatus.Confirmed;
-                            changed = true; // 状态变了也算修改
-                        }
-                    }
+
+                    // 始终重算聚合字段（即使项次无变化，也要修复原始生成时的错误值）
+                    var (minLength, maxLength, totalQuantity, totalMeters, totalWeight, itemDetails, technicalRequirements) =
+                        CalculateAggregates(groupItems, firstItem.LengthStatus);
+
+                    existingWo.MinLength = minLength;
+                    existingWo.MaxLength = maxLength;
+                    existingWo.TotalQuantity = totalQuantity;
+                    existingWo.TotalMeters = totalMeters;
+                    existingWo.TotalWeight = totalWeight;
+                    existingWo.TotalItemCount = groupItems.Count;
+                    existingWo.ItemDetails = itemDetails;
+                    existingWo.TechnicalRequirements = technicalRequirements;
+                    existingWo.Status = WorkOrderStatus.Confirmed;
+
+                    if (!changed) changed = true;
 
                     result.Add(new GeneratedWorkOrderDto
                     {
@@ -999,10 +984,6 @@ public class WorkOrderService : IWorkOrderService
 
                     var (newMinLength, newMaxLength, newTotalQuantity, newTotalMeters, newTotalWeight, newItemDetails, newTechRequirements) =
                         CalculateAggregates(groupItems, firstItem.LengthStatus);
-
-                    decimal? finalMaxLength = newMaxLength;
-                    if (firstItem.LengthStatus == LengthStatus.Fixed && newMinLength.HasValue)
-                        finalMaxLength = newMinLength;
 
                     // 生成新的工单号
                     var workOrderNo = await GenerateNextWorkOrderNoAsync();
@@ -1032,7 +1013,7 @@ public class WorkOrderService : IWorkOrderService
                         WallThicknessPositive = firstItem.WallThicknessPositive,
                         LengthStatus = firstItem.LengthStatus,
                         MinLength = newMinLength,
-                        MaxLength = finalMaxLength,
+                        MaxLength = newMaxLength,
                         TotalQuantity = newTotalQuantity,
                         TotalMeters = newTotalMeters,
                         TotalWeight = newTotalWeight,
@@ -1373,8 +1354,14 @@ public class WorkOrderService : IWorkOrderService
                 case "lengthstatus":
                     workOrderQuery = query.IsDescending ? workOrderQuery.OrderByDescending(wo => wo.LengthStatus) : workOrderQuery.OrderBy(wo => wo.LengthStatus);
                     break;
+                case "materialname":
+                    workOrderQuery = query.IsDescending ? workOrderQuery.OrderByDescending(wo => wo.MaterialName) : workOrderQuery.OrderBy(wo => wo.MaterialName);
+                    break;
                 case "maxlength":
                     workOrderQuery = query.IsDescending ? workOrderQuery.OrderByDescending(wo => wo.MaxLength) : workOrderQuery.OrderBy(wo => wo.MaxLength);
+                    break;
+                case "minlength":
+                    workOrderQuery = query.IsDescending ? workOrderQuery.OrderByDescending(wo => wo.MinLength) : workOrderQuery.OrderBy(wo => wo.MinLength);
                     break;
                 case "totalquantity":
                     workOrderQuery = query.IsDescending ? workOrderQuery.OrderByDescending(wo => wo.TotalQuantity) : workOrderQuery.OrderBy(wo => wo.TotalQuantity);
