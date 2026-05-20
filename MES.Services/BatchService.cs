@@ -257,6 +257,9 @@ public class BatchService : IBatchService
             })
             .ToListAsync();
 
+        // ========== 从 CustomerProfile 覆盖 Salesman/EndCustomer ==========
+        await PatchCustomerFieldsAsync(items);
+
         // ========== 计算有效投料疑问 ==========
         if (items.Count > 0)
         {
@@ -330,6 +333,9 @@ public class BatchService : IBatchService
                 dto.WarehouseName = warehouse.Name;
         }
 
+        // 从 CustomerProfile 取最新 Salesman/EndCustomer
+        await PatchCustomerFieldsAsync(dto);
+
         return dto;
     }
 
@@ -343,7 +349,12 @@ public class BatchService : IBatchService
         if (entity == null)
             throw new BusinessException($"生产批次不存在 (BatchNo={batchNo})");
 
-        return ToDetailDto(entity);
+        var dto = ToDetailDto(entity);
+
+        // 从 CustomerProfile 取最新 Salesman/EndCustomer
+        await PatchCustomerFieldsAsync(dto);
+
+        return dto;
     }
 
     public async Task<AdjacentBatchDto> GetAdjacentBatchAsync(int currentId)
@@ -630,6 +641,9 @@ public class BatchService : IBatchService
             if (warehouse != null)
                 dto.WarehouseName = warehouse.Name;
         }
+
+        // 从 CustomerProfile 取最新 Salesman/EndCustomer
+        await PatchCustomerFieldsAsync(dto);
 
         return dto;
     }
@@ -1626,6 +1640,50 @@ public class BatchService : IBatchService
             CreatedTime = entity.CreatedTime,
             CreatedBy = entity.CreatedBy
         };
+    }
+
+    /// <summary>
+    /// 从 CustomerProfile 取当前最新 Salesman/EndCustomer，覆盖 ProductionBatch 冗余快照
+    /// </summary>
+    private async Task PatchCustomerFieldsAsync(ProductionBatchDetailDto dto)
+    {
+        if (string.IsNullOrEmpty(dto.SalesOrderNo)) return;
+
+        var salesOrder = await _context.SalesOrders
+            .AsNoTracking()
+            .Include(so => so.Customer)
+            .FirstOrDefaultAsync(so => so.OrderNumber == dto.SalesOrderNo);
+        if (salesOrder?.Customer != null)
+        {
+            dto.Salesman = salesOrder.Customer.Salesman;
+            dto.EndCustomer = salesOrder.Customer.EndCustomer;
+        }
+    }
+
+    /// <summary>
+    /// 批量从 CustomerProfile 覆盖 ProductionBatchListDto 的冗余快照字段
+    /// </summary>
+    private async Task PatchCustomerFieldsAsync(List<ProductionBatchListDto> items)
+    {
+        var orderNos = items.Select(i => i.SalesOrderNo).Distinct().ToList();
+        if (orderNos.Count == 0) return;
+
+        var salesOrders = await _context.SalesOrders
+            .AsNoTracking()
+            .Include(so => so.Customer)
+            .Where(so => orderNos.Contains(so.OrderNumber))
+            .ToListAsync();
+
+        var customerByOrderNo = salesOrders.ToDictionary(so => so.OrderNumber, so => so.Customer);
+
+        foreach (var item in items)
+        {
+            if (customerByOrderNo.TryGetValue(item.SalesOrderNo, out var customer))
+            {
+                item.Salesman = customer.Salesman;
+                item.EndCustomer = customer.EndCustomer;
+            }
+        }
     }
 
     /// <summary>
