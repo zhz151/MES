@@ -289,6 +289,9 @@ public class OrderService : IOrderService
                 .ToDictionaryAsync(ps => ps.Id, ps => ps)
             : new Dictionary<int, ProductionStandard>();
 
+        // 加载牌号映射（从 StandardGradeMapping 取最新 PlantGrade/Density）
+        var gradeDict = await LoadGradeMappingsDictAsync(salesOrder.OrderItems);
+
         return new SalesOrderDetailDto
         {
             Id = salesOrder.Id,
@@ -314,8 +317,8 @@ public class OrderService : IOrderService
                     ProductionStandardCode = ps?.StandardCode ?? string.Empty,
                     DeliveryState = oi.DeliveryState,
                     StandardGrade = oi.StandardGrade,
-                    PlantGrade = oi.PlantGrade,
-                    Density = oi.Density,
+                    PlantGrade = gradeDict.TryGetValue(oi.StandardGrade, out var gm) ? gm.PlantGrade : oi.PlantGrade,
+                    Density = gradeDict.TryGetValue(oi.StandardGrade, out var gm2) ? gm2.Density : oi.Density,
                     OuterDiameter = oi.OuterDiameter,
                     WallThickness = oi.WallThickness,
                     Specification = oi.Specification,
@@ -1297,6 +1300,20 @@ public async Task DeleteAsync(int id)
         };
     }
 
+    /// <summary>
+    /// 加载牌号映射表，用于从 StandardGradeMapping 取最新 PlantGrade/Density 覆盖 OrderItem 的冗余快照
+    /// </summary>
+    private async Task<Dictionary<string, StandardGradeMapping>> LoadGradeMappingsDictAsync(IEnumerable<OrderItem> orderItems)
+    {
+        var gradeNames = orderItems.Select(oi => oi.StandardGrade).Where(s => !string.IsNullOrEmpty(s)).Distinct().ToList();
+        if (gradeNames.Count == 0)
+            return new Dictionary<string, StandardGradeMapping>();
+
+        return await _context.StandardGradeMappings
+            .Where(sgm => gradeNames.Contains(sgm.StandardGrade))
+            .ToDictionaryAsync(sgm => sgm.StandardGrade);
+    }
+
     private static bool CanTransitionTo(SalesOrderStatus current, SalesOrderStatus target)
     {
         if (current == target) return true;
@@ -1376,6 +1393,10 @@ public async Task DeleteAsync(int id)
                 .ToDictionaryAsync(ps => ps.Id, ps => ps)
             : new Dictionary<int, ProductionStandard>();
 
+        // 加载牌号映射（从 StandardGradeMapping 取最新 PlantGrade/Density）
+        var allOrderItems = salesOrders.SelectMany(so => so.OrderItems).ToList();
+        var gradeDict = await LoadGradeMappingsDictAsync(allOrderItems);
+
         return salesOrders.Select(so =>
         {
             customers.TryGetValue(so.CustomerId, out var customer);
@@ -1404,8 +1425,8 @@ public async Task DeleteAsync(int id)
                         ProductionStandardCode = ps?.StandardCode ?? string.Empty,
                         DeliveryState = oi.DeliveryState,
                         StandardGrade = oi.StandardGrade,
-                        PlantGrade = oi.PlantGrade,
-                        Density = oi.Density,
+                        PlantGrade = gradeDict.TryGetValue(oi.StandardGrade, out var gm) ? gm.PlantGrade : oi.PlantGrade,
+                        Density = gradeDict.TryGetValue(oi.StandardGrade, out var gm2) ? gm2.Density : oi.Density,
                         OuterDiameter = oi.OuterDiameter,
                         WallThickness = oi.WallThickness,
                         Specification = oi.Specification,

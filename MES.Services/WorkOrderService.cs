@@ -360,6 +360,14 @@ public class WorkOrderService : IWorkOrderService
                 .ToDictionaryAsync(ps => ps.Id, ps => ps)
             : new Dictionary<int, ProductionStandard>();
 
+        // 加载牌号映射（从 StandardGradeMapping 取最新 PlantGrade/Density）
+        var gradeNames = orderItems.Select(oi => oi.StandardGrade).Where(s => !string.IsNullOrEmpty(s)).Distinct().ToList();
+        var gradeDict = gradeNames.Any()
+            ? await _context.StandardGradeMappings
+                .Where(sgm => gradeNames.Contains(sgm.StandardGrade))
+                .ToDictionaryAsync(sgm => sgm.StandardGrade)
+            : new Dictionary<string, StandardGradeMapping>();
+
         var groups = GroupOrderItemsByMergeFields(orderItems);
         var result = new List<OrderItemForWorkOrderDto>();
         var mainNoCounter = 1;
@@ -384,7 +392,7 @@ public class WorkOrderService : IWorkOrderService
                     SettlementMethod = item.SettlementMethod,
                     StandardCode = ps?.StandardCode ?? string.Empty,
                     DeliveryState = item.DeliveryState,
-                    PlantGrade = item.PlantGrade,
+                    PlantGrade = gradeDict.TryGetValue(item.StandardGrade, out var gm) ? gm.PlantGrade : item.PlantGrade,
                     Specification = item.Specification,
                     OuterDiameterNegative = item.OuterDiameterNegative,
                     OuterDiameterPositive = item.OuterDiameterPositive,
