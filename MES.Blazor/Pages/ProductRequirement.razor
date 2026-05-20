@@ -438,12 +438,7 @@
     }
 
     // ========== 辅助方法 ==========
-    private string GetRequirementTypeText(RequirementType type) => type switch
-    {
-        RequirementType.Normal => "常规",
-        RequirementType.Special => "特殊",
-        _ => type.ToString()
-    };
+    private string GetRequirementTypeText(RequirementType type) => DisplayHelper.GetRequirementTypeText(type);
 
     private string FormatDateTime(DateTimeOffset dt)
     {

@@ -120,6 +120,41 @@ public class RepairOrderServiceTests : TestBase
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
     }
 
+    // ========== CreateBatchAsync ==========
+
+    [Fact]
+    public async Task CreateBatchAsync_批量创建成功()
+    {
+        var ctx = CreateDbContext();
+        var eq = await SeedEquipmentAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var requests = new List<CreateRepairOrderRequest>
+        {
+            new() { EquipmentId = eq.Id, FaultDescription = "故障1", ReportPerson = "张三" },
+            new() { EquipmentId = eq.Id, FaultDescription = "故障2", ReportPerson = "李四" }
+        };
+
+        var results = await svc.CreateBatchAsync(requests);
+
+        results.Should().HaveCount(2);
+        results[0].FaultDescription.Should().Be("故障1");
+        results[1].FaultDescription.Should().Be("故障2");
+        results[0].RepairOrderNo.Should().StartWith("WX-");
+        results[1].RepairOrderNo.Should().StartWith("WX-");
+    }
+
+    [Fact]
+    public async Task CreateBatchAsync_空列表_返回空()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var results = await svc.CreateBatchAsync(new List<CreateRepairOrderRequest>());
+
+        results.Should().BeEmpty();
+    }
+
     // ========== CreateAsync ==========
 
     [Fact]
@@ -185,6 +220,28 @@ public class RepairOrderServiceTests : TestBase
 
         var deleted = await ctx.RepairOrders.FindAsync(id);
         deleted.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task DeleteAsync_不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.DeleteAsync(999);
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.UpdateAsync(999, new UpdateRepairOrderRequest());
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
     }
 
     // ========== Helpers ==========

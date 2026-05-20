@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
 using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Shared.Constants;
 
 namespace MES.Api.Controllers;
 
@@ -27,7 +28,7 @@ public class ScanController : ControllerBase
     /// <param name="batchNo">批次号</param>
     /// <param name="processGroupId">工序组ID</param>
     [HttpGet("resolve")]
-    [Authorize(Roles = "BatchStaff,BatchDirector,Admin")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<ScanResolveResultDto>>> Resolve(
         [FromQuery] string batchNo,
         [FromQuery] int processGroupId)
@@ -44,7 +45,7 @@ public class ScanController : ControllerBase
     /// </summary>
     /// <param name="batchNo">批次号</param>
     [HttpGet("batch-groups")]
-    [Authorize(Roles = "BatchStaff,BatchDirector,Admin")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<ScanBatchResolveResultDto>>> GetBatchProcessGroups(
         [FromQuery] string batchNo)
     {

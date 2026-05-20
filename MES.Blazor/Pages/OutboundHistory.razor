@@ -1,6 +1,7 @@
 @page "/warehouse/outbound-history"
 @page "/warehouse/outbound-history/{Code}"
 @using MES.Blazor.Services
+@using MES.Blazor.Helpers
 @using MES.Core.DTOs
 @using MES.Core.Models
 @using Microsoft.AspNetCore.Authorization
@@ -767,17 +768,7 @@
 
     // ========== 辅助方法 ==========
 
-    private static string GetOutboundTypeText(string type) => type switch
-    {
-        "SalesOut" => "销售出库",
-        "SubcontractOut" => "委外出库",
-        "ReturnOut" => "退货出库",
-        "ProductionPick" => "生产领用",
-        "InspectionPick" => "检验领用",
-        "TransferOut" => "移库出库",
-        "OtherOut" => "其他出库",
-        _ => "未知"
-    };
+    private static string GetOutboundTypeText(string type) => DisplayHelper.GetOutboundTypeText(type);
 
     private void GoBack() => Navigation.NavigateTo(!string.IsNullOrEmpty(Code) ? $"/warehouse/{Code.ToLowerInvariant()}" : "/warehouse");
 }

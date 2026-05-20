@@ -160,4 +160,33 @@ public class ProductRequirementServiceTests : TestBase
         await act.Should().ThrowAsync<BusinessException>()
             .WithMessage("技术要求不允许单独删除，请删除对应的订单项次");
     }
+
+    [Fact]
+    public async Task GetByOrderItemIdAsync_存在_返回Dto()
+    {
+        var ctx = CreateDbContext();
+        var (_, itemId) = await SeedOrderItemAsync(ctx);
+        var svc = CreateService(ctx);
+
+        await svc.CreateOrUpdateAsync(itemId, new CreateProductRequirementRequest
+        {
+            RequirementType = RequirementType.Normal,
+            ChemicalComposition = "C:0.20"
+        });
+
+        var result = await svc.GetByOrderItemIdAsync(itemId);
+        result.Should().NotBeNull();
+        result!.OrderItemId.Should().Be(itemId);
+        result.ChemicalComposition.Should().Be("C:0.20");
+    }
+
+    [Fact]
+    public async Task GetByOrderIdAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var results = await svc.GetByOrderIdAsync(999);
+        results.Should().BeEmpty();
+    }
 }

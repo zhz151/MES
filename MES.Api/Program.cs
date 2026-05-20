@@ -18,6 +18,7 @@ using MES.Data.Entities;
 using MES.Data.Seed;
 using MES.Services;
 using MES.Services.DataExchange;
+using MES.Services.DataFix;
 using MES.Services.Order;
 using QuestPDF.Infrastructure;
 using MES.Shared.Settings;
@@ -159,6 +160,9 @@ builder.Services.AddScoped<IInspectionRecordService, InspectionRecordService>();
 
 // 数据导入导出服务
 builder.Services.AddScoped<IDataExchangeService, DataExchangeService>();
+
+// 数据修复服务
+builder.Services.AddScoped<IDataFixService, DataFixService>();
 
 // 扫码执行服务
 builder.Services.AddScoped<IScanService, ScanService>();

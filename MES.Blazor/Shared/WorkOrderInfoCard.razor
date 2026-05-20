@@ -14,7 +14,7 @@
             <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">业务员</MudText><MudText Typo="Typo.body2" Class="mb-0">@WorkOrder.Salesman</MudText></div>
             <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">最终用户</MudText><MudText Typo="Typo.body2" Class="mb-0">@(WorkOrder.EndCustomer ?? "-")</MudText></div>
             <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">交货日期</MudText><MudText Typo="Typo.body2" Class="mb-0">@WorkOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText></div>
-            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">延期罚款</MudText><MudText Typo="Typo.body2" Class="mb-0">@(WorkOrder.DelayPenalty ? "是" : "否")</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">延期罚款</MudText><MudText Typo="Typo.body2" Class="mb-0">@(DisplayHelper.GetYesNoText(WorkOrder.DelayPenalty))</MudText></div>
             <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">物料名称</MudText><MudText Typo="Typo.body2" Class="mb-0">@DisplayHelper.GetMaterialNameText(WorkOrder.MaterialName)</MudText></div>
             <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">结算方式</MudText><MudText Typo="Typo.body2" Class="mb-0">@DisplayHelper.GetSettlementMethodText(WorkOrder.SettlementMethod)</MudText></div>
             <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">标准编码</MudText><MudText Typo="Typo.body2" Class="mb-0">@WorkOrder.StandardCode</MudText></div>

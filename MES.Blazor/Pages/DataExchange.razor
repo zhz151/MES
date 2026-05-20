@@ -238,6 +238,38 @@
                 }
             </MudPaper>
         }
+
+        <!-- 数据修复工具 -->
+        <MudPaper Class="pa-4 mb-4">
+            <MudText Typo="Typo.subtitle1" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.Build" Class="mr-1" Size="Size.Small" />
+                Ⅳ. 数据修复
+            </MudText>
+
+            <MudText Typo="Typo.body2" Class="mb-3">
+                部分系统计算字段可能因数据导入被错误覆盖。点击下方按钮可一键重新计算所有系统推导字段：
+                组内序号、工段委外状态、批次当前跟踪信息（规格/工序/工段）、采购/委外订单状态、设备日期等。
+            </MudText>
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Warning"
+                       StartIcon="@Icons.Material.Filled.AutoFixHigh"
+                       OnClick="FixAllSystemFields"
+                       Loading="@isFixingAll"
+                       Disabled="@isFixingAll">
+                一键修复所有系统字段
+            </MudButton>
+
+            @if (fixReport != null)
+            {
+                <MudAlert Severity="Severity.Success" Class="mt-3" Variant="Variant.Outlined">
+                    修复完成：组内序号 @fixReport.SequenceNumbersFixed 条，
+                    工段委外状态 @fixReport.OutsourceStatusFixed 条，
+                    批次跟踪 @fixReport.BatchTrackingFixed 个批次，
+                    设备日期 @fixReport.EquipmentFixed 台。
+                </MudAlert>
+            }
+        </MudPaper>
     }
 </MudContainer>
 
@@ -251,8 +283,10 @@
     private bool isLoading;
     private bool isPreviewing;
     private bool isImporting;
+    private bool isFixingAll;
     private bool isAdmin;
     private bool canPreview;
+    private MES.Core.Models.DataFixReport? fixReport;
 
     protected override async Task OnInitializedAsync()
     {
@@ -450,5 +484,32 @@
     private void UpdateCanPreview()
     {
         canPreview = !isPreviewing && !string.IsNullOrEmpty(selectedEntity) && selectedFile != null;
+    }
+
+    private async Task FixAllSystemFields()
+    {
+        isFixingAll = true;
+        fixReport = null;
+        try
+        {
+            var result = await DataExchangeSvc.FixAllSystemFieldsAsync();
+            if (result.Success && result.Data != null)
+            {
+                fixReport = result.Data;
+                Snackbar.Add($"全字段修复完成，共 {fixReport.Total} 条", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "修复失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"修复失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isFixingAll = false;
+        }
     }
 }

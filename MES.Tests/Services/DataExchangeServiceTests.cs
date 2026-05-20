@@ -1,6 +1,9 @@
+using System.Data.Common;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
+using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
@@ -285,5 +288,308 @@ public class DataExchangeServiceTests : TestBase
         using var package = new ExcelPackage(new MemoryStream(bytes));
         var sheet = package.Workbook.Worksheets[0];
         sheet.Should().NotBeNull();
+    }
+
+    // ========== 导入测试（使用 TestableDataExchangeService 跳过原生 SQL 约束管理） ==========
+
+    /// <summary>
+    /// 创建测试 Excel 文件的 byte[]
+    /// </summary>
+    private static byte[] CreateTestExcel(string sheetName, List<string> headers, List<List<string?>> rows)
+    {
+        using var package = new ExcelPackage();
+        var sheet = package.Workbook.Worksheets.Add(sheetName);
+        for (int c = 0; c < headers.Count; c++)
+            sheet.Cells[1, c + 1].Value = headers[c];
+        for (int r = 0; r < rows.Count; r++)
+        {
+            for (int c = 0; c < headers.Count && c < rows[r].Count; c++)
+            {
+                if (rows[r][c] != null)
+                    sheet.Cells[r + 2, c + 1].Value = rows[r][c];
+            }
+        }
+        return package.GetAsByteArray();
+    }
+
+    private TestableDataExchangeService CreateTestableService(AppDbContext ctx)
+    {
+        var loggerMock = new Mock<ILogger<DataExchangeService>>();
+        return new TestableDataExchangeService(ctx, loggerMock.Object);
+    }
+
+    [Fact]
+    public async Task ImportAsync_仓库_基础导入_skip策略()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateTestableService(ctx);
+
+        var bytes = CreateTestExcel("仓库档案", new() { "仓库编码", "仓库名称", "显示顺序", "是否启用" },
+            new() { new() { "WH001", "一号仓库", "1", "是" } });
+
+        var result = await svc.ImportAsync("Warehouse", bytes, "skip", "test");
+
+        result.SuccessCount.Should().Be(1);
+        result.HasRolledBack.Should().BeFalse();
+        var saved = await ctx.Warehouses.FirstOrDefaultAsync(w => w.Code == "WH001");
+        saved.Should().NotBeNull();
+        saved!.Name.Should().Be("一号仓库");
+        saved.SortOrder.Should().Be(1);
+        saved.IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ImportAsync_仓库_覆盖已有记录()
+    {
+        var ctx = CreateDbContext();
+        ctx.Warehouses.Add(new Warehouse { Code = "WH001", Name = "旧名称", SortOrder = 1, IsActive = true });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateTestableService(ctx);
+
+        var bytes = CreateTestExcel("仓库档案", new() { "仓库编码", "仓库名称", "显示顺序", "是否启用" },
+            new() { new() { "WH001", "新名称", "2", "是" } });
+
+        var result = await svc.ImportAsync("Warehouse", bytes, "overwrite", "test");
+
+        result.SuccessCount.Should().Be(1);
+        result.HasRolledBack.Should().BeFalse();
+
+        var saved = await ctx.Warehouses.FirstAsync(w => w.Code == "WH001");
+        saved.Name.Should().Be("新名称");
+        saved.SortOrder.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task ImportAsync_仓库_跳过重复()
+    {
+        var ctx = CreateDbContext();
+        ctx.Warehouses.Add(new Warehouse { Code = "WH001", Name = "原始名称", SortOrder = 1, IsActive = true });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateTestableService(ctx);
+
+        var bytes = CreateTestExcel("仓库档案", new() { "仓库编码", "仓库名称", "显示顺序", "是否启用" },
+            new() { new() { "WH001", "跳过不应更新", "2", "是" } });
+
+        var result = await svc.ImportAsync("Warehouse", bytes, "skip", "test");
+
+        result.SuccessCount.Should().Be(0);
+        result.Errors.Should().BeEmpty();
+        result.HasRolledBack.Should().BeFalse();
+
+        var saved = await ctx.Warehouses.FirstAsync(w => w.Code == "WH001");
+        saved.Name.Should().Be("原始名称");
+    }
+
+    [Fact]
+    public async Task ImportAsync_仓库_多行批量导入()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateTestableService(ctx);
+
+        var bytes = CreateTestExcel("仓库档案", new() { "仓库编码", "仓库名称", "显示顺序", "是否启用" },
+            new() {
+                new() { "WH001", "一号仓库", "1", "是" },
+                new() { "WH002", "二号仓库", "2", "是" },
+                new() { "WH003", "三号仓库", "3", "否" },
+            });
+
+        var result = await svc.ImportAsync("Warehouse", bytes, "skip", "test");
+
+        result.SuccessCount.Should().Be(3);
+        var count = await ctx.Warehouses.CountAsync();
+        count.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task ImportAsync_仓库_可空字段不填()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateTestableService(ctx);
+
+        // 备注是可空字段，不填应正常导入
+        var bytes = CreateTestExcel("仓库档案", new() { "仓库编码", "仓库名称", "显示顺序", "是否启用" },
+            new() { new() { "WH001", "无备注仓库", "1", "是" } });
+
+        var result = await svc.ImportAsync("Warehouse", bytes, "skip", "test");
+
+        result.SuccessCount.Should().Be(1);
+        result.HasRolledBack.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ImportAsync_客户档案_含枚举状态()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateTestableService(ctx);
+
+        var bytes = CreateTestExcel("客户档案", new() { "客户编码", "客户单位", "业务员", "状态", "备注" },
+            new() { new() { "C001", "测试客户", "张三", "启用", "" } });
+
+        var result = await svc.ImportAsync("CustomerProfile", bytes, "skip", "test");
+
+        result.SuccessCount.Should().Be(1);
+        var saved = await ctx.CustomerProfiles.FirstAsync(c => c.CustomerCode == "C001");
+        saved.Status.Should().Be(CustomerStatus.Active);
+    }
+
+    [Fact]
+    public async Task ImportAsync_产品标准_bool值转换()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateTestableService(ctx);
+
+        var bytes = CreateTestExcel("产品标准", new() { "标准编码", "标准名称", "排序", "是否启用" },
+            new() { new() { "GB/T 8163", "流体管", "1", "是" } });
+
+        var result = await svc.ImportAsync("ProductionStandard", bytes, "skip", "test");
+
+        result.SuccessCount.Should().Be(1);
+        var saved = await ctx.ProductionStandards.FirstAsync(ps => ps.StandardCode == "GB/T 8163");
+        saved.IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ImportAsync_牌号对照_含枚举和decimal()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateTestableService(ctx);
+
+        var bytes = CreateTestExcel("牌号对照", new() { "标准牌号", "工厂牌号", "密度(g/cm³)", "特殊材料" },
+            new() { new() { "Q345B", "Q345B", "7.85", "是" } });
+
+        var result = await svc.ImportAsync("StandardGradeMapping", bytes, "skip", "test");
+
+        result.SuccessCount.Should().Be(1);
+        var saved = await ctx.StandardGradeMappings.FirstAsync(s => s.StandardGrade == "Q345B");
+        saved.PlantGrade.Should().Be("Q345B");
+        saved.Density.Should().Be(7.85m);
+        saved.SpecialMaterial.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ImportAsync_供应商_自动生成编码()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateTestableService(ctx);
+
+        // 供应商编码是系统字段（SupplierCode → SU），不应在Excel中填
+        var bytes = CreateTestExcel("供应商档案", new() { "供应商名称", "物料分类", "是否启用" },
+            new() { new() { "测试供应商", "不锈钢管", "是" } });
+
+        var result = await svc.ImportAsync("SupplierProfile", bytes, "skip", "test");
+
+        result.SuccessCount.Should().Be(1);
+        var saved = await ctx.SupplierProfiles.FirstAsync(s => s.SupplierName == "测试供应商");
+        saved.SupplierCode.Should().Be("SU0001");
+        saved.IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ImportAsync_供应商_自动编码递增()
+    {
+        var ctx = CreateDbContext();
+        ctx.SupplierProfiles.Add(new SupplierProfile
+        {
+            SupplierCode = "SU0001", SupplierName = "已有供应商",
+            MaterialCategory = "钢管", IsActive = true
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateTestableService(ctx);
+
+        var bytes = CreateTestExcel("供应商档案", new() { "供应商名称", "物料分类", "是否启用" },
+            new() { new() { "新供应商", "不锈钢管", "是" } });
+
+        var result = await svc.ImportAsync("SupplierProfile", bytes, "skip", "test");
+
+        result.SuccessCount.Should().Be(1);
+        var saved = await ctx.SupplierProfiles.FirstAsync(s => s.SupplierName == "新供应商");
+        saved.SupplierCode.Should().Be("SU0002");
+    }
+
+    [Fact]
+    public async Task ImportAsync_物料_复合键_不填备注()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateTestableService(ctx);
+
+        var bytes = CreateTestExcel("物料", new() { "物料分类", "厂内钢种", "名义规格", "是否启用" },
+            new() { new() { "管坯", "304", "Φ65", "是" } });
+
+        var result = await svc.ImportAsync("Material", bytes, "skip", "test");
+
+        result.SuccessCount.Should().Be(1);
+        var saved = await ctx.Materials.FirstAsync(m => m.MaterialCategory == "管坯");
+        saved.PlantGrade.Should().Be("304");
+        saved.Specification.Should().Be("Φ65");
+        saved.IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ImportAsync_设备_FK引用和复合字段()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateTestableService(ctx);
+
+        var bytes = CreateTestExcel("设备", new() { "设备编号", "设备名称", "型号规格", "是否需点检", "是否需保养", "生命周期", "作用类型" },
+            new() { new() { "EQ001", "冷拔机", "LB-100", "是", "是", "在用", "主生产设备" } });
+
+        var result = await svc.ImportAsync("Equipment", bytes, "skip", "test");
+
+        result.SuccessCount.Should().Be(1);
+        var saved = await ctx.Equipment.FirstAsync(e => e.EquipmentCode == "EQ001");
+        saved.EquipmentName.Should().Be("冷拔机");
+        saved.NeedInspection.Should().BeTrue();
+        saved.NeedMaintenance.Should().BeTrue();
+        saved.LifecycleStatus.Should().Be("Active");
+        saved.UsageType.Should().Be("Primary");
+    }
+
+    [Fact]
+    public async Task ImportAsync_返回统计正确()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateTestableService(ctx);
+
+        var bytes = CreateTestExcel("仓库档案", new() { "仓库编码", "仓库名称", "显示顺序", "是否启用" },
+            new() {
+                new() { "WH001", "一号", "1", "是" },
+                new() { "WH002", "二号", "2", "是" },
+            });
+
+        var result = await svc.ImportAsync("Warehouse", bytes, "skip", "test");
+
+        result.TotalRows.Should().Be(2);
+        result.SuccessCount.Should().Be(2);
+        result.FailedCount.Should().Be(0);
+        result.Strategy.Should().Be("skip");
+        result.Errors.Should().BeEmpty();
+    }
+}
+
+/// <summary>
+/// 可测试的 DataExchangeService：跳过 SQL Server 原生约束管理（InMemory 不支持原生 SQL）
+/// </summary>
+public class TestableDataExchangeService : DataExchangeService
+{
+    public TestableDataExchangeService(AppDbContext context, ILogger<DataExchangeService> logger)
+        : base(context, logger) { }
+
+    protected override Task DisableAllConstraintsAsync(DbConnection connection, DbTransaction transaction)
+    {
+        return Task.CompletedTask;
+    }
+
+    protected override Task<List<string>> EnableAndCheckConstraintsAsync(DbConnection connection, DbTransaction transaction)
+    {
+        return Task.FromResult(new List<string>());
+    }
+
+    protected override async Task<(IDbContextTransaction transaction, DbTransaction? dbTransaction)> BeginImportTransactionAsync()
+    {
+        var mock = new Mock<IDbContextTransaction>();
+        return (mock.Object, null);
     }
 }

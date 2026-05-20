@@ -399,14 +399,7 @@
     // ========== 导航 ==========
     private void GoBack() => Navigation.NavigateTo("/purchase-orders");
 
-    private static string GetStatusText(PurchaseOrderStatus status) => status switch
-    {
-        PurchaseOrderStatus.Open => "已下单",
-        PurchaseOrderStatus.Partial => "部分到货",
-        PurchaseOrderStatus.Completed => "已完成",
-        PurchaseOrderStatus.Cancelled => "已取消",
-        _ => "未知"
-    };
+    private static string GetStatusText(PurchaseOrderStatus status) => DisplayHelper.GetPurchaseOrderStatusText(status);
 
     // ========== 渲染方法 ==========
     private RenderFragment RenderCell(PurchaseOrderDto item, ColumnDef col) => builder =>
@@ -649,7 +642,7 @@
                 builder.AddContent(0, item.WoDeliveryDate?.ToString("yyyy-MM-dd"));
                 break;
             case "wodelaypenalty":
-                builder.AddContent(0, item.WoDelayPenalty ? "是" : "否");
+                builder.AddContent(0, DisplayHelper.GetYesNoText(item.WoDelayPenalty));
                 break;
             case "wosettlementmethod":
                 builder.AddContent(0, item.WoSettlementMethod != null ? DisplayHelper.GetSettlementMethodText(item.WoSettlementMethod.Value) : null);

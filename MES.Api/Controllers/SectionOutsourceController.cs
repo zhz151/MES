@@ -37,7 +37,10 @@ public class SectionOutsourceController : ControllerBase
         if (string.IsNullOrWhiteSpace(ids))
             return BadRequest(ApiResponse<List<SectionOutsourceDto>>.Fail("ids参数不能为空"));
         var idList = ids.Split(',', StringSplitOptions.RemoveEmptyEntries)
-            .Select(int.Parse).ToArray();
+            .Select(id => int.TryParse(id, out var parsed) ? parsed : (int?)null)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .ToArray();
         var result = await _service.GetByIdsAsync(idList);
         return Ok(ApiResponse<List<SectionOutsourceDto>>.Ok(result, "查询成功"));
     }
@@ -96,6 +99,8 @@ public class SectionOutsourceController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<SectionOutsourceDto>>>> BatchCreate(
         [FromBody] List<CreateSectionOutsourceRequest> requests)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<SectionOutsourceDto>>.Fail("请求参数无效"));
         if (requests.Count == 0)
             return BadRequest(ApiResponse<List<SectionOutsourceDto>>.Fail("请求列表不能为空"));
         var result = await _service.BatchCreateAsync(requests);
@@ -190,6 +195,8 @@ public class SectionOutsourceController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<OutsourceRecoveryDto>>>> BatchCreateRecoveries(
         [FromBody] List<CreateOutsourceRecoveryRequest> requests)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<OutsourceRecoveryDto>>.Fail("请求参数无效"));
         if (requests.Count == 0)
             return BadRequest(ApiResponse<List<OutsourceRecoveryDto>>.Fail("请求列表不能为空"));
         var result = await _service.BatchCreateRecoveriesAsync(requests);
@@ -229,6 +236,9 @@ public class SectionOutsourceController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintSelected([FromBody] SectionOutsourcePrintBatchRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
@@ -241,6 +251,9 @@ public class SectionOutsourceController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintAll([FromBody] SectionOutsourcePrintAllRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending,
             request.SendOutDateFrom, request.SendOutDateTo,
             request.ActualRecoveryDateFrom, request.ActualRecoveryDateTo,
@@ -256,6 +269,9 @@ public class SectionOutsourceController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintRecoverySelected([FromBody] RecoveryPrintBatchRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var pdfBytes = await _service.PrintRecoveryBatchAsync(request.Ids, request.Columns);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
@@ -268,6 +284,9 @@ public class SectionOutsourceController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintRecoveryAll([FromBody] RecoveryPrintAllRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var pdfBytes = await _service.PrintRecoveryAllAsync(request.Keyword, request.SortBy, request.IsDescending,
             request.RecoveryDateFrom, request.RecoveryDateTo, request.Columns);
         var base64 = Convert.ToBase64String(pdfBytes);

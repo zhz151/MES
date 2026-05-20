@@ -195,10 +195,14 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .GroupBy(p => p.WorkOrderId)
             .ToDictionary(g => g.Key, g => g.Max(p => p.PlanDate));
 
-        var inventoryPlanList = await _context.InventoryPlans
+        var rawInventoryPlanList = await _context.InventoryPlans
             .AsNoTracking()
             .Where(p => workOrderIds.Contains(p.WorkOrderId))
             .ToListAsync();
+        // 排除已取消的库存计划（同 MaterialPlanService 逻辑）
+        var inventoryPlanList = rawInventoryPlanList
+            .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled)
+            .ToList();
         var inventoryPlanDates = inventoryPlanList
             .GroupBy(p => p.WorkOrderId)
             .ToDictionary(g => g.Key, g => g.Max(p => p.PlanDate));
@@ -211,7 +215,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .GroupBy(p => p.WorkOrderId)
             .ToDictionary(g => g.Key, g => g.Max(p => p.PlanDate));
 
-        var now = DateTime.UtcNow;
+        // 用料计划数据按工单分组（用于计算满足率）
+        var semiByWo = semiPlanList.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
+        var finishByWo = finishPlanList.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
+        var inventoryByWo = inventoryPlanList.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
+        var piercingByWo = piercingPlanList.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
+
+        var now = DateTime.Now;
         var summaries = new List<WorkOrderExecutionSummary>();
 
         foreach (var wo in workOrders)
@@ -219,6 +229,16 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var woBatches = batchesByWo.TryGetValue(wo.WorkOrderNo, out var b) ? b : new List<ProductionBatch>();
 
             var summary = ComputeSummary(wo, customerNameByWo.TryGetValue(wo.Id, out var cn) ? cn : "", woBatches, semiPlanDates, finishPlanDates, inventoryPlanDates, piercingPlanDates);
+
+            // 从用料计划数据实时计算满足率（不依赖 WorkOrder 预计算字段）
+            var woSemi = semiByWo.TryGetValue(wo.Id, out var s) ? s : new List<PurchaseSemiPlan>();
+            var woFinish = finishByWo.TryGetValue(wo.Id, out var f) ? f : new List<PurchaseFinishedPlan>();
+            var woInventory = inventoryByWo.TryGetValue(wo.Id, out var iv) ? iv : new List<InventoryPlan>();
+            var woPiercing = piercingByWo.TryGetValue(wo.Id, out var pc) ? pc : new List<RoundBarPiercingPlan>();
+            var (rate, status) = PlanRateCalculator.ComputeWorkOrderRate(wo, woSemi, woFinish, woInventory, woPiercing);
+            summary.MaterialPlanRate = rate;
+            summary.MaterialPlanStatus = status;
+
             summary.LastRefreshTime = now;
             summaries.Add(summary);
         }
@@ -308,14 +328,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         if (piercingPlanDates.TryGetValue(wo.Id, out var pierceDate)) planDates.Add(pierceDate);
 
         summary.LatestPlanDate = planDates.Count > 0 ? planDates.Max() : null;
-        summary.MaterialPlanRate = wo.MaterialPlanRate;
-        summary.MaterialPlanStatus = (int)wo.MaterialPlanStatus;
+        // MaterialPlanRate / Status 在外层从计划数据实时计算，此处不设值
         // MainNo 级聚合在后续步骤计算
 
         // Group 3: 所有批次 — 逐批计算理论成品
+        // 投料起止日取批次的创建时间（非仓库入库日期）
         var inputDates = batches
-            .Where(b => b.InboundDate.HasValue)
-            .Select(b => b.InboundDate!.Value)
+            .Select(b => b.CreatedTime.DateTime)
             .ToList();
 
         summary.InputStartDate = inputDates.Count > 0 ? inputDates.Min() : null;
@@ -450,6 +469,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         List<WorkOrderExecutionSummary> summaries, List<WorkOrder> workOrders)
     {
         var woDict = workOrders.ToDictionary(wo => wo.Id);
+        // 使用 summary 中已算好的满足率（来自计划数据实时计算）
+        var summaryRateByWoId = summaries.ToDictionary(s => s.WorkOrderId, s => s.MaterialPlanRate);
 
         // 按 (SalesOrderNo, ProductionMainNo) 分组
         var mainNoGroups = summaries
@@ -470,11 +491,27 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var groupWorkOrders = group.Select(g => g.WorkOrder!).ToList();
             var groupSummaries = group.Select(g => g.Summary).ToList();
 
-            // Group 2: MainNo 级用料计划 — 率取平均，状态从率重新计算
+            // Group 2: MainNo 级用料计划 — 率取加权平均，状态从率重新计算
             if (groupWorkOrders.Count > 0)
             {
-                var avgRate = Math.Round(groupWorkOrders.Average(wo => wo.MaterialPlanRate), 2);
                 var isFixed = groupSummaries.First().LengthStatus == "Fixed";
+                decimal avgRate;
+                if (isFixed)
+                {
+                    // Fixed: 按总支数加权（使用 summary 已算好的满足率）
+                    var fixedTotalQty = groupWorkOrders.Sum(wo => wo.TotalQuantity);
+                    avgRate = fixedTotalQty > 0
+                        ? Math.Round(groupWorkOrders.Sum(wo => summaryRateByWoId.GetValueOrDefault(wo.Id, 0) * wo.TotalQuantity) / fixedTotalQty, 2)
+                        : 0;
+                }
+                else
+                {
+                    // 非 Fixed: 按总重量加权（使用 summary 已算好的满足率）
+                    var nonFixedTotalWeight = groupWorkOrders.Sum(wo => wo.TotalWeight);
+                    avgRate = nonFixedTotalWeight > 0
+                        ? Math.Round(groupWorkOrders.Sum(wo => summaryRateByWoId.GetValueOrDefault(wo.Id, 0) * wo.TotalWeight) / nonFixedTotalWeight, 2)
+                        : 0;
+                }
                 var mainStatus = CalculateMainNoStatusFromRate(avgRate, isFixed);
                 foreach (var s in groupSummaries)
                 {

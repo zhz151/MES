@@ -237,12 +237,14 @@
         new() { Key = "Operator",               Label = "操作员",     SortKey = "operator" },
         new() { Key = "Quantity",               Label = "检验支数",   SortKey = "quantity" },
         new() { Key = "Weight",                 Label = "检验重量",   SortKey = "weight" },
-        new() { Key = "QualifiedQuantity",      Label = "合格支数",   SortKey = "qualifiedquantity" },
-        new() { Key = "QualifiedWeight",        Label = "合格重量",   SortKey = "qualifiedweight" },
-        new() { Key = "DefectReworkQuantity",   Label = "返整支数",   SortKey = "defectreworkquantity" },
-        new() { Key = "DefectWarehouseQuantity",Label = "入库支数",   SortKey = "defectwarehousequantity" },
-        new() { Key = "DefectScrapQuantity",    Label = "报废支数",   SortKey = "defectscrapquantity" },
-        new() { Key = "DefectDescription",      Label = "不合格描述", SortKey = "defectdescription" },
+        new() { Key = "QualifiedQuantity",      Label = "合格支数",     SortKey = "qualifiedquantity" },
+        new() { Key = "QualifiedWeight",        Label = "合格重量",     SortKey = "qualifiedweight" },
+        new() { Key = "QualifiedConcessionQuantity", Label = "让步放行支", SortKey = "qualifiedconcessionquantity" },
+        new() { Key = "ConcessionRemark",       Label = "让步说明",     SortKey = "concessionremark" },
+        new() { Key = "DefectReworkQuantity",   Label = "次品返整支",   SortKey = "defectreworkquantity" },
+        new() { Key = "DefectWarehouseQuantity",Label = "次品入库支",   SortKey = "defectwarehousequantity" },
+        new() { Key = "DefectScrapQuantity",    Label = "次品报废支",   SortKey = "defectscrapquantity" },
+        new() { Key = "DefectDescription",      Label = "次品情况描述", SortKey = "defectdescription" },
         new() { Key = "OuterDiameterRange",     Label = "外径范围",   SortKey = "outerdiameterrange" },
         new() { Key = "WallThicknessRange",     Label = "壁厚范围",   SortKey = "wallthicknessrange" },
         new() { Key = "LengthAllowanceRange",   Label = "长度余量范围", SortKey = "lengthallowancerange" },
@@ -269,6 +271,8 @@
         public decimal? Weight { get; set; }
         public int? QualifiedQuantity { get; set; }
         public decimal? QualifiedWeight { get; set; }
+        public int? QualifiedConcessionQuantity { get; set; }
+        public string? ConcessionRemark { get; set; }
         public int? DefectReworkQuantity { get; set; }
         public int? DefectWarehouseQuantity { get; set; }
         public int? DefectScrapQuantity { get; set; }
@@ -294,6 +298,8 @@
             Weight = item.Weight,
             QualifiedQuantity = item.QualifiedQuantity,
             QualifiedWeight = item.QualifiedWeight,
+            QualifiedConcessionQuantity = item.QualifiedConcessionQuantity,
+            ConcessionRemark = item.ConcessionRemark,
             DefectReworkQuantity = item.DefectReworkQuantity,
             DefectWarehouseQuantity = item.DefectWarehouseQuantity,
             DefectScrapQuantity = item.DefectScrapQuantity,
@@ -338,6 +344,8 @@
                 Weight = cache.Weight,
                 QualifiedQuantity = cache.QualifiedQuantity,
                 QualifiedWeight = cache.QualifiedWeight,
+                QualifiedConcessionQuantity = cache.QualifiedConcessionQuantity,
+                ConcessionRemark = cache.ConcessionRemark,
                 DefectReworkQuantity = cache.DefectReworkQuantity,
                 DefectWarehouseQuantity = cache.DefectWarehouseQuantity,
                 DefectScrapQuantity = cache.DefectScrapQuantity,
@@ -361,6 +369,8 @@
                 item.Weight = result.Data.Weight;
                 item.QualifiedQuantity = result.Data.QualifiedQuantity;
                 item.QualifiedWeight = result.Data.QualifiedWeight;
+                item.QualifiedConcessionQuantity = result.Data.QualifiedConcessionQuantity;
+                item.ConcessionRemark = result.Data.ConcessionRemark;
                 item.DefectReworkQuantity = result.Data.DefectReworkQuantity;
                 item.DefectWarehouseQuantity = result.Data.DefectWarehouseQuantity;
                 item.DefectScrapQuantity = result.Data.DefectScrapQuantity;
@@ -662,6 +672,8 @@
         "Weight" => DisplayHelper.FormatNullableDecimal(item.Weight),
         "QualifiedQuantity" => DisplayHelper.FormatNullableInt(item.QualifiedQuantity),
         "QualifiedWeight" => DisplayHelper.FormatNullableDecimal(item.QualifiedWeight),
+        "QualifiedConcessionQuantity" => DisplayHelper.FormatNullableInt(item.QualifiedConcessionQuantity),
+        "ConcessionRemark" => item.ConcessionRemark ?? "",
         "DefectReworkQuantity" => DisplayHelper.FormatNullableInt(item.DefectReworkQuantity),
         "DefectWarehouseQuantity" => DisplayHelper.FormatNullableInt(item.DefectWarehouseQuantity),
         "DefectScrapQuantity" => DisplayHelper.FormatNullableInt(item.DefectScrapQuantity),
@@ -684,6 +696,7 @@
         "InspectionDate" or "EquipmentName" or "Shift" or "Operator"
             or "Quantity" or "Weight"
             or "QualifiedQuantity" or "QualifiedWeight"
+            or "QualifiedConcessionQuantity" or "ConcessionRemark"
             or "DefectReworkQuantity" or "DefectWarehouseQuantity" or "DefectScrapQuantity"
             or "DefectDescription" or "OuterDiameterRange" or "WallThicknessRange"
             or "LengthAllowanceRange" or "Pressure" or "HoldTime" or "Remark" => true,
@@ -847,6 +860,35 @@
                 else
                 {
                     builder.AddContent(0, DisplayHelper.FormatNullableDecimal(item.QualifiedWeight));
+                }
+                break;
+            case "QualifiedConcessionQuantity":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudNumericField<int?>>(0);
+                    builder.AddAttribute(1, "Value", cache.QualifiedConcessionQuantity);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => cache.QualifiedConcessionQuantity = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.QualifiedConcessionQuantity));
+                }
+                break;
+            case "ConcessionRemark":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", cache.ConcessionRemark);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.ConcessionRemark = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, item.ConcessionRemark);
                 }
                 break;
             case "DefectReworkQuantity":

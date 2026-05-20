@@ -66,6 +66,8 @@ public class MaterialController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<BatchMaterialMatchItem>>>> BatchMatch([FromBody] List<BatchMaterialMatchItem> items)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<BatchMaterialMatchItem>>.Fail("请求参数无效"));
         if (items == null || items.Count == 0)
             return Ok(ApiResponse<List<BatchMaterialMatchItem>>.Ok(new List<BatchMaterialMatchItem>(), "无匹配项"));
         var result = await _service.BatchMatchAsync(items);
@@ -86,6 +88,8 @@ public class MaterialController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<MaterialDto>>>> CreateBatch([FromBody] List<CreateMaterialRequest> requests)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<MaterialDto>>.Fail("请求参数无效"));
         if (requests == null || requests.Count == 0)
             return BadRequest(ApiResponse<List<MaterialDto>>.Fail("请求列表不能为空"));
         var result = await _service.CreateBatchAsync(requests);
@@ -125,6 +129,9 @@ public class MaterialController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintMaterialBatch([FromBody] OrderPrintBatchRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var pdfBytes = await _service.PrintMaterialBatchAsync(request.Ids);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
@@ -134,6 +141,9 @@ public class MaterialController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintMaterialAll([FromBody] OrderPrintAllRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var pdfBytes = await _service.PrintMaterialAllAsync(request.Keyword, request.SortBy, request.IsDescending);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));

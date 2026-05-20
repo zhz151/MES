@@ -183,6 +183,41 @@ public class InspectionRecordServiceTests : TestBase
         deleted.Should().BeNull();
     }
 
+    // ========== CreateBatchAsync ==========
+
+    [Fact]
+    public async Task CreateBatchAsync_批量创建成功()
+    {
+        var ctx = CreateDbContext();
+        var eq = await SeedEquipmentAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var requests = new List<CreateInspectionRecordRequest>
+        {
+            new() { EquipmentId = eq.Id, Inspector = "张三", ExecutionSummary = "点检1", ActualDate = DateTime.Today },
+            new() { EquipmentId = eq.Id, Inspector = "李四", ExecutionSummary = "点检2", ActualDate = DateTime.Today }
+        };
+
+        var results = await svc.CreateBatchAsync(requests);
+
+        results.Should().HaveCount(2);
+        results[0].Inspector.Should().Be("张三");
+        results[1].Inspector.Should().Be("李四");
+        results[0].RecordNo.Should().StartWith("DJ-");
+        results[1].RecordNo.Should().StartWith("DJ-");
+    }
+
+    [Fact]
+    public async Task CreateBatchAsync_空列表_返回空()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var results = await svc.CreateBatchAsync(new List<CreateInspectionRecordRequest>());
+
+        results.Should().BeEmpty();
+    }
+
     // ========== Helpers ==========
 
     private async Task SeedInspectionRecordAsync(AppDbContext ctx, int equipmentId, string recordNo)

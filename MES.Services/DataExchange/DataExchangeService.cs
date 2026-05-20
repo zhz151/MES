@@ -24,7 +24,7 @@ namespace MES.Services.DataExchange;
 /// </summary>
 public class DataExchangeService : IDataExchangeService
 {
-    private readonly AppDbContext _context;
+    protected readonly AppDbContext _context;
     private readonly ILogger<DataExchangeService> _logger;
 
     public DataExchangeService(AppDbContext context, ILogger<DataExchangeService> logger)
@@ -80,7 +80,7 @@ public class DataExchangeService : IDataExchangeService
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        ["CustomerProfile"] = new EntityDef("客户档案", "客户档案", typeof(CustomerProfile), 1, "CustomerUnit", new List<ColumnDef>
+        ["CustomerProfile"] = new EntityDef("客户档案", "客户档案", typeof(CustomerProfile), 1, "CustomerCode", new List<ColumnDef>
         {
             new("客户编码", "CustomerCode"),
             new("客户单位", "CustomerUnit"),
@@ -272,8 +272,8 @@ public class DataExchangeService : IDataExchangeService
             new("生产编号", "BatchNo"),
             new("状态", "Status", typeof(BatchStatus), isEnum: true),
             new("挂牌号", "TagNo", typeof(string), isRequired: false),
-            new("生产类型", "ProductionType", typeof(string), isRequired: false),
-            new("制造物品", "ManufacturingItem"),
+            new("生产类型", "ProductionType", typeof(ProductionType), isEnum: true, isRequired: false),
+            new("制造物品", "ManufacturingItem", typeof(ManufacturingItem), isEnum: true),
             new("制几率", "ProductionRatio", typeof(int), isRequired: false),
             new("强制完成", "IsForceCompleted", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("质量备注", "QualityRemark", typeof(string), isRequired: false),
@@ -297,17 +297,17 @@ public class DataExchangeService : IDataExchangeService
             new("最终用户", "EndCustomer", typeof(string), isRequired: false),
             new("交货日期", "DeliveryDate", typeof(DateTime)),
             new("延期罚款", "DelayPenalty", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
-            new("物料名称", "MaterialName"),
-            new("结算方式", "SettlementMethod"),
+            new("物料名称", "MaterialName", typeof(MaterialName), isEnum: true),
+            new("结算方式", "SettlementMethod", typeof(SettlementMethod), isEnum: true),
             new("标准编码", "StandardCode"),
-            new("交货状态", "DeliveryState"),
+            new("交货状态", "DeliveryState", typeof(DeliveryState), isEnum: true),
             new("工厂牌号", "PlantGrade"),
             new("规格", "Specification"),
             new("外径下偏差(mm)", "OuterDiameterNegative", typeof(decimal)),
             new("外径上偏差(mm)", "OuterDiameterPositive", typeof(decimal)),
             new("壁厚下偏差(mm)", "WallThicknessNegative", typeof(decimal)),
             new("壁厚上偏差(mm)", "WallThicknessPositive", typeof(decimal)),
-            new("长度状态", "LengthStatus"),
+            new("长度状态", "LengthStatus", typeof(LengthStatus), isEnum: true),
             new("最小长度(mm)", "MinLength", typeof(decimal?), isRequired: false),
             new("最大长度(mm)", "MaxLength", typeof(decimal?), isRequired: false),
             new("总数量(支)", "TotalQuantity", typeof(int)),
@@ -315,7 +315,7 @@ public class DataExchangeService : IDataExchangeService
             new("总重量(kg)", "TotalWeight", typeof(decimal)),
             new("总项次数", "TotalItemCount", typeof(int)),
             new("明细", "ItemDetails", typeof(string), isRequired: false),
-            new("技术要求", "TechnicalRequirements"),
+            new("技术要求", "TechnicalRequirements", typeof(RequirementType), isEnum: true),
             new("关联项次", "OrderItemIds", typeof(string), isRequired: false),
             // 仓库冗余字段
             new("来源库存批次号", "SourceBatchNo", typeof(string), isRequired: false),
@@ -420,7 +420,7 @@ public class DataExchangeService : IDataExchangeService
         {
             new("批次号", null!) { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
             new("挂牌号", "TagNo", typeof(string), isRequired: false),
-            new("工序序号", null!) { IsFkColumn = true, FkEntityKey = "ProcessGroup", FkLookupProperty = "SequenceNumber", FkTargetProperty = "ProcessGroupId", FkRequiresJoin = true },
+            new("组内序号", null!) { IsFkColumn = true, FkEntityKey = "ProcessGroup", FkLookupProperty = "SequenceNumber", FkTargetProperty = "ProcessGroupId", FkRequiresJoin = true },
             new("工序名称", "ProcessName"),
             new("工厂牌号", "PlantGrade", typeof(string), isRequired: false),
             new("制造规格", "ManufacturingSpec"),
@@ -442,7 +442,7 @@ public class DataExchangeService : IDataExchangeService
         {
             new("批次号", null!) { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
             new("挂牌号", "TagNo", typeof(string), isRequired: false),
-            new("工序序号", null!) { IsFkColumn = true, FkEntityKey = "ProcessGroup", FkLookupProperty = "SequenceNumber", FkTargetProperty = "ProcessGroupId", FkRequiresJoin = true },
+            new("组内序号", null!) { IsFkColumn = true, FkEntityKey = "ProcessGroup", FkLookupProperty = "SequenceNumber", FkTargetProperty = "ProcessGroupId", FkRequiresJoin = true },
             new("工序名称", "ProcessName"),
             new("工厂牌号", "PlantGrade", typeof(string), isRequired: false),
             new("委外规格", "OutsourceSpec", typeof(string), isRequired: false),
@@ -486,7 +486,7 @@ public class DataExchangeService : IDataExchangeService
         {
             new("批次号", null!) { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
             new("挂牌号", "TagNo", typeof(string), isRequired: false),
-            new("工序序号", null!) { IsFkColumn = true, FkEntityKey = "ProcessGroup", FkLookupProperty = "SequenceNumber", FkTargetProperty = "ProcessGroupId", FkRequiresJoin = true },
+            new("组内序号", null!) { IsFkColumn = true, FkEntityKey = "ProcessGroup", FkLookupProperty = "SequenceNumber", FkTargetProperty = "ProcessGroupId", FkRequiresJoin = true },
             new("工序名称", "ProcessName"),
             new("工厂牌号", "PlantGrade", typeof(string), isRequired: false),
             new("制造规格", "ManufacturingSpec"),
@@ -500,6 +500,8 @@ public class DataExchangeService : IDataExchangeService
             new("检验项目", "InspectionItem", typeof(string), isRequired: false),
             new("合格支数", "QualifiedQuantity", typeof(int?), isRequired: false),
             new("合格重量(kg)", "QualifiedWeight", typeof(decimal?), isRequired: false),
+            new("合格中让步放行支", "QualifiedConcessionQuantity", typeof(int?), isRequired: false),
+            new("让步说明", "ConcessionRemark", typeof(string), isRequired: false),
             new("不合格返整支数", "DefectReworkQuantity", typeof(int?), isRequired: false),
             new("不合格入库支数", "DefectWarehouseQuantity", typeof(int?), isRequired: false),
             new("不合格报废支数", "DefectScrapQuantity", typeof(int?), isRequired: false),
@@ -510,7 +512,7 @@ public class DataExchangeService : IDataExchangeService
 
         ["FinalInspection"] = new EntityDef("成品检验", "成品检验", typeof(FinalInspection), 8, null, new List<ColumnDef>
         {
-            new("生产编号", null!) { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
+            new("生产编号", "BatchNo") { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
             new("挂牌号", "TagNo", typeof(string), isRequired: false),
             new("物料名称", "MaterialName", typeof(string), isRequired: false),
             new("关联工单号", "WorkOrderNo", typeof(string), isRequired: false),
@@ -529,6 +531,8 @@ public class DataExchangeService : IDataExchangeService
             new("检验重量(kg)", "Weight", typeof(decimal?), isRequired: false),
             new("合格支数", "QualifiedQuantity", typeof(int?), isRequired: false),
             new("合格重量(kg)", "QualifiedWeight", typeof(decimal?), isRequired: false),
+            new("合格中让步放行支", "QualifiedConcessionQuantity", typeof(int?), isRequired: false),
+            new("让步说明", "ConcessionRemark", typeof(string), isRequired: false),
             new("不合格返整支数", "DefectReworkQuantity", typeof(int?), isRequired: false),
             new("不合格入库支数", "DefectWarehouseQuantity", typeof(int?), isRequired: false),
             new("不合格报废支数", "DefectScrapQuantity", typeof(int?), isRequired: false),
@@ -560,7 +564,7 @@ public class DataExchangeService : IDataExchangeService
             new("入库日期", "InboundDate", typeof(DateTime)),
             new("炉号", "HeatNo", typeof(string), isRequired: false),
             new("生产批号", "ProductionBatchNo", typeof(string), isRequired: false),
-            new("长度状态", "LengthStatus", typeof(string), isRequired: false),
+            new("长度状态", "LengthStatus", typeof(LengthStatus), isEnum: true, isRequired: false),
             new("最小长度(mm)", "MinLength", typeof(decimal?), isRequired: false),
             new("最大长度(mm)", "MaxLength", typeof(decimal?), isRequired: false),
             new("入库支数", "InitialQuantity", typeof(int)),
@@ -591,7 +595,7 @@ public class DataExchangeService : IDataExchangeService
         ["OutboundRecord"] = new EntityDef("出库记录", "出库记录", typeof(OutboundRecord), 8, null, new List<ColumnDef>
         {
             new("批次号", null!) { IsFkColumn = true, FkEntityKey = "InventoryBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "InventoryBatchId" },
-            new("出库类型", "OutboundType", typeof(OutboundType)),
+            new("出库类型", "OutboundType", typeof(OutboundType), isEnum: true),
             new("物料单号", "SourceOrderNo", typeof(string), isRequired: false),
             new("目标单位", "TargetCompany", typeof(string), isRequired: false),
             new("出库支数", "OutboundQuantity", typeof(int)),
@@ -1065,13 +1069,14 @@ public class DataExchangeService : IDataExchangeService
         var existingCache = await LoadExistingEntitiesAsync(def);
 
         // 使用EF Core管理事务（避免MARS/savepoint冲突）
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        var dbTransaction = transaction.GetDbTransaction();
+        var (transaction, dbTransaction) = await BeginImportTransactionAsync();
 
-        try
+        using (transaction)
         {
+            try
+            {
             // 1. 禁用所有外键约束
-            await DisableAllConstraintsAsync(dbTransaction.Connection!, dbTransaction);
+            await DisableAllConstraintsAsync(dbTransaction?.Connection!, dbTransaction!);
 
             // 2. 逐行累积到DbContext（不逐行保存）
             // 跟踪批次内已分配的系统编码，避免重复
@@ -1200,34 +1205,70 @@ public class DataExchangeService : IDataExchangeService
                 }
             }
 
-            // OrderItem 特殊处理：导入前清理关联订单下已有的项次（避免唯一键冲突 UK_OrderItem_Sequence_Active）
+            // OrderItem 特殊处理：避免唯一键冲突 UK_OrderItem_Sequence_Active
             if (entityKey == "OrderItem")
             {
                 var orderNoCol = def.Columns.FirstOrDefault(c => c.FkEntityKey == "SalesOrder");
-                if (orderNoCol != null && fkCache.TryGetValue("SalesOrder", out var salesOrderLookup))
+                var seqCol = def.Columns.FirstOrDefault(c => c.Property == "Sequence");
+                if (orderNoCol != null && seqCol != null && fkCache.TryGetValue("SalesOrder", out var salesOrderLookup))
                 {
-                    var orderNos = rows
-                        .Select(r => r.Values.GetValueOrDefault(orderNoCol.Header, ""))
-                        .Where(v => !string.IsNullOrWhiteSpace(v))
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .ToList();
-                    var salesOrderIds = orderNos
-                        .Select(no => salesOrderLookup.GetValueOrDefault(no))
-                        .Where(id => id > 0)
-                        .ToList();
-                    var existing = await _context.Set<OrderItem>()
-                        .Where(oi => salesOrderIds.Contains(oi.SalesOrderId))
-                        .ToListAsync();
-                    if (existing.Count > 0)
+                    if (overwrite)
                     {
-                        _context.Set<OrderItem>().RemoveRange(existing);
-                        await _context.SaveChangesAsync();
-                        _logger.LogInformation("已清理 {Count} 个旧的订单项次记录", existing.Count);
+                        // overwrite: 先删除关联的 ProductRequirement（避免 FK 约束冲突），再删 OrderItem
+                        var orderNos = rows
+                            .Select(r => r.Values.GetValueOrDefault(orderNoCol.Header, ""))
+                            .Where(v => !string.IsNullOrWhiteSpace(v))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+                        var salesOrderIds = orderNos
+                            .Select(no => salesOrderLookup.GetValueOrDefault(no))
+                            .Where(id => id > 0)
+                            .ToList();
+                        var existing = await _context.Set<OrderItem>()
+                            .Where(oi => salesOrderIds.Contains(oi.SalesOrderId))
+                            .ToListAsync();
+                        if (existing.Count > 0)
+                        {
+                            var existingOiIds = existing.Select(oi => oi.Id).ToList();
+                            var existingPr = await _context.Set<ProductRequirement>()
+                                .Where(pr => existingOiIds.Contains(pr.OrderItemId))
+                                .ToListAsync();
+                            if (existingPr.Count > 0)
+                            {
+                                _context.Set<ProductRequirement>().RemoveRange(existingPr);
+                                _logger.LogInformation("已级联清理 {Count} 个关联的技术要求记录", existingPr.Count);
+                            }
+                            _context.Set<OrderItem>().RemoveRange(existing);
+                            await _context.SaveChangesAsync();
+                            _logger.LogInformation("已清理 {Count} 个旧的订单项次记录", existing.Count);
+                        }
+                    }
+                    else
+                    {
+                        // append: 跳过已存在的项次（按 SalesOrderId + Sequence 匹配）
+                        var orderItemFkCache = await _context.Set<OrderItem>()
+                            .Include(oi => oi.SalesOrder)
+                            .ToListAsync();
+                        var existingOrderItemKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var oi in orderItemFkCache)
+                            existingOrderItemKeys.Add($"{oi.SalesOrder.OrderNumber}|{oi.Sequence}");
+
+                        var beforeCount = rows.Count;
+                        rows.RemoveAll(r =>
+                        {
+                            var orderNo = r.Values.GetValueOrDefault(orderNoCol.Header, "")?.Trim();
+                            var seqStr = r.Values.GetValueOrDefault(seqCol.Header, "")?.Trim();
+                            if (string.IsNullOrWhiteSpace(orderNo) || string.IsNullOrWhiteSpace(seqStr)) return false;
+                            return existingOrderItemKeys.Contains($"{orderNo}|{seqStr}");
+                        });
+                        var skipped = beforeCount - rows.Count;
+                        if (skipped > 0)
+                            _logger.LogInformation("已跳过 {Count} 行已存在的订单项次", skipped);
                     }
                 }
             }
 
-            // ProductRequirement 特殊处理：导入前清理关联项次下已有的技术要求（避免唯一键冲突 UK_ProductRequirement_OrderItemId）
+            // ProductRequirement 特殊处理：避免唯一键冲突 UK_ProductRequirement_OrderItemId
             if (entityKey == "ProductRequirement")
             {
                 var orderNoCol = def.Columns.FirstOrDefault(c => c.FkEntityKey == "OrderItem" && c.FkLookupProperty == "Id");
@@ -1248,23 +1289,47 @@ public class DataExchangeService : IDataExchangeService
                         .Select(k => oiCache.GetValueOrDefault(k!))
                         .Where(id => id > 0)
                         .ToList();
-                    var existing = await _context.Set<ProductRequirement>()
-                        .Where(pr => orderItemIds.Contains(pr.OrderItemId))
-                        .ToListAsync();
-                    if (existing.Count > 0)
+
+                    if (overwrite)
                     {
-                        _context.Set<ProductRequirement>().RemoveRange(existing);
-                        await _context.SaveChangesAsync();
-                        _logger.LogInformation("已清理 {Count} 个旧的技术要求记录", existing.Count);
+                        // overwrite: 删除已有技术要求，再重新导入
+                        var existing = await _context.Set<ProductRequirement>()
+                            .Where(pr => orderItemIds.Contains(pr.OrderItemId))
+                            .ToListAsync();
+                        if (existing.Count > 0)
+                        {
+                            _context.Set<ProductRequirement>().RemoveRange(existing);
+                            await _context.SaveChangesAsync();
+                            _logger.LogInformation("已清理 {Count} 个旧的技术要求记录", existing.Count);
+                        }
+                    }
+                    else
+                    {
+                        // append: 跳过已存在的技术要求
+                        var existingSet = new HashSet<int>(orderItemIds);
+                        var beforeCount = rows.Count;
+                        rows.RemoveAll(r =>
+                        {
+                            var orderNo = r.Values.GetValueOrDefault(orderNoCol.Header, "")?.Trim();
+                            var seq = r.Values.GetValueOrDefault(seqCol.Header, "")?.Trim();
+                            if (string.IsNullOrWhiteSpace(orderNo) || string.IsNullOrWhiteSpace(seq)) return false;
+                            var key = $"{orderNo}|{seq}";
+                            if (!oiCache.TryGetValue(key, out var oiId)) return false;
+                            return existingSet.Contains(oiId);
+                        });
+                        var skipped = beforeCount - rows.Count;
+                        if (skipped > 0)
+                            _logger.LogInformation("已跳过 {Count} 行已存在的技术要求", skipped);
                     }
                 }
             }
 
-            // SubcontractReturnItem 特殊处理：导入前清理关联委外单下已有的退货项（避免唯一键冲突 UK_ReturnItem_Seq）
+            // SubcontractReturnItem 特殊处理：避免唯一键冲突 UK_ReturnItem_Seq
             if (entityKey == "SubcontractReturnItem")
             {
                 var orderNoCol = def.Columns.FirstOrDefault(c => c.FkEntityKey == "SubcontractOrder");
-                if (orderNoCol != null && fkCache.TryGetValue("SubcontractOrder", out var subOrderLookup))
+                var seqCol = def.Columns.FirstOrDefault(c => c.Property == "Sequence");
+                if (orderNoCol != null && seqCol != null && fkCache.TryGetValue("SubcontractOrder", out var subOrderLookup))
                 {
                     var orderNos = rows
                         .Select(r => r.Values.GetValueOrDefault(orderNoCol.Header, ""))
@@ -1275,15 +1340,206 @@ public class DataExchangeService : IDataExchangeService
                         .Select(no => subOrderLookup.GetValueOrDefault(no))
                         .Where(id => id > 0)
                         .ToList();
-                    var existing = await _context.Set<SubcontractReturnItem>()
-                        .Where(sri => subOrderIds.Contains(sri.SubcontractOrderId))
-                        .ToListAsync();
-                    if (existing.Count > 0)
+
+                    if (overwrite)
                     {
-                        _context.Set<SubcontractReturnItem>().RemoveRange(existing);
-                        await _context.SaveChangesAsync();
-                        _logger.LogInformation("已清理 {Count} 个旧的委外退货项记录", existing.Count);
+                        // overwrite: 删除关联委外单下已有的退货项，再重新导入
+                        var existing = await _context.Set<SubcontractReturnItem>()
+                            .Where(sri => subOrderIds.Contains(sri.SubcontractOrderId))
+                            .ToListAsync();
+                        if (existing.Count > 0)
+                        {
+                            _context.Set<SubcontractReturnItem>().RemoveRange(existing);
+                            await _context.SaveChangesAsync();
+                            _logger.LogInformation("已清理 {Count} 个旧的委外退货项记录", existing.Count);
+                        }
                     }
+                    else
+                    {
+                        // append: 跳过已存在的退货项（按 SubcontractOrderId + Sequence 匹配）
+                        var existing = await _context.Set<SubcontractReturnItem>()
+                            .Where(sri => subOrderIds.Contains(sri.SubcontractOrderId))
+                            .ToListAsync();
+                        var existingKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        var soLookup = await _context.Set<SubcontractOrder>()
+                            .Where(so => subOrderIds.Contains(so.Id))
+                            .ToDictionaryAsync(so => so.Id, so => so.OrderNo);
+                        foreach (var item in existing)
+                        {
+                            if (soLookup.TryGetValue(item.SubcontractOrderId, out var orderNo))
+                                existingKeys.Add($"{orderNo}|{item.Sequence}");
+                        }
+
+                        var beforeCount = rows.Count;
+                        rows.RemoveAll(r =>
+                        {
+                            var orderNo = r.Values.GetValueOrDefault(orderNoCol.Header, "")?.Trim();
+                            var seqStr = r.Values.GetValueOrDefault(seqCol.Header, "")?.Trim();
+                            if (string.IsNullOrWhiteSpace(orderNo) || string.IsNullOrWhiteSpace(seqStr)) return false;
+                            return existingKeys.Contains($"{orderNo}|{seqStr}");
+                        });
+                        var skipped = beforeCount - rows.Count;
+                        if (skipped > 0)
+                            _logger.LogInformation("已跳过 {Count} 行已存在的委外退货项", skipped);
+                    }
+                }
+            }
+
+            // ProductionRecord 跳过已存在的记录：按 (批次号+组内序号+工段名称+执行日期) 匹配
+            if (!overwrite && entityKey == "ProductionRecord")
+            {
+                var batchNoCol = def.Columns.FirstOrDefault(c => c.FkEntityKey == "ProductionBatch");
+                var seqCol = def.Columns.FirstOrDefault(c => c.FkEntityKey == "ProcessGroup");
+                var sectionCol = def.Columns.FirstOrDefault(c => c.Property == "SectionName");
+                var execDateCol = def.Columns.FirstOrDefault(c => c.Property == "ExecDate");
+                if (batchNoCol != null && seqCol != null && sectionCol != null && execDateCol != null &&
+                    fkCache.TryGetValue("ProductionBatch", out var prBatchLookup))
+                {
+                    var batchNos = rows
+                        .Select(r => r.Values.GetValueOrDefault(batchNoCol.Header, "")?.Trim())
+                        .Where(v => !string.IsNullOrWhiteSpace(v))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    var batchIds = batchNos
+                        .Select(bn => prBatchLookup.GetValueOrDefault(bn))
+                        .Where(id => id > 0)
+                        .ToList();
+                    if (batchIds.Count > 0)
+                    {
+                        var existingPr = await _context.Set<ProductionRecord>()
+                            .Where(r => batchIds.Contains(r.ProductionBatchId))
+                            .ToListAsync();
+                        var pgIds = existingPr.Select(r => r.ProcessGroupId).Distinct().ToList();
+                        var pgLookup = pgIds.Count > 0
+                            ? await _context.Set<ProcessGroup>()
+                                .Where(pg => pgIds.Contains(pg.Id))
+                                .ToDictionaryAsync(pg => pg.Id, pg => pg.SequenceNumber)
+                            : new Dictionary<int, int>();
+                        var batchNoReverse = batchNos
+                            .Select(bn => (bn, id: prBatchLookup.GetValueOrDefault(bn)))
+                            .Where(x => x.id > 0)
+                            .ToDictionary(x => x.id, x => x.bn);
+
+                        var existingKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var r in existingPr)
+                        {
+                            if (!batchNoReverse.TryGetValue(r.ProductionBatchId, out var batchNo)) continue;
+                            if (!pgLookup.TryGetValue(r.ProcessGroupId, out var seqNo)) continue;
+                            var dateStr = r.ExecDate.ToString("yyyy-MM-dd");
+                            existingKeys.Add($"{batchNo}|{seqNo}|{r.SectionName}|{dateStr}");
+                        }
+
+                        var beforeCount = rows.Count;
+                        rows.RemoveAll(r =>
+                        {
+                            var batchNo = r.Values.GetValueOrDefault(batchNoCol.Header, "")?.Trim();
+                            var seqStr = r.Values.GetValueOrDefault(seqCol.Header, "")?.Trim();
+                            var section = r.Values.GetValueOrDefault(sectionCol.Header, "")?.Trim();
+                            var execDateRaw = r.Values.GetValueOrDefault(execDateCol.Header, "")?.Trim();
+                            if (string.IsNullOrWhiteSpace(batchNo) || string.IsNullOrWhiteSpace(seqStr) ||
+                                string.IsNullOrWhiteSpace(section) || string.IsNullOrWhiteSpace(execDateRaw)) return false;
+                            // 规范化日期格式
+                            var dateStr = execDateRaw;
+                            if (DateTime.TryParse(execDateRaw, out var dt))
+                                dateStr = dt.ToString("yyyy-MM-dd");
+                            return existingKeys.Contains($"{batchNo}|{seqStr}|{section}|{dateStr}");
+                        });
+                        var skipped = beforeCount - rows.Count;
+                        if (skipped > 0)
+                            _logger.LogInformation("已跳过 {Count} 行已存在的生产记录", skipped);
+                    }
+                }
+            }
+
+            // SectionOutsource 跳过已存在的记录：按 (批次号+组内序号+工段名称+发出日期) 匹配
+            if (!overwrite && entityKey == "SectionOutsource")
+            {
+                var batchNoCol = def.Columns.FirstOrDefault(c => c.FkEntityKey == "ProductionBatch");
+                var seqCol = def.Columns.FirstOrDefault(c => c.FkEntityKey == "ProcessGroup");
+                var sectionCol = def.Columns.FirstOrDefault(c => c.Property == "SectionName");
+                var dateCol = def.Columns.FirstOrDefault(c => c.Property == "SendOutDate");
+                if (batchNoCol != null && seqCol != null && sectionCol != null && dateCol != null &&
+                    fkCache.TryGetValue("ProductionBatch", out var soBatchLookup))
+                {
+                    var batchNos = rows
+                        .Select(r => r.Values.GetValueOrDefault(batchNoCol.Header, "")?.Trim())
+                        .Where(v => !string.IsNullOrWhiteSpace(v))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    var batchIds = batchNos
+                        .Select(bn => soBatchLookup.GetValueOrDefault(bn))
+                        .Where(id => id > 0)
+                        .ToList();
+                    if (batchIds.Count > 0)
+                    {
+                        var existingSo = await _context.Set<SectionOutsource>()
+                            .Where(s => batchIds.Contains(s.ProductionBatchId))
+                            .ToListAsync();
+                        var pgIds = existingSo.Select(s => s.ProcessGroupId).Distinct().ToList();
+                        var pgLookup = pgIds.Count > 0
+                            ? await _context.Set<ProcessGroup>()
+                                .Where(pg => pgIds.Contains(pg.Id))
+                                .ToDictionaryAsync(pg => pg.Id, pg => pg.SequenceNumber)
+                            : new Dictionary<int, int>();
+                        var batchNoReverse = batchNos
+                            .Select(bn => (bn, id: soBatchLookup.GetValueOrDefault(bn)))
+                            .Where(x => x.id > 0)
+                            .ToDictionary(x => x.id, x => x.bn);
+
+                        var existingKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var s in existingSo)
+                        {
+                            if (!batchNoReverse.TryGetValue(s.ProductionBatchId, out var batchNo)) continue;
+                            if (!pgLookup.TryGetValue(s.ProcessGroupId, out var seqNo)) continue;
+                            var dateStr = s.SendOutDate.ToString("yyyy-MM-dd");
+                            existingKeys.Add($"{batchNo}|{seqNo}|{s.SectionName}|{dateStr}");
+                        }
+
+                        var beforeCount = rows.Count;
+                        rows.RemoveAll(r =>
+                        {
+                            var batchNo = r.Values.GetValueOrDefault(batchNoCol.Header, "")?.Trim();
+                            var seqStr = r.Values.GetValueOrDefault(seqCol.Header, "")?.Trim();
+                            var section = r.Values.GetValueOrDefault(sectionCol.Header, "")?.Trim();
+                            var dateRaw = r.Values.GetValueOrDefault(dateCol.Header, "")?.Trim();
+                            if (string.IsNullOrWhiteSpace(batchNo) || string.IsNullOrWhiteSpace(seqStr) ||
+                                string.IsNullOrWhiteSpace(section) || string.IsNullOrWhiteSpace(dateRaw)) return false;
+                            var dateStr = dateRaw;
+                            if (DateTime.TryParse(dateRaw, out var dt))
+                                dateStr = dt.ToString("yyyy-MM-dd");
+                            return existingKeys.Contains($"{batchNo}|{seqStr}|{section}|{dateStr}");
+                        });
+                        var skipped = beforeCount - rows.Count;
+                        if (skipped > 0)
+                            _logger.LogInformation("已跳过 {Count} 行已存在的工段委外记录", skipped);
+                    }
+                }
+            }
+
+            // === 通用预过滤：跳过已存在的记录（基于 KeyColumn，包括批次内重复）===
+            if (!overwrite && def.KeyColumn != null)
+            {
+                var keyCol = def.Columns.FirstOrDefault(c => c.Property == def.KeyColumn);
+                if (keyCol != null)
+                {
+                    var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    var beforeCount = rows.Count;
+                    rows.RemoveAll(r =>
+                    {
+                        var val = r.Values.GetValueOrDefault(keyCol.Header, "")?.Trim();
+                        if (string.IsNullOrWhiteSpace(val)) return false;
+
+                        // 跳过数据库中已存在的
+                        if (existingCache.ContainsKey(val)) return true;
+
+                        // 跳过批次内重复的
+                        if (!seenKeys.Add(val)) return true;
+
+                        return false;
+                    });
+                    var skipped = beforeCount - rows.Count;
+                    if (skipped > 0)
+                        _logger.LogInformation("已跳过 {Count} 行已存在的记录（键: {Key}）", skipped, def.KeyColumn);
                 }
             }
 
@@ -1291,8 +1547,9 @@ public class DataExchangeService : IDataExchangeService
             {
                 try
                 {
-                    await ImportRowAsync(def, row, fkCache, overwrite, userName, existingCache, pendingCodes);
-                    result.SuccessCount++;
+                    var processed = await ImportRowAsync(def, row, fkCache, overwrite, userName, existingCache, pendingCodes);
+                    if (processed)
+                        result.SuccessCount++;
                 }
                 catch (Exception ex)
                 {
@@ -1309,7 +1566,7 @@ public class DataExchangeService : IDataExchangeService
             await _context.SaveChangesAsync();
 
             // 4. 启用并验证所有外键约束
-            var checkErrors = await EnableAndCheckConstraintsAsync(dbTransaction.Connection!, dbTransaction);
+            var checkErrors = await EnableAndCheckConstraintsAsync(dbTransaction?.Connection!, dbTransaction!);
             if (checkErrors.Count > 0)
             {
                 throw new BusinessException("外键约束验证失败，共 " + checkErrors.Count + " 个错误");
@@ -1331,7 +1588,26 @@ public class DataExchangeService : IDataExchangeService
             result.RollbackReason = GetRollbackReason(ex);
         }
 
-        return result;
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// 开始导入事务（可被测试子类重写，InMemory 不支持 GetDbTransaction）
+    /// </summary>
+    protected virtual async Task<(IDbContextTransaction transaction, DbTransaction? dbTransaction)> BeginImportTransactionAsync()
+    {
+        var t = await _context.Database.BeginTransactionAsync();
+        DbTransaction? dbt;
+        try
+        {
+            dbt = t.GetDbTransaction();
+        }
+        catch (InvalidOperationException)
+        {
+            dbt = null; // InMemory 等非关系型提供程序
+        }
+        return (t, dbt);
     }
 
     #endregion
@@ -1486,14 +1762,14 @@ public class DataExchangeService : IDataExchangeService
 
             cache["ProcessGroup"] = pgLookup;
 
-            // 按工段名称查找工序组的缓存（用于 ProductionRecord/SectionOutsource 按"批次号+工段名称"匹配）
+            // 按工段名称查找工序组的缓存（用于按"批次号+工序名称+制造规格+工段名称"匹配）
             var pgIdBySectionLk = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var pgSeqBySectionLk = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             void AddSectionLk(Dictionary<string, int> idLk, Dictionary<string, int> seqLk,
-                string batchNo, string sectionName, int? orderVal, int pgId)
+                string batchNo, string processName, string manufacturingSpec, string sectionName, int? orderVal, int pgId)
             {
                 if (!orderVal.HasValue) return;
-                var key = $"{batchNo}|{sectionName}";
+                var key = $"{batchNo}|{processName}|{manufacturingSpec}|{sectionName}";
                 if (!idLk.ContainsKey(key))
                 {
                     idLk[key] = pgId;
@@ -1503,21 +1779,23 @@ public class DataExchangeService : IDataExchangeService
             foreach (var pg in processGroups)
             {
                 var bn = pg.ProductionBatch.BatchNo;
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, "冷轧拔", pg.ColdRollDraw, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, "油管断", pg.OilPipeCut, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, "去油", pg.Degrease, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, "固溶", pg.Solution, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, "矫直", pg.Straighten, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, "断切", pg.Cut, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, "测壁厚", pg.ThicknessMeasure, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, "酸洗", pg.Pickle, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, "外抛光", pg.OuterPolish, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, "内修磨", pg.InnerGrinding, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, "外点磨", pg.OuterSpotGrinding, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, "检验", pg.Inspection, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, "打焊头", pg.WeldingHead, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, "润滑", pg.Lubrication, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, "入库", pg.Warehouse, pg.Id);
+                var pn = pg.ProcessName;
+                var ms = pg.ManufacturingSpec ?? "";
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "冷轧拔", pg.ColdRollDraw, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "油管断", pg.OilPipeCut, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "去油", pg.Degrease, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "固溶", pg.Solution, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "矫直", pg.Straighten, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "断切", pg.Cut, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "测壁厚", pg.ThicknessMeasure, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "酸洗", pg.Pickle, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "外抛光", pg.OuterPolish, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "内修磨", pg.InnerGrinding, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "外点磨", pg.OuterSpotGrinding, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "检验", pg.Inspection, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "打焊头", pg.WeldingHead, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "润滑", pg.Lubrication, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "入库", pg.Warehouse, pg.Id);
             }
             cache["ProcessGroupIdBySection"] = pgIdBySectionLk;
             cache["ProcessGroupSeqBySection"] = pgSeqBySectionLk;
@@ -1904,7 +2182,7 @@ public class DataExchangeService : IDataExchangeService
         return string.Join(",", orderItemIds);
     }
 
-    private async Task ImportRowAsync(EntityDef def, ImportRowData row,
+    private async Task<bool> ImportRowAsync(EntityDef def, ImportRowData row,
         Dictionary<string, Dictionary<string, int>> fkCache, bool overwrite, string? userName,
         Dictionary<string, object> existingCache,
         Dictionary<string, HashSet<string>> pendingCodes)
@@ -1930,7 +2208,7 @@ public class DataExchangeService : IDataExchangeService
         }
         else if (existingEntity != null)
         {
-            return; // 跳过
+            return false; // 跳过（不计数）
         }
         else
         {
@@ -1997,6 +2275,11 @@ public class DataExchangeService : IDataExchangeService
                     {
                         nullProp.SetValue(entity, null);
                     }
+                    else if (nullProp.PropertyType == typeof(string))
+                    {
+                        // 非可空 string 字段空值时设为空字符串
+                        nullProp.SetValue(entity, "");
+                    }
                 }
                 continue;
             }
@@ -2025,6 +2308,7 @@ public class DataExchangeService : IDataExchangeService
             addMethod?.Invoke(dbSet, new[] { entity });
         }
         // 注意：不在此处SaveChanges，由ImportAsync批量保存
+        return true;
     }
 
     private void ResolveForeignKeys(EntityDef def, ImportRowData row,
@@ -2054,16 +2338,18 @@ public class DataExchangeService : IDataExchangeService
             }
 
             // 特殊处理：ProcessGroup 复合键
-            // 实体有 SectionName 属性（ProductionRecord/SectionOutsource）→ 按"批次号+工段名称"匹配
+            // 实体有 SectionName 属性（ProductionRecord/SectionOutsource/ProcessInspection）→ 按"批次号+工序名称+制造规格+工段名称"匹配
             if (colDef.FkRequiresJoin && colDef.FkEntityKey == "ProcessGroup")
             {
                 if (propertyCache.ContainsKey("SectionName"))
                 {
                     var batchNo = row.Values.GetValueOrDefault("批次号", "");
+                    var processName = row.Values.GetValueOrDefault("工序名称", "");
+                    var manufacturingSpec = row.Values.GetValueOrDefault("制造规格", "");
                     var sectionName = row.Values.GetValueOrDefault("工段名称", "");
                     if (!string.IsNullOrWhiteSpace(batchNo) && !string.IsNullOrWhiteSpace(sectionName))
                     {
-                        var compositeKey = $"{batchNo}|{sectionName}";
+                        var compositeKey = $"{batchNo}|{processName}|{manufacturingSpec}|{sectionName}";
                         if (fkCache.TryGetValue("ProcessGroupIdBySection", out var idCache) &&
                             idCache.TryGetValue(compositeKey, out var pgId) &&
                             fkCache.TryGetValue("ProcessGroupSeqBySection", out var seqCache) &&
@@ -2114,8 +2400,126 @@ public class DataExchangeService : IDataExchangeService
             {
                 if (colDef.FkTargetProperty != null && propertyCache.TryGetValue(colDef.FkTargetProperty, out var fkProp))
                     fkProp.SetValue(entity, fkId);
+                // FK列同时有属性名时，将源文本值也写入实体属性
+                if (colDef.Property != null && propertyCache.TryGetValue(colDef.Property, out var valProp))
+                    valProp.SetValue(entity, cellValue);
             }
         }
+    }
+
+    /// <summary>
+    /// 修复现有生产记录中错误的 SequenceNumber
+    /// （因旧版 ProcessGroup 缓存键只用了"批次号+工段名称"导致匹配到错误工序组）
+    /// 修正算法：批次号+工序名称+制造规格 → 定位工序组，再用工段名称 → 取组内序号
+    /// </summary>
+    public async Task<int> FixSequenceNumbersAsync()
+    {
+        // 1. 加载所有工序组及批次
+        var processGroups = await _context.Set<ProcessGroup>()
+            .Include(pg => pg.ProductionBatch)
+            .ToListAsync();
+
+        // 构建 ProcessGroup 查找字典：BatchNo|ProcessName|ManufacturingSpec → ProcessGroup
+        var pgLookup = new Dictionary<string, ProcessGroup>(StringComparer.OrdinalIgnoreCase);
+        foreach (var pg in processGroups)
+        {
+            var key = $"{pg.ProductionBatch.BatchNo}|{pg.ProcessName}|{pg.ManufacturingSpec ?? ""}";
+            if (!pgLookup.ContainsKey(key))
+                pgLookup[key] = pg;
+        }
+
+        int totalFixed = 0;
+
+        // 2. 修复 ProductionRecord
+        var records = await _context.Set<ProductionRecord>()
+            .Include(r => r.ProductionBatch)
+            .ToListAsync();
+        foreach (var rec in records)
+        {
+            var key = $"{rec.ProductionBatch.BatchNo}|{rec.ProcessName}|{rec.ManufacturingSpec ?? ""}";
+            if (pgLookup.TryGetValue(key, out var pg))
+            {
+                var newSeq = GetSectionSequenceNumber(pg, rec.SectionName);
+                if (newSeq.HasValue && rec.SequenceNumber != newSeq.Value)
+                {
+                    rec.SequenceNumber = newSeq.Value;
+                    totalFixed++;
+                }
+            }
+        }
+
+        // 3. 修复 ProcessInspection
+        var inspections = await _context.Set<ProcessInspection>()
+            .Include(r => r.ProductionBatch)
+            .ToListAsync();
+        foreach (var insp in inspections)
+        {
+            var key = $"{insp.ProductionBatch.BatchNo}|{insp.ProcessName}|{insp.ManufacturingSpec ?? ""}";
+            if (pgLookup.TryGetValue(key, out var pg))
+            {
+                var newSeq = GetSectionSequenceNumber(pg, insp.SectionName);
+                if (newSeq.HasValue && insp.SequenceNumber != newSeq.Value)
+                {
+                    insp.SequenceNumber = newSeq.Value;
+                    totalFixed++;
+                }
+            }
+        }
+
+        // 4. 修复 SectionOutsource
+        var outsources = await _context.Set<SectionOutsource>()
+            .Include(r => r.ProductionBatch)
+            .ToListAsync();
+        foreach (var os in outsources)
+        {
+            var key = $"{os.ProductionBatch.BatchNo}|{os.ProcessName}|{os.ManufacturingSpec ?? ""}";
+            if (pgLookup.TryGetValue(key, out var pg))
+            {
+                var newSeq = GetSectionSequenceNumber(pg, os.SectionName);
+                if (newSeq.HasValue && os.SequenceNumber != newSeq.Value)
+                {
+                    os.SequenceNumber = newSeq.Value;
+                    totalFixed++;
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        _logger.LogInformation("SequenceNumber 修复完成，共修复 {Count} 条记录", totalFixed);
+        return totalFixed;
+    }
+
+    /// <summary>
+    /// 根据工段名称从工序组中取对应的顺序值
+    /// </summary>
+    private static int? GetSectionSequenceNumber(ProcessGroup pg, string sectionName)
+    {
+        return sectionName switch
+        {
+            "冷轧拔" => pg.ColdRollDraw,
+            "油管断" => pg.OilPipeCut,
+            "切管" => pg.OilPipeCut,
+            "去油" => pg.Degrease,
+            "脱脂" => pg.Degrease,
+            "固溶" => pg.Solution,
+            "矫直" => pg.Straighten,
+            "断切" => pg.Cut,
+            "测壁厚" => pg.ThicknessMeasure,
+            "测厚" => pg.ThicknessMeasure,
+            "酸洗" => pg.Pickle,
+            "外抛光" => pg.OuterPolish,
+            "外抛" => pg.OuterPolish,
+            "内修磨" => pg.InnerGrinding,
+            "内磨" => pg.InnerGrinding,
+            "外点磨" => pg.OuterSpotGrinding,
+            "探伤" => pg.Inspection,
+            "检验" => pg.Inspection,
+            "打焊头" => pg.WeldingHead,
+            "焊头" => pg.WeldingHead,
+            "润滑" => pg.Lubrication,
+            "入库" => pg.Warehouse,
+            _ => null
+        };
     }
 
     private object ConvertValue(string value, Type targetType, ColumnDef colDef)
@@ -2160,7 +2564,7 @@ public class DataExchangeService : IDataExchangeService
         return value;
     }
 
-    private async Task DisableAllConstraintsAsync(DbConnection connection, DbTransaction transaction)
+    protected virtual async Task DisableAllConstraintsAsync(DbConnection connection, DbTransaction transaction)
     {
         var sql = @"
 DECLARE @sql NVARCHAR(MAX) = ''
@@ -2176,7 +2580,7 @@ EXEC sp_executesql @sql";
         _logger.LogInformation("已禁用所有外键约束");
     }
 
-    private async Task<List<string>> EnableAndCheckConstraintsAsync(DbConnection connection, DbTransaction transaction)
+    protected virtual async Task<List<string>> EnableAndCheckConstraintsAsync(DbConnection connection, DbTransaction transaction)
     {
         var errors = new List<string>();
 

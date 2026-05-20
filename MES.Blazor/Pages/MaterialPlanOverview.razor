@@ -501,7 +501,7 @@
                 builder.AddContent(0, wo.DeliveryDate.ToString("yyyy-MM-dd"));
                 break;
             case "DelayPenalty":
-                builder.AddContent(0, wo.DelayPenalty ? "是" : "否");
+                builder.AddContent(0, DisplayHelper.GetYesNoText(wo.DelayPenalty));
                 break;
             case "SettlementMethod":
                 builder.AddContent(0, DisplayHelper.GetSettlementMethodText(wo.SettlementMethod));
@@ -692,18 +692,7 @@
         };
     }
 
-    private string GetStatusText(int status)
-    {
-        return status switch
-        {
-            0 => "未计划",
-            1 => "部分",
-            2 => "理论满足",
-            3 => "满足",
-            4 => "超量",
-            _ => "未知"
-        };
-    }
+    private string GetStatusText(int status) => DisplayHelper.GetMaterialPlanStatusText((MaterialPlanStatus)status);
 
     /// <summary>
     /// 订单级状态颜色（仅"全部满足"或"未满足"，不含理论满足）
@@ -719,14 +708,11 @@
         };
     }
 
-    private string GetOrderStatusText(int status)
+    private string GetOrderStatusText(int status) => status switch
     {
-        return status switch
-        {
-            0 => "未计划",
-            1 => "部分",
-            3 => "全部满足",
-            _ => "未知"
-        };
-    }
+        0 => DisplayHelper.GetMaterialPlanStatusText(MaterialPlanStatus.NotPlanned),
+        1 => DisplayHelper.GetMaterialPlanStatusText(MaterialPlanStatus.Partial),
+        3 => "全部满足",
+        _ => "未知"
+    };
 }

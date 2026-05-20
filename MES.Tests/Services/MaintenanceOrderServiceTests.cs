@@ -182,6 +182,41 @@ public class MaintenanceOrderServiceTests : TestBase
         deleted.Should().BeNull();
     }
 
+    // ========== CreateBatchAsync ==========
+
+    [Fact]
+    public async Task CreateBatchAsync_批量创建成功()
+    {
+        var ctx = CreateDbContext();
+        var eq = await SeedEquipmentAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var requests = new List<CreateMaintenanceOrderRequest>
+        {
+            new() { EquipmentId = eq.Id, Executor = "张三", ExecutionSummary = "保养1", ActualDate = DateTime.Today },
+            new() { EquipmentId = eq.Id, Executor = "李四", ExecutionSummary = "保养2", ActualDate = DateTime.Today }
+        };
+
+        var results = await svc.CreateBatchAsync(requests);
+
+        results.Should().HaveCount(2);
+        results[0].Executor.Should().Be("张三");
+        results[1].Executor.Should().Be("李四");
+        results[0].MaintOrderNo.Should().StartWith("BY-");
+        results[1].MaintOrderNo.Should().StartWith("BY-");
+    }
+
+    [Fact]
+    public async Task CreateBatchAsync_空列表_返回空()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var results = await svc.CreateBatchAsync(new List<CreateMaintenanceOrderRequest>());
+
+        results.Should().BeEmpty();
+    }
+
     // ========== Helpers ==========
 
     private async Task SeedMaintenanceOrderAsync(AppDbContext ctx, int equipmentId, string orderNo)

@@ -65,6 +65,8 @@ public class InspectionRecordController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<InspectionRecordListDto>>>> CreateBatch([FromBody] List<CreateInspectionRecordRequest> requests)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<InspectionRecordListDto>>.Fail("请求参数无效"));
         if (requests.Count == 0)
             return BadRequest(ApiResponse<List<InspectionRecordListDto>>.Fail("请求列表不能为空"));
         var result = await _service.CreateBatchAsync(requests);
@@ -75,6 +77,8 @@ public class InspectionRecordController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<InspectionRecordListDto>>> Update(int id, [FromBody] UpdateInspectionRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<InspectionRecordListDto>.Fail("请求参数无效"));
         var result = await _service.UpdateAsync(id, request);
         return Ok(ApiResponse<InspectionRecordListDto>.Ok(result, "更新成功"));
     }
@@ -94,6 +98,9 @@ public class InspectionRecordController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintBatch([FromBody] InspectionRecordPrintBatchRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
@@ -106,6 +113,9 @@ public class InspectionRecordController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintAll([FromBody] InspectionRecordPrintAllRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var query = new InspectionRecordQueryParams
         {
             Keyword = request.Keyword,

@@ -70,6 +70,38 @@ public class DataExchangeService
             return ApiResponse<ImportResult>.Fail($"网络错误: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// 一键修复组内序号（修正生产记录/过程检验/工段委外中错误的 SequenceNumber）
+    /// </summary>
+    public async Task<ApiResponse<int>> FixSequenceNumbersAsync()
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<object?, ApiResponse<int>>($"{BaseUrl}/fix-sequence-numbers", null);
+            return response ?? ApiResponse<int>.Fail("请求失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<int>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 一键修复所有系统计算字段
+    /// </summary>
+    public async Task<ApiResponse<DataFixReport>> FixAllSystemFieldsAsync()
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<object?, ApiResponse<DataFixReport>>($"{BaseUrl}/fix-all-system-fields", null);
+            return response ?? ApiResponse<DataFixReport>.Fail("请求失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<DataFixReport>.Fail($"网络错误: {ex.Message}");
+        }
+    }
 }
 
 public class EntityInfo

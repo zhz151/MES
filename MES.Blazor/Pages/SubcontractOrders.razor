@@ -508,7 +508,7 @@
     }
 
     private static Color GetStatusColor(SubcontractOrderStatus status) => status switch { SubcontractOrderStatus.Sent => Color.Info, SubcontractOrderStatus.PartialReturned => Color.Warning, SubcontractOrderStatus.Completed => Color.Success, SubcontractOrderStatus.Cancelled => Color.Default, _ => Color.Default };
-    private static string GetStatusText(SubcontractOrderStatus status) => status switch { SubcontractOrderStatus.Sent => "已发出", SubcontractOrderStatus.PartialReturned => "部分收回", SubcontractOrderStatus.Completed => "已完成", SubcontractOrderStatus.Cancelled => "已取消", _ => "未知" };
+    private static string GetStatusText(SubcontractOrderStatus status) => DisplayHelper.GetSubcontractOrderStatusText(status);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

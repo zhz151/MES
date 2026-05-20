@@ -160,6 +160,66 @@ public static class DisplayHelper
     }
 
     /// <summary>
+    /// 获取订单状态中文文本
+    /// </summary>
+    public static string GetSalesOrderStatusText(SalesOrderStatus status)
+    {
+        return status switch
+        {
+            SalesOrderStatus.Pending => "待处理",
+            SalesOrderStatus.Confirmed => "已确认",
+            SalesOrderStatus.Cancelled => "已取消",
+            _ => "未知"
+        };
+    }
+
+    /// <summary>
+    /// 获取订单状态颜色
+    /// </summary>
+    public static Color GetSalesOrderStatusColor(SalesOrderStatus status)
+    {
+        return status switch
+        {
+            SalesOrderStatus.Pending => Color.Warning,
+            SalesOrderStatus.Confirmed => Color.Success,
+            SalesOrderStatus.Cancelled => Color.Default,
+            _ => Color.Default
+        };
+    }
+
+    // ========== 采购订单状态 ==========
+
+    /// <summary>
+    /// 获取采购订单状态中文文本
+    /// </summary>
+    public static string GetPurchaseOrderStatusText(PurchaseOrderStatus status)
+    {
+        return status switch
+        {
+            PurchaseOrderStatus.Open => "已下单",
+            PurchaseOrderStatus.Partial => "部分到货",
+            PurchaseOrderStatus.Completed => "已完成",
+            PurchaseOrderStatus.Cancelled => "已取消",
+            _ => "未知"
+        };
+    }
+
+    /// <summary>
+    /// 获取采购订单状态颜色
+    /// </summary>
+    public static Color GetPurchaseOrderStatusColor(PurchaseOrderStatus status)
+    {
+        return status switch
+        {
+            PurchaseOrderStatus.Open => Color.Info,
+            PurchaseOrderStatus.Partial => Color.Warning,
+            PurchaseOrderStatus.Completed => Color.Success,
+            PurchaseOrderStatus.Cancelled => Color.Default,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
     /// 获取工单状态对应的颜色
     /// </summary>
     public static Color GetWorkOrderStatusColor(WorkOrderStatus status)
@@ -533,6 +593,159 @@ public static class DisplayHelper
             "Completed" => "已完成",
             "Overdue" => "已逾期",
             _ => status ?? ""
+        };
+    }
+
+    // ========== 布尔值 ==========
+
+    /// <summary>
+    /// 获取布尔值中文显示
+    /// </summary>
+    public static string GetYesNoText(bool value) => value ? "是" : "否";
+
+    // ========== 委外加工单状态 ==========
+
+    /// <summary>
+    /// 获取委外加工单状态中文文本
+    /// </summary>
+    public static string GetSubcontractOrderStatusText(SubcontractOrderStatus status)
+    {
+        return status switch
+        {
+            SubcontractOrderStatus.Sent => "已发出",
+            SubcontractOrderStatus.PartialReturned => "部分收回",
+            SubcontractOrderStatus.Completed => "已完成",
+            SubcontractOrderStatus.Cancelled => "已取消",
+            _ => "未知"
+        };
+    }
+
+    /// <summary>
+    /// 获取委外加工单状态颜色
+    /// </summary>
+    public static Color GetSubcontractOrderStatusColor(SubcontractOrderStatus status)
+    {
+        return status switch
+        {
+            SubcontractOrderStatus.Sent => Color.Info,
+            SubcontractOrderStatus.PartialReturned => Color.Warning,
+            SubcontractOrderStatus.Completed => Color.Success,
+            SubcontractOrderStatus.Cancelled => Color.Default,
+            _ => Color.Default
+        };
+    }
+
+    // ========== 出库类型 ==========
+
+    /// <summary>
+    /// 获取出库类型中文文本
+    /// </summary>
+    public static string GetOutboundTypeText(OutboundType type)
+    {
+        return type switch
+        {
+            OutboundType.SalesOut => "销售出库",
+            OutboundType.SubcontractOut => "委外出库",
+            OutboundType.ReturnOut => "退货出库",
+            OutboundType.ScrapOut => "报废出库",
+            OutboundType.ProductionPick => "生产领用",
+            OutboundType.InspectionPick => "检验领用",
+            OutboundType.TransferOut => "移库出库",
+            OutboundType.OtherOut => "其他出库",
+            _ => "未知"
+        };
+    }
+
+    /// <summary>
+    /// 获取出库类型中文文本（字符串版本）
+    /// </summary>
+    public static string GetOutboundTypeText(string? type)
+    {
+        return type switch
+        {
+            "SalesOut" => "销售出库",
+            "SubcontractOut" => "委外出库",
+            "ReturnOut" => "退货出库",
+            "ScrapOut" => "报废出库",
+            "ProductionPick" => "生产领用",
+            "InspectionPick" => "检验领用",
+            "TransferOut" => "移库出库",
+            "OtherOut" => "其他出库",
+            _ => type ?? ""
+        };
+    }
+
+    // ========== 用料计划状态 ==========
+
+    /// <summary>
+    /// 获取用料计划状态中文文本
+    /// </summary>
+    public static string GetMaterialPlanStatusText(MaterialPlanStatus status)
+    {
+        return status switch
+        {
+            MaterialPlanStatus.NotPlanned => "未计划",
+            MaterialPlanStatus.Partial => "部分",
+            MaterialPlanStatus.TheoreticalSatisfied => "理论满足",
+            MaterialPlanStatus.Satisfied => "满足",
+            MaterialPlanStatus.Excess => "超量",
+            _ => "未知"
+        };
+    }
+
+    // ========== 原料类型 ==========
+
+    /// <summary>
+    /// 获取原料类型中文文本
+    /// </summary>
+    public static string GetRawMaterialTypeText(RawMaterialType type)
+    {
+        return type switch
+        {
+            RawMaterialType.SemiFinished => "荒管",
+            RawMaterialType.SemiProduct => "半成品",
+            RawMaterialType.RoundBar => "圆棒",
+            _ => "未知"
+        };
+    }
+
+    /// <summary>
+    /// 获取原料类型中文文本（字符串版本）
+    /// </summary>
+    public static string GetRawMaterialTypeText(string? type)
+    {
+        return type switch
+        {
+            "SemiFinished" => "荒管",
+            "SemiProduct" => "半成品",
+            "RoundBar" => "圆棒",
+            _ => type ?? ""
+        };
+    }
+
+    // ========== 产品要求类型 ==========
+
+    /// <summary>
+    /// 获取要求类型中文文本
+    /// </summary>
+    public static string GetRequirementTypeText(RequirementType type)
+    {
+        return type switch
+        {
+            RequirementType.Normal => "常规",
+            RequirementType.Special => "特殊",
+            _ => "未知"
+        };
+    }
+
+    // ========== 产品检验类型 ==========
+    public static string GetProductInspectionTypeText(string? type)
+    {
+        return type switch
+        {
+            "Critical" => "回厂复检",
+            "Order" => "不需再检验",
+            _ => type ?? ""
         };
     }
 

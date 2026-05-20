@@ -65,6 +65,8 @@ public class MaintenanceOrderController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<MaintenanceOrderListDto>>>> CreateBatch([FromBody] List<CreateMaintenanceOrderRequest> requests)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<MaintenanceOrderListDto>>.Fail("请求参数无效"));
         if (requests.Count == 0)
             return BadRequest(ApiResponse<List<MaintenanceOrderListDto>>.Fail("请求列表不能为空"));
         var result = await _service.CreateBatchAsync(requests);
@@ -75,6 +77,8 @@ public class MaintenanceOrderController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<MaintenanceOrderListDto>>> Update(int id, [FromBody] UpdateMaintenanceRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<MaintenanceOrderListDto>.Fail("请求参数无效"));
         var result = await _service.UpdateAsync(id, request);
         return Ok(ApiResponse<MaintenanceOrderListDto>.Ok(result, "更新成功"));
     }
@@ -94,6 +98,9 @@ public class MaintenanceOrderController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintBatch([FromBody] MaintenanceOrderPrintBatchRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
@@ -106,6 +113,9 @@ public class MaintenanceOrderController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintAll([FromBody] MaintenanceOrderPrintAllRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var query = new MaintenanceOrderQueryParams
         {
             Keyword = request.Keyword,

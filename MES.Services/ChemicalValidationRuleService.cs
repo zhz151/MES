@@ -167,6 +167,15 @@ public class ChemicalValidationRuleService : IChemicalValidationRuleService
         await _context.SaveChangesAsync();
     }
 
+    public async Task<ChemicalValidationRuleDto?> GetByIdAsync(int id)
+    {
+        return await _context.ChemicalValidationRules
+            .AsNoTracking()
+            .Where(r => r.Id == id)
+            .Select(r => ToDto(r))
+            .FirstOrDefaultAsync();
+    }
+
     public async Task<ChemicalValidationRuleDto?> GetByPlantGradeAsync(string plantGrade)
     {
         return await _context.ChemicalValidationRules

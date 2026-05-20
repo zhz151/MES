@@ -61,6 +61,8 @@ public class ProcessInspectionController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<ProcessInspectionDto>>>> BatchCreate(
         [FromBody] List<CreateProcessInspectionRequest> requests)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<ProcessInspectionDto>>.Fail("请求参数无效"));
         if (requests.Count == 0)
             return BadRequest(ApiResponse<List<ProcessInspectionDto>>.Fail("请求列表不能为空"));
         var result = await _service.BatchCreateAsync(requests);

@@ -283,8 +283,8 @@
 
     private readonly List<(string Value, string Text)> _lengthStatusOptions = new()
     {
-        ("定尺", "定尺"),
-        ("范围尺", "范围尺"),
+        ("Fixed", "定尺"),
+        ("Range", "范围尺"),
     };
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
@@ -607,7 +607,7 @@
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
                 builder.AddAttribute(2, "Color", item.IsLinkedToWorkOrder ? Color.Success : Color.Default);
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.IsLinkedToWorkOrder ? "是" : "否")));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetYesNoText(item.IsLinkedToWorkOrder))));
                 builder.CloseComponent();
                 break;
             case "SourceOrderNo":

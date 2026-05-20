@@ -736,6 +736,23 @@ public class WorkOrderExecutionServiceTests : TestBase
         ctx.WorkOrders.AddRange(wo1, wo2);
         await ctx.SaveChangesAsync();
 
+        // 为工单创建用料计划（满足率从计划数据实时计算，不再依赖 WorkOrder 字段）
+        // WO001 Fixed TotalQuantity=100 → 80%: RequiredPieces=40 × InputMultiple=2 = 80
+        ctx.PurchaseSemiPlans.Add(new PurchaseSemiPlan
+        {
+            WorkOrderId = wo1.Id, PlanDate = DateTime.Today,
+            RequiredPieces = 40, RequiredWeight = 1000m, InputMultiple = 2,
+            PlantGrade = "304", RawMaterialSpec = "219*8", RequiredDate = DateTime.Today
+        });
+        // WO002 Fixed TotalQuantity=200 → 90%: RequiredPieces=60 × InputMultiple=3 = 180
+        ctx.PurchaseSemiPlans.Add(new PurchaseSemiPlan
+        {
+            WorkOrderId = wo2.Id, PlanDate = DateTime.Today,
+            RequiredPieces = 60, RequiredWeight = 1500m, InputMultiple = 3,
+            PlantGrade = "304", RawMaterialSpec = "219*8", RequiredDate = DateTime.Today
+        });
+        await ctx.SaveChangesAsync();
+
         // 给每个工单加一个批次
         foreach (var wo in new[] { wo1, wo2 })
         {
@@ -789,9 +806,10 @@ public class WorkOrderExecutionServiceTests : TestBase
         // 两个同主号工单应有相同的 MainNo 聚合值
         foreach (var s in summaries)
         {
-            // MainNo 用料计划：平均满足率 = (80+90)/2 = 85，最大状态 = Met(3)
-            s.MainNoMaterialPlanRate.Should().Be(85.0m);
-            s.MainNoMaterialPlanStatus.Should().Be(3); // Met
+            // MainNo 用料计划：加权满足率 = (80*100 + 90*200)/(100+200) = 26000/300 = 86.67
+            // Fixed 定尺 < 102% 为 Partial(1)
+            s.MainNoMaterialPlanRate.Should().Be(86.67m);
+            s.MainNoMaterialPlanStatus.Should().Be(1); // Partial
 
             // MainNo 投料聚合
             // 理论成品：两个工单各 50*2=100，合计 200

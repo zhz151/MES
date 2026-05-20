@@ -14,17 +14,12 @@ public class OrderItemDto
     public bool DelayPenalty { get; set; }
     public SettlementMethod SettlementMethod { get; set; }
     public MaterialName MaterialName { get; set; }
-    
+
     /// <summary>
     /// 产品标准编码（用于前端显示）
     /// </summary>
     public string ProductionStandardCode { get; set; } = null!;
-    
-    /// <summary>
-    /// 产品标准编码（别名，与上面相同）
-    /// </summary>
-    public string StandardCode => ProductionStandardCode;
-    
+
     public DeliveryState DeliveryState { get; set; }
     public string StandardGrade { get; set; } = null!;
     public string PlantGrade { get; set; } = null!;

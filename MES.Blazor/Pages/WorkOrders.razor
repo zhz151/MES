@@ -1,4 +1,5 @@
 @page "/workorders"
+@using MES.Blazor.Helpers
 @using MES.Blazor.Services
 @using MES.Core.DTOs
 @using MES.Core.Enums
@@ -400,7 +401,7 @@ else if (order.WorkOrderStatus == WorkOrderStatus.Pending)
                 builder.AddContent(0, order.DeliveryEnd?.ToString("yyyy-MM-dd") ?? "-");
                 break;
             case "hasdelaypenalty":
-                builder.AddContent(0, order.HasDelayPenalty ? "是" : "否");
+                builder.AddContent(0, DisplayHelper.GetYesNoText(order.HasDelayPenalty));
                 break;
             case "totalcontractweight":
                 builder.AddContent(0, order.TotalContractWeight.ToString("G29"));

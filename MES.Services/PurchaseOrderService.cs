@@ -655,7 +655,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 .GroupBy(p => p.SourceWorkOrderNo!)
                 .Select(g => new { WorkOrderNo = g.Key, Weight = g.Sum(p => p.Weight) })
                 .ToListAsync();
-            purchaseWeights = purchaseData.ToDictionary(x => x.WorkOrderNo, x => x.Weight);
+            purchaseWeights = purchaseData.ToDictionary(x => x.WorkOrderNo, x => x.Weight, StringComparer.OrdinalIgnoreCase);
         }
 
         // 6. 按工单号+物料分类聚合已委外重量
@@ -669,7 +669,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 .Select(g => new { g.Key.SourceWorkOrderNo, g.Key.MaterialCategory, Weight = g.Sum(r => r.RequiredWeight ?? 0) })
                 .ToListAsync();
             subcontractWeights = subcontractData
-                .ToDictionary(x => $"{x.SourceWorkOrderNo}|{x.MaterialCategory}", x => x.Weight);
+                .ToDictionary(x => $"{x.SourceWorkOrderNo}|{x.MaterialCategory}", x => x.Weight, StringComparer.OrdinalIgnoreCase);
         }
 
         // 7. 合并原料+成品计划数据，计算采购执行状态
@@ -745,7 +745,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 .GroupBy(r => r.SourceWorkOrderNo!)
                 .Select(g => new { SourceWorkOrderNo = g.Key, Weight = g.Sum(r => r.RequiredWeight ?? 0) })
                 .ToListAsync();
-            subcontractWeights = subcontractData.ToDictionary(x => x.SourceWorkOrderNo, x => x.Weight);
+            subcontractWeights = subcontractData.ToDictionary(x => x.SourceWorkOrderNo, x => x.Weight, StringComparer.OrdinalIgnoreCase);
         }
 
         // 5. 合并数据，计算执行状态

@@ -62,10 +62,25 @@ public static class EnumHelper
                               ("ManualSelect", "人工选择改制"));
 
         Register<RawMaterialType>(("SemiFinished", "荒管"),
-                                   ("SemiProduct", "半成品"));
+                                   ("SemiProduct", "半成品"),
+                                   ("RoundBar", "圆棒"));
 
         Register<FinishedProductType>(("Critical", "临界成品"),
                                        ("Order", "订单成品"));
+
+        Register<ProductionType>(("RoughTube", "荒管生产"),
+                                  ("InProcess", "在制生产"),
+                                  ("Inventory", "库存"),
+                                  ("OutsourcedPurchased", "外购"),
+                                  ("Rework", "返整"),
+                                  ("Subcontract", "委外生产"),
+                                  ("ExternalProcessing", "对外加工"));
+
+        Register<ManufacturingItem>(("OrderFinishedProduct", "订单成品"),
+                                     ("PreparedMaterial", "备料成品"),
+                                     ("SurplusStock", "余库料"),
+                                     ("IntermediateProduct", "中间品"),
+                                     ("SpecialDeliveryStatus", "特定交态成品"));
 
         Register<MaterialCategory>(("RoundBar", "原材料"),
                                     ("RoughTube", "二级原料"),
@@ -85,6 +100,7 @@ public static class EnumHelper
                                 ("ReturnOut", "退货出库"),
                                 ("SubcontractOut", "委外加工"),
                                 ("ScrapOut", "报废出库"),
+                                ("InspectionPick", "检验领用"),
                                 ("TransferOut", "移库出库"),
                                 ("InventoryLoss", "盘亏出库"),
                                 ("SampleOut", "样品出库"),
@@ -151,6 +167,16 @@ public static class EnumHelper
         Register<TaskOrderStatus>(("Pending", "待执行"),
                                    ("Completed", "已完成"),
                                    ("Overdue", "已逾期"));
+
+        Register<InspectionItem>(("PMIInspection", "PMI检验"),
+                                  ("VisualInspection", "表检"),
+                                  ("Dimension", "尺寸"),
+                                  ("Endoscopy", "内窥"),
+                                  ("HydrostaticPressure", "水压"),
+                                  ("UnderwaterPneumatic", "水下气压"),
+                                  ("EddyCurrent", "涡流"),
+                                  ("Ultrasonic", "超声波"),
+                                  ("PortColoring", "端口着色"));
     }
 
     private static void Register<T>(params (string value, string display)[] mappings) where T : Enum

@@ -75,6 +75,8 @@ public class PurchaseOrderController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<PurchaseOrderDto>>>> CreateBatch([FromBody] List<CreatePurchaseOrderRequest> requests)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<PurchaseOrderDto>>.Fail("请求参数无效"));
         if (requests == null || requests.Count == 0)
             return BadRequest(ApiResponse<List<PurchaseOrderDto>>.Fail("请求列表不能为空"));
         var result = await _service.CreateBatchAsync(requests);
@@ -111,6 +113,8 @@ public class PurchaseOrderController : ControllerBase
     [Authorize(Roles = $"{Roles.Directors.Material},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse>> UpdateStatus(int id, [FromBody] UpdateOrderStatusRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse.Fail("请求参数无效"));
         await _service.UpdateStatusAsync(id, request);
         return Ok(ApiResponse.Ok("状态更新成功"));
     }
@@ -154,6 +158,9 @@ public class PurchaseOrderController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintOrderBatch([FromBody] OrderPrintBatchRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var pdfBytes = await _service.PrintOrderBatchAsync(request.Ids);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
@@ -163,6 +170,9 @@ public class PurchaseOrderController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintOrderAll([FromBody] OrderPrintAllRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var pdfBytes = await _service.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));

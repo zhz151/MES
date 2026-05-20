@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MES.Blazor", "MES.Blazor\ME
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MES.Shared", "MES.Shared\MES.Shared.csproj", "{76F819DC-6936-49D9-8C47-533CFDD659F7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MES.Tests", "MES.Tests\MES.Tests.csproj", "{F297EF70-C614-486D-8E5D-46B8DB82BFCC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -111,6 +113,18 @@ Global
 		{76F819DC-6936-49D9-8C47-533CFDD659F7}.Release|x64.Build.0 = Release|Any CPU
 		{76F819DC-6936-49D9-8C47-533CFDD659F7}.Release|x86.ActiveCfg = Release|Any CPU
 		{76F819DC-6936-49D9-8C47-533CFDD659F7}.Release|x86.Build.0 = Release|Any CPU
+		{F297EF70-C614-486D-8E5D-46B8DB82BFCC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F297EF70-C614-486D-8E5D-46B8DB82BFCC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F297EF70-C614-486D-8E5D-46B8DB82BFCC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F297EF70-C614-486D-8E5D-46B8DB82BFCC}.Debug|x64.Build.0 = Debug|Any CPU
+		{F297EF70-C614-486D-8E5D-46B8DB82BFCC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F297EF70-C614-486D-8E5D-46B8DB82BFCC}.Debug|x86.Build.0 = Debug|Any CPU
+		{F297EF70-C614-486D-8E5D-46B8DB82BFCC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F297EF70-C614-486D-8E5D-46B8DB82BFCC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F297EF70-C614-486D-8E5D-46B8DB82BFCC}.Release|x64.ActiveCfg = Release|Any CPU
+		{F297EF70-C614-486D-8E5D-46B8DB82BFCC}.Release|x64.Build.0 = Release|Any CPU
+		{F297EF70-C614-486D-8E5D-46B8DB82BFCC}.Release|x86.ActiveCfg = Release|Any CPU
+		{F297EF70-C614-486D-8E5D-46B8DB82BFCC}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

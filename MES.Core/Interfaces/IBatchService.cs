@@ -112,6 +112,11 @@ public interface IBatchService
     Task<ProductionBatchDetailDto> GetByBatchNoAsync(string batchNo);
 
     /// <summary>
+    /// 根据批次号获取工序组（用于前端自动填充，返回 CreateProcessGroupRequest 列表）
+    /// </summary>
+    Task<List<CreateProcessGroupRequest>> GetProcessGroupsByBatchNoAsync(string batchNo);
+
+    /// <summary>
     /// 获取相邻批次导航信息（上一条/下一条）
     /// </summary>
     Task<AdjacentBatchDto> GetAdjacentBatchAsync(int currentId);

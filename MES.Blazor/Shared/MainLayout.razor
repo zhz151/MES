@@ -31,10 +31,9 @@
 
                 <!-- 工单模块 -->
                 <AuthorizeView Roles="WorkOrderStaff,WorkOrderDirector,Admin">
-                    <MudMenu Label="工单管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("workorders","material-plan-overview","workorder-execution")">
+                    <MudMenu Label="工单管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("workorders","material-plan-overview")">
                         <MudMenuItem Class="@GetMenuItemClass("/workorders")" OnClick='() => NavigateTo("/workorders")'>工单首页</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/material-plan-overview")" OnClick='() => NavigateTo("/material-plan-overview")'>用料计划总览</MudMenuItem>
-                        <MudMenuItem Class="@GetMenuItemClass("/workorder-execution")" OnClick='() => NavigateTo("/workorder-execution")'>工单执行状况</MudMenuItem>
                     </MudMenu>
                 </AuthorizeView>
 
@@ -106,6 +105,13 @@
                         <MudMenuItem Class="@GetMenuItemClass("/warehouse/fg")" OnClick='() => NavigateTo("/warehouse/fg")'>成品库</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/warehouse/defect")" OnClick='() => NavigateTo("/warehouse/defect")'>次品库</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/warehouse/wip")" OnClick='() => NavigateTo("/warehouse/wip")'>在制品库</MudMenuItem>
+                    </MudMenu>
+                </AuthorizeView>
+
+                <!-- 现况查询 -->
+                <AuthorizeView>
+                    <MudMenu Label="现况查询" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("workorder-execution")">
+                        <MudMenuItem Class="@GetMenuItemClass("/workorder-execution")" OnClick='() => NavigateTo("/workorder-execution")'>工单执行状况</MudMenuItem>
                     </MudMenu>
                 </AuthorizeView>
 

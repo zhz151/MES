@@ -496,19 +496,8 @@
     }
 
     // ========== 枚举显示 ==========
-    private Color GetStatusColor(SalesOrderStatus status) => status switch
-    {
-        SalesOrderStatus.Pending => Color.Warning,
-        SalesOrderStatus.Confirmed => Color.Success,
-        _ => Color.Default
-    };
-    private string GetOrderStatusText(SalesOrderStatus status) => status switch
-    {
-        SalesOrderStatus.Pending => "待处理",
-        SalesOrderStatus.Confirmed => "已确认",
-        SalesOrderStatus.Cancelled => "已取消",
-        _ => "未知"
-    };
+    private Color GetStatusColor(SalesOrderStatus status) => DisplayHelper.GetSalesOrderStatusColor(status);
+    private string GetOrderStatusText(SalesOrderStatus status) => DisplayHelper.GetSalesOrderStatusText(status);
 
     private string GetCustomerNameById(int id) =>
         _allCustomers.FirstOrDefault(c => c.Id == id)?.CustomerUnit ?? "未知客户";
@@ -1121,7 +1110,7 @@
                     builder.AddAttribute(4, "Size", Size.Small);
                     builder.CloseComponent();
                 }
-                else { builder.AddContent(0, item.DelayPenalty ? "是" : "否"); }
+                else { builder.AddContent(0, DisplayHelper.GetYesNoText(item.DelayPenalty)); }
                 break;
             case "settlementmethod":
                 if (_isEditMode)
@@ -1137,15 +1126,15 @@
                     {
                         cb.OpenComponent<MudSelectItem<SettlementMethod>>(0);
                         cb.AddAttribute(1, "Value", SettlementMethod.Theoretical);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "理算")));
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetSettlementMethodText(SettlementMethod.Theoretical))));
                         cb.CloseComponent();
                         cb.OpenComponent<MudSelectItem<SettlementMethod>>(0);
                         cb.AddAttribute(1, "Value", SettlementMethod.Weighing);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "过磅")));
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetSettlementMethodText(SettlementMethod.Weighing))));
                         cb.CloseComponent();
                         cb.OpenComponent<MudSelectItem<SettlementMethod>>(0);
                         cb.AddAttribute(1, "Value", SettlementMethod.WeighingNegative);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "过磅-负")));
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetSettlementMethodText(SettlementMethod.WeighingNegative))));
                         cb.CloseComponent();
                     }));
                     builder.CloseComponent();
@@ -1165,11 +1154,11 @@
                     {
                         cb.OpenComponent<MudSelectItem<MaterialName>>(0);
                         cb.AddAttribute(1, "Value", MaterialName.SeamlessPipe);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "无缝管")));
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetMaterialNameText(MaterialName.SeamlessPipe))));
                         cb.CloseComponent();
                         cb.OpenComponent<MudSelectItem<MaterialName>>(0);
                         cb.AddAttribute(1, "Value", MaterialName.WeldedPipe);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "焊管")));
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetMaterialNameText(MaterialName.WeldedPipe))));
                         cb.CloseComponent();
                     }));
                     builder.CloseComponent();
@@ -1212,15 +1201,15 @@
                     {
                         cb.OpenComponent<MudSelectItem<DeliveryState>>(0);
                         cb.AddAttribute(1, "Value", DeliveryState.SolutionAnnealedAndPickled);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "固溶酸洗")));
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetDeliveryStateText(DeliveryState.SolutionAnnealedAndPickled))));
                         cb.CloseComponent();
                         cb.OpenComponent<MudSelectItem<DeliveryState>>(0);
                         cb.AddAttribute(1, "Value", DeliveryState.Bright);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "光亮")));
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetDeliveryStateText(DeliveryState.Bright))));
                         cb.CloseComponent();
                         cb.OpenComponent<MudSelectItem<DeliveryState>>(0);
                         cb.AddAttribute(1, "Value", DeliveryState.Hard);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "硬态")));
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetDeliveryStateText(DeliveryState.Hard))));
                         cb.CloseComponent();
                     }));
                     builder.CloseComponent();
@@ -1359,15 +1348,15 @@
                     {
                         cb.OpenComponent<MudSelectItem<LengthStatus>>(0);
                         cb.AddAttribute(1, "Value", LengthStatus.Fixed);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "定尺")));
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetLengthStatusText(LengthStatus.Fixed))));
                         cb.CloseComponent();
                         cb.OpenComponent<MudSelectItem<LengthStatus>>(0);
                         cb.AddAttribute(1, "Value", LengthStatus.Range);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "范围尺")));
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetLengthStatusText(LengthStatus.Range))));
                         cb.CloseComponent();
                         cb.OpenComponent<MudSelectItem<LengthStatus>>(0);
                         cb.AddAttribute(1, "Value", LengthStatus.NonFixed);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "非定尺")));
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetLengthStatusText(LengthStatus.NonFixed))));
                         cb.CloseComponent();
                     }));
                     builder.CloseComponent();

@@ -14,7 +14,7 @@ public interface IOrderService
     /// <summary>
     /// 分页查询订单列表（支持技术要求状态和订单状态筛选）
     /// </summary>
-    Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, bool? hasTechnicalRequirement = null, List<SalesOrderStatus>? statuses = null);
+    Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, string? technicalStatus = null, string? orderStatus = null);
 
     Task<SalesOrderDetailDto> GetByIdAsync(int id);
 
@@ -53,7 +53,7 @@ public interface IOrderService
     /// <summary>
     /// 按筛选条件获取全部订单详情列表（用于打印全部）
     /// </summary>
-    Task<List<SalesOrderDetailDto>> GetAllByFilterForPrintAsync(string? keyword, bool? hasTechnicalRequirement, List<SalesOrderStatus>? statuses, string? sortBy = null, bool isDescending = false);
+    Task<List<SalesOrderDetailDto>> GetAllByFilterForPrintAsync(string? keyword, string? technicalStatus, string? orderStatus, string? sortBy = null, bool isDescending = false);
 
     /// <summary>
     /// 打印单个订单PDF
@@ -68,7 +68,7 @@ public interface IOrderService
     /// <summary>
     /// 打印全部筛选订单PDF
     /// </summary>
-    Task<byte[]> PrintOrderAllAsync(string? keyword, bool? hasTechnicalRequirement, List<SalesOrderStatus>? statuses, string? sortBy = null, bool isDescending = false);
+    Task<byte[]> PrintOrderAllAsync(string? keyword, string? technicalStatus, string? orderStatus, string? sortBy = null, bool isDescending = false);
 
     /// <summary>
     /// 打印订单技术要求PDF

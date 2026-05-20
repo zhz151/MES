@@ -801,26 +801,9 @@
         }
     }
 
-    private static string GetRawMaterialTypeText(string type)
-    {
-        return type switch
-        {
-            "SemiFinished" => "荒管",
-            "SemiProduct" => "半成品",
-            "RoundBar" => "圆棒",
-            _ => type
-        };
-    }
+    private static string GetRawMaterialTypeText(string type) => DisplayHelper.GetRawMaterialTypeText(type);
 
-    private static string GetProductTypeText(string type)
-    {
-        return type switch
-        {
-            "Critical" => "回厂复检",
-            "Order" => "不需再检验",
-            _ => type
-        };
-    }
+    private static string GetProductTypeText(string type) => DisplayHelper.GetProductInspectionTypeText(type);
 
     private static string FormatTolerance(decimal neg, decimal pos)
     {

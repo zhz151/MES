@@ -687,7 +687,32 @@ public class BatchService : IBatchService
         if (entity == null)
             throw new BusinessException($"生产批次不存在 (Id={id})");
 
-        // 物理删除（批次+工序组通过Cascade自动删除）
+        // 收集所有工序组 ID，用于清理引用 ProcessGroup 的记录
+        var processGroupIds = entity.ProcessGroups.Select(g => g.Id).ToList();
+
+        if (processGroupIds.Count != 0)
+        {
+            // 以下三个表的 FK → ProcessGroup 为 NoAction，会阻塞 Cascade 删除，
+            // 必须在此手动删除它们
+            var productionRecords = await _context.ProductionRecords
+                .Where(r => processGroupIds.Contains(r.ProcessGroupId))
+                .ToListAsync();
+            _context.ProductionRecords.RemoveRange(productionRecords);
+
+            var sectionOutsources = await _context.SectionOutsources
+                .Where(s => processGroupIds.Contains(s.ProcessGroupId))
+                .ToListAsync();
+            // OutsourceRecovery 通过 SectionOutsource 级联删除
+            _context.SectionOutsources.RemoveRange(sectionOutsources);
+
+            var processInspections = await _context.ProcessInspections
+                .Where(p => processGroupIds.Contains(p.ProcessGroupId))
+                .ToListAsync();
+            _context.ProcessInspections.RemoveRange(processInspections);
+        }
+
+        // 删除批次（ProcessGroup 通过 Cascade 自动删除，
+        // 其他直接引用 ProductionBatch 的表也通过 Cascade 自动删除）
         _context.ProductionBatches.Remove(entity);
         await _context.SaveChangesAsync();
 
@@ -1078,6 +1103,52 @@ public class BatchService : IBatchService
         var groups = await _context.ProcessGroups
             .AsNoTracking()
             .Where(pg => pg.ProductionBatchId == lastBatch.Id)
+            .OrderBy(pg => pg.SequenceNumber)
+            .Select(pg => new CreateProcessGroupRequest
+            {
+                ProcessName = pg.ProcessName,
+                ManufacturingSpec = pg.ManufacturingSpec,
+                OuterDiameterTolerance = pg.OuterDiameterTolerance,
+                WallThicknessTolerance = pg.WallThicknessTolerance,
+                ManufacturingLength = pg.ManufacturingLength,
+                CuttingTreatment = pg.CuttingTreatment,
+                ManufacturingMultiple = pg.ManufacturingMultiple,
+                Remark = pg.Remark,
+                ColdRollDraw = pg.ColdRollDraw,
+                OilPipeCut = pg.OilPipeCut,
+                Degrease = pg.Degrease,
+                Solution = pg.Solution,
+                Straighten = pg.Straighten,
+                Cut = pg.Cut,
+                ThicknessMeasure = pg.ThicknessMeasure,
+                Pickle = pg.Pickle,
+                OuterPolish = pg.OuterPolish,
+                InnerGrinding = pg.InnerGrinding,
+                OuterSpotGrinding = pg.OuterSpotGrinding,
+                Inspection = pg.Inspection,
+                WeldingHead = pg.WeldingHead,
+                Lubrication = pg.Lubrication,
+                Warehouse = pg.Warehouse
+            })
+            .ToListAsync();
+
+        return groups;
+    }
+
+    // ========== 按批次号获取工序组 ==========
+
+    public async Task<List<CreateProcessGroupRequest>> GetProcessGroupsByBatchNoAsync(string batchNo)
+    {
+        var batch = await _context.ProductionBatches
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.BatchNo == batchNo);
+
+        if (batch == null)
+            return new List<CreateProcessGroupRequest>();
+
+        var groups = await _context.ProcessGroups
+            .AsNoTracking()
+            .Where(pg => pg.ProductionBatchId == batch.Id)
             .OrderBy(pg => pg.SequenceNumber)
             .Select(pg => new CreateProcessGroupRequest
             {

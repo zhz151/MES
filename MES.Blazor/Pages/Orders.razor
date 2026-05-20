@@ -1,4 +1,5 @@
 @page "/orders"
+@using MES.Blazor.Helpers
 @using MES.Blazor.Services
 @using MES.Core.DTOs
 @using MES.Core.Models
@@ -38,7 +39,7 @@
             <MudGrid>
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
-                                  Label="模糊搜索 - 订单号/客户名称/业务员/最终客户/延期罚款/状态"
+                                  Label="关键字搜索"
                                   Value="@searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
@@ -288,7 +289,7 @@
                 builder.AddContent(0, order.DeliveryEnd?.ToString("yyyy-MM-dd") ?? "-");
                 break;
             case "hasdelaypenalty":
-                builder.AddContent(0, order.HasDelayPenalty ? "是" : "否");
+                builder.AddContent(0, DisplayHelper.GetYesNoText(order.HasDelayPenalty));
                 break;
             case "totalcontractweight":
                 builder.AddContent(0, order.TotalContractWeight.ToString("G29"));
@@ -624,19 +625,9 @@
         }
     }
 
-    private Color GetStatusColor(SalesOrderStatus status) => status switch
-    {
-        SalesOrderStatus.Pending => Color.Warning,
-        SalesOrderStatus.Confirmed => Color.Success,
-        _ => Color.Default
-    };
+    private Color GetStatusColor(SalesOrderStatus status) => DisplayHelper.GetSalesOrderStatusColor(status);
 
-    private string GetStatusText(SalesOrderStatus status) => status switch
-    {
-        SalesOrderStatus.Pending => "待处理",
-        SalesOrderStatus.Confirmed => "已确认",
-        _ => "未知"
-    };
+    private string GetStatusText(SalesOrderStatus status) => DisplayHelper.GetSalesOrderStatusText(status);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

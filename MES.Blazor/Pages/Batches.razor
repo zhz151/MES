@@ -100,11 +100,11 @@
                                Clearable="true"
                                Adornment="Adornment.End"
                                AdornmentIcon="@Icons.Material.Filled.FilterList">
-                        <MudSelectItem Value="@("None")">未产</MudSelectItem>
-                        <MudSelectItem Value="@("InProgress")">在产</MudSelectItem>
-                        <MudSelectItem Value="@("Completed")">完成</MudSelectItem>
-                        <MudSelectItem Value="@("Suspended")">挂起</MudSelectItem>
-                        <MudSelectItem Value="@("Cancelled")">作废</MudSelectItem>
+                        <MudSelectItem Value="@("None")">@DisplayHelper.GetBatchStatusText("None")</MudSelectItem>
+                        <MudSelectItem Value="@("InProgress")">@DisplayHelper.GetBatchStatusText("InProgress")</MudSelectItem>
+                        <MudSelectItem Value="@("Completed")">@DisplayHelper.GetBatchStatusText("Completed")</MudSelectItem>
+                        <MudSelectItem Value="@("Suspended")">@DisplayHelper.GetBatchStatusText("Suspended")</MudSelectItem>
+                        <MudSelectItem Value="@("Cancelled")">@DisplayHelper.GetBatchStatusText("Cancelled")</MudSelectItem>
                     </MudSelect>
                 </MudItem>
             </MudGrid>
@@ -637,7 +637,7 @@
         "Salesman" => item.Salesman,
         "EndCustomer" => item.EndCustomer ?? "",
         "DeliveryDate" => item.DeliveryDate.ToString("yyyy-MM-dd"),
-        "DelayPenalty" => item.DelayPenalty ? "是" : "否",
+        "DelayPenalty" => DisplayHelper.GetYesNoText(item.DelayPenalty),
         "MaterialName" => DisplayHelper.GetMaterialNameText(item.MaterialName),
         "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod),
         "StandardCode" => item.StandardCode,

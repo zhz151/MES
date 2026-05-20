@@ -72,6 +72,12 @@ public class FinalInspectionDto
     /// <summary>合格重量</summary>
     public decimal? QualifiedWeight { get; set; }
 
+    /// <summary>合格中让步放行支数</summary>
+    public int? QualifiedConcessionQuantity { get; set; }
+
+    /// <summary>让步说明</summary>
+    public string? ConcessionRemark { get; set; }
+
     /// <summary>不合格返整支数</summary>
     public int? DefectReworkQuantity { get; set; }
 
@@ -191,6 +197,9 @@ public class CreateFinalInspectionRequest
     public decimal? Weight { get; set; }
     public int? QualifiedQuantity { get; set; }
     public decimal? QualifiedWeight { get; set; }
+    public int? QualifiedConcessionQuantity { get; set; }
+    [MaxLength(500)]
+    public string? ConcessionRemark { get; set; }
     public int? DefectReworkQuantity { get; set; }
     public int? DefectWarehouseQuantity { get; set; }
     public int? DefectScrapQuantity { get; set; }
@@ -226,6 +235,9 @@ public class UpdateFinalInspectionRequest
     public decimal? Weight { get; set; }
     public int? QualifiedQuantity { get; set; }
     public decimal? QualifiedWeight { get; set; }
+    public int? QualifiedConcessionQuantity { get; set; }
+    [MaxLength(500)]
+    public string? ConcessionRemark { get; set; }
     public int? DefectReworkQuantity { get; set; }
     public int? DefectWarehouseQuantity { get; set; }
     public int? DefectScrapQuantity { get; set; }

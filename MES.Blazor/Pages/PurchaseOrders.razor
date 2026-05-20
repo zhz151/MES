@@ -457,7 +457,7 @@
                 builder.AddContent(0, item.WoDeliveryDate?.ToString("yyyy-MM-dd"));
                 break;
             case "WoDelayPenalty":
-                builder.AddContent(0, item.WoDelayPenalty ? "是" : "否");
+                builder.AddContent(0, DisplayHelper.GetYesNoText(item.WoDelayPenalty));
                 break;
             case "WoSettlementMethod":
                 builder.AddContent(0, item.WoSettlementMethod.HasValue ? DisplayHelper.GetSettlementMethodText(item.WoSettlementMethod.Value) : "-");
@@ -582,8 +582,8 @@
         }
     }
 
-    private static Color GetStatusColor(PurchaseOrderStatus status) => status switch { PurchaseOrderStatus.Open => Color.Info, PurchaseOrderStatus.Partial => Color.Warning, PurchaseOrderStatus.Completed => Color.Success, PurchaseOrderStatus.Cancelled => Color.Default, _ => Color.Default };
-    private static string GetStatusText(PurchaseOrderStatus status) => status switch { PurchaseOrderStatus.Open => "已下单", PurchaseOrderStatus.Partial => "部分到货", PurchaseOrderStatus.Completed => "已完成", PurchaseOrderStatus.Cancelled => "已取消", _ => "未知" };
+    private static Color GetStatusColor(PurchaseOrderStatus status) => DisplayHelper.GetPurchaseOrderStatusColor(status);
+    private static string GetStatusText(PurchaseOrderStatus status) => DisplayHelper.GetPurchaseOrderStatusText(status);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

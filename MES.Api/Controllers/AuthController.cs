@@ -23,6 +23,8 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<ApiResponse<LoginResponse>>> Login([FromBody] LoginRequest loginRequest)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<LoginResponse>.Fail("请求参数无效"));
         var result = await _authService.LoginAsync(loginRequest);
         return Ok(result);
     }
@@ -39,6 +41,8 @@ public class AuthController : ControllerBase
     [HttpPost("refresh-token")]
     public async Task<ActionResult<ApiResponse<LoginResponse>>> RefreshToken([FromBody] RefreshTokenRequest refreshTokenRequest)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<LoginResponse>.Fail("请求参数无效"));
         var result = await _authService.RefreshTokenAsync(refreshTokenRequest.RefreshToken);
         return Ok(result);
     }

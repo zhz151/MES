@@ -25,6 +25,13 @@ public class ProcessInspectionDto
     public string? InspectionItem { get; set; }
     public int? QualifiedQuantity { get; set; }
     public decimal? QualifiedWeight { get; set; }
+
+    /// <summary>合格中让步放行支数</summary>
+    public int? QualifiedConcessionQuantity { get; set; }
+
+    /// <summary>让步说明</summary>
+    public string? ConcessionRemark { get; set; }
+
     public int? DefectReworkQuantity { get; set; }
     public int? DefectWarehouseQuantity { get; set; }
     public int? DefectScrapQuantity { get; set; }
@@ -102,6 +109,11 @@ public class CreateProcessInspectionRequest
     public string? InspectionItem { get; set; }
     public int? QualifiedQuantity { get; set; }
     public decimal? QualifiedWeight { get; set; }
+    public int? QualifiedConcessionQuantity { get; set; }
+
+    [MaxLength(500)]
+    public string? ConcessionRemark { get; set; }
+
     public int? DefectReworkQuantity { get; set; }
     public int? DefectWarehouseQuantity { get; set; }
     public int? DefectScrapQuantity { get; set; }
@@ -146,6 +158,11 @@ public class UpdateProcessInspectionRequest
     public string? InspectionItem { get; set; }
     public int? QualifiedQuantity { get; set; }
     public decimal? QualifiedWeight { get; set; }
+    public int? QualifiedConcessionQuantity { get; set; }
+
+    [MaxLength(500)]
+    public string? ConcessionRemark { get; set; }
+
     public int? DefectReworkQuantity { get; set; }
     public int? DefectWarehouseQuantity { get; set; }
     public int? DefectScrapQuantity { get; set; }

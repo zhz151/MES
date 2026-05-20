@@ -64,6 +64,8 @@ public class ProductionRecordController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<ProductionRecordDto>>>> BatchCreateProductionRecords(
         [FromBody] List<CreateProductionRecordRequest> requests)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<ProductionRecordDto>>.Fail("请求参数无效"));
         if (requests.Count == 0)
             return BadRequest(ApiResponse<List<ProductionRecordDto>>.Fail("请求列表不能为空"));
         var result = await _service.BatchCreateProductionRecordsAsync(requests);
@@ -302,6 +304,8 @@ public class ProductionRecordController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<SectionOutsourceDto>>>> BatchCreateSectionOutsources(
         [FromBody] List<CreateSectionOutsourceRequest> requests)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<SectionOutsourceDto>>.Fail("请求参数无效"));
         if (requests.Count == 0)
             return BadRequest(ApiResponse<List<SectionOutsourceDto>>.Fail("请求列表不能为空"));
         var result = await _service.BatchCreateSectionOutsourcesAsync(requests);
@@ -316,6 +320,8 @@ public class ProductionRecordController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<OutsourceRecoveryDto>>>> BatchCreateOutsourceRecoveries(
         [FromBody] List<CreateOutsourceRecoveryRequest> requests)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<OutsourceRecoveryDto>>.Fail("请求参数无效"));
         if (requests.Count == 0)
             return BadRequest(ApiResponse<List<OutsourceRecoveryDto>>.Fail("请求列表不能为空"));
         var result = await _service.BatchCreateOutsourceRecoveriesAsync(requests);
@@ -332,10 +338,10 @@ public class ProductionRecordController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<MaterialReceiveCheckDto>>>> BatchCreateMaterialReceiveChecks(
         [FromBody] List<CreateMaterialReceiveCheckRequest> requests)
     {
-        if (requests.Count == 0)
-            return BadRequest(ApiResponse<List<MaterialReceiveCheckDto>>.Fail("请求列表不能为空"));
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<List<MaterialReceiveCheckDto>>.Fail("请求参数无效"));
+        if (requests.Count == 0)
+            return BadRequest(ApiResponse<List<MaterialReceiveCheckDto>>.Fail("请求列表不能为空"));
         var result = await _service.BatchCreateMaterialReceiveChecksAsync(requests);
         return Ok(ApiResponse<List<MaterialReceiveCheckDto>>.Ok(result, $"批量检验到料创建成功，共{result.Count}条"));
     }
@@ -372,6 +378,8 @@ public class ProductionRecordController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintProductionRecordBatch([FromBody] ProductionRecordPrintBatchRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
         var pdfBytes = await _service.PrintProductionRecordBatchAsync(request.Ids, request.Columns);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
@@ -384,6 +392,8 @@ public class ProductionRecordController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintProductionRecordAll([FromBody] ProductionRecordPrintAllRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
         var pdfBytes = await _service.PrintProductionRecordAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.ExecDateFrom, request.ExecDateTo);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
@@ -396,6 +406,8 @@ public class ProductionRecordController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintMaterialCheckBatch([FromBody] MaterialCheckPrintBatchRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
         var pdfBytes = await _service.PrintMaterialCheckBatchAsync(request.Ids, request.Columns);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
@@ -408,6 +420,8 @@ public class ProductionRecordController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintMaterialCheckAll([FromBody] MaterialCheckPrintAllRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
         var pdfBytes = await _service.PrintMaterialCheckAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.ReceiveDateFrom, request.ReceiveDateTo);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));

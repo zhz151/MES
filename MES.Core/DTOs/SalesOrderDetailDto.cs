@@ -49,11 +49,6 @@ public class SalesOrderDetailDto
     public SalesOrderStatus Status { get; set; }
 
     /// <summary>
-    /// 订单状态文本（用于前端显示）
-    /// </summary>
-    public string StatusText => Status.ToString();
-
-    /// <summary>
     /// 乐观并发控制版本号
     /// </summary>
     public byte[] RowVersion { get; set; } = null!;

@@ -647,41 +647,10 @@ public class WorkOrderService : IWorkOrderService
             
             // 清除缓存，确保查询最新数据
             _context.ChangeTracker.Clear();
-            
-            // 7. 获取下一个可用序号
-            var workOrderDate = DateTime.Now;
-            var dateStr = workOrderDate.ToString("yyMMdd");
-            var prefix = $"GD{dateStr}";
 
-            // 获取当天所有工单号
-            var existingNos = await _context.WorkOrders
-                .AsNoTracking()
-                .Where(wo => wo.WorkOrderNo.StartsWith(prefix))
-                .Select(wo => wo.WorkOrderNo)
-                .ToListAsync();
-
-            int maxSeq = 0;
-            foreach (var no in existingNos)
-            {
-                if (no.Length >= 3 && int.TryParse(no.Substring(no.Length - 3), out var seq))
-                {
-                    if (seq > maxSeq) maxSeq = seq;
-                }
-            }
-
-            int currentSeq = maxSeq + 1;
-
-            if (currentSeq > 999)
-                throw new BusinessException($"当天工单号已达到上限999，无法生成新工单");
-            
-            _logger.LogWarning("=== 工单序号分配 ===");
-            _logger.LogWarning($"日期前缀: {prefix}");
-            _logger.LogWarning($"当前最大序号: {maxSeq}");
-            _logger.LogWarning($"起始序号: {currentSeq}");
-            
             var workOrdersToAdd = new List<WorkOrder>();
             var generatedWorkOrders = new List<GeneratedWorkOrderDto>();
-            
+
             foreach (var workOrderGroup in request.WorkOrders)
             {
                 var groupItems = workOrderGroup.OrderItemIds
@@ -691,14 +660,15 @@ public class WorkOrderService : IWorkOrderService
                 if (!groupItems.Any()) continue;
 
                 var firstItem = groupItems.First()!;
-                
+
                 ValidateSubNo(firstItem.LengthStatus, workOrderGroup.ProductionSubNo);
 
                 var (minLength, maxLength, totalQuantity, totalMeters, totalWeight, itemDetails, technicalRequirements) =
                     CalculateAggregates(groupItems, firstItem.LengthStatus);
 
-                var workOrderNo = $"{prefix}{currentSeq:D3}";
-                currentSeq++;
+                // 工单号格式: {订单号}-{主号}[-{次号}]
+                var subPart = string.IsNullOrEmpty(workOrderGroup.ProductionSubNo) ? "" : $"-{workOrderGroup.ProductionSubNo}";
+                var workOrderNo = $"{request.SalesOrderNo}-{workOrderGroup.ProductionMainNo}{subPart}";
 
                 _logger.LogWarning($"生成工单号: {workOrderNo}");
 
@@ -985,8 +955,9 @@ public class WorkOrderService : IWorkOrderService
                     var (newMinLength, newMaxLength, newTotalQuantity, newTotalMeters, newTotalWeight, newItemDetails, newTechRequirements) =
                         CalculateAggregates(groupItems, firstItem.LengthStatus);
 
-                    // 生成新的工单号
-                    var workOrderNo = await GenerateNextWorkOrderNoAsync();
+                    // 工单号格式: {订单号}-{主号}[-{次号}]
+                    var subPart = string.IsNullOrEmpty(group.ProductionSubNo) ? "" : $"-{group.ProductionSubNo}";
+                    var workOrderNo = $"{request.SalesOrderNo}-{group.ProductionMainNo}{subPart}";
 
                     var workOrder = new WorkOrder
                     {
@@ -1093,39 +1064,6 @@ public class WorkOrderService : IWorkOrderService
             _logger.LogError(ex, "更新修改工单失败: 订单号 {OrderNo}", request.SalesOrderNo);
             throw;
         }
-    }
-
-    /// <summary>
-    /// 生成下一个可用的工单号（GD + 日期 + 三位序号）
-    /// </summary>
-    private async Task<string> GenerateNextWorkOrderNoAsync()
-    {
-        var dateStr = DateTime.Now.ToString("yyMMdd");
-        var prefix = $"GD{dateStr}";
-
-        var existingNos = await _context.WorkOrders
-            .AsNoTracking()
-            .Where(wo => wo.WorkOrderNo.StartsWith(prefix))
-            .Select(wo => wo.WorkOrderNo)
-            .ToListAsync();
-
-        int maxSeq = 0;
-        foreach (var no in existingNos)
-        {
-            if (no.Length >= 3 && int.TryParse(no.Substring(no.Length - 3), out var seq))
-            {
-                if (seq > maxSeq) maxSeq = seq;
-            }
-        }
-
-        int nextSeq = maxSeq + 1;
-        if (nextSeq > 999)
-            throw new BusinessException($"当天工单号已达到上限999，无法生成新工单");
-
-        var workOrderNo = $"{prefix}{nextSeq:D3}";
-        _logger.LogWarning("新工单号分配: {WorkOrderNo}", workOrderNo);
-
-        return workOrderNo;
     }
 
     private (decimal? MinLength, decimal? MaxLength, int TotalQuantity, decimal TotalMeters,
@@ -1558,6 +1496,25 @@ public class WorkOrderService : IWorkOrderService
             if (piercingWeightByWo.TryGetValue(item.Id, out var pW)) item.PiercingPlanTotalWeight = pW;
             if (piercingPiecesByWo.TryGetValue(item.Id, out var pP)) item.PiercingPlanTotalPieces = pP;
             if (latestDateByWo.TryGetValue(item.Id, out var latestDate)) item.LatestPlanDate = latestDate;
+        }
+
+        // 1b. 从用料计划数据实时计算工单级满足率（不依赖 WorkOrder 预计算字段）
+        var semiByWo = allSemiPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
+        var finishByWo = allFinishPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
+        var inventoryByWo = allInventoryPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
+        var piercingByWo = allPiercingPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
+        var woById = allWorkOrdersInOrders.ToDictionary(wo => wo.Id);
+
+        foreach (var item in items)
+        {
+            if (!woById.TryGetValue(item.Id, out var wo)) continue;
+            var semi = semiByWo.TryGetValue(item.Id, out var s) ? s : new List<PurchaseSemiPlan>();
+            var finish = finishByWo.TryGetValue(item.Id, out var f) ? f : new List<PurchaseFinishedPlan>();
+            var inv = inventoryByWo.TryGetValue(item.Id, out var iv) ? iv : new List<InventoryPlan>();
+            var pierce = piercingByWo.TryGetValue(item.Id, out var p) ? p : new List<RoundBarPiercingPlan>();
+            var (rate, status) = PlanRateCalculator.ComputeWorkOrderRate(wo, semi, finish, inv, pierce);
+            item.MaterialPlanRate = rate;
+            item.MaterialPlanStatus = status;
         }
 
         // 2. 主号级聚合

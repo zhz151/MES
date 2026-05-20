@@ -208,13 +208,13 @@
                             <td><MudTextField T="string" @bind-Value="request.SourceBatchNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
                             <td><MudTextField T="string" @bind-Value="request.SourceMaterialType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
                             <td><MudSelect T="string" @bind-Value="request.InboundSource" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                    <MudSelectItem Value="@("外购")">外购</MudSelectItem>
-                                    <MudSelectItem Value="@("委外")">委外</MudSelectItem>
-                                    <MudSelectItem Value="@("退货入库")">退货入库</MudSelectItem>
-                                    <MudSelectItem Value="@("生产入库")">生产入库</MudSelectItem>
-                                    <MudSelectItem Value="@("检验入库")">检验入库</MudSelectItem>
-                                    <MudSelectItem Value="@("移库入库")">移库入库</MudSelectItem>
-                                    <MudSelectItem Value="@("其它")">其它</MudSelectItem>
+                                    <MudSelectItem Value="@("Purchase")">外购</MudSelectItem>
+                                    <MudSelectItem Value="@("Subcontract")">委外</MudSelectItem>
+                                    <MudSelectItem Value="@("ReturnIn")">退货入库</MudSelectItem>
+                                    <MudSelectItem Value="@("ProductionInbound")">生产入库</MudSelectItem>
+                                    <MudSelectItem Value="@("InspectionInbound")">检验入库</MudSelectItem>
+                                    <MudSelectItem Value="@("TransferIn")">移库入库</MudSelectItem>
+                                    <MudSelectItem Value="@("Other")">其它</MudSelectItem>
                                 </MudSelect></td>
                             <td><MudTextField T="string" @bind-Value="request.SourceName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
                             <td><MudTextField T="string" @bind-Value="editInboundDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
@@ -792,12 +792,12 @@
         request.SourceHeatNo = originalBatch.SourceHeatNo;
         request.SourcePlantGrade = originalBatch.SourcePlantGrade;
         request.SourceSpecification = originalBatch.SourceSpecification;
-        request.SourceLengthStatus = DisplayHelper.GetLengthStatusText(originalBatch.SourceLengthStatus);
+        request.SourceLengthStatus = originalBatch.SourceLengthStatus;
         request.SourceUnitWeight = originalBatch.SourceUnitWeight;
         request.InputQuantity = originalBatch.InputQuantity;
         request.InputWeight = originalBatch.InputWeight;
-        editInboundSource = DisplayHelper.GetInboundSourceText(originalBatch.InboundSource);
-        request.InboundSource = DisplayHelper.GetInboundSourceText(originalBatch.InboundSource);
+        editInboundSource = originalBatch.InboundSource;
+        request.InboundSource = originalBatch.InboundSource;
         editInboundDateStr = originalBatch.InboundDate?.ToString("yyyy-MM-dd");
         request.InboundDate = originalBatch.InboundDate;
         request.WarehouseId = originalBatch.WarehouseId;
@@ -901,15 +901,15 @@
     {
         request.SourceBatchNo = batch.BatchNo;
         request.SourceMaterialType = batch.MaterialType;
-        editInboundSource = DisplayHelper.GetInboundSourceText(batch.InboundSource);
-        request.InboundSource = DisplayHelper.GetInboundSourceText(batch.InboundSource);
+        editInboundSource = batch.InboundSource;
+        request.InboundSource = batch.InboundSource;
         request.SourceName = batch.SourceName;
         editInboundDateStr = batch.InboundDate?.ToString("yyyy-MM-dd");
         request.InboundDate = batch.InboundDate;
         request.SourceHeatNo = batch.HeatNo;
         request.SourcePlantGrade = batch.PlantGrade;
         request.SourceSpecification = batch.Specification;
-        request.SourceLengthStatus = DisplayHelper.GetLengthStatusText(batch.LengthStatus);
+        request.SourceLengthStatus = batch.LengthStatus;
         request.SourceUnitWeight = batch.UnitWeight;
         request.InputQuantity = batch.OutboundQuantity;
         request.InputWeight = batch.OutboundWeight;

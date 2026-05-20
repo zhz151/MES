@@ -1231,7 +1231,7 @@ public class InventoryService : IInventoryService
                 })
                 .ToListAsync();
 
-            var batchDict = allBatchData.ToDictionary(x => x.OrderNo, x => x);
+            var batchDict = allBatchData.ToDictionary(x => x.OrderNo, x => x, StringComparer.OrdinalIgnoreCase);
             foreach (var order in purchaseOrders)
             {
                 if (!batchDict.TryGetValue(order.OrderNo, out var data)) continue;
@@ -1270,7 +1270,7 @@ public class InventoryService : IInventoryService
                 })
                 .ToListAsync();
 
-            var batchDict = allBatchData.ToDictionary(x => x.OrderNo, x => x);
+            var batchDict = allBatchData.ToDictionary(x => x.OrderNo, x => x, StringComparer.OrdinalIgnoreCase);
             foreach (var order in subcontractOrders)
             {
                 if (!batchDict.TryGetValue(order.OrderNo, out var data)) continue;

@@ -31,11 +31,7 @@ public class ChemicalValidationRuleController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<ChemicalValidationRuleDto>>> GetById(int id)
     {
-        var result = await _service.GetByPlantGradeAsync("");
-        // 简化为先从 GetAllAsync 获取
-        var query = new QueryParams { PageIndex = 1, PageSize = 1 };
-        var all = await _service.GetAllAsync(query);
-        var item = all.Items.FirstOrDefault(x => x.Id == id);
+        var item = await _service.GetByIdAsync(id);
         if (item == null)
             return NotFound(ApiResponse<ChemicalValidationRuleDto>.Fail("记录不存在"));
         return Ok(ApiResponse<ChemicalValidationRuleDto>.Ok(item, "查询成功"));
@@ -86,6 +82,8 @@ public class ChemicalValidationRuleController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<ChemicalValidationRuleDto>>>> BatchCreate(
         [FromBody] List<CreateChemicalValidationRuleRequest> requests)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<ChemicalValidationRuleDto>>.Fail("请求参数无效"));
         if (requests.Count == 0)
             return BadRequest(ApiResponse<List<ChemicalValidationRuleDto>>.Fail("请求列表不能为空"));
         var result = await _service.BatchCreateAsync(requests);

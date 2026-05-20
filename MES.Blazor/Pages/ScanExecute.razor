@@ -1,4 +1,5 @@
 @page "/mobile-report"
+@using MES.Blazor.Helpers
 @using MES.Core.DTOs
 @using MES.Core.Enums
 @using MES.Blazor.Services
@@ -470,7 +471,7 @@
                         || _finalInspectionItem == InspectionItem.UnderwaterPneumatic)
                     {
                         <MudText Typo="Typo.body2" Color="Color.Info" Class="mt-3 mb-1 font-weight-bold">
-                            @(_finalInspectionItem == InspectionItem.HydrostaticPressure ? "水压" : "水下气压")
+                            @DisplayHelper.GetInspectionItemText(_finalInspectionItem!.Value)
                         </MudText>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                             <MudNumericField T="decimal?" Format="G29"
@@ -841,19 +842,7 @@
 
     // ========== 辅助方法 ==========
 
-    private static string GetInspectionItemText(InspectionItem item) => item switch
-    {
-        InspectionItem.PMIInspection => "PMI检验",
-        InspectionItem.VisualInspection => "表检",
-        InspectionItem.Dimension => "尺寸",
-        InspectionItem.Endoscopy => "内窥",
-        InspectionItem.HydrostaticPressure => "水压",
-        InspectionItem.UnderwaterPneumatic => "水下气压",
-        InspectionItem.EddyCurrent => "涡流",
-        InspectionItem.Ultrasonic => "超声波",
-        InspectionItem.PortColoring => "端口着色",
-        _ => item.ToString()
-    };
+    private static string GetInspectionItemText(InspectionItem item) => DisplayHelper.GetInspectionItemText(item);
 
     private Func<Task> GetSubmitHandler() => _mode switch
     {

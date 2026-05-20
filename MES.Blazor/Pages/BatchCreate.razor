@@ -198,13 +198,13 @@
                         <td><MudTextField T="string" @bind-Value="request.SourceMaterialType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
                         <td><MudSelect T="string" @bind-Value="request.InboundSource" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
                                 <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
-                                <MudSelectItem Value="@("外购")">外购</MudSelectItem>
-                                <MudSelectItem Value="@("委外")">委外</MudSelectItem>
-                                <MudSelectItem Value="@("退货入库")">退货入库</MudSelectItem>
-                                <MudSelectItem Value="@("生产入库")">生产入库</MudSelectItem>
-                                <MudSelectItem Value="@("检验入库")">检验入库</MudSelectItem>
-                                <MudSelectItem Value="@("移库入库")">移库入库</MudSelectItem>
-                                <MudSelectItem Value="@("其它")">其它</MudSelectItem>
+                                <MudSelectItem Value="@("Purchase")">外购</MudSelectItem>
+                                <MudSelectItem Value="@("Subcontract")">委外</MudSelectItem>
+                                <MudSelectItem Value="@("ReturnIn")">退货入库</MudSelectItem>
+                                <MudSelectItem Value="@("ProductionInbound")">生产入库</MudSelectItem>
+                                <MudSelectItem Value="@("InspectionInbound")">检验入库</MudSelectItem>
+                                <MudSelectItem Value="@("TransferIn")">移库入库</MudSelectItem>
+                                <MudSelectItem Value="@("Other")">其它</MudSelectItem>
                             </MudSelect></td>
                         <td><MudTextField T="string" @bind-Value="request.SourceName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
                         <td><MudTextField T="string" @bind-Value="inboundDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
@@ -750,7 +750,7 @@
         request.SourceBatchNo = batch.BatchNo;
         request.WarehouseId = batch.WarehouseId;
         request.SourceMaterialType = batch.MaterialType;
-        request.InboundSource = DisplayHelper.GetInboundSourceText(batch.InboundSource);
+        request.InboundSource = batch.InboundSource;
         request.SourceName = batch.SourceName;
         request.InboundDate = batch.InboundDate;
         request.SourceHeatNo = batch.HeatNo;
@@ -886,12 +886,12 @@
     }
 
     /// <summary>
-    /// 计算制几率：定尺时 = floor(投料单重 / 工单单重)
+    /// 计算制几率：LengthStatus = "Fixed"(定尺)时 = floor(投料单重 / 工单单重)
     /// </summary>
     private void RecalcProductionRatio()
     {
         var lengthStatus = request.LengthStatus ?? "";
-        if (lengthStatus != "定尺")
+        if (lengthStatus != "Fixed")
         {
             request.ProductionRatio = 0;
             return;

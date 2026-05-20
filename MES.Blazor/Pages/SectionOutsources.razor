@@ -239,7 +239,7 @@
             new() { Key = "processname", Label = "工序名称", SortKey = "processname", Visible = true },
             new() { Key = "manufacturingspec", Label = "制造规格", Visible = true },
             new() { Key = "sectionname", Label = "工段名称", SortKey = "sectionname", Visible = true },
-            new() { Key = "sequencenumber", Label = "执行序号", Visible = true },
+            new() { Key = "sequencenumber", Label = "组内序号", Visible = true },
             new() { Key = "outsourcevendor", Label = "委外单位", SortKey = "outsourcevendor", Visible = true },
             new() { Key = "sendoutdate", Label = "发出日期", SortKey = "sendoutdate", Visible = true },
             new() { Key = "sendquantity", Label = "发出支数", SortKey = "sendquantity", Visible = true },
@@ -391,7 +391,7 @@
             new() { Key = "processname", Label = "工序名称", SortKey = "processname", Visible = true },
             new() { Key = "manufacturingspec", Label = "制造规格", Visible = true },
             new() { Key = "sectionname", Label = "工段名称", SortKey = "sectionname", Visible = true },
-            new() { Key = "sequencenumber", Label = "执行序号", Visible = true },
+            new() { Key = "sequencenumber", Label = "组内序号", Visible = true },
             new() { Key = "outsourcevendor", Label = "委外单位", SortKey = "outsourcevendor", Visible = true },
             new() { Key = "sendoutdate", Label = "发出日期", SortKey = "sendoutdate", Visible = true },
             new() { Key = "sendquantity", Label = "发出支数", SortKey = "sendquantity", Visible = true },
@@ -533,7 +533,7 @@
                 }
                 else
                 {
-                    builder.AddContent(0, item.IsUrgent ? "是" : "否");
+                    builder.AddContent(0, DisplayHelper.GetYesNoText(item.IsUrgent));
                 }
                 break;
 

@@ -317,7 +317,7 @@ public class OrderServiceTests : TestBase
         detail.Items[0].Specification.Should().Be("219*8");
     }
 
-    // ========== 查询 ==========
+    // ========== 辅助方法 ==========
 
     [Fact]
     public async Task GetPagedAsync_状态筛选_正确过滤()
@@ -340,7 +340,7 @@ public class OrderServiceTests : TestBase
         {
             PageIndex = 0,
             PageSize = 10
-        }, statuses: new List<SalesOrderStatus> { SalesOrderStatus.Pending });
+        }, orderStatus: "Pending");
 
         pendingResult.Items.Should().BeEmpty();
 
@@ -349,10 +349,256 @@ public class OrderServiceTests : TestBase
         {
             PageIndex = 0,
             PageSize = 10
-        }, statuses: new List<SalesOrderStatus> { SalesOrderStatus.Confirmed });
+        }, orderStatus: "Confirmed");
 
         confirmedResult.Items.Should().HaveCount(1);
         confirmedResult.Items[0].Status.Should().Be(SalesOrderStatus.Confirmed);
+    }
+
+    // ========== GetIdByOrderNumberAsync ==========
+
+    [Fact]
+    public async Task GetIdByOrderNumberAsync_存在_返回Id()
+    {
+        var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx);
+        var ps = await SeedStandardAsync(ctx);
+        var gm = await SeedGradeMappingAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+
+        var id = await svc.GetIdByOrderNumberAsync("ORD-TEST-001");
+
+        id.Should().Be(order.Id);
+    }
+
+    [Fact]
+    public async Task GetIdByOrderNumberAsync_不存在_返回Null()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var id = await svc.GetIdByOrderNumberAsync("NONEXISTENT");
+
+        id.Should().BeNull();
+    }
+
+    // ========== GetByIdAsync ==========
+
+    [Fact]
+    public async Task GetByIdAsync_不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.GetByIdAsync(999);
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("订单不存在");
+    }
+
+    // ========== UpdateItemAsync ==========
+
+    [Fact]
+    public async Task UpdateItemAsync_成功更新项次()
+    {
+        var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx);
+        var ps = await SeedStandardAsync(ctx);
+        var gm = await SeedGradeMappingAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var itemId = (await svc.GetByIdAsync(order.Id)).Items[0].Id;
+
+        var result = await svc.UpdateItemAsync(order.Id, itemId, new UpdateOrderItemRequest
+        {
+            Sequence = 1,
+            ProductionStandardId = ps.Id,
+            StandardGrade = gm.StandardGrade,
+            MaterialName = MaterialName.SeamlessPipe,
+            OuterDiameter = 273m,
+            WallThickness = 10m,
+            OuterDiameterNegative = 0.5m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.5m,
+            WallThicknessPositive = 0.5m,
+            LengthStatus = LengthStatus.Fixed,
+            MinLength = 6000m,
+            MaxLength = 6000m,
+            Quantity = 5,
+            ContractWeight = 2000m,
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            SettlementMethod = SettlementMethod.Theoretical,
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled
+        });
+
+        result.Specification.Should().Be("273*10");
+    }
+
+    [Fact]
+    public async Task UpdateItemAsync_不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx);
+        var ps = await SeedStandardAsync(ctx);
+        var gm = await SeedGradeMappingAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+
+        var act = () => svc.UpdateItemAsync(order.Id, 999, new UpdateOrderItemRequest
+        {
+            Sequence = 1,
+            ProductionStandardId = ps.Id,
+            StandardGrade = gm.StandardGrade,
+            MaterialName = MaterialName.SeamlessPipe,
+            OuterDiameter = 273m,
+            WallThickness = 10m,
+            OuterDiameterNegative = 0.5m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.5m,
+            WallThicknessPositive = 0.5m,
+            LengthStatus = LengthStatus.Fixed,
+            MinLength = 6000m,
+            MaxLength = 6000m,
+            Quantity = 5,
+            ContractWeight = 2000m,
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            SettlementMethod = SettlementMethod.Theoretical,
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
+    }
+
+    // ========== DeleteItemAsync ==========
+
+    [Fact]
+    public async Task DeleteItemAsync_成功删除项次()
+    {
+        var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx);
+        var ps = await SeedStandardAsync(ctx);
+        var gm = await SeedGradeMappingAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var itemId = (await svc.GetByIdAsync(order.Id)).Items[0].Id;
+
+        await svc.DeleteItemAsync(order.Id, itemId);
+
+        var detail = await svc.GetByIdAsync(order.Id);
+        detail.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DeleteItemAsync_不存在_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx);
+        var ps = await SeedStandardAsync(ctx);
+        var gm = await SeedGradeMappingAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+
+        var act = () => svc.DeleteItemAsync(order.Id, 999);
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
+    }
+
+    [Fact]
+    public async Task DeleteItemAsync_取消的订单不能删除项次()
+    {
+        var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx);
+        var ps = await SeedStandardAsync(ctx);
+        var gm = await SeedGradeMappingAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        await svc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
+        {
+            Status = SalesOrderStatus.Cancelled.ToString(),
+            RowVersion = new byte[8]
+        });
+
+        var act = () => svc.DeleteItemAsync(order.Id, 999);
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不能删除项次*");
+    }
+
+    // ========== SaveAllAsync ==========
+
+    [Fact]
+    public async Task SaveAllAsync_添加新项次_成功()
+    {
+        var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx);
+        var ps = await SeedStandardAsync(ctx);
+        var gm = await SeedGradeMappingAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var rowVersion = (await svc.GetByIdAsync(order.Id)).RowVersion;
+
+        var result = await svc.SaveAllAsync(order.Id, new SaveAllOrderRequest
+        {
+            RowVersion = rowVersion,
+            NewItems = new List<OrderItemSaveRequest>
+            {
+                new()
+                {
+                    ProductionStandardId = ps.Id,
+                    StandardGrade = gm.StandardGrade,
+                    MaterialName = MaterialName.SeamlessPipe,
+                    OuterDiameter = 273m,
+                    WallThickness = 10m,
+                    OuterDiameterNegative = 0.5m,
+                    OuterDiameterPositive = 0.5m,
+                    WallThicknessNegative = 0.5m,
+                    WallThicknessPositive = 0.5m,
+                    LengthStatus = LengthStatus.Fixed,
+                    MinLength = 6000m,
+                    MaxLength = 6000m,
+                    Quantity = 5,
+                    ContractWeight = 2000m,
+                    DeliveryDate = DateTime.Today.AddMonths(1),
+                    SettlementMethod = SettlementMethod.Theoretical,
+                    DeliveryState = DeliveryState.SolutionAnnealedAndPickled
+                }
+            }
+        });
+
+        result.Should().NotBeNull();
+        result.RowVersion.Should().NotBeNull();
+
+        var detail = await svc.GetByIdAsync(order.Id);
+        detail.Items.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task SaveAllAsync_删除所有项次_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx);
+        var ps = await SeedStandardAsync(ctx);
+        var gm = await SeedGradeMappingAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var detail = await svc.GetByIdAsync(order.Id);
+        var itemId = detail.Items[0].Id;
+        var rowVersion = detail.RowVersion;
+
+        var act = () => svc.SaveAllAsync(order.Id, new SaveAllOrderRequest
+        {
+            RowVersion = rowVersion,
+            DeletedItemIds = new List<int> { itemId }
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*至少需要包含一个项次*");
     }
 
     // ========== 辅助方法 ==========

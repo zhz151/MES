@@ -108,6 +108,9 @@ public class EquipmentController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintBatch([FromBody] EquipmentPrintBatchRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
@@ -120,6 +123,9 @@ public class EquipmentController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintAll([FromBody] EquipmentPrintAllRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var query = new EquipmentQueryParams
         {
             Keyword = request.Keyword,

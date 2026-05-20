@@ -56,7 +56,7 @@ public class MaterialPlanOverviewTests : IDisposable
 
         // JS 运行时 stub（MudBlazor Popover 需要真实 IJSRuntime）
         _ctx.Services.AddSingleton<Microsoft.JSInterop.IJSRuntime>(
-            new SilentJsRuntime(_ctx));
+            new SilentJsRuntime());
 
         // ISnackbar mock
         _ctx.Services.AddSingleton(new Mock<MudBlazor.ISnackbar>().Object);
@@ -242,36 +242,4 @@ public class MaterialPlanOverviewTests : IDisposable
     }
 
     public void Dispose() => _ctx.Dispose();
-}
-
-/// <summary>
-/// 始终返回固定认证状态的 AuthenticationStateProvider
-/// </summary>
-internal class TestAuthStateProvider : AuthenticationStateProvider
-{
-    private readonly AuthenticationState _state;
-    public TestAuthStateProvider(ClaimsPrincipal principal)
-        => _state = new AuthenticationState(principal);
-    public override Task<AuthenticationState> GetAuthenticationStateAsync()
-        => Task.FromResult(_state);
-}
-
-/// <summary>
-/// IJSRuntime 桩：所有 JS 调用静默成功，不抛异常
-/// </summary>
-internal class SilentJsRuntime : Microsoft.JSInterop.IJSRuntime
-{
-    private readonly Bunit.TestContext _ctx;
-
-    public SilentJsRuntime(Bunit.TestContext ctx) => _ctx = ctx;
-
-    public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args)
-    {
-        // bUnit 内置 JSInterop 处理一些基础调用
-        return default!;
-    }
-
-    public ValueTask<TValue> InvokeAsync<TValue>(
-        string identifier, CancellationToken cancellationToken, object?[]? args)
-        => default!;
 }

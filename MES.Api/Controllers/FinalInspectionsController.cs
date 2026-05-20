@@ -113,6 +113,8 @@ public class FinalInspectionsController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<FinalInspectionDto>>>> BatchCreate(
         [FromBody] List<CreateFinalInspectionRequest> requests)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<FinalInspectionDto>>.Fail("请求参数无效"));
         if (requests == null || requests.Count == 0)
             return BadRequest(ApiResponse<List<FinalInspectionDto>>.Fail("请求数据不能为空"));
         var result = await _service.BatchCreateAsync(requests);

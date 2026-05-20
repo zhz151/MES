@@ -27,8 +27,27 @@ public class OrderService : IOrderService
 
     #region 订单管理
 
-    public async Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, bool? hasTechReq = null, List<SalesOrderStatus>? statuses = null)
+    public async Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, string? technicalStatus = null, string? orderStatus = null)
     {
+        bool? hasTechnicalRequirement = technicalStatus?.ToLower() switch
+        {
+            "edited" => true,
+            "notedited" => false,
+            _ => null
+        };
+
+        List<SalesOrderStatus>? statuses = null;
+        if (!string.IsNullOrEmpty(orderStatus))
+        {
+            var statusStrings = orderStatus.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            statuses = new List<SalesOrderStatus>();
+            foreach (var s in statusStrings)
+            {
+                if (Enum.TryParse<SalesOrderStatus>(s, true, out var status))
+                    statuses.Add(status);
+            }
+        }
+
         var queryable = _context.SalesOrders
             .Include(so => so.Customer)
             .AsNoTracking()
@@ -66,9 +85,9 @@ public class OrderService : IOrderService
         }
 
         // 技术要求状态筛选
-        if (hasTechReq.HasValue)
+        if (hasTechnicalRequirement.HasValue)
         {
-            if (hasTechReq.Value)
+            if (hasTechnicalRequirement.Value)
             {
                 // 已编辑：订单下所有项次都有技术要求
                 queryable = queryable.Where(so =>
@@ -206,7 +225,7 @@ public class OrderService : IOrderService
             customers.TryGetValue(so.CustomerId, out var customer);
             var totalItemCount = orderItemCounts.GetValueOrDefault(so.Id);
             var hasReqCount = orderHasReqCounts.GetValueOrDefault(so.Id);
-            var hasTechnicalRequirement = totalItemCount > 0 && hasReqCount == totalItemCount;
+            var hasTechReqFlag = totalItemCount > 0 && hasReqCount == totalItemCount;
             DateTime? lastChangeDate = null;
             if (orderItemMaxUpdate.TryGetValue(so.Id, out var maxUpdate) && maxUpdate > so.CreatedTime)
             {
@@ -228,7 +247,7 @@ public class OrderService : IOrderService
                 ItemCount = orderItemCounts.GetValueOrDefault(so.Id),
                 Status = so.Status,
                 RowVersion = so.RowVersion,
-                HasTechnicalRequirement = hasTechnicalRequirement,
+                HasTechnicalRequirement = hasTechReqFlag,
                 FirstOrderItemId = firstOrderItemIds.GetValueOrDefault(so.Id),
                 LastChangeDate = lastChangeDate
             });
@@ -1228,13 +1247,13 @@ public async Task DeleteAsync(int id)
         item.WallThicknessNegative = wallThicknessNegative;
         item.WallThicknessPositive = wallThicknessPositive;
         item.LengthStatus = lengthStatus;
-        item.MinLength = minLength;
-        item.MaxLength = maxLength;
-        item.Quantity = quantity;
-        item.Meters = meters;
+        item.MinLength = minLength ?? item.MinLength;
+        item.MaxLength = maxLength ?? item.MaxLength;
+        item.Quantity = quantity ?? item.Quantity;
+        item.Meters = meters ?? item.Meters;
         item.ContractWeight = contractWeight;
         item.TheoreticalWeight = theoreticalWeight;
-        item.Remark = remark;
+        item.Remark = remark ?? item.Remark;
     }
 
     private async Task<OrderItemDto> MapToOrderItemDto(OrderItem orderItem)
@@ -1410,7 +1429,7 @@ public async Task DeleteAsync(int id)
         }).ToList();
     }
 
-    public async Task<List<SalesOrderDetailDto>> GetAllByFilterForPrintAsync(string? keyword, bool? hasTechnicalRequirement, List<SalesOrderStatus>? statuses, string? sortBy = null, bool isDescending = false)
+    public async Task<List<SalesOrderDetailDto>> GetAllByFilterForPrintAsync(string? keyword, string? technicalStatus, string? orderStatus, string? sortBy = null, bool isDescending = false)
     {
         var query = new QueryParams
         {
@@ -1421,7 +1440,7 @@ public async Task DeleteAsync(int id)
             IsDescending = isDescending
         };
 
-        var paged = await GetPagedAsync(query, hasTechnicalRequirement, statuses);
+        var paged = await GetPagedAsync(query, technicalStatus, orderStatus);
         var ids = paged.Items.Select(i => i.Id).ToArray();
         return await GetByIdsAsync(ids);
     }
@@ -1438,9 +1457,9 @@ public async Task DeleteAsync(int id)
         return SalesOrderPrintHelper.GenerateBatchOrderPdf(orders);
     }
 
-    public async Task<byte[]> PrintOrderAllAsync(string? keyword, bool? hasTechnicalRequirement, List<SalesOrderStatus>? statuses, string? sortBy = null, bool isDescending = false)
+    public async Task<byte[]> PrintOrderAllAsync(string? keyword, string? technicalStatus, string? orderStatus, string? sortBy = null, bool isDescending = false)
     {
-        var orders = await GetAllByFilterForPrintAsync(keyword, hasTechnicalRequirement, statuses, sortBy, isDescending);
+        var orders = await GetAllByFilterForPrintAsync(keyword, technicalStatus, orderStatus, sortBy, isDescending);
         return SalesOrderPrintHelper.GenerateBatchOrderPdf(orders);
     }
 

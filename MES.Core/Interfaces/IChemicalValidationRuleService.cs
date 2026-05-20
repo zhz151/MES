@@ -9,6 +9,11 @@ namespace MES.Core.Interfaces;
 public interface IChemicalValidationRuleService
 {
     /// <summary>
+    /// 根据ID获取验证规则
+    /// </summary>
+    Task<ChemicalValidationRuleDto?> GetByIdAsync(int id);
+
+    /// <summary>
     /// 查询所有牌号验证规则（分页）
     /// </summary>
     Task<PagedResult<ChemicalValidationRuleDto>> GetAllAsync(QueryParams query);

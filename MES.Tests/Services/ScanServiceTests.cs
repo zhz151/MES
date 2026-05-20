@@ -158,6 +158,7 @@ public class ScanServiceTests : TestBase
         group.Solution = 1;
         group.Straighten = 2;
         group.Pickle = null; // no pickle
+        group.Inspection = null; // not relevant for this test
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
@@ -173,7 +174,7 @@ public class ScanServiceTests : TestBase
     }
 
     [Fact]
-    public async Task ResolveAsync_工段排除检验()
+    public async Task ResolveAsync_工段包含检验()
     {
         using var ctx = CreateDbContext();
         var (batch, group) = await SeedBatchWithGroupAsync(ctx);
@@ -181,9 +182,9 @@ public class ScanServiceTests : TestBase
         var svc = CreateService(ctx);
         var result = await svc.ResolveAsync(batch.BatchNo, group.Id);
 
-        result.AvailableSections.Should().NotContain(s => s.SectionName == "检验");
-        // Inspection should be excluded but ColdRollDraw/Solution/Straighten should be present
-        result.AvailableSections.Should().HaveCount(3);
+        // Inspection should be included along with ColdRollDraw/Solution/Straighten
+        result.AvailableSections.Should().HaveCount(4);
+        result.AvailableSections.Should().Contain(s => s.SectionName == "检验");
         result.AvailableSections.Should().Contain(s => s.SectionName == "冷轧拔");
         result.AvailableSections.Should().Contain(s => s.SectionName == "固溶");
         result.AvailableSections.Should().Contain(s => s.SectionName == "矫直");
@@ -205,6 +206,57 @@ public class ScanServiceTests : TestBase
         var result = await svc.ResolveAsync(batch.BatchNo, group.Id);
 
         result.AvailableSections.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetBatchProcessGroupsAsync_成功返回工序组列表()
+    {
+        using var ctx = CreateDbContext();
+        var (batch, group) = await SeedBatchWithGroupAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetBatchProcessGroupsAsync(batch.BatchNo);
+
+        result.Should().NotBeNull();
+        result.BatchNo.Should().Be(batch.BatchNo);
+        result.ProcessGroups.Should().HaveCount(1);
+        result.ProcessGroups[0].Id.Should().Be(group.Id);
+        result.ProcessGroups[0].ProcessName.Should().Be("60冷轧");
+    }
+
+    [Fact]
+    public async Task GetBatchProcessGroupsAsync_批次不存在_抛出BusinessException()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.GetBatchProcessGroupsAsync("NOT-EXIST");
+
+        await act.Should().ThrowAsync<BusinessException>();
+    }
+
+    [Fact]
+    public async Task GetBatchProcessGroupsAsync_多工序组_按序号排序()
+    {
+        using var ctx = CreateDbContext();
+        var (batch, _) = await SeedBatchWithGroupAsync(ctx);
+        var group2 = new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 2,
+            ProcessName = "LG60冷轧",
+            ManufacturingSpec = "219*8",
+            ColdRollDraw = 1
+        };
+        ctx.ProcessGroups.Add(group2);
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetBatchProcessGroupsAsync(batch.BatchNo);
+
+        result.ProcessGroups.Should().HaveCount(2);
+        result.ProcessGroups[0].SequenceNumber.Should().Be(1);
+        result.ProcessGroups[1].SequenceNumber.Should().Be(2);
     }
 
     [Fact]

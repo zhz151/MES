@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
-using MES.Core.Enums;
 using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Shared.Constants;
@@ -29,26 +28,7 @@ public class OrderController : ControllerBase
         [FromQuery] string? technicalStatus = null,
         [FromQuery] string? orderStatus = null)
     {
-        bool? hasTechnicalRequirement = technicalStatus?.ToLower() switch
-        {
-            "edited" => true,
-            "notedited" => false,
-            _ => null
-        };
-
-        List<SalesOrderStatus>? statuses = null;
-        if (!string.IsNullOrEmpty(orderStatus))
-        {
-            var statusStrings = orderStatus.Split(',', StringSplitOptions.RemoveEmptyEntries);
-            statuses = new List<SalesOrderStatus>();
-            foreach (var s in statusStrings)
-            {
-                if (Enum.TryParse<SalesOrderStatus>(s, true, out var status))
-                    statuses.Add(status);
-            }
-        }
-
-        var result = await _orderService.GetPagedAsync(query, hasTechnicalRequirement, statuses);
+        var result = await _orderService.GetPagedAsync(query, technicalStatus, orderStatus);
         return Ok(ApiResponse<PagedResult<SalesOrderListDto>>.Ok(result, "查询成功"));
     }
 
@@ -160,6 +140,9 @@ public class OrderController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintOrderBatch([FromBody] OrderPrintBatchRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var pdfBytes = await _orderService.PrintOrderBatchAsync(request.Ids);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
@@ -169,26 +152,10 @@ public class OrderController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintOrderAll([FromBody] OrderPrintAllRequest request)
     {
-        bool? hasTechnicalRequirement = request.TechnicalStatus?.ToLower() switch
-        {
-            "edited" => true,
-            "notedited" => false,
-            _ => null
-        };
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
 
-        List<SalesOrderStatus>? statuses = null;
-        if (!string.IsNullOrEmpty(request.OrderStatus))
-        {
-            var statusStrings = request.OrderStatus.Split(',', StringSplitOptions.RemoveEmptyEntries);
-            statuses = new List<SalesOrderStatus>();
-            foreach (var s in statusStrings)
-            {
-                if (Enum.TryParse<SalesOrderStatus>(s, true, out var status))
-                    statuses.Add(status);
-            }
-        }
-
-        var pdfBytes = await _orderService.PrintOrderAllAsync(request.Keyword, hasTechnicalRequirement, statuses, request.SortBy, request.IsDescending);
+        var pdfBytes = await _orderService.PrintOrderAllAsync(request.Keyword, request.TechnicalStatus, request.OrderStatus, request.SortBy, request.IsDescending);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }

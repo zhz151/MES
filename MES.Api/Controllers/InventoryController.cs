@@ -168,6 +168,9 @@ public class InventoryController : ControllerBase
     public async Task<ActionResult<ApiResponse<SourceOrderValidationResult>>> ValidateSourceOrder(
         [FromBody] SourceOrderValidationRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<SourceOrderValidationResult>.Fail("请求参数无效"));
+
         var result = await _service.ValidateSourceOrderAsync(request.SourceOrderNo, request.InboundSource, request.SourceOrderSequence);
         return Ok(ApiResponse<SourceOrderValidationResult>.Ok(result, "验证完成"));
     }
@@ -192,6 +195,9 @@ public class InventoryController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintInventoryAll([FromBody] InventoryPrintAllRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var pdfBytes = await _service.PrintInventoryAllAsync(request);
         return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes), "打印成功"));
     }
@@ -203,6 +209,9 @@ public class InventoryController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintInventorySelected([FromBody] InventoryPrintSelectedRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var pdfBytes = await _service.PrintInventorySelectedAsync(request);
         return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes), "打印成功"));
     }
@@ -214,6 +223,9 @@ public class InventoryController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintOutboundAll([FromBody] OutboundPrintAllRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var pdfBytes = await _service.PrintOutboundAllAsync(request);
         return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes), "打印成功"));
     }
@@ -225,6 +237,9 @@ public class InventoryController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintOutboundSelected([FromBody] OutboundPrintSelectedRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
         var pdfBytes = await _service.PrintOutboundSelectedAsync(request);
         return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes), "打印成功"));
     }

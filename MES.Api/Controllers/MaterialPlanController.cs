@@ -96,6 +96,8 @@ public class MaterialPlanController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<PurchaseFinishedPlanDto>>>> CreateFinishedPlanBatch(
         [FromBody] List<CreatePurchaseFinishedPlanRequest> requests)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<PurchaseFinishedPlanDto>>.Fail("请求参数无效"));
         if (requests.Count == 0)
             return BadRequest(ApiResponse<List<PurchaseFinishedPlanDto>>.Fail("请求列表不能为空"));
 
@@ -165,6 +167,8 @@ public class MaterialPlanController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<InventoryPlanDto>>>> CreateInventoryPlanBatch(
         [FromBody] List<CreateInventoryPlanRequest> requests)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<InventoryPlanDto>>.Fail("请求参数无效"));
         if (requests.Count == 0)
             return BadRequest(ApiResponse<List<InventoryPlanDto>>.Fail("请求列表不能为空"));
 
@@ -309,6 +313,8 @@ public class MaterialPlanController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintBatch([FromBody] MaterialPlanBatchPrintRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
         if (request.WorkOrderIds.Length == 0)
             return BadRequest(ApiResponse<string>.Fail("请选择工单"));
         if (!request.IncludeSemi && !request.IncludeFinish && !request.IncludeInventory && !request.IncludeRework && !request.IncludeRoundBarPiercing)

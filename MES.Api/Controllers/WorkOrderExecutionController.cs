@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
 using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Shared.Constants;
 
 namespace MES.Api.Controllers;
 
@@ -22,17 +23,19 @@ public class WorkOrderExecutionController : ControllerBase
     /// 分页查询工单执行状况列表
     /// </summary>
     [HttpGet("list")]
-    public async Task<IActionResult> GetPaged([FromQuery] QueryParams query)
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<PagedResult<WorkOrderExecutionSummaryDto>>>> GetPaged([FromQuery] QueryParams query)
     {
         var result = await _service.GetPagedAsync(query);
-        return Ok(Core.Models.ApiResponse<PagedResult<WorkOrderExecutionSummaryDto>>.Ok(result));
+        return Ok(ApiResponse<PagedResult<WorkOrderExecutionSummaryDto>>.Ok(result));
     }
 
     /// <summary>
     /// 全量刷新所有工单的执行状况汇总
     /// </summary>
     [HttpPost("refresh-all")]
-    public async Task<IActionResult> RefreshAll()
+    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<WorkOrderExecutionRefreshResultDto>>> RefreshAll()
     {
         var result = await _service.RefreshAllAsync();
         return Ok(Core.Models.ApiResponse<WorkOrderExecutionRefreshResultDto>.Ok(result, $"刷新完成，共{result.RefreshedCount}条"));

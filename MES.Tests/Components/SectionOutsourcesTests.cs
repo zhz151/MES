@@ -1,0 +1,74 @@
+using FluentAssertions;
+using MES.Core.DTOs;
+using MES.Core.Models;
+using MES.Blazor.Pages;
+using MES.Blazor.Services;
+
+namespace MES.Tests.Components;
+
+public class SectionOutsourcesTests : TestBase
+{
+    public SectionOutsourcesTests()
+    {
+        RegisterServices(typeof(SectionOutsourceService));
+        ConfigureEmptyResponse("/api/section-outsource/list");
+    }
+
+    [Fact]
+    public void Render_HasTitle()
+    {
+        var cut = Ctx.RenderComponent<SectionOutsources>();
+        cut.Markup.Should().Contain("工段委外");
+    }
+
+    [Fact]
+    public void Render_HasFilter()
+    {
+        var cut = Ctx.RenderComponent<SectionOutsources>();
+        cut.Markup.Should().Contain("模糊搜索");
+    }
+
+    [Theory]
+    [InlineData("PendingRecovery", "待回收")]
+    [InlineData("Recovered", "已回收")]
+    [InlineData("InProgress", "在轧")]
+    public void StatusColumn_DisplaysCorrectText(string status, string expectedText)
+    {
+        ConfigureListResponse(status);
+        var cut = Ctx.RenderComponent<SectionOutsources>();
+        cut.Markup.Should().Contain(expectedText);
+    }
+
+    private void ConfigureListResponse(string status)
+    {
+        ConfigureEmptyResponse("/api/section-outsource/list");
+        var pagedResult = new PagedResult<SectionOutsourceDto>
+        {
+            Items = new List<SectionOutsourceDto>
+            {
+                new()
+                {
+                    Id = 1,
+                    ProductionBatchId = 1,
+                    ProcessGroupId = 1,
+                    BatchNo = "BATCH001",
+                    ProcessName = "冷轧",
+                    SectionName = "冷轧拔",
+                    SequenceNumber = 1,
+                    OutsourceVendor = "测试供应商",
+                    SendOutDate = DateTime.Today,
+                    Status = status
+                }
+            },
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
+        };
+        ConfigureResponse("/api/section-outsource/list", new ApiResponse<PagedResult<SectionOutsourceDto>>
+        {
+            Success = true,
+            Code = 200,
+            Data = pagedResult
+        });
+    }
+}

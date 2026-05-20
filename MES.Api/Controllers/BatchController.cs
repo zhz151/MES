@@ -247,37 +247,9 @@ public class BatchController : ControllerBase
     {
         try
         {
-            var batch = await _service.GetByBatchNoAsync(batchNo);
-            if (batch == null)
-                return NotFound(ApiResponse<List<CreateProcessGroupRequest>>.Fail($"批次号 {batchNo} 不存在"));
-
-            var result = batch.ProcessGroups.Select(pg => new CreateProcessGroupRequest
-            {
-                ProcessName = pg.ProcessName,
-                ManufacturingSpec = pg.ManufacturingSpec,
-                OuterDiameterTolerance = pg.OuterDiameterTolerance,
-                WallThicknessTolerance = pg.WallThicknessTolerance,
-                ManufacturingLength = pg.ManufacturingLength,
-                CuttingTreatment = pg.CuttingTreatment,
-                ManufacturingMultiple = pg.ManufacturingMultiple,
-                Remark = pg.Remark,
-                ColdRollDraw = pg.ColdRollDraw,
-                OilPipeCut = pg.OilPipeCut,
-                Degrease = pg.Degrease,
-                Solution = pg.Solution,
-                Straighten = pg.Straighten,
-                Cut = pg.Cut,
-                ThicknessMeasure = pg.ThicknessMeasure,
-                Pickle = pg.Pickle,
-                OuterPolish = pg.OuterPolish,
-                InnerGrinding = pg.InnerGrinding,
-                OuterSpotGrinding = pg.OuterSpotGrinding,
-                Inspection = pg.Inspection,
-                WeldingHead = pg.WeldingHead,
-                Lubrication = pg.Lubrication,
-                Warehouse = pg.Warehouse
-            }).ToList();
-
+            var result = await _service.GetProcessGroupsByBatchNoAsync(batchNo);
+            if (result.Count == 0)
+                return NotFound(ApiResponse<List<CreateProcessGroupRequest>>.Fail($"批次号 {batchNo} 不存在或没有工序组"));
             return Ok(ApiResponse<List<CreateProcessGroupRequest>>.Ok(result, "查询成功"));
         }
         catch (BusinessException ex)
@@ -311,6 +283,8 @@ public class BatchController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintBatchAll([FromBody] BatchPrintAllRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
         var pdfBytes = await _service.PrintBatchAllAsync(request);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
@@ -320,6 +294,8 @@ public class BatchController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintBatchSelected([FromBody] int[] ids)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
         var pdfBytes = await _service.PrintBatchSelectedAsync(ids);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
@@ -329,6 +305,8 @@ public class BatchController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintProcessCard([FromBody] ProcessCardPrintRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
         var pdfBytes = await _service.PrintProcessCardAsync(request);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));

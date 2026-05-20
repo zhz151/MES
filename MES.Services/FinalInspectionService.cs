@@ -52,6 +52,8 @@ public class FinalInspectionService : IFinalInspectionService
                 Weight = r.Weight,
                 QualifiedQuantity = r.QualifiedQuantity,
                 QualifiedWeight = r.QualifiedWeight,
+                QualifiedConcessionQuantity = r.QualifiedConcessionQuantity,
+                ConcessionRemark = r.ConcessionRemark,
                 DefectReworkQuantity = r.DefectReworkQuantity,
                 DefectWarehouseQuantity = r.DefectWarehouseQuantity,
                 DefectScrapQuantity = r.DefectScrapQuantity,
@@ -134,6 +136,8 @@ public class FinalInspectionService : IFinalInspectionService
                 Weight = r.Weight,
                 QualifiedQuantity = r.QualifiedQuantity,
                 QualifiedWeight = r.QualifiedWeight,
+                QualifiedConcessionQuantity = r.QualifiedConcessionQuantity,
+                ConcessionRemark = r.ConcessionRemark,
                 DefectReworkQuantity = r.DefectReworkQuantity,
                 DefectWarehouseQuantity = r.DefectWarehouseQuantity,
                 DefectScrapQuantity = r.DefectScrapQuantity,
@@ -225,6 +229,8 @@ public class FinalInspectionService : IFinalInspectionService
             Weight = request.Weight,
             QualifiedQuantity = request.QualifiedQuantity,
             QualifiedWeight = request.QualifiedWeight,
+            QualifiedConcessionQuantity = request.QualifiedConcessionQuantity,
+            ConcessionRemark = request.ConcessionRemark,
             DefectReworkQuantity = request.DefectReworkQuantity,
             DefectWarehouseQuantity = request.DefectWarehouseQuantity,
             DefectScrapQuantity = request.DefectScrapQuantity,
@@ -263,6 +269,8 @@ public class FinalInspectionService : IFinalInspectionService
             Weight = entity.Weight,
             QualifiedQuantity = entity.QualifiedQuantity,
             QualifiedWeight = entity.QualifiedWeight,
+            QualifiedConcessionQuantity = entity.QualifiedConcessionQuantity,
+            ConcessionRemark = entity.ConcessionRemark,
             DefectReworkQuantity = entity.DefectReworkQuantity,
             DefectWarehouseQuantity = entity.DefectWarehouseQuantity,
             DefectScrapQuantity = entity.DefectScrapQuantity,
@@ -291,6 +299,8 @@ public class FinalInspectionService : IFinalInspectionService
         entity.Weight = request.Weight ?? entity.Weight;
         entity.QualifiedQuantity = request.QualifiedQuantity ?? entity.QualifiedQuantity;
         entity.QualifiedWeight = request.QualifiedWeight ?? entity.QualifiedWeight;
+        entity.QualifiedConcessionQuantity = request.QualifiedConcessionQuantity ?? entity.QualifiedConcessionQuantity;
+        entity.ConcessionRemark = request.ConcessionRemark ?? entity.ConcessionRemark;
         entity.DefectReworkQuantity = request.DefectReworkQuantity ?? entity.DefectReworkQuantity;
         entity.DefectWarehouseQuantity = request.DefectWarehouseQuantity ?? entity.DefectWarehouseQuantity;
         entity.DefectScrapQuantity = request.DefectScrapQuantity ?? entity.DefectScrapQuantity;
@@ -327,6 +337,8 @@ public class FinalInspectionService : IFinalInspectionService
             Weight = entity.Weight,
             QualifiedQuantity = entity.QualifiedQuantity,
             QualifiedWeight = entity.QualifiedWeight,
+            QualifiedConcessionQuantity = entity.QualifiedConcessionQuantity,
+            ConcessionRemark = entity.ConcessionRemark,
             DefectReworkQuantity = entity.DefectReworkQuantity,
             DefectWarehouseQuantity = entity.DefectWarehouseQuantity,
             DefectScrapQuantity = entity.DefectScrapQuantity,
@@ -392,6 +404,8 @@ public class FinalInspectionService : IFinalInspectionService
                 Weight = r.Weight,
                 QualifiedQuantity = r.QualifiedQuantity,
                 QualifiedWeight = r.QualifiedWeight,
+                QualifiedConcessionQuantity = r.QualifiedConcessionQuantity,
+                ConcessionRemark = r.ConcessionRemark,
                 DefectReworkQuantity = r.DefectReworkQuantity,
                 DefectWarehouseQuantity = r.DefectWarehouseQuantity,
                 DefectScrapQuantity = r.DefectScrapQuantity,
@@ -431,6 +445,8 @@ public class FinalInspectionService : IFinalInspectionService
             Weight = e.Weight,
             QualifiedQuantity = e.QualifiedQuantity,
             QualifiedWeight = e.QualifiedWeight,
+            QualifiedConcessionQuantity = e.QualifiedConcessionQuantity,
+            ConcessionRemark = e.ConcessionRemark,
             DefectReworkQuantity = e.DefectReworkQuantity,
             DefectWarehouseQuantity = e.DefectWarehouseQuantity,
             DefectScrapQuantity = e.DefectScrapQuantity,

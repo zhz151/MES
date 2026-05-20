@@ -558,14 +558,7 @@
         }
     }
 
-    private static string GetStatusText(SubcontractOrderStatus status) => status switch
-    {
-        SubcontractOrderStatus.Sent => "已发出",
-        SubcontractOrderStatus.PartialReturned => "部分收回",
-        SubcontractOrderStatus.Completed => "已完成",
-        SubcontractOrderStatus.Cancelled => "已取消",
-        _ => "未知"
-    };
+    private static string GetStatusText(SubcontractOrderStatus status) => DisplayHelper.GetSubcontractOrderStatusText(status);
 
     // ========== 渲染方法：第一个表格 ==========
     private RenderFragment RenderHeaderCell(SubcontractOrderDto item, ColumnDef col) => builder =>
@@ -920,7 +913,7 @@
                 builder.AddContent(0, item.WoDeliveryDate);
                 break;
             case "wodelaypenalty":
-                builder.AddContent(0, item.WoDelayPenalty ? "是" : "否");
+                builder.AddContent(0, DisplayHelper.GetYesNoText(item.WoDelayPenalty));
                 break;
             case "wosettlementmethod":
                 builder.AddContent(0, item.WoSettlementMethod);

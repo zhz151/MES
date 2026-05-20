@@ -734,7 +734,7 @@
                 builder.CloseComponent();
                 break;
             case "NeedInspection":
-                builder.AddContent(0, item.NeedInspection ? "是" : "否");
+                builder.AddContent(0, DisplayHelper.GetYesNoText(item.NeedInspection));
                 break;
             case "InspectionPerson":
                 builder.AddContent(0, item.InspectionPerson);
@@ -753,7 +753,7 @@
                 builder.CloseComponent();
                 break;
             case "NeedMaintenance":
-                builder.AddContent(0, item.NeedMaintenance ? "是" : "否");
+                builder.AddContent(0, DisplayHelper.GetYesNoText(item.NeedMaintenance));
                 break;
             case "MaintPerson":
                 builder.AddContent(0, item.MaintPerson);

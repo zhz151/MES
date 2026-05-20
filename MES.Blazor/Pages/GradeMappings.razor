@@ -2,6 +2,8 @@
 @using MES.Blazor.Services
 @using MES.Core.DTOs
 @using MES.Core.Models
+@using MES.Core.Enums
+@using MES.Blazor.Helpers
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
 @using Microsoft.AspNetCore.Components.Rendering
@@ -580,7 +582,7 @@
                     builder.OpenComponent<MudChip>(0);
                     builder.AddAttribute(1, "Size", Size.Small);
                     builder.AddAttribute(2, "Color", item.SpecialMaterial ? Color.Warning : Color.Default);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.SpecialMaterial ? "特殊" : "常规")));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.SpecialMaterial ? DisplayHelper.GetRequirementTypeText(RequirementType.Special) : DisplayHelper.GetRequirementTypeText(RequirementType.Normal))));
                     builder.CloseComponent();
                 }
                 break;

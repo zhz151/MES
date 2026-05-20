@@ -70,6 +70,8 @@ public class FurnaceRegistrationController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<FurnaceRegistrationDto>>>> BatchCreate(
         [FromBody] List<CreateFurnaceRegistrationRequest> requests)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<FurnaceRegistrationDto>>.Fail("请求参数无效"));
         if (requests.Count == 0)
             return BadRequest(ApiResponse<List<FurnaceRegistrationDto>>.Fail("请求列表不能为空"));
         var result = await _service.BatchCreateAsync(requests);

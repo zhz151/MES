@@ -307,6 +307,7 @@ public static class ProcessCardPrintHelper
             ["IsForceCompleted"] = ("强制完成", () => b.IsForceCompleted ? "是" : "否"),
             ["Remark"] = ("备注", () => b.Remark ?? "-"),
             ["CurrentExecDate"] = ("截止执行日", () => b.CurrentExecDate?.ToString("yyyy-MM-dd") ?? "-"),
+            ["ManufacturingItem"] = ("制造物品", () => GetManufacturingItemText(b.ManufacturingItem)),
             ["CurrentGroupName"] = ("当前工序", () => b.CurrentGroupName ?? "-"),
             ["CurrentSectionName"] = ("当前工段", () => b.CurrentSectionName ?? "-"),
             ["CurrentEquipmentName"] = ("当前设备", () => b.CurrentEquipmentName ?? "-"),
@@ -364,10 +365,10 @@ public static class ProcessCardPrintHelper
             ["EndCustomer"] = ("最终用户", () => b.EndCustomer ?? "-"),
             ["DeliveryDate"] = ("交货日期", () => b.DeliveryDate.ToString("yyyy-MM-dd")),
             ["DelayPenalty"] = ("延期罚款", () => b.DelayPenalty ? "是" : "否"),
-            ["MaterialName"] = ("物料名称", () => b.MaterialName),
-            ["SettlementMethod"] = ("结算方式", () => b.SettlementMethod),
+            ["MaterialName"] = ("物料名称", () => GetMaterialNameText(b.MaterialName)),
+            ["SettlementMethod"] = ("结算方式", () => GetSettlementMethodText(b.SettlementMethod)),
             ["StandardCode"] = ("标准编码", () => b.StandardCode),
-            ["DeliveryState"] = ("交货状态", () => b.DeliveryState),
+            ["DeliveryState"] = ("交货状态", () => GetDeliveryStateText(b.DeliveryState)),
             ["PlantGrade"] = ("工厂牌号", () => b.PlantGrade),
             ["Specification"] = ("规格", () => b.Specification),
             ["OuterDiameterTolerance"] = ("外径公差", () => $"-{b.OuterDiameterNegative:G29}/+{b.OuterDiameterPositive:G29}"),
@@ -485,5 +486,45 @@ public static class ProcessCardPrintHelper
         "Normal" => "普通",
         "Special" => "特殊",
         _ => technicalRequirements
+    };
+
+    private static string? GetMaterialNameText(string? materialName) => materialName switch
+    {
+        "SeamlessPipe" => "无缝管",
+        "WeldedPipe" => "焊管",
+        _ => materialName
+    };
+
+    private static string? GetSettlementMethodText(string? method) => method switch
+    {
+        "Theoretical" => "理算",
+        "Weighing" => "过磅",
+        "WeighingNegative" => "过磅-负",
+        _ => method
+    };
+
+    private static string? GetManufacturingItemText(string? item) => item switch
+    {
+        "OrderFinishedProduct" => "订单成品",
+        "PreparedMaterial" => "备料成品",
+        "SurplusStock" => "余库料",
+        "IntermediateProduct" => "中间品",
+        "SpecialDeliveryStatus" => "特定交态成品",
+        _ => item
+    };
+
+    private static string? GetDeliveryStateText(string? deliveryState) => deliveryState switch
+    {
+        "SolutionAnnealedAndPickled" => "固溶酸洗",
+        "SolutionAnnealedAndPickledUTube" => "固溶酸洗-U型管",
+        "SolutionAnnealedAndPickledExternalPolished" => "固溶酸洗-外抛光",
+        "SolutionAnnealedAndPickledInternalPolished" => "固溶酸洗-内抛光",
+        "SolutionAnnealedAndPickledBothPolished" => "固溶酸洗-内外抛光",
+        "SolutionAnnealedAndPickledCoiled" => "固溶酸洗-盘管",
+        "Bright" => "光亮",
+        "BrightUTube" => "光亮-U型管",
+        "BrightCoiled" => "光亮-盘管",
+        "Hard" => "硬态",
+        _ => deliveryState
     };
 }

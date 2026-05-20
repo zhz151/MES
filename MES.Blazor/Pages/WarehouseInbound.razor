@@ -291,9 +291,9 @@
 
     private readonly List<(string Value, string Text)> _lengthStatusOptions = new()
     {
-        ("定尺", "定尺"),
-        ("范围尺", "范围尺"),
-        ("不定尺", "不定尺"),
+        ("Fixed", "定尺"),
+        ("Range", "范围尺"),
+        ("NonFixed", "非定尺"),
     };
 
     private static int GetColWidth(string key) => key switch
@@ -643,7 +643,7 @@
                     builder.AddContent(0, row.Remark);
                 break;
             case "IsLinkedToWorkOrder":
-                builder.AddContent(0, row.IsLinkedToWorkOrder ? "是" : "否");
+                builder.AddContent(0, DisplayHelper.GetYesNoText(row.IsLinkedToWorkOrder));
                 break;
             case "WorkOrderNo":
                 if (!string.IsNullOrEmpty(row.WorkOrderNo))

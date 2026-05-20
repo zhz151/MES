@@ -89,6 +89,16 @@ public class ProcessInspection : BaseEntity
     public decimal? QualifiedWeight { get; set; }
 
     /// <summary>
+    /// 合格中让步放行支数
+    /// </summary>
+    public int? QualifiedConcessionQuantity { get; set; }
+
+    /// <summary>
+    /// 让步说明
+    /// </summary>
+    public string? ConcessionRemark { get; set; }
+
+    /// <summary>
     /// 不合格返整支数
     /// </summary>
     public int? DefectReworkQuantity { get; set; }

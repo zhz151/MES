@@ -179,17 +179,17 @@
                                 <!-- 结算方式 - 下拉选择 -->
                                 <MudTd>
                                     <MudSelect T="SettlementMethod" @bind-Value="item.SettlementMethod" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                        <MudSelectItem Value="SettlementMethod.Theoretical">理算</MudSelectItem>
-                                        <MudSelectItem Value="SettlementMethod.Weighing">过磅</MudSelectItem>
-                                        <MudSelectItem Value="SettlementMethod.WeighingNegative">过磅-负</MudSelectItem>
+                                        <MudSelectItem Value="SettlementMethod.Theoretical">@DisplayHelper.GetSettlementMethodText(SettlementMethod.Theoretical)</MudSelectItem>
+                                        <MudSelectItem Value="SettlementMethod.Weighing">@DisplayHelper.GetSettlementMethodText(SettlementMethod.Weighing)</MudSelectItem>
+                                        <MudSelectItem Value="SettlementMethod.WeighingNegative">@DisplayHelper.GetSettlementMethodText(SettlementMethod.WeighingNegative)</MudSelectItem>
                                     </MudSelect>
                                 </MudTd>
 
                                 <!-- 物料名称 - 下拉选择 -->
                                 <MudTd>
                                     <MudSelect T="MaterialName" @bind-Value="item.MaterialName" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                        <MudSelectItem Value="MaterialName.SeamlessPipe">无缝管</MudSelectItem>
-                                        <MudSelectItem Value="MaterialName.WeldedPipe">焊管</MudSelectItem>
+                                        <MudSelectItem Value="MaterialName.SeamlessPipe">@DisplayHelper.GetMaterialNameText(MaterialName.SeamlessPipe)</MudSelectItem>
+                                        <MudSelectItem Value="MaterialName.WeldedPipe">@DisplayHelper.GetMaterialNameText(MaterialName.WeldedPipe)</MudSelectItem>
                                     </MudSelect>
                                 </MudTd>
 
@@ -206,9 +206,9 @@
                                 <!-- 交货状态 - 下拉选择 -->
                                 <MudTd>
                                     <MudSelect T="DeliveryState" @bind-Value="item.DeliveryState" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                        <MudSelectItem Value="DeliveryState.SolutionAnnealedAndPickled">固溶酸洗</MudSelectItem>
-                                        <MudSelectItem Value="DeliveryState.Bright">光亮</MudSelectItem>
-                                        <MudSelectItem Value="DeliveryState.Hard">硬态</MudSelectItem>
+                                        <MudSelectItem Value="DeliveryState.SolutionAnnealedAndPickled">@DisplayHelper.GetDeliveryStateText(DeliveryState.SolutionAnnealedAndPickled)</MudSelectItem>
+                                        <MudSelectItem Value="DeliveryState.Bright">@DisplayHelper.GetDeliveryStateText(DeliveryState.Bright)</MudSelectItem>
+                                        <MudSelectItem Value="DeliveryState.Hard">@DisplayHelper.GetDeliveryStateText(DeliveryState.Hard)</MudSelectItem>
                                     </MudSelect>
                                 </MudTd>
 
@@ -285,9 +285,9 @@
                                 <!-- 长度状态 - 下拉选择 -->
                                 <MudTd>
                                     <MudSelect T="LengthStatus" @bind-Value="item.LengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                        <MudSelectItem Value="LengthStatus.Fixed">定尺</MudSelectItem>
-                                        <MudSelectItem Value="LengthStatus.Range">范围尺</MudSelectItem>
-                                        <MudSelectItem Value="LengthStatus.NonFixed">非定尺</MudSelectItem>
+                                        <MudSelectItem Value="LengthStatus.Fixed">@DisplayHelper.GetLengthStatusText(LengthStatus.Fixed)</MudSelectItem>
+                                        <MudSelectItem Value="LengthStatus.Range">@DisplayHelper.GetLengthStatusText(LengthStatus.Range)</MudSelectItem>
+                                        <MudSelectItem Value="LengthStatus.NonFixed">@DisplayHelper.GetLengthStatusText(LengthStatus.NonFixed)</MudSelectItem>
                                     </MudSelect>
                                 </MudTd>
 
@@ -570,10 +570,10 @@
         {
             Sequence = newSequence,
             DeliveryDateStr = string.Empty,
-            SettlementMethod = default,
-            MaterialName = default,
-            DeliveryState = default,
-            LengthStatus = default,
+            SettlementMethod = SettlementMethod.Theoretical,
+            MaterialName = MaterialName.SeamlessPipe,
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            LengthStatus = LengthStatus.Fixed,
             OuterDiameterNegativeStr = string.Empty,
             OuterDiameterPositiveStr = string.Empty,
             WallThicknessNegativeStr = string.Empty,

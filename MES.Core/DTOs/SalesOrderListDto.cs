@@ -40,7 +40,6 @@ public class SalesOrderListDto
     public int ItemCount { get; set; }
 
     public SalesOrderStatus Status { get; set; }
-    public string StatusText => Status.ToString();
     public byte[] RowVersion { get; set; } = null!;
 
     /// <summary>
