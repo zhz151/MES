@@ -162,19 +162,26 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .ToListAsync();
 
         var customerIds = salesOrders.Select(so => so.CustomerId).Distinct().ToList();
-        var customers = await _context.CustomerProfiles
+        var customerProfiles = await _context.CustomerProfiles
             .AsNoTracking()
             .Where(c => customerIds.Contains(c.Id))
-            .ToDictionaryAsync(c => c.Id, c => c.CustomerUnit);
+            .ToDictionaryAsync(c => c.Id);
 
         var customerNameByWo = new Dictionary<int, string>();
+        var customerSalesmanByWo = new Dictionary<int, string>();
         foreach (var wo in workOrders)
         {
             var salesOrder = salesOrders.FirstOrDefault(so => so.OrderNumber == wo.SalesOrderNo);
-            if (salesOrder != null && customers.TryGetValue(salesOrder.CustomerId, out var name))
-                customerNameByWo[wo.Id] = name;
+            if (salesOrder != null && customerProfiles.TryGetValue(salesOrder.CustomerId, out var cp))
+            {
+                customerNameByWo[wo.Id] = cp.CustomerUnit;
+                customerSalesmanByWo[wo.Id] = cp.Salesman;
+            }
             else
+            {
                 customerNameByWo[wo.Id] = "";
+                customerSalesmanByWo[wo.Id] = "";
+            }
         }
 
         // 批量加载用料计划日期
@@ -228,7 +235,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         {
             var woBatches = batchesByWo.TryGetValue(wo.WorkOrderNo, out var b) ? b : new List<ProductionBatch>();
 
-            var summary = ComputeSummary(wo, customerNameByWo.TryGetValue(wo.Id, out var cn) ? cn : "", woBatches, semiPlanDates, finishPlanDates, inventoryPlanDates, piercingPlanDates);
+            var summary = ComputeSummary(wo, customerNameByWo.TryGetValue(wo.Id, out var cn) ? cn : "", customerSalesmanByWo.TryGetValue(wo.Id, out var sm) ? sm : "", woBatches, semiPlanDates, finishPlanDates, inventoryPlanDates, piercingPlanDates);
 
             // 从用料计划数据实时计算满足率（不依赖 WorkOrder 预计算字段）
             var woSemi = semiByWo.TryGetValue(wo.Id, out var s) ? s : new List<PurchaseSemiPlan>();
@@ -287,18 +294,19 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     private static WorkOrderExecutionSummary ComputeSummary(
         WorkOrder wo,
         string customerName,
+        string salesman,
         List<ProductionBatch> batches,
         Dictionary<int, DateTime> semiPlanDates,
         Dictionary<int, DateTime> finishPlanDates,
         Dictionary<int, DateTime> inventoryPlanDates,
         Dictionary<int, DateTime> piercingPlanDates)
     {
-        // Group 1: 直接从工单复制
+        // Group 1: 直接从工单复制（Salesman 从 CustomerProfile 取最新值，已由调用方传入）
         var summary = new WorkOrderExecutionSummary
         {
             WorkOrderId = wo.Id,
             WorkOrderNo = wo.WorkOrderNo,
-            Salesman = wo.Salesman,
+            Salesman = salesman,
             CustomerName = customerName,
             SignDate = wo.SignDate,
             DeliveryDate = wo.DeliveryDate,

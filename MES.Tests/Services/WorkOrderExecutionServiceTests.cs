@@ -340,7 +340,7 @@ public class WorkOrderExecutionServiceTests : TestBase
         var s = summaries[0];
         s.WorkOrderNo.Should().Be("WO001");
         s.CustomerName.Should().Be("测试客户");
-        s.Salesman.Should().Be("业务员A");
+        s.Salesman.Should().Be("测试业务员");
         s.TotalBatchCount.Should().Be(0);
         s.InputQuantity.Should().Be(0);
         s.InputWeight.Should().Be(0);
@@ -627,9 +627,9 @@ public class WorkOrderExecutionServiceTests : TestBase
         var summaries = await ctx.Set<WorkOrderExecutionSummary>().OrderBy(s => s.WorkOrderNo).ToListAsync();
         summaries.Should().HaveCount(2);
         summaries[0].WorkOrderNo.Should().Be("WO001");
-        summaries[0].Salesman.Should().Be("业务员A");
+        summaries[0].Salesman.Should().Be("测试业务员");
         summaries[1].WorkOrderNo.Should().Be("WO002");
-        summaries[1].Salesman.Should().Be("业务员B");
+        summaries[1].Salesman.Should().Be("测试业务员");
     }
 
     [Fact]
@@ -673,7 +673,7 @@ public class WorkOrderExecutionServiceTests : TestBase
         await svc.RefreshAllAsync();
 
         var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
-        s.Salesman.Should().Be("业务员A"); // 已被更新
+        s.Salesman.Should().Be("测试业务员"); // 从 CustomerProfile 取最新值
     }
 
     [Fact]

@@ -1397,6 +1397,9 @@ public class WorkOrderService : IWorkOrderService
     /// </summary>
     private async Task EnrichWithAggregatedStatusAsync(List<WorkOrderListDto> items)
     {
+        // 0. 从 CustomerProfile 覆盖冗余快照字段
+        await PatchCustomerFieldsAsync(items);
+
         var orderNos = items.Select(i => i.SalesOrderNo).Distinct().ToList();
 
         var allWorkOrdersInOrders = await _context.WorkOrders
@@ -1685,7 +1688,12 @@ public class WorkOrderService : IWorkOrderService
         if (workOrder == null)
             throw new BusinessException("工单不存在");
 
-        return workOrder.ToDetailDto();
+        var dto = workOrder.ToDetailDto();
+
+        // 覆盖冗余快照字段：从 CustomerProfile 取当前最新值
+        await PatchCustomerFieldsAsync(dto, workOrder.SalesOrderNo);
+
+        return dto;
     }
 
     public async Task<WorkOrderDetailDto> GetByWorkOrderNoAsync(string workOrderNo)
@@ -1696,7 +1704,9 @@ public class WorkOrderService : IWorkOrderService
         if (workOrder == null)
             throw new BusinessException("工单不存在");
 
-        return workOrder.ToDetailDto();
+        var dto = workOrder.ToDetailDto();
+        await PatchCustomerFieldsAsync(dto, workOrder.SalesOrderNo);
+        return dto;
     }
 
     public async Task<List<WorkOrderListDto>> GetBySalesOrderNoAsync(string salesOrderNo)
@@ -1708,7 +1718,51 @@ public class WorkOrderService : IWorkOrderService
             .ThenBy(wo => wo.ProductionSubNo)
             .ToListAsync();
 
-        return workOrders.Select(wo => wo.ToListDto()).ToList();
+        var results = workOrders.Select(wo => wo.ToListDto()).ToList();
+        await PatchCustomerFieldsAsync(results);
+        return results;
+    }
+
+    /// <summary>
+    /// 从 CustomerProfile 取当前最新 Salesman/EndCustomer，覆盖 WorkOrder 冗余快照
+    /// </summary>
+    private async Task PatchCustomerFieldsAsync(WorkOrderDetailDto dto, string salesOrderNo)
+    {
+        var salesOrder = await _context.SalesOrders
+            .AsNoTracking()
+            .Include(so => so.Customer)
+            .FirstOrDefaultAsync(so => so.OrderNumber == salesOrderNo);
+        if (salesOrder?.Customer != null)
+        {
+            dto.Salesman = salesOrder.Customer.Salesman;
+            dto.EndCustomer = salesOrder.Customer.EndCustomer;
+        }
+    }
+
+    /// <summary>
+    /// 批量从 CustomerProfile 覆盖 WorkOrderListDto 的冗余快照字段
+    /// </summary>
+    private async Task PatchCustomerFieldsAsync(List<WorkOrderListDto> items)
+    {
+        var orderNos = items.Select(i => i.SalesOrderNo).Distinct().ToList();
+        if (orderNos.Count == 0) return;
+
+        var salesOrders = await _context.SalesOrders
+            .AsNoTracking()
+            .Include(so => so.Customer)
+            .Where(so => orderNos.Contains(so.OrderNumber))
+            .ToListAsync();
+
+        var customerByOrderNo = salesOrders.ToDictionary(so => so.OrderNumber, so => so.Customer);
+
+        foreach (var item in items)
+        {
+            if (customerByOrderNo.TryGetValue(item.SalesOrderNo, out var customer))
+            {
+                item.Salesman = customer.Salesman;
+                item.EndCustomer = customer.EndCustomer;
+            }
+        }
     }
 
     public async Task<UpdateWorkOrderStatusResponseDto> UpdateStatusAsync(int id, UpdateWorkOrderStatusRequest request)
