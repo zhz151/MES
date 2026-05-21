@@ -304,8 +304,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // 先同步仓库数据（收回进度），再加载状态和检测不匹配
-        await SyncAllAsync(silent: true);
         await LoadProcurementStatus();
         await LoadOrderMismatches();
 
