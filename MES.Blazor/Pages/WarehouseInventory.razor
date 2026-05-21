@@ -550,9 +550,6 @@ else
         {
             await ResolveWarehouse();
             await LoadAllDataAsync();
-            // 页面加载时静默验证工单号（仅首次）
-            if (!_mismatchLoaded)
-                await LoadWarehouseMismatches();
         }
     }
 

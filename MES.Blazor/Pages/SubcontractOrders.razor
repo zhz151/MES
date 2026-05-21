@@ -305,7 +305,6 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadProcurementStatus();
-        await LoadOrderMismatches();
 
         // 列定义与偏好加载
         _allColumns = GetAllColumnDefs();
