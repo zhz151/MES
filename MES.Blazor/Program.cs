@@ -41,6 +41,7 @@ builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<WarehouseService>();
 builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<ColumnPrefsService>();
+builder.Services.AddScoped<PageStateService>();
 builder.Services.AddScoped<OutboundStateService>();
 builder.Services.AddScoped<BatchService>();
 builder.Services.AddScoped<ProductionRecordService>();

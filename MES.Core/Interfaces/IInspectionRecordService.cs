@@ -6,6 +6,7 @@ namespace MES.Core.Interfaces;
 public interface IInspectionRecordService
 {
     Task<PagedResult<InspectionRecordListDto>> GetPagedAsync(InspectionRecordQueryParams query);
+    Task<List<InspectionRecordListDto>> GetAllListAsync();
     Task<InspectionRecordListDto> GetByIdAsync(int id);
     Task<InspectionRecordListDto> CreateAsync(CreateInspectionRecordRequest request);
     Task<List<InspectionRecordListDto>> CreateBatchAsync(List<CreateInspectionRecordRequest> requests);

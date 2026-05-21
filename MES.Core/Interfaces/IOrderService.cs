@@ -51,6 +51,11 @@ public interface IOrderService
     Task<List<SalesOrderDetailDto>> GetByIdsForPrintAsync(int[] ids);
 
     /// <summary>
+    /// 获取所有订单列表数据（无分页，供客户端筛选排序）
+    /// </summary>
+    Task<List<SalesOrderListDto>> GetAllListAsync();
+
+    /// <summary>
     /// 按筛选条件获取全部订单详情列表（用于打印全部）
     /// </summary>
     Task<List<SalesOrderDetailDto>> GetAllByFilterForPrintAsync(string? keyword, string? technicalStatus, string? orderStatus, string? sortBy = null, bool isDescending = false);

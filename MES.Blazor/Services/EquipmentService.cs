@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
@@ -25,10 +26,21 @@ public class EquipmentService
             if (!string.IsNullOrEmpty(query.MaintStatus)) url += $"&maintStatus={Uri.EscapeDataString(query.MaintStatus)}";
             if (!string.IsNullOrEmpty(query.Location)) url += $"&location={Uri.EscapeDataString(query.Location)}";
             if (!string.IsNullOrEmpty(query.RelatedSection)) url += $"&relatedSection={Uri.EscapeDataString(query.RelatedSection)}";
+            if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<EquipmentListDto>>>(url)
                    ?? ApiResponse<PagedResult<EquipmentListDto>>.Fail("获取数据失败");
         }
         catch (Exception ex) { return ApiResponse<PagedResult<EquipmentListDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<List<EquipmentListDto>>> GetAllListAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<EquipmentListDto>>>($"{BaseUrl}/all-list")
+                   ?? ApiResponse<List<EquipmentListDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<EquipmentListDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
     public async Task<ApiResponse<List<EquipmentListDto>>> GetAllAsync()

@@ -5,6 +5,7 @@
 @using MES.Blazor.Helpers
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
+@using MES.Blazor.Components
 @inject ProductionRecordService ProductionRecordService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -38,7 +39,7 @@
                 <MudItem xs="12" md="4">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 批次号/工序/工段"
-                                  Value="searchKeyword"
+                                  Value="_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
@@ -47,36 +48,18 @@
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
-                <MudItem xs="6" md="3">
-                    <MudTextField Label="执行日期起"
-                                   @bind-Value="_execDateFrom"
-                                   Clearable="true"
-                                   Dense="true"
-                                   Variant="Variant.Outlined"
-                                   Immediate="true"
-                                   DebounceInterval="500" />
-                </MudItem>
-                <MudItem xs="6" md="3">
-                    <MudTextField Label="执行日期止"
-                                   @bind-Value="_execDateTo"
-                                   Clearable="true"
-                                   Dense="true"
-                                   Variant="Variant.Outlined"
-                                   Immediate="true"
-                                   DebounceInterval="500" />
-                </MudItem>
             </MudGrid>
 
             <!-- 数据表格 -->
             <div id="production-records-list-table">
             <MudTable @ref="table"
                       T="ProductionRecordDto"
-                      ServerData="OnServerData"
-                      Loading="@isLoading"
+                      Items="@_filteredItems"
                       Dense="true"
                       Hover="true"
                       Class="mt-4 auto-table"
                       Elevation="0"
+                      RowsPerPage="10"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
                     <ColumnDisplaySelect Columns="_allColumns"
@@ -106,7 +89,7 @@
                         打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
-                        共 @totalCount 条记录
+                        共 @(_filteredItems?.Count ?? 0) 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
@@ -116,20 +99,21 @@
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
-                            @if (!string.IsNullOrEmpty(col.SortKey))
-                            {
-                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
-                                    @col.Label
-                                </span>
-                                @if (sortColumn == col.SortKey)
-                                {
-                                    <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
-                                }
-                            }
-                            else
-                            {
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span class="th-label">@col.Label</span>
-                            }
+                                @if (col.FilterType != null)
+                                {
+                                    <ExcelFilter T="ProductionRecordDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 AllItems="@_allItems"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 DisplaySelector="@(x => GetCellDisplayText(x, col.Key))"
+                                                 RawValueSelector="@(x => GetCellRawValue(x, col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))"
+                                                 SortRequested="@(args => OnExcelSortRequested(args.fieldKey, args.ascending))" />
+                                }
+                            </div>
                         </MudTh>
                     }
                     <MudTh>操作</MudTh>
@@ -140,7 +124,7 @@
                         {
                             <MudCheckBox T="bool"
                                          Value="@selectedIds.Contains(item.Id)"
-                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = records.Any() && records.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _filteredItems.Any() && _filteredItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
                                          Dense="true" />
                         }
                     </MudTd>
@@ -165,7 +149,7 @@
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
-                    <MudTablePager />
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
             </MudTable>
             </div>
@@ -175,7 +159,9 @@
 
 @code {
     private MudTable<ProductionRecordDto>? table;
-    private List<ProductionRecordDto> records = new();
+    private List<ProductionRecordDto> _allItems = new();
+    private List<ProductionRecordDto>? _filteredItemsList;
+    private List<ProductionRecordDto> _filteredItems => _filteredItemsList ?? _allItems;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
     private bool _allSelected;
@@ -188,7 +174,7 @@
             _allSelected = value;
             if (value)
             {
-                foreach (var item in records)
+                foreach (var item in _filteredItems)
                     selectedIds.Add(item.Id);
             }
             else
@@ -198,16 +184,15 @@
             StateHasChanged();
         }
     }
-    private bool isLoading = false;
-    private string searchKeyword = string.Empty;
-    private int totalCount = 0;
+    private string _searchKeyword = string.Empty;
 
+    // 排序
     private string sortColumn = "createdtime";
     private bool sortDescending = true;
 
-    // 执行日期筛选（字符串格式 yyyy-MM-dd）
-    private string? _execDateFrom;
-    private string? _execDateTo;
+    // ========== ExcelFilter 筛选 ==========
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+    private Dictionary<string, List<ProductionRecordDto>> _filterContexts = new();
 
     // ========== 列定义 ==========
 
@@ -217,26 +202,26 @@
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "ExecDate",          Label = "执行日期",   SortKey = "execdate" },
-        new() { Key = "BatchNo",           Label = "批次号",     SortKey = "batchno" },
-        new() { Key = "ProcessName",       Label = "工序名称",   SortKey = "processname" },
-        new() { Key = "ManufacturingSpec", Label = "制造规格", SortKey = "manufacturingspec" },
-        new() { Key = "SectionName",       Label = "工段名称",   SortKey = "sectionname" },
-        new() { Key = "SequenceNumber",    Label = "组内序号",   SortKey = "sequencenumber" },
-        new() { Key = "EquipmentName",     Label = "设备名称",   SortKey = "equipmentname" },
-        new() { Key = "Operator",          Label = "操作人",     SortKey = "operator" },
-        new() { Key = "Shift",             Label = "班次",       SortKey = "shift" },
-        new() { Key = "Quantity",          Label = "加工支数",   SortKey = "quantity" },
-        new() { Key = "Weight",            Label = "加工重量",   SortKey = "weight" },
-        new() { Key = "IsFinished",        Label = "是否成品", SortKey = "isfinished" },
-        new() { Key = "CuttingMultiple",   Label = "断切倍数",   SortKey = "cuttingmultiple" },
-        new() { Key = "FinishedCutLength", Label = "成品长度",   SortKey = "finishedcutlength" },
-        new() { Key = "PostCutQuantity",   Label = "切后支数",   SortKey = "postcutquantity" },
-        new() { Key = "TagNo",             Label = "挂牌号",     SortKey = "tagno" },
-        new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade" },
-        new() { Key = "Remark",            Label = "备注",       SortKey = "remark" },
-        new() { Key = "CreatedTime",       Label = "创建日期",   SortKey = "createdtime" },
-        new() { Key = "UpdatedTime",       Label = "更新日期",   SortKey = "updatedtime" },
+        new() { Key = "ExecDate",          Label = "执行日期",   SortKey = "execdate",          FilterType = "date" },
+        new() { Key = "BatchNo",           Label = "批次号",     SortKey = "batchno",           FilterType = "string" },
+        new() { Key = "ProcessName",       Label = "工序名称",   SortKey = "processname",       FilterType = "string" },
+        new() { Key = "ManufacturingSpec", Label = "制造规格", SortKey = "manufacturingspec", FilterType = "string" },
+        new() { Key = "SectionName",       Label = "工段名称",   SortKey = "sectionname",       FilterType = "string" },
+        new() { Key = "SequenceNumber",    Label = "组内序号",   SortKey = "sequencenumber",    FilterType = "number" },
+        new() { Key = "EquipmentName",     Label = "设备名称",   SortKey = "equipmentname",     FilterType = "string" },
+        new() { Key = "Operator",          Label = "操作人",     SortKey = "operator",          FilterType = "string" },
+        new() { Key = "Shift",             Label = "班次",       SortKey = "shift",             FilterType = "string" },
+        new() { Key = "Quantity",          Label = "加工支数",   SortKey = "quantity",          FilterType = "number" },
+        new() { Key = "Weight",            Label = "加工重量",   SortKey = "weight",            FilterType = "number" },
+        new() { Key = "IsFinished",        Label = "是否成品", SortKey = "isfinished",         FilterType = "boolean", BoolTrueLabel = "成品", BoolFalseLabel = "在制品" },
+        new() { Key = "CuttingMultiple",   Label = "断切倍数",   SortKey = "cuttingmultiple",   FilterType = "number" },
+        new() { Key = "FinishedCutLength", Label = "成品长度",   SortKey = "finishedcutlength", FilterType = "number" },
+        new() { Key = "PostCutQuantity",   Label = "切后支数",   SortKey = "postcutquantity",   FilterType = "number" },
+        new() { Key = "TagNo",             Label = "挂牌号",     SortKey = "tagno",             FilterType = "string" },
+        new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade",        FilterType = "string" },
+        new() { Key = "Remark",            Label = "备注",       SortKey = "remark",            FilterType = "string" },
+        new() { Key = "CreatedTime",       Label = "创建日期",   SortKey = "createdtime",       FilterType = "date" },
+        new() { Key = "UpdatedTime",       Label = "更新日期",   SortKey = "updatedtime",       FilterType = "date" },
     };
 
     // ========== 内联编辑 ==========
@@ -387,6 +372,133 @@
         await SaveColumnPrefs();
     }
 
+    // ========== ExcelFilter 辅助方法 ==========
+
+    private string? GetCellRawValue(ProductionRecordDto item, string key) => key switch
+    {
+        "ExecDate" => item.ExecDate.ToString("yyyy-MM-dd"),
+        "BatchNo" => item.BatchNo,
+        "ProcessName" => item.ProcessName,
+        "ManufacturingSpec" => item.ManufacturingSpec,
+        "SectionName" => item.SectionName,
+        "SequenceNumber" => item.SequenceNumber.ToString(),
+        "EquipmentName" => item.EquipmentName,
+        "Operator" => item.Operator,
+        "Shift" => item.Shift,
+        "Quantity" => item.Quantity?.ToString(),
+        "Weight" => item.Weight?.ToString("G29"),
+        "IsFinished" => item.IsFinished.ToString(),
+        "CuttingMultiple" => item.CuttingMultiple?.ToString("G29"),
+        "FinishedCutLength" => item.FinishedCutLength?.ToString("G29"),
+        "PostCutQuantity" => item.PostCutQuantity?.ToString(),
+        "TagNo" => item.TagNo,
+        "PlantGrade" => item.PlantGrade,
+        "Remark" => item.Remark,
+        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        _ => null
+    };
+
+    private string? GetCellDisplayText(ProductionRecordDto item, string key) => key switch
+    {
+        "IsFinished" => item.IsFinished ? "成品" : "在制品",
+        "ManufacturingSpec" => DisplayHelper.FormatSpecification(item.ManufacturingSpec),
+        _ => GetCellRawValue(item, key)
+    };
+
+    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
+    {
+        _columnFilters[fieldKey] = selectedValues;
+        RefreshFilteredData();
+        await SavePageStateAsync();
+    }
+
+    private async Task OnExcelSortRequested(string fieldKey, bool ascending)
+    {
+        sortColumn = fieldKey;
+        sortDescending = !ascending;
+        RefreshFilteredData();
+        await SavePageStateAsync();
+    }
+
+    // ========== 数据加载 ==========
+
+    private async Task LoadAllDataAsync()
+    {
+        try
+        {
+            var result = await ProductionRecordService.GetAllProductionRecordListAsync();
+            if (result.Success && result.Data != null)
+            {
+                _allItems = result.Data;
+                _filteredItemsList = null;
+                RefreshFilteredData();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "加载失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void RefreshFilteredData()
+    {
+        var query = _allItems.AsEnumerable();
+
+        // 关键字搜索
+        if (!string.IsNullOrWhiteSpace(_searchKeyword))
+        {
+            var kw = _searchKeyword.ToLower();
+            query = query.Where(x =>
+                (x.BatchNo != null && x.BatchNo.ToLower().Contains(kw)) ||
+                (x.ProcessName != null && x.ProcessName.ToLower().Contains(kw)) ||
+                (x.SectionName != null && x.SectionName.ToLower().Contains(kw)));
+        }
+
+        // 列筛选
+        foreach (var kvp in _columnFilters)
+        {
+            if (kvp.Value.Count == 0) continue;
+            query = query.Where(x =>
+            {
+                var raw = GetCellRawValue(x, kvp.Key) ?? "__EXCEL_FILTER_NULL__";
+                return kvp.Value.Contains(raw);
+            });
+        }
+
+        // 排序
+        query = sortColumn switch
+        {
+            "execdate" => sortDescending ? query.OrderByDescending(x => x.ExecDate) : query.OrderBy(x => x.ExecDate),
+            "batchno" => sortDescending ? query.OrderByDescending(x => x.BatchNo ?? "") : query.OrderBy(x => x.BatchNo ?? ""),
+            "processname" => sortDescending ? query.OrderByDescending(x => x.ProcessName) : query.OrderBy(x => x.ProcessName),
+            "manufacturingspec" => sortDescending ? query.OrderByDescending(x => x.ManufacturingSpec ?? "") : query.OrderBy(x => x.ManufacturingSpec ?? ""),
+            "sectionname" => sortDescending ? query.OrderByDescending(x => x.SectionName) : query.OrderBy(x => x.SectionName),
+            "sequencenumber" => sortDescending ? query.OrderByDescending(x => x.SequenceNumber) : query.OrderBy(x => x.SequenceNumber),
+            "equipmentname" => sortDescending ? query.OrderByDescending(x => x.EquipmentName ?? "") : query.OrderBy(x => x.EquipmentName ?? ""),
+            "operator" => sortDescending ? query.OrderByDescending(x => x.Operator ?? "") : query.OrderBy(x => x.Operator ?? ""),
+            "shift" => sortDescending ? query.OrderByDescending(x => x.Shift ?? "") : query.OrderBy(x => x.Shift ?? ""),
+            "quantity" => sortDescending ? query.OrderByDescending(x => x.Quantity) : query.OrderBy(x => x.Quantity),
+            "weight" => sortDescending ? query.OrderByDescending(x => x.Weight) : query.OrderBy(x => x.Weight),
+            "isfinished" => sortDescending ? query.OrderByDescending(x => x.IsFinished) : query.OrderBy(x => x.IsFinished),
+            "cuttingmultiple" => sortDescending ? query.OrderByDescending(x => x.CuttingMultiple) : query.OrderBy(x => x.CuttingMultiple),
+            "finishedcutlength" => sortDescending ? query.OrderByDescending(x => x.FinishedCutLength) : query.OrderBy(x => x.FinishedCutLength),
+            "postcutquantity" => sortDescending ? query.OrderByDescending(x => x.PostCutQuantity) : query.OrderBy(x => x.PostCutQuantity),
+            "tagno" => sortDescending ? query.OrderByDescending(x => x.TagNo ?? "") : query.OrderBy(x => x.TagNo ?? ""),
+            "plantgrade" => sortDescending ? query.OrderByDescending(x => x.PlantGrade ?? "") : query.OrderBy(x => x.PlantGrade ?? ""),
+            "remark" => sortDescending ? query.OrderByDescending(x => x.Remark ?? "") : query.OrderBy(x => x.Remark ?? ""),
+            "createdtime" => sortDescending ? query.OrderByDescending(x => x.CreatedTime) : query.OrderBy(x => x.CreatedTime),
+            "updatedtime" => sortDescending ? query.OrderByDescending(x => x.UpdatedTime) : query.OrderBy(x => x.UpdatedTime),
+            _ => sortDescending ? query.OrderByDescending(x => x.CreatedTime) : query.OrderBy(x => x.CreatedTime)
+        };
+
+        _filteredItemsList = query.ToList();
+    }
+
     // ========== 初始化 ==========
 
     protected override async Task OnInitializedAsync()
@@ -415,6 +527,7 @@
             }
             _allColumns = reordered;
         }
+        await LoadAllDataAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -427,91 +540,12 @@
         }
     }
 
-    private string GetSortIndicator(string column)
-    {
-        if (sortColumn != column) return "";
-        return sortDescending ? "\u25BC" : "\u25B2";
-    }
-
-    private async Task<TableData<ProductionRecordDto>> OnServerData(TableState state)
-    {
-        isLoading = true;
-        StateHasChanged();
-
-        try
-        {
-            DateTime? execDateFrom = DateTime.TryParse(_execDateFrom, out var dtFrom) ? dtFrom : null;
-            DateTime? execDateTo = DateTime.TryParse(_execDateTo, out var dtTo) ? dtTo : null;
-            var result = await ProductionRecordService.GetAllProductionRecordsAsync(
-                state.Page + 1, state.PageSize,
-                string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
-                sortColumn, sortDescending,
-                execDateFrom, execDateTo);
-
-            if (result.Success && result.Data != null)
-            {
-                records = result.Data.Items;
-                totalCount = result.Data.TotalCount;
-                return new TableData<ProductionRecordDto>
-                {
-                    Items = records,
-                    TotalItems = totalCount
-                };
-            }
-
-            return new TableData<ProductionRecordDto>
-            {
-                Items = new List<ProductionRecordDto>(),
-                TotalItems = 0
-            };
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"加载失败: {ex.Message}");
-            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
-            return new TableData<ProductionRecordDto>
-            {
-                Items = new List<ProductionRecordDto>(),
-                TotalItems = 0
-            };
-        }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task ToggleSort(string column)
-    {
-        if (sortColumn == column)
-            sortDescending = !sortDescending;
-        else
-        {
-            sortColumn = column;
-            sortDescending = false;
-        }
-        if (table != null)
-            await table.ReloadServerData();
-    }
-
-    private async Task Search()
-    {
-        if (table != null)
-            await table.ReloadServerData();
-    }
+    // ========== 事件处理 ==========
 
     private async Task OnSearchChanged(string value)
     {
-        searchKeyword = value ?? string.Empty;
-        if (table != null)
-            await table.ReloadServerData();
-    }
-
-    private async Task OnFilterChanged()
-    {
-        if (table != null)
-            await table.ReloadServerData();
+        _searchKeyword = value ?? string.Empty;
+        RefreshFilteredData();
     }
 
     private void NavigateToCreate() => Navigation.NavigateTo("/production-records/create");
@@ -535,7 +569,7 @@
                 if (result.Success)
                 {
                     Snackbar.Add("删除成功", Severity.Success);
-                    await Search();
+                    await LoadAllDataAsync();
                 }
                 else
                 {
@@ -828,9 +862,8 @@
         {
             var cols = GetPrintColumnDefs();
             var result = await ProductionRecordService.PrintAllAsync(
-                string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
-                sortColumn, sortDescending, cols,
-                DateTime.TryParse(_execDateFrom, out var edf) ? edf : null, DateTime.TryParse(_execDateTo, out var edt) ? edt : null);
+                string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                sortColumn, sortDescending, cols);
             if (result.Success && result.Data != null)
                 await JS.InvokeVoidAsync("openPdf", result.Data);
             else
@@ -840,5 +873,13 @@
         {
             Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
         }
+    }
+
+    // ========== 持久化 ==========
+
+    private async Task SavePageStateAsync()
+    {
+        // TODO: 使用 PageStateService 保存排序/筛选状态到 localStorage
+        await Task.CompletedTask;
     }
 }

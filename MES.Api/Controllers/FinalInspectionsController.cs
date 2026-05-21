@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
@@ -49,7 +50,8 @@ public class FinalInspectionsController : ControllerBase
         [FromQuery] string? sortBy = null,
         [FromQuery] bool isDescending = false,
         [FromQuery] DateTime? inspectionDateFrom = null,
-        [FromQuery] DateTime? inspectionDateTo = null)
+        [FromQuery] DateTime? inspectionDateTo = null,
+        [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
         var query = new QueryParams
@@ -62,8 +64,22 @@ public class FinalInspectionsController : ControllerBase
             InspectionDateFrom = inspectionDateFrom,
             InspectionDateTo = inspectionDateTo
         };
+        if (!string.IsNullOrEmpty(filters))
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
         var result = await _service.GetAllAsync(query);
         return Ok(ApiResponse<PagedResult<FinalInspectionDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 获取所有成品检验记录（无分页）
+    /// </summary>
+    [HttpGet("all-list")]
+    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<ApiResponse<List<FinalInspectionDto>>> GetAllList()
+    {
+        var result = await _service.GetAllListAsync();
+        return ApiResponse<List<FinalInspectionDto>>.Ok(result);
     }
 
     /// <summary>

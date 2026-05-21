@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
@@ -40,7 +41,8 @@ public class BatchController : ControllerBase
         [FromQuery] string? batchNo = null,
         [FromQuery] string? validInputQuestion = null,
         [FromQuery] DateTime? startDateFrom = null,
-        [FromQuery] DateTime? startDateTo = null)
+        [FromQuery] DateTime? startDateTo = null,
+        [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
         var query = new BatchQueryParams
@@ -58,8 +60,25 @@ public class BatchController : ControllerBase
             StartDateFrom = startDateFrom,
             StartDateTo = startDateTo
         };
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try
+            {
+                var f = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (f != null && f.Count > 0) query.Filters = f;
+            }
+            catch { }
+        }
         var result = await _service.GetPagedAsync(query);
         return Ok(ApiResponse<PagedResult<ProductionBatchListDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("all-list")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<ProductionBatchListDto>>>> GetAllList()
+    {
+        var result = await _service.GetAllBatchListAsync();
+        return Ok(ApiResponse<List<ProductionBatchListDto>>.Ok(result, "查询成功"));
     }
 
     [HttpGet("{id}")]

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
@@ -59,7 +60,8 @@ public class SectionOutsourceController : ControllerBase
         [FromQuery] DateTime? sendOutDateFrom = null,
         [FromQuery] DateTime? sendOutDateTo = null,
         [FromQuery] DateTime? actualRecoveryDateFrom = null,
-        [FromQuery] DateTime? actualRecoveryDateTo = null)
+        [FromQuery] DateTime? actualRecoveryDateTo = null,
+        [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
         var query = new QueryParams
@@ -74,6 +76,9 @@ public class SectionOutsourceController : ControllerBase
             ActualRecoveryDateFrom = actualRecoveryDateFrom,
             ActualRecoveryDateTo = actualRecoveryDateTo
         };
+        if (!string.IsNullOrEmpty(filters))
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
         var result = await _service.GetPagedAsync(query);
         return Ok(ApiResponse<PagedResult<SectionOutsourceDto>>.Ok(result, "查询成功"));
     }
@@ -156,7 +161,8 @@ public class SectionOutsourceController : ControllerBase
         [FromQuery] string? sortBy = null,
         [FromQuery] bool isDescending = true,
         [FromQuery] DateTime? recoveryDateFrom = null,
-        [FromQuery] DateTime? recoveryDateTo = null)
+        [FromQuery] DateTime? recoveryDateTo = null,
+        [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
         var query = new QueryParams
@@ -169,6 +175,9 @@ public class SectionOutsourceController : ControllerBase
             RecoveryDateFrom = recoveryDateFrom,
             RecoveryDateTo = recoveryDateTo
         };
+        if (!string.IsNullOrEmpty(filters))
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
         var result = await _service.GetRecoveriesPagedAsync(query);
         return Ok(ApiResponse<PagedResult<OutsourceRecoveryDto>>.Ok(result, "查询成功"));
     }

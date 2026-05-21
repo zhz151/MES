@@ -6,6 +6,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 
+using MES.Services.Helpers;
 using MES.Services.Printing;
 
 namespace MES.Services;
@@ -41,6 +42,8 @@ public class MaintenanceOrderService : IMaintenanceOrderService
 
         if (query.EquipmentId.HasValue)
             baseQuery = baseQuery.Where(x => x.Order.EquipmentId == query.EquipmentId.Value);
+
+        baseQuery = baseQuery.ApplyFilters(query.Filters);
 
         var totalCount = await baseQuery.CountAsync();
 
@@ -92,6 +95,28 @@ public class MaintenanceOrderService : IMaintenanceOrderService
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
+    }
+
+    public async Task<List<MaintenanceOrderListDto>> GetAllListAsync()
+    {
+        var baseQuery = from m in _context.MaintenanceOrders
+                        join e in _context.Equipment on m.EquipmentId equals e.Id
+                        orderby m.Id descending
+                        select new MaintenanceOrderListDto
+                        {
+                            Id = m.Id,
+                            MaintOrderNo = m.MaintOrderNo,
+                            EquipmentId = m.EquipmentId,
+                            EquipmentName = e.EquipmentName,
+                            EquipmentCode = e.EquipmentCode,
+                            Location = e.Location,
+                            ActualDate = m.ActualDate,
+                            Executor = m.Executor,
+                            ExecutionSummary = m.ExecutionSummary,
+                            Remark = m.Remark
+                        };
+
+        return await baseQuery.ToListAsync();
     }
 
     public async Task<MaintenanceOrderListDto> GetByIdAsync(int id)

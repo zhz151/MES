@@ -7,6 +7,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Helpers;
 
 namespace MES.Services;
 
@@ -106,6 +107,7 @@ public class FinalInspectionService : IFinalInspectionService
         if (query.InspectionDateTo.HasValue)
             queryable = queryable.Where(r => r.InspectionDate <= query.InspectionDateTo.Value);
 
+        queryable = queryable.ApplyFilters(query.Filters);
         var totalCount = await queryable.CountAsync();
 
         queryable = ApplySorting(queryable, query.SortBy ?? "inspectiondate", query.IsDescending);
@@ -160,6 +162,52 @@ public class FinalInspectionService : IFinalInspectionService
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
+    }
+
+    public async Task<List<FinalInspectionDto>> GetAllListAsync()
+    {
+        return await _context.FinalInspections
+            .AsNoTracking()
+            .OrderByDescending(r => r.Id)
+            .Select(r => new FinalInspectionDto
+            {
+                Id = r.Id,
+                InspectionItem = r.InspectionItem,
+                InspectionDate = r.InspectionDate,
+                BatchNo = r.BatchNo,
+                ProductionBatchId = r.ProductionBatchId,
+                MaterialName = r.MaterialName,
+                TagNo = r.TagNo,
+                WorkOrderNo = r.WorkOrderNo,
+                SalesOrderNo = r.SalesOrderNo,
+                SourceUnit = r.SourceUnit,
+                FurnaceNo = r.FurnaceNo,
+                PlantGrade = r.PlantGrade,
+                Specification = r.Specification,
+                FixedLength = r.FixedLength,
+                EquipmentName = r.EquipmentName,
+                Shift = r.Shift,
+                Operator = r.Operator,
+                Quantity = r.Quantity,
+                Weight = r.Weight,
+                QualifiedQuantity = r.QualifiedQuantity,
+                QualifiedWeight = r.QualifiedWeight,
+                QualifiedConcessionQuantity = r.QualifiedConcessionQuantity,
+                ConcessionRemark = r.ConcessionRemark,
+                DefectReworkQuantity = r.DefectReworkQuantity,
+                DefectWarehouseQuantity = r.DefectWarehouseQuantity,
+                DefectScrapQuantity = r.DefectScrapQuantity,
+                DefectDescription = r.DefectDescription,
+                OuterDiameterRange = r.OuterDiameterRange,
+                WallThicknessRange = r.WallThicknessRange,
+                LengthAllowanceRange = r.LengthAllowanceRange,
+                Pressure = r.Pressure,
+                HoldTime = r.HoldTime,
+                Remark = r.Remark,
+                CreatedTime = r.CreatedTime,
+                UpdatedTime = r.UpdatedTime
+            })
+            .ToListAsync();
     }
 
     public async Task<FinalInspectionDto> CreateAsync(CreateFinalInspectionRequest request)
@@ -492,72 +540,6 @@ public class FinalInspectionService : IFinalInspectionService
 
     private static IQueryable<FinalInspection> ApplySorting(IQueryable<FinalInspection> queryable, string sortBy, bool isDescending)
     {
-        var sorted = (sortBy.ToLowerInvariant(), isDescending) switch
-        {
-            ("inspectionitem", false) => queryable.OrderBy(r => r.InspectionItem),
-            ("inspectionitem", true) => queryable.OrderByDescending(r => r.InspectionItem),
-            ("inspectiondate", false) => queryable.OrderBy(r => r.InspectionDate),
-            ("inspectiondate", true) => queryable.OrderByDescending(r => r.InspectionDate),
-            ("batchno", false) => queryable.OrderBy(r => r.BatchNo),
-            ("batchno", true) => queryable.OrderByDescending(r => r.BatchNo),
-            ("materialname", false) => queryable.OrderBy(r => r.MaterialName ?? ""),
-            ("materialname", true) => queryable.OrderByDescending(r => r.MaterialName ?? ""),
-            ("tagno", false) => queryable.OrderBy(r => r.TagNo ?? ""),
-            ("tagno", true) => queryable.OrderByDescending(r => r.TagNo ?? ""),
-            ("workorderno", false) => queryable.OrderBy(r => r.WorkOrderNo ?? ""),
-            ("workorderno", true) => queryable.OrderByDescending(r => r.WorkOrderNo ?? ""),
-            ("salesorderno", false) => queryable.OrderBy(r => r.SalesOrderNo ?? ""),
-            ("salesorderno", true) => queryable.OrderByDescending(r => r.SalesOrderNo ?? ""),
-            ("sourceunit", false) => queryable.OrderBy(r => r.SourceUnit ?? ""),
-            ("sourceunit", true) => queryable.OrderByDescending(r => r.SourceUnit ?? ""),
-            ("furnaceno", false) => queryable.OrderBy(r => r.FurnaceNo ?? ""),
-            ("furnaceno", true) => queryable.OrderByDescending(r => r.FurnaceNo ?? ""),
-            ("plantgrade", false) => queryable.OrderBy(r => r.PlantGrade ?? ""),
-            ("plantgrade", true) => queryable.OrderByDescending(r => r.PlantGrade ?? ""),
-            ("specification", false) => queryable.OrderBy(r => r.Specification ?? ""),
-            ("specification", true) => queryable.OrderByDescending(r => r.Specification ?? ""),
-            ("fixedlength", false) => queryable.OrderBy(r => r.FixedLength ?? ""),
-            ("fixedlength", true) => queryable.OrderByDescending(r => r.FixedLength ?? ""),
-            ("equipmentname", false) => queryable.OrderBy(r => r.EquipmentName ?? ""),
-            ("equipmentname", true) => queryable.OrderByDescending(r => r.EquipmentName ?? ""),
-            ("shift", false) => queryable.OrderBy(r => r.Shift ?? ""),
-            ("shift", true) => queryable.OrderByDescending(r => r.Shift ?? ""),
-            ("operator", false) => queryable.OrderBy(r => r.Operator ?? ""),
-            ("operator", true) => queryable.OrderByDescending(r => r.Operator ?? ""),
-            ("quantity", false) => queryable.OrderBy(r => r.Quantity ?? 0),
-            ("quantity", true) => queryable.OrderByDescending(r => r.Quantity ?? 0),
-            ("weight", false) => queryable.OrderBy(r => r.Weight ?? 0),
-            ("weight", true) => queryable.OrderByDescending(r => r.Weight ?? 0),
-            ("qualifiedquantity", false) => queryable.OrderBy(r => r.QualifiedQuantity ?? 0),
-            ("qualifiedquantity", true) => queryable.OrderByDescending(r => r.QualifiedQuantity ?? 0),
-            ("qualifiedweight", false) => queryable.OrderBy(r => r.QualifiedWeight ?? 0),
-            ("qualifiedweight", true) => queryable.OrderByDescending(r => r.QualifiedWeight ?? 0),
-            ("defectreworkquantity", false) => queryable.OrderBy(r => r.DefectReworkQuantity ?? 0),
-            ("defectreworkquantity", true) => queryable.OrderByDescending(r => r.DefectReworkQuantity ?? 0),
-            ("defectwarehousequantity", false) => queryable.OrderBy(r => r.DefectWarehouseQuantity ?? 0),
-            ("defectwarehousequantity", true) => queryable.OrderByDescending(r => r.DefectWarehouseQuantity ?? 0),
-            ("defectscrapquantity", false) => queryable.OrderBy(r => r.DefectScrapQuantity ?? 0),
-            ("defectscrapquantity", true) => queryable.OrderByDescending(r => r.DefectScrapQuantity ?? 0),
-            ("defectdescription", false) => queryable.OrderBy(r => r.DefectDescription ?? ""),
-            ("defectdescription", true) => queryable.OrderByDescending(r => r.DefectDescription ?? ""),
-            ("outerdiameterrange", false) => queryable.OrderBy(r => r.OuterDiameterRange ?? ""),
-            ("outerdiameterrange", true) => queryable.OrderByDescending(r => r.OuterDiameterRange ?? ""),
-            ("wallthicknessrange", false) => queryable.OrderBy(r => r.WallThicknessRange ?? ""),
-            ("wallthicknessrange", true) => queryable.OrderByDescending(r => r.WallThicknessRange ?? ""),
-            ("lengthallowancerange", false) => queryable.OrderBy(r => r.LengthAllowanceRange ?? ""),
-            ("lengthallowancerange", true) => queryable.OrderByDescending(r => r.LengthAllowanceRange ?? ""),
-            ("pressure", false) => queryable.OrderBy(r => r.Pressure ?? 0),
-            ("pressure", true) => queryable.OrderByDescending(r => r.Pressure ?? 0),
-            ("holdtime", false) => queryable.OrderBy(r => r.HoldTime ?? 0),
-            ("holdtime", true) => queryable.OrderByDescending(r => r.HoldTime ?? 0),
-            ("remark", false) => queryable.OrderBy(r => r.Remark ?? ""),
-            ("remark", true) => queryable.OrderByDescending(r => r.Remark ?? ""),
-            ("createdtime", false) => queryable.OrderBy(r => r.CreatedTime),
-            ("createdtime", true) => queryable.OrderByDescending(r => r.CreatedTime),
-            ("updatedtime", false) => queryable.OrderBy(r => r.UpdatedTime),
-            ("updatedtime", true) => queryable.OrderByDescending(r => r.UpdatedTime),
-            _ => queryable.OrderByDescending(r => r.CreatedTime)
-        };
-        return sorted;
+        return queryable.ApplySort(sortBy, isDescending);
     }
 }

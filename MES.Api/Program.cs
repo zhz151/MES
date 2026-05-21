@@ -124,6 +124,9 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 
 // Register order service
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<OrderListSummaryService>();
+builder.Services.AddScoped<WorkOrderStatusSummaryService>();
+builder.Services.AddScoped<WorkOrderListSummaryService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 // Register auxiliary services
 builder.Services.AddScoped<ICustomerService, CustomerService>();
@@ -192,6 +195,43 @@ QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 using (var scope = app.Services.CreateScope())
 {
     await DbInitializer.InitializeAsync(scope.ServiceProvider);
+
+    // 初始化订单列表读模型
+    var summaryService = scope.ServiceProvider.GetRequiredService<OrderListSummaryService>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        await summaryService.RefreshAllAsync();
+        logger.LogInformation("订单列表读模型初始化完成");
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "订单列表读模型初始化失败（不影响启动）");
+    }
+
+    // 初始化工单首页读模型
+    var workOrderStatusService = scope.ServiceProvider.GetRequiredService<WorkOrderStatusSummaryService>();
+    try
+    {
+        await workOrderStatusService.RefreshAllAsync();
+        logger.LogInformation("工单首页读模型初始化完成");
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "工单首页读模型初始化失败（不影响启动）");
+    }
+
+    // 初始化用料计划总览读模型
+    var workOrderListSummaryService = scope.ServiceProvider.GetRequiredService<WorkOrderListSummaryService>();
+    try
+    {
+        await workOrderListSummaryService.RefreshAllAsync();
+        logger.LogInformation("用料计划总览读模型初始化完成");
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "用料计划总览读模型初始化失败（不影响启动）");
+    }
 }
 
 // ========== 中间件配置 ==========

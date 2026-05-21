@@ -39,7 +39,7 @@
                 <MudItem xs="12" md="4">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 工厂牌号"
-                                  Value="searchKeyword"
+                                  Value="_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
@@ -54,12 +54,12 @@
             <div id="chemical-composition-list-table">
             <MudTable @ref="table"
                       T="ChemicalCompositionDto"
-                      ServerData="OnServerData"
-                      Loading="@isLoading"
+                      Items="@_filteredItems"
                       Dense="true"
                       Hover="true"
                       Class="mt-4 auto-table"
                       Elevation="0"
+                      RowsPerPage="10"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
                     <ColumnDisplaySelect Columns="_allColumns"
@@ -89,7 +89,7 @@
                         打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
-                        共 @totalCount 条记录
+                        共 @(_filteredItems?.Count ?? 0) 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
@@ -99,20 +99,21 @@
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
-                            @if (!string.IsNullOrEmpty(col.SortKey))
-                            {
-                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
-                                    @col.Label
-                                </span>
-                                @if (sortColumn == col.SortKey)
-                                {
-                                    <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
-                                }
-                            }
-                            else
-                            {
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span class="th-label">@col.Label</span>
-                            }
+                                @if (col.FilterType != null)
+                                {
+                                    <ExcelFilter T="ChemicalCompositionDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 AllItems="@_allItems"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 DisplaySelector="@(x => GetCellDisplayText(x, col.Key))"
+                                                 RawValueSelector="@(x => GetCellRawValue(x, col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))"
+                                                 SortRequested="@(args => OnExcelSortRequested(args.fieldKey, args.ascending))" />
+                                }
+                            </div>
                         </MudTh>
                     }
                     <MudTh>操作</MudTh>
@@ -121,7 +122,7 @@
                     <MudTd Style="width: 40px;">
                         <MudCheckBox T="bool"
                                      Value="@selectedIds.Contains(item.Id)"
-                                     ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); allSelected = records.Any() && records.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                     ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _filteredItems.Any() && _filteredItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
                                      Dense="true" />
                     </MudTd>
                     @foreach (var col in _visibleColumns)
@@ -145,7 +146,7 @@
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
-                    <MudTablePager />
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
             </MudTable>
             </div>
@@ -155,14 +156,18 @@
 
 @code {
     private MudTable<ChemicalCompositionDto>? table;
-    private List<ChemicalCompositionDto> records = new();
+    private List<ChemicalCompositionDto> _allItems = new();
+    private List<ChemicalCompositionDto>? _filteredItemsList;
+    private List<ChemicalCompositionDto> _filteredItems => _filteredItemsList ?? _allItems;
     private bool _isArrowNavSetup;
-    private bool isLoading = false;
-    private string searchKeyword = string.Empty;
-    private int totalCount = 0;
+    private string _searchKeyword = string.Empty;
 
     private string sortColumn = "plantgrade";
     private bool sortDescending = false;
+
+    // ========== ExcelFilter 状态 ==========
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+    private Dictionary<string, List<ChemicalCompositionDto>> _filterContexts = new();
 
     // ========== 列定义 ==========
 
@@ -172,25 +177,25 @@
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "PlantGrade",   Label = "工厂牌号",     SortKey = "plantgrade" },
-        new() { Key = "Carbon",       Label = "C",           SortKey = "carbon" },
-        new() { Key = "Silicon",      Label = "Si",          SortKey = "silicon" },
-        new() { Key = "Manganese",    Label = "Mn",          SortKey = "manganese" },
-        new() { Key = "Phosphorus",   Label = "P",           SortKey = "phosphorus" },
-        new() { Key = "Sulfur",       Label = "S",           SortKey = "sulfur" },
-        new() { Key = "Nickel",       Label = "Ni",          SortKey = "nickel" },
-        new() { Key = "Chromium",     Label = "Cr",          SortKey = "chromium" },
-        new() { Key = "Molybdenum",   Label = "Mo",          SortKey = "molybdenum" },
-        new() { Key = "Copper",       Label = "Cu",          SortKey = "copper" },
-        new() { Key = "Nitrogen",     Label = "N",           SortKey = "nitrogen" },
-        new() { Key = "Niobium",      Label = "Nb",          SortKey = "niobium" },
-        new() { Key = "Titanium",     Label = "Ti",          SortKey = "titanium" },
-        new() { Key = "Iron",         Label = "Fe",          SortKey = "iron" },
-        new() { Key = "Aluminum",     Label = "Al",          SortKey = "aluminum" },
-        new() { Key = "Tungsten",     Label = "W",           SortKey = "tungsten" },
-        new() { Key = "PREN",         Label = "PREN腐蚀当量", SortKey = "pren" },
-        new() { Key = "CreatedTime",  Label = "创建日期",   SortKey = "createdtime" },
-        new() { Key = "UpdatedTime",  Label = "更新日期",   SortKey = "updatedtime" },
+        new() { Key = "PlantGrade",   Label = "工厂牌号",     SortKey = "plantgrade", FilterType = "string" },
+        new() { Key = "Carbon",       Label = "C",           SortKey = "carbon", FilterType = "string" },
+        new() { Key = "Silicon",      Label = "Si",          SortKey = "silicon", FilterType = "string" },
+        new() { Key = "Manganese",    Label = "Mn",          SortKey = "manganese", FilterType = "string" },
+        new() { Key = "Phosphorus",   Label = "P",           SortKey = "phosphorus", FilterType = "string" },
+        new() { Key = "Sulfur",       Label = "S",           SortKey = "sulfur", FilterType = "string" },
+        new() { Key = "Nickel",       Label = "Ni",          SortKey = "nickel", FilterType = "string" },
+        new() { Key = "Chromium",     Label = "Cr",          SortKey = "chromium", FilterType = "string" },
+        new() { Key = "Molybdenum",   Label = "Mo",          SortKey = "molybdenum", FilterType = "string" },
+        new() { Key = "Copper",       Label = "Cu",          SortKey = "copper", FilterType = "string" },
+        new() { Key = "Nitrogen",     Label = "N",           SortKey = "nitrogen", FilterType = "string" },
+        new() { Key = "Niobium",      Label = "Nb",          SortKey = "niobium", FilterType = "string" },
+        new() { Key = "Titanium",     Label = "Ti",          SortKey = "titanium", FilterType = "string" },
+        new() { Key = "Iron",         Label = "Fe",          SortKey = "iron", FilterType = "string" },
+        new() { Key = "Aluminum",     Label = "Al",          SortKey = "aluminum", FilterType = "string" },
+        new() { Key = "Tungsten",     Label = "W",           SortKey = "tungsten", FilterType = "string" },
+        new() { Key = "PREN",         Label = "PREN腐蚀当量", SortKey = "pren", FilterType = "string" },
+        new() { Key = "CreatedTime",  Label = "创建日期",   SortKey = "createdtime", FilterType = "date" },
+        new() { Key = "UpdatedTime",  Label = "更新日期",   SortKey = "updatedtime", FilterType = "date" },
     };
 
     // ========== 内联编辑 ==========
@@ -205,7 +210,7 @@
             _allSelected = value;
             if (value)
             {
-                foreach (var item in records)
+                foreach (var item in _filteredItems)
                     selectedIds.Add(item.Id);
             }
             else
@@ -406,6 +411,8 @@
             }
             _allColumns = reordered;
         }
+
+        await LoadAllDataAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -418,76 +425,159 @@
         }
     }
 
-    private string GetSortIndicator(string column)
-    {
-        if (sortColumn != column) return "";
-        return sortDescending ? "\u25BC" : "\u25B2";
-    }
+    // ========== 数据加载 ==========
 
-    private async Task<TableData<ChemicalCompositionDto>> OnServerData(TableState state)
+    private async Task LoadAllDataAsync()
     {
-        isLoading = true;
-        StateHasChanged();
-
         try
         {
-            var result = await ChemicalCompositionService.GetAllAsync(
-                state.Page + 1, state.PageSize,
-                string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
-                sortColumn, sortDescending);
-
+            var result = await ChemicalCompositionService.GetAllListAsync();
             if (result.Success && result.Data != null)
             {
-                records = result.Data.Items;
-                totalCount = result.Data.TotalCount;
-                return new TableData<ChemicalCompositionDto>
-                {
-                    Items = records,
-                    TotalItems = totalCount
-                };
+                _allItems = result.Data;
             }
-
-            return new TableData<ChemicalCompositionDto>
+            else
             {
-                Items = new List<ChemicalCompositionDto>(),
-                TotalItems = 0
-            };
+                _allItems = new();
+                Snackbar.Add(result.Message ?? "加载失败", Severity.Error);
+            }
+            _filteredItemsList = null;
+            RefreshFilteredData();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"加载失败: {ex.Message}");
             Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
-            return new TableData<ChemicalCompositionDto>
-            {
-                Items = new List<ChemicalCompositionDto>(),
-                TotalItems = 0
-            };
         }
         finally
         {
-            isLoading = false;
             StateHasChanged();
         }
     }
 
-    private async Task ToggleSort(string column)
-    {
-        if (sortColumn == column)
-            sortDescending = !sortDescending;
-        else
-        {
-            sortColumn = column;
-            sortDescending = false;
-        }
-        if (table != null)
-            await table.ReloadServerData();
-    }
+    // ========== 搜索 ==========
 
     private async Task OnSearchChanged(string value)
     {
-        searchKeyword = value ?? string.Empty;
-        if (table != null)
-            await table.ReloadServerData();
+        _searchKeyword = value ?? string.Empty;
+        RefreshFilteredData();
+    }
+
+    // ========== ExcelFilter 回调 ==========
+
+    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
+    {
+        if (selectedValues.Count > 0)
+            _columnFilters[fieldKey] = selectedValues;
+        else
+            _columnFilters.Remove(fieldKey);
+
+        RefreshFilteredData();
+        await SavePageStateAsync();
+    }
+
+    private async Task OnExcelSortRequested(string fieldKey, bool ascending)
+    {
+        sortColumn = fieldKey;
+        sortDescending = !ascending;
+        RefreshFilteredData();
+        await SavePageStateAsync();
+    }
+
+    // ========== 客户端刷新 ==========
+
+    private void RefreshFilteredData()
+    {
+        var query = _allItems.AsEnumerable();
+
+        // 关键字搜索
+        if (!string.IsNullOrWhiteSpace(_searchKeyword))
+        {
+            var kw = _searchKeyword;
+            query = query.Where(x =>
+                (x.PlantGrade != null && x.PlantGrade.Contains(kw, StringComparison.OrdinalIgnoreCase))
+            );
+        }
+
+        // ExcelFilter 列筛选
+        foreach (var cf in _columnFilters)
+        {
+            var fieldKey = cf.Key;
+            var selected = cf.Value;
+            query = query.Where(x =>
+            {
+                var raw = GetCellRawValue(x, fieldKey);
+                return raw != null && selected.Contains(raw);
+            });
+        }
+
+        // 排序
+        if (!string.IsNullOrEmpty(sortColumn))
+        {
+            query = sortColumn switch
+            {
+                "plantgrade" => sortDescending ? query.OrderByDescending(x => x.PlantGrade) : query.OrderBy(x => x.PlantGrade),
+                "carbon" => sortDescending ? query.OrderByDescending(x => x.Carbon) : query.OrderBy(x => x.Carbon),
+                "silicon" => sortDescending ? query.OrderByDescending(x => x.Silicon) : query.OrderBy(x => x.Silicon),
+                "manganese" => sortDescending ? query.OrderByDescending(x => x.Manganese) : query.OrderBy(x => x.Manganese),
+                "phosphorus" => sortDescending ? query.OrderByDescending(x => x.Phosphorus) : query.OrderBy(x => x.Phosphorus),
+                "sulfur" => sortDescending ? query.OrderByDescending(x => x.Sulfur) : query.OrderBy(x => x.Sulfur),
+                "nickel" => sortDescending ? query.OrderByDescending(x => x.Nickel) : query.OrderBy(x => x.Nickel),
+                "chromium" => sortDescending ? query.OrderByDescending(x => x.Chromium) : query.OrderBy(x => x.Chromium),
+                "molybdenum" => sortDescending ? query.OrderByDescending(x => x.Molybdenum) : query.OrderBy(x => x.Molybdenum),
+                "copper" => sortDescending ? query.OrderByDescending(x => x.Copper) : query.OrderBy(x => x.Copper),
+                "nitrogen" => sortDescending ? query.OrderByDescending(x => x.Nitrogen) : query.OrderBy(x => x.Nitrogen),
+                "niobium" => sortDescending ? query.OrderByDescending(x => x.Niobium) : query.OrderBy(x => x.Niobium),
+                "titanium" => sortDescending ? query.OrderByDescending(x => x.Titanium) : query.OrderBy(x => x.Titanium),
+                "iron" => sortDescending ? query.OrderByDescending(x => x.Iron) : query.OrderBy(x => x.Iron),
+                "aluminum" => sortDescending ? query.OrderByDescending(x => x.Aluminum) : query.OrderBy(x => x.Aluminum),
+                "tungsten" => sortDescending ? query.OrderByDescending(x => x.Tungsten) : query.OrderBy(x => x.Tungsten),
+                "pren" => sortDescending ? query.OrderByDescending(x => x.PREN) : query.OrderBy(x => x.PREN),
+                "createdtime" => sortDescending ? query.OrderByDescending(x => x.CreatedTime) : query.OrderBy(x => x.CreatedTime),
+                "updatedtime" => sortDescending ? query.OrderByDescending(x => x.UpdatedTime) : query.OrderBy(x => x.UpdatedTime),
+                _ => sortDescending ? query.OrderByDescending(x => x.PlantGrade) : query.OrderBy(x => x.PlantGrade)
+            };
+        }
+
+        _filteredItemsList = query.ToList();
+        StateHasChanged();
+    }
+
+    // ========== 单元格原始值/显示值 ==========
+
+    private string? GetCellRawValue(ChemicalCompositionDto item, string key) => key switch
+    {
+        "PlantGrade" => item.PlantGrade,
+        "Carbon" => item.Carbon,
+        "Silicon" => item.Silicon,
+        "Manganese" => item.Manganese,
+        "Phosphorus" => item.Phosphorus,
+        "Sulfur" => item.Sulfur,
+        "Nickel" => item.Nickel,
+        "Chromium" => item.Chromium,
+        "Molybdenum" => item.Molybdenum,
+        "Copper" => item.Copper,
+        "Nitrogen" => item.Nitrogen,
+        "Niobium" => item.Niobium,
+        "Titanium" => item.Titanium,
+        "Iron" => item.Iron,
+        "Aluminum" => item.Aluminum,
+        "Tungsten" => item.Tungsten,
+        "PREN" => item.PREN,
+        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        _ => null
+    };
+
+    private string? GetCellDisplayText(ChemicalCompositionDto item, string key) => key switch
+    {
+        _ => GetCellRawValue(item, key) ?? ""
+    };
+
+    // ========== 持久化 ==========
+
+    private async Task SavePageStateAsync()
+    {
+        await Task.CompletedTask;
     }
 
     private void NavigateToCreate() => Navigation.NavigateTo("/quality/chemical-composition/create");
@@ -506,16 +596,12 @@
 
     private async Task PrintAll()
     {
-        var result = await ChemicalCompositionService.GetAllAsync(
-            1, 5000,
-            string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
-            sortColumn, sortDescending);
-        if (!result.Success || result.Data == null || !result.Data.Items.Any())
+        if (!_filteredItems.Any())
         {
             Snackbar.Add("没有可打印的数据", Severity.Warning);
             return;
         }
-        var html = BuildPrintHtml(result.Data.Items);
+        var html = BuildPrintHtml(_filteredItems);
         await JS.InvokeVoidAsync("printRawHtml", html, "牌号化学成分");
     }
 
@@ -584,7 +670,7 @@
                 if (result.Success)
                 {
                     Snackbar.Add("删除成功", Severity.Success);
-                    await OnSearchChanged(searchKeyword);
+                    await LoadAllDataAsync();
                 }
                 else
                 {

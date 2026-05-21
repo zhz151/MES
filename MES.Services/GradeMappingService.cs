@@ -7,6 +7,7 @@ using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Mapping;
+using MES.Services.Helpers;
 using MES.Services.Printing;
 
 namespace MES.Services;
@@ -57,34 +58,14 @@ public class GradeMappingService : IGradeMappingService
             }
         }
 
-        // 排序
-        queryable = query.SortBy?.ToLower() switch
-        {
-            "standardgrade" => query.IsDescending
-                ? queryable.OrderByDescending(g => g.StandardGrade)
-                : queryable.OrderBy(g => g.StandardGrade),
-            "plantgrade" => query.IsDescending
-                ? queryable.OrderByDescending(g => g.PlantGrade)
-                : queryable.OrderBy(g => g.PlantGrade),
-            "density" => query.IsDescending
-                ? queryable.OrderByDescending(g => g.Density)
-                : queryable.OrderBy(g => g.Density),
-            "heattreatment" => query.IsDescending
-                ? queryable.OrderByDescending(g => g.HeatTreatment ?? "")
-                : queryable.OrderBy(g => g.HeatTreatment ?? ""),
-            "specialmaterial" => query.IsDescending
-                ? queryable.OrderByDescending(g => g.SpecialMaterial)
-                : queryable.OrderBy(g => g.SpecialMaterial),
-            "specialnote" => query.IsDescending
-                ? queryable.OrderByDescending(g => g.SpecialNote ?? "")
-                : queryable.OrderBy(g => g.SpecialNote ?? ""),
-            "remark" => query.IsDescending
-                ? queryable.OrderByDescending(g => g.Remark ?? "")
-                : queryable.OrderBy(g => g.Remark ?? ""),
-            _ => query.IsDescending
-                ? queryable.OrderByDescending(g => g.StandardGrade)
-                : queryable.OrderBy(g => g.StandardGrade)
-        };
+        // 通用筛选
+        queryable = queryable.ApplyFilters(query.Filters);
+
+        // 排序（默认按 StandardGrade 排序）
+        var sortBy = string.IsNullOrEmpty(query.SortBy) || query.SortBy.Equals("CreatedTime", StringComparison.OrdinalIgnoreCase)
+            ? "StandardGrade"
+            : query.SortBy;
+        queryable = queryable.ApplySort(sortBy, query.IsDescending);
 
         var totalCount = await queryable.CountAsync();
         var items = await queryable

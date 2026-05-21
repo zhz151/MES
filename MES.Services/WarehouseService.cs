@@ -5,6 +5,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Helpers;
 using MES.Services.Mapping;
 
 namespace MES.Services;
@@ -37,21 +38,12 @@ public class WarehouseService : IWarehouseService
             queryable = queryable.Where(w => w.IsActive == isActive.Value);
         }
 
-        queryable = query.SortBy?.ToLower() switch
-        {
-            "code" => query.IsDescending
-                ? queryable.OrderByDescending(w => w.Code)
-                : queryable.OrderBy(w => w.Code),
-            "name" => query.IsDescending
-                ? queryable.OrderByDescending(w => w.Name)
-                : queryable.OrderBy(w => w.Name),
-            "sortorder" => query.IsDescending
-                ? queryable.OrderByDescending(w => w.SortOrder)
-                : queryable.OrderBy(w => w.SortOrder),
-            _ => query.IsDescending
-                ? queryable.OrderByDescending(w => w.SortOrder)
-                : queryable.OrderBy(w => w.SortOrder)
-        };
+        // 通用筛选
+        queryable = queryable.ApplyFilters(query.Filters);
+
+        // 排序（默认按 SortOrder 排序）
+        var sortBy = query.SortBy ?? "sortorder";
+        queryable = queryable.ApplySort(sortBy, query.IsDescending);
 
         var totalCount = await queryable.CountAsync();
         var items = await queryable

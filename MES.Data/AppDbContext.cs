@@ -90,6 +90,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
     // ========== 读模型上下文 ==========
 
     public DbSet<WorkOrderExecutionSummary> WorkOrderExecutionSummaries { get; set; } = null!;
+    public DbSet<OrderListSummary> OrderListSummaries { get; set; } = null!;
+    public DbSet<WorkOrderStatusSummary> WorkOrderStatusSummaries { get; set; } = null!;
+    public DbSet<WorkOrderListSummary> WorkOrderListSummaries { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -156,6 +159,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
         // ========== 读模型上下文 ==========
         ConfigureWorkOrderExecutionSummary(builder);
+        ConfigureOrderListSummary(builder);
+        ConfigureWorkOrderStatusSummary(builder);
+        ConfigureWorkOrderListSummary(builder);
 
         // 为所有继承 BaseEntity 的实体统一配置审计字段长度
         foreach (var entityType in builder.Model.GetEntityTypes())
@@ -1567,9 +1573,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
             // Group 2
             entity.Property(e => e.LatestPlanDate).HasColumnType("date");
-            entity.Property(e => e.MaterialPlanRate).HasColumnType("decimal(5,2)").HasDefaultValue(0m);
+            entity.Property(e => e.MaterialPlanRate).HasColumnType("decimal(7,2)").HasDefaultValue(0m);
             entity.Property(e => e.MaterialPlanStatus).IsRequired().HasDefaultValue(0);
-            entity.Property(e => e.MainNoMaterialPlanRate).HasColumnType("decimal(5,2)").HasDefaultValue(0m);
+            entity.Property(e => e.MainNoMaterialPlanRate).HasColumnType("decimal(7,2)").HasDefaultValue(0m);
             entity.Property(e => e.MainNoMaterialPlanStatus).IsRequired().HasDefaultValue(0);
 
             // Group 3
@@ -1605,6 +1611,150 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => e.SalesOrderNo).HasDatabaseName("IX_WES_SalesOrderNo");
             entity.HasIndex(e => e.ProductionMainNo).HasDatabaseName("IX_WES_ProductionMainNo");
             entity.HasIndex(e => e.InputStatus).HasDatabaseName("IX_WES_InputStatus");
+        });
+    }
+
+    private static void ConfigureOrderListSummary(ModelBuilder builder)
+    {
+        builder.Entity<OrderListSummary>(entity =>
+        {
+            entity.ToTable("OrderListSummary");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.OrderId).IsRequired();
+            entity.Property(e => e.OrderNumber).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.SignDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.CustomerName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Salesman).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.EndCustomer).HasMaxLength(200);
+            entity.Property(e => e.DeliveryStart).HasColumnType("date");
+            entity.Property(e => e.DeliveryEnd).HasColumnType("date");
+            entity.Property(e => e.HasDelayPenalty).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.TotalContractWeight).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.ItemCount).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.HasTechReqCount).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.RowVersion).IsRowVersion().IsRequired();
+            entity.Property(e => e.LastChangeDate).HasColumnType("datetime2");
+
+            // 索引
+            entity.HasIndex(e => e.OrderId).IsUnique().HasDatabaseName("UK_OLS_OrderId");
+            entity.HasIndex(e => e.OrderNumber).HasDatabaseName("IX_OLS_OrderNumber");
+            entity.HasIndex(e => e.CustomerName).HasDatabaseName("IX_OLS_CustomerName");
+            entity.HasIndex(e => e.Status).HasDatabaseName("IX_OLS_Status");
+            entity.HasIndex(e => e.SignDate).HasDatabaseName("IX_OLS_SignDate");
+            entity.HasIndex(e => e.DeliveryEnd).HasDatabaseName("IX_OLS_DeliveryEnd");
+        });
+    }
+
+    private static void ConfigureWorkOrderStatusSummary(ModelBuilder builder)
+    {
+        builder.Entity<WorkOrderStatusSummary>(entity =>
+        {
+            entity.ToTable("WorkOrderStatusSummary");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.SalesOrderId).IsRequired();
+            entity.Property(e => e.OrderNumber).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.SignDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.CustomerName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Salesman).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.EndCustomer).HasMaxLength(200);
+            entity.Property(e => e.DeliveryStart).HasColumnType("date");
+            entity.Property(e => e.DeliveryEnd).HasColumnType("date");
+            entity.Property(e => e.HasDelayPenalty).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.TotalContractWeight).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.ItemCount).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.WorkOrderCount).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.WorkOrderStatus).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(WorkOrderStatus.NotGenerated);
+            entity.Property(e => e.HasWorkOrder).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.RowVersion).IsRowVersion().IsRequired(false);
+            entity.Property(e => e.LastChangeDate).HasColumnType("datetime2");
+
+            // 索引
+            entity.HasIndex(e => e.SalesOrderId).IsUnique().HasDatabaseName("UK_WOSS_SalesOrderId");
+            entity.HasIndex(e => e.OrderNumber).HasDatabaseName("IX_WOSS_OrderNumber");
+            entity.HasIndex(e => e.CustomerName).HasDatabaseName("IX_WOSS_CustomerName");
+            entity.HasIndex(e => e.WorkOrderStatus).HasDatabaseName("IX_WOSS_WorkOrderStatus");
+            entity.HasIndex(e => e.SignDate).HasDatabaseName("IX_WOSS_SignDate");
+        });
+    }
+
+    private static void ConfigureWorkOrderListSummary(ModelBuilder builder)
+    {
+        builder.Entity<WorkOrderListSummary>(entity =>
+        {
+            entity.ToTable("WorkOrderListSummary");
+            entity.HasKey(e => e.Id);
+
+            // Group A: WorkOrder 基础字段
+            entity.Property(e => e.WorkOrderId).IsRequired();
+            entity.Property(e => e.WorkOrderNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.SalesOrderNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ProductionMainNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ProductionSubNo).HasMaxLength(50);
+            entity.Property(e => e.OrderItemIds).HasMaxLength(500);
+            entity.Property(e => e.SignDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.Salesman).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.EndCustomer).HasMaxLength(200);
+            entity.Property(e => e.DeliveryDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.DelayPenalty).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.SettlementMethod).IsRequired().HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.MaterialName).IsRequired().HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.StandardCode).HasMaxLength(100);
+            entity.Property(e => e.DeliveryState).IsRequired().HasConversion<string>().HasMaxLength(50);
+            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.OuterDiameterNegative).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.OuterDiameterPositive).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.WallThicknessNegative).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.WallThicknessPositive).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.LengthStatus).IsRequired().HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.MinLength).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.MaxLength).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.TotalQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.TotalMeters).IsRequired().HasColumnType("decimal(18,2)").HasDefaultValue(0m);
+            entity.Property(e => e.TotalWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.TotalItemCount).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.ItemDetails).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.TechnicalRequirements).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(RequirementType.Normal);
+            entity.Property(e => e.Status).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.CreatedTime).IsRequired().HasColumnType("datetimeoffset");
+
+            // Group B: 预计算计划聚合
+            entity.Property(e => e.LatestPlanDate).HasColumnType("date");
+            entity.Property(e => e.MaterialPlanRate).HasColumnType("decimal(7,2)").HasDefaultValue(0m);
+            entity.Property(e => e.MaterialPlanStatus).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.SemiPlanTotalWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.SemiPlanTotalPieces).IsRequired(false);
+            entity.Property(e => e.FinishedPlanTotalWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.FinishedPlanTotalPieces).IsRequired(false);
+            entity.Property(e => e.InventoryPlanTotalWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.InventoryPlanTotalPieces).IsRequired(false);
+            entity.Property(e => e.ReworkPlanTotalWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.ReworkPlanTotalPieces).IsRequired(false);
+            entity.Property(e => e.PiercingPlanTotalWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.PiercingPlanTotalPieces).IsRequired(false);
+
+            // Group C: 预计算主号/订单聚合
+            entity.Property(e => e.MainNoMaterialPlanRate).HasColumnType("decimal(7,2)").HasDefaultValue(0m);
+            entity.Property(e => e.MainNoMaterialPlanStatus).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.OrderMaterialPlanStatus).IsRequired().HasDefaultValue(0);
+
+            // Group D: 行元数据
+            entity.Property(e => e.RowVersion).IsRowVersion().IsRequired(false);
+            entity.Property(e => e.LastRefreshTime).HasColumnType("datetime2");
+
+            // 索引
+            entity.HasIndex(e => e.WorkOrderId).IsUnique().HasDatabaseName("UK_WOLS_WorkOrderId");
+            entity.HasIndex(e => e.WorkOrderNo).HasDatabaseName("IX_WOLS_WorkOrderNo");
+            entity.HasIndex(e => e.SalesOrderNo).HasDatabaseName("IX_WOLS_SalesOrderNo");
+            entity.HasIndex(e => e.ProductionMainNo).HasDatabaseName("IX_WOLS_ProductionMainNo");
+            entity.HasIndex(e => e.MaterialPlanStatus).HasDatabaseName("IX_WOLS_MaterialPlanStatus");
+            entity.HasIndex(e => e.MainNoMaterialPlanStatus).HasDatabaseName("IX_WOLS_MainNoMaterialPlanStatus");
+            entity.HasIndex(e => e.OrderMaterialPlanStatus).HasDatabaseName("IX_WOLS_OrderMaterialPlanStatus");
+            entity.HasIndex(e => e.Status).HasDatabaseName("IX_WOLS_Status");
+            entity.HasIndex(e => e.LatestPlanDate).HasDatabaseName("IX_WOLS_LatestPlanDate");
         });
     }
 }

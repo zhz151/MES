@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
@@ -20,13 +21,24 @@ public class FurnaceRegistrationService
         catch (Exception ex) { return ApiResponse<FurnaceRegistrationDto>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<PagedResult<FurnaceRegistrationDto>>> GetAllAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true)
+    public async Task<ApiResponse<List<FurnaceRegistrationDto>>> GetAllListAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<FurnaceRegistrationDto>>>($"{BaseUrl}/all-list")
+                   ?? ApiResponse<List<FurnaceRegistrationDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<FurnaceRegistrationDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<PagedResult<FurnaceRegistrationDto>>> GetAllAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, List<FilterDescriptor>? filters = null)
     {
         try
         {
             var url = $"{BaseUrl}/all?pageIndex={pageIndex}&pageSize={pageSize}&isDescending={isDescending.ToString().ToLower()}";
             if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
             if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
+            if (filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(filters))}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<FurnaceRegistrationDto>>>(url)
                    ?? ApiResponse<PagedResult<FurnaceRegistrationDto>>.Fail("获取数据失败");
         }

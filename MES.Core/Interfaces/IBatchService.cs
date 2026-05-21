@@ -16,6 +16,11 @@ public interface IBatchService
     Task<PagedResult<ProductionBatchListDto>> GetPagedAsync(BatchQueryParams query);
 
     /// <summary>
+    /// 获取全部批次列表（无分页，供前端全量筛选/排序/搜索）
+    /// </summary>
+    Task<List<ProductionBatchListDto>> GetAllBatchListAsync();
+
+    /// <summary>
     /// 根据ID获取批次详情
     /// </summary>
     Task<ProductionBatchDetailDto> GetByIdAsync(int id);

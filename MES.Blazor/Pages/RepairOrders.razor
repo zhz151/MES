@@ -5,6 +5,7 @@
 @using MES.Core.Models
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
+@using MES.Blazor.Components
 @inject RepairOrderService RepairOrderService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -38,7 +39,7 @@
                 <MudItem xs="12" md="4">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 工单号/故障描述/报修人/维修人"
-                                  Value="searchKeyword"
+                                  Value="_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
@@ -53,12 +54,12 @@
             <div id="repair-orders-list-table">
             <MudTable @ref="table"
                       T="RepairOrderListDto"
-                      ServerData="OnServerData"
-                      Loading="@isLoading"
+                      Items="@_filteredItems"
                       Dense="true"
                       Hover="true"
                       Class="mt-4 auto-table"
                       Elevation="0"
+                      RowsPerPage="10"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
                     <ColumnDisplaySelect Columns="_allColumns"
@@ -88,7 +89,7 @@
                         打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
-                        共 @totalCount 条记录
+                        共 @(_filteredItems?.Count ?? 0) 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
@@ -98,20 +99,21 @@
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
-                            @if (!string.IsNullOrEmpty(col.SortKey))
-                            {
-                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
-                                    @col.Label
-                                </span>
-                                @if (sortColumn == col.SortKey)
-                                {
-                                    <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
-                                }
-                            }
-                            else
-                            {
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span class="th-label">@col.Label</span>
-                            }
+                                @if (col.FilterType != null)
+                                {
+                                    <ExcelFilter T="RepairOrderListDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 AllItems="@_allItems"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 DisplaySelector="@(x => GetCellDisplayText(x, col.Key))"
+                                                 RawValueSelector="@(x => GetCellRawValue(x, col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))"
+                                                 SortRequested="@(args => OnExcelSortRequested(args.fieldKey, args.ascending))" />
+                                }
+                            </div>
                         </MudTh>
                     }
                     <MudTh Style="width: 110px;">操作</MudTh>
@@ -122,7 +124,7 @@
                         {
                             <MudCheckBox T="bool"
                                          Value="@selectedIds.Contains(item.Id)"
-                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = items.Any() && items.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _filteredItems.Any() && _filteredItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
                                          Dense="true" />
                         }
                     </MudTd>
@@ -148,7 +150,7 @@
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
-                    <MudTablePager />
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
             </MudTable>
             </div>
@@ -158,14 +160,18 @@
 
 @code {
     private MudTable<RepairOrderListDto>? table;
-    private List<RepairOrderListDto> items = new();
+    private List<RepairOrderListDto> _allItems = new();
+    private List<RepairOrderListDto>? _filteredItemsList;
+    private List<RepairOrderListDto> _filteredItems => _filteredItemsList ?? _allItems;
     private bool _isArrowNavSetup;
-    private bool isLoading;
-    private string searchKeyword = string.Empty;
-    private int totalCount;
+    private string _searchKeyword = string.Empty;
 
     private string sortColumn = "reporttime";
     private bool sortDescending = true;
+
+    // ========== ExcelFilter 状态 ==========
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+    private Dictionary<string, List<RepairOrderListDto>> _filterContexts = new();
 
     // ========== 多选打印 ==========
     private HashSet<int> selectedIds = new();
@@ -179,7 +185,7 @@
             _allSelected = value;
             if (value)
             {
-                foreach (var item in items)
+                foreach (var item in _filteredItems)
                     selectedIds.Add(item.Id);
             }
             else
@@ -216,21 +222,23 @@
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "RepairOrderNo",    Label = "工单号",     SortKey = "repairorderno" },
-        new() { Key = "EquipmentName",    Label = "设备名称",    SortKey = "equipmentname" },
-        new() { Key = "EquipmentLocation", Label = "所在区域",   SortKey = "location" },
-        new() { Key = "EquipmentCode",    Label = "设备编号",    SortKey = "equipmentcode" },
-        new() { Key = "FaultDescription", Label = "故障描述",   SortKey = "faultdescription" },
-        new() { Key = "FaultType",      Label = "故障类型",   SortKey = "faulttype" },
-        new() { Key = "Priority",       Label = "优先级",     SortKey = "priority" },
-        new() { Key = "RepairStatus",   Label = "维修状态" },
-        new() { Key = "ReportPerson",   Label = "报修人",     SortKey = "reportperson" },
-        new() { Key = "ReportTime",     Label = "报修时间",   SortKey = "reporttime" },
-        new() { Key = "RepairPerson",   Label = "维修人",     SortKey = "repairperson" },
-        new() { Key = "RepairStartTime",Label = "开始时间",   SortKey = "repairstarttime" },
-        new() { Key = "RepairEndTime",  Label = "完成时间",   SortKey = "repairendtime" },
-        new() { Key = "RepairContent",  Label = "维修内容", SortKey = "repaircontent" },
-        new() { Key = "SparePartUsed",  Label = "更换备件", SortKey = "sparepartused" },
+        new() { Key = "RepairOrderNo",    Label = "工单号",     SortKey = "repairorderno", FilterType = "string" },
+        new() { Key = "EquipmentName",    Label = "设备名称",    SortKey = "equipmentname", FilterType = "string" },
+        new() { Key = "EquipmentLocation", Label = "所在区域",   SortKey = "location", FilterType = "string" },
+        new() { Key = "EquipmentCode",    Label = "设备编号",    SortKey = "equipmentcode", FilterType = "string" },
+        new() { Key = "FaultDescription", Label = "故障描述",   SortKey = "faultdescription", FilterType = "string" },
+        new() { Key = "FaultType",      Label = "故障类型",   SortKey = "faulttype", FilterType = "string" },
+        new() { Key = "Priority",       Label = "优先级",     SortKey = "priority", FilterType = "enum",
+            EnumOptions = new() { new("Normal", "普通"), new("Urgent", "紧急"), new("Emergency", "特急") } },
+        new() { Key = "RepairStatus",   Label = "维修状态", FilterType = "enum",
+            EnumOptions = new() { new("Pending", "待维修"), new("InProgress", "维修中"), new("Completed", "完成") } },
+        new() { Key = "ReportPerson",   Label = "报修人",     SortKey = "reportperson", FilterType = "string" },
+        new() { Key = "ReportTime",     Label = "报修时间",   SortKey = "reporttime", FilterType = "date" },
+        new() { Key = "RepairPerson",   Label = "维修人",     SortKey = "repairperson", FilterType = "string" },
+        new() { Key = "RepairStartTime",Label = "开始时间",   SortKey = "repairstarttime", FilterType = "date" },
+        new() { Key = "RepairEndTime",  Label = "完成时间",   SortKey = "repairendtime", FilterType = "date" },
+        new() { Key = "RepairContent",  Label = "维修内容", SortKey = "repaircontent", FilterType = "string" },
+        new() { Key = "SparePartUsed",  Label = "更换备件", SortKey = "sparepartused", FilterType = "string" },
     };
 
     // ========== 列选择操作 ==========
@@ -278,6 +286,8 @@
             }
             _allColumns = reordered;
         }
+
+        await LoadAllDataAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -290,87 +300,152 @@
         }
     }
 
-    private async Task<TableData<RepairOrderListDto>> OnServerData(TableState state)
+    private async Task LoadAllDataAsync()
     {
-        isLoading = true;
-        StateHasChanged();
-
         try
         {
-            var queryParams = new RepairOrderQueryParams
-            {
-                PageIndex = state.Page + 1,
-                PageSize = state.PageSize,
-                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending
-            };
-
-            var result = await RepairOrderService.GetPagedAsync(queryParams);
-
+            var result = await RepairOrderService.GetAllListAsync();
             if (result.Success && result.Data != null)
             {
-                items = result.Data.Items;
-                totalCount = result.Data.TotalCount;
-                return new TableData<RepairOrderListDto>
-                {
-                    Items = items,
-                    TotalItems = totalCount
-                };
+                _allItems = result.Data;
             }
-
-            return new TableData<RepairOrderListDto>
+            else
             {
-                Items = new List<RepairOrderListDto>(),
-                TotalItems = 0
-            };
+                Snackbar.Add(result.Message ?? "加载失败", Severity.Error);
+            }
+            _filteredItemsList = null;
+            RefreshFilteredData();
         }
         catch (Exception ex)
         {
             Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
-            return new TableData<RepairOrderListDto>
-            {
-                Items = new List<RepairOrderListDto>(),
-                TotalItems = 0
-            };
         }
         finally
         {
-            isLoading = false;
             StateHasChanged();
         }
     }
 
-    private async Task Search()
-    {
-        if (table != null)
-            await table.ReloadServerData();
-    }
+    // ========== 搜索 ==========
 
     private async Task OnSearchChanged(string value)
     {
-        searchKeyword = value ?? string.Empty;
-        if (table != null)
-            await table.ReloadServerData();
+        _searchKeyword = value ?? string.Empty;
+        RefreshFilteredData();
     }
 
-    private string GetSortIndicator(string column)
-    {
-        if (sortColumn != column) return "";
-        return sortDescending ? "\u25BC" : "\u25B2";
-    }
+    // ========== ExcelFilter 回调 ==========
 
-    private async Task ToggleSort(string column)
+    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
     {
-        if (sortColumn == column)
-            sortDescending = !sortDescending;
+        if (selectedValues.Count > 0)
+            _columnFilters[fieldKey] = selectedValues;
         else
+            _columnFilters.Remove(fieldKey);
+
+        RefreshFilteredData();
+        await SavePageStateAsync();
+    }
+
+    private async Task OnExcelSortRequested(string fieldKey, bool ascending)
+    {
+        sortColumn = fieldKey;
+        sortDescending = !ascending;
+        RefreshFilteredData();
+        await SavePageStateAsync();
+    }
+
+    // ========== 客户端刷新 ==========
+
+    private void RefreshFilteredData()
+    {
+        var query = _allItems.AsEnumerable();
+
+        // 关键字搜索
+        if (!string.IsNullOrWhiteSpace(_searchKeyword))
         {
-            sortColumn = column;
-            sortDescending = false;
+            var kw = _searchKeyword;
+            query = query.Where(x =>
+                (x.RepairOrderNo != null && x.RepairOrderNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.FaultDescription != null && x.FaultDescription.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.ReportPerson != null && x.ReportPerson.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.RepairPerson != null && x.RepairPerson.Contains(kw, StringComparison.OrdinalIgnoreCase))
+            );
         }
-        if (table != null)
-            await table.ReloadServerData();
+
+        // ExcelFilter 列筛选
+        foreach (var cf in _columnFilters)
+        {
+            var fieldKey = cf.Key;
+            var selected = cf.Value;
+            query = query.Where(x =>
+            {
+                var raw = GetCellRawValue(x, fieldKey);
+                return raw != null && selected.Contains(raw);
+            });
+        }
+
+        // 排序
+        if (!string.IsNullOrEmpty(sortColumn))
+        {
+            query = sortColumn switch
+            {
+                "repairorderno" => sortDescending ? query.OrderByDescending(x => x.RepairOrderNo) : query.OrderBy(x => x.RepairOrderNo),
+                "equipmentname" => sortDescending ? query.OrderByDescending(x => x.EquipmentName) : query.OrderBy(x => x.EquipmentName),
+                "location" => sortDescending ? query.OrderByDescending(x => x.EquipmentLocation ?? "") : query.OrderBy(x => x.EquipmentLocation ?? ""),
+                "equipmentcode" => sortDescending ? query.OrderByDescending(x => x.EquipmentCode ?? "") : query.OrderBy(x => x.EquipmentCode ?? ""),
+                "faultdescription" => sortDescending ? query.OrderByDescending(x => x.FaultDescription) : query.OrderBy(x => x.FaultDescription),
+                "faulttype" => sortDescending ? query.OrderByDescending(x => x.FaultType ?? "") : query.OrderBy(x => x.FaultType ?? ""),
+                "priority" => sortDescending ? query.OrderByDescending(x => x.Priority) : query.OrderBy(x => x.Priority),
+                "reportperson" => sortDescending ? query.OrderByDescending(x => x.ReportPerson) : query.OrderBy(x => x.ReportPerson),
+                "reporttime" => sortDescending ? query.OrderByDescending(x => x.ReportTime) : query.OrderBy(x => x.ReportTime),
+                "repairperson" => sortDescending ? query.OrderByDescending(x => x.RepairPerson ?? "") : query.OrderBy(x => x.RepairPerson ?? ""),
+                "repairstarttime" => sortDescending ? query.OrderByDescending(x => x.RepairStartTime) : query.OrderBy(x => x.RepairStartTime),
+                "repairendtime" => sortDescending ? query.OrderByDescending(x => x.RepairEndTime) : query.OrderBy(x => x.RepairEndTime),
+                "repaircontent" => sortDescending ? query.OrderByDescending(x => x.RepairContent ?? "") : query.OrderBy(x => x.RepairContent ?? ""),
+                "sparepartused" => sortDescending ? query.OrderByDescending(x => x.SparePartUsed ?? "") : query.OrderBy(x => x.SparePartUsed ?? ""),
+                _ => sortDescending ? query.OrderByDescending(x => x.ReportTime) : query.OrderBy(x => x.ReportTime)
+            };
+        }
+
+        _filteredItemsList = query.ToList();
+        StateHasChanged();
+    }
+
+    // ========== 单元格原始值/显示值 ==========
+
+    private string? GetCellRawValue(RepairOrderListDto item, string key) => key switch
+    {
+        "RepairOrderNo" => item.RepairOrderNo,
+        "EquipmentName" => item.EquipmentName,
+        "EquipmentLocation" => item.EquipmentLocation,
+        "EquipmentCode" => item.EquipmentCode,
+        "FaultDescription" => item.FaultDescription,
+        "FaultType" => item.FaultType,
+        "Priority" => item.Priority,
+        "RepairStatus" => item.RepairStatus,
+        "ReportPerson" => item.ReportPerson,
+        "ReportTime" => item.ReportTime.ToString("yyyy-MM-dd HH:mm"),
+        "RepairPerson" => item.RepairPerson,
+        "RepairStartTime" => item.RepairStartTime?.ToString("yyyy-MM-dd HH:mm"),
+        "RepairEndTime" => item.RepairEndTime?.ToString("yyyy-MM-dd HH:mm"),
+        "RepairContent" => item.RepairContent,
+        "SparePartUsed" => item.SparePartUsed,
+        _ => null
+    };
+
+    private string? GetCellDisplayText(RepairOrderListDto item, string key) => key switch
+    {
+        "Priority" => DisplayHelper.GetPriorityText(item.Priority),
+        "RepairStatus" => DisplayHelper.GetRepairOrderStatusText(item.RepairStatus),
+        _ => GetCellRawValue(item, key) ?? ""
+    };
+
+    // ========== 持久化 ==========
+
+    private async Task SavePageStateAsync()
+    {
+        await Task.CompletedTask;
     }
 
     private void NavigateToCreate() => Navigation.NavigateTo("/repair-orders/create");
@@ -466,7 +541,7 @@
                 Snackbar.Add("保存成功", Severity.Success);
                 _editingIds.Remove(id);
                 _editCache.Remove(id);
-                await table?.ReloadServerData();
+                await LoadAllDataAsync();
             }
             else
             {
@@ -498,7 +573,7 @@
                 if (result.Success)
                 {
                     Snackbar.Add("删除成功", Severity.Success);
-                    await Search();
+                    await LoadAllDataAsync();
                 }
                 else
                 {
@@ -553,7 +628,7 @@
             var columns = GetPrintColumnDefs();
             var query = new RepairOrderQueryParams
             {
-                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 SortBy = sortColumn,
                 IsDescending = sortDescending
             };

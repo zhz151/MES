@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
@@ -38,6 +39,17 @@ public class FurnaceRegistrationController : ControllerBase
     }
 
     /// <summary>
+    /// 获取所有来料炉号登记（无分页）
+    /// </summary>
+    [HttpGet("all-list")]
+    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<ApiResponse<List<FurnaceRegistrationDto>>> GetAllList()
+    {
+        var result = await _service.GetAllListAsync();
+        return ApiResponse<List<FurnaceRegistrationDto>>.Ok(result);
+    }
+
+    /// <summary>
     /// 查询所有来料炉号登记（分页）
     /// </summary>
     [HttpGet("all")]
@@ -47,7 +59,8 @@ public class FurnaceRegistrationController : ControllerBase
         [FromQuery] int pageSize = 20,
         [FromQuery] string? keyword = null,
         [FromQuery] string? sortBy = null,
-        [FromQuery] bool isDescending = false)
+        [FromQuery] bool isDescending = false,
+        [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
         var query = new QueryParams
@@ -58,6 +71,11 @@ public class FurnaceRegistrationController : ControllerBase
             SortBy = sortBy ?? "furnacenumber",
             IsDescending = isDescending
         };
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        }
         var result = await _service.GetAllAsync(query);
         return Ok(ApiResponse<PagedResult<FurnaceRegistrationDto>>.Ok(result, "查询成功"));
     }

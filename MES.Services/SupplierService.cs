@@ -38,36 +38,10 @@ public class SupplierService : ISupplierService
                 (s.Remark != null && s.Remark.Contains(kw)));
         }
 
-        queryable = query.SortBy?.ToLower() switch
-        {
-            "suppliercode" => query.IsDescending
-                ? queryable.OrderByDescending(s => s.SupplierCode)
-                : queryable.OrderBy(s => s.SupplierCode),
-            "suppliername" => query.IsDescending
-                ? queryable.OrderByDescending(s => s.SupplierName)
-                : queryable.OrderBy(s => s.SupplierName),
-            "materialcategory" => query.IsDescending
-                ? queryable.OrderByDescending(s => s.MaterialCategory ?? "")
-                : queryable.OrderBy(s => s.MaterialCategory ?? ""),
-            "contactperson" => query.IsDescending
-                ? queryable.OrderByDescending(s => s.ContactPerson ?? "")
-                : queryable.OrderBy(s => s.ContactPerson ?? ""),
-            "contactphone" => query.IsDescending
-                ? queryable.OrderByDescending(s => s.ContactPhone ?? "")
-                : queryable.OrderBy(s => s.ContactPhone ?? ""),
-            "isactive" => query.IsDescending
-                ? queryable.OrderByDescending(s => s.IsActive)
-                : queryable.OrderBy(s => s.IsActive),
-            "address" => query.IsDescending
-                ? queryable.OrderByDescending(s => s.Address ?? "")
-                : queryable.OrderBy(s => s.Address ?? ""),
-            "remark" => query.IsDescending
-                ? queryable.OrderByDescending(s => s.Remark ?? "")
-                : queryable.OrderBy(s => s.Remark ?? ""),
-            _ => query.IsDescending
-                ? queryable.OrderByDescending(s => s.CreatedTime)
-                : queryable.OrderBy(s => s.CreatedTime)
-        };
+        // 通用筛选
+        queryable = queryable.ApplyFilters(query.Filters);
+
+        queryable = queryable.ApplySort(query.SortBy, query.IsDescending);
 
         var totalCount = await queryable.CountAsync();
         var items = await queryable
@@ -95,6 +69,27 @@ public class SupplierService : ISupplierService
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
+    }
+
+    public async Task<List<SupplierProfileDto>> GetAllListAsync()
+    {
+        return await _context.SupplierProfiles
+            .AsNoTracking()
+            .OrderBy(s => s.SupplierCode)
+            .Select(s => new SupplierProfileDto
+            {
+                Id = s.Id,
+                SupplierCode = s.SupplierCode,
+                SupplierName = s.SupplierName,
+                MaterialCategory = s.MaterialCategory,
+                ContactPerson = s.ContactPerson,
+                ContactPhone = s.ContactPhone,
+                Address = s.Address,
+                IsActive = s.IsActive,
+                Remark = s.Remark,
+                CreatedTime = s.CreatedTime
+            })
+            .ToListAsync();
     }
 
     public async Task<SupplierProfileDto> GetByIdAsync(int id)

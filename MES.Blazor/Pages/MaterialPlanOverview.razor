@@ -27,7 +27,7 @@
                 <MudButton Variant="Variant.Outlined"
                            Color="Color.Info"
                            StartIcon="@Icons.Material.Filled.Refresh"
-                           OnClick="() => table.ReloadServerData()"
+                           OnClick="() => RefreshAsync()"
                            Size="Size.Small">
                     刷新
                 </MudButton>
@@ -46,7 +46,7 @@
                 <MudItem xs="12" md="3">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 工单号/订单号/主号/次号/业务员/最终用户"
-                                  Value="@searchKeyword"
+                                  Value="@_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
@@ -55,48 +55,12 @@
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudSelect T="int" Label="关联订单用料"
-                               Value="@selectedOrderStatus"
-                               ValueChanged="@((int v) => OnStatusFilterChanged(v, 3))"
-                               AnchorOrigin="Origin.BottomCenter">
-                        <MudSelectItem Value="-1">全部</MudSelectItem>
-                        <MudSelectItem Value="0">未计划</MudSelectItem>
-                        <MudSelectItem Value="1">部分</MudSelectItem>
-                        <MudSelectItem Value="3">全部满足</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudSelect T="int" Label="关联主号用料"
-                               Value="@selectedMainNoStatus"
-                               ValueChanged="@((int v) => OnStatusFilterChanged(v, 2))"
-                               AnchorOrigin="Origin.BottomCenter">
-                        <MudSelectItem Value="-1">全部</MudSelectItem>
-                        <MudSelectItem Value="0">未计划</MudSelectItem>
-                        <MudSelectItem Value="1">部分</MudSelectItem>
-                        <MudSelectItem Value="3">满足</MudSelectItem>
-                        <MudSelectItem Value="4">超量</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudSelect T="int" Label="工单用料计划状态"
-                               Value="@selectedStatus"
-                               ValueChanged="@((int v) => OnStatusFilterChanged(v, 1))"
-                               AnchorOrigin="Origin.BottomCenter">
-                        <MudSelectItem Value="-1">全部</MudSelectItem>
-                        <MudSelectItem Value="0">未计划</MudSelectItem>
-                        <MudSelectItem Value="1">部分</MudSelectItem>
-                        <MudSelectItem Value="2">理论满足</MudSelectItem>
-                        <MudSelectItem Value="3">满足</MudSelectItem>
-                        <MudSelectItem Value="4">超量</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
             </MudGrid>
 
             <!-- 数据表格 -->
             <MudTable @ref="table"
-                      ServerData="OnServerData"
-                      Loading="@isLoading"
+                      T="WorkOrderListDto"
+                      Items="@_filteredItems"
                       Dense="true"
                       Hover="true"
                       Elevation="0"
@@ -134,7 +98,7 @@
                     <MudCheckBox T="bool" Value="@includeRework" ValueChanged="@((bool v) => OnPlanTypeFilterChanged(v, 4))" Dense="true" />
                     <MudText Typo="Typo.body2" Class="mr-3">库料改制</MudText>
                     <MudText Typo="Typo.body2" Class="ml-4">
-                        共 @totalCount 条记录
+                        共 @(_filteredItems?.Count ?? 0) 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
@@ -144,20 +108,21 @@
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
-                            @if (!string.IsNullOrEmpty(col.SortKey))
-                            {
-                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
-                                    @col.Label
-                                    @if (sortColumn == col.SortKey)
-                                    {
-                                        <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
-                                    }
-                                </span>
-                            }
-                            else
-                            {
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span class="th-label">@col.Label</span>
-                            }
+                                @if (col.FilterType != null)
+                                {
+                                    <ExcelFilter T="WorkOrderListDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 AllItems="@_allItems"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 DisplaySelector="@(x => GetCellDisplayText(x, col.Key))"
+                                                 RawValueSelector="@(x => GetCellRawValue(x, col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))"
+                                                 SortRequested="@(args => OnExcelSortRequested(args.fieldKey, args.ascending))" />
+                                }
+                            </div>
                         </MudTh>
                     }
                     <MudTh>操作</MudTh>
@@ -184,7 +149,7 @@
                 <NoRecordsContent>
                 </NoRecordsContent>
                 <PagerContent>
-                    <MudTablePager PageSizeOptions="new int[]{10, 25, 50, 100}" />
+                    <MudTablePager PageSizeOptions="new int[]{10, 15, 25, 50, 100}" />
                 </PagerContent>
             </MudTable>
         </MudCardContent>
@@ -193,14 +158,15 @@
 
 @code {
     private MudTable<WorkOrderListDto> table = null!;
+    private List<WorkOrderListDto> _allItems = new();
+    private List<WorkOrderListDto>? _filteredItemsList;
+    private List<WorkOrderListDto> _filteredItems => _filteredItemsList ?? _allItems;
     private string errorMessage = string.Empty;
-    private string searchKeyword = string.Empty;
-    private int selectedStatus = -1;
-    private int selectedMainNoStatus = -1;
-    private int selectedOrderStatus = -1;
-    private bool isLoading;
-    private List<WorkOrderListDto> currentPageItems = new();
-    private int totalCount;
+    private string _searchKeyword = string.Empty;
+
+    // ========== ExcelFilter 状态 ==========
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+    private Dictionary<string, List<WorkOrderListDto>> _filterContexts = new();
 
     // 排序状态
     private string sortColumn = "CreatedTime";
@@ -217,7 +183,7 @@
             _allSelected = value;
             if (value)
             {
-                foreach (var item in currentPageItems)
+                foreach (var item in _filteredItems)
                     selectedWorkOrderIds.Add(item.Id);
             }
             else
@@ -242,52 +208,43 @@
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
-    /// <summary>
-    /// 获取列定义（不可排序列 SortKey 设为 null）
-    /// </summary>
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "WorkOrderNo",        Label = "工单号",     SortKey = "WorkOrderNo" },
-        new() { Key = "SalesOrderNo",       Label = "订单号",     SortKey = "SalesOrderNo" },
-        new() { Key = "ProductionMainNo",   Label = "主号",       SortKey = "ProductionMainNo" },
-        new() { Key = "ProductionSubNo",    Label = "次号",       SortKey = "ProductionSubNo" },
-        new() { Key = "SignDate",           Label = "签订日期",   SortKey = "signdate" },
-        new() { Key = "Salesman",           Label = "业务员",     SortKey = "salesman" },
-        new() { Key = "EndCustomer",        Label = "最终用户",   SortKey = "endcustomer" },
-        new() { Key = "DeliveryDate",       Label = "交货日期",   SortKey = "deliverydate" },
-        new() { Key = "DelayPenalty",       Label = "延期罚款",   SortKey = "delaypenalty" },
-        new() { Key = "SettlementMethod",   Label = "结算方式",   SortKey = "settlementmethod" },
-        new() { Key = "PlantGrade",         Label = "工厂牌号",   SortKey = "plantgrade" },
-        new() { Key = "Specification",      Label = "规格",       SortKey = "specification" },
-        new() { Key = "MaterialName",       Label = "物料名称",   SortKey = "materialname" },
-        new() { Key = "LengthStatus",       Label = "长度状态",   SortKey = "lengthstatus" },
-        new() { Key = "MaxLength",          Label = "最大长度",   SortKey = "maxlength" },
-        new() { Key = "MinLength",          Label = "最小长度",   SortKey = "minlength" },
-        new() { Key = "TotalQuantity",      Label = "总支数",     SortKey = "totalquantity" },
-        new() { Key = "TotalWeight",        Label = "总重量",     SortKey = "totalweight" },
-        new() { Key = "DeliveryState",      Label = "交货状态",   SortKey = "deliverystate" },
-        new() { Key = "TotalItemCount",     Label = "含项次数",   SortKey = "totalitemcount" },
-        new() { Key = "LatestPlanDate",          Label = "计划日期",       SortKey = "LatestPlanDate" },
-        new() { Key = "MaterialPlanStatus",      Label = "工单用料计划",   SortKey = "MaterialPlanStatus" },
-        new() { Key = "MaterialPlanRate",        Label = "工单满足率",     SortKey = "MaterialPlanRate" },
+        new() { Key = "WorkOrderNo",        Label = "工单号",     SortKey = "WorkOrderNo", FilterType = "string" },
+        new() { Key = "SalesOrderNo",       Label = "订单号",     SortKey = "SalesOrderNo", FilterType = "string" },
+        new() { Key = "ProductionMainNo",   Label = "主号",       SortKey = "ProductionMainNo", FilterType = "string" },
+        new() { Key = "ProductionSubNo",    Label = "次号",       SortKey = "ProductionSubNo", FilterType = "string" },
+        new() { Key = "SignDate",           Label = "签订日期",   SortKey = "signdate", FilterType = "date" },
+        new() { Key = "Salesman",           Label = "业务员",     SortKey = "salesman", FilterType = "string" },
+        new() { Key = "EndCustomer",        Label = "最终用户",   SortKey = "endcustomer", FilterType = "string" },
+        new() { Key = "DeliveryDate",       Label = "交货日期",   SortKey = "deliverydate", FilterType = "date" },
+        new() { Key = "DelayPenalty",       Label = "延期罚款",   SortKey = "delaypenalty", FilterType = "enum",
+            EnumOptions = new() { new("True", "是"), new("False", "否") } },
+        new() { Key = "SettlementMethod",   Label = "结算方式",   SortKey = "settlementmethod", FilterType = "enum",
+            EnumOptions = new() { new("MonthlyStatement", "月结"), new("PerOrder", "单结"), new("Deposit", "定金"), new("FullPayment", "全款") } },
+        new() { Key = "PlantGrade",         Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string" },
+        new() { Key = "Specification",      Label = "规格",       SortKey = "specification", FilterType = "string" },
+        new() { Key = "MaterialName",       Label = "物料名称",   SortKey = "materialname", FilterType = "enum",
+            EnumOptions = new() { new("Tube", "管材"), new("Pipe", "管道"), new("Bar", "棒材"), new("Fitting", "管件"), new("Wire", "线材"), new("Strip", "带材"), new("Sheet", "板材"), new("Profile", "型材"), new("Other", "其他") } },
+        new() { Key = "LengthStatus",       Label = "长度状态",   SortKey = "lengthstatus", FilterType = "enum",
+            EnumOptions = new() { new("FixedLength", "定尺"), new("RandomLength", "不定尺"), new("MultipleLength", "倍尺") } },
+        new() { Key = "MaxLength",          Label = "最大长度",   SortKey = "maxlength", FilterType = "number" },
+        new() { Key = "MinLength",          Label = "最小长度",   SortKey = "minlength", FilterType = "number" },
+        new() { Key = "TotalQuantity",      Label = "总支数",     SortKey = "totalquantity", FilterType = "number" },
+        new() { Key = "TotalWeight",        Label = "总重量",     SortKey = "totalweight", FilterType = "number" },
+        new() { Key = "DeliveryState",      Label = "交货状态",   SortKey = "deliverystate", FilterType = "enum",
+            EnumOptions = new() { new("Raw", "原料"), new("SemiFinished", "半成品"), new("Finished", "成品") } },
+        new() { Key = "TotalItemCount",     Label = "含项次数",   SortKey = "totalitemcount", FilterType = "number" },
+        new() { Key = "LatestPlanDate",          Label = "计划日期",       SortKey = "LatestPlanDate", FilterType = "date" },
+        new() { Key = "MaterialPlanStatus",      Label = "工单用料计划",   SortKey = "MaterialPlanStatus", FilterType = "enum",
+            EnumOptions = new() { new("0", "未计划"), new("1", "部分"), new("2", "理论满足"), new("3", "满足"), new("4", "超量") } },
+        new() { Key = "MaterialPlanRate",        Label = "工单满足率",     SortKey = "MaterialPlanRate", FilterType = "number" },
         new() { Key = "PlanProportion",          Label = "用料占比",       SortKey = null },
-        new() { Key = "MainNoMaterialPlanStatus",Label = "关联主号用料",   SortKey = "MainNoMaterialPlanStatus" },
-        new() { Key = "OrderMaterialPlanStatus", Label = "关联订单用料",   SortKey = "OrderMaterialPlanStatus" },
+        new() { Key = "MainNoMaterialPlanStatus",Label = "关联主号用料",   SortKey = "MainNoMaterialPlanStatus", FilterType = "enum",
+            EnumOptions = new() { new("0", "未计划"), new("1", "部分"), new("3", "满足"), new("4", "超量") } },
+        new() { Key = "OrderMaterialPlanStatus", Label = "关联订单用料",   SortKey = "OrderMaterialPlanStatus", FilterType = "enum",
+            EnumOptions = new() { new("0", "未计划"), new("1", "部分"), new("3", "全部满足") } },
     };
-
-    /// <summary>
-    /// 根据当前勾选的计算计划类型过滤字符串（全选时返回 null 不过滤）
-    /// </summary>
-    private string? GetPlanTypeFilter()
-    {
-        var types = new List<string>();
-        if (includeSemi) types.Add("Semi");
-        if (includeFinish) types.Add("Finish");
-        if (includeInventory) types.Add("Inventory");
-        if (includeRework) types.Add("Rework");
-        if (includePiercing) types.Add("Piercing");
-        return types.Count < 5 ? string.Join(",", types) : null;
-    }
 
     private async Task OnPlanTypeFilterChanged(bool value, int planType)
     {
@@ -299,50 +256,71 @@
             case 4: includeRework = value; break;
             case 5: includePiercing = value; break;
         }
-        // 清除跨页选中，避免打印不存在的选中项
         selectedWorkOrderIds.Clear();
         _allSelected = false;
-        if (table != null)
-            await table.ReloadServerData();
+        RefreshFilteredData();
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if (firstRender)
+        _allColumns = GetAllColumnDefs();
+
+        var saved = await ColumnPrefs.LoadAsync("materialPlanOverview", null);
+        if (saved.Count > 0)
         {
-            // 初始化列定义
-            _allColumns = GetAllColumnDefs();
-
-            // 加载用户自定义列偏好
-            var saved = await ColumnPrefs.LoadAsync("materialPlanOverview", null);
-            if (saved.Count > 0)
+            foreach (var s in saved)
             {
-                // 先恢复可见性
-                foreach (var s in saved)
-                {
-                    var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
-                    if (match != null)
-                        match.Visible = s.Visible;
-                }
-                // 再恢复列顺序
-                var reordered = new List<ColumnDef>();
-                foreach (var s in saved)
-                {
-                    var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
-                    if (match != null && !reordered.Contains(match))
-                        reordered.Add(match);
-                }
-                foreach (var c in _allColumns)
-                {
-                    if (!reordered.Contains(c))
-                        reordered.Add(c);
-                }
-                _allColumns = reordered;
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
             }
-
-            if (table != null)
-                await table.ReloadServerData();
+            var reordered = new List<ColumnDef>();
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
         }
+
+        await LoadAllDataAsync();
+    }
+
+    private async Task LoadAllDataAsync()
+    {
+        errorMessage = string.Empty;
+        try
+        {
+            var result = await WorkOrderService.GetAllAsync();
+            if (result.Success && result.Data != null)
+            {
+                _allItems = result.Data;
+                _filteredItemsList = null;
+                RefreshFilteredData();
+            }
+            else
+            {
+                errorMessage = result.Message ?? "查询失败，未返回数据";
+                Snackbar.Add(errorMessage, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"加载异常: {ex.Message}";
+            Snackbar.Add(errorMessage, Severity.Error);
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        await LoadAllDataAsync();
+        Snackbar.Add("已刷新", Severity.Normal);
     }
 
     private string GetSortIndicator(string column)
@@ -353,118 +331,271 @@
 
     private async Task OnSearchChanged(string value)
     {
-        searchKeyword = value ?? string.Empty;
-        if (table != null)
-            await table.ReloadServerData();
+        _searchKeyword = value ?? string.Empty;
+        RefreshFilteredData();
     }
 
-    private async Task OnStatusFilterChanged(int value, int filterType)
-    {
-        switch (filterType)
-        {
-            case 1:
-                selectedStatus = value;
-                break;
-            case 2:
-                selectedMainNoStatus = value;
-                break;
-            case 3:
-                selectedOrderStatus = value;
-                break;
-        }
-        if (table != null)
-            await table.ReloadServerData();
-    }
+    // ========== ExcelFilter 回调 ==========
 
-    private async Task ToggleSort(string column)
+    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
     {
-        if (sortColumn == column)
-            sortDescending = !sortDescending;
+        if (selectedValues.Count > 0)
+            _columnFilters[fieldKey] = selectedValues;
         else
+            _columnFilters.Remove(fieldKey);
+
+        RefreshFilteredData();
+    }
+
+    private async Task OnExcelSortRequested(string fieldKey, bool ascending)
+    {
+        sortColumn = fieldKey;
+        sortDescending = !ascending;
+        RefreshFilteredData();
+    }
+
+    // ========== 客户端刷新 ==========
+
+    private void RefreshFilteredData()
+    {
+        var query = _allItems.AsEnumerable();
+
+        // 关键字搜索
+        if (!string.IsNullOrWhiteSpace(_searchKeyword))
         {
-            sortColumn = column;
-            sortDescending = false;
+            var kw = _searchKeyword;
+            query = query.Where(x =>
+                (x.WorkOrderNo != null && x.WorkOrderNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.SalesOrderNo != null && x.SalesOrderNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.ProductionMainNo != null && x.ProductionMainNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.ProductionSubNo != null && x.ProductionSubNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.Salesman != null && x.Salesman.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.EndCustomer != null && x.EndCustomer.Contains(kw, StringComparison.OrdinalIgnoreCase))
+            );
         }
-        if (table != null)
-            await table.ReloadServerData();
+
+        // 计划类型筛选（根据重量/数量是否>0）
+        if (!includePiercing)
+            query = query.Where(x => x.PiercingPlanTotalWeight == null || x.PiercingPlanTotalWeight == 0);
+        if (!includeSemi)
+            query = query.Where(x => x.SemiPlanTotalWeight == null || x.SemiPlanTotalWeight == 0);
+        if (!includeFinish)
+            query = query.Where(x => x.FinishedPlanTotalWeight == null || x.FinishedPlanTotalWeight == 0);
+        if (!includeInventory)
+            query = query.Where(x => x.InventoryPlanTotalWeight == null || x.InventoryPlanTotalWeight == 0);
+        if (!includeRework)
+            query = query.Where(x => x.ReworkPlanTotalWeight == null || x.ReworkPlanTotalWeight == 0);
+
+        // ExcelFilter 列筛选
+        foreach (var cf in _columnFilters)
+        {
+            var fieldKey = cf.Key;
+            var selected = cf.Value;
+            query = query.Where(x =>
+            {
+                var raw = GetCellRawValue(x, fieldKey);
+                return raw != null && selected.Contains(raw);
+            });
+        }
+
+        // 排序
+        if (!string.IsNullOrEmpty(sortColumn))
+        {
+            query = sortColumn switch
+            {
+                "WorkOrderNo" => sortDescending ? query.OrderByDescending(x => x.WorkOrderNo) : query.OrderBy(x => x.WorkOrderNo),
+                "SalesOrderNo" => sortDescending ? query.OrderByDescending(x => x.SalesOrderNo) : query.OrderBy(x => x.SalesOrderNo),
+                "ProductionMainNo" => sortDescending ? query.OrderByDescending(x => x.ProductionMainNo) : query.OrderBy(x => x.ProductionMainNo),
+                "ProductionSubNo" => sortDescending ? query.OrderByDescending(x => x.ProductionSubNo) : query.OrderBy(x => x.ProductionSubNo),
+                "signdate" => sortDescending ? query.OrderByDescending(x => x.SignDate) : query.OrderBy(x => x.SignDate),
+                "salesman" => sortDescending ? query.OrderByDescending(x => x.Salesman) : query.OrderBy(x => x.Salesman),
+                "endcustomer" => sortDescending ? query.OrderByDescending(x => x.EndCustomer) : query.OrderBy(x => x.EndCustomer),
+                "deliverydate" => sortDescending ? query.OrderByDescending(x => x.DeliveryDate) : query.OrderBy(x => x.DeliveryDate),
+                "delaypenalty" => sortDescending ? query.OrderByDescending(x => x.DelayPenalty) : query.OrderBy(x => x.DelayPenalty),
+                "settlementmethod" => sortDescending ? query.OrderByDescending(x => x.SettlementMethod) : query.OrderBy(x => x.SettlementMethod),
+                "plantgrade" => sortDescending ? query.OrderByDescending(x => x.PlantGrade) : query.OrderBy(x => x.PlantGrade),
+                "specification" => sortDescending ? query.OrderByDescending(x => x.Specification) : query.OrderBy(x => x.Specification),
+                "materialname" => sortDescending ? query.OrderByDescending(x => x.MaterialName) : query.OrderBy(x => x.MaterialName),
+                "lengthstatus" => sortDescending ? query.OrderByDescending(x => x.LengthStatus) : query.OrderBy(x => x.LengthStatus),
+                "maxlength" => sortDescending ? query.OrderByDescending(x => x.MaxLength) : query.OrderBy(x => x.MaxLength),
+                "minlength" => sortDescending ? query.OrderByDescending(x => x.MinLength) : query.OrderBy(x => x.MinLength),
+                "totalquantity" => sortDescending ? query.OrderByDescending(x => x.TotalQuantity) : query.OrderBy(x => x.TotalQuantity),
+                "totalweight" => sortDescending ? query.OrderByDescending(x => x.TotalWeight) : query.OrderBy(x => x.TotalWeight),
+                "deliverystate" => sortDescending ? query.OrderByDescending(x => x.DeliveryState) : query.OrderBy(x => x.DeliveryState),
+                "totalitemcount" => sortDescending ? query.OrderByDescending(x => x.TotalItemCount) : query.OrderBy(x => x.TotalItemCount),
+                "LatestPlanDate" => sortDescending ? query.OrderByDescending(x => x.LatestPlanDate) : query.OrderBy(x => x.LatestPlanDate),
+                "MaterialPlanStatus" => sortDescending ? query.OrderByDescending(x => x.MaterialPlanStatus) : query.OrderBy(x => x.MaterialPlanStatus),
+                "MaterialPlanRate" => sortDescending ? query.OrderByDescending(x => x.MaterialPlanRate) : query.OrderBy(x => x.MaterialPlanRate),
+                "MainNoMaterialPlanStatus" => sortDescending ? query.OrderByDescending(x => x.MainNoMaterialPlanStatus) : query.OrderBy(x => x.MainNoMaterialPlanStatus),
+                "OrderMaterialPlanStatus" => sortDescending ? query.OrderByDescending(x => x.OrderMaterialPlanStatus) : query.OrderBy(x => x.OrderMaterialPlanStatus),
+                _ => sortDescending ? query.OrderByDescending(x => x.WorkOrderNo) : query.OrderBy(x => x.WorkOrderNo)
+            };
+        }
+
+        _filteredItemsList = query.ToList();
+        StateHasChanged();
     }
 
-    private async Task FilterByPlanStatus(int status)
+    // ========== 单元格原始值/显示值 ==========
+
+    private string? GetCellRawValue(WorkOrderListDto item, string key) => key switch
     {
-        selectedStatus = status;
-        StateHasChanged();
-        if (table != null)
-            await table.ReloadServerData();
+        "WorkOrderNo" => item.WorkOrderNo,
+        "SalesOrderNo" => item.SalesOrderNo,
+        "ProductionMainNo" => item.ProductionMainNo,
+        "ProductionSubNo" => item.ProductionSubNo,
+        "SignDate" => item.SignDate.ToString("yyyy-MM-dd"),
+        "Salesman" => item.Salesman,
+        "EndCustomer" => item.EndCustomer,
+        "DeliveryDate" => item.DeliveryDate.ToString("yyyy-MM-dd"),
+        "DelayPenalty" => item.DelayPenalty.ToString(),
+        "SettlementMethod" => item.SettlementMethod.ToString(),
+        "PlantGrade" => item.PlantGrade,
+        "Specification" => item.Specification,
+        "MaterialName" => item.MaterialName.ToString(),
+        "LengthStatus" => item.LengthStatus.ToString(),
+        "MaxLength" => item.MaxLength?.ToString("G29"),
+        "MinLength" => item.MinLength?.ToString("G29"),
+        "TotalQuantity" => item.TotalQuantity.ToString("G29"),
+        "TotalWeight" => item.TotalWeight.ToString("G29"),
+        "DeliveryState" => item.DeliveryState.ToString(),
+        "TotalItemCount" => item.TotalItemCount.ToString("G29"),
+        "LatestPlanDate" => item.LatestPlanDate?.ToString("yyyy-MM-dd"),
+        "MaterialPlanStatus" => item.MaterialPlanStatus.ToString(),
+        "MaterialPlanRate" => item.MaterialPlanRate.ToString("G29"),
+        "MainNoMaterialPlanStatus" => item.MainNoMaterialPlanStatus.ToString(),
+        "OrderMaterialPlanStatus" => item.OrderMaterialPlanStatus.ToString(),
+        _ => null
+    };
+
+    private string? GetCellDisplayText(WorkOrderListDto item, string key) => key switch
+    {
+        "DelayPenalty" => DisplayHelper.GetYesNoText(item.DelayPenalty),
+        "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod),
+        "MaterialName" => DisplayHelper.GetMaterialNameText(item.MaterialName),
+        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
+        "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState),
+        "MaterialPlanStatus" => DisplayHelper.GetMaterialPlanStatusText((MaterialPlanStatus)item.MaterialPlanStatus),
+        "MainNoMaterialPlanStatus" => GetStatusText(item.MainNoMaterialPlanStatus),
+        "OrderMaterialPlanStatus" => GetOrderStatusText(item.OrderMaterialPlanStatus),
+        _ => GetCellRawValue(item, key) ?? ""
+    };
+
+    // ========== 列管理 ==========
+
+    private async Task OnColumnToggle(ColumnDef col)
+    {
+        await SaveColumnPrefs();
     }
 
-    private async Task FilterByMainNoStatus(int status)
+    private async Task SaveColumnPrefs()
     {
-        selectedMainNoStatus = status;
-        StateHasChanged();
-        if (table != null)
-            await table.ReloadServerData();
+        await ColumnPrefs.SaveAsync("materialPlanOverview", null, _allColumns);
     }
 
-    private async Task FilterByOrderStatus(int status)
+    private async Task ResetColumnDisplay()
     {
-        selectedOrderStatus = status;
-        StateHasChanged();
-        if (table != null)
-            await table.ReloadServerData();
+        _allColumns = GetAllColumnDefs();
+        foreach (var c in _allColumns)
+            c.Visible = true;
+        await SaveColumnPrefs();
     }
 
-    private async Task<TableData<WorkOrderListDto>> OnServerData(TableState state)
+    private async Task MoveColumnUp(ColumnDef col)
     {
-        errorMessage = string.Empty;
-        isLoading = true;
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnDown(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    // ========== 导航 ==========
+
+    private void NavigateToMaterialPlan(int id)
+    {
+        Navigation.NavigateTo($"/workorders/{id}/material-plan");
+    }
+
+    // ===== 批量打印 =====
+
+    private void ToggleSelectWorkOrder(int id, bool selected)
+    {
+        if (selected)
+            selectedWorkOrderIds.Add(id);
+        else
+            selectedWorkOrderIds.Remove(id);
+
+        _allSelected = _filteredItems.Any() && _filteredItems.All(i => selectedWorkOrderIds.Contains(i.Id));
         StateHasChanged();
+    }
+
+    private async Task PrintSelectedPlans()
+    {
+        if (!selectedWorkOrderIds.Any() || !anyPlanTypeSelected) return;
+
+        var request = new MaterialPlanBatchPrintRequest
+        {
+            WorkOrderIds = selectedWorkOrderIds.ToArray(),
+            IncludeSemi = includeSemi,
+            IncludeFinish = includeFinish,
+            IncludeInventory = includeInventory,
+            IncludeRework = includeRework,
+            IncludeRoundBarPiercing = includePiercing
+        };
 
         try
         {
-            var queryParams = new WorkOrderQueryParams
+            var result = await MaterialPlanService.PrintSelectedPlansAsync(request);
+            if (result.Success && !string.IsNullOrEmpty(result.Data))
             {
-                PageIndex = state.Page + 1,
-                PageSize = state.PageSize,
-                SortBy = sortColumn,
-                IsDescending = sortDescending,
-                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
-                MaterialPlanStatus = selectedStatus >= 0 ? selectedStatus : null,
-                MainNoMaterialPlanStatus = selectedMainNoStatus >= 0 ? selectedMainNoStatus : null,
-                OrderMaterialPlanStatus = selectedOrderStatus >= 0 ? selectedOrderStatus : null,
-                PlanTypeFilter = GetPlanTypeFilter()
-            };
-
-            var result = await WorkOrderService.GetPagedAsync(queryParams);
-
-            if (result.Success && result.Data != null)
-            {
-                currentPageItems = result.Data.Items.ToList();
-                totalCount = result.Data.TotalCount;
-                return new TableData<WorkOrderListDto>
-                {
-                    Items = result.Data.Items,
-                    TotalItems = result.Data.TotalCount
-                };
+                await JS.InvokeVoidAsync("openPdf", result.Data);
             }
-
-            errorMessage = result.Message ?? "查询失败，未返回数据";
+            else
+            {
+                Snackbar.Add(result.Message ?? "打印生成失败", Severity.Error);
+            }
         }
         catch (Exception ex)
         {
-            errorMessage = $"加载异常: {ex.Message}";
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
         }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
-        }
+    }
 
-        return new TableData<WorkOrderListDto>
+    private Color GetStatusColor(int status)
+    {
+        return status switch
         {
-            Items = Array.Empty<WorkOrderListDto>(),
-            TotalItems = 0
+            0 => Color.Default,
+            1 => Color.Warning,
+            2 => Color.Info,
+            3 => Color.Success,
+            4 => Color.Error,
+            _ => Color.Default
         };
     }
+
+    private string GetStatusText(int status) => DisplayHelper.GetMaterialPlanStatusText((MaterialPlanStatus)status);
+
+    private Color GetOrderStatusColor(int status)
+    {
+        return status switch
+        {
+            0 => Color.Default,
+            1 => Color.Warning,
+            3 => Color.Success,
+            _ => Color.Default
+        };
+    }
+
+    private string GetOrderStatusText(int status) => status switch
+    {
+        0 => DisplayHelper.GetMaterialPlanStatusText(MaterialPlanStatus.NotPlanned),
+        1 => DisplayHelper.GetMaterialPlanStatusText(MaterialPlanStatus.Partial),
+        3 => "全部满足",
+        _ => "未知"
+    };
 
     // ========== 单元格渲染 ==========
 
@@ -547,9 +678,7 @@
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
                 builder.AddAttribute(2, "Color", GetStatusColor(wo.MaterialPlanStatus));
-                builder.AddAttribute(3, "Clickable", true);
-                builder.AddAttribute(4, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => FilterByPlanStatus(wo.MaterialPlanStatus)));
-                builder.AddAttribute(5, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetStatusText(wo.MaterialPlanStatus))));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetStatusText(wo.MaterialPlanStatus))));
                 builder.CloseComponent();
                 break;
             case "MaterialPlanRate":
@@ -578,141 +707,16 @@
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
                 builder.AddAttribute(2, "Color", GetStatusColor(wo.MainNoMaterialPlanStatus));
-                builder.AddAttribute(3, "Clickable", true);
-                builder.AddAttribute(4, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => FilterByMainNoStatus(wo.MainNoMaterialPlanStatus)));
-                builder.AddAttribute(5, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetStatusText(wo.MainNoMaterialPlanStatus))));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetStatusText(wo.MainNoMaterialPlanStatus))));
                 builder.CloseComponent();
                 break;
             case "OrderMaterialPlanStatus":
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
                 builder.AddAttribute(2, "Color", GetOrderStatusColor(wo.OrderMaterialPlanStatus));
-                builder.AddAttribute(3, "Clickable", true);
-                builder.AddAttribute(4, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => FilterByOrderStatus(wo.OrderMaterialPlanStatus)));
-                builder.AddAttribute(5, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetOrderStatusText(wo.OrderMaterialPlanStatus))));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetOrderStatusText(wo.OrderMaterialPlanStatus))));
                 builder.CloseComponent();
                 break;
         }
-    };
-
-    // ========== 列管理 ==========
-
-    private async Task OnColumnToggle(ColumnDef col)
-    {
-        await SaveColumnPrefs();
-    }
-
-    private async Task SaveColumnPrefs()
-    {
-        await ColumnPrefs.SaveAsync("materialPlanOverview", null, _allColumns);
-    }
-
-    private async Task ResetColumnDisplay()
-    {
-        _allColumns = GetAllColumnDefs();
-        foreach (var c in _allColumns)
-            c.Visible = true;
-        await SaveColumnPrefs();
-        if (table != null)
-            await table.ReloadServerData();
-    }
-
-    private async Task MoveColumnUp(ColumnDef col)
-    {
-        await SaveColumnPrefs();
-    }
-
-    private async Task MoveColumnDown(ColumnDef col)
-    {
-        await SaveColumnPrefs();
-    }
-
-    // ========== 导航 ==========
-
-    private void NavigateToMaterialPlan(int id)
-    {
-        Navigation.NavigateTo($"/workorders/{id}/material-plan");
-    }
-
-    // ===== 批量打印 =====
-
-    private void ToggleSelectWorkOrder(int id, bool selected)
-    {
-        if (selected)
-            selectedWorkOrderIds.Add(id);
-        else
-            selectedWorkOrderIds.Remove(id);
-
-        _allSelected = currentPageItems.Any() && currentPageItems.All(i => selectedWorkOrderIds.Contains(i.Id));
-        StateHasChanged();
-    }
-
-    private async Task PrintSelectedPlans()
-    {
-        if (!selectedWorkOrderIds.Any() || !anyPlanTypeSelected) return;
-
-        var request = new MaterialPlanBatchPrintRequest
-        {
-            WorkOrderIds = selectedWorkOrderIds.ToArray(),
-            IncludeSemi = includeSemi,
-            IncludeFinish = includeFinish,
-            IncludeInventory = includeInventory,
-            IncludeRework = includeRework,
-            IncludeRoundBarPiercing = includePiercing
-        };
-
-        try
-        {
-            var result = await MaterialPlanService.PrintSelectedPlansAsync(request);
-            if (result.Success && !string.IsNullOrEmpty(result.Data))
-            {
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "打印生成失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private Color GetStatusColor(int status)
-    {
-        return status switch
-        {
-            0 => Color.Default,
-            1 => Color.Warning,
-            2 => Color.Info,
-            3 => Color.Success,
-            4 => Color.Error,
-            _ => Color.Default
-        };
-    }
-
-    private string GetStatusText(int status) => DisplayHelper.GetMaterialPlanStatusText((MaterialPlanStatus)status);
-
-    /// <summary>
-    /// 订单级状态颜色（仅"全部满足"或"未满足"，不含理论满足）
-    /// </summary>
-    private Color GetOrderStatusColor(int status)
-    {
-        return status switch
-        {
-            0 => Color.Default,
-            1 => Color.Warning,
-            3 => Color.Success,
-            _ => Color.Default
-        };
-    }
-
-    private string GetOrderStatusText(int status) => status switch
-    {
-        0 => DisplayHelper.GetMaterialPlanStatusText(MaterialPlanStatus.NotPlanned),
-        1 => DisplayHelper.GetMaterialPlanStatusText(MaterialPlanStatus.Partial),
-        3 => "全部满足",
-        _ => "未知"
     };
 }

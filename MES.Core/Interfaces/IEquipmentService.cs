@@ -6,6 +6,7 @@ namespace MES.Core.Interfaces;
 public interface IEquipmentService
 {
     Task<PagedResult<EquipmentListDto>> GetPagedAsync(EquipmentQueryParams query);
+    Task<List<EquipmentListDto>> GetAllListAsync();
     Task<EquipmentDetailDto> GetByIdAsync(int id);
     Task<List<EquipmentListDto>> GetAllAsync();
     Task<EquipmentDetailDto> CreateAsync(CreateEquipmentRequest request);

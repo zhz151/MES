@@ -1,4 +1,5 @@
 // 文件路径: MES.Blazor/Services/CustomerService.cs
+using System.Text.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
@@ -30,6 +31,7 @@ public class CustomerService
             {
                 url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
             }
+            if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
 
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<CustomerProfileDto>>>(url);
             return response ?? ApiResponse<PagedResult<CustomerProfileDto>>.Fail("获取数据失败");
@@ -37,6 +39,22 @@ public class CustomerService
         catch (Exception ex)
         {
             return ApiResponse<PagedResult<CustomerProfileDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 获取所有客户列表（无分页，供客户端筛选排序）
+    /// </summary>
+    public async Task<ApiResponse<List<CustomerProfileDto>>> GetAllListAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<CustomerProfileDto>>>($"{BaseUrl}/list-all");
+            return response ?? ApiResponse<List<CustomerProfileDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<CustomerProfileDto>>.Fail($"网络错误: {ex.Message}");
         }
     }
 
@@ -51,6 +69,24 @@ public class CustomerService
             return result.Data.Items;
         }
         return new List<CustomerProfileDto>();
+    }
+
+    /// <summary>
+    /// 获取客户下拉列表（仅含级联选择所需字段，不分页）
+    /// </summary>
+    public async Task<List<CustomerSelectDto>> GetSelectListAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<CustomerSelectDto>>>($"{BaseUrl}/select-list");
+            if (response?.Success == true && response.Data != null)
+                return response.Data;
+            return new List<CustomerSelectDto>();
+        }
+        catch
+        {
+            return new List<CustomerSelectDto>();
+        }
     }
 
     /// <summary>

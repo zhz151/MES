@@ -6,6 +6,7 @@ namespace MES.Core.Interfaces;
 public interface ISupplierService
 {
     Task<PagedResult<SupplierProfileDto>> GetPagedAsync(QueryParams query);
+    Task<List<SupplierProfileDto>> GetAllListAsync();
     Task<SupplierProfileDto> GetByIdAsync(int id);
     Task<List<SupplierProfileDto>> GetActiveAsync();
     Task<SupplierProfileDto> CreateAsync(CreateSupplierRequest request);

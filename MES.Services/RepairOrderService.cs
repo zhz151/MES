@@ -7,6 +7,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 
+using MES.Services.Helpers;
 using MES.Services.Printing;
 
 namespace MES.Services;
@@ -59,6 +60,8 @@ public class RepairOrderService : IRepairOrderService
 
         if (query.ReportTimeTo.HasValue)
             baseQuery = baseQuery.Where(x => x.Order.ReportTime <= query.ReportTimeTo.Value);
+
+        baseQuery = baseQuery.ApplyFilters(query.Filters);
 
         var totalCount = await baseQuery.CountAsync();
 
@@ -133,6 +136,37 @@ public class RepairOrderService : IRepairOrderService
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
+    }
+
+    public async Task<List<RepairOrderListDto>> GetAllListAsync()
+    {
+        var baseQuery = from r in _context.RepairOrders
+                        join e in _context.Equipment on r.EquipmentId equals e.Id
+                        orderby r.ReportTime descending
+                        select new RepairOrderListDto
+                        {
+                            Id = r.Id,
+                            RepairOrderNo = r.RepairOrderNo,
+                            EquipmentId = r.EquipmentId,
+                            EquipmentName = e.EquipmentName,
+                            EquipmentCode = e.EquipmentCode,
+                            EquipmentLocation = e.Location,
+                            FaultDescription = r.FaultDescription,
+                            FaultType = r.FaultType,
+                            Priority = r.Priority,
+                            RepairStatus = r.RepairStartTime != null
+                                ? (r.RepairEndTime != null ? "Completed" : "InProgress")
+                                : "Pending",
+                            ReportPerson = r.ReportPerson,
+                            ReportTime = r.ReportTime,
+                            RepairPerson = r.RepairPerson,
+                            RepairStartTime = r.RepairStartTime,
+                            RepairEndTime = r.RepairEndTime,
+                            RepairContent = r.RepairContent,
+                            SparePartUsed = r.SparePartUsed
+                        };
+
+        return await baseQuery.ToListAsync();
     }
 
     public async Task<RepairOrderListDto> GetByIdAsync(int id)

@@ -6,6 +6,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Core.Enums;
+using MES.Services.Helpers;
 using MES.Services.Printing;
 
 namespace MES.Services;
@@ -89,6 +90,80 @@ public class PurchaseOrderService : IPurchaseOrderService
         {
             var to = query.RequiredDateTo.Value.Date.AddDays(1);
             queryable = queryable.Where(p => p.RequiredDate < to);
+        }
+
+        queryable = queryable.ApplyFilters(query.Filters);
+
+        // 跨表计算字段筛选（非 PurchaseOrder 直接属性）
+        if (query.Filters is { Count: > 0 })
+        {
+            foreach (var filter in query.Filters)
+            {
+                if (string.IsNullOrWhiteSpace(filter.Field)) continue;
+                switch (filter.Field.ToLower())
+                {
+                    case "suppliername":
+                        if (!string.IsNullOrEmpty(filter.Value))
+                            queryable = queryable.Where(p => _context.SupplierProfiles.Any(s => s.Id == p.SupplierId && s.SupplierName.Contains(filter.Value)));
+                        break;
+                    case "wosalesorderno":
+                        if (!string.IsNullOrEmpty(filter.Value))
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.SalesOrderNo.Contains(filter.Value)));
+                        break;
+                    case "woproductionmainno":
+                        if (!string.IsNullOrEmpty(filter.Value))
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.ProductionMainNo.Contains(filter.Value)));
+                        break;
+                    case "wosigndate":
+                        if (DateTime.TryParse(filter.From?.ToString(), out var wsdFrom))
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.SignDate >= wsdFrom));
+                        if (DateTime.TryParse(filter.To?.ToString(), out var wsdTo))
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.SignDate <= wsdTo));
+                        break;
+                    case "wosalesman":
+                        if (!string.IsNullOrEmpty(filter.Value))
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.Salesman.Contains(filter.Value)));
+                        break;
+                    case "wodeliverydate":
+                        if (DateTime.TryParse(filter.From?.ToString(), out var wddFrom))
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.DeliveryDate >= wddFrom));
+                        if (DateTime.TryParse(filter.To?.ToString(), out var wddTo))
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.DeliveryDate <= wddTo));
+                        break;
+                    case "woplantgrade":
+                        if (!string.IsNullOrEmpty(filter.Value))
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.PlantGrade.Contains(filter.Value)));
+                        break;
+                    case "wospecification":
+                        if (!string.IsNullOrEmpty(filter.Value))
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.Specification.Contains(filter.Value)));
+                        break;
+                    case "womaxlength":
+                        if (decimal.TryParse(filter.From?.ToString(), out var wmlMin))
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.MaxLength >= wmlMin));
+                        if (decimal.TryParse(filter.To?.ToString(), out var wmlMax))
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.MaxLength <= wmlMax));
+                        break;
+                    case "wototalquantity":
+                        if (decimal.TryParse(filter.From?.ToString(), out var wtqMin))
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.TotalQuantity >= wtqMin));
+                        if (decimal.TryParse(filter.To?.ToString(), out var wtqMax))
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.TotalQuantity <= wtqMax));
+                        break;
+                    case "wototalweight":
+                        if (decimal.TryParse(filter.From?.ToString(), out var wtwMin))
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.TotalWeight >= wtwMin));
+                        if (decimal.TryParse(filter.To?.ToString(), out var wtwMax))
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.TotalWeight <= wtwMax));
+                        break;
+                    case "wototalitemcount":
+                        if (int.TryParse(filter.From?.ToString(), out var wicMin))
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.TotalItemCount >= wicMin));
+                        if (int.TryParse(filter.To?.ToString(), out var wicMax))
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.TotalItemCount <= wicMax));
+                        break;
+                }
+            }
         }
 
         // 工单来源字段排序（先提取带 LEFT JOIN 的 queryable）
@@ -239,6 +314,48 @@ public class PurchaseOrderService : IPurchaseOrderService
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
+    }
+
+    public async Task<List<PurchaseOrderDto>> GetAllListAsync()
+    {
+        var entityList = await _context.PurchaseOrders
+            .AsNoTracking()
+            .OrderBy(p => p.OrderDate)
+            .ThenBy(p => p.OrderNo)
+            .ToListAsync();
+
+        // 填充工单来源字段
+        var sourceWoNos = entityList.Where(e => e.SourceWorkOrderNo != null).Select(e => e.SourceWorkOrderNo!).Distinct().ToList();
+        var workOrders = new Dictionary<string, WorkOrder>();
+        if (sourceWoNos.Count > 0)
+        {
+            workOrders = await _context.WorkOrders
+                .AsNoTracking()
+                .Where(w => sourceWoNos.Contains(w.WorkOrderNo))
+                .ToDictionaryAsync(w => w.WorkOrderNo, w => w);
+        }
+
+        var items = entityList.Select(p =>
+        {
+            var dto = ToDto(p);
+            if (p.SourceWorkOrderNo != null && workOrders.TryGetValue(p.SourceWorkOrderNo, out var wo))
+                FillWorkOrderFields(dto, wo);
+            return dto;
+        }).ToList();
+
+        // 填充供应商名称
+        var supplierIds = items.Where(i => i.SupplierId > 0).Select(i => i.SupplierId).Distinct().ToList();
+        var suppliers = await _context.SupplierProfiles
+            .AsNoTracking()
+            .Where(s => supplierIds.Contains(s.Id))
+            .ToDictionaryAsync(s => s.Id, s => s.SupplierName);
+        foreach (var item in items)
+        {
+            if (suppliers.TryGetValue(item.SupplierId, out var name))
+                item.SupplierName = name;
+        }
+
+        return items;
     }
 
     public async Task<PurchaseOrderDto> GetByIdAsync(int id)

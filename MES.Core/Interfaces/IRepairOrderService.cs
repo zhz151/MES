@@ -6,6 +6,7 @@ namespace MES.Core.Interfaces;
 public interface IRepairOrderService
 {
     Task<PagedResult<RepairOrderListDto>> GetPagedAsync(RepairOrderQueryParams query);
+    Task<List<RepairOrderListDto>> GetAllListAsync();
     Task<RepairOrderListDto> GetByIdAsync(int id);
     Task<RepairOrderListDto> CreateAsync(CreateRepairOrderRequest request);
     Task<List<RepairOrderListDto>> CreateBatchAsync(List<CreateRepairOrderRequest> requests);

@@ -37,33 +37,10 @@ public class MaterialService : IMaterialService
                 (m.CreatedBy != null && m.CreatedBy.Contains(kw)));
         }
 
-        queryable = query.SortBy?.ToLower() switch
-        {
-            "materialcode" => query.IsDescending
-                ? queryable.OrderByDescending(m => m.MaterialCode)
-                : queryable.OrderBy(m => m.MaterialCode),
-            "materialcategory" => query.IsDescending
-                ? queryable.OrderByDescending(m => m.MaterialCategory)
-                : queryable.OrderBy(m => m.MaterialCategory),
-            "plantgrade" => query.IsDescending
-                ? queryable.OrderByDescending(m => m.PlantGrade)
-                : queryable.OrderBy(m => m.PlantGrade),
-            "specification" => query.IsDescending
-                ? queryable.OrderByDescending(m => m.Specification)
-                : queryable.OrderBy(m => m.Specification),
-            "isactive" => query.IsDescending
-                ? queryable.OrderByDescending(m => m.IsActive)
-                : queryable.OrderBy(m => m.IsActive),
-            "remark" => query.IsDescending
-                ? queryable.OrderByDescending(m => m.Remark ?? "")
-                : queryable.OrderBy(m => m.Remark ?? ""),
-            "createdby" => query.IsDescending
-                ? queryable.OrderByDescending(m => m.CreatedBy ?? "")
-                : queryable.OrderBy(m => m.CreatedBy ?? ""),
-            _ => query.IsDescending
-                ? queryable.OrderByDescending(m => m.CreatedTime)
-                : queryable.OrderBy(m => m.CreatedTime)
-        };
+        // 通用筛选
+        queryable = queryable.ApplyFilters(query.Filters);
+
+        queryable = queryable.ApplySort(query.SortBy, query.IsDescending);
 
         var totalCount = await queryable.CountAsync();
         var items = await queryable
@@ -90,6 +67,26 @@ public class MaterialService : IMaterialService
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
+    }
+
+    public async Task<List<MaterialDto>> GetAllListAsync()
+    {
+        return await _context.Materials
+            .AsNoTracking()
+            .OrderBy(m => m.MaterialCode)
+            .Select(m => new MaterialDto
+            {
+                Id = m.Id,
+                MaterialCode = m.MaterialCode,
+                MaterialCategory = m.MaterialCategory,
+                PlantGrade = m.PlantGrade,
+                Specification = m.Specification,
+                IsActive = m.IsActive,
+                Remark = m.Remark,
+                CreatedTime = m.CreatedTime,
+                CreatedBy = m.CreatedBy
+            })
+            .ToListAsync();
     }
 
     public async Task<MaterialDto> GetByIdAsync(int id)

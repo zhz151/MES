@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
@@ -13,7 +14,36 @@ public class InventoryService
         _http = http;
     }
 
-    public async Task<ApiResponse<PagedResult<InventoryBatchDto>>> GetPagedAsync(InventoryQueryParams query)
+    public async Task<ApiResponse<List<InventoryBatchDto>>> GetAllListAsync(InventoryQueryParams query)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/all?sortBy={Uri.EscapeDataString(query.SortBy)}&isDescending={query.IsDescending}";
+
+            if (query.WarehouseId.HasValue)
+                url += $"&warehouseId={query.WarehouseId.Value}";
+
+            if (!string.IsNullOrEmpty(query.Keyword))
+                url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
+
+            if (!string.IsNullOrEmpty(query.MaterialType))
+                url += $"&materialType={Uri.EscapeDataString(query.MaterialType)}";
+
+            if (!string.IsNullOrEmpty(query.PlantGrade))
+                url += $"&plantGrade={Uri.EscapeDataString(query.PlantGrade)}";
+
+            url += $"&onlyWithStock={query.OnlyWithStock}";
+
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<InventoryBatchDto>>>(url);
+            return response ?? ApiResponse<List<InventoryBatchDto>>.Fail("获取库存列表失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<InventoryBatchDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<PagedResult<InventoryBatchDto>>> GetPagedAsync(InventoryQueryParams query, string? filters = null)
     {
         try
         {
@@ -35,6 +65,8 @@ public class InventoryService
 
             if (!string.IsNullOrEmpty(query.WorkOrderNo))
                 url += $"&workOrderNo={Uri.EscapeDataString(query.WorkOrderNo)}";
+
+            if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
 
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<InventoryBatchDto>>>(url);
             return response ?? ApiResponse<PagedResult<InventoryBatchDto>>.Fail("获取库存列表失败");
@@ -110,7 +142,7 @@ public class InventoryService
         }
     }
 
-    public async Task<ApiResponse<PagedResult<OutboundRecordDto>>> GetOutboundRecordsAsync(OutboundQueryParams query)
+    public async Task<ApiResponse<PagedResult<OutboundRecordDto>>> GetOutboundRecordsAsync(OutboundQueryParams query, string? filters = null)
     {
         try
         {
@@ -133,6 +165,8 @@ public class InventoryService
 
             if (!string.IsNullOrEmpty(query.Keyword))
                 url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
+
+            if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
 
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<OutboundRecordDto>>>(url);
             return response ?? ApiResponse<PagedResult<OutboundRecordDto>>.Fail("获取出库记录失败");

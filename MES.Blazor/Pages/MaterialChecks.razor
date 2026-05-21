@@ -38,7 +38,7 @@
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 批次号/确认人"
-                                  Value="searchKeyword"
+                                  Value="_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
@@ -47,36 +47,18 @@
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField Label="到料日期-起"
-                                   @bind-Value="_receiveDateFrom"
-                                   Clearable="true"
-                                   Dense="true"
-                                   Variant="Variant.Outlined"
-                                   Immediate="true"
-                                   DebounceInterval="500" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField Label="到料日期-止"
-                                   @bind-Value="_receiveDateTo"
-                                   Clearable="true"
-                                   Dense="true"
-                                   Variant="Variant.Outlined"
-                                   Immediate="true"
-                                   DebounceInterval="500" />
-                </MudItem>
             </MudGrid>
 
             <!-- 数据表格 -->
             <div id="material-checks-list-table">
             <MudTable @ref="table"
                       T="MaterialReceiveCheckDto"
-                      ServerData="OnServerData"
-                      Loading="@isLoading"
+                      Items="@_filteredItems"
                       Dense="true"
                       Hover="true"
                       Class="mt-4 auto-table"
                       Elevation="0"
+                      RowsPerPage="10"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
                     <ColumnDisplaySelect Columns="_allColumns"
@@ -106,7 +88,7 @@
                         打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
-                        共 @totalCount 条记录
+                        共 @(_filteredItems?.Count ?? 0) 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
@@ -116,20 +98,21 @@
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
-                            @if (!string.IsNullOrEmpty(col.SortKey))
-                            {
-                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
-                                    @col.Label
-                                </span>
-                                @if (sortColumn == col.SortKey)
-                                {
-                                    <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
-                                }
-                            }
-                            else
-                            {
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span class="th-label">@col.Label</span>
-                            }
+                                @if (col.FilterType != null)
+                                {
+                                    <ExcelFilter T="MaterialReceiveCheckDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 AllItems="@_allItems"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 DisplaySelector="@(x => GetCellDisplayText(x, col.Key))"
+                                                 RawValueSelector="@(x => GetCellRawValue(x, col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))"
+                                                 SortRequested="@(args => OnExcelSortRequested(args.fieldKey, args.ascending))" />
+                                }
+                            </div>
                         </MudTh>
                     }
                     <MudTh Style="width: 100px;">操作</MudTh>
@@ -140,7 +123,7 @@
                         {
                             <MudCheckBox T="bool"
                                          Value="@selectedIds.Contains(item.Id)"
-                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = checks.Any() && checks.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _filteredItems.Any() && _filteredItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
                                          Dense="true" />
                         }
                     </MudTd>
@@ -175,7 +158,7 @@
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
-                    <MudTablePager />
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
             </MudTable>
             </div>
@@ -185,7 +168,9 @@
 
 @code {
     private MudTable<MaterialReceiveCheckDto>? table;
-    private List<MaterialReceiveCheckDto> checks = new();
+    private List<MaterialReceiveCheckDto> _allItems = new();
+    private List<MaterialReceiveCheckDto>? _filteredItemsList;
+    private List<MaterialReceiveCheckDto> _filteredItems => _filteredItemsList ?? _allItems;
     private HashSet<int> selectedIds = new();
     private bool _allSelected;
     private bool _isArrowNavSetup;
@@ -198,7 +183,7 @@
             _allSelected = value;
             if (value)
             {
-                foreach (var item in checks)
+                foreach (var item in _filteredItems)
                     selectedIds.Add(item.Id);
             }
             else
@@ -208,20 +193,16 @@
             StateHasChanged();
         }
     }
-    private bool isLoading = false;
-    private string searchKeyword = string.Empty;
-    private int totalCount = 0;
+    private string _searchKeyword = string.Empty;
 
-    private string sortColumn = "createdtime";
+    private string sortColumn = "receivedate";
     private bool sortDescending = true;
 
-    // ========== 日期筛选（字符串格式 yyyy-MM-dd） ==========
-
-    private string? _receiveDateFrom;
-    private string? _receiveDateTo;
+    // ========== ExcelFilter 状态 ==========
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+    private Dictionary<string, List<MaterialReceiveCheckDto>> _filterContexts = new();
 
     // ========== 内联编辑 ==========
-
     private HashSet<int> _editingIds = new();
     private Dictionary<int, EditCache> _editCache = new();
     private bool _isSaving;
@@ -244,15 +225,15 @@
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "ReceiveDate",       Label = "到料日期",   SortKey = "receivedate" },
-        new() { Key = "BatchNo",           Label = "批次号",     SortKey = "batchno" },
-        new() { Key = "ReceivedQuantity",  Label = "到料支数",   SortKey = "receivedquantity" },
-        new() { Key = "ReceivedWeight",    Label = "到料重量",   SortKey = "receivedweight" },
-        new() { Key = "Shift",             Label = "班次",        SortKey = "shift" },
-        new() { Key = "Checker",           Label = "确认人",     SortKey = "checker" },
-        new() { Key = "Remark",            Label = "备注",        SortKey = "remark" },
-        new() { Key = "CreatedTime",       Label = "创建时间",   SortKey = "createdtime" },
-        new() { Key = "UpdatedTime",       Label = "更新时间",   SortKey = "updatedtime" },
+        new() { Key = "ReceiveDate",       Label = "到料日期",   SortKey = "receivedate", FilterType = "date" },
+        new() { Key = "BatchNo",           Label = "批次号",     SortKey = "batchno", FilterType = "string" },
+        new() { Key = "ReceivedQuantity",  Label = "到料支数",   SortKey = "receivedquantity", FilterType = "number" },
+        new() { Key = "ReceivedWeight",    Label = "到料重量",   SortKey = "receivedweight", FilterType = "number" },
+        new() { Key = "Shift",             Label = "班次",        SortKey = "shift", FilterType = "string" },
+        new() { Key = "Checker",           Label = "确认人",     SortKey = "checker", FilterType = "string" },
+        new() { Key = "Remark",            Label = "备注",        SortKey = "remark", FilterType = "string" },
+        new() { Key = "CreatedTime",       Label = "创建时间",   SortKey = "createdtime", FilterType = "date" },
+        new() { Key = "UpdatedTime",       Label = "更新时间",   SortKey = "updatedtime", FilterType = "date" },
     };
 
     // ========== 列选择操作 ==========
@@ -311,6 +292,30 @@
             }
             _allColumns = reordered;
         }
+
+        await LoadAllDataAsync();
+    }
+
+    private async Task LoadAllDataAsync()
+    {
+        try
+        {
+            var result = await ProductionRecordService.GetAllMaterialReceiveCheckListAsync();
+            if (result.Success && result.Data != null)
+            {
+                _allItems = result.Data;
+                _filteredItemsList = null;
+                RefreshFilteredData();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "加载失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -323,91 +328,103 @@
         }
     }
 
-    private string GetSortIndicator(string column)
-    {
-        if (sortColumn != column) return "";
-        return sortDescending ? "\u25BC" : "\u25B2";
-    }
-
-    private async Task<TableData<MaterialReceiveCheckDto>> OnServerData(TableState state)
-    {
-        isLoading = true;
-        StateHasChanged();
-
-        try
-        {
-            DateTime? receiveDateFrom = DateTime.TryParse(_receiveDateFrom, out var dtFrom) ? dtFrom : null;
-            DateTime? receiveDateTo = DateTime.TryParse(_receiveDateTo, out var dtTo) ? dtTo : null;
-            var result = await ProductionRecordService.GetAllMaterialReceiveChecksAsync(
-                state.Page + 1, state.PageSize,
-                string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
-                sortColumn, sortDescending,
-                receiveDateFrom, receiveDateTo);
-
-            if (result.Success && result.Data != null)
-            {
-                checks = result.Data.Items;
-                totalCount = result.Data.TotalCount;
-                return new TableData<MaterialReceiveCheckDto>
-                {
-                    Items = checks,
-                    TotalItems = totalCount
-                };
-            }
-
-            return new TableData<MaterialReceiveCheckDto>
-            {
-                Items = new List<MaterialReceiveCheckDto>(),
-                TotalItems = 0
-            };
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
-            return new TableData<MaterialReceiveCheckDto>
-            {
-                Items = new List<MaterialReceiveCheckDto>(),
-                TotalItems = 0
-            };
-        }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task ToggleSort(string column)
-    {
-        if (sortColumn == column)
-            sortDescending = !sortDescending;
-        else
-        {
-            sortColumn = column;
-            sortDescending = false;
-        }
-        if (table != null)
-            await table.ReloadServerData();
-    }
-
-    private async Task Search()
-    {
-        if (table != null)
-            await table.ReloadServerData();
-    }
+    // ========== 搜索 ==========
 
     private async Task OnSearchChanged(string value)
     {
-        searchKeyword = value ?? string.Empty;
-        if (table != null)
-            await table.ReloadServerData();
+        _searchKeyword = value ?? string.Empty;
+        RefreshFilteredData();
     }
 
-    private async Task OnFilterChanged()
+    // ========== ExcelFilter 回调 ==========
+
+    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
     {
-        if (table != null)
-            await table.ReloadServerData();
+        if (selectedValues.Count > 0)
+            _columnFilters[fieldKey] = selectedValues;
+        else
+            _columnFilters.Remove(fieldKey);
+
+        RefreshFilteredData();
     }
+
+    private async Task OnExcelSortRequested(string fieldKey, bool ascending)
+    {
+        sortColumn = fieldKey;
+        sortDescending = !ascending;
+        RefreshFilteredData();
+    }
+
+    // ========== 客户端刷新 ==========
+
+    private void RefreshFilteredData()
+    {
+        var query = _allItems.AsEnumerable();
+
+        // 关键字搜索
+        if (!string.IsNullOrWhiteSpace(_searchKeyword))
+        {
+            var kw = _searchKeyword;
+            query = query.Where(x =>
+                (x.BatchNo != null && x.BatchNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.Checker != null && x.Checker.Contains(kw, StringComparison.OrdinalIgnoreCase))
+            );
+        }
+
+        // ExcelFilter 列筛选
+        foreach (var cf in _columnFilters)
+        {
+            var fieldKey = cf.Key;
+            var selected = cf.Value;
+            query = query.Where(x =>
+            {
+                var raw = GetCellRawValue(x, fieldKey);
+                return raw != null && selected.Contains(raw);
+            });
+        }
+
+        // 排序
+        if (!string.IsNullOrEmpty(sortColumn))
+        {
+            query = sortColumn switch
+            {
+                "receivedate" => sortDescending ? query.OrderByDescending(x => x.ReceiveDate) : query.OrderBy(x => x.ReceiveDate),
+                "batchno" => sortDescending ? query.OrderByDescending(x => x.BatchNo) : query.OrderBy(x => x.BatchNo),
+                "receivedquantity" => sortDescending ? query.OrderByDescending(x => x.ReceivedQuantity) : query.OrderBy(x => x.ReceivedQuantity),
+                "receivedweight" => sortDescending ? query.OrderByDescending(x => x.ReceivedWeight) : query.OrderBy(x => x.ReceivedWeight),
+                "shift" => sortDescending ? query.OrderByDescending(x => x.Shift) : query.OrderBy(x => x.Shift),
+                "checker" => sortDescending ? query.OrderByDescending(x => x.Checker) : query.OrderBy(x => x.Checker),
+                "remark" => sortDescending ? query.OrderByDescending(x => x.Remark) : query.OrderBy(x => x.Remark),
+                "createdtime" => sortDescending ? query.OrderByDescending(x => x.CreatedTime) : query.OrderBy(x => x.CreatedTime),
+                "updatedtime" => sortDescending ? query.OrderByDescending(x => x.UpdatedTime) : query.OrderBy(x => x.UpdatedTime),
+                _ => sortDescending ? query.OrderByDescending(x => x.ReceiveDate) : query.OrderBy(x => x.ReceiveDate)
+            };
+        }
+
+        _filteredItemsList = query.ToList();
+        StateHasChanged();
+    }
+
+    // ========== 单元格原始值/显示值 ==========
+
+    private string? GetCellRawValue(MaterialReceiveCheckDto item, string key) => key switch
+    {
+        "ReceiveDate" => item.ReceiveDate.ToString("yyyy-MM-dd"),
+        "BatchNo" => item.BatchNo,
+        "ReceivedQuantity" => item.ReceivedQuantity?.ToString("G29"),
+        "ReceivedWeight" => item.ReceivedWeight?.ToString("G29"),
+        "Shift" => item.Shift,
+        "Checker" => item.Checker,
+        "Remark" => item.Remark,
+        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        _ => null
+    };
+
+    private string? GetCellDisplayText(MaterialReceiveCheckDto item, string key) => key switch
+    {
+        _ => GetCellRawValue(item, key) ?? ""
+    };
 
     private void NavigateToCreate() => Navigation.NavigateTo("/material-checks/create");
 
@@ -463,7 +480,6 @@
             var result = await ProductionRecordService.UpdateMaterialReceiveCheckAsync(item.Id, request);
             if (result.Success && result.Data != null)
             {
-                // 更新列表中的缓存数据
                 item.ReceiveDate = result.Data.ReceiveDate;
                 item.ReceivedQuantity = result.Data.ReceivedQuantity;
                 item.ReceivedWeight = result.Data.ReceivedWeight;
@@ -510,7 +526,7 @@
                 if (result.Success)
                 {
                     Snackbar.Add("删除成功", Severity.Success);
-                    await Search();
+                    await LoadAllDataAsync();
                 }
                 else
                 {
@@ -702,12 +718,10 @@
         try
         {
             var columns = GetPrintColumnDefs();
-            DateTime? printReceiveDateFrom = DateTime.TryParse(_receiveDateFrom, out var pdFrom) ? pdFrom : null;
-            DateTime? printReceiveDateTo = DateTime.TryParse(_receiveDateTo, out var pdTo) ? pdTo : null;
             var result = await ProductionRecordService.PrintMaterialCheckAllAsync(
-                string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 sortColumn, sortDescending, columns,
-                printReceiveDateFrom, printReceiveDateTo);
+                null, null);
             if (result.Success && result.Data != null)
                 await JS.InvokeVoidAsync("openPdf", result.Data);
             else

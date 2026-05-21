@@ -37,4 +37,9 @@ public interface IChemicalValidationRuleService
     /// 根据工厂牌号获取验证规则
     /// </summary>
     Task<ChemicalValidationRuleDto?> GetByPlantGradeAsync(string plantGrade);
+
+    /// <summary>
+    /// 获取所有牌号验证规则（无分页）
+    /// </summary>
+    Task<List<ChemicalValidationRuleDto>> GetAllListAsync();
 }

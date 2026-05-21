@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
@@ -37,12 +38,30 @@ public class WorkOrderService
             if (!string.IsNullOrEmpty(query.WorkOrderStatus))
                 url += $"&workOrderStatus={Uri.EscapeDataString(query.WorkOrderStatus)}";
 
+            if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
+
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<OrderWorkOrderStatusDto>>>(url);
             return response ?? ApiResponse<PagedResult<OrderWorkOrderStatusDto>>.Fail("获取数据失败");
         }
         catch (Exception ex)
         {
             return ApiResponse<PagedResult<OrderWorkOrderStatusDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 获取所有工单首页订单状态数据（无分页，供客户端筛选排序）
+    /// </summary>
+    public async Task<ApiResponse<List<OrderWorkOrderStatusDto>>> GetAllOrderStatusAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<OrderWorkOrderStatusDto>>>($"{BaseUrl}/order-status-all");
+            return response ?? ApiResponse<List<OrderWorkOrderStatusDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<OrderWorkOrderStatusDto>>.Fail($"网络错误: {ex.Message}");
         }
     }
 
@@ -137,6 +156,7 @@ public class WorkOrderService
                 url += $"&orderMaterialPlanStatus={query.OrderMaterialPlanStatus.Value}";
             if (!string.IsNullOrEmpty(query.PlanTypeFilter))
                 url += $"&planTypeFilter={Uri.EscapeDataString(query.PlanTypeFilter)}";
+            if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
 
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<WorkOrderListDto>>>(url);
             return response ?? ApiResponse<PagedResult<WorkOrderListDto>>.Fail("获取数据失败");
@@ -281,7 +301,7 @@ public async Task<ApiResponse<OrderWorkOrderRelationDto>> GetOrderWorkOrderRelat
 {
     try
     {
-        var url = $"{BaseUrl}/order-relation?salesOrderNo={Uri.EscapeDataString(salesOrderNo)}";
+        var url = $"{BaseUrl}/order-relation/{Uri.EscapeDataString(salesOrderNo)}";
         var response = await _http.GetFromJsonAsync<ApiResponse<OrderWorkOrderRelationDto>>(url);
         return response ?? ApiResponse<OrderWorkOrderRelationDto>.Fail("获取数据失败");
     }
@@ -353,6 +373,38 @@ public async Task<ApiResponse<OrderWorkOrderRelationDto>> GetOrderWorkOrderRelat
         catch (Exception ex)
         {
             return ApiResponse<string>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 全量刷新用料计划读模型
+    /// </summary>
+    public async Task<ApiResponse> RefreshMaterialPlanReadModelAsync()
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<object, ApiResponse>($"{BaseUrl}/refresh-material-plan-readmodel", new { });
+            return response ?? ApiResponse.Fail("刷新失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 获取所有用料计划总览数据（无分页，客户端筛选排序）
+    /// </summary>
+    public async Task<ApiResponse<List<WorkOrderListDto>>> GetAllAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<WorkOrderListDto>>>($"{BaseUrl}/list-all");
+            return response ?? ApiResponse<List<WorkOrderListDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<WorkOrderListDto>>.Fail($"网络错误: {ex.Message}");
         }
     }
     #endregion

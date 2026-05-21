@@ -6,6 +6,7 @@ namespace MES.Core.Interfaces;
 public interface IMaterialService
 {
     Task<PagedResult<MaterialDto>> GetPagedAsync(QueryParams query);
+    Task<List<MaterialDto>> GetAllListAsync();
     Task<MaterialDto> GetByIdAsync(int id);
     Task<List<MaterialDto>> GetActiveAsync();
     Task<List<string>> GetCategoriesAsync();

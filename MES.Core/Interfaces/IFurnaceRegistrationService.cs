@@ -14,6 +14,11 @@ public interface IFurnaceRegistrationService
     Task<FurnaceRegistrationDto?> GetByIdAsync(int id);
 
     /// <summary>
+    /// 获取所有来料炉号登记（无分页）
+    /// </summary>
+    Task<List<FurnaceRegistrationDto>> GetAllListAsync();
+
+    /// <summary>
     /// 查询所有来料炉号登记（分页）
     /// </summary>
     Task<PagedResult<FurnaceRegistrationDto>> GetAllAsync(QueryParams query);

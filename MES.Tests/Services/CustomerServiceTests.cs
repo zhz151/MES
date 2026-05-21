@@ -16,7 +16,7 @@ namespace MES.Tests.Services;
 /// </summary>
 public class CustomerServiceTests : TestBase
 {
-    private CustomerService CreateService(AppDbContext ctx) => new(ctx);
+    private CustomerService CreateService(AppDbContext ctx) => new(ctx, null!);
 
     private async Task SeedCustomerAsync(AppDbContext ctx, string code = "C001", string unit = "测试客户",
         string salesman = "张三", CustomerStatus status = CustomerStatus.Active)

@@ -6,6 +6,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Helpers;
 
 namespace MES.Services;
 
@@ -69,6 +70,7 @@ public class ChemicalValidationRuleService : IChemicalValidationRuleService
                 (r.PRENMin != null && r.PRENMin.Contains(kw)));
         }
 
+        queryable = queryable.ApplyFilters(query.Filters);
         var totalCount = await queryable.CountAsync();
 
         queryable = ApplySorting(queryable, query.SortBy ?? "plantgrade", query.IsDescending);
@@ -176,6 +178,37 @@ public class ChemicalValidationRuleService : IChemicalValidationRuleService
             .FirstOrDefaultAsync();
     }
 
+    public async Task<List<ChemicalValidationRuleDto>> GetAllListAsync()
+    {
+        return await _context.ChemicalValidationRules
+            .AsNoTracking()
+            .OrderByDescending(x => x.Id)
+            .Select(x => new ChemicalValidationRuleDto
+            {
+                Id = x.Id,
+                PlantGrade = x.PlantGrade,
+                CMin = x.CMin, CMax = x.CMax,
+                SiMin = x.SiMin, SiMax = x.SiMax,
+                MnMin = x.MnMin, MnMax = x.MnMax,
+                PMin = x.PMin, PMax = x.PMax,
+                SMin = x.SMin, SMax = x.SMax,
+                NiMin = x.NiMin, NiMax = x.NiMax,
+                CrMin = x.CrMin, CrMax = x.CrMax,
+                MoMin = x.MoMin, MoMax = x.MoMax,
+                CuMin = x.CuMin, CuMax = x.CuMax,
+                NMin = x.NMin, NMax = x.NMax,
+                NbMin = x.NbMin, NbMax = x.NbMax,
+                TiMin = x.TiMin, TiMax = x.TiMax,
+                FeMin = x.FeMin, FeMax = x.FeMax,
+                AlMin = x.AlMin, AlMax = x.AlMax,
+                WMin = x.WMin, WMax = x.WMax,
+                PRENMin = x.PRENMin,
+                CreatedTime = x.CreatedTime,
+                UpdatedTime = x.UpdatedTime
+            })
+            .ToListAsync();
+    }
+
     public async Task<ChemicalValidationRuleDto?> GetByPlantGradeAsync(string plantGrade)
     {
         return await _context.ChemicalValidationRules
@@ -211,79 +244,6 @@ public class ChemicalValidationRuleService : IChemicalValidationRuleService
 
     private static IQueryable<ChemicalValidationRule> ApplySorting(IQueryable<ChemicalValidationRule> queryable, string sortBy, bool isDescending)
     {
-        return (sortBy.ToLower(), isDescending) switch
-        {
-            ("plantgrade", false) => queryable.OrderBy(r => r.PlantGrade),
-            ("plantgrade", true) => queryable.OrderByDescending(r => r.PlantGrade),
-            ("cmin", false) => queryable.OrderBy(r => r.CMin ?? ""),
-            ("cmin", true) => queryable.OrderByDescending(r => r.CMin ?? ""),
-            ("cmax", false) => queryable.OrderBy(r => r.CMax ?? ""),
-            ("cmax", true) => queryable.OrderByDescending(r => r.CMax ?? ""),
-            ("simin", false) => queryable.OrderBy(r => r.SiMin ?? ""),
-            ("simin", true) => queryable.OrderByDescending(r => r.SiMin ?? ""),
-            ("simax", false) => queryable.OrderBy(r => r.SiMax ?? ""),
-            ("simax", true) => queryable.OrderByDescending(r => r.SiMax ?? ""),
-            ("mnmin", false) => queryable.OrderBy(r => r.MnMin ?? ""),
-            ("mnmin", true) => queryable.OrderByDescending(r => r.MnMin ?? ""),
-            ("mnmax", false) => queryable.OrderBy(r => r.MnMax ?? ""),
-            ("mnmax", true) => queryable.OrderByDescending(r => r.MnMax ?? ""),
-            ("pmin", false) => queryable.OrderBy(r => r.PMin ?? ""),
-            ("pmin", true) => queryable.OrderByDescending(r => r.PMin ?? ""),
-            ("pmax", false) => queryable.OrderBy(r => r.PMax ?? ""),
-            ("pmax", true) => queryable.OrderByDescending(r => r.PMax ?? ""),
-            ("smin", false) => queryable.OrderBy(r => r.SMin ?? ""),
-            ("smin", true) => queryable.OrderByDescending(r => r.SMin ?? ""),
-            ("smax", false) => queryable.OrderBy(r => r.SMax ?? ""),
-            ("smax", true) => queryable.OrderByDescending(r => r.SMax ?? ""),
-            ("nimin", false) => queryable.OrderBy(r => r.NiMin ?? ""),
-            ("nimin", true) => queryable.OrderByDescending(r => r.NiMin ?? ""),
-            ("nimax", false) => queryable.OrderBy(r => r.NiMax ?? ""),
-            ("nimax", true) => queryable.OrderByDescending(r => r.NiMax ?? ""),
-            ("crmin", false) => queryable.OrderBy(r => r.CrMin ?? ""),
-            ("crmin", true) => queryable.OrderByDescending(r => r.CrMin ?? ""),
-            ("crmax", false) => queryable.OrderBy(r => r.CrMax ?? ""),
-            ("crmax", true) => queryable.OrderByDescending(r => r.CrMax ?? ""),
-            ("momin", false) => queryable.OrderBy(r => r.MoMin ?? ""),
-            ("momin", true) => queryable.OrderByDescending(r => r.MoMin ?? ""),
-            ("momax", false) => queryable.OrderBy(r => r.MoMax ?? ""),
-            ("momax", true) => queryable.OrderByDescending(r => r.MoMax ?? ""),
-            ("cumin", false) => queryable.OrderBy(r => r.CuMin ?? ""),
-            ("cumin", true) => queryable.OrderByDescending(r => r.CuMin ?? ""),
-            ("cumax", false) => queryable.OrderBy(r => r.CuMax ?? ""),
-            ("cumax", true) => queryable.OrderByDescending(r => r.CuMax ?? ""),
-            ("nmin", false) => queryable.OrderBy(r => r.NMin ?? ""),
-            ("nmin", true) => queryable.OrderByDescending(r => r.NMin ?? ""),
-            ("nmax", false) => queryable.OrderBy(r => r.NMax ?? ""),
-            ("nmax", true) => queryable.OrderByDescending(r => r.NMax ?? ""),
-            ("nbmin", false) => queryable.OrderBy(r => r.NbMin ?? ""),
-            ("nbmin", true) => queryable.OrderByDescending(r => r.NbMin ?? ""),
-            ("nbmax", false) => queryable.OrderBy(r => r.NbMax ?? ""),
-            ("nbmax", true) => queryable.OrderByDescending(r => r.NbMax ?? ""),
-            ("timin", false) => queryable.OrderBy(r => r.TiMin ?? ""),
-            ("timin", true) => queryable.OrderByDescending(r => r.TiMin ?? ""),
-            ("timax", false) => queryable.OrderBy(r => r.TiMax ?? ""),
-            ("timax", true) => queryable.OrderByDescending(r => r.TiMax ?? ""),
-            ("femin", false) => queryable.OrderBy(r => r.FeMin ?? ""),
-            ("femin", true) => queryable.OrderByDescending(r => r.FeMin ?? ""),
-            ("femax", false) => queryable.OrderBy(r => r.FeMax ?? ""),
-            ("femax", true) => queryable.OrderByDescending(r => r.FeMax ?? ""),
-            ("almin", false) => queryable.OrderBy(r => r.AlMin ?? ""),
-            ("almin", true) => queryable.OrderByDescending(r => r.AlMin ?? ""),
-            ("almax", false) => queryable.OrderBy(r => r.AlMax ?? ""),
-            ("almax", true) => queryable.OrderByDescending(r => r.AlMax ?? ""),
-            ("wmin", false) => queryable.OrderBy(r => r.WMin ?? ""),
-            ("wmin", true) => queryable.OrderByDescending(r => r.WMin ?? ""),
-            ("wmax", false) => queryable.OrderBy(r => r.WMax ?? ""),
-            ("wmax", true) => queryable.OrderByDescending(r => r.WMax ?? ""),
-            ("prenmin", false) => queryable.OrderBy(r => r.PRENMin ?? ""),
-            ("prenmin", true) => queryable.OrderByDescending(r => r.PRENMin ?? ""),
-            ("createdtime", false) => queryable.OrderBy(r => r.CreatedTime),
-            ("createdtime", true) => queryable.OrderByDescending(r => r.CreatedTime),
-            ("updatedtime", false) => queryable.OrderBy(r => r.UpdatedTime),
-            ("updatedtime", true) => queryable.OrderByDescending(r => r.UpdatedTime),
-            _ => isDescending
-                ? queryable.OrderByDescending(r => r.PlantGrade)
-                : queryable.OrderBy(r => r.PlantGrade)
-        };
+        return queryable.ApplySort(sortBy, isDescending);
     }
 }

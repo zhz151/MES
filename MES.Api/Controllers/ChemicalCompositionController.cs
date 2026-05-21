@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
@@ -34,7 +35,8 @@ public class ChemicalCompositionController : ControllerBase
         [FromQuery] int pageSize = 20,
         [FromQuery] string? keyword = null,
         [FromQuery] string? sortBy = null,
-        [FromQuery] bool isDescending = false)
+        [FromQuery] bool isDescending = false,
+        [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
         var query = new QueryParams
@@ -45,8 +47,24 @@ public class ChemicalCompositionController : ControllerBase
             SortBy = sortBy ?? "plantgrade",
             IsDescending = isDescending
         };
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        }
         var result = await _service.GetAllAsync(query);
         return Ok(ApiResponse<PagedResult<ChemicalCompositionDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 获取所有牌号化学成分（无分页）
+    /// </summary>
+    [HttpGet("all-list")]
+    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<ApiResponse<List<ChemicalCompositionDto>>> GetAllList()
+    {
+        var result = await _service.GetAllListAsync();
+        return ApiResponse<List<ChemicalCompositionDto>>.Ok(result);
     }
 
     /// <summary>

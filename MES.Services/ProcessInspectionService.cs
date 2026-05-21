@@ -6,6 +6,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Helpers;
 
 namespace MES.Services;
 
@@ -58,6 +59,7 @@ public class ProcessInspectionService : IProcessInspectionService
         if (query.InspectionDateTo.HasValue)
             queryable = queryable.Where(r => r.InspectionDate <= query.InspectionDateTo.Value);
 
+        queryable = queryable.ApplyFilters(query.Filters);
         var totalCount = await queryable.CountAsync();
 
         queryable = ApplySorting(queryable, query.SortBy ?? "createdtime", query.IsDescending);
@@ -106,6 +108,45 @@ public class ProcessInspectionService : IProcessInspectionService
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
+    }
+
+    public async Task<List<ProcessInspectionDto>> GetAllListAsync()
+    {
+        var query = from pi in _context.ProcessInspections
+                    join b in _context.ProductionBatches on pi.ProductionBatchId equals b.Id
+                    orderby pi.Id descending
+                    select new ProcessInspectionDto
+                    {
+                        Id = pi.Id,
+                        InspectionDate = pi.InspectionDate,
+                        ProductionBatchId = pi.ProductionBatchId,
+                        BatchNo = b.BatchNo,
+                        ProcessName = pi.ProcessName,
+                        ManufacturingSpec = pi.ManufacturingSpec,
+                        SectionName = pi.SectionName,
+                        SequenceNumber = pi.SequenceNumber,
+                        EquipmentName = pi.EquipmentName,
+                        Inspector = pi.Inspector,
+                        Shift = pi.Shift,
+                        Quantity = pi.Quantity,
+                        Weight = pi.Weight,
+                        InspectionItem = pi.InspectionItem,
+                        QualifiedQuantity = pi.QualifiedQuantity,
+                        QualifiedWeight = pi.QualifiedWeight,
+                        QualifiedConcessionQuantity = pi.QualifiedConcessionQuantity,
+                        ConcessionRemark = pi.ConcessionRemark,
+                        DefectReworkQuantity = pi.DefectReworkQuantity,
+                        DefectWarehouseQuantity = pi.DefectWarehouseQuantity,
+                        DefectScrapQuantity = pi.DefectScrapQuantity,
+                        DefectDescription = pi.DefectDescription,
+                        SourceUnit = pi.SourceUnit,
+                        TagNo = pi.TagNo,
+                        PlantGrade = pi.PlantGrade,
+                        Remark = pi.Remark,
+                        CreatedTime = pi.CreatedTime,
+                        UpdatedTime = pi.UpdatedTime
+                    };
+        return await query.ToListAsync();
     }
 
     public async Task<List<ProcessInspectionDto>> BatchCreateAsync(List<CreateProcessInspectionRequest> requests)
@@ -340,59 +381,6 @@ public class ProcessInspectionService : IProcessInspectionService
 
     private static IQueryable<ProcessInspection> ApplySorting(IQueryable<ProcessInspection> queryable, string sortBy, bool isDescending)
     {
-        return (sortBy.ToLower(), isDescending) switch
-        {
-            ("batchno", false) => queryable.OrderBy(r => r.ProductionBatch.BatchNo),
-            ("batchno", true) => queryable.OrderByDescending(r => r.ProductionBatch.BatchNo),
-            ("processname", false) => queryable.OrderBy(r => r.ProcessName),
-            ("processname", true) => queryable.OrderByDescending(r => r.ProcessName),
-            ("sectionname", false) => queryable.OrderBy(r => r.SectionName),
-            ("sectionname", true) => queryable.OrderByDescending(r => r.SectionName),
-            ("inspectiondate", false) => queryable.OrderBy(r => r.InspectionDate),
-            ("inspectiondate", true) => queryable.OrderByDescending(r => r.InspectionDate),
-            ("sequencenumber", false) => queryable.OrderBy(r => r.SequenceNumber),
-            ("sequencenumber", true) => queryable.OrderByDescending(r => r.SequenceNumber),
-            ("equipmentname", false) => queryable.OrderBy(r => r.EquipmentName ?? ""),
-            ("equipmentname", true) => queryable.OrderByDescending(r => r.EquipmentName ?? ""),
-            ("inspector", false) => queryable.OrderBy(r => r.Inspector ?? ""),
-            ("inspector", true) => queryable.OrderByDescending(r => r.Inspector ?? ""),
-            ("quantity", false) => queryable.OrderBy(r => r.Quantity ?? 0),
-            ("quantity", true) => queryable.OrderByDescending(r => r.Quantity ?? 0),
-            ("weight", false) => queryable.OrderBy(r => r.Weight ?? 0),
-            ("weight", true) => queryable.OrderByDescending(r => r.Weight ?? 0),
-            ("qualifiedquantity", false) => queryable.OrderBy(r => r.QualifiedQuantity ?? 0),
-            ("qualifiedquantity", true) => queryable.OrderByDescending(r => r.QualifiedQuantity ?? 0),
-            ("qualifiedweight", false) => queryable.OrderBy(r => r.QualifiedWeight ?? 0),
-            ("qualifiedweight", true) => queryable.OrderByDescending(r => r.QualifiedWeight ?? 0),
-            ("defectreworkquantity", false) => queryable.OrderBy(r => r.DefectReworkQuantity ?? 0),
-            ("defectreworkquantity", true) => queryable.OrderByDescending(r => r.DefectReworkQuantity ?? 0),
-            ("defectwarehousequantity", false) => queryable.OrderBy(r => r.DefectWarehouseQuantity ?? 0),
-            ("defectwarehousequantity", true) => queryable.OrderByDescending(r => r.DefectWarehouseQuantity ?? 0),
-            ("defectscrapquantity", false) => queryable.OrderBy(r => r.DefectScrapQuantity ?? 0),
-            ("defectscrapquantity", true) => queryable.OrderByDescending(r => r.DefectScrapQuantity ?? 0),
-            ("manufacturingspec", false) => queryable.OrderBy(r => r.ManufacturingSpec ?? ""),
-            ("manufacturingspec", true) => queryable.OrderByDescending(r => r.ManufacturingSpec ?? ""),
-            ("shift", false) => queryable.OrderBy(r => r.Shift ?? ""),
-            ("shift", true) => queryable.OrderByDescending(r => r.Shift ?? ""),
-            ("inspectionitem", false) => queryable.OrderBy(r => r.InspectionItem ?? ""),
-            ("inspectionitem", true) => queryable.OrderByDescending(r => r.InspectionItem ?? ""),
-            ("defectdescription", false) => queryable.OrderBy(r => r.DefectDescription ?? ""),
-            ("defectdescription", true) => queryable.OrderByDescending(r => r.DefectDescription ?? ""),
-            ("sourceunit", false) => queryable.OrderBy(r => r.SourceUnit ?? ""),
-            ("sourceunit", true) => queryable.OrderByDescending(r => r.SourceUnit ?? ""),
-            ("tagno", false) => queryable.OrderBy(r => r.TagNo ?? ""),
-            ("tagno", true) => queryable.OrderByDescending(r => r.TagNo ?? ""),
-            ("plantgrade", false) => queryable.OrderBy(r => r.PlantGrade ?? ""),
-            ("plantgrade", true) => queryable.OrderByDescending(r => r.PlantGrade ?? ""),
-            ("remark", false) => queryable.OrderBy(r => r.Remark ?? ""),
-            ("remark", true) => queryable.OrderByDescending(r => r.Remark ?? ""),
-            ("createdtime", false) => queryable.OrderBy(r => r.CreatedTime),
-            ("createdtime", true) => queryable.OrderByDescending(r => r.CreatedTime),
-            ("updatedtime", false) => queryable.OrderBy(r => r.UpdatedTime),
-            ("updatedtime", true) => queryable.OrderByDescending(r => r.UpdatedTime),
-            _ => isDescending
-                ? queryable.OrderByDescending(r => r.CreatedTime)
-                : queryable.OrderBy(r => r.CreatedTime)
-        };
+        return queryable.ApplySort(sortBy, isDescending);
     }
 }

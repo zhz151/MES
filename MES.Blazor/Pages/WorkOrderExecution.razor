@@ -4,6 +4,7 @@
 @using MES.Core.Models
 @using MES.Blazor.Helpers
 @using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Components
 @inject WorkOrderExecutionService WorkOrderExecutionService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -31,7 +32,7 @@
             <MudButton Variant="Variant.Filled"
                        Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Refresh"
-                       OnClick="Search"
+                       OnClick="LoadAllDataAsync"
                        Class="ml-2">
                 刷新
             </MudButton>
@@ -45,7 +46,7 @@
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
                                   Label="工单号/订单号/业务员/客户/牌号/规格/主号"
-                                  Value="@searchKeyword"
+                                  Value="@_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
@@ -60,16 +61,16 @@
             <div id="workorder-execution-table">
             <MudTable @ref="table"
                       T="WorkOrderExecutionSummaryDto"
-                      ServerData="OnServerData"
-                      Loading="@isLoading"
+                      Items="@_filteredItems"
                       Dense="true"
                       Hover="true"
                       Class="mt-4 auto-table"
                       Elevation="0"
+                      RowsPerPage="10"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
                     <MudText Typo="Typo.body2">
-                        共 @totalCount 条记录
+                        共 @(_filteredItems?.Count ?? 0) 条记录
                         @if (lastRefreshTime.HasValue)
                         {
                             <span class="ml-4">最后更新：@lastRefreshTime.Value.ToString("yyyy-MM-dd HH:mm:ss")</span>
@@ -80,20 +81,21 @@
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
-                            @if (!string.IsNullOrEmpty(col.SortKey))
-                            {
-                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
-                                    @col.Label
-                                    @if (sortColumn == col.SortKey)
-                                    {
-                                        <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
-                                    }
-                                </span>
-                            }
-                            else
-                            {
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span class="th-label">@col.Label</span>
-                            }
+                                @if (col.FilterType != null)
+                                {
+                                    <ExcelFilter T="WorkOrderExecutionSummaryDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 AllItems="@_allItems"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 DisplaySelector="@(x => GetCellDisplayText(x, col.Key))"
+                                                 RawValueSelector="@(x => GetCellRawValue(x, col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))"
+                                                 SortRequested="@(args => OnExcelSortRequested(args.fieldKey, args.ascending))" />
+                                }
+                            </div>
                         </MudTh>
                     }
                 </HeaderContent>
@@ -104,7 +106,7 @@
                     }
                 </RowTemplate>
                 <PagerContent>
-                    <MudTablePager />
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
             </MudTable>
             </div>
@@ -114,11 +116,11 @@
 
 @code {
     private MudTable<WorkOrderExecutionSummaryDto>? table;
-    private List<WorkOrderExecutionSummaryDto> items = new();
-    private bool isLoading = false;
+    private List<WorkOrderExecutionSummaryDto> _allItems = new();
+    private List<WorkOrderExecutionSummaryDto>? _filteredItemsList;
+    private List<WorkOrderExecutionSummaryDto> _filteredItems => _filteredItemsList ?? _allItems;
     private bool isRefreshing = false;
-    private string searchKeyword = string.Empty;
-    private int totalCount = 0;
+    private string _searchKeyword = string.Empty;
 
     // 排序状态
     private string sortColumn = "lastrefreshtime";
@@ -126,6 +128,10 @@
 
     // 最后刷新时间
     private DateTime? lastRefreshTime;
+
+    // ========== ExcelFilter 筛选 ==========
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+    private Dictionary<string, List<WorkOrderExecutionSummaryDto>> _filterContexts = new();
 
     // ========== 列定义 ==========
     private List<ColumnDef> _allColumns = new();
@@ -135,110 +141,90 @@
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         // Group 1
-        new() { Key = "workorderno",      Label = "工单号",      SortKey = "workorderno" },
-        new() { Key = "salesman",         Label = "业务员",      SortKey = "salesmanno" },
-        new() { Key = "customername",     Label = "往来单位",    SortKey = "customername" },
-        new() { Key = "signdate",         Label = "订单日期",    SortKey = "signdate" },
-        new() { Key = "deliverydate",     Label = "交货日期",    SortKey = "deliverydate" },
-        new() { Key = "delaypenalty",     Label = "延期罚款", SortKey = "delaypenalty" },
-        new() { Key = "settlementmethod", Label = "结算方式", SortKey = "settlementmethod" },
-        new() { Key = "salesorderno",     Label = "订单号",      SortKey = "salesorderno" },
-        new() { Key = "productionmainno", Label = "主号",        SortKey = "productionmainno" },
-        new() { Key = "productionsubno",  Label = "次号", SortKey = "productionsubno" },
-        new() { Key = "materialname",     Label = "物料名称", SortKey = "materialname" },
-        new() { Key = "deliverystate",    Label = "交货状态", SortKey = "deliverystate" },
-        new() { Key = "plantgrade",       Label = "工厂牌号",    SortKey = "plantgrade" },
-        new() { Key = "specification",    Label = "规格",        SortKey = "specification" },
-        new() { Key = "lengthstatus",     Label = "长度状态", SortKey = "lengthstatus" },
-        new() { Key = "minlength",        Label = "最小长度", SortKey = "minlength" },
-        new() { Key = "maxlength",        Label = "最大长度", SortKey = "maxlength" },
-        new() { Key = "totalitemcount",   Label = "含项次数", SortKey = "totalitemcount" },
-        new() { Key = "totalquantity",    Label = "总支数",      SortKey = "totalquantity" },
-        new() { Key = "totalmeters",      Label = "总米数", SortKey = "totalmeters" },
-        new() { Key = "totalweight",      Label = "总重量",      SortKey = "totalweight" },
+        new() { Key = "workorderno",      Label = "工单号",      SortKey = "workorderno",       FilterType = "string" },
+        new() { Key = "salesman",         Label = "业务员",      SortKey = "salesman",          FilterType = "string" },
+        new() { Key = "customername",     Label = "往来单位",    SortKey = "customername",      FilterType = "string" },
+        new() { Key = "signdate",         Label = "订单日期",    SortKey = "signdate",          FilterType = "date" },
+        new() { Key = "deliverydate",     Label = "交货日期",    SortKey = "deliverydate",      FilterType = "date" },
+        new() { Key = "delaypenalty",     Label = "延期罚款", SortKey = "delaypenalty",        FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否" },
+        new() { Key = "settlementmethod", Label = "结算方式", SortKey = "settlementmethod",    FilterType = "string" },
+        new() { Key = "salesorderno",     Label = "订单号",      SortKey = "salesorderno",      FilterType = "string" },
+        new() { Key = "productionmainno", Label = "主号",        SortKey = "productionmainno",  FilterType = "string" },
+        new() { Key = "productionsubno",  Label = "次号", SortKey = "productionsubno",         FilterType = "string" },
+        new() { Key = "materialname",     Label = "物料名称", SortKey = "materialname",        FilterType = "string" },
+        new() { Key = "deliverystate",    Label = "交货状态", SortKey = "deliverystate",       FilterType = "string" },
+        new() { Key = "plantgrade",       Label = "工厂牌号",    SortKey = "plantgrade",        FilterType = "string" },
+        new() { Key = "specification",    Label = "规格",        SortKey = "specification",     FilterType = "string" },
+        new() { Key = "lengthstatus",     Label = "长度状态", SortKey = "lengthstatus",        FilterType = "string" },
+        new() { Key = "minlength",        Label = "最小长度", SortKey = "minlength",           FilterType = "number" },
+        new() { Key = "maxlength",        Label = "最大长度", SortKey = "maxlength",           FilterType = "number" },
+        new() { Key = "totalitemcount",   Label = "含项次数", SortKey = "totalitemcount",      FilterType = "number" },
+        new() { Key = "totalquantity",    Label = "总支数",      SortKey = "totalquantity",     FilterType = "number" },
+        new() { Key = "totalmeters",      Label = "总米数", SortKey = "totalmeters",           FilterType = "number" },
+        new() { Key = "totalweight",      Label = "总重量",      SortKey = "totalweight",       FilterType = "number" },
 
         // Group 2
-        new() { Key = "latestplandate",        Label = "用料计划截止日期", SortKey = "latestplandate" },
-        new() { Key = "materialplanrate",      Label = "工单满足率(%)", SortKey = "materialplanrate" },
+        new() { Key = "latestplandate",        Label = "用料计划截止日期", SortKey = "latestplandate",        FilterType = "date" },
+        new() { Key = "materialplanrate",      Label = "工单满足率(%)", SortKey = "materialplanrate",        FilterType = "number" },
         new() { Key = "materialplanstatus",    Label = "工单用料计划状态" },
-        new() { Key = "mainnomaterialplanrate", Label = "主号满足率(%)", SortKey = "mainnomaterialplanrate" },
+        new() { Key = "mainnomaterialplanrate", Label = "主号满足率(%)", SortKey = "mainnomaterialplanrate", FilterType = "number" },
         new() { Key = "mainnomaterialplanstatus", Label = "关联主号用料状态" },
 
         // Group 3
-        new() { Key = "inputstartdate",          Label = "投料起始日", SortKey = "inputstartdate" },
-        new() { Key = "inputenddate",            Label = "投料截止日", SortKey = "inputenddate" },
-        new() { Key = "totalbatchcount",         Label = "投料总批次数", SortKey = "totalbatchcount" },
-        new() { Key = "inputquantity",           Label = "投料总支数",     SortKey = "inputquantity" },
-        new() { Key = "inputweight",             Label = "投料总重量",     SortKey = "inputweight" },
-        new() { Key = "theoreticaloutputqty",    Label = "理论生产成品支数", SortKey = "theoreticaloutputqty" },
-        new() { Key = "theoreticaloutputweight", Label = "理论生产成品重量", SortKey = "theoreticaloutputweight" },
-        new() { Key = "inputoutputratio",        Label = "工单投料成品比", SortKey = "inputoutputratio" },
+        new() { Key = "inputstartdate",          Label = "投料起始日", SortKey = "inputstartdate",          FilterType = "date" },
+        new() { Key = "inputenddate",            Label = "投料截止日", SortKey = "inputenddate",            FilterType = "date" },
+        new() { Key = "totalbatchcount",         Label = "投料总批次数", SortKey = "totalbatchcount",       FilterType = "number" },
+        new() { Key = "inputquantity",           Label = "投料总支数",     SortKey = "inputquantity",       FilterType = "number" },
+        new() { Key = "inputweight",             Label = "投料总重量",     SortKey = "inputweight",         FilterType = "number" },
+        new() { Key = "theoreticaloutputqty",    Label = "理论生产成品支数", SortKey = "theoreticaloutputqty",    FilterType = "number" },
+        new() { Key = "theoreticaloutputweight", Label = "理论生产成品重量", SortKey = "theoreticaloutputweight", FilterType = "number" },
+        new() { Key = "inputoutputratio",        Label = "工单投料成品比", SortKey = "inputoutputratio",    FilterType = "number" },
         new() { Key = "inputstatus",             Label = "工单投料状态" },
-        new() { Key = "mainnoinputratio",   Label = "关联主号投料成品比", SortKey = "mainnoinputratio" },
+        new() { Key = "mainnoinputratio",   Label = "关联主号投料成品比", SortKey = "mainnoinputratio",    FilterType = "number" },
         new() { Key = "mainnoinputstatus",  Label = "关联主号投料状态" },
 
         // Group 4
-        new() { Key = "validbatchcount",     Label = "有效在产批次数", SortKey = "validbatchcount" },
-        new() { Key = "validinputquantity",  Label = "有效投料总支数", SortKey = "validinputquantity" },
-        new() { Key = "validinputweight",    Label = "有效投料总重量", SortKey = "validinputweight" },
-        new() { Key = "validoutputqty",      Label = "有效生产成品支数", SortKey = "validoutputqty" },
-        new() { Key = "validoutputweight",   Label = "有效生产成品重量", SortKey = "validoutputweight" },
-        new() { Key = "validinputoutputratio", Label = "有效工单投料成品比", SortKey = "validinputoutputratio" },
+        new() { Key = "validbatchcount",     Label = "有效在产批次数", SortKey = "validbatchcount",     FilterType = "number" },
+        new() { Key = "validinputquantity",  Label = "有效投料总支数", SortKey = "validinputquantity",  FilterType = "number" },
+        new() { Key = "validinputweight",    Label = "有效投料总重量", SortKey = "validinputweight",    FilterType = "number" },
+        new() { Key = "validoutputqty",      Label = "有效生产成品支数", SortKey = "validoutputqty",    FilterType = "number" },
+        new() { Key = "validoutputweight",   Label = "有效生产成品重量", SortKey = "validoutputweight", FilterType = "number" },
+        new() { Key = "validinputoutputratio", Label = "有效工单投料成品比", SortKey = "validinputoutputratio", FilterType = "number" },
         new() { Key = "validinputstatus",    Label = "有效工单投料状态" },
 
         // Group 4 - 现有效关联主号
-        new() { Key = "mainnovalidinputratio",  Label = "现有效关联主号投料成品比", SortKey = "validinputoutputratio" },
+        new() { Key = "mainnovalidinputratio",  Label = "现有效关联主号投料成品比", SortKey = "mainnovalidinputratio", FilterType = "number" },
         new() { Key = "mainnovalidinputstatus", Label = "现有效关联主号投料状态" },
     };
-
-    // ========== 排序 ==========
-
-    private string GetSortIndicator(string column)
-    {
-        if (sortColumn != column) return "";
-        return sortDescending ? "\u25BC" : "\u25B2";
-    }
-
-    private void ToggleSort(string column)
-    {
-        if (sortColumn == column)
-            sortDescending = !sortDescending;
-        else
-        {
-            sortColumn = column;
-            sortDescending = true;
-        }
-        if (table != null)
-            table.ReloadServerData();
-    }
 
     // ========== 数据加载 ==========
 
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
+        await LoadAllDataAsync();
     }
 
-    private async Task<TableData<WorkOrderExecutionSummaryDto>> OnServerData(TableState state)
+    private async Task LoadAllDataAsync()
     {
-        isLoading = true;
         try
         {
             var query = new QueryParams
             {
-                PageIndex = state.Page + 1,
-                PageSize = state.PageSize,
+                PageIndex = 1,
+                PageSize = int.MaxValue,
                 SortBy = sortColumn,
                 IsDescending = sortDescending,
-                Keyword = searchKeyword
+                Keyword = _searchKeyword
             };
 
             var result = await WorkOrderExecutionService.GetPagedAsync(query);
             if (result.Success && result.Data != null)
             {
-                items = result.Data.Items;
-                totalCount = result.Data.TotalCount;
-                lastRefreshTime = items.Select(i => i.LastRefreshTime).Max();
+                _allItems = result.Data.Items;
+                _filteredItemsList = null;
+                lastRefreshTime = _allItems.Select(i => i.LastRefreshTime).Max();
+                RefreshFilteredData();
             }
             else
             {
@@ -249,28 +235,179 @@
         {
             Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
         }
-        finally
+    }
+
+    private void RefreshFilteredData()
+    {
+        var query = _allItems.AsEnumerable();
+
+        // 关键字搜索
+        if (!string.IsNullOrWhiteSpace(_searchKeyword))
         {
-            isLoading = false;
+            var kw = _searchKeyword.ToLower();
+            query = query.Where(x =>
+                (x.WorkOrderNo != null && x.WorkOrderNo.ToLower().Contains(kw)) ||
+                (x.SalesOrderNo != null && x.SalesOrderNo.ToLower().Contains(kw)) ||
+                (x.Salesman != null && x.Salesman.ToLower().Contains(kw)) ||
+                (x.CustomerName != null && x.CustomerName.ToLower().Contains(kw)) ||
+                (x.PlantGrade != null && x.PlantGrade.ToLower().Contains(kw)) ||
+                (x.Specification != null && x.Specification.ToLower().Contains(kw)) ||
+                (x.ProductionMainNo != null && x.ProductionMainNo.ToLower().Contains(kw)) ||
+                (x.ProductionSubNo != null && x.ProductionSubNo.ToLower().Contains(kw)));
         }
 
-        return new TableData<WorkOrderExecutionSummaryDto>
+        // 列筛选
+        foreach (var kvp in _columnFilters)
         {
-            Items = items,
-            TotalItems = totalCount
+            if (kvp.Value.Count == 0) continue;
+            query = query.Where(x =>
+            {
+                var raw = GetCellRawValue(x, kvp.Key) ?? "__EXCEL_FILTER_NULL__";
+                return kvp.Value.Contains(raw);
+            });
+        }
+
+        // 排序
+        query = sortColumn switch
+        {
+            "workorderno" => sortDescending ? query.OrderByDescending(x => x.WorkOrderNo) : query.OrderBy(x => x.WorkOrderNo),
+            "salesman" => sortDescending ? query.OrderByDescending(x => x.Salesman) : query.OrderBy(x => x.Salesman),
+            "customername" => sortDescending ? query.OrderByDescending(x => x.CustomerName) : query.OrderBy(x => x.CustomerName),
+            "signdate" => sortDescending ? query.OrderByDescending(x => x.SignDate) : query.OrderBy(x => x.SignDate),
+            "deliverydate" => sortDescending ? query.OrderByDescending(x => x.DeliveryDate) : query.OrderBy(x => x.DeliveryDate),
+            "delaypenalty" => sortDescending ? query.OrderByDescending(x => x.DelayPenalty) : query.OrderBy(x => x.DelayPenalty),
+            "settlementmethod" => sortDescending ? query.OrderByDescending(x => x.SettlementMethod) : query.OrderBy(x => x.SettlementMethod),
+            "salesorderno" => sortDescending ? query.OrderByDescending(x => x.SalesOrderNo) : query.OrderBy(x => x.SalesOrderNo),
+            "productionmainno" => sortDescending ? query.OrderByDescending(x => x.ProductionMainNo) : query.OrderBy(x => x.ProductionMainNo),
+            "productionsubno" => sortDescending ? query.OrderByDescending(x => x.ProductionSubNo ?? "") : query.OrderBy(x => x.ProductionSubNo ?? ""),
+            "materialname" => sortDescending ? query.OrderByDescending(x => x.MaterialName) : query.OrderBy(x => x.MaterialName),
+            "deliverystate" => sortDescending ? query.OrderByDescending(x => x.DeliveryState) : query.OrderBy(x => x.DeliveryState),
+            "plantgrade" => sortDescending ? query.OrderByDescending(x => x.PlantGrade) : query.OrderBy(x => x.PlantGrade),
+            "specification" => sortDescending ? query.OrderByDescending(x => x.Specification) : query.OrderBy(x => x.Specification),
+            "lengthstatus" => sortDescending ? query.OrderByDescending(x => x.LengthStatus) : query.OrderBy(x => x.LengthStatus),
+            "minlength" => sortDescending ? query.OrderByDescending(x => x.MinLength) : query.OrderBy(x => x.MinLength),
+            "maxlength" => sortDescending ? query.OrderByDescending(x => x.MaxLength) : query.OrderBy(x => x.MaxLength),
+            "totalitemcount" => sortDescending ? query.OrderByDescending(x => x.TotalItemCount) : query.OrderBy(x => x.TotalItemCount),
+            "totalquantity" => sortDescending ? query.OrderByDescending(x => x.TotalQuantity) : query.OrderBy(x => x.TotalQuantity),
+            "totalmeters" => sortDescending ? query.OrderByDescending(x => x.TotalMeters) : query.OrderBy(x => x.TotalMeters),
+            "totalweight" => sortDescending ? query.OrderByDescending(x => x.TotalWeight) : query.OrderBy(x => x.TotalWeight),
+            "latestplandate" => sortDescending ? query.OrderByDescending(x => x.LatestPlanDate) : query.OrderBy(x => x.LatestPlanDate),
+            "materialplanrate" => sortDescending ? query.OrderByDescending(x => x.MaterialPlanRate) : query.OrderBy(x => x.MaterialPlanRate),
+            "mainnomaterialplanrate" => sortDescending ? query.OrderByDescending(x => x.MainNoMaterialPlanRate) : query.OrderBy(x => x.MainNoMaterialPlanRate),
+            "inputstartdate" => sortDescending ? query.OrderByDescending(x => x.InputStartDate) : query.OrderBy(x => x.InputStartDate),
+            "inputenddate" => sortDescending ? query.OrderByDescending(x => x.InputEndDate) : query.OrderBy(x => x.InputEndDate),
+            "totalbatchcount" => sortDescending ? query.OrderByDescending(x => x.TotalBatchCount) : query.OrderBy(x => x.TotalBatchCount),
+            "inputquantity" => sortDescending ? query.OrderByDescending(x => x.InputQuantity) : query.OrderBy(x => x.InputQuantity),
+            "inputweight" => sortDescending ? query.OrderByDescending(x => x.InputWeight) : query.OrderBy(x => x.InputWeight),
+            "theoreticaloutputqty" => sortDescending ? query.OrderByDescending(x => x.TheoreticalOutputQty) : query.OrderBy(x => x.TheoreticalOutputQty),
+            "theoreticaloutputweight" => sortDescending ? query.OrderByDescending(x => x.TheoreticalOutputWeight) : query.OrderBy(x => x.TheoreticalOutputWeight),
+            "inputoutputratio" => sortDescending ? query.OrderByDescending(x => x.InputOutputRatio) : query.OrderBy(x => x.InputOutputRatio),
+            "mainnoinputratio" => sortDescending ? query.OrderByDescending(x => x.MainNoInputOutputRatio) : query.OrderBy(x => x.MainNoInputOutputRatio),
+            "validbatchcount" => sortDescending ? query.OrderByDescending(x => x.ValidBatchCount) : query.OrderBy(x => x.ValidBatchCount),
+            "validinputquantity" => sortDescending ? query.OrderByDescending(x => x.ValidInputQuantity) : query.OrderBy(x => x.ValidInputQuantity),
+            "validinputweight" => sortDescending ? query.OrderByDescending(x => x.ValidInputWeight) : query.OrderBy(x => x.ValidInputWeight),
+            "validoutputqty" => sortDescending ? query.OrderByDescending(x => x.ValidOutputQty) : query.OrderBy(x => x.ValidOutputQty),
+            "validoutputweight" => sortDescending ? query.OrderByDescending(x => x.ValidOutputWeight) : query.OrderBy(x => x.ValidOutputWeight),
+            "validinputoutputratio" => sortDescending ? query.OrderByDescending(x => x.ValidInputOutputRatio) : query.OrderBy(x => x.ValidInputOutputRatio),
+            "mainnovalidinputratio" => sortDescending ? query.OrderByDescending(x => x.MainNoValidInputOutputRatio) : query.OrderBy(x => x.MainNoValidInputOutputRatio),
+            "lastrefreshtime" => sortDescending ? query.OrderByDescending(x => x.LastRefreshTime) : query.OrderBy(x => x.LastRefreshTime),
+            _ => sortDescending ? query.OrderByDescending(x => x.LastRefreshTime) : query.OrderBy(x => x.LastRefreshTime)
         };
+
+        _filteredItemsList = query.ToList();
     }
 
-    private async Task Search()
+    // ========== ExcelFilter 辅助方法 ==========
+
+    private string? GetCellRawValue(WorkOrderExecutionSummaryDto item, string key) => key switch
     {
-        if (table != null)
-            await table.ReloadServerData();
+        "workorderno" => item.WorkOrderNo,
+        "salesman" => item.Salesman,
+        "customername" => item.CustomerName,
+        "signdate" => item.SignDate.ToString("yyyy-MM-dd"),
+        "deliverydate" => item.DeliveryDate.ToString("yyyy-MM-dd"),
+        "delaypenalty" => item.DelayPenalty.ToString(),
+        "settlementmethod" => item.SettlementMethod,
+        "salesorderno" => item.SalesOrderNo,
+        "productionmainno" => item.ProductionMainNo,
+        "productionsubno" => item.ProductionSubNo,
+        "materialname" => item.MaterialName,
+        "deliverystate" => item.DeliveryState,
+        "plantgrade" => item.PlantGrade,
+        "specification" => item.Specification,
+        "lengthstatus" => item.LengthStatus,
+        "minlength" => item.MinLength?.ToString("G29"),
+        "maxlength" => item.MaxLength?.ToString("G29"),
+        "totalitemcount" => item.TotalItemCount.ToString(),
+        "totalquantity" => item.TotalQuantity.ToString(),
+        "totalmeters" => item.TotalMeters.ToString("G29"),
+        "totalweight" => Math.Round(item.TotalWeight).ToString("F0"),
+        "latestplandate" => item.LatestPlanDate?.ToString("yyyy-MM-dd"),
+        "materialplanrate" => item.MaterialPlanRate > 0 ? item.MaterialPlanRate.ToString("G29") : null,
+        "mainnomaterialplanrate" => item.MainNoMaterialPlanRate > 0 ? item.MainNoMaterialPlanRate.ToString("G29") : null,
+        "inputstartdate" => item.InputStartDate?.ToString("yyyy-MM-dd"),
+        "inputenddate" => item.InputEndDate?.ToString("yyyy-MM-dd"),
+        "totalbatchcount" => item.TotalBatchCount.ToString(),
+        "inputquantity" => item.InputQuantity.ToString(),
+        "inputweight" => Math.Round(item.InputWeight).ToString("F0"),
+        "theoreticaloutputqty" => item.TheoreticalOutputQty.ToString("G29"),
+        "theoreticaloutputweight" => Math.Round(item.TheoreticalOutputWeight).ToString("F0"),
+        "inputoutputratio" => item.InputOutputRatio > 0 ? item.InputOutputRatio.ToString("G29") : null,
+        "mainnoinputratio" => item.MainNoInputOutputRatio > 0 ? item.MainNoInputOutputRatio.ToString("G29") : null,
+        "validbatchcount" => item.ValidBatchCount.ToString(),
+        "validinputquantity" => item.ValidInputQuantity.ToString(),
+        "validinputweight" => Math.Round(item.ValidInputWeight).ToString("F0"),
+        "validoutputqty" => item.ValidOutputQty.ToString("G29"),
+        "validoutputweight" => Math.Round(item.ValidOutputWeight).ToString("F0"),
+        "validinputoutputratio" => item.ValidInputOutputRatio > 0 ? item.ValidInputOutputRatio.ToString("G29") : null,
+        "mainnovalidinputratio" => item.MainNoValidInputOutputRatio > 0 ? item.MainNoValidInputOutputRatio.ToString("G29") : null,
+        _ => null
+    };
+
+    private string? GetCellDisplayText(WorkOrderExecutionSummaryDto item, string key) => key switch
+    {
+        "delaypenalty" => item.DelayPenaltyText,
+        "settlementmethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod),
+        "materialname" => DisplayHelper.GetMaterialNameText(item.MaterialName),
+        "deliverystate" => DisplayHelper.GetDeliveryStateText(item.DeliveryState),
+        "lengthstatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
+        "materialplanrate" => item.MaterialPlanRate > 0 ? $"{item.MaterialPlanRate}%" : "-",
+        "mainnomaterialplanrate" => item.MainNoMaterialPlanRate > 0 ? $"{item.MainNoMaterialPlanRate}%" : "-",
+        "inputoutputratio" => item.InputOutputRatio > 0 ? $"{item.InputOutputRatio}%" : "-",
+        "mainnoinputratio" => item.MainNoInputOutputRatio > 0 ? $"{item.MainNoInputOutputRatio}%" : "-",
+        "validinputoutputratio" => item.ValidInputOutputRatio > 0 ? $"{item.ValidInputOutputRatio}%" : "-",
+        "mainnovalidinputratio" => item.MainNoValidInputOutputRatio > 0 ? $"{item.MainNoValidInputOutputRatio}%" : "-",
+        "minlength" => item.MinLength?.ToString("G29") ?? "-",
+        "maxlength" => item.MaxLength?.ToString("G29") ?? "-",
+        "totalweight" => Math.Round(item.TotalWeight).ToString("F0"),
+        "inputweight" => Math.Round(item.InputWeight).ToString("F0"),
+        "theoreticaloutputweight" => Math.Round(item.TheoreticalOutputWeight).ToString("F0"),
+        "validinputweight" => Math.Round(item.ValidInputWeight).ToString("F0"),
+        "validoutputweight" => Math.Round(item.ValidOutputWeight).ToString("F0"),
+        _ => GetCellRawValue(item, key)
+    };
+
+    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
+    {
+        _columnFilters[fieldKey] = selectedValues;
+        RefreshFilteredData();
+        await SavePageStateAsync();
     }
+
+    private async Task OnExcelSortRequested(string fieldKey, bool ascending)
+    {
+        sortColumn = fieldKey;
+        sortDescending = !ascending;
+        RefreshFilteredData();
+        await SavePageStateAsync();
+    }
+
+    // ========== 事件处理 ==========
 
     private async Task OnSearchChanged(string value)
     {
-        searchKeyword = value;
-        await Search();
+        _searchKeyword = value ?? string.Empty;
+        RefreshFilteredData();
     }
 
     // ========== 单元格渲染 ==========
@@ -489,7 +626,7 @@
             if (result.Success)
             {
                 Snackbar.Add($"刷新完成，共{result.Data?.RefreshedCount ?? 0}条", Severity.Success);
-                await Search();
+                await LoadAllDataAsync();
             }
             else
             {
@@ -504,5 +641,13 @@
         {
             isRefreshing = false;
         }
+    }
+
+    // ========== 持久化 ==========
+
+    private async Task SavePageStateAsync()
+    {
+        // TODO: 使用 PageStateService 保存排序/筛选状态到 localStorage
+        await Task.CompletedTask;
     }
 }

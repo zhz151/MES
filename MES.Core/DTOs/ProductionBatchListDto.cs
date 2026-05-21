@@ -52,4 +52,17 @@ public class ProductionBatchListDto
     /// 有效投料疑问：基于最近过程检验计算，正常/疑问
     /// </summary>
     public string? ValidInputQuestion { get; set; }
+
+    // ========== 扩展字段（从 Entity 补充） ==========
+    public string? Remark { get; set; }
+    public string? SourceHeatNo { get; set; }
+    public int TotalItemCount { get; set; }
+    public string? SourceSpecification { get; set; }
+    public int? InputQuantity { get; set; }
+    public decimal? InputWeight { get; set; }
+    public string? SolutionParams { get; set; }
+    public string? QualityRemark { get; set; }
+    public string? SourceMaterialType { get; set; }
+    public string? SourceName { get; set; }
+    public DateTime? InboundDate { get; set; }
 }

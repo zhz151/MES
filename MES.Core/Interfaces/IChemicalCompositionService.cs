@@ -14,6 +14,11 @@ public interface IChemicalCompositionService
     Task<PagedResult<ChemicalCompositionDto>> GetAllAsync(QueryParams query);
 
     /// <summary>
+    /// 获取所有牌号化学成分（无分页）
+    /// </summary>
+    Task<List<ChemicalCompositionDto>> GetAllListAsync();
+
+    /// <summary>
     /// 批量创建牌号化学成分
     /// </summary>
     Task<List<ChemicalCompositionDto>> BatchCreateAsync(List<CreateChemicalCompositionRequest> requests);

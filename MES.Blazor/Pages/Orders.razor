@@ -6,6 +6,7 @@
 @using MES.Core.Enums
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
+@using MES.Blazor.Components
 @inject OrderService OrderService
 @inject ProductRequirementService RequirementService
 @inject NavigationManager Navigation
@@ -40,7 +41,7 @@
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
                                   Label="关键字搜索"
-                                  Value="@searchKeyword"
+                                  Value="@_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
@@ -49,32 +50,18 @@
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudSelect T="string" Label="技术要求状态" Value="selectedTechStatus" ValueChanged="@OnTechStatusChanged">
-                        <MudSelectItem Value="@("All")">全部</MudSelectItem>
-                        <MudSelectItem Value="@("Edited")">已编辑</MudSelectItem>
-                        <MudSelectItem Value="@("NotEdited")">未编辑</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudSelect T="string" Label="订单状态" Value="selectedOrderStatus" ValueChanged="@OnOrderStatusChanged">
-                        <MudSelectItem Value="@("All")">全部</MudSelectItem>
-                        <MudSelectItem Value="@("Pending")">待处理</MudSelectItem>
-                        <MudSelectItem Value="@("Confirmed")">已确认</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
             </MudGrid>
 
             <!-- 数据表格 -->
             <div id="orders-list-table">
             <MudTable @ref="table"
                       T="SalesOrderListDto"
-                      ServerData="OnServerData"
-                      Loading="@isLoading"
+                      Items="@_filteredItems"
                       Dense="true"
                       Hover="true"
                       Class="mt-4 auto-table"
                       Elevation="0"
+                      RowsPerPage="10"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
                     <ColumnDisplaySelect Columns="_allColumns"
@@ -104,7 +91,7 @@
                         打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-2">
-                        共 @totalCount 条记录
+                        共 @(_filteredItems?.Count ?? 0) 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
@@ -114,20 +101,21 @@
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
-                            @if (!string.IsNullOrEmpty(col.SortKey))
-                            {
-                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
-                                    @col.Label
-                                    @if (sortColumn == col.SortKey)
-                                    {
-                                        <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
-                                    }
-                                </span>
-                            }
-                            else
-                            {
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span class="th-label">@col.Label</span>
-                            }
+                                @if (col.FilterType != null)
+                                {
+                                    <ExcelFilter T="SalesOrderListDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 AllItems="@_allItems"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 DisplaySelector="@(x => GetCellDisplayText(x, col.Key))"
+                                                 RawValueSelector="@(x => GetCellRawValue(x, col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))"
+                                                 SortRequested="@(args => OnExcelSortRequested(args.fieldKey, args.ascending))" />
+                                }
+                            </div>
                         </MudTh>
                     }
                     <MudTh>操作</MudTh>
@@ -136,7 +124,7 @@
                     <MudTd Style="width: 40px;">
                         <MudCheckBox T="bool"
                                      Value="@selectedOrderIds.Contains(order.Id)"
-                                     ValueChanged="@((v) => { if(v) selectedOrderIds.Add(order.Id); else selectedOrderIds.Remove(order.Id); _allSelected = orders.Any() && orders.All(i => selectedOrderIds.Contains(i.Id)); StateHasChanged(); })"
+                                     ValueChanged="@((v) => { if(v) selectedOrderIds.Add(order.Id); else selectedOrderIds.Remove(order.Id); _allSelected = _filteredItems.Any() && _filteredItems.All(i => selectedOrderIds.Contains(i.Id)); StateHasChanged(); })"
                                      Dense="true" />
                     </MudTd>
                     @foreach (var col in _visibleColumns)
@@ -170,7 +158,7 @@
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
-                    <MudTablePager />
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
             </MudTable>
             </div>
@@ -180,7 +168,9 @@
 
 @code {
     private MudTable<SalesOrderListDto>? table;
-    private List<SalesOrderListDto> orders = new();
+    private List<SalesOrderListDto> _allItems = new();
+    private List<SalesOrderListDto>? _filteredItemsList;
+    private List<SalesOrderListDto> _filteredItems => _filteredItemsList ?? _allItems;
     private HashSet<int> selectedOrderIds = new();
     private bool _allSelected;
     private bool allSelected
@@ -192,7 +182,7 @@
             _allSelected = value;
             if (value)
             {
-                foreach (var order in orders)
+                foreach (var order in _filteredItems)
                     selectedOrderIds.Add(order.Id);
             }
             else
@@ -202,12 +192,16 @@
             StateHasChanged();
         }
     }
-    private bool isLoading = false;
-    private string searchKeyword = string.Empty;
-    private string selectedTechStatus = "All";
-    private string selectedOrderStatus = "All";
-    private int totalCount = 0;
+    private string _searchKeyword = string.Empty;
     private bool _isArrowNavSetup;
+
+    // ========== 排序 ==========
+    private string sortColumn = "signdate";
+    private bool sortDescending = true;
+
+    // ========== ExcelFilter 筛选 ==========
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+    private Dictionary<string, List<SalesOrderListDto>> _filterContexts = new();
 
     // ========== 列选择管理 ==========
     private List<ColumnDef> _allColumns = new();
@@ -216,19 +210,20 @@
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "ordernumber",   Label = "订单号",   SortKey = "ordernumber" },
-        new() { Key = "signdate",      Label = "签订日期", SortKey = "signdate" },
-        new() { Key = "salesman",      Label = "业务员",   SortKey = "salesman" },
-        new() { Key = "customername",  Label = "客户名称", SortKey = "customername" },
-        new() { Key = "endcustomer",   Label = "最终客户", SortKey = "endcustomer" },
-        new() { Key = "deliverystart", Label = "交期起始", SortKey = "deliverystart" },
-        new() { Key = "deliveryend",   Label = "交期截止", SortKey = "deliveryend" },
-        new() { Key = "hasdelaypenalty", Label = "延期罚款", SortKey = "hasdelaypenalty" },
-        new() { Key = "totalcontractweight", Label = "订单总重量", SortKey = "totalcontractweight" },
-        new() { Key = "itemcount", Label = "含项次数", SortKey = "itemcount" },
+        new() { Key = "ordernumber",   Label = "订单号",   SortKey = "ordernumber",   FilterType = "string" },
+        new() { Key = "signdate",      Label = "签订日期", SortKey = "signdate",     FilterType = "date" },
+        new() { Key = "salesman",      Label = "业务员",   SortKey = "salesman",     FilterType = "string" },
+        new() { Key = "customername",  Label = "客户名称", SortKey = "customername", FilterType = "string" },
+        new() { Key = "endcustomer",   Label = "最终客户", SortKey = "endcustomer",  FilterType = "string" },
+        new() { Key = "deliverystart", Label = "交期起始", SortKey = "deliverystart", FilterType = "date" },
+        new() { Key = "deliveryend",   Label = "交期截止", SortKey = "deliveryend",  FilterType = "date" },
+        new() { Key = "hasdelaypenalty", Label = "延期罚款", SortKey = "hasdelaypenalty", FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否" },
+        new() { Key = "totalcontractweight", Label = "订单总重量", SortKey = "totalcontractweight", FilterType = "number" },
+        new() { Key = "itemcount", Label = "含项次数", SortKey = "itemcount", FilterType = "number" },
         new() { Key = "notech",        Label = "技术要求" },
-        new() { Key = "status",        Label = "状态",     SortKey = "status" },
-        new() { Key = "lastchangedate",Label = "变更日期", SortKey = "lastchangedate" },
+        new() { Key = "status",        Label = "状态",     SortKey = "status", FilterType = "enum",
+               EnumOptions = new List<EnumOption> { new("Pending", "待处理"), new("Confirmed", "已确认") } },
+        new() { Key = "lastchangedate",Label = "变更日期", SortKey = "lastchangedate", FilterType = "date" },
     };
 
     private async Task OnColumnToggle(ColumnDef col)
@@ -337,9 +332,117 @@
         }
     };
 
-    // 排序状态
-    private string sortColumn = "signdate";
-    private bool sortDescending = true;
+    // ========== ExcelFilter 辅助方法 ==========
+
+    private string? GetCellRawValue(SalesOrderListDto item, string key) => key switch
+    {
+        "ordernumber" => item.OrderNumber,
+        "signdate" => item.SignDate.ToString("yyyy-MM-dd"),
+        "salesman" => item.Salesman,
+        "customername" => item.CustomerName,
+        "endcustomer" => item.EndCustomer,
+        "deliverystart" => item.DeliveryStart?.ToString("yyyy-MM-dd"),
+        "deliveryend" => item.DeliveryEnd?.ToString("yyyy-MM-dd"),
+        "hasdelaypenalty" => item.HasDelayPenalty.ToString(),
+        "totalcontractweight" => item.TotalContractWeight.ToString("G29"),
+        "itemcount" => item.ItemCount.ToString(),
+        "status" => item.Status.ToString(),
+        "lastchangedate" => item.LastChangeDate?.ToString("yyyy-MM-dd HH:mm"),
+        _ => null
+    };
+
+    private string? GetCellDisplayText(SalesOrderListDto item, string key) => key switch
+    {
+        "hasdelaypenalty" => DisplayHelper.GetYesNoText(item.HasDelayPenalty),
+        "status" => GetStatusText(item.Status),
+        _ => GetCellRawValue(item, key)
+    };
+
+    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
+    {
+        _columnFilters[fieldKey] = selectedValues;
+        RefreshFilteredData();
+        await SavePageStateAsync();
+    }
+
+    private async Task OnExcelSortRequested(string fieldKey, bool ascending)
+    {
+        sortColumn = fieldKey;
+        sortDescending = !ascending;
+        RefreshFilteredData();
+        await SavePageStateAsync();
+    }
+
+    // ========== 数据加载与筛选 ==========
+
+    private async Task LoadAllDataAsync()
+    {
+        try
+        {
+            var result = await OrderService.GetAllAsync();
+            if (result.Success && result.Data != null)
+            {
+                _allItems = result.Data;
+                _filteredItemsList = null;
+                RefreshFilteredData();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "加载失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void RefreshFilteredData()
+    {
+        var query = _allItems.AsEnumerable();
+
+        // 关键字搜索
+        if (!string.IsNullOrWhiteSpace(_searchKeyword))
+        {
+            var kw = _searchKeyword.ToLower();
+            query = query.Where(x =>
+                (x.OrderNumber != null && x.OrderNumber.ToLower().Contains(kw)) ||
+                (x.Salesman != null && x.Salesman.ToLower().Contains(kw)) ||
+                (x.CustomerName != null && x.CustomerName.ToLower().Contains(kw)) ||
+                (x.EndCustomer != null && x.EndCustomer.ToLower().Contains(kw)));
+        }
+
+        // 列筛选
+        foreach (var kvp in _columnFilters)
+        {
+            if (kvp.Value.Count == 0) continue;
+            query = query.Where(x =>
+            {
+                var raw = GetCellRawValue(x, kvp.Key) ?? "__EXCEL_FILTER_NULL__";
+                return kvp.Value.Contains(raw);
+            });
+        }
+
+        // 排序
+        query = sortColumn switch
+        {
+            "ordernumber" => sortDescending ? query.OrderByDescending(x => x.OrderNumber) : query.OrderBy(x => x.OrderNumber),
+            "signdate" => sortDescending ? query.OrderByDescending(x => x.SignDate) : query.OrderBy(x => x.SignDate),
+            "salesman" => sortDescending ? query.OrderByDescending(x => x.Salesman) : query.OrderBy(x => x.Salesman),
+            "customername" => sortDescending ? query.OrderByDescending(x => x.CustomerName) : query.OrderBy(x => x.CustomerName),
+            "endcustomer" => sortDescending ? query.OrderByDescending(x => x.EndCustomer ?? "") : query.OrderBy(x => x.EndCustomer ?? ""),
+            "deliverystart" => sortDescending ? query.OrderByDescending(x => x.DeliveryStart) : query.OrderBy(x => x.DeliveryStart),
+            "deliveryend" => sortDescending ? query.OrderByDescending(x => x.DeliveryEnd) : query.OrderBy(x => x.DeliveryEnd),
+            "hasdelaypenalty" => sortDescending ? query.OrderByDescending(x => x.HasDelayPenalty) : query.OrderBy(x => x.HasDelayPenalty),
+            "totalcontractweight" => sortDescending ? query.OrderByDescending(x => x.TotalContractWeight) : query.OrderBy(x => x.TotalContractWeight),
+            "itemcount" => sortDescending ? query.OrderByDescending(x => x.ItemCount) : query.OrderBy(x => x.ItemCount),
+            "status" => sortDescending ? query.OrderByDescending(x => x.Status) : query.OrderBy(x => x.Status),
+            "lastchangedate" => sortDescending ? query.OrderByDescending(x => x.LastChangeDate) : query.OrderBy(x => x.LastChangeDate),
+            _ => sortDescending ? query.OrderByDescending(x => x.SignDate) : query.OrderBy(x => x.SignDate)
+        };
+
+        _filteredItemsList = query.ToList();
+    }
 
     // ========== 初始化 ==========
 
@@ -369,129 +472,21 @@
             }
             _allColumns = reordered;
         }
+        await LoadAllDataAsync();
     }
 
-    private string GetSortIndicator(string column)
-    {
-        if (sortColumn != column) return "";
-        return sortDescending ? "\u25BC" : "\u25B2";
-    }
-
-    private bool? GetHasTechnicalRequirement() => selectedTechStatus switch
-    {
-        "Edited" => true,
-        "NotEdited" => false,
-        _ => null
-    };
-    
-    private List<SalesOrderStatus>? GetOrderStatuses()
-    {
-        return selectedOrderStatus switch
-        {
-            "Pending" => new List<SalesOrderStatus> { SalesOrderStatus.Pending },
-            "Confirmed" => new List<SalesOrderStatus> { SalesOrderStatus.Confirmed },
-            "All" => new List<SalesOrderStatus> { SalesOrderStatus.Pending, SalesOrderStatus.Confirmed },
-            _ => null
-        };
-    }
-
-    private async Task<TableData<SalesOrderListDto>> OnServerData(TableState state)
-    {
-        isLoading = true;
-        StateHasChanged();
-
-        try
-        {
-            var queryParams = new QueryParams
-            {
-                PageIndex = state.Page + 1,
-                PageSize = state.PageSize,
-                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending
-            };
-
-            var result = await OrderService.GetPagedAsync(queryParams, GetHasTechnicalRequirement(), GetOrderStatuses());
-            
-            if (result.Success && result.Data != null)
-            {
-                orders = result.Data.Items;
-                totalCount = result.Data.TotalCount;
-                
-                return new TableData<SalesOrderListDto>
-                {
-                    Items = orders,
-                    TotalItems = totalCount
-                };
-            }
-            
-            return new TableData<SalesOrderListDto>
-            {
-                Items = new List<SalesOrderListDto>(),
-                TotalItems = 0
-            };
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"加载失败: {ex.Message}");
-            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
-            return new TableData<SalesOrderListDto>
-            {
-                Items = new List<SalesOrderListDto>(),
-                TotalItems = 0
-            };
-        }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task ToggleSort(string column)
-    {
-        if (sortColumn == column)
-            sortDescending = !sortDescending;
-        else
-        {
-            sortColumn = column;
-            sortDescending = false;
-        }
-        if (table != null)
-            await table.ReloadServerData();
-    }
-
-    private async Task Search()
-    {
-        if (table != null)
-            await table.ReloadServerData();
-    }
+    // ========== 事件处理 ==========
 
     private async Task OnSearchChanged(string value)
     {
-        searchKeyword = value ?? string.Empty;
-        if (table != null)
-            await table.ReloadServerData();
-    }
-
-    private async Task OnTechStatusChanged(string value)
-    {
-        selectedTechStatus = value;
-        if (table != null)
-            await table.ReloadServerData();
-    }
-
-    private async Task OnOrderStatusChanged(string value)
-    {
-        selectedOrderStatus = value;
-        if (table != null)
-            await table.ReloadServerData();
+        _searchKeyword = value ?? string.Empty;
+        RefreshFilteredData();
     }
 
     private void NavigateToCreate() => Navigation.NavigateTo("/orders/create");
     private void ViewOrder(int id) => Navigation.NavigateTo($"/orders/{id}");
     private void EditOrder(int id) => Navigation.NavigateTo($"/orders/{id}");
-    
+
     private void ViewTechnicalRequirement(int orderId) => Navigation.NavigateTo($"/orders/{orderId}/requirements");
 
     private async Task ConfirmOrder(SalesOrderListDto order)
@@ -514,11 +509,11 @@
             };
 
             var result = await OrderService.UpdateAsync(order.Id, updateRequest);
-            
+
             if (result.Success)
             {
                 Snackbar.Add($"订单 \"{order.OrderNumber}\" 已确认为正式合同", Severity.Success);
-                await Search();
+                await LoadAllDataAsync();
             }
             else
             {
@@ -548,7 +543,7 @@
             if (result.Success)
             {
                 Snackbar.Add($"订单 \"{order.OrderNumber}\" 已取消", Severity.Success);
-                await Search();
+                await LoadAllDataAsync();
             }
             else
             {
@@ -605,11 +600,9 @@
     {
         try
         {
-            var techStatus = selectedTechStatus == "All" ? null : selectedTechStatus;
-            var orderStatus = selectedOrderStatus == "All" ? null : selectedOrderStatus;
             var result = await OrderService.PrintOrderAllAsync(
-                string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
-                techStatus, orderStatus, sortColumn, sortDescending);
+                string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                null, null, sortColumn, sortDescending);
             if (result.Success && result.Data != null)
                 await JS.InvokeVoidAsync("openPdf", result.Data);
             else
@@ -638,4 +631,12 @@
                 _isArrowNavSetup = false;
         }
     }
- }
+
+    // ========== 持久化 ==========
+
+    private async Task SavePageStateAsync()
+    {
+        // TODO: 使用 PageStateService 保存排序/筛选状态到 localStorage
+        await Task.CompletedTask;
+    }
+}

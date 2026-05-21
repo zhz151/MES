@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
@@ -31,6 +32,14 @@ public class WorkOrderController : ControllerBase
     {
         var result = await _workOrderService.GetOrderWorkOrderStatusPageAsync(query);
         return Ok(ApiResponse<PagedResult<OrderWorkOrderStatusDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("order-status-all")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<OrderWorkOrderStatusDto>>>> GetAllOrderStatusList()
+    {
+        var result = await _workOrderService.GetAllOrderStatusListAsync();
+        return Ok(ApiResponse<List<OrderWorkOrderStatusDto>>.Ok(result, "查询成功"));
     }
 
     [HttpGet("cancelled-orders")]
@@ -76,8 +85,14 @@ public class WorkOrderController : ControllerBase
     [HttpGet("list")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<PagedResult<WorkOrderListDto>>>> GetList(
-        [FromQuery] WorkOrderQueryParams query)
+        [FromQuery] WorkOrderQueryParams query,
+        [FromQuery] string? filters = null)
     {
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        }
         var result = await _workOrderService.GetPagedAsync(query);
         return Ok(ApiResponse<PagedResult<WorkOrderListDto>>.Ok(result, "查询成功"));
     }
@@ -201,21 +216,40 @@ public class WorkOrderController : ControllerBase
     public async Task<ActionResult<ApiResponse>> CheckAllOrderChange()
     {
         await _workOrderService.CheckAllOrdersChangeAsync();
-        return Ok(ApiResponse.Ok("订单变更检测完成，工单状态已更新"));
+        return Ok(ApiResponse.Ok("全部检测完成"));
     }
-    /// <summary>
-/// 获取订单的工单项次追溯关系（包含该订单下所有工单及其项次明细）
-/// </summary>
-[HttpGet("order-relation")]
-[Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
-public async Task<ActionResult<ApiResponse<OrderWorkOrderRelationDto>>> GetOrderWorkOrderRelation(
-    [FromQuery] string salesOrderNo)
-{
-    if (string.IsNullOrWhiteSpace(salesOrderNo))
-        return BadRequest(ApiResponse<OrderWorkOrderRelationDto>.Fail("订单号不能为空"));
 
-    var result = await _workOrderService.GetOrderWorkOrderRelationAsync(salesOrderNo);
-    return Ok(ApiResponse<OrderWorkOrderRelationDto>.Ok(result, "查询成功"));
-}
+    [HttpPost("refresh-material-plan-readmodel")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse>> RefreshMaterialPlanReadModel()
+    {
+        await _workOrderService.RefreshMaterialPlanReadModelAsync();
+        return Ok(ApiResponse.Ok("用料计划总览读模型刷新完成"));
+    }
+
+    [HttpGet("list-all")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<WorkOrderListDto>>>> GetAllList()
+    {
+        var result = await _workOrderService.GetAllListAsync();
+        return Ok(ApiResponse<List<WorkOrderListDto>>.Ok(result, "查询成功"));
+    }
+
+    #endregion
+
+    #region 工单-订单关系
+
+    [HttpGet("order-relation/{salesOrderNo}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<OrderWorkOrderRelationDto>>> GetOrderWorkOrderRelation(
+        string salesOrderNo)
+    {
+        if (string.IsNullOrWhiteSpace(salesOrderNo))
+            return BadRequest(ApiResponse<List<OrderWorkOrderRelationDto>>.Fail("订单号不能为空"));
+
+        var result = await _workOrderService.GetOrderWorkOrderRelationAsync(salesOrderNo);
+        return Ok(ApiResponse<OrderWorkOrderRelationDto>.Ok(result, "查询成功"));
+    }
+
     #endregion
 }

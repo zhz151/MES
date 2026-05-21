@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
@@ -25,10 +26,26 @@ public class InventoryController : ControllerBase
     [HttpGet("list")]
     [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<PagedResult<InventoryBatchDto>>>> GetPaged(
-        [FromQuery] InventoryQueryParams query)
+        [FromQuery] InventoryQueryParams query,
+        [FromQuery] string? filters = null)
     {
+        if (!string.IsNullOrEmpty(filters))
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
         var result = await _service.GetPagedAsync(query);
         return Ok(ApiResponse<PagedResult<InventoryBatchDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 全量查询库存批次（无分页，供前端 Items 模式使用）
+    /// </summary>
+    [HttpGet("all")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<InventoryBatchDto>>>> GetAll(
+        [FromQuery] InventoryQueryParams query)
+    {
+        var result = await _service.GetAllListAsync(query);
+        return Ok(ApiResponse<List<InventoryBatchDto>>.Ok(result, "查询成功"));
     }
 
     /// <summary>
@@ -104,8 +121,12 @@ public class InventoryController : ControllerBase
     [HttpGet("outbound-records")]
     [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<PagedResult<OutboundRecordDto>>>> GetOutboundRecords(
-        [FromQuery] OutboundQueryParams query)
+        [FromQuery] OutboundQueryParams query,
+        [FromQuery] string? filters = null)
     {
+        if (!string.IsNullOrEmpty(filters))
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
         var result = await _service.GetOutboundRecordsAsync(query);
         return Ok(ApiResponse<PagedResult<OutboundRecordDto>>.Ok(result, "查询成功"));
     }

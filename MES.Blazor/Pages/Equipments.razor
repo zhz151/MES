@@ -5,6 +5,7 @@
 @using MES.Core.Models
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
+@using MES.Blazor.Components
 @inject EquipmentService EquipmentService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -38,7 +39,7 @@
                 <MudItem xs="12" md="4">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 编码/名称/型号/区域/工段"
-                                  Value="searchKeyword"
+                                  Value="_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
@@ -47,72 +48,18 @@
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
-                <MudItem xs="6" md="2">
-                    <MudSelect T="string"
-                               Label="生命周期"
-                               Value="_lifecycleFilter"
-                               ValueChanged="@(v => { _lifecycleFilter = v; _ = Search(); })"
-                               Clearable="true"
-                               Dense="true"
-                               Variant="Variant.Outlined">
-                        <MudSelectItem Value="@("Active")">在用</MudSelectItem>
-                        <MudSelectItem Value="@("Standby")">备用</MudSelectItem>
-                        <MudSelectItem Value="@("Scrapped")">报废</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="6" md="2">
-                    <MudSelect T="string"
-                               Label="运行状态"
-                               Value="_runningFilter"
-                               ValueChanged="@(v => { _runningFilter = v; _ = Search(); })"
-                               Clearable="true"
-                               Dense="true"
-                               Variant="Variant.Outlined">
-                        <MudSelectItem Value="@("Normal")">正常</MudSelectItem>
-                        <MudSelectItem Value="@("Pending")">待维修</MudSelectItem>
-                        <MudSelectItem Value="@("InProgress")">维修中</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="6" md="2">
-                    <MudSelect T="string"
-                               Label="点检状态"
-                               Value="_inspectionStatusFilter"
-                               ValueChanged="@(v => { _inspectionStatusFilter = v; _ = Search(); })"
-                               Clearable="true"
-                               Dense="true"
-                               Variant="Variant.Outlined">
-                        <MudSelectItem Value="@("Pending")">待执行</MudSelectItem>
-                        <MudSelectItem Value="@("Normal")">正常</MudSelectItem>
-                        <MudSelectItem Value="@("Overdue")">逾期</MudSelectItem>
-                        <MudSelectItem Value="@("NotApplicable")">不适用</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="6" md="2">
-                    <MudSelect T="string"
-                               Label="保养状态"
-                               Value="_maintStatusFilter"
-                               ValueChanged="@(v => { _maintStatusFilter = v; _ = Search(); })"
-                               Clearable="true"
-                               Dense="true"
-                               Variant="Variant.Outlined">
-                        <MudSelectItem Value="@("Pending")">待执行</MudSelectItem>
-                        <MudSelectItem Value="@("Normal")">正常</MudSelectItem>
-                        <MudSelectItem Value="@("Overdue")">逾期</MudSelectItem>
-                        <MudSelectItem Value="@("NotApplicable")">不适用</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
             </MudGrid>
 
             <!-- 数据表格 -->
             <div id="equipment-list-table">
             <MudTable @ref="table"
                       T="EquipmentListDto"
-                      ServerData="OnServerData"
-                      Loading="@isLoading"
+                      Items="@_filteredItems"
                       Dense="true"
                       Hover="true"
                       Class="mt-4 auto-table"
                       Elevation="0"
+                      RowsPerPage="10"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
                     <ColumnDisplaySelect Columns="_allColumns"
@@ -142,7 +89,7 @@
                         打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
-                        共 @totalCount 条记录
+                        共 @(_filteredItems?.Count ?? 0) 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
@@ -152,20 +99,21 @@
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
-                            @if (!string.IsNullOrEmpty(col.SortKey))
-                            {
-                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
-                                    @col.Label
-                                </span>
-                                @if (sortColumn == col.SortKey)
-                                {
-                                    <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
-                                }
-                            }
-                            else
-                            {
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span class="th-label">@col.Label</span>
-                            }
+                                @if (col.FilterType != null)
+                                {
+                                    <ExcelFilter T="EquipmentListDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 AllItems="@_allItems"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 DisplaySelector="@(x => GetCellDisplayText(x, col.Key))"
+                                                 RawValueSelector="@(x => GetCellRawValue(x, col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))"
+                                                 SortRequested="@(args => OnExcelSortRequested(args.fieldKey, args.ascending))" />
+                                }
+                            </div>
                         </MudTh>
                     }
                     <MudTh Style="width: 110px;">操作</MudTh>
@@ -176,7 +124,7 @@
                         {
                             <MudCheckBox T="bool"
                                          Value="@selectedIds.Contains(item.Id)"
-                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = items.Any() && items.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _filteredItems.Any() && _filteredItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
                                          Dense="true" />
                         }
                     </MudTd>
@@ -202,7 +150,7 @@
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
-                    <MudTablePager />
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
             </MudTable>
             </div>
@@ -212,19 +160,18 @@
 
 @code {
     private MudTable<EquipmentListDto>? table;
-    private List<EquipmentListDto> items = new();
+    private List<EquipmentListDto> _allItems = new();
+    private List<EquipmentListDto>? _filteredItemsList;
+    private List<EquipmentListDto> _filteredItems => _filteredItemsList ?? _allItems;
     private bool _isArrowNavSetup;
-    private bool isLoading;
-    private string searchKeyword = string.Empty;
-    private int totalCount;
-
-    private string? _lifecycleFilter;
-    private string? _runningFilter;
-    private string? _inspectionStatusFilter;
-    private string? _maintStatusFilter;
+    private string _searchKeyword = string.Empty;
 
     private string sortColumn = "createdtime";
     private bool sortDescending = true;
+
+    // ========== ExcelFilter 状态 ==========
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+    private Dictionary<string, List<EquipmentListDto>> _filterContexts = new();
 
     // ========== 多选打印 ==========
     private HashSet<int> selectedIds = new();
@@ -238,7 +185,7 @@
             _allSelected = value;
             if (value)
             {
-                foreach (var item in items)
+                foreach (var item in _filteredItems)
                     selectedIds.Add(item.Id);
             }
             else
@@ -285,30 +232,35 @@
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "EquipmentCode",     Label = "设备编码",   SortKey = "equipmentcode" },
-        new() { Key = "EquipmentName",     Label = "设备名称",   SortKey = "equipmentname" },
-        new() { Key = "ModelNumber",       Label = "型号规格",   SortKey = "modelnumber" },
-        new() { Key = "TechnicalParams",   Label = "技术参数",   SortKey = "technicalparams" },
-        new() { Key = "Manufacturer",      Label = "制造商",     SortKey = "manufacturer" },
-        new() { Key = "InstallationDate",  Label = "安装日期",   SortKey = "installationdate" },
-        new() { Key = "Location",          Label = "所在区域",   SortKey = "location" },
-        new() { Key = "RelatedSection",    Label = "关联工段",   SortKey = "relatedsection" },
-        new() { Key = "LifecycleStatus",   Label = "生命周期",   SortKey = "lifecyclestatus" },
-        new() { Key = "UsageType",         Label = "作用类型",   SortKey = "usagetype" },
-        new() { Key = "RunningStatus",     Label = "运行状态" },
-        new() { Key = "InspectionStatus",  Label = "点检状况" },
-        new() { Key = "NeedInspection",    Label = "需点检",     SortKey = "needinspection" },
-        new() { Key = "InspectionPerson",  Label = "点检负责人", SortKey = "inspectionperson" },
-        new() { Key = "InspectionCycleDays",Label = "点检周期",  SortKey = "inspectioncycledays" },
-        new() { Key = "CurrentInspectionStartDate",Label = "本次点检日起始", SortKey = "currentinspectionstartdate" },
-        new() { Key = "MaintStatus",       Label = "保养状况" },
-        new() { Key = "NeedMaintenance",   Label = "需保养",     SortKey = "needmaintenance" },
-        new() { Key = "MaintPerson",       Label = "保养负责人", SortKey = "maintperson" },
-        new() { Key = "MaintCycleDays",    Label = "保养周期",   SortKey = "maintcycledays" },
-        new() { Key = "CurrentMaintStartDate",Label = "本次保养日起始", SortKey = "currentmaintstartdate" },
-        new() { Key = "LastRepairDate",    Label = "最近维修日期", SortKey = "lastrepairdate" },
-        new() { Key = "Remark",            Label = "备注",       SortKey = "remark" },
-        new() { Key = "CreatedTime",       Label = "创建时间",   SortKey = "createdtime" },
+        new() { Key = "EquipmentCode",     Label = "设备编码",   SortKey = "equipmentcode", FilterType = "string" },
+        new() { Key = "EquipmentName",     Label = "设备名称",   SortKey = "equipmentname", FilterType = "string" },
+        new() { Key = "ModelNumber",       Label = "型号规格",   SortKey = "modelnumber", FilterType = "string" },
+        new() { Key = "TechnicalParams",   Label = "技术参数",   SortKey = "technicalparams", FilterType = "string" },
+        new() { Key = "Manufacturer",      Label = "制造商",     SortKey = "manufacturer", FilterType = "string" },
+        new() { Key = "InstallationDate",  Label = "安装日期",   SortKey = "installationdate", FilterType = "date" },
+        new() { Key = "Location",          Label = "所在区域",   SortKey = "location", FilterType = "string" },
+        new() { Key = "RelatedSection",    Label = "关联工段",   SortKey = "relatedsection", FilterType = "string" },
+        new() { Key = "LifecycleStatus",   Label = "生命周期",   SortKey = "lifecyclestatus", FilterType = "enum",
+            EnumOptions = new() { new("Active", "在用"), new("Standby", "备用"), new("Scrapped", "报废") } },
+        new() { Key = "UsageType",         Label = "作用类型",   SortKey = "usagetype", FilterType = "enum",
+            EnumOptions = new() { new("Primary", "主生产"), new("Secondary", "辅生产"), new("Other", "其它") } },
+        new() { Key = "RunningStatus",     Label = "运行状态", FilterType = "enum",
+            EnumOptions = new() { new("Normal", "正常"), new("Pending", "待维修"), new("InProgress", "维修中") } },
+        new() { Key = "InspectionStatus",  Label = "点检状况", FilterType = "enum",
+            EnumOptions = new() { new("Pending", "待执行"), new("Normal", "正常"), new("Overdue", "逾期"), new("NotApplicable", "不适用") } },
+        new() { Key = "NeedInspection",    Label = "需点检",     SortKey = "needinspection", FilterType = "boolean" },
+        new() { Key = "InspectionPerson",  Label = "点检负责人", SortKey = "inspectionperson", FilterType = "string" },
+        new() { Key = "InspectionCycleDays",Label = "点检周期",  SortKey = "inspectioncycledays", FilterType = "number" },
+        new() { Key = "CurrentInspectionStartDate",Label = "本次点检日起始", SortKey = "currentinspectionstartdate", FilterType = "date" },
+        new() { Key = "MaintStatus",       Label = "保养状况", FilterType = "enum",
+            EnumOptions = new() { new("Pending", "待执行"), new("Normal", "正常"), new("Overdue", "逾期"), new("NotApplicable", "不适用") } },
+        new() { Key = "NeedMaintenance",   Label = "需保养",     SortKey = "needmaintenance", FilterType = "boolean" },
+        new() { Key = "MaintPerson",       Label = "保养负责人", SortKey = "maintperson", FilterType = "string" },
+        new() { Key = "MaintCycleDays",    Label = "保养周期",   SortKey = "maintcycledays", FilterType = "number" },
+        new() { Key = "CurrentMaintStartDate",Label = "本次保养日起始", SortKey = "currentmaintstartdate", FilterType = "date" },
+        new() { Key = "LastRepairDate",    Label = "最近维修日期", SortKey = "lastrepairdate", FilterType = "date" },
+        new() { Key = "Remark",            Label = "备注",       SortKey = "remark", FilterType = "string" },
+        new() { Key = "CreatedTime",       Label = "创建时间",   SortKey = "createdtime", FilterType = "date" },
     };
 
     // ========== 列选择操作 ==========
@@ -356,6 +308,8 @@
             }
             _allColumns = reordered;
         }
+
+        await LoadAllDataAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -368,91 +322,174 @@
         }
     }
 
-    private string GetSortIndicator(string column)
+    private async Task LoadAllDataAsync()
     {
-        if (sortColumn != column) return "";
-        return sortDescending ? "\u25BC" : "\u25B2";
-    }
-
-    private async Task<TableData<EquipmentListDto>> OnServerData(TableState state)
-    {
-        isLoading = true;
-        StateHasChanged();
-
         try
         {
-            var queryParams = new EquipmentQueryParams
-            {
-                PageIndex = state.Page + 1,
-                PageSize = state.PageSize,
-                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending,
-                LifecycleStatus = string.IsNullOrWhiteSpace(_lifecycleFilter) ? null : _lifecycleFilter,
-                RunningStatus = string.IsNullOrWhiteSpace(_runningFilter) ? null : _runningFilter,
-                InspectionStatus = string.IsNullOrWhiteSpace(_inspectionStatusFilter) ? null : _inspectionStatusFilter,
-                MaintStatus = string.IsNullOrWhiteSpace(_maintStatusFilter) ? null : _maintStatusFilter
-            };
-
-            var result = await EquipmentService.GetPagedAsync(queryParams);
-
+            var result = await EquipmentService.GetAllListAsync();
             if (result.Success && result.Data != null)
             {
-                items = result.Data.Items;
-                totalCount = result.Data.TotalCount;
-                return new TableData<EquipmentListDto>
-                {
-                    Items = items,
-                    TotalItems = totalCount
-                };
+                _allItems = result.Data;
             }
-
-            return new TableData<EquipmentListDto>
+            else
             {
-                Items = new List<EquipmentListDto>(),
-                TotalItems = 0
-            };
+                Snackbar.Add(result.Message ?? "加载失败", Severity.Error);
+            }
+            _filteredItemsList = null;
+            RefreshFilteredData();
         }
         catch (Exception ex)
         {
             Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
-            return new TableData<EquipmentListDto>
-            {
-                Items = new List<EquipmentListDto>(),
-                TotalItems = 0
-            };
         }
         finally
         {
-            isLoading = false;
             StateHasChanged();
         }
     }
 
-    private async Task ToggleSort(string column)
-    {
-        if (sortColumn == column)
-            sortDescending = !sortDescending;
-        else
-        {
-            sortColumn = column;
-            sortDescending = false;
-        }
-        if (table != null)
-            await table.ReloadServerData();
-    }
-
-    private async Task Search()
-    {
-        if (table != null)
-            await table.ReloadServerData();
-    }
+    // ========== 搜索 ==========
 
     private async Task OnSearchChanged(string value)
     {
-        searchKeyword = value ?? string.Empty;
-        if (table != null)
-            await table.ReloadServerData();
+        _searchKeyword = value ?? string.Empty;
+        RefreshFilteredData();
+    }
+
+    // ========== ExcelFilter 回调 ==========
+
+    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
+    {
+        if (selectedValues.Count > 0)
+            _columnFilters[fieldKey] = selectedValues;
+        else
+            _columnFilters.Remove(fieldKey);
+
+        RefreshFilteredData();
+        await SavePageStateAsync();
+    }
+
+    private async Task OnExcelSortRequested(string fieldKey, bool ascending)
+    {
+        sortColumn = fieldKey;
+        sortDescending = !ascending;
+        RefreshFilteredData();
+        await SavePageStateAsync();
+    }
+
+    // ========== 客户端刷新 ==========
+
+    private void RefreshFilteredData()
+    {
+        var query = _allItems.AsEnumerable();
+
+        // 关键字搜索
+        if (!string.IsNullOrWhiteSpace(_searchKeyword))
+        {
+            var kw = _searchKeyword;
+            query = query.Where(x =>
+                (x.EquipmentCode != null && x.EquipmentCode.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.EquipmentName != null && x.EquipmentName.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.ModelNumber != null && x.ModelNumber.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.Location != null && x.Location.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.RelatedSection != null && x.RelatedSection.Contains(kw, StringComparison.OrdinalIgnoreCase))
+            );
+        }
+
+        // ExcelFilter 列筛选
+        foreach (var cf in _columnFilters)
+        {
+            var fieldKey = cf.Key;
+            var selected = cf.Value;
+            query = query.Where(x =>
+            {
+                var raw = GetCellRawValue(x, fieldKey);
+                return raw != null && selected.Contains(raw);
+            });
+        }
+
+        // 排序
+        if (!string.IsNullOrEmpty(sortColumn))
+        {
+            query = sortColumn switch
+            {
+                "equipmentcode" => sortDescending ? query.OrderByDescending(x => x.EquipmentCode) : query.OrderBy(x => x.EquipmentCode),
+                "equipmentname" => sortDescending ? query.OrderByDescending(x => x.EquipmentName) : query.OrderBy(x => x.EquipmentName),
+                "modelnumber" => sortDescending ? query.OrderByDescending(x => x.ModelNumber) : query.OrderBy(x => x.ModelNumber),
+                "technicalparams" => sortDescending ? query.OrderByDescending(x => x.TechnicalParams) : query.OrderBy(x => x.TechnicalParams),
+                "manufacturer" => sortDescending ? query.OrderByDescending(x => x.Manufacturer) : query.OrderBy(x => x.Manufacturer),
+                "installationdate" => sortDescending ? query.OrderByDescending(x => x.InstallationDate) : query.OrderBy(x => x.InstallationDate),
+                "location" => sortDescending ? query.OrderByDescending(x => x.Location) : query.OrderBy(x => x.Location),
+                "relatedsection" => sortDescending ? query.OrderByDescending(x => x.RelatedSection) : query.OrderBy(x => x.RelatedSection),
+                "lifecyclestatus" => sortDescending ? query.OrderByDescending(x => x.LifecycleStatus) : query.OrderBy(x => x.LifecycleStatus),
+                "usagetype" => sortDescending ? query.OrderByDescending(x => x.UsageType) : query.OrderBy(x => x.UsageType),
+                "needinspection" => sortDescending ? query.OrderByDescending(x => x.NeedInspection) : query.OrderBy(x => x.NeedInspection),
+                "inspectionperson" => sortDescending ? query.OrderByDescending(x => x.InspectionPerson ?? "") : query.OrderBy(x => x.InspectionPerson ?? ""),
+                "inspectioncycledays" => sortDescending ? query.OrderByDescending(x => x.InspectionCycleDays) : query.OrderBy(x => x.InspectionCycleDays),
+                "currentinspectionstartdate" => sortDescending ? query.OrderByDescending(x => x.CurrentInspectionStartDate) : query.OrderBy(x => x.CurrentInspectionStartDate),
+                "needmaintenance" => sortDescending ? query.OrderByDescending(x => x.NeedMaintenance) : query.OrderBy(x => x.NeedMaintenance),
+                "maintperson" => sortDescending ? query.OrderByDescending(x => x.MaintPerson ?? "") : query.OrderBy(x => x.MaintPerson ?? ""),
+                "maintcycledays" => sortDescending ? query.OrderByDescending(x => x.MaintCycleDays) : query.OrderBy(x => x.MaintCycleDays),
+                "currentmaintstartdate" => sortDescending ? query.OrderByDescending(x => x.CurrentMaintStartDate) : query.OrderBy(x => x.CurrentMaintStartDate),
+                "lastrepairdate" => sortDescending ? query.OrderByDescending(x => x.LastRepairDate) : query.OrderBy(x => x.LastRepairDate),
+                "remark" => sortDescending ? query.OrderByDescending(x => x.Remark ?? "") : query.OrderBy(x => x.Remark ?? ""),
+                "createdtime" => sortDescending ? query.OrderByDescending(x => x.CreatedTime) : query.OrderBy(x => x.CreatedTime),
+                _ => sortDescending ? query.OrderByDescending(x => x.EquipmentCode) : query.OrderBy(x => x.EquipmentCode)
+            };
+        }
+
+        _filteredItemsList = query.ToList();
+        StateHasChanged();
+    }
+
+    // ========== 单元格原始值/显示值 ==========
+
+    private string? GetCellRawValue(EquipmentListDto item, string key) => key switch
+    {
+        "EquipmentCode" => item.EquipmentCode,
+        "EquipmentName" => item.EquipmentName,
+        "ModelNumber" => item.ModelNumber,
+        "TechnicalParams" => item.TechnicalParams,
+        "Manufacturer" => item.Manufacturer,
+        "InstallationDate" => item.InstallationDate?.ToString("yyyy-MM-dd"),
+        "Location" => item.Location,
+        "RelatedSection" => item.RelatedSection,
+        "LifecycleStatus" => item.LifecycleStatus,
+        "UsageType" => item.UsageType,
+        "RunningStatus" => item.RunningStatus,
+        "InspectionStatus" => item.InspectionStatus,
+        "NeedInspection" => item.NeedInspection.ToString(),
+        "InspectionPerson" => item.InspectionPerson,
+        "InspectionCycleDays" => item.InspectionCycleDays.ToString(),
+        "CurrentInspectionStartDate" => item.CurrentInspectionStartDate?.ToString("yyyy-MM-dd"),
+        "MaintStatus" => item.MaintStatus,
+        "NeedMaintenance" => item.NeedMaintenance.ToString(),
+        "MaintPerson" => item.MaintPerson,
+        "MaintCycleDays" => item.MaintCycleDays.ToString(),
+        "CurrentMaintStartDate" => item.CurrentMaintStartDate?.ToString("yyyy-MM-dd"),
+        "LastRepairDate" => item.LastRepairDate?.ToString("yyyy-MM-dd"),
+        "Remark" => item.Remark,
+        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        _ => null
+    };
+
+    private string? GetCellDisplayText(EquipmentListDto item, string key) => key switch
+    {
+        "LifecycleStatus" => DisplayHelper.GetLifecycleStatusText(item.LifecycleStatus),
+        "UsageType" => DisplayHelper.GetUsageTypeText(item.UsageType),
+        "RunningStatus" => DisplayHelper.GetRunningStatusText(item.RunningStatus),
+        "InspectionStatus" => DisplayHelper.GetEquipmentTaskStatusText(item.InspectionStatus),
+        "MaintStatus" => DisplayHelper.GetEquipmentTaskStatusText(item.MaintStatus),
+        "NeedInspection" => DisplayHelper.GetYesNoText(item.NeedInspection),
+        "NeedMaintenance" => DisplayHelper.GetYesNoText(item.NeedMaintenance),
+        _ => GetCellRawValue(item, key) ?? ""
+    };
+
+    // ========== 持久化 ==========
+
+    private async Task SavePageStateAsync()
+    {
+        await Task.CompletedTask;
     }
 
     private void NavigateToCreate() => Navigation.NavigateTo("/equipment/create");
@@ -566,7 +603,7 @@
                 Snackbar.Add("保存成功", Severity.Success);
                 _editingIds.Remove(id);
                 _editCache.Remove(id);
-                await table?.ReloadServerData();
+                await LoadAllDataAsync();
             }
             else
             {
@@ -598,7 +635,7 @@
                 if (result.Success)
                 {
                     Snackbar.Add("删除成功", Severity.Success);
-                    await Search();
+                    await LoadAllDataAsync();
                 }
                 else
                 {
@@ -653,13 +690,9 @@
             var columns = GetPrintColumnDefs();
             var query = new EquipmentQueryParams
             {
-                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 SortBy = sortColumn,
-                IsDescending = sortDescending,
-                LifecycleStatus = string.IsNullOrWhiteSpace(_lifecycleFilter) ? null : _lifecycleFilter,
-                RunningStatus = string.IsNullOrWhiteSpace(_runningFilter) ? null : _runningFilter,
-                InspectionStatus = string.IsNullOrWhiteSpace(_inspectionStatusFilter) ? null : _inspectionStatusFilter,
-                MaintStatus = string.IsNullOrWhiteSpace(_maintStatusFilter) ? null : _maintStatusFilter
+                IsDescending = sortDescending
             };
             var result = await EquipmentService.PrintAllAsync(query, columns);
             if (result.Success && result.Data != null)
@@ -908,7 +941,7 @@
             case "InspectionStatus":
             case "MaintStatus":
                 // 状态字段只读显示
-                var item = items.FirstOrDefault(i => _editCache.ContainsKey(i.Id) && _editCache[i.Id] == cache);
+                var item = _allItems.FirstOrDefault(i => _editCache.ContainsKey(i.Id) && _editCache[i.Id] == cache);
                 if (item != null)
                 {
                     builder.OpenComponent<MudChip>(0);

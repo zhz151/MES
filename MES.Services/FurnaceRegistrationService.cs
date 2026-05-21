@@ -6,6 +6,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Helpers;
 
 namespace MES.Services;
 
@@ -65,6 +66,34 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
             .FirstOrDefaultAsync();
     }
 
+    public async Task<List<FurnaceRegistrationDto>> GetAllListAsync()
+    {
+        return await _context.FurnaceRegistrations
+            .AsNoTracking()
+            .OrderByDescending(x => x.Id)
+            .Select(x => new FurnaceRegistrationDto
+            {
+                Id = x.Id,
+                IncomingDate = x.IncomingDate,
+                RawMaterialUnit = x.RawMaterialUnit,
+                RawMaterialType = x.RawMaterialType,
+                RegisteredGrade = x.RegisteredGrade,
+                RelatedPlantGrade = x.RelatedPlantGrade,
+                FurnaceNumber = x.FurnaceNumber,
+                Specification = x.Specification,
+                Quantity = x.Quantity,
+                Weight = x.Weight,
+                Carbon = x.Carbon, Silicon = x.Silicon, Manganese = x.Manganese, Phosphorus = x.Phosphorus, Sulfur = x.Sulfur,
+                Nickel = x.Nickel, Chromium = x.Chromium, Molybdenum = x.Molybdenum, Copper = x.Copper,
+                Nitrogen = x.Nitrogen, Niobium = x.Niobium, Titanium = x.Titanium, Iron = x.Iron,
+                Aluminum = x.Aluminum, Tungsten = x.Tungsten, PREN = x.PREN,
+                Remark = x.Remark,
+                CreatedTime = x.CreatedTime,
+                UpdatedTime = x.UpdatedTime
+            })
+            .ToListAsync();
+    }
+
     public async Task<PagedResult<FurnaceRegistrationDto>> GetAllAsync(QueryParams query)
     {
         var queryable = _context.FurnaceRegistrations
@@ -84,6 +113,7 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
                 (r.Remark != null && r.Remark.Contains(kw)));
         }
 
+        queryable = queryable.ApplyFilters(query.Filters);
         var totalCount = await queryable.CountAsync();
 
         queryable = ApplySorting(queryable, query.SortBy ?? "furnacenumber", query.IsDescending);
@@ -446,67 +476,6 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
 
     private static IQueryable<FurnaceRegistration> ApplySorting(IQueryable<FurnaceRegistration> queryable, string sortBy, bool isDescending)
     {
-        return (sortBy.ToLower(), isDescending) switch
-        {
-            ("furnacenumber", false) => queryable.OrderBy(r => r.FurnaceNumber),
-            ("furnacenumber", true) => queryable.OrderByDescending(r => r.FurnaceNumber),
-            ("incomingdate", false) => queryable.OrderBy(r => r.IncomingDate),
-            ("incomingdate", true) => queryable.OrderByDescending(r => r.IncomingDate),
-            ("rawmaterialunit", false) => queryable.OrderBy(r => r.RawMaterialUnit),
-            ("rawmaterialunit", true) => queryable.OrderByDescending(r => r.RawMaterialUnit),
-            ("registeredgrade", false) => queryable.OrderBy(r => r.RegisteredGrade),
-            ("registeredgrade", true) => queryable.OrderByDescending(r => r.RegisteredGrade),
-            ("rawmaterialtype", false) => queryable.OrderBy(r => r.RawMaterialType),
-            ("rawmaterialtype", true) => queryable.OrderByDescending(r => r.RawMaterialType),
-            ("relatedplantgrade", false) => queryable.OrderBy(r => r.RelatedPlantGrade ?? ""),
-            ("relatedplantgrade", true) => queryable.OrderByDescending(r => r.RelatedPlantGrade ?? ""),
-            ("specification", false) => queryable.OrderBy(r => r.Specification ?? ""),
-            ("specification", true) => queryable.OrderByDescending(r => r.Specification ?? ""),
-            ("quantity", false) => queryable.OrderBy(r => r.Quantity ?? 0),
-            ("quantity", true) => queryable.OrderByDescending(r => r.Quantity ?? 0),
-            ("weight", false) => queryable.OrderBy(r => r.Weight ?? 0),
-            ("weight", true) => queryable.OrderByDescending(r => r.Weight ?? 0),
-            ("carbon", false) => queryable.OrderBy(r => r.Carbon ?? 0),
-            ("carbon", true) => queryable.OrderByDescending(r => r.Carbon ?? 0),
-            ("silicon", false) => queryable.OrderBy(r => r.Silicon ?? 0),
-            ("silicon", true) => queryable.OrderByDescending(r => r.Silicon ?? 0),
-            ("manganese", false) => queryable.OrderBy(r => r.Manganese ?? 0),
-            ("manganese", true) => queryable.OrderByDescending(r => r.Manganese ?? 0),
-            ("phosphorus", false) => queryable.OrderBy(r => r.Phosphorus ?? 0),
-            ("phosphorus", true) => queryable.OrderByDescending(r => r.Phosphorus ?? 0),
-            ("sulfur", false) => queryable.OrderBy(r => r.Sulfur ?? 0),
-            ("sulfur", true) => queryable.OrderByDescending(r => r.Sulfur ?? 0),
-            ("nickel", false) => queryable.OrderBy(r => r.Nickel ?? 0),
-            ("nickel", true) => queryable.OrderByDescending(r => r.Nickel ?? 0),
-            ("chromium", false) => queryable.OrderBy(r => r.Chromium ?? 0),
-            ("chromium", true) => queryable.OrderByDescending(r => r.Chromium ?? 0),
-            ("molybdenum", false) => queryable.OrderBy(r => r.Molybdenum ?? 0),
-            ("molybdenum", true) => queryable.OrderByDescending(r => r.Molybdenum ?? 0),
-            ("copper", false) => queryable.OrderBy(r => r.Copper ?? 0),
-            ("copper", true) => queryable.OrderByDescending(r => r.Copper ?? 0),
-            ("nitrogen", false) => queryable.OrderBy(r => r.Nitrogen ?? 0),
-            ("nitrogen", true) => queryable.OrderByDescending(r => r.Nitrogen ?? 0),
-            ("niobium", false) => queryable.OrderBy(r => r.Niobium ?? 0),
-            ("niobium", true) => queryable.OrderByDescending(r => r.Niobium ?? 0),
-            ("titanium", false) => queryable.OrderBy(r => r.Titanium ?? 0),
-            ("titanium", true) => queryable.OrderByDescending(r => r.Titanium ?? 0),
-            ("iron", false) => queryable.OrderBy(r => r.Iron ?? 0),
-            ("iron", true) => queryable.OrderByDescending(r => r.Iron ?? 0),
-            ("aluminum", false) => queryable.OrderBy(r => r.Aluminum ?? 0),
-            ("aluminum", true) => queryable.OrderByDescending(r => r.Aluminum ?? 0),
-            ("tungsten", false) => queryable.OrderBy(r => r.Tungsten ?? 0),
-            ("tungsten", true) => queryable.OrderByDescending(r => r.Tungsten ?? 0),
-            ("pren", false) => queryable.OrderBy(r => r.PREN ?? 0),
-            ("pren", true) => queryable.OrderByDescending(r => r.PREN ?? 0),
-            ("remark", false) => queryable.OrderBy(r => r.Remark ?? ""),
-            ("remark", true) => queryable.OrderByDescending(r => r.Remark ?? ""),
-            ("createdtime", false) => queryable.OrderBy(r => r.CreatedTime),
-            ("createdtime", true) => queryable.OrderByDescending(r => r.CreatedTime),
-            ("updatedtime", false) => queryable.OrderBy(r => r.UpdatedTime),
-            ("updatedtime", true) => queryable.OrderByDescending(r => r.UpdatedTime),
-            _ => isDescending
-                ? queryable.OrderByDescending(r => r.FurnaceNumber)
-                : queryable.OrderBy(r => r.FurnaceNumber)
-        };
+        return queryable.ApplySort(sortBy, isDescending);
     }
 }

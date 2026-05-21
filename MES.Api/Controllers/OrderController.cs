@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
 using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Services.Order;
 using MES.Shared.Constants;
+using System.Text.Json;
 
 namespace MES.Api.Controllers;
 
@@ -13,10 +15,12 @@ namespace MES.Api.Controllers;
 public class OrderController : ControllerBase
 {
     private readonly IOrderService _orderService;
+    private readonly OrderListSummaryService _orderListSummaryService;
 
-    public OrderController(IOrderService orderService)
+    public OrderController(IOrderService orderService, OrderListSummaryService orderListSummaryService)
     {
         _orderService = orderService;
+        _orderListSummaryService = orderListSummaryService;
     }
 
     #region 订单管理
@@ -26,10 +30,32 @@ public class OrderController : ControllerBase
     public async Task<ActionResult<ApiResponse<PagedResult<SalesOrderListDto>>>> GetPaged(
         [FromQuery] QueryParams query,
         [FromQuery] string? technicalStatus = null,
-        [FromQuery] string? orderStatus = null)
+        [FromQuery] string? orderStatus = null,
+        [FromQuery] string? filters = null)
     {
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        }
         var result = await _orderService.GetPagedAsync(query, technicalStatus, orderStatus);
         return Ok(ApiResponse<PagedResult<SalesOrderListDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("list-all")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<SalesOrderListDto>>>> GetAllList()
+    {
+        var result = await _orderService.GetAllListAsync();
+        return Ok(ApiResponse<List<SalesOrderListDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpPost("refresh")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse>> Refresh()
+    {
+        await _orderListSummaryService.RefreshAllAsync();
+        return Ok(ApiResponse.Ok("读模型刷新完成"));
     }
 
     [HttpGet("{id}")]

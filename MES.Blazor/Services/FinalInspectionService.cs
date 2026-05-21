@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
@@ -10,7 +11,7 @@ public class FinalInspectionService
 
     public FinalInspectionService(AuthHttpClient http) => _http = http;
 
-    public async Task<ApiResponse<PagedResult<FinalInspectionDto>>> GetAllAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null)
+    public async Task<ApiResponse<PagedResult<FinalInspectionDto>>> GetAllAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null, string? filters = null)
     {
         try
         {
@@ -19,10 +20,21 @@ public class FinalInspectionService
             if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
             if (inspectionDateFrom.HasValue) url += $"&inspectionDateFrom={inspectionDateFrom.Value:yyyy-MM-dd}";
             if (inspectionDateTo.HasValue) url += $"&inspectionDateTo={inspectionDateTo.Value:yyyy-MM-dd}";
+            if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<FinalInspectionDto>>>(url)
                    ?? ApiResponse<PagedResult<FinalInspectionDto>>.Fail("获取数据失败");
         }
         catch (Exception ex) { return ApiResponse<PagedResult<FinalInspectionDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<List<FinalInspectionDto>>> GetAllListAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<FinalInspectionDto>>>($"{BaseUrl}/all-list")
+                   ?? ApiResponse<List<FinalInspectionDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<FinalInspectionDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
     public async Task<ApiResponse<FinalInspectionDto>> GetByIdAsync(int id)

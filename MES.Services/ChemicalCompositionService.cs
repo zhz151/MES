@@ -6,6 +6,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Helpers;
 using OfficeOpenXml;
 
 namespace MES.Services;
@@ -55,6 +56,7 @@ public class ChemicalCompositionService : IChemicalCompositionService
                 (r.PREN != null && r.PREN.Contains(kw)));
         }
 
+        queryable = queryable.ApplyFilters(query.Filters);
         var totalCount = await queryable.CountAsync();
 
         queryable = ApplySorting(queryable, query.SortBy ?? "plantgrade", query.IsDescending);
@@ -94,6 +96,25 @@ public class ChemicalCompositionService : IChemicalCompositionService
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
+    }
+
+    public async Task<List<ChemicalCompositionDto>> GetAllListAsync()
+    {
+        return await _context.ChemicalCompositions
+            .AsNoTracking()
+            .OrderByDescending(x => x.Id)
+            .Select(x => new ChemicalCompositionDto
+            {
+                Id = x.Id,
+                PlantGrade = x.PlantGrade,
+                Carbon = x.Carbon, Silicon = x.Silicon, Manganese = x.Manganese, Phosphorus = x.Phosphorus, Sulfur = x.Sulfur,
+                Nickel = x.Nickel, Chromium = x.Chromium, Molybdenum = x.Molybdenum, Copper = x.Copper,
+                Nitrogen = x.Nitrogen, Niobium = x.Niobium, Titanium = x.Titanium, Iron = x.Iron,
+                Aluminum = x.Aluminum, Tungsten = x.Tungsten, PREN = x.PREN,
+                CreatedTime = x.CreatedTime,
+                UpdatedTime = x.UpdatedTime
+            })
+            .ToListAsync();
     }
 
     public async Task<List<ChemicalCompositionDto>> BatchCreateAsync(List<CreateChemicalCompositionRequest> requests)
@@ -478,49 +499,6 @@ public class ChemicalCompositionService : IChemicalCompositionService
 
     private static IQueryable<ChemicalComposition> ApplySorting(IQueryable<ChemicalComposition> queryable, string sortBy, bool isDescending)
     {
-        return (sortBy.ToLower(), isDescending) switch
-        {
-            ("plantgrade", false) => queryable.OrderBy(r => r.PlantGrade),
-            ("plantgrade", true) => queryable.OrderByDescending(r => r.PlantGrade),
-            ("carbon", false) => queryable.OrderBy(r => r.Carbon ?? ""),
-            ("carbon", true) => queryable.OrderByDescending(r => r.Carbon ?? ""),
-            ("silicon", false) => queryable.OrderBy(r => r.Silicon ?? ""),
-            ("silicon", true) => queryable.OrderByDescending(r => r.Silicon ?? ""),
-            ("manganese", false) => queryable.OrderBy(r => r.Manganese ?? ""),
-            ("manganese", true) => queryable.OrderByDescending(r => r.Manganese ?? ""),
-            ("phosphorus", false) => queryable.OrderBy(r => r.Phosphorus ?? ""),
-            ("phosphorus", true) => queryable.OrderByDescending(r => r.Phosphorus ?? ""),
-            ("sulfur", false) => queryable.OrderBy(r => r.Sulfur ?? ""),
-            ("sulfur", true) => queryable.OrderByDescending(r => r.Sulfur ?? ""),
-            ("nickel", false) => queryable.OrderBy(r => r.Nickel ?? ""),
-            ("nickel", true) => queryable.OrderByDescending(r => r.Nickel ?? ""),
-            ("chromium", false) => queryable.OrderBy(r => r.Chromium ?? ""),
-            ("chromium", true) => queryable.OrderByDescending(r => r.Chromium ?? ""),
-            ("molybdenum", false) => queryable.OrderBy(r => r.Molybdenum ?? ""),
-            ("molybdenum", true) => queryable.OrderByDescending(r => r.Molybdenum ?? ""),
-            ("copper", false) => queryable.OrderBy(r => r.Copper ?? ""),
-            ("copper", true) => queryable.OrderByDescending(r => r.Copper ?? ""),
-            ("nitrogen", false) => queryable.OrderBy(r => r.Nitrogen ?? ""),
-            ("nitrogen", true) => queryable.OrderByDescending(r => r.Nitrogen ?? ""),
-            ("niobium", false) => queryable.OrderBy(r => r.Niobium ?? ""),
-            ("niobium", true) => queryable.OrderByDescending(r => r.Niobium ?? ""),
-            ("titanium", false) => queryable.OrderBy(r => r.Titanium ?? ""),
-            ("titanium", true) => queryable.OrderByDescending(r => r.Titanium ?? ""),
-            ("iron", false) => queryable.OrderBy(r => r.Iron ?? ""),
-            ("iron", true) => queryable.OrderByDescending(r => r.Iron ?? ""),
-            ("aluminum", false) => queryable.OrderBy(r => r.Aluminum ?? ""),
-            ("aluminum", true) => queryable.OrderByDescending(r => r.Aluminum ?? ""),
-            ("tungsten", false) => queryable.OrderBy(r => r.Tungsten ?? ""),
-            ("tungsten", true) => queryable.OrderByDescending(r => r.Tungsten ?? ""),
-            ("pren", false) => queryable.OrderBy(r => r.PREN ?? ""),
-            ("pren", true) => queryable.OrderByDescending(r => r.PREN ?? ""),
-            ("createdtime", false) => queryable.OrderBy(r => r.CreatedTime),
-            ("createdtime", true) => queryable.OrderByDescending(r => r.CreatedTime),
-            ("updatedtime", false) => queryable.OrderBy(r => r.UpdatedTime),
-            ("updatedtime", true) => queryable.OrderByDescending(r => r.UpdatedTime),
-            _ => isDescending
-                ? queryable.OrderByDescending(r => r.PlantGrade)
-                : queryable.OrderBy(r => r.PlantGrade)
-        };
+        return queryable.ApplySort(sortBy, isDescending);
     }
 }

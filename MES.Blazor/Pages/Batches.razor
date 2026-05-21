@@ -92,32 +92,17 @@
                         <MudSelectItem Value="@("疑问")">疑问</MudSelectItem>
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="6" md="3">
-                    <MudSelect T="string"
-                               Label="状态筛选"
-                               Value="filterStatus"
-                               ValueChanged="@OnStatusFilterChanged"
-                               Clearable="true"
-                               Adornment="Adornment.End"
-                               AdornmentIcon="@Icons.Material.Filled.FilterList">
-                        <MudSelectItem Value="@("None")">@DisplayHelper.GetBatchStatusText("None")</MudSelectItem>
-                        <MudSelectItem Value="@("InProgress")">@DisplayHelper.GetBatchStatusText("InProgress")</MudSelectItem>
-                        <MudSelectItem Value="@("Completed")">@DisplayHelper.GetBatchStatusText("Completed")</MudSelectItem>
-                        <MudSelectItem Value="@("Suspended")">@DisplayHelper.GetBatchStatusText("Suspended")</MudSelectItem>
-                        <MudSelectItem Value="@("Cancelled")">@DisplayHelper.GetBatchStatusText("Cancelled")</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
             </MudGrid>
 
             <!-- 数据表格 -->
             <MudTable @ref="table"
                       T="ProductionBatchListDto"
-                      ServerData="OnServerData"
-                      Loading="@isLoading"
+                      Items="@_filteredItems"
                       Dense="true"
                       Hover="true"
                       Class="mt-4 auto-table"
                       Elevation="0"
+                      RowsPerPage="10"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
                     <ColumnDisplaySelect Columns="_allColumns"
@@ -147,7 +132,7 @@
                         打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
-                        共 @totalCount 条记录
+                        共 @(_filteredItems?.Count ?? 0) 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
@@ -157,20 +142,22 @@
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
-                            @if (!string.IsNullOrEmpty(col.SortKey))
-                            {
-                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
-                                    @col.Label
-                                </span>
-                                @if (sortColumn == col.SortKey)
-                                {
-                                    <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
-                                }
-                            }
-                            else
-                            {
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span class="th-label">@col.Label</span>
-                            }
+                                @if (col.FilterType != null)
+                                {
+                                    @* 使用原始全量数据供筛选器计算可选值 *@
+                                    <ExcelFilter T="ProductionBatchListDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 AllItems="@_allItems"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 DisplaySelector="@(x => GetCellDisplayText(x, col.Key))"
+                                                 RawValueSelector="@(x => GetCellRawValue(x, col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))"
+                                                 SortRequested="@(args => OnExcelSortRequested(args.fieldKey, args.ascending))" />
+                                }
+                            </div>
                         </MudTh>
                     }
                     <MudTh>操作</MudTh>
@@ -179,7 +166,7 @@
                     <MudTd Style="width: 40px;">
                         <MudCheckBox T="bool"
                                      Value="@selectedIds.Contains(item.Id)"
-                                     ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = items.Any() && items.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                     ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _filteredItems.Any() && _filteredItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
                                      Dense="true" />
                     </MudTd>
                     @foreach (var col in _visibleColumns)
@@ -205,7 +192,7 @@
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
-                    <MudTablePager />
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
             </MudTable>
         </MudCardContent>
@@ -214,7 +201,9 @@
 
 @code {
     private MudTable<ProductionBatchListDto>? table;
-    private List<ProductionBatchListDto> items = new();
+    private List<ProductionBatchListDto> _allItems = new();
+    private List<ProductionBatchListDto>? _filteredItemsList;
+    private List<ProductionBatchListDto> _filteredItems => _filteredItemsList ?? _allItems;
     private HashSet<int> selectedIds = new();
     private List<BatchWorkOrderMismatchDto> _workOrderMismatches = new();
     private bool isSyncing = false;
@@ -228,7 +217,7 @@
             _allSelected = value;
             if (value)
             {
-                foreach (var item in items)
+                foreach (var item in _filteredItems)
                     selectedIds.Add(item.Id);
             }
             else
@@ -238,14 +227,15 @@
             StateHasChanged();
         }
     }
-    private bool isLoading;
     private string _searchKeyword = string.Empty;
-    private string filterStatus = string.Empty;
     private string _validInputQuestionFilter = string.Empty;
-    private int totalCount;
 
     private string sortColumn = "batchno";
     private bool sortDescending = true;
+
+    // ========== ExcelFilter 状态 ==========
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+    private Dictionary<string, List<ProductionBatchListDto>> _filterContexts = new();
 
     // ========== 列定义 ==========
 
@@ -255,46 +245,54 @@
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "BatchNo",            Label = "生产编号", SortKey = "batchno" },
-        new() { Key = "TagNo",              Label = "挂牌号",   SortKey = "tagno" },
-        new() { Key = "CreatedTime",        Label = "创建时间", SortKey = "createdtime" },
-        new() { Key = "UpdatedTime",        Label = "最后更新时间", SortKey = "updatedtime" },
-        new() { Key = "WorkOrderNo",        Label = "工单号",   SortKey = "workorderno" },
-        new() { Key = "SalesOrderNo",       Label = "订单号",   SortKey = "salesorderno" },
-        new() { Key = "ProductionMainNo",   Label = "主号",     SortKey = "productionmainno" },
-        new() { Key = "ProductionSubNo",    Label = "次号",     SortKey = "productionsubno" },
-        new() { Key = "ProductionType",     Label = "生产类型", SortKey = "productiontype" },
-        new() { Key = "ManufacturingItem",  Label = "制造物品", SortKey = "manufacturingitem" },
-        new() { Key = "Status",             Label = "状态",     SortKey = "status" },
-        new() { Key = "CurrentExecDate",    Label = "截止执行日", SortKey = "currentexecdate" },
-        new() { Key = "CurrentGroupName",   Label = "当前工序", SortKey = "currentgroupname" },
-        new() { Key = "CurrentSectionName", Label = "当前工段", SortKey = "currentsectionname" },
-        new() { Key = "CurrentEquipmentName", Label = "当前设备", SortKey = "currentequipmentname" },
-        new() { Key = "CurrentOutsource",   Label = "当前委外", SortKey = "currentoutsource" },
-        new() { Key = "CurrentSpec",        Label = "当前规格", SortKey = "currentspec" },
-        new() { Key = "NextSectionName",    Label = "下一工段", SortKey = "nextsectionname" },
-        new() { Key = "CorrespondingSpec",  Label = "对应规格", SortKey = "correspondingspec" },
-        new() { Key = "CurrentValidQty",    Label = "现有效原料支数", SortKey = "currentvalidqty" },
-        new() { Key = "CurrentValidWeight",  Label = "现有效原料重量", SortKey = "currentvalidweight" },
-        new() { Key = "ProductionRatio",    Label = "制几率",   SortKey = "productionratio" },
-        new() { Key = "SignDate",           Label = "签订日期", SortKey = "signdate" },
-        new() { Key = "Salesman",           Label = "业务员",   SortKey = "salesman" },
-        new() { Key = "EndCustomer",        Label = "最终用户", SortKey = "endcustomer" },
-        new() { Key = "DeliveryDate",       Label = "交货日期", SortKey = "deliverydate" },
-        new() { Key = "DelayPenalty",       Label = "延期罚款", SortKey = "delaypenalty" },
-        new() { Key = "MaterialName",       Label = "物料名称", SortKey = "materialname" },
-        new() { Key = "SettlementMethod",   Label = "结算方式", SortKey = "settlementmethod" },
-        new() { Key = "StandardCode",       Label = "产品标准", SortKey = "standardcode" },
-        new() { Key = "DeliveryState",      Label = "交货状态", SortKey = "deliverystate" },
-        new() { Key = "PlantGrade",         Label = "钢种",     SortKey = "plantgrade" },
-        new() { Key = "Specification",      Label = "规格",     SortKey = "specification" },
-        new() { Key = "LengthStatus",       Label = "长度状态", SortKey = "lengthstatus" },
-        new() { Key = "TotalQuantity",      Label = "总数量",   SortKey = "totalquantity" },
-        new() { Key = "TotalMeters",        Label = "总米数",   SortKey = "totalmeters" },
-        new() { Key = "TotalWeight",        Label = "总重量",   SortKey = "totalweight" },
-        new() { Key = "TechnicalRequirements", Label = "技术要求", SortKey = "technicalrequirements" },
+        new() { Key = "BatchNo",            Label = "生产编号", SortKey = "batchno", FilterType = "string" },
+        new() { Key = "TagNo",              Label = "挂牌号",   SortKey = "tagno", FilterType = "string" },
+        new() { Key = "CreatedTime",        Label = "创建时间", SortKey = "createdtime", FilterType = "date" },
+        new() { Key = "UpdatedTime",        Label = "最后更新时间", SortKey = "updatedtime", FilterType = "date" },
+        new() { Key = "WorkOrderNo",        Label = "工单号",   SortKey = "workorderno", FilterType = "string" },
+        new() { Key = "SalesOrderNo",       Label = "订单号",   SortKey = "salesorderno", FilterType = "string" },
+        new() { Key = "ProductionMainNo",   Label = "主号",     SortKey = "productionmainno", FilterType = "string" },
+        new() { Key = "ProductionSubNo",    Label = "次号",     SortKey = "productionsubno", FilterType = "string" },
+        new() { Key = "ProductionType",     Label = "生产类型", SortKey = "productiontype", FilterType = "enum",
+            EnumOptions = new() { new("Normal", "正常"), new("Sample", "样品"), new("NewProduct", "新品") } },
+        new() { Key = "ManufacturingItem",  Label = "制造物品", SortKey = "manufacturingitem", FilterType = "string" },
+        new() { Key = "Status",             Label = "状态",     SortKey = "status", FilterType = "enum",
+            EnumOptions = new() { new("None", "无"), new("InProgress", "在产"), new("Completed", "完成"), new("Suspended", "暂停"), new("Cancelled", "取消") } },
+        new() { Key = "CurrentExecDate",    Label = "截止执行日", SortKey = "currentexecdate", FilterType = "date" },
+        new() { Key = "CurrentGroupName",   Label = "当前工序", SortKey = "currentgroupname", FilterType = "string" },
+        new() { Key = "CurrentSectionName", Label = "当前工段", SortKey = "currentsectionname", FilterType = "string" },
+        new() { Key = "CurrentEquipmentName", Label = "当前设备", SortKey = "currentequipmentname", FilterType = "string" },
+        new() { Key = "CurrentOutsource",   Label = "当前委外", SortKey = "currentoutsource", FilterType = "string" },
+        new() { Key = "CurrentSpec",        Label = "当前规格", SortKey = "currentspec", FilterType = "string" },
+        new() { Key = "NextSectionName",    Label = "下一工段", SortKey = "nextsectionname", FilterType = "string" },
+        new() { Key = "CorrespondingSpec",  Label = "对应规格", SortKey = "correspondingspec", FilterType = "string" },
+        new() { Key = "CurrentValidQty",    Label = "现有效原料支数", SortKey = "currentvalidqty", FilterType = "number" },
+        new() { Key = "CurrentValidWeight",  Label = "现有效原料重量", SortKey = "currentvalidweight", FilterType = "number" },
+        new() { Key = "ProductionRatio",    Label = "制几率",   SortKey = "productionratio", FilterType = "number" },
+        new() { Key = "SignDate",           Label = "签订日期", SortKey = "signdate", FilterType = "date" },
+        new() { Key = "Salesman",           Label = "业务员",   SortKey = "salesman", FilterType = "string" },
+        new() { Key = "EndCustomer",        Label = "最终用户", SortKey = "endcustomer", FilterType = "string" },
+        new() { Key = "DeliveryDate",       Label = "交货日期", SortKey = "deliverydate", FilterType = "date" },
+        new() { Key = "DelayPenalty",       Label = "延期罚款", SortKey = "delaypenalty", FilterType = "enum",
+            EnumOptions = new() { new("true", "是"), new("false", "否") } },
+        new() { Key = "MaterialName",       Label = "物料名称", SortKey = "materialname", FilterType = "enum",
+            EnumOptions = new() { new("Tube", "管材"), new("Pipe", "管道"), new("Bar", "棒材"), new("Fitting", "管件"), new("Wire", "线材"), new("Strip", "带材"), new("Sheet", "板材"), new("Profile", "型材"), new("Other", "其他") } },
+        new() { Key = "SettlementMethod",   Label = "结算方式", SortKey = "settlementmethod", FilterType = "enum",
+            EnumOptions = new() { new("MonthlyStatement", "月结"), new("PerOrder", "单结"), new("Deposit", "定金"), new("FullPayment", "全款") } },
+        new() { Key = "StandardCode",       Label = "产品标准", SortKey = "standardcode", FilterType = "string" },
+        new() { Key = "DeliveryState",      Label = "交货状态", SortKey = "deliverystate", FilterType = "enum",
+            EnumOptions = new() { new("Raw", "原料"), new("SemiFinished", "半成品"), new("Finished", "成品") } },
+        new() { Key = "PlantGrade",         Label = "钢种",     SortKey = "plantgrade", FilterType = "string" },
+        new() { Key = "Specification",      Label = "规格",     SortKey = "specification", FilterType = "string" },
+        new() { Key = "LengthStatus",       Label = "长度状态", SortKey = "lengthstatus", FilterType = "enum",
+            EnumOptions = new() { new("FixedLength", "定尺"), new("RandomLength", "不定尺"), new("MultipleLength", "倍尺") } },
+        new() { Key = "TotalQuantity",      Label = "总数量",   SortKey = "totalquantity", FilterType = "number" },
+        new() { Key = "TotalMeters",        Label = "总米数",   SortKey = "totalmeters", FilterType = "number" },
+        new() { Key = "TotalWeight",        Label = "总重量",   SortKey = "totalweight", FilterType = "number" },
+        new() { Key = "TechnicalRequirements", Label = "技术要求", SortKey = "technicalrequirements", FilterType = "enum",
+            EnumOptions = new() { new("GB150", "GB150"), new("GB9948", "GB9948"), new("ASME", "ASME"), new("Other", "其他") } },
         new() { Key = "ValidInputQuestion",   Label = "有效投料疑问", SortKey = null },
-        new() { Key = "CreatedBy",          Label = "创建人",   SortKey = "createdby" },
+        new() { Key = "CreatedBy",          Label = "创建人",   SortKey = "createdby", FilterType = "string" },
     };
 
     // ========== 列选择操作 ==========
@@ -354,7 +352,26 @@
             _allColumns = reordered;
         }
 
+        await LoadAllDataAsync();
         await CheckWorkOrdersAsync();
+    }
+
+    private async Task LoadAllDataAsync()
+    {
+        try
+        {
+            _allItems = await BatchService.GetAllBatchListAsync();
+            _filteredItemsList = null; // 重置以使用 _allItems 全量数据
+            RefreshFilteredData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            StateHasChanged();
+        }
     }
 
     // ========== 即时更新（工单号验证 + 执行状态刷新）==========
@@ -375,10 +392,10 @@
                     Snackbar.Add("所有批次工单号验证通过", Severity.Success);
             }
 
-            // 2) 刷新当前分页批次的执行状态
-            var currentIds = items.Select(i => i.Id).ToList();
-            if (currentIds.Count > 0)
+            // 2) 刷新全量批次的执行状态
+            if (_allItems.Count > 0)
             {
+                var currentIds = _allItems.Select(i => i.Id).ToList();
                 var refreshTasks = currentIds.Select(id => ProdRecordService.RefreshBatchTrackingAsync(id));
                 var results = await Task.WhenAll(refreshTasks);
                 var failCount = results.Count(r => !r.Success);
@@ -387,9 +404,8 @@
                 else
                     Snackbar.Add($"已刷新 {results.Length} 个批次的执行状态", Severity.Success);
 
-                // 重载当前页
-                if (table != null)
-                    await table.ReloadServerData();
+                // 重新加载数据
+                await LoadAllDataAsync();
             }
         }
         catch (Exception ex)
@@ -403,103 +419,186 @@
         }
     }
 
-    private string GetSortIndicator(string column)
-    {
-        if (sortColumn != column) return "";
-        return sortDescending ? "\u25BC" : "\u25B2";
-    }
-
-    private async Task<TableData<ProductionBatchListDto>> OnServerData(TableState state)
-    {
-        isLoading = true;
-        StateHasChanged();
-
-        try
-        {
-            var queryParams = new BatchQueryParams
-            {
-                PageIndex = state.Page + 1,
-                PageSize = state.PageSize,
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                Status = string.IsNullOrWhiteSpace(filterStatus) ? null : filterStatus,
-                ValidInputQuestion = string.IsNullOrWhiteSpace(_validInputQuestionFilter) ? null : _validInputQuestionFilter,
-                SortBy = sortColumn,
-                IsDescending = sortDescending
-            };
-
-            var result = await BatchService.GetPagedAsync(queryParams);
-
-            if (result.Success && result.Data != null)
-            {
-                items = result.Data.Items;
-                totalCount = result.Data.TotalCount;
-                return new TableData<ProductionBatchListDto>
-                {
-                    Items = items,
-                    TotalItems = totalCount
-                };
-            }
-
-            return new TableData<ProductionBatchListDto>
-            {
-                Items = new List<ProductionBatchListDto>(),
-                TotalItems = 0
-            };
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
-            return new TableData<ProductionBatchListDto>
-            {
-                Items = new List<ProductionBatchListDto>(),
-                TotalItems = 0
-            };
-        }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task ToggleSort(string column)
-    {
-        if (sortColumn == column)
-            sortDescending = !sortDescending;
-        else
-        {
-            sortColumn = column;
-            sortDescending = false;
-        }
-        if (table != null)
-            await table.ReloadServerData();
-    }
-
-    private async Task Search()
-    {
-        if (table != null)
-            await table.ReloadServerData();
-    }
+    // ========== 搜索 ==========
 
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
-        if (table != null)
-            await table.ReloadServerData();
-    }
-
-    private async Task OnStatusFilterChanged(string value)
-    {
-        filterStatus = value ?? string.Empty;
-        if (table != null)
-            await table.ReloadServerData();
+        RefreshFilteredData();
     }
 
     private async Task OnValidInputQuestionFilterChanged(string value)
     {
         _validInputQuestionFilter = value ?? string.Empty;
-        if (table != null)
-            await table.ReloadServerData();
+        RefreshFilteredData();
+    }
+
+    // ========== ExcelFilter 回调 ==========
+
+    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
+    {
+        if (selectedValues.Count > 0)
+            _columnFilters[fieldKey] = selectedValues;
+        else
+            _columnFilters.Remove(fieldKey);
+
+        RefreshFilteredData();
+        await SavePageStateAsync();
+    }
+
+    private async Task OnExcelSortRequested(string fieldKey, bool ascending)
+    {
+        sortColumn = fieldKey;
+        sortDescending = !ascending;
+        RefreshFilteredData();
+        await SavePageStateAsync();
+    }
+
+    // ========== 客户端刷新 ==========
+
+    private void RefreshFilteredData()
+    {
+        var query = _allItems.AsEnumerable();
+
+        // 关键字搜索
+        if (!string.IsNullOrWhiteSpace(_searchKeyword))
+        {
+            var kw = _searchKeyword;
+            query = query.Where(x =>
+                (x.BatchNo != null && x.BatchNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.TagNo != null && x.TagNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.WorkOrderNo != null && x.WorkOrderNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.SalesOrderNo != null && x.SalesOrderNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.PlantGrade != null && x.PlantGrade.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.Specification != null && x.Specification.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.Salesman != null && x.Salesman.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.EndCustomer != null && x.EndCustomer.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.ProductionMainNo != null && x.ProductionMainNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.ProductionSubNo != null && x.ProductionSubNo.Contains(kw, StringComparison.OrdinalIgnoreCase))
+            );
+        }
+
+        // 有效投料疑问筛选
+        if (!string.IsNullOrWhiteSpace(_validInputQuestionFilter))
+        {
+            query = query.Where(x => x.ValidInputQuestion == _validInputQuestionFilter);
+        }
+
+        // ExcelFilter 列筛选
+        foreach (var cf in _columnFilters)
+        {
+            var fieldKey = cf.Key;
+            var selected = cf.Value;
+            query = query.Where(x =>
+            {
+                var raw = GetCellRawValue(x, fieldKey);
+                return raw != null && selected.Contains(raw);
+            });
+        }
+
+        // 排序
+        if (!string.IsNullOrEmpty(sortColumn))
+        {
+            query = sortColumn switch
+            {
+                "batchno" => sortDescending ? query.OrderByDescending(x => x.BatchNo) : query.OrderBy(x => x.BatchNo),
+                "tagno" => sortDescending ? query.OrderByDescending(x => x.TagNo) : query.OrderBy(x => x.TagNo),
+                "createdtime" => sortDescending ? query.OrderByDescending(x => x.CreatedTime) : query.OrderBy(x => x.CreatedTime),
+                "updatedtime" => sortDescending ? query.OrderByDescending(x => x.UpdatedTime) : query.OrderBy(x => x.UpdatedTime),
+                "workorderno" => sortDescending ? query.OrderByDescending(x => x.WorkOrderNo) : query.OrderBy(x => x.WorkOrderNo),
+                "salesorderno" => sortDescending ? query.OrderByDescending(x => x.SalesOrderNo) : query.OrderBy(x => x.SalesOrderNo),
+                "status" => sortDescending ? query.OrderByDescending(x => x.Status) : query.OrderBy(x => x.Status),
+                "plantgrade" => sortDescending ? query.OrderByDescending(x => x.PlantGrade) : query.OrderBy(x => x.PlantGrade),
+                "specification" => sortDescending ? query.OrderByDescending(x => x.Specification) : query.OrderBy(x => x.Specification),
+                "totalquantity" => sortDescending ? query.OrderByDescending(x => x.TotalQuantity) : query.OrderBy(x => x.TotalQuantity),
+                "totalweight" => sortDescending ? query.OrderByDescending(x => x.TotalWeight) : query.OrderBy(x => x.TotalWeight),
+                "totalmeters" => sortDescending ? query.OrderByDescending(x => x.TotalMeters) : query.OrderBy(x => x.TotalMeters),
+                "productiontype" => sortDescending ? query.OrderByDescending(x => x.ProductionType) : query.OrderBy(x => x.ProductionType),
+                "manufacturingitem" => sortDescending ? query.OrderByDescending(x => x.ManufacturingItem) : query.OrderBy(x => x.ManufacturingItem),
+                "currentgroupname" => sortDescending ? query.OrderByDescending(x => x.CurrentGroupName) : query.OrderBy(x => x.CurrentGroupName),
+                "currentsectionname" => sortDescending ? query.OrderByDescending(x => x.CurrentSectionName) : query.OrderBy(x => x.CurrentSectionName),
+                "currentexecdate" => sortDescending ? query.OrderByDescending(x => x.CurrentExecDate) : query.OrderBy(x => x.CurrentExecDate),
+                "signdate" => sortDescending ? query.OrderByDescending(x => x.SignDate) : query.OrderBy(x => x.SignDate),
+                "deliverydate" => sortDescending ? query.OrderByDescending(x => x.DeliveryDate) : query.OrderBy(x => x.DeliveryDate),
+                "salesman" => sortDescending ? query.OrderByDescending(x => x.Salesman ?? "") : query.OrderBy(x => x.Salesman ?? ""),
+                "endcustomer" => sortDescending ? query.OrderByDescending(x => x.EndCustomer ?? "") : query.OrderBy(x => x.EndCustomer ?? ""),
+                "materialname" => sortDescending ? query.OrderByDescending(x => x.MaterialName) : query.OrderBy(x => x.MaterialName),
+                "deliverystate" => sortDescending ? query.OrderByDescending(x => x.DeliveryState) : query.OrderBy(x => x.DeliveryState),
+                "lengthstatus" => sortDescending ? query.OrderByDescending(x => x.LengthStatus) : query.OrderBy(x => x.LengthStatus),
+                _ => sortDescending ? query.OrderByDescending(x => x.BatchNo) : query.OrderBy(x => x.BatchNo)
+            };
+        }
+
+        _filteredItemsList = query.ToList();
+        StateHasChanged();
+    }
+
+    // ========== 单元格原始值/显示值 ==========
+
+    private string? GetCellRawValue(ProductionBatchListDto item, string key) => key switch
+    {
+        "BatchNo" => item.BatchNo,
+        "TagNo" => item.TagNo,
+        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        "WorkOrderNo" => item.WorkOrderNo,
+        "SalesOrderNo" => item.SalesOrderNo,
+        "ProductionMainNo" => item.ProductionMainNo,
+        "ProductionSubNo" => item.ProductionSubNo,
+        "ProductionType" => item.ProductionType,
+        "ManufacturingItem" => item.ManufacturingItem,
+        "Status" => item.Status,
+        "CurrentExecDate" => item.CurrentExecDate?.ToString("yyyy-MM-dd"),
+        "CurrentGroupName" => item.CurrentGroupName,
+        "CurrentSectionName" => item.CurrentSectionName,
+        "CurrentEquipmentName" => item.CurrentEquipmentName,
+        "CurrentOutsource" => item.CurrentOutsource,
+        "CurrentSpec" => item.CurrentSpec,
+        "NextSectionName" => item.NextSectionName,
+        "CorrespondingSpec" => item.CorrespondingSpec,
+        "CurrentValidQty" => item.CurrentValidQty?.ToString("G29"),
+        "CurrentValidWeight" => item.CurrentValidWeight?.ToString("G29"),
+        "ProductionRatio" => item.ProductionRatio.ToString("G29"),
+        "SignDate" => item.SignDate.ToString("yyyy-MM-dd"),
+        "Salesman" => item.Salesman,
+        "EndCustomer" => item.EndCustomer,
+        "DeliveryDate" => item.DeliveryDate.ToString("yyyy-MM-dd"),
+        "DelayPenalty" => item.DelayPenalty.ToString(),
+        "MaterialName" => item.MaterialName,
+        "SettlementMethod" => item.SettlementMethod,
+        "StandardCode" => item.StandardCode,
+        "DeliveryState" => item.DeliveryState,
+        "PlantGrade" => item.PlantGrade,
+        "Specification" => item.Specification,
+        "LengthStatus" => item.LengthStatus,
+        "TotalQuantity" => item.TotalQuantity.ToString("G29"),
+        "TotalMeters" => item.TotalMeters.ToString("G29"),
+        "TotalWeight" => item.TotalWeight.ToString("G29"),
+        "TechnicalRequirements" => item.TechnicalRequirements,
+        "CreatedBy" => item.CreatedBy,
+        _ => null
+    };
+
+    private string? GetCellDisplayText(ProductionBatchListDto item, string key) => key switch
+    {
+        "ProductionType" => DisplayHelper.GetProductionTypeText(item.ProductionType),
+        "ManufacturingItem" => DisplayHelper.GetManufacturingItemText(item.ManufacturingItem),
+        "Status" => DisplayHelper.GetBatchStatusText(item.Status),
+        "DelayPenalty" => DisplayHelper.GetYesNoText(item.DelayPenalty),
+        "MaterialName" => DisplayHelper.GetMaterialNameText(item.MaterialName),
+        "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod),
+        "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState),
+        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
+        "TechnicalRequirements" => DisplayHelper.GetTechnicalRequirementsText(item.TechnicalRequirements),
+        _ => GetCellRawValue(item, key) ?? ""
+    };
+
+    // ========== 持久化 ==========
+
+    private async Task SavePageStateAsync()
+    {
+        // TODO: 使用 PageStateService 保存排序/筛选状态到 localStorage
+        await Task.CompletedTask;
     }
 
     private void NavigateToCreate() => Navigation.NavigateTo("/batches/create");
@@ -523,7 +622,7 @@
                 if (result.Success)
                 {
                     Snackbar.Add("删除成功", Severity.Success);
-                    await Search();
+                    await LoadAllDataAsync();
                 }
                 else
                 {
@@ -726,8 +825,7 @@
         {
             var request = new BatchPrintAllRequest
             {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                Status = string.IsNullOrWhiteSpace(filterStatus) ? null : filterStatus
+                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword
             };
             var result = await BatchService.PrintBatchAllAsync(request);
             if (result.Success && result.Data != null)

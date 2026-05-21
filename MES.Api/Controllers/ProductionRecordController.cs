@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
@@ -232,12 +233,29 @@ public class ProductionRecordController : ControllerBase
         [FromQuery] string? sortBy = null,
         [FromQuery] bool isDescending = true,
         [FromQuery] DateTime? execDateFrom = null,
-        [FromQuery] DateTime? execDateTo = null)
+        [FromQuery] DateTime? execDateTo = null,
+        [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
         var query = new QueryParams { PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword, SortBy = sortBy ?? "createdtime", IsDescending = isDescending, ExecDateFrom = execDateFrom, ExecDateTo = execDateTo };
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        }
         var result = await _service.GetAllProductionRecordsAsync(query);
         return Ok(ApiResponse<PagedResult<ProductionRecordDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 获取所有内部生产记录列表（不含分页，用于 ProductionRecords 页面）
+    /// </summary>
+    [HttpGet("all-list")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ApiResponse<List<ProductionRecordDto>>> GetAllProductionRecordList()
+    {
+        var result = await _service.GetAllProductionRecordListAsync();
+        return ApiResponse<List<ProductionRecordDto>>.Ok(result);
     }
 
     /// <summary>
@@ -288,12 +306,51 @@ public class ProductionRecordController : ControllerBase
         [FromQuery] string? sortBy = null,
         [FromQuery] bool isDescending = true,
         [FromQuery] DateTime? receiveDateFrom = null,
-        [FromQuery] DateTime? receiveDateTo = null)
+        [FromQuery] DateTime? receiveDateTo = null,
+        [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
         var query = new QueryParams { PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword, SortBy = sortBy ?? "createdtime", IsDescending = isDescending, ReceiveDateFrom = receiveDateFrom, ReceiveDateTo = receiveDateTo };
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        }
         var result = await _service.GetAllMaterialReceiveChecksAsync(query);
         return Ok(ApiResponse<PagedResult<MaterialReceiveCheckDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 获取所有检验到料记录列表（不含分页，用于 MaterialChecks 页面）
+    /// </summary>
+    [HttpGet("material-receive-checks/all-list")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ApiResponse<List<MaterialReceiveCheckDto>>> GetAllMaterialReceiveCheckList()
+    {
+        var result = await _service.GetAllMaterialReceiveCheckListAsync();
+        return ApiResponse<List<MaterialReceiveCheckDto>>.Ok(result);
+    }
+
+    /// <summary>
+    /// 获取所有工段委外记录列表（不含分页，用于 SectionOutsources 页面）
+    /// </summary>
+    [HttpGet("section-outsources/all-list")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ApiResponse<List<SectionOutsourceDto>>> GetAllSectionOutsourceList()
+    {
+        var result = await _service.GetAllSectionOutsourceListAsync();
+        return ApiResponse<List<SectionOutsourceDto>>.Ok(result);
+    }
+
+    /// <summary>
+    /// 获取所有委外回收记录列表（不含分页，用于 OutsourceRecoveries 页面）
+    /// </summary>
+    [HttpGet("outsource-recoveries/all-list")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ApiResponse<List<OutsourceRecoveryDto>>> GetAllOutsourceRecoveryList()
+    {
+        var result = await _service.GetAllOutsourceRecoveryListAsync();
+        return ApiResponse<List<OutsourceRecoveryDto>>.Ok(result);
     }
 
     /// <summary>

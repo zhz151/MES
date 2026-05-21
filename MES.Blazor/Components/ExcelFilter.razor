@@ -1,0 +1,250 @@
+@inject IJSRuntime JS
+
+@typeparam T
+
+<div class="excel-filter-root" style="display:inline-flex; align-items:center;">
+    <button type="button"
+            id="@_btnId"
+            title="筛选"
+            @onclick="ToggleAsync"
+            style="background:none; border:none; cursor:pointer; padding:2px 4px; display:inline-flex; align-items:center; font-size:14px; color:@_filterColor; line-height:1;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            @if (_selectedValues.Count > 0)
+            {
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            }
+            else
+            {
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+            }
+        </svg>
+    </button>
+</div>
+
+@if (_isOpen)
+{
+    <div class="excel-filter-overlay"
+         style="position:fixed; inset:0; z-index:999; background:transparent;"
+         @onclick="CloseAsync"></div>
+
+    <div id="@_popupId"
+         class="excel-filter-dropdown"
+         style="position:fixed; visibility:hidden; z-index:1000; background:#fff; border:1px solid #d0d0d0; border-radius:4px; box-shadow:0 4px 16px rgba(0,0,0,0.18); padding:8px; width:280px; font-size:13px;">
+        @* 标题 *@
+        <div style="font-weight:600; margin-bottom:6px; padding-bottom:4px; border-bottom:1px solid #eee;">
+            @Label
+        </div>
+
+        @* 排序按钮 *@
+        <div style="display:flex; gap:4px; margin-bottom:6px;">
+            <button type="button" @onclick="SortAsc"
+                    style="flex:1; padding:4px 8px; cursor:pointer; border:1px solid #ccc; background:#fff; border-radius:3px; font-size:12px;">
+                升序
+            </button>
+            <button type="button" @onclick="SortDesc"
+                    style="flex:1; padding:4px 8px; cursor:pointer; border:1px solid #ccc; background:#fff; border-radius:3px; font-size:12px;">
+                降序
+            </button>
+        </div>
+
+        @* 搜索框 *@
+        <input type="text"
+               placeholder="搜索..."
+               value="@_searchText"
+               @oninput="OnSearchInput"
+               style="width:100%; padding:6px 8px; box-sizing:border-box; border:1px solid #ccc; border-radius:3px; font-size:13px; margin-bottom:6px;" />
+
+        @* 全选 / 清除 *@
+        <div style="display:flex; gap:8px; margin-bottom:4px;">
+            <button type="button" @onclick="SelectAll"
+                    style="font-size:12px; padding:2px 6px; cursor:pointer; border:none; background:transparent; color:#1976d2;">
+                全选
+            </button>
+            <button type="button" @onclick="ClearAll"
+                    style="font-size:12px; padding:2px 6px; cursor:pointer; border:none; background:transparent; color:#999;">
+                清除
+            </button>
+            <span style="flex:1; text-align:right; font-size:11px; color:#999; align-self:center;">
+                @_selectedValues.Count / @_filteredOptions.Count
+            </span>
+        </div>
+
+        @* 值列表 *@
+        <div style="max-height:220px; overflow-y:auto; border:1px solid #eee; border-radius:3px; padding:2px 0;">
+            @if (_filteredOptions.Count == 0)
+            {
+                <div style="padding:8px; color:#999; text-align:center; font-size:12px;">无匹配项</div>
+            }
+            @foreach (var opt in _filteredOptions)
+            {
+                var isChecked = _selectedValues.Contains(opt.Value);
+                <label style="display:flex; align-items:center; padding:3px 6px; cursor:pointer; font-size:13px; gap:6px; @(isChecked ? "background:#e3f2fd;" : "")">
+                    <input type="checkbox"
+                           checked="@isChecked"
+                           @onchange="@((ChangeEventArgs e) => ToggleValue(opt.Value, (bool)(e.Value ?? false)))"
+                           style="margin:0;" />
+                    <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@opt.Display</span>
+                    <span style="margin-left:auto; font-size:11px; color:#999;">@opt.Count</span>
+                </label>
+            }
+        </div>
+
+        @* 确定按钮 *@
+        <button type="button" @onclick="ApplyAsync"
+                style="width:100%; padding:6px; cursor:pointer; border:1px solid #1976d2; background:#1976d2; color:#fff; border-radius:3px; margin-top:6px; font-size:13px;">
+            确定
+        </button>
+    </div>
+}
+
+@code {
+    private static int _counter;
+    private string _btnId = $"ef-btn-{++_counter}";
+    private string _popupId = $"ef-popup-{++_counter}";
+
+    private bool _isOpen;
+    private string _searchText = "";
+    private HashSet<string> _selectedValues = new();
+    private List<FilterOption> _allOptions = new();
+    private List<FilterOption> _filteredOptions => string.IsNullOrEmpty(_searchText)
+        ? _allOptions
+        : _allOptions.Where(o => o.Display.Contains(_searchText, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    private const string _nullPlaceholder = "__EXCEL_FILTER_NULL__";
+
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string FieldKey { get; set; } = "";
+    [Parameter] public List<T> AllItems { get; set; } = new();
+    [Parameter] public HashSet<string>? ActiveFilterValues { get; set; }
+    [Parameter] public Func<T, string?>? DisplaySelector { get; set; }
+    [Parameter] public Func<T, string?>? RawValueSelector { get; set; }
+    [Parameter] public EventCallback<(string fieldKey, HashSet<string> selectedValues)> FilterChanged { get; set; }
+    [Parameter] public EventCallback<(string fieldKey, bool ascending)> SortRequested { get; set; }
+
+    private string _filterColor => _selectedValues.Count > 0 ? "#1976d2" : "#999";
+
+    private int _lastItemsCount;
+    private int _itemsVersion;
+
+    protected override void OnParametersSet()
+    {
+        if (AllItems.Count > 0 && DisplaySelector != null && RawValueSelector != null)
+        {
+            // AllItems 改变时才重建选项（避免不必要重建）
+            if (AllItems.Count != _lastItemsCount || AllItems.GetHashCode() != _itemsVersion)
+            {
+                RebuildOptions();
+                _lastItemsCount = AllItems.Count;
+                _itemsVersion = AllItems.GetHashCode();
+            }
+        }
+        // 外部筛选状态改变时同步到组件（仅当组件关闭时）
+        if (!_isOpen && ActiveFilterValues != null)
+        {
+            _selectedValues = new HashSet<string>(ActiveFilterValues);
+        }
+        else if (!_isOpen && ActiveFilterValues == null)
+        {
+            _selectedValues = new();
+        }
+    }
+
+    private void RebuildOptions()
+    {
+        var grouped = new Dictionary<string, FilterOption>();
+        foreach (var item in AllItems)
+        {
+            var raw = RawValueSelector!(item);
+            var display = DisplaySelector!(item);
+            var key = raw ?? _nullPlaceholder;
+            var displayText = display ?? "(空值)";
+            if (grouped.TryGetValue(key, out var existing))
+            {
+                existing.Count++;
+            }
+            else
+            {
+                grouped[key] = new FilterOption { Value = key, Display = displayText, Count = 1 };
+            }
+        }
+
+        _allOptions = grouped.Values
+            .OrderBy(o => o.Value == _nullPlaceholder ? 1 : 0)
+            .ThenBy(o => o.Display, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private async Task ToggleAsync()
+    {
+        _isOpen = !_isOpen;
+        if (_isOpen)
+        {
+            _searchText = "";
+            // 从父组件同步当前筛选状态
+            if (ActiveFilterValues != null)
+                _selectedValues = new HashSet<string>(ActiveFilterValues);
+            else
+                _selectedValues = new();
+            RebuildOptions();
+            StateHasChanged();
+            await Task.Delay(50);
+            try { await JS.InvokeVoidAsync("positionFilterPopup", _btnId, _popupId); } catch { }
+        }
+        StateHasChanged();
+    }
+
+    private async Task CloseAsync()
+    {
+        _isOpen = false;
+        StateHasChanged();
+    }
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        _searchText = e.Value?.ToString() ?? "";
+    }
+
+    private void ToggleValue(string value, bool selected)
+    {
+        if (selected) _selectedValues.Add(value);
+        else _selectedValues.Remove(value);
+    }
+
+    private void SelectAll()
+    {
+        _selectedValues = _filteredOptions.Select(o => o.Value).ToHashSet();
+    }
+
+    private void ClearAll()
+    {
+        _selectedValues.Clear();
+    }
+
+    private async Task ApplyAsync()
+    {
+        await FilterChanged.InvokeAsync((FieldKey, _selectedValues));
+        _isOpen = false;
+        StateHasChanged();
+    }
+
+    private async Task SortAsc()
+    {
+        await SortRequested.InvokeAsync((FieldKey, true));
+        _isOpen = false;
+        StateHasChanged();
+    }
+
+    private async Task SortDesc()
+    {
+        await SortRequested.InvokeAsync((FieldKey, false));
+        _isOpen = false;
+        StateHasChanged();
+    }
+
+    private class FilterOption
+    {
+        public string Value { get; set; } = "";
+        public string Display { get; set; } = "";
+        public int Count { get; set; }
+    }
+}

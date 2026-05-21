@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
@@ -26,6 +27,8 @@ public class WorkOrderExecutionService
             var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={Uri.EscapeDataString(query.SortBy)}&isDescending={query.IsDescending}";
             if (!string.IsNullOrEmpty(query.Keyword))
                 url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
+
+            if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
 
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<WorkOrderExecutionSummaryDto>>>(url);
             return response ?? ApiResponse<PagedResult<WorkOrderExecutionSummaryDto>>.Fail("获取数据失败");

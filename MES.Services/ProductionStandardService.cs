@@ -7,6 +7,7 @@ using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Mapping;
+using MES.Services.Helpers;
 using MES.Services.Printing;
 
 namespace MES.Services;
@@ -59,28 +60,14 @@ public class ProductionStandardService : IProductionStandardService
             queryable = queryable.Where(p => p.IsActive == isActive.Value);
         }
 
-        // 排序
-        queryable = query.SortBy?.ToLower() switch
-        {
-            "standardcode" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.StandardCode)
-                : queryable.OrderBy(p => p.StandardCode),
-            "standardname" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.StandardName)
-                : queryable.OrderBy(p => p.StandardName),
-            "sortorder" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.SortOrder)
-                : queryable.OrderBy(p => p.SortOrder),
-            "isactive" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.IsActive)
-                : queryable.OrderBy(p => p.IsActive),
-            "remark" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.Remark ?? "")
-                : queryable.OrderBy(p => p.Remark ?? ""),
-            _ => query.IsDescending
-                ? queryable.OrderByDescending(p => p.SortOrder)
-                : queryable.OrderBy(p => p.SortOrder)
-        };
+        // 通用筛选
+        queryable = queryable.ApplyFilters(query.Filters);
+
+        // 排序（默认按 SortOrder 排序）
+        var sortBy = string.IsNullOrEmpty(query.SortBy) || query.SortBy.Equals("CreatedTime", StringComparison.OrdinalIgnoreCase)
+            ? "SortOrder"
+            : query.SortBy;
+        queryable = queryable.ApplySort(sortBy, query.IsDescending);
 
         var totalCount = await queryable.CountAsync();
         var items = await queryable

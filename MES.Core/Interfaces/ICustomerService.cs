@@ -14,6 +14,16 @@ public interface ICustomerService
 
     Task DeleteAsync(int id);
 
+    /// <summary>
+    /// 获取所有客户（无分页，供客户端筛选排序）
+    /// </summary>
+    Task<List<CustomerProfileDto>> GetAllListAsync();
+
+    /// <summary>
+    /// 获取客户下拉列表（仅含级联选择所需字段，不分页）
+    /// </summary>
+    Task<List<CustomerSelectDto>> GetSelectListAsync();
+
     // ========== 打印 ==========
     Task<byte[]> PrintCustomerAsync(int id);
     Task<byte[]> PrintCustomerBatchAsync(int[] ids);

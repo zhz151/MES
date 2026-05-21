@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
@@ -28,7 +29,8 @@ public class SupplierController : ControllerBase
         [FromQuery] int pageSize = 20,
         [FromQuery] string? keyword = null,
         [FromQuery] string? sortBy = null,
-        [FromQuery] bool isDescending = true)
+        [FromQuery] bool isDescending = true,
+        [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
         var query = new QueryParams
@@ -39,8 +41,21 @@ public class SupplierController : ControllerBase
             SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy,
             IsDescending = isDescending
         };
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { /* ignore invalid JSON */ }
+        }
         var result = await _service.GetPagedAsync(query);
         return Ok(ApiResponse<PagedResult<SupplierProfileDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("all")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<SupplierProfileDto>>>> GetAllList()
+    {
+        var result = await _service.GetAllListAsync();
+        return Ok(ApiResponse<List<SupplierProfileDto>>.Ok(result, "查询成功"));
     }
 
     [HttpGet("{id}")]

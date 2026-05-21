@@ -40,7 +40,7 @@
                 <MudItem xs="12" md="12">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 标准牌号/工厂牌号/热处理工艺/特殊材料"
-                                  Value="searchKeyword"
+                                  Value="_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
@@ -55,12 +55,12 @@
             <div id="grade-mappings-list-table">
             <MudTable @ref="table"
                       T="StandardGradeMappingDto"
-                      ServerData="OnServerData"
-                      Loading="@isLoading"
+                      Items="@_filteredItems"
                       Dense="true"
                       Hover="true"
                       Class="mt-4 auto-table"
                       Elevation="0"
+                      RowsPerPage="10"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
                     <ColumnDisplaySelect Columns="_allColumns"
@@ -90,7 +90,7 @@
                         打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
-                        共 @totalCount 条记录
+                        共 @(_filteredItems?.Count ?? 0) 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
@@ -100,20 +100,21 @@
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
-                            @if (!string.IsNullOrEmpty(col.SortKey))
-                            {
-                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
-                                    @col.Label
-                                </span>
-                                @if (sortColumn == col.SortKey)
-                                {
-                                    <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
-                                }
-                            }
-                            else
-                            {
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span class="th-label">@col.Label</span>
-                            }
+                                @if (col.FilterType != null)
+                                {
+                                    <ExcelFilter T="StandardGradeMappingDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 AllItems="@_allItems"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 DisplaySelector="@(x => GetCellDisplayText(x, col.Key))"
+                                                 RawValueSelector="@(x => GetCellRawValue(x, col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))"
+                                                 SortRequested="@(args => OnExcelSortRequested(args.fieldKey, args.ascending))" />
+                                }
+                            </div>
                         </MudTh>
                     }
                     <MudTh Style="width: 90px;">操作</MudTh>
@@ -124,7 +125,7 @@
                         {
                             <MudCheckBox T="bool"
                                          Value="@selectedIds.Contains(item.Id)"
-                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = gradeMappings.Any() && gradeMappings.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _filteredItems.Any() && _filteredItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
                                          Dense="true" />
                         }
                     </MudTd>
@@ -149,7 +150,7 @@
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
-                    <MudTablePager />
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
             </MudTable>
             </div>
@@ -159,7 +160,9 @@
 
 @code {
     private MudTable<StandardGradeMappingDto>? table;
-    private List<StandardGradeMappingDto> gradeMappings = new();
+    private List<StandardGradeMappingDto> _allItems = new();
+    private List<StandardGradeMappingDto>? _filteredItemsList;
+    private List<StandardGradeMappingDto> _filteredItems => _filteredItemsList ?? _allItems;
     private HashSet<int> selectedIds = new();
     private bool _allSelected;
     private bool _isArrowNavSetup;
@@ -172,7 +175,7 @@
             _allSelected = value;
             if (value)
             {
-                foreach (var item in gradeMappings)
+                foreach (var item in _filteredItems)
                     selectedIds.Add(item.Id);
             }
             else
@@ -182,12 +185,14 @@
             StateHasChanged();
         }
     }
-    private bool isLoading = false;
-    private string searchKeyword = string.Empty;
-    private int totalCount = 0;
+    private string _searchKeyword = string.Empty;
 
-    private string sortColumn = "standardgrade";
-    private bool sortDescending = false;
+    private string sortColumn = "StandardGrade";
+    private bool sortDescending = true;
+
+    // ExcelFilter 状态
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+    private Dictionary<string, List<StandardGradeMappingDto>> _filterContexts = new();
 
     // ========== 内联编辑 ==========
 
@@ -214,13 +219,13 @@
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "StandardGrade",  Label = "标准牌号",   SortKey = "standardgrade" },
-        new() { Key = "PlantGrade",     Label = "工厂牌号",   SortKey = "plantgrade" },
-        new() { Key = "Density",        Label = "密度(g/cm³)",SortKey = "density" },
-        new() { Key = "HeatTreatment",  Label = "热处理工艺", SortKey = "heattreatment" },
-        new() { Key = "SpecialMaterial",Label = "特殊材料",   SortKey = "specialmaterial" },
-        new() { Key = "SpecialNote",    Label = "特殊注意事项" },
-        new() { Key = "Remark",         Label = "备注" },
+        new() { Key = "StandardGrade",  Label = "标准牌号",   SortKey = "standardgrade",  FilterType = "string" },
+        new() { Key = "PlantGrade",     Label = "工厂牌号",   SortKey = "plantgrade",     FilterType = "string" },
+        new() { Key = "Density",        Label = "密度(g/cm³)",SortKey = "density",        FilterType = "number" },
+        new() { Key = "HeatTreatment",  Label = "热处理工艺", SortKey = "heattreatment",  FilterType = "string" },
+        new() { Key = "SpecialMaterial",Label = "特殊材料",   SortKey = "specialmaterial",FilterType = "boolean" },
+        new() { Key = "SpecialNote",    Label = "特殊注意事项",                            FilterType = "string" },
+        new() { Key = "Remark",         Label = "备注",                                    FilterType = "string" },
     };
 
     // ========== 列选择操作 ==========
@@ -279,6 +284,7 @@
             }
             _allColumns = reordered;
         }
+        await LoadAllDataAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -291,91 +297,130 @@
         }
     }
 
-    private string GetSortIndicator(string column)
-    {
-        if (sortColumn != column) return "";
-        return sortDescending ? "\u25BC" : "\u25B2";
-    }
+    // ========== 数据加载 ==========
 
-    private async Task<TableData<StandardGradeMappingDto>> OnServerData(TableState state)
+    private async Task LoadAllDataAsync()
     {
-        isLoading = true;
-        StateHasChanged();
-
         try
         {
-            var queryParams = new QueryParams
-            {
-                PageIndex = state.Page + 1,
-                PageSize = state.PageSize,
-                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending
-            };
-
-            var result = await GradeMappingService.GetPagedAsync(queryParams);
-
-            if (result.Success && result.Data != null)
-            {
-                gradeMappings = result.Data.Items;
-                totalCount = result.Data.TotalCount;
-                return new TableData<StandardGradeMappingDto>
-                {
-                    Items = gradeMappings,
-                    TotalItems = totalCount
-                };
-            }
-
-            return new TableData<StandardGradeMappingDto>
-            {
-                Items = new List<StandardGradeMappingDto>(),
-                TotalItems = 0
-            };
+            _allItems = await GradeMappingService.GetAllAsync();
+            _filteredItemsList = null;
+            RefreshFilteredData();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"加载失败: {ex.Message}");
             Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
-            return new TableData<StandardGradeMappingDto>
-            {
-                Items = new List<StandardGradeMappingDto>(),
-                TotalItems = 0
-            };
         }
         finally
         {
-            isLoading = false;
             StateHasChanged();
         }
     }
 
-    private async Task ToggleSort(string column)
-    {
-        if (sortColumn == column)
-            sortDescending = !sortDescending;
-        else
-        {
-            sortColumn = column;
-            sortDescending = false;
-        }
-        if (table != null)
-            await table.ReloadServerData();
-    }
-
-    private async Task Search()
-    {
-        if (table != null)
-        {
-            await table.ReloadServerData();
-        }
-    }
+    // ========== 搜索 ==========
 
     private async Task OnSearchChanged(string value)
     {
-        searchKeyword = value ?? string.Empty;
-        if (table != null)
-            await table.ReloadServerData();
+        _searchKeyword = value ?? string.Empty;
+        RefreshFilteredData();
     }
+
+    // ========== ExcelFilter 回调 ==========
+
+    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
+    {
+        if (selectedValues.Count > 0)
+            _columnFilters[fieldKey] = selectedValues;
+        else
+            _columnFilters.Remove(fieldKey);
+        RefreshFilteredData();
+        await SavePageStateAsync();
+    }
+
+    private async Task OnExcelSortRequested(string fieldKey, bool ascending)
+    {
+        sortColumn = fieldKey;
+        sortDescending = !ascending;
+        RefreshFilteredData();
+        await SavePageStateAsync();
+    }
+
+    private async Task SavePageStateAsync()
+    {
+        await Task.CompletedTask;
+    }
+
+    // ========== 客户端刷新 ==========
+
+    private void RefreshFilteredData()
+    {
+        var query = _allItems.AsEnumerable();
+
+        // 关键字搜索
+        if (!string.IsNullOrWhiteSpace(_searchKeyword))
+        {
+            var kw = _searchKeyword;
+            query = query.Where(x =>
+                (x.StandardGrade?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (x.PlantGrade?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (x.HeatTreatment?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (x.SpecialNote?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (x.Remark?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
+            );
+        }
+
+        // ExcelFilter 列筛选
+        foreach (var cf in _columnFilters)
+        {
+            var fieldKey = cf.Key;
+            var selected = cf.Value;
+            query = query.Where(x =>
+            {
+                var raw = GetCellRawValue(x, fieldKey);
+                return raw != null && selected.Contains(raw);
+            });
+        }
+
+        // 排序
+        if (!string.IsNullOrEmpty(sortColumn))
+        {
+            query = sortColumn switch
+            {
+                "StandardGrade" => sortDescending ? query.OrderByDescending(x => x.StandardGrade) : query.OrderBy(x => x.StandardGrade),
+                "PlantGrade" => sortDescending ? query.OrderByDescending(x => x.PlantGrade) : query.OrderBy(x => x.PlantGrade),
+                "Density" => sortDescending ? query.OrderByDescending(x => x.Density) : query.OrderBy(x => x.Density),
+                "HeatTreatment" => sortDescending ? query.OrderByDescending(x => x.HeatTreatment) : query.OrderBy(x => x.HeatTreatment),
+                "SpecialMaterial" => sortDescending ? query.OrderByDescending(x => x.SpecialMaterial) : query.OrderBy(x => x.SpecialMaterial),
+                "SpecialNote" => sortDescending ? query.OrderByDescending(x => x.SpecialNote) : query.OrderBy(x => x.SpecialNote),
+                "Remark" => sortDescending ? query.OrderByDescending(x => x.Remark) : query.OrderBy(x => x.Remark),
+                _ => query
+            };
+        }
+
+        _filteredItemsList = query.ToList();
+        StateHasChanged();
+    }
+
+    // ========== GetCellRawValue / GetCellDisplayText ==========
+
+    private string? GetCellRawValue(StandardGradeMappingDto item, string key) => key switch
+    {
+        "StandardGrade" => item.StandardGrade,
+        "PlantGrade" => item.PlantGrade,
+        "Density" => item.Density.ToString("G29"),
+        "HeatTreatment" => item.HeatTreatment,
+        "SpecialMaterial" => item.SpecialMaterial.ToString(),
+        "SpecialNote" => item.SpecialNote,
+        "Remark" => item.Remark,
+        _ => null
+    };
+
+    private string? GetCellDisplayText(StandardGradeMappingDto item, string key) => key switch
+    {
+        "SpecialMaterial" => item.SpecialMaterial ? DisplayHelper.GetRequirementTypeText(RequirementType.Special) : DisplayHelper.GetRequirementTypeText(RequirementType.Normal),
+        _ => GetCellRawValue(item, key) ?? ""
+    };
 
     private void NavigateToCreate() => Navigation.NavigateTo("/grade-mappings/create");
 
@@ -478,7 +523,7 @@
                 if (result.Success)
                 {
                     Snackbar.Add("删除成功", Severity.Success);
-                    await Search();
+                    await LoadAllDataAsync();
                 }
                 else
                 {
@@ -653,7 +698,7 @@
         try
         {
             var result = await GradeMappingService.PrintGradeMappingAllAsync(
-                string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 sortColumn, sortDescending);
             if (result.Success && result.Data != null)
                 await JS.InvokeVoidAsync("openPdf", result.Data);

@@ -6,6 +6,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Helpers;
 
 namespace MES.Services;
 
@@ -47,6 +48,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         }
 
         // 排序
+        q = q.ApplyFilters(query.Filters);
+
         q = ApplySorting(q, query.SortBy, query.IsDescending);
 
         var totalCount = await q.CountAsync();

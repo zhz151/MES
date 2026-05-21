@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
@@ -29,7 +30,8 @@ public class SubcontractOrderController : ControllerBase
         [FromQuery] string? keyword = null,
         [FromQuery] string? sortBy = null,
         [FromQuery] bool isDescending = true,
-        [FromQuery] string? status = null)
+        [FromQuery] string? status = null,
+        [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
         var query = new SubcontractQueryParams
@@ -41,8 +43,21 @@ public class SubcontractOrderController : ControllerBase
             IsDescending = isDescending,
             Status = status
         };
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        }
         var result = await _service.GetPagedAsync(query);
         return Ok(ApiResponse<PagedResult<SubcontractOrderDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("all")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<SubcontractOrderDto>>>> GetAllList()
+    {
+        var result = await _service.GetAllListAsync();
+        return Ok(ApiResponse<List<SubcontractOrderDto>>.Ok(result, "查询成功"));
     }
 
     [HttpGet("{id}")]

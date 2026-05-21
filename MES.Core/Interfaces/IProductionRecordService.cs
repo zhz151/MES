@@ -136,6 +136,26 @@ public interface IProductionRecordService
     Task<PagedResult<MaterialReceiveCheckDto>> GetAllMaterialReceiveChecksAsync(QueryParams query);
 
     /// <summary>
+    /// 获取所有内部生产记录（不含分页，用于 ProductionRecords 页面列表展示）
+    /// </summary>
+    Task<List<ProductionRecordDto>> GetAllProductionRecordListAsync();
+
+    /// <summary>
+    /// 获取所有检验到料记录（不含分页，用于 MaterialChecks 页面列表展示）
+    /// </summary>
+    Task<List<MaterialReceiveCheckDto>> GetAllMaterialReceiveCheckListAsync();
+
+    /// <summary>
+    /// 获取所有工段委外记录（不含分页，用于 SectionOutsources 页面列表展示）
+    /// </summary>
+    Task<List<SectionOutsourceDto>> GetAllSectionOutsourceListAsync();
+
+    /// <summary>
+    /// 获取所有委外回收记录（不含分页，用于 OutsourceRecoveries 页面列表展示）
+    /// </summary>
+    Task<List<OutsourceRecoveryDto>> GetAllOutsourceRecoveryListAsync();
+
+    /// <summary>
     /// 批量创建工段委外
     /// </summary>
     Task<List<SectionOutsourceDto>> BatchCreateSectionOutsourcesAsync(List<CreateSectionOutsourceRequest> requests);

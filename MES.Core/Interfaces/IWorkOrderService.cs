@@ -73,6 +73,21 @@ public interface IWorkOrderService
     /// </summary>
     Task CheckAllOrdersChangeAsync();
 /// <summary>
+/// 获取所有工单首页订单状态数据（无分页，供客户端筛选排序）
+/// </summary>
+Task<List<OrderWorkOrderStatusDto>> GetAllOrderStatusListAsync();
+
+/// <summary>
+/// 全量刷新用料计划读模型（从 WorkOrders + 计划表重新计算）
+/// </summary>
+Task RefreshMaterialPlanReadModelAsync();
+
+/// <summary>
+/// 获取所有用料计划总览数据（无分页，供客户端筛选排序）
+/// </summary>
+Task<List<WorkOrderListDto>> GetAllListAsync();
+
+/// <summary>
 /// 获取订单的工单项次追溯关系（包含该订单下所有工单及其项次明细）
 /// </summary>
 /// <param name="salesOrderNo">订单号</param>

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
@@ -28,7 +29,8 @@ public class RepairOrderController : ControllerBase
         [FromQuery] int pageSize = 20,
         [FromQuery] string? keyword = null,
         [FromQuery] string? sortBy = null,
-        [FromQuery] bool isDescending = true)
+        [FromQuery] bool isDescending = true,
+        [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
         var query = new RepairOrderQueryParams
@@ -39,8 +41,21 @@ public class RepairOrderController : ControllerBase
             SortBy = string.IsNullOrEmpty(sortBy) ? "ReportTime" : sortBy,
             IsDescending = isDescending
         };
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        }
         var result = await _service.GetPagedAsync(query);
         return Ok(ApiResponse<PagedResult<RepairOrderListDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("all-list")]
+    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<RepairOrderListDto>>>> GetAllList()
+    {
+        var result = await _service.GetAllListAsync();
+        return Ok(ApiResponse<List<RepairOrderListDto>>.Ok(result, "查询成功"));
     }
 
     [HttpGet("{id}")]

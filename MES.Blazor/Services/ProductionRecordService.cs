@@ -172,7 +172,7 @@ public class ProductionRecordService
 
     // ========== 跨批次查询（用于独立页面） ==========
 
-    public async Task<ApiResponse<PagedResult<ProductionRecordDto>>> GetAllProductionRecordsAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, DateTime? execDateFrom = null, DateTime? execDateTo = null)
+    public async Task<ApiResponse<PagedResult<ProductionRecordDto>>> GetAllProductionRecordsAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, DateTime? execDateFrom = null, DateTime? execDateTo = null, string? filters = null)
     {
         try
         {
@@ -181,6 +181,7 @@ public class ProductionRecordService
             if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
             if (execDateFrom.HasValue) url += $"&execDateFrom={execDateFrom.Value:yyyy-MM-dd}";
             if (execDateTo.HasValue) url += $"&execDateTo={execDateTo.Value:yyyy-MM-dd}";
+            if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<ProductionRecordDto>>>(url)
                    ?? ApiResponse<PagedResult<ProductionRecordDto>>.Fail("获取数据失败");
         }
@@ -213,7 +214,7 @@ public class ProductionRecordService
         catch (Exception ex) { return ApiResponse<PagedResult<OutsourceRecoveryDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<PagedResult<MaterialReceiveCheckDto>>> GetAllMaterialReceiveChecksAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, DateTime? receiveDateFrom = null, DateTime? receiveDateTo = null)
+    public async Task<ApiResponse<PagedResult<MaterialReceiveCheckDto>>> GetAllMaterialReceiveChecksAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, DateTime? receiveDateFrom = null, DateTime? receiveDateTo = null, string? filters = null)
     {
         try
         {
@@ -222,10 +223,51 @@ public class ProductionRecordService
             if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
             if (receiveDateFrom.HasValue) url += $"&receiveDateFrom={receiveDateFrom.Value:yyyy-MM-dd}";
             if (receiveDateTo.HasValue) url += $"&receiveDateTo={receiveDateTo.Value:yyyy-MM-dd}";
+            if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<MaterialReceiveCheckDto>>>(url)
                    ?? ApiResponse<PagedResult<MaterialReceiveCheckDto>>.Fail("获取数据失败");
         }
         catch (Exception ex) { return ApiResponse<PagedResult<MaterialReceiveCheckDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<List<ProductionRecordDto>>> GetAllProductionRecordListAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<ProductionRecordDto>>>($"{BaseUrl}/all-list")
+                   ?? ApiResponse<List<ProductionRecordDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<ProductionRecordDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<List<MaterialReceiveCheckDto>>> GetAllMaterialReceiveCheckListAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<MaterialReceiveCheckDto>>>($"{BaseUrl}/material-receive-checks/all-list")
+                   ?? ApiResponse<List<MaterialReceiveCheckDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<MaterialReceiveCheckDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<List<SectionOutsourceDto>>> GetAllSectionOutsourceListAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<SectionOutsourceDto>>>($"{BaseUrl}/section-outsources/all-list")
+                   ?? ApiResponse<List<SectionOutsourceDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<SectionOutsourceDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<List<OutsourceRecoveryDto>>> GetAllOutsourceRecoveryListAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<OutsourceRecoveryDto>>>($"{BaseUrl}/outsource-recoveries/all-list")
+                   ?? ApiResponse<List<OutsourceRecoveryDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<OutsourceRecoveryDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
     public async Task<ApiResponse<List<SectionOutsourceDto>>> BatchCreateSectionOutsourcesAsync(List<CreateSectionOutsourceRequest> requests)

@@ -1,4 +1,5 @@
 // 文件路径: MES.Api/Controllers/CustomerController.cs
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
@@ -35,7 +36,8 @@ public class CustomerController : ControllerBase
         [FromQuery] int pageSize = 20,
         [FromQuery] string? keyword = null,
         [FromQuery] string? sortBy = null,
-        [FromQuery] bool isDescending = true)
+        [FromQuery] bool isDescending = true,
+        [FromQuery] string? filters = null)
     {
         // 限制最大每页数量
         if (pageSize > 5000) pageSize = 5000;
@@ -48,9 +50,25 @@ public class CustomerController : ControllerBase
             SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy,
             IsDescending = isDescending
         };
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { /* ignore invalid JSON */ }
+        }
 
         var result = await _customerService.GetPagedAsync(query);
         return Ok(ApiResponse<PagedResult<CustomerProfileDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 获取所有客户列表（无分页，供客户端筛选排序）
+    /// </summary>
+    [HttpGet("list-all")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<CustomerProfileDto>>>> GetAllList()
+    {
+        var result = await _customerService.GetAllListAsync();
+        return Ok(ApiResponse<List<CustomerProfileDto>>.Ok(result, "查询成功"));
     }
 
     /// <summary>
@@ -94,6 +112,17 @@ public class CustomerController : ControllerBase
 
         var result = await _customerService.UpdateAsync(id, request);
         return Ok(ApiResponse<CustomerProfileDto>.Ok(result, "更新成功"));
+    }
+
+    /// <summary>
+    /// 获取客户下拉列表（轻量，仅含级联选择所需字段）
+    /// </summary>
+    [HttpGet("select-list")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<CustomerSelectDto>>>> GetSelectList()
+    {
+        var result = await _customerService.GetSelectListAsync();
+        return Ok(ApiResponse<List<CustomerSelectDto>>.Ok(result, "查询成功"));
     }
 
     // ========== 打印 ==========

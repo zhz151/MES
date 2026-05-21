@@ -9,6 +9,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Mapping;
+using MES.Services.Helpers;
 using MES.Services.Printing;
 
 namespace MES.Services;
@@ -54,6 +55,49 @@ public class InventoryService : IInventoryService
     }
 
     public async Task<PagedResult<InventoryBatchDto>> GetPagedAsync(InventoryQueryParams query)
+    {
+        var queryable = BuildInventoryQuery(query);
+
+        var totalCount = await queryable.CountAsync();
+        var items = await queryable
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .Select(b => b.ToDto())
+            .ToListAsync();
+
+        // 填充仓库名称
+        await FillWarehouseNamesAsync(items);
+
+        return new PagedResult<InventoryBatchDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            PageIndex = query.PageIndex,
+            PageSize = query.PageSize
+        };
+    }
+
+    /// <summary>
+    /// 全量加载库存批次（无分页，供前端 Items 模式使用）
+    /// </summary>
+    public async Task<List<InventoryBatchDto>> GetAllListAsync(InventoryQueryParams query)
+    {
+        var queryable = BuildInventoryQuery(query);
+
+        var items = await queryable
+            .Select(b => b.ToDto())
+            .ToListAsync();
+
+        // 填充仓库名称
+        await FillWarehouseNamesAsync(items);
+
+        return items;
+    }
+
+    /// <summary>
+    /// 构建库存批次查询（含筛选 + 排序，不含分页）
+    /// </summary>
+    private IQueryable<InventoryBatch> BuildInventoryQuery(InventoryQueryParams query)
     {
         var queryable = _context.InventoryBatches
             .AsNoTracking()
@@ -150,6 +194,8 @@ public class InventoryService : IInventoryService
 
         if (!string.IsNullOrEmpty(query.OriginalSupplier))
             queryable = queryable.Where(b => b.OriginalSupplier != null && b.OriginalSupplier.Contains(query.OriginalSupplier));
+
+        queryable = queryable.ApplyFilters(query.Filters);
 
         // 排序
         queryable = query.SortBy?.ToLower() switch
@@ -264,14 +310,14 @@ public class InventoryService : IInventoryService
                 : queryable.OrderBy(b => b.CreatedTime)
         };
 
-        var totalCount = await queryable.CountAsync();
-        var items = await queryable
-            .Skip(query.Skip)
-            .Take(query.PageSize)
-            .Select(b => b.ToDto())
-            .ToListAsync();
+        return queryable;
+    }
 
-        // 填充仓库名称
+    /// <summary>
+    /// 填充批次列表的仓库名称
+    /// </summary>
+    private async Task FillWarehouseNamesAsync(List<InventoryBatchDto> items)
+    {
         var warehouseIds = items.Select(i => i.WarehouseId).Distinct();
         var warehouses = await _context.Warehouses
             .Where(w => warehouseIds.Contains(w.Id))
@@ -282,14 +328,6 @@ public class InventoryService : IInventoryService
             if (warehouses.TryGetValue(item.WarehouseId, out var name))
                 item.WarehouseName = name;
         }
-
-        return new PagedResult<InventoryBatchDto>
-        {
-            Items = items,
-            TotalCount = totalCount,
-            PageIndex = query.PageIndex,
-            PageSize = query.PageSize
-        };
     }
 
     public async Task<BatchInboundResult> BatchInboundAsync(BatchInboundRequest request)
@@ -633,6 +671,24 @@ public class InventoryService : IInventoryService
                     (r.Remark != null && r.Remark.Contains(keyword)) ||
                     (r.OutboundType.ToString().Contains(keyword)) ||
                     _context.InventoryBatches.Any(b => b.Id == r.InventoryBatchId && b.BatchNo.Contains(keyword)));
+            }
+        }
+
+        queryable = queryable.ApplyFilters(query.Filters);
+
+        // 跨表计算字段筛选（非 OutboundRecord 直接属性）
+        if (query.Filters is { Count: > 0 })
+        {
+            foreach (var filter in query.Filters)
+            {
+                if (string.IsNullOrWhiteSpace(filter.Field)) continue;
+                switch (filter.Field.ToLower())
+                {
+                    case "batchno":
+                        if (!string.IsNullOrEmpty(filter.Value))
+                            queryable = queryable.Where(r => _context.InventoryBatches.Any(b => b.Id == r.InventoryBatchId && b.BatchNo.Contains(filter.Value)));
+                        break;
+                }
             }
         }
 

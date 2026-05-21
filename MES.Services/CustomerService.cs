@@ -8,7 +8,9 @@ using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Mapping;
+using MES.Services.Helpers;
 using MES.Services.Printing;
+using MES.Services.Order;
 
 namespace MES.Services;
 
@@ -18,10 +20,12 @@ namespace MES.Services;
 public class CustomerService : ICustomerService
 {
     private readonly AppDbContext _context;
+    private readonly OrderListSummaryService? _orderListSummaryService;
 
-    public CustomerService(AppDbContext context)
+    public CustomerService(AppDbContext context, OrderListSummaryService? orderListSummaryService = null)
     {
         _context = context;
+        _orderListSummaryService = orderListSummaryService;
     }
 
     /// <summary>
@@ -59,40 +63,11 @@ public class CustomerService : ICustomerService
             }
         }
 
+        // 通用筛选
+        queryable = queryable.ApplyFilters(query.Filters);
+
         // Sorting
-        queryable = query.SortBy?.ToLower() switch
-        {
-            "customercode" => query.IsDescending
-                ? queryable.OrderByDescending(c => c.CustomerCode)
-                : queryable.OrderBy(c => c.CustomerCode),
-            "customerunit" => query.IsDescending
-                ? queryable.OrderByDescending(c => c.CustomerUnit)
-                : queryable.OrderBy(c => c.CustomerUnit),
-            "salesman" => query.IsDescending
-                ? queryable.OrderByDescending(c => c.Salesman)
-                : queryable.OrderBy(c => c.Salesman),
-            "endcustomer" => query.IsDescending
-                ? queryable.OrderByDescending(c => c.EndCustomer ?? "")
-                : queryable.OrderBy(c => c.EndCustomer ?? ""),
-            "status" => query.IsDescending
-                ? queryable.OrderByDescending(c => c.Status)
-                : queryable.OrderBy(c => c.Status),
-            "contactperson" => query.IsDescending
-                ? queryable.OrderByDescending(c => c.ContactPerson ?? "")
-                : queryable.OrderBy(c => c.ContactPerson ?? ""),
-            "contactphone" => query.IsDescending
-                ? queryable.OrderByDescending(c => c.ContactPhone ?? "")
-                : queryable.OrderBy(c => c.ContactPhone ?? ""),
-            "address" => query.IsDescending
-                ? queryable.OrderByDescending(c => c.Address ?? "")
-                : queryable.OrderBy(c => c.Address ?? ""),
-            "remark" => query.IsDescending
-                ? queryable.OrderByDescending(c => c.Remark ?? "")
-                : queryable.OrderBy(c => c.Remark ?? ""),
-            _ => query.IsDescending
-                ? queryable.OrderByDescending(c => c.CreatedTime)
-                : queryable.OrderBy(c => c.CreatedTime)
-        };
+        queryable = queryable.ApplySort(query.SortBy, query.IsDescending);
 
         var totalCount = await queryable.CountAsync();
         var items = await queryable
@@ -247,6 +222,13 @@ public class CustomerService : ICustomerService
             throw new BusinessException("客户信息已被其他用户修改，请刷新后重试");
         }
 
+        // 客户信息变更时刷新订单读模型（名称/业务员/最终客户均在读模型中）
+        if (request.CustomerUnit != null || request.Salesman != null || request.EndCustomer != null)
+        {
+            if (_orderListSummaryService != null)
+                await _orderListSummaryService.RefreshByCustomerAsync(entity.Id);
+        }
+
         return entity.ToDto();
     }
 
@@ -265,6 +247,44 @@ public class CustomerService : ICustomerService
 
         _context.CustomerProfiles.Remove(entity);
         await _context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// 获取所有客户列表（无分页）
+    /// </summary>
+    public async Task<List<CustomerProfileDto>> GetAllListAsync()
+    {
+        return await _context.CustomerProfiles
+            .AsNoTracking()
+            .Select(c => new CustomerProfileDto
+            {
+                Id = c.Id,
+                CustomerCode = c.CustomerCode,
+                Salesman = c.Salesman,
+                CustomerUnit = c.CustomerUnit,
+                EndCustomer = c.EndCustomer,
+                ContactPerson = c.ContactPerson,
+                ContactPhone = c.ContactPhone,
+                Address = c.Address,
+                Status = c.Status,
+                Remark = c.Remark
+            })
+            .ToListAsync();
+    }
+
+    public async Task<List<CustomerSelectDto>> GetSelectListAsync()
+    {
+        return await _context.CustomerProfiles
+            .AsNoTracking()
+            .OrderBy(c => c.CustomerUnit)
+            .Select(c => new CustomerSelectDto
+            {
+                Id = c.Id,
+                CustomerUnit = c.CustomerUnit,
+                Salesman = c.Salesman ?? string.Empty,
+                EndCustomer = c.EndCustomer
+            })
+            .ToListAsync();
     }
 
     // ========== 打印 ==========

@@ -7,6 +7,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 
+using MES.Services.Helpers;
 using MES.Services.Printing;
 
 namespace MES.Services;
@@ -57,51 +58,8 @@ public class EquipmentService : IEquipmentService
         var filterInspectionStatus = query.InspectionStatus;
         var filterMaintStatus = query.MaintStatus;
 
-        q = (query.SortBy?.ToLower(), query.IsDescending) switch
-        {
-            ("equipmentcode", true) => q.OrderByDescending(e => e.EquipmentCode),
-            ("equipmentcode", false) => q.OrderBy(e => e.EquipmentCode),
-            ("equipmentname", true) => q.OrderByDescending(e => e.EquipmentName),
-            ("equipmentname", false) => q.OrderBy(e => e.EquipmentName),
-            ("lifecyclestatus", true) => q.OrderByDescending(e => e.LifecycleStatus),
-            ("lifecyclestatus", false) => q.OrderBy(e => e.LifecycleStatus),
-            ("modelnumber", true) => q.OrderByDescending(e => e.ModelNumber ?? ""),
-            ("modelnumber", false) => q.OrderBy(e => e.ModelNumber ?? ""),
-            ("technicalparams", true) => q.OrderByDescending(e => e.TechnicalParams ?? ""),
-            ("technicalparams", false) => q.OrderBy(e => e.TechnicalParams ?? ""),
-            ("manufacturer", true) => q.OrderByDescending(e => e.Manufacturer ?? ""),
-            ("manufacturer", false) => q.OrderBy(e => e.Manufacturer ?? ""),
-            ("installationdate", true) => q.OrderByDescending(e => e.InstallationDate),
-            ("installationdate", false) => q.OrderBy(e => e.InstallationDate),
-            ("location", true) => q.OrderByDescending(e => e.Location ?? ""),
-            ("location", false) => q.OrderBy(e => e.Location ?? ""),
-            ("relatedsection", true) => q.OrderByDescending(e => e.RelatedSection ?? ""),
-            ("relatedsection", false) => q.OrderBy(e => e.RelatedSection ?? ""),
-            ("usagetype", true) => q.OrderByDescending(e => e.UsageType),
-            ("usagetype", false) => q.OrderBy(e => e.UsageType),
-            ("needinspection", true) => q.OrderByDescending(e => e.NeedInspection),
-            ("needinspection", false) => q.OrderBy(e => e.NeedInspection),
-            ("inspectionperson", true) => q.OrderByDescending(e => e.InspectionPerson ?? ""),
-            ("inspectionperson", false) => q.OrderBy(e => e.InspectionPerson ?? ""),
-            ("inspectioncycledays", true) => q.OrderByDescending(e => e.InspectionCycleDays),
-            ("inspectioncycledays", false) => q.OrderBy(e => e.InspectionCycleDays),
-            ("currentinspectionstartdate", true) => q.OrderByDescending(e => e.CurrentInspectionStartDate),
-            ("currentinspectionstartdate", false) => q.OrderBy(e => e.CurrentInspectionStartDate),
-            ("needmaintenance", true) => q.OrderByDescending(e => e.NeedMaintenance),
-            ("needmaintenance", false) => q.OrderBy(e => e.NeedMaintenance),
-            ("maintperson", true) => q.OrderByDescending(e => e.MaintPerson ?? ""),
-            ("maintperson", false) => q.OrderBy(e => e.MaintPerson ?? ""),
-            ("maintcycledays", true) => q.OrderByDescending(e => e.MaintCycleDays),
-            ("maintcycledays", false) => q.OrderBy(e => e.MaintCycleDays),
-            ("currentmaintstartdate", true) => q.OrderByDescending(e => e.CurrentMaintStartDate),
-            ("currentmaintstartdate", false) => q.OrderBy(e => e.CurrentMaintStartDate),
-            ("lastrepairdate", true) => q.OrderByDescending(e => e.LastRepairDate),
-            ("lastrepairdate", false) => q.OrderBy(e => e.LastRepairDate),
-            ("remark", true) => q.OrderByDescending(e => e.Remark ?? ""),
-            ("remark", false) => q.OrderBy(e => e.Remark ?? ""),
-            _ when query.IsDescending => q.OrderByDescending(e => e.CreatedTime),
-            _ => q.OrderBy(e => e.CreatedTime)
-        };
+        q = q.ApplyFilters(query.Filters);
+        q = q.ApplySort(query.SortBy ?? "equipmentcode", query.IsDescending);
 
         var totalCount = await q.CountAsync();
         var entities = await q
@@ -125,6 +83,15 @@ public class EquipmentService : IEquipmentService
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
+    }
+
+    public async Task<List<EquipmentListDto>> GetAllListAsync()
+    {
+        var entities = await _context.Equipment
+            .AsNoTracking()
+            .ToListAsync();
+
+        return await ComputeStatusesAsync(entities);
     }
 
     public async Task<List<EquipmentListDto>> GetAllAsync()

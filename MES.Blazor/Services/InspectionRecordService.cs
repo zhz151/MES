@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
@@ -18,10 +19,21 @@ public class InspectionRecordService
             var encodedSortBy = Uri.EscapeDataString(query.SortBy ?? "Id");
             var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={encodedSortBy}&isDescending={isDescending}";
             if (!string.IsNullOrEmpty(query.Keyword)) url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
+            if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<InspectionRecordListDto>>>(url)
                    ?? ApiResponse<PagedResult<InspectionRecordListDto>>.Fail("获取数据失败");
         }
         catch (Exception ex) { return ApiResponse<PagedResult<InspectionRecordListDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<List<InspectionRecordListDto>>> GetAllListAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<InspectionRecordListDto>>>($"{BaseUrl}/all-list")
+                   ?? ApiResponse<List<InspectionRecordListDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<InspectionRecordListDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
     public async Task<ApiResponse<InspectionRecordListDto>> GetByIdAsync(int id)

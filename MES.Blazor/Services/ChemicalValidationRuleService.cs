@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
@@ -10,13 +11,14 @@ public class ChemicalValidationRuleService
 
     public ChemicalValidationRuleService(AuthHttpClient http) => _http = http;
 
-    public async Task<ApiResponse<PagedResult<ChemicalValidationRuleDto>>> GetAllAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true)
+    public async Task<ApiResponse<PagedResult<ChemicalValidationRuleDto>>> GetAllAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, List<FilterDescriptor>? filters = null)
     {
         try
         {
             var url = $"{BaseUrl}/all?pageIndex={pageIndex}&pageSize={pageSize}&isDescending={isDescending.ToString().ToLower()}";
             if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
             if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
+            if (filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(filters))}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<ChemicalValidationRuleDto>>>(url)
                    ?? ApiResponse<PagedResult<ChemicalValidationRuleDto>>.Fail("获取数据失败");
         }
@@ -51,6 +53,16 @@ public class ChemicalValidationRuleService
                    ?? ApiResponse<object>.Fail("删除失败");
         }
         catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<List<ChemicalValidationRuleDto>>> GetAllListAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<ChemicalValidationRuleDto>>>($"{BaseUrl}/all-list")
+                   ?? ApiResponse<List<ChemicalValidationRuleDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<ChemicalValidationRuleDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
     public async Task<ApiResponse<ChemicalValidationRuleDto?>> GetByPlantGradeAsync(string plantGrade)

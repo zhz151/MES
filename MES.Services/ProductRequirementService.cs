@@ -7,16 +7,19 @@ using MES.Core.Interfaces;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Mapping;
+using MES.Services.Order;
 
 namespace MES.Services;
 
 public class ProductRequirementService : IProductRequirementService
 {
     private readonly AppDbContext _context;
+    private readonly OrderListSummaryService? _orderListSummaryService;
 
-    public ProductRequirementService(AppDbContext context)
+    public ProductRequirementService(AppDbContext context, OrderListSummaryService? orderListSummaryService = null)
     {
         _context = context;
+        _orderListSummaryService = orderListSummaryService;
     }
 
     public async Task<ProductRequirementDto?> GetByOrderItemIdAsync(int orderItemId)
@@ -51,6 +54,8 @@ public class ProductRequirementService : IProductRequirementService
             existing.OtherRequirement = request.OtherRequirement;
 
             await _context.SaveChangesAsync();
+            if (_orderListSummaryService != null)
+                await _orderListSummaryService.RefreshByOrderAsync(orderItem.SalesOrderId);
             return await MapToDtoWithSequenceAsync(existing, orderItem.Sequence);
         }
         else
@@ -70,6 +75,8 @@ public class ProductRequirementService : IProductRequirementService
 
             _context.ProductRequirements.Add(entity);
             await _context.SaveChangesAsync();
+            if (_orderListSummaryService != null)
+                await _orderListSummaryService.RefreshByOrderAsync(orderItem.SalesOrderId);
             return await MapToDtoWithSequenceAsync(entity, orderItem.Sequence);
         }
     }

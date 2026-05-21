@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Core.Enums;
@@ -34,7 +35,9 @@ public class OrderService
                 var statusParam = string.Join(",", statuses.Select(s => s.ToString()));
                 url += $"&orderStatus={Uri.EscapeDataString(statusParam)}";
             }
-            
+
+            if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
+
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<SalesOrderListDto>>>(url);
             return response ?? ApiResponse<PagedResult<SalesOrderListDto>>.Fail("获取订单列表失败");
         }
@@ -162,6 +165,38 @@ public class OrderService
         catch (Exception ex)
         {
             return ApiResponse<SaveAllOrderResponse>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 获取所有订单列表数据（无分页，供客户端筛选排序）
+    /// </summary>
+    public async Task<ApiResponse<List<SalesOrderListDto>>> GetAllAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<SalesOrderListDto>>>($"{BaseUrl}/list-all");
+            return response ?? ApiResponse<List<SalesOrderListDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<SalesOrderListDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 手动刷新订单列表读模型（即时更新）
+    /// </summary>
+    public async Task<ApiResponse> RefreshAsync()
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<object, ApiResponse>($"{BaseUrl}/refresh", new object());
+            return response ?? ApiResponse.Fail("刷新失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse.Fail($"网络错误: {ex.Message}");
         }
     }
 

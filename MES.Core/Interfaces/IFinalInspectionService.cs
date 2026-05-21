@@ -14,6 +14,11 @@ public interface IFinalInspectionService
     Task<PagedResult<FinalInspectionDto>> GetAllAsync(QueryParams query);
 
     /// <summary>
+    /// 获取所有成品检验记录（无分页）
+    /// </summary>
+    Task<List<FinalInspectionDto>> GetAllListAsync();
+
+    /// <summary>
     /// 获取成品检验详情
     /// </summary>
     Task<FinalInspectionDto?> GetByIdAsync(int id);

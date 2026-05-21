@@ -7,6 +7,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Helpers;
 using MES.Services.Printing;
 
 namespace MES.Services;
@@ -1207,6 +1208,16 @@ public class ProductionRecordService : IProductionRecordService
         // 强制完成的批次不自动跟踪
         if (batch.IsForceCompleted) return;
 
+        // ProcessGroups 为 null 时保护
+        if (batch.ProcessGroups == null)
+        {
+            _logger.LogWarning("批次 {BatchId} 的 ProcessGroups 为 null", batchId);
+            return;
+        }
+
+        try
+        {
+
         // 检验到料存在：截止执行日 = 到料日期，不计算其他跟踪字段
         var materialCheckDate = await _context.MaterialReceiveChecks
             .Where(m => m.ProductionBatchId == batchId)
@@ -1358,6 +1369,12 @@ public class ProductionRecordService : IProductionRecordService
 
         _context.ProductionBatches.Update(batch);
         await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "刷新批次跟踪字段失败 (BatchId={BatchId})", batchId);
+            throw;
+        }
     }
 
     /// <summary>
@@ -1594,6 +1611,7 @@ public class ProductionRecordService : IProductionRecordService
         if (query.ExecDateTo.HasValue)
             queryable = queryable.Where(r => r.ExecDate <= query.ExecDateTo.Value);
 
+        queryable = queryable.ApplyFilters(query.Filters);
         var totalCount = await queryable.CountAsync();
 
         queryable = ApplySorting(queryable, query.SortBy ?? "createdtime", query.IsDescending);
@@ -1639,53 +1657,87 @@ public class ProductionRecordService : IProductionRecordService
         };
     }
 
+    public async Task<List<ProductionRecordDto>> GetAllProductionRecordListAsync()
+    {
+        return await _context.ProductionRecords
+            .AsNoTracking()
+            .Include(r => r.ProductionBatch)
+            .OrderByDescending(r => r.CreatedTime)
+            .Select(r => new ProductionRecordDto
+            {
+                Id = r.Id,
+                ProductionBatchId = r.ProductionBatchId,
+                ProcessGroupId = r.ProcessGroupId,
+                ProcessName = r.ProcessName,
+                ManufacturingSpec = r.ManufacturingSpec,
+                SectionName = r.SectionName,
+                SequenceNumber = r.SequenceNumber,
+                ExecDate = r.ExecDate,
+                EquipmentName = r.EquipmentName,
+                Operator = r.Operator,
+                Shift = r.Shift,
+                Quantity = r.Quantity,
+                Weight = r.Weight,
+                IsFinished = r.IsFinished,
+                CuttingMultiple = r.CuttingMultiple,
+                FinishedCutLength = r.FinishedCutLength,
+                PostCutQuantity = r.PostCutQuantity,
+                TagNo = r.TagNo,
+                PlantGrade = r.PlantGrade,
+                Remark = r.Remark,
+                DataSource = r.DataSource,
+                BatchNo = r.ProductionBatch.BatchNo,
+                CreatedTime = r.CreatedTime,
+                UpdatedTime = r.UpdatedTime
+            })
+            .ToListAsync();
+    }
+
     private static IQueryable<ProductionRecord> ApplySorting(IQueryable<ProductionRecord> queryable, string sortBy, bool isDescending)
     {
-        return (sortBy.ToLower(), isDescending) switch
+        return (sortBy.ToLowerInvariant(), isDescending) switch
         {
-            ("processname", false) => queryable.OrderBy(r => r.ProcessName),
-            ("processname", true) => queryable.OrderByDescending(r => r.ProcessName),
-            ("sectionname", false) => queryable.OrderBy(r => r.SectionName),
-            ("sectionname", true) => queryable.OrderByDescending(r => r.SectionName),
             ("execdate", false) => queryable.OrderBy(r => r.ExecDate),
             ("execdate", true) => queryable.OrderByDescending(r => r.ExecDate),
+            ("batchno", false) => queryable.OrderBy(r => r.ProductionBatch.BatchNo),
+            ("batchno", true) => queryable.OrderByDescending(r => r.ProductionBatch.BatchNo),
+            ("processname", false) => queryable.OrderBy(r => r.ProcessName),
+            ("processname", true) => queryable.OrderByDescending(r => r.ProcessName),
+            ("manufacturingspec", false) => queryable.OrderBy(r => r.ManufacturingSpec ?? ""),
+            ("manufacturingspec", true) => queryable.OrderByDescending(r => r.ManufacturingSpec ?? ""),
+            ("sectionname", false) => queryable.OrderBy(r => r.SectionName),
+            ("sectionname", true) => queryable.OrderByDescending(r => r.SectionName),
             ("sequencenumber", false) => queryable.OrderBy(r => r.SequenceNumber),
             ("sequencenumber", true) => queryable.OrderByDescending(r => r.SequenceNumber),
             ("equipmentname", false) => queryable.OrderBy(r => r.EquipmentName ?? ""),
             ("equipmentname", true) => queryable.OrderByDescending(r => r.EquipmentName ?? ""),
             ("operator", false) => queryable.OrderBy(r => r.Operator ?? ""),
             ("operator", true) => queryable.OrderByDescending(r => r.Operator ?? ""),
+            ("shift", false) => queryable.OrderBy(r => r.Shift ?? ""),
+            ("shift", true) => queryable.OrderByDescending(r => r.Shift ?? ""),
             ("quantity", false) => queryable.OrderBy(r => r.Quantity ?? 0),
             ("quantity", true) => queryable.OrderByDescending(r => r.Quantity ?? 0),
             ("weight", false) => queryable.OrderBy(r => r.Weight ?? 0),
             ("weight", true) => queryable.OrderByDescending(r => r.Weight ?? 0),
+            ("isfinished", false) => queryable.OrderBy(r => r.IsFinished),
+            ("isfinished", true) => queryable.OrderByDescending(r => r.IsFinished),
             ("cuttingmultiple", false) => queryable.OrderBy(r => r.CuttingMultiple ?? 0),
             ("cuttingmultiple", true) => queryable.OrderByDescending(r => r.CuttingMultiple ?? 0),
             ("finishedcutlength", false) => queryable.OrderBy(r => r.FinishedCutLength ?? 0),
             ("finishedcutlength", true) => queryable.OrderByDescending(r => r.FinishedCutLength ?? 0),
             ("postcutquantity", false) => queryable.OrderBy(r => r.PostCutQuantity ?? 0),
             ("postcutquantity", true) => queryable.OrderByDescending(r => r.PostCutQuantity ?? 0),
-            ("createdtime", false) => queryable.OrderBy(r => r.CreatedTime),
-            ("createdtime", true) => queryable.OrderByDescending(r => r.CreatedTime),
-            ("updatedtime", false) => queryable.OrderBy(r => r.UpdatedTime),
-            ("updatedtime", true) => queryable.OrderByDescending(r => r.UpdatedTime),
-            ("manufacturingspec", false) => queryable.OrderBy(r => r.ManufacturingSpec ?? ""),
-            ("manufacturingspec", true) => queryable.OrderByDescending(r => r.ManufacturingSpec ?? ""),
-            ("isfinished", false) => queryable.OrderBy(r => r.IsFinished),
-            ("isfinished", true) => queryable.OrderByDescending(r => r.IsFinished),
-            ("shift", false) => queryable.OrderBy(r => r.Shift ?? ""),
-            ("shift", true) => queryable.OrderByDescending(r => r.Shift ?? ""),
             ("tagno", false) => queryable.OrderBy(r => r.TagNo ?? ""),
             ("tagno", true) => queryable.OrderByDescending(r => r.TagNo ?? ""),
             ("plantgrade", false) => queryable.OrderBy(r => r.PlantGrade ?? ""),
             ("plantgrade", true) => queryable.OrderByDescending(r => r.PlantGrade ?? ""),
             ("remark", false) => queryable.OrderBy(r => r.Remark ?? ""),
             ("remark", true) => queryable.OrderByDescending(r => r.Remark ?? ""),
-            ("batchno", false) => queryable.OrderBy(r => r.ProductionBatch.BatchNo),
-            ("batchno", true) => queryable.OrderByDescending(r => r.ProductionBatch.BatchNo),
-            _ => isDescending
-                ? queryable.OrderByDescending(r => r.CreatedTime)
-                : queryable.OrderBy(r => r.CreatedTime)
+            ("createdtime", false) => queryable.OrderBy(r => r.CreatedTime),
+            ("createdtime", true) => queryable.OrderByDescending(r => r.CreatedTime),
+            ("updatedtime", false) => queryable.OrderBy(r => r.UpdatedTime),
+            ("updatedtime", true) => queryable.OrderByDescending(r => r.UpdatedTime),
+            _ => queryable.OrderByDescending(r => r.CreatedTime)
         };
     }
 
@@ -1928,6 +1980,91 @@ public class ProductionRecordService : IProductionRecordService
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
+    }
+
+    public async Task<List<MaterialReceiveCheckDto>> GetAllMaterialReceiveCheckListAsync()
+    {
+        var query = from rc in _context.MaterialReceiveChecks
+                    join b in _context.ProductionBatches on rc.ProductionBatchId equals b.Id
+                    orderby rc.Id descending
+                    select new MaterialReceiveCheckDto
+                    {
+                        Id = rc.Id,
+                        ProductionBatchId = rc.ProductionBatchId,
+                        BatchNo = b.BatchNo,
+                        ReceiveDate = rc.ReceiveDate,
+                        ReceivedQuantity = rc.ReceivedQuantity,
+                        ReceivedWeight = rc.ReceivedWeight,
+                        Shift = rc.Shift,
+                        Checker = rc.Checker,
+                        Remark = rc.Remark,
+                        CreatedTime = rc.CreatedTime,
+                        UpdatedTime = rc.UpdatedTime
+                    };
+        return await query.ToListAsync();
+    }
+
+    public async Task<List<SectionOutsourceDto>> GetAllSectionOutsourceListAsync()
+    {
+        var query = from s in _context.SectionOutsources
+                    join b in _context.ProductionBatches on s.ProductionBatchId equals b.Id
+                    orderby s.Id descending
+                    select new SectionOutsourceDto
+                    {
+                        Id = s.Id,
+                        ProductionBatchId = s.ProductionBatchId,
+                        ProcessGroupId = s.ProcessGroupId,
+                        ProcessName = s.ProcessName,
+                        ManufacturingSpec = s.ManufacturingSpec,
+                        SectionName = s.SectionName,
+                        SequenceNumber = s.SequenceNumber,
+                        OutsourceVendor = s.OutsourceVendor,
+                        SendOutDate = s.SendOutDate,
+                        SendQuantity = s.SendQuantity,
+                        SendWeight = s.SendWeight,
+                        Status = s.Status.ToString(),
+                        TagNo = s.TagNo,
+                        PlantGrade = s.PlantGrade,
+                        OutsourceSpec = s.OutsourceSpec,
+                        ExpectedReturnDate = s.ExpectedReturnDate,
+                        IsUrgent = s.IsUrgent,
+                        Remark = s.Remark,
+                        BatchNo = b.BatchNo,
+                        CreatedTime = s.CreatedTime,
+                        UpdatedTime = s.UpdatedTime
+                    };
+        return await query.ToListAsync();
+    }
+
+    public async Task<List<OutsourceRecoveryDto>> GetAllOutsourceRecoveryListAsync()
+    {
+        var query = from r in _context.OutsourceRecoveries
+                    join s in _context.SectionOutsources on r.SectionOutsourceId equals s.Id
+                    join b in _context.ProductionBatches on s.ProductionBatchId equals b.Id
+                    orderby r.Id descending
+                    select new OutsourceRecoveryDto
+                    {
+                        Id = r.Id,
+                        SectionOutsourceId = r.SectionOutsourceId,
+                        RecoveryDate = r.RecoveryDate,
+                        RecoveryQuantity = r.RecoveryQuantity,
+                        RecoveryWeight = r.RecoveryWeight,
+                        UnprocessedQuantity = r.UnprocessedQuantity,
+                        UnprocessedWeight = r.UnprocessedWeight,
+                        Remark = r.Remark,
+                        BatchNo = b.BatchNo,
+                        OutsourceVendor = s.OutsourceVendor,
+                        ProcessName = s.ProcessName,
+                        SectionName = s.SectionName,
+                        ManufacturingSpec = s.ManufacturingSpec,
+                        OutsourceSpec = s.OutsourceSpec,
+                        TagNo = s.TagNo,
+                        PlantGrade = s.PlantGrade,
+                        SendQuantity = s.SendQuantity,
+                        SendWeight = s.SendWeight,
+                        CreatedTime = r.CreatedTime
+                    };
+        return await query.ToListAsync();
     }
 
     public async Task<List<SectionOutsourceDto>> BatchCreateSectionOutsourcesAsync(List<CreateSectionOutsourceRequest> requests)

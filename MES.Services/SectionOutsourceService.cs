@@ -7,6 +7,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Helpers;
 using MES.Services.Printing;
 
 namespace MES.Services;
@@ -113,6 +114,8 @@ public class SectionOutsourceService : ISectionOutsourceService
             var to = query.ActualRecoveryDateTo.Value.Date.AddDays(1);
             queryable = queryable.Where(s => s.OutsourceRecoveries.Any(r => r.RecoveryDate < to));
         }
+
+        queryable = queryable.ApplyFilters(query.Filters);
 
         var totalCount = await queryable.CountAsync();
 
@@ -478,6 +481,8 @@ public class SectionOutsourceService : ISectionOutsourceService
             var to = query.RecoveryDateTo.Value.Date.AddDays(1);
             queryable = queryable.Where(r => r.RecoveryDate < to);
         }
+
+        queryable = queryable.ApplyFilters(query.Filters);
 
         var totalCount = await queryable.CountAsync();
 

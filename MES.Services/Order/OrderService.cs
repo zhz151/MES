@@ -8,6 +8,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Helpers;
 using MES.Services.Printing;
 
 namespace MES.Services.Order;
@@ -17,12 +18,14 @@ public class OrderService : IOrderService
     private readonly AppDbContext _context;
     private readonly ILogger<OrderService> _logger;
     private readonly INotificationService _notificationService;
+    private readonly OrderListSummaryService? _orderListSummaryService;
 
-    public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService)
+    public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService, OrderListSummaryService? orderListSummaryService = null)
     {
         _context = context;
         _logger = logger;
         _notificationService = notificationService;
+        _orderListSummaryService = orderListSummaryService;
     }
 
     #region 订单管理
@@ -48,17 +51,14 @@ public class OrderService : IOrderService
             }
         }
 
-        var queryable = _context.SalesOrders
-            .Include(so => so.Customer)
-            .AsNoTracking()
-            .AsQueryable();
+        var queryable = _context.Set<OrderListSummary>().AsQueryable();
 
         // 订单状态筛选
         if (statuses == null || !statuses.Any())
         {
             statuses = new List<SalesOrderStatus> { SalesOrderStatus.Pending, SalesOrderStatus.Confirmed, SalesOrderStatus.Cancelled };
         }
-        queryable = queryable.Where(so => statuses.Contains(so.Status));
+        queryable = queryable.Where(s => statuses.Contains(s.Status));
 
         // 关键字模糊搜索（多关键词AND + 状态中文映射）
         if (!string.IsNullOrEmpty(query.Keyword))
@@ -73,14 +73,14 @@ public class OrderService : IOrderService
                     "已确认" => SalesOrderStatus.Confirmed,
                     _ => null
                 };
-                queryable = queryable.Where(so =>
-                    so.OrderNumber.Contains(keyword) ||
-                    _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.CustomerUnit.Contains(keyword)) ||
-                    _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.Salesman.Contains(keyword)) ||
-                    _context.CustomerProfiles.Any(c => c.Id == so.CustomerId && c.EndCustomer != null && c.EndCustomer.Contains(keyword)) ||
-                    (parsedStatus.HasValue && so.Status == parsedStatus.Value) ||
-                    (keyword == "是" && so.OrderItems.Any(oi => oi.DelayPenalty)) ||
-                    (keyword == "否" && so.OrderItems.Any(oi => !oi.DelayPenalty)));
+                queryable = queryable.Where(s =>
+                    s.OrderNumber.Contains(keyword) ||
+                    s.CustomerName.Contains(keyword) ||
+                    s.Salesman.Contains(keyword) ||
+                    (s.EndCustomer != null && s.EndCustomer.Contains(keyword)) ||
+                    (parsedStatus.HasValue && s.Status == parsedStatus.Value) ||
+                    (keyword == "是" && s.HasDelayPenalty) ||
+                    (keyword == "否" && !s.HasDelayPenalty));
             }
         }
 
@@ -89,21 +89,18 @@ public class OrderService : IOrderService
         {
             if (hasTechnicalRequirement.Value)
             {
-                // 已编辑：订单下所有项次都有技术要求
-                queryable = queryable.Where(so =>
-                    _context.OrderItems.Any(oi => oi.SalesOrderId == so.Id) &&
-                    !_context.OrderItems.Any(oi => oi.SalesOrderId == so.Id &&
-                        !_context.ProductRequirements.Any(pr => pr.OrderItemId == oi.Id)));
+                // 已编辑：有项次且所有项次都有技术要求（HasTechReqCount == ItemCount）
+                queryable = queryable.Where(s => s.ItemCount > 0 && s.HasTechReqCount == s.ItemCount);
             }
             else
             {
                 // 未编辑：至少有一个项次没有技术要求
-                queryable = queryable.Where(so =>
-                    _context.OrderItems.Any(oi => oi.SalesOrderId == so.Id) &&
-                    _context.OrderItems.Any(oi => oi.SalesOrderId == so.Id &&
-                        !_context.ProductRequirements.Any(pr => pr.OrderItemId == oi.Id)));
+                queryable = queryable.Where(s => s.HasTechReqCount < s.ItemCount);
             }
         }
+
+        queryable = queryable.ApplyFilters(query.Filters);
+        queryable = ApplyComputedFieldFilters(queryable, query.Filters);
 
         var totalCount = await queryable.CountAsync();
 
@@ -113,145 +110,85 @@ public class OrderService : IOrderService
             switch (query.SortBy.ToLower())
             {
                 case "ordernumber":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.OrderNumber) : queryable.OrderBy(so => so.OrderNumber);
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.OrderNumber) : queryable.OrderBy(s => s.OrderNumber);
                     break;
                 case "signdate":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.SignDate) : queryable.OrderBy(so => so.SignDate);
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.SignDate) : queryable.OrderBy(s => s.SignDate);
                     break;
                 case "status":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.Status) : queryable.OrderBy(so => so.Status);
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.Status) : queryable.OrderBy(s => s.Status);
                     break;
                 case "salesman":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.Customer.Salesman) : queryable.OrderBy(so => so.Customer.Salesman);
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.Salesman) : queryable.OrderBy(s => s.Salesman);
                     break;
                 case "customername":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.Customer.CustomerUnit) : queryable.OrderBy(so => so.Customer.CustomerUnit);
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.CustomerName) : queryable.OrderBy(s => s.CustomerName);
                     break;
                 case "endcustomer":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.Customer.EndCustomer ?? "") : queryable.OrderBy(so => so.Customer.EndCustomer ?? "");
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.EndCustomer ?? "") : queryable.OrderBy(s => s.EndCustomer ?? "");
                     break;
                 case "deliverystart":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.OrderItems.Min(oi => (DateTime?)oi.DeliveryDate)) : queryable.OrderBy(so => so.OrderItems.Min(oi => (DateTime?)oi.DeliveryDate));
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.DeliveryStart) : queryable.OrderBy(s => s.DeliveryStart);
                     break;
                 case "deliveryend":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.OrderItems.Max(oi => (DateTime?)oi.DeliveryDate)) : queryable.OrderBy(so => so.OrderItems.Max(oi => (DateTime?)oi.DeliveryDate));
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.DeliveryEnd) : queryable.OrderBy(s => s.DeliveryEnd);
                     break;
                 case "hasdelaypenalty":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.OrderItems.Any(oi => oi.DelayPenalty)) : queryable.OrderBy(so => so.OrderItems.Any(oi => oi.DelayPenalty));
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.HasDelayPenalty) : queryable.OrderBy(s => s.HasDelayPenalty);
                     break;
                 case "totalcontractweight":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.OrderItems.Sum(oi => oi.ContractWeight)) : queryable.OrderBy(so => so.OrderItems.Sum(oi => oi.ContractWeight));
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.TotalContractWeight) : queryable.OrderBy(s => s.TotalContractWeight);
                     break;
                 case "itemcount":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.OrderItems.Count) : queryable.OrderBy(so => so.OrderItems.Count);
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.ItemCount) : queryable.OrderBy(s => s.ItemCount);
                     break;
                 case "lastchangedate":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.LastItemChangeTime) : queryable.OrderBy(so => so.LastItemChangeTime);
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.LastChangeDate) : queryable.OrderBy(s => s.LastChangeDate);
+                    break;
+                case "hastechnicalrequirement":
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.ItemCount > 0 && s.HasTechReqCount == s.ItemCount) : queryable.OrderBy(s => s.ItemCount > 0 && s.HasTechReqCount == s.ItemCount);
                     break;
                 default:
-                    queryable = query.IsDescending ? queryable.OrderByDescending(so => so.CreatedTime) : queryable.OrderBy(so => so.CreatedTime);
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.SignDate) : queryable.OrderBy(s => s.SignDate);
                     break;
             }
         }
         else
         {
-            queryable = queryable.OrderByDescending(so => so.SignDate);
+            queryable = queryable.OrderByDescending(s => s.SignDate);
         }
 
-        var salesOrders = await queryable
+        var summaries = await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
             .ToListAsync();
 
-        var orderIds = salesOrders.Select(so => so.Id).ToList();
-        var customerIds = salesOrders.Select(so => so.CustomerId).Distinct().ToList();
-        var customers = await _context.CustomerProfiles
-            .Where(c => customerIds.Contains(c.Id))
-            .ToDictionaryAsync(c => c.Id, c => c);
+        // 批量加载 SalesOrder 的 RowVersion（OrderListSummary 的 RowVersion 是读模型自身的 rowversion，与业务表不同）
+        var orderIds = summaries.Select(s => s.OrderId).ToList();
+        var salesOrderRowVersions = await _context.SalesOrders
+            .AsNoTracking()
+            .Where(so => orderIds.Contains(so.Id))
+            .ToDictionaryAsync(so => so.Id, so => so.RowVersion);
 
-        var orderItemCounts = await _context.OrderItems
-            .Where(oi => orderIds.Contains(oi.SalesOrderId))
-            .GroupBy(oi => oi.SalesOrderId)
-            .Select(g => new { OrderId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.OrderId, x => x.Count);
-
-        var orderHasReqCounts = await _context.OrderItems
-            .Where(oi => orderIds.Contains(oi.SalesOrderId))
-            .GroupJoin(
-                _context.ProductRequirements,
-                oi => oi.Id,
-                pr => pr.OrderItemId,
-                (oi, prs) => new { oi.SalesOrderId, HasReq = prs.Any() }
-            )
-            .Where(x => x.HasReq)
-            .GroupBy(x => x.SalesOrderId)
-            .Select(g => new { OrderId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.OrderId, x => x.Count);
-
-        var firstOrderItemIds = await _context.OrderItems
-            .Where(oi => orderIds.Contains(oi.SalesOrderId))
-            .GroupBy(oi => oi.SalesOrderId)
-            .Select(g => new { OrderId = g.Key, FirstItemId = g.OrderBy(oi => oi.Sequence).Select(oi => (int?)oi.Id).FirstOrDefault() })
-            .ToDictionaryAsync(x => x.OrderId, x => x.FirstItemId);
-
-        var orderItemMaxUpdate = await _context.OrderItems
-            .Where(oi => orderIds.Contains(oi.SalesOrderId))
-            .GroupBy(oi => oi.SalesOrderId)
-            .Select(g => new { OrderId = g.Key, MaxUpdate = g.Max(oi => oi.UpdatedTime) })
-            .ToDictionaryAsync(x => x.OrderId, x => x.MaxUpdate);
-
-        // 项次聚合数据：交期起始/截止、延期罚款、合同总重量
-        var orderItemAggs = await _context.OrderItems
-            .Where(oi => orderIds.Contains(oi.SalesOrderId))
-            .GroupBy(oi => oi.SalesOrderId)
-            .Select(g => new
-            {
-                OrderId = g.Key,
-                DeliveryStart = g.Min(oi => (DateTime?)oi.DeliveryDate),
-                DeliveryEnd = g.Max(oi => (DateTime?)oi.DeliveryDate),
-                HasDelayPenalty = g.Any(oi => oi.DelayPenalty),
-                TotalContractWeight = g.Sum(oi => oi.ContractWeight)
-            })
-            .ToListAsync();
-
-        var deliveryStartDict = orderItemAggs.ToDictionary(x => x.OrderId, x => x.DeliveryStart);
-        var deliveryEndDict = orderItemAggs.ToDictionary(x => x.OrderId, x => x.DeliveryEnd);
-        var delayPenaltyDict = orderItemAggs.ToDictionary(x => x.OrderId, x => x.HasDelayPenalty);
-        var totalWeightDict = orderItemAggs.ToDictionary(x => x.OrderId, x => (int)Math.Round(x.TotalContractWeight));
-
-        var items = new List<SalesOrderListDto>();
-        foreach (var so in salesOrders)
+        var items = summaries.Select(s => new SalesOrderListDto
         {
-            customers.TryGetValue(so.CustomerId, out var customer);
-            var totalItemCount = orderItemCounts.GetValueOrDefault(so.Id);
-            var hasReqCount = orderHasReqCounts.GetValueOrDefault(so.Id);
-            var hasTechReqFlag = totalItemCount > 0 && hasReqCount == totalItemCount;
-            DateTime? lastChangeDate = null;
-            if (orderItemMaxUpdate.TryGetValue(so.Id, out var maxUpdate) && maxUpdate > so.CreatedTime)
-            {
-                lastChangeDate = maxUpdate.LocalDateTime;
-            }
-
-            items.Add(new SalesOrderListDto
-            {
-                Id = so.Id,
-                OrderNumber = so.OrderNumber,
-                SignDate = so.SignDate,
-                CustomerName = customer?.CustomerUnit ?? string.Empty,
-                Salesman = customer?.Salesman ?? string.Empty,
-                EndCustomer = customer?.EndCustomer,
-                DeliveryStart = deliveryStartDict.GetValueOrDefault(so.Id),
-                DeliveryEnd = deliveryEndDict.GetValueOrDefault(so.Id),
-                HasDelayPenalty = delayPenaltyDict.GetValueOrDefault(so.Id),
-                TotalContractWeight = totalWeightDict.GetValueOrDefault(so.Id),
-                ItemCount = orderItemCounts.GetValueOrDefault(so.Id),
-                Status = so.Status,
-                RowVersion = so.RowVersion,
-                HasTechnicalRequirement = hasTechReqFlag,
-                FirstOrderItemId = firstOrderItemIds.GetValueOrDefault(so.Id),
-                LastChangeDate = lastChangeDate
-            });
-        }
+            Id = s.OrderId,
+            OrderNumber = s.OrderNumber,
+            SignDate = s.SignDate,
+            CustomerName = s.CustomerName,
+            Salesman = s.Salesman,
+            EndCustomer = s.EndCustomer,
+            DeliveryStart = s.DeliveryStart,
+            DeliveryEnd = s.DeliveryEnd,
+            HasDelayPenalty = s.HasDelayPenalty,
+            TotalContractWeight = s.TotalContractWeight,
+            ItemCount = s.ItemCount,
+            Status = s.Status,
+            RowVersion = salesOrderRowVersions.GetValueOrDefault(s.OrderId) ?? Array.Empty<byte>(),
+            HasTechnicalRequirement = s.ItemCount > 0 && s.HasTechReqCount == s.ItemCount,
+            FirstOrderItemId = s.FirstOrderItemId,
+            LastChangeDate = s.LastChangeDate
+        }).ToList();
 
         return new PagedResult<SalesOrderListDto>
         {
@@ -264,34 +201,42 @@ public class OrderService : IOrderService
 
     public async Task<SalesOrderDetailDto> GetByIdAsync(int id)
     {
-        // 先查询订单
+        // 1. 查订单头（无 Include，避免 LEFT JOIN 数据重复）
         var salesOrder = await _context.SalesOrders
             .AsNoTracking()
-            .Include(so => so.OrderItems)
             .FirstOrDefaultAsync(so => so.Id == id);
 
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
 
-        // 单独加载 Customer
+        // 2. 查客户
         var customer = await _context.CustomerProfiles
+            .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == salesOrder.CustomerId);
 
-        // 单独加载 ProductionStandard
-        var psIds = salesOrder.OrderItems
+        // 3. 查项次（独立查询，不与订单头 JOIN）
+        var orderItems = await _context.OrderItems
+            .AsNoTracking()
+            .Where(oi => oi.SalesOrderId == id)
+            .ToListAsync();
+
+        // 4. 加载产品标准字典
+        var psIds = orderItems
             .Where(oi => oi.ProductionStandardId > 0)
             .Select(oi => oi.ProductionStandardId)
             .Distinct()
             .ToList();
         var psDict = psIds.Any()
             ? await _context.ProductionStandards
+                .AsNoTracking()
                 .Where(ps => psIds.Contains(ps.Id))
                 .ToDictionaryAsync(ps => ps.Id, ps => ps)
             : new Dictionary<int, ProductionStandard>();
 
-        // 加载牌号映射（从 StandardGradeMapping 取最新 PlantGrade/Density）
-        var gradeDict = await LoadGradeMappingsDictAsync(salesOrder.OrderItems);
+        // 5. 加载牌号映射
+        var gradeDict = await LoadGradeMappingsDictAsync(orderItems);
 
+        // 6. 映射 DTO
         return new SalesOrderDetailDto
         {
             Id = salesOrder.Id,
@@ -303,7 +248,7 @@ public class OrderService : IOrderService
             EndCustomer = customer?.EndCustomer,
             Status = salesOrder.Status,
             RowVersion = salesOrder.RowVersion,
-            Items = salesOrder.OrderItems.Select(oi =>
+            Items = orderItems.Select(oi =>
             {
                 psDict.TryGetValue(oi.ProductionStandardId, out var ps);
                 return new OrderItemDto
@@ -377,6 +322,8 @@ public class OrderService : IOrderService
         _context.SalesOrders.Add(salesOrder);
         await _context.SaveChangesAsync();
 
+        if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(salesOrder.Id);
+
         _logger.LogInformation("创建订单成功: {OrderNumber}", salesOrder.OrderNumber);
 
         return new SalesOrderListDto
@@ -443,6 +390,8 @@ public class OrderService : IOrderService
         {
             throw new BusinessException("订单已被其他用户修改，请刷新后重试");
         }
+
+        if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(salesOrder.Id);
 
         var updatedCustomer = await _context.CustomerProfiles.FirstOrDefaultAsync(c => c.Id == salesOrder.CustomerId);
 
@@ -540,6 +489,9 @@ public async Task DeleteAsync(int id)
 
         await transaction.CommitAsync();
 
+        // 6. 刷新读模型（订单已删除，读模型自动移除）
+        if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(salesOrder.Id);
+
         _logger.LogInformation("订单 {OrderNumber} 已被删除，同时自动清理了 {Count} 个关联工单",
             salesOrder.OrderNumber, workOrderCount);
     }
@@ -608,6 +560,8 @@ public async Task DeleteAsync(int id)
             await transaction.RollbackAsync();
             throw;
         }
+
+        if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(orderId);
 
         return await MapToOrderItemDto(orderItem);
     }
@@ -712,6 +666,8 @@ public async Task DeleteAsync(int id)
             throw;
         }
 
+        if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(orderId);
+
         return await MapToOrderItemDto(orderItem);
     }
 
@@ -751,6 +707,8 @@ public async Task DeleteAsync(int id)
             await transaction.RollbackAsync();
             throw;
         }
+
+        if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(orderId);
     }
 
     public async Task<SaveAllOrderResponse> SaveAllAsync(int id, SaveAllOrderRequest request)
@@ -971,6 +929,9 @@ public async Task DeleteAsync(int id)
                 .OrderBy(r => r.Sequence)
                 .ToList();
 
+            // 刷新读模型
+            if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(salesOrder.Id);
+
             return new SaveAllOrderResponse
             {
                 RowVersion = salesOrder.RowVersion,
@@ -986,6 +947,43 @@ public async Task DeleteAsync(int id)
     }
 
     #endregion
+
+    /// <summary>
+    /// 获取所有订单列表数据（无分页，供客户端筛选排序）
+    /// </summary>
+    public async Task<List<SalesOrderListDto>> GetAllListAsync()
+    {
+        var summaries = await _context.Set<OrderListSummary>()
+            .AsNoTracking()
+            .Where(s => s.Status == SalesOrderStatus.Pending || s.Status == SalesOrderStatus.Confirmed)
+            .ToListAsync();
+
+        var orderIds = summaries.Select(s => s.OrderId).ToList();
+        var salesOrderRowVersions = await _context.SalesOrders
+            .AsNoTracking()
+            .Where(so => orderIds.Contains(so.Id))
+            .ToDictionaryAsync(so => so.Id, so => so.RowVersion);
+
+        return summaries.Select(s => new SalesOrderListDto
+        {
+            Id = s.OrderId,
+            OrderNumber = s.OrderNumber,
+            SignDate = s.SignDate,
+            CustomerName = s.CustomerName,
+            Salesman = s.Salesman,
+            EndCustomer = s.EndCustomer,
+            DeliveryStart = s.DeliveryStart,
+            DeliveryEnd = s.DeliveryEnd,
+            HasDelayPenalty = s.HasDelayPenalty,
+            TotalContractWeight = s.TotalContractWeight,
+            ItemCount = s.ItemCount,
+            Status = s.Status,
+            RowVersion = salesOrderRowVersions.GetValueOrDefault(s.OrderId) ?? Array.Empty<byte>(),
+            HasTechnicalRequirement = s.ItemCount > 0 && s.HasTechReqCount == s.ItemCount,
+            FirstOrderItemId = s.FirstOrderItemId,
+            LastChangeDate = s.LastChangeDate
+        }).ToList();
+    }
 
     #region Private Methods
 
@@ -1511,6 +1509,59 @@ public async Task DeleteAsync(int id)
         }).OrderBy(r => r.Sequence).ToList();
 
         return SalesOrderPrintHelper.GenerateRequirementsPdf(order, requirements);
+    }
+
+    private static IQueryable<OrderListSummary> ApplyComputedFieldFilters(IQueryable<OrderListSummary> queryable, List<FilterDescriptor>? filters)
+    {
+        if (filters == null || filters.Count == 0)
+            return queryable;
+
+        foreach (var filter in filters)
+        {
+            if (string.IsNullOrWhiteSpace(filter.Field))
+                continue;
+
+            switch (filter.Field.ToLower())
+            {
+                case "deliverystart":
+                    if (DateTime.TryParse(filter.From?.ToString(), out var dsFrom))
+                        queryable = queryable.Where(s => s.DeliveryStart >= dsFrom);
+                    if (DateTime.TryParse(filter.To?.ToString(), out var dsTo))
+                        queryable = queryable.Where(s => s.DeliveryStart <= dsTo);
+                    break;
+
+                case "deliveryend":
+                    if (DateTime.TryParse(filter.From?.ToString(), out var deFrom))
+                        queryable = queryable.Where(s => s.DeliveryEnd >= deFrom);
+                    if (DateTime.TryParse(filter.To?.ToString(), out var deTo))
+                        queryable = queryable.Where(s => s.DeliveryEnd <= deTo);
+                    break;
+
+                case "hasdelaypenalty":
+                    if (bool.TryParse(filter.Value, out var dpVal))
+                        queryable = queryable.Where(s => s.HasDelayPenalty == dpVal);
+                    else if (filter.Value == "是")
+                        queryable = queryable.Where(s => s.HasDelayPenalty);
+                    else if (filter.Value == "否")
+                        queryable = queryable.Where(s => !s.HasDelayPenalty);
+                    break;
+
+                case "totalcontractweight":
+                    if (int.TryParse(filter.From?.ToString(), out var tcwMin))
+                        queryable = queryable.Where(s => s.TotalContractWeight >= tcwMin);
+                    if (int.TryParse(filter.To?.ToString(), out var tcwMax))
+                        queryable = queryable.Where(s => s.TotalContractWeight <= tcwMax);
+                    break;
+
+                case "itemcount":
+                    if (int.TryParse(filter.From?.ToString(), out var icMin))
+                        queryable = queryable.Where(s => s.ItemCount >= icMin);
+                    if (int.TryParse(filter.To?.ToString(), out var icMax))
+                        queryable = queryable.Where(s => s.ItemCount <= icMax);
+                    break;
+            }
+        }
+        return queryable;
     }
 
     #endregion

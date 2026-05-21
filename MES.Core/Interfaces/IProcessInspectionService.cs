@@ -14,6 +14,11 @@ public interface IProcessInspectionService
     Task<PagedResult<ProcessInspectionDto>> GetAllAsync(QueryParams query);
 
     /// <summary>
+    /// 获取所有过程检验记录（无分页）
+    /// </summary>
+    Task<List<ProcessInspectionDto>> GetAllListAsync();
+
+    /// <summary>
     /// 批量创建过程检验记录
     /// </summary>
     Task<List<ProcessInspectionDto>> BatchCreateAsync(List<CreateProcessInspectionRequest> requests);

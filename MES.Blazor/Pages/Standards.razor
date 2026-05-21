@@ -38,7 +38,7 @@
                 <MudItem xs="12" md="12">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 标准编码/名称/状态"
-                                  Value="searchKeyword"
+                                  Value="_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
@@ -53,12 +53,12 @@
             <div id="standards-list-table">
             <MudTable @ref="table"
                       T="ProductionStandardDto"
-                      ServerData="OnServerData"
-                      Loading="@isLoading"
+                      Items="@_filteredItems"
                       Dense="true"
                       Hover="true"
                       Class="mt-4 auto-table"
                       Elevation="0"
+                      RowsPerPage="10"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
                     <ColumnDisplaySelect Columns="_allColumns"
@@ -88,7 +88,7 @@
                         打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
-                        共 @totalCount 条记录
+                        共 @(_filteredItems?.Count ?? 0) 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
@@ -98,20 +98,21 @@
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
-                            @if (!string.IsNullOrEmpty(col.SortKey))
-                            {
-                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
-                                    @col.Label
-                                </span>
-                                @if (sortColumn == col.SortKey)
-                                {
-                                    <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
-                                }
-                            }
-                            else
-                            {
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span class="th-label">@col.Label</span>
-                            }
+                                @if (col.FilterType != null)
+                                {
+                                    <ExcelFilter T="ProductionStandardDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 AllItems="@_allItems"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 DisplaySelector="@(x => GetCellDisplayText(x, col.Key))"
+                                                 RawValueSelector="@(x => GetCellRawValue(x, col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))"
+                                                 SortRequested="@(args => OnExcelSortRequested(args.fieldKey, args.ascending))" />
+                                }
+                            </div>
                         </MudTh>
                     }
                     <MudTh Style="width: 90px;">操作</MudTh>
@@ -122,7 +123,7 @@
                         {
                             <MudCheckBox T="bool"
                                          Value="@selectedIds.Contains(item.Id)"
-                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = standards.Any() && standards.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _filteredItems.Any() && _filteredItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
                                          Dense="true" />
                         }
                     </MudTd>
@@ -147,7 +148,7 @@
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
-                    <MudTablePager />
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
             </MudTable>
             </div>
@@ -157,7 +158,9 @@
 
 @code {
     private MudTable<ProductionStandardDto>? table;
-    private List<ProductionStandardDto> standards = new();
+    private List<ProductionStandardDto> _allItems = new();
+    private List<ProductionStandardDto>? _filteredItemsList;
+    private List<ProductionStandardDto> _filteredItems => _filteredItemsList ?? _allItems;
     private HashSet<int> selectedIds = new();
     private bool _allSelected;
     private bool _isArrowNavSetup;
@@ -170,7 +173,7 @@
             _allSelected = value;
             if (value)
             {
-                foreach (var item in standards)
+                foreach (var item in _filteredItems)
                     selectedIds.Add(item.Id);
             }
             else
@@ -180,15 +183,16 @@
             StateHasChanged();
         }
     }
-    private bool isLoading = false;
-    private string searchKeyword = string.Empty;
-    private int totalCount = 0;
+    private string _searchKeyword = string.Empty;
 
     private string sortColumn = "standardcode";
     private bool sortDescending = false;
 
-    // ========== 内联编辑 ==========
+    // ========== ExcelFilter 状态 ==========
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+    private Dictionary<string, List<ProductionStandardDto>> _filterContexts = new();
 
+    // ========== 内联编辑 ==========
     private HashSet<int> _editingIds = new();
     private Dictionary<int, EditCache> _editCache = new();
     private bool _isSaving;
@@ -209,10 +213,11 @@
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "StandardCode", Label = "标准编码", SortKey = "standardcode" },
-        new() { Key = "StandardName", Label = "标准名称", SortKey = "standardname" },
-        new() { Key = "IsActive",     Label = "状态",     SortKey = "isactive" },
-        new() { Key = "Remark",       Label = "备注" },
+        new() { Key = "StandardCode", Label = "标准编码", SortKey = "standardcode", FilterType = "string" },
+        new() { Key = "StandardName", Label = "标准名称", SortKey = "standardname", FilterType = "string" },
+        new() { Key = "IsActive",     Label = "状态",     SortKey = "isactive", FilterType = "enum",
+            EnumOptions = new() { new("True", "启用"), new("False", "停用") } },
+        new() { Key = "Remark",       Label = "备注", FilterType = "string" },
     };
 
     // ========== 列选择操作 ==========
@@ -271,6 +276,22 @@
             }
             _allColumns = reordered;
         }
+
+        await LoadAllDataAsync();
+    }
+
+    private async Task LoadAllDataAsync()
+    {
+        try
+        {
+            _allItems = await StandardService.GetAllAsync(true);
+            _filteredItemsList = null;
+            RefreshFilteredData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -283,91 +304,95 @@
         }
     }
 
-    private string GetSortIndicator(string column)
-    {
-        if (sortColumn != column) return "";
-        return sortDescending ? "\u25BC" : "\u25B2";
-    }
-
-    private async Task<TableData<ProductionStandardDto>> OnServerData(TableState state)
-    {
-        isLoading = true;
-        StateHasChanged();
-
-        try
-        {
-            var queryParams = new QueryParams
-            {
-                PageIndex = state.Page + 1,
-                PageSize = state.PageSize,
-                Keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending
-            };
-
-            var result = await StandardService.GetPagedAsync(queryParams, null);
-
-            if (result.Success && result.Data != null)
-            {
-                standards = result.Data.Items;
-                totalCount = result.Data.TotalCount;
-                return new TableData<ProductionStandardDto>
-                {
-                    Items = standards,
-                    TotalItems = totalCount
-                };
-            }
-
-            return new TableData<ProductionStandardDto>
-            {
-                Items = new List<ProductionStandardDto>(),
-                TotalItems = 0
-            };
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"加载失败: {ex.Message}");
-            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
-            return new TableData<ProductionStandardDto>
-            {
-                Items = new List<ProductionStandardDto>(),
-                TotalItems = 0
-            };
-        }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task ToggleSort(string column)
-    {
-        if (sortColumn == column)
-            sortDescending = !sortDescending;
-        else
-        {
-            sortColumn = column;
-            sortDescending = false;
-        }
-        if (table != null)
-            await table.ReloadServerData();
-    }
-
-    private async Task Search()
-    {
-        if (table != null)
-        {
-            await table.ReloadServerData();
-        }
-    }
+    // ========== 搜索 ==========
 
     private async Task OnSearchChanged(string value)
     {
-        searchKeyword = value ?? string.Empty;
-        if (table != null)
-            await table.ReloadServerData();
+        _searchKeyword = value ?? string.Empty;
+        RefreshFilteredData();
     }
+
+    // ========== ExcelFilter 回调 ==========
+
+    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
+    {
+        if (selectedValues.Count > 0)
+            _columnFilters[fieldKey] = selectedValues;
+        else
+            _columnFilters.Remove(fieldKey);
+
+        RefreshFilteredData();
+    }
+
+    private async Task OnExcelSortRequested(string fieldKey, bool ascending)
+    {
+        sortColumn = fieldKey;
+        sortDescending = !ascending;
+        RefreshFilteredData();
+    }
+
+    // ========== 客户端刷新 ==========
+
+    private void RefreshFilteredData()
+    {
+        var query = _allItems.AsEnumerable();
+
+        // 关键字搜索
+        if (!string.IsNullOrWhiteSpace(_searchKeyword))
+        {
+            var kw = _searchKeyword;
+            query = query.Where(x =>
+                (x.StandardCode != null && x.StandardCode.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.StandardName != null && x.StandardName.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.IsActive && "启用".Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (!x.IsActive && "停用".Contains(kw, StringComparison.OrdinalIgnoreCase))
+            );
+        }
+
+        // ExcelFilter 列筛选
+        foreach (var cf in _columnFilters)
+        {
+            var fieldKey = cf.Key;
+            var selected = cf.Value;
+            query = query.Where(x =>
+            {
+                var raw = GetCellRawValue(x, fieldKey);
+                return raw != null && selected.Contains(raw);
+            });
+        }
+
+        // 排序
+        if (!string.IsNullOrEmpty(sortColumn))
+        {
+            query = sortColumn switch
+            {
+                "standardcode" => sortDescending ? query.OrderByDescending(x => x.StandardCode) : query.OrderBy(x => x.StandardCode),
+                "standardname" => sortDescending ? query.OrderByDescending(x => x.StandardName) : query.OrderBy(x => x.StandardName),
+                "isactive" => sortDescending ? query.OrderByDescending(x => x.IsActive) : query.OrderBy(x => x.IsActive),
+                _ => sortDescending ? query.OrderByDescending(x => x.StandardCode) : query.OrderBy(x => x.StandardCode)
+            };
+        }
+
+        _filteredItemsList = query.ToList();
+        StateHasChanged();
+    }
+
+    // ========== 单元格原始值/显示值 ==========
+
+    private string? GetCellRawValue(ProductionStandardDto item, string key) => key switch
+    {
+        "StandardCode" => item.StandardCode,
+        "StandardName" => item.StandardName,
+        "IsActive" => item.IsActive.ToString(),
+        "Remark" => item.Remark,
+        _ => null
+    };
+
+    private string? GetCellDisplayText(ProductionStandardDto item, string key) => key switch
+    {
+        "IsActive" => item.IsActive ? "启用" : "停用",
+        _ => GetCellRawValue(item, key) ?? ""
+    };
 
     private void NavigateToCreate() => Navigation.NavigateTo("/standards/create");
 
@@ -460,7 +485,7 @@
                 if (result.Success)
                 {
                     Snackbar.Add("删除成功", Severity.Success);
-                    await Search();
+                    await LoadAllDataAsync();
                 }
                 else
                 {
@@ -585,7 +610,7 @@
         try
         {
             var result = await StandardService.PrintStandardAllAsync(
-                string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
+                string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 sortColumn, sortDescending);
             if (result.Success && result.Data != null)
                 await JS.InvokeVoidAsync("openPdf", result.Data);

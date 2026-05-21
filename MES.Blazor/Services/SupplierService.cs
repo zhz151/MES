@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
@@ -10,6 +11,16 @@ public class SupplierService
 
     public SupplierService(AuthHttpClient http) => _http = http;
 
+    public async Task<ApiResponse<List<SupplierProfileDto>>> GetAllListAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<SupplierProfileDto>>>($"{BaseUrl}/all")
+                   ?? ApiResponse<List<SupplierProfileDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<SupplierProfileDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     public async Task<ApiResponse<PagedResult<SupplierProfileDto>>> GetPagedAsync(QueryParams query)
     {
         try
@@ -18,6 +29,7 @@ public class SupplierService
             var encodedSortBy = Uri.EscapeDataString(query.SortBy ?? "CreatedTime");
             var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={encodedSortBy}&isDescending={isDescending}";
             if (!string.IsNullOrEmpty(query.Keyword)) url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
+            if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<SupplierProfileDto>>>(url)
                    ?? ApiResponse<PagedResult<SupplierProfileDto>>.Fail("获取数据失败");
         }

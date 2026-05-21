@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
@@ -10,6 +11,16 @@ public class SubcontractOrderService
 
     public SubcontractOrderService(AuthHttpClient http) => _http = http;
 
+    public async Task<ApiResponse<List<SubcontractOrderDto>>> GetAllListAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<SubcontractOrderDto>>>($"{BaseUrl}/all")
+                   ?? ApiResponse<List<SubcontractOrderDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<SubcontractOrderDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     public async Task<ApiResponse<PagedResult<SubcontractOrderDto>>> GetPagedAsync(QueryParams query, string? status = null)
     {
         try
@@ -17,6 +28,7 @@ public class SubcontractOrderService
             var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={Uri.EscapeDataString(query.SortBy)}&isDescending={query.IsDescending}";
             if (!string.IsNullOrEmpty(query.Keyword)) url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
             if (!string.IsNullOrEmpty(status)) url += $"&status={Uri.EscapeDataString(status)}";
+            if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<SubcontractOrderDto>>>(url)
                    ?? ApiResponse<PagedResult<SubcontractOrderDto>>.Fail("获取数据失败");
         }

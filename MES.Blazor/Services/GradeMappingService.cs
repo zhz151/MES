@@ -1,4 +1,5 @@
 // 文件路径: MES.Blazor/Services/GradeMappingService.cs
+using System.Text.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
@@ -26,6 +27,7 @@ public class GradeMappingService
             {
                 url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
             }
+            if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<StandardGradeMappingDto>>>(url);
             return response ?? ApiResponse<PagedResult<StandardGradeMappingDto>>.Fail("获取数据失败");
         }

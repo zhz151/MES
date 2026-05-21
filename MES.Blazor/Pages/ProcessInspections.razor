@@ -5,6 +5,7 @@
 @using MES.Blazor.Helpers
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
+@using MES.Blazor.Components
 @inject ProcessInspectionService ProcessInspectionService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -38,7 +39,7 @@
                 <MudItem xs="12" md="4">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 批次号/工序/工段"
-                                  Value="searchKeyword"
+                                  Value="_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
@@ -47,38 +48,18 @@
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
-                <MudItem xs="6" md="3">
-                    <MudTextField T="string" Label="检验日期起"
-                                   Value="_inspectionDateFrom"
-                                   ValueChanged="@OnDateFromChanged"
-                                   Clearable="true"
-                                   Dense="true"
-                                   Variant="Variant.Outlined"
-                                   Immediate="true"
-                                   DebounceInterval="500" />
-                </MudItem>
-                <MudItem xs="6" md="3">
-                    <MudTextField T="string" Label="检验日期止"
-                                   Value="_inspectionDateTo"
-                                   ValueChanged="@OnDateToChanged"
-                                   Clearable="true"
-                                   Dense="true"
-                                   Variant="Variant.Outlined"
-                                   Immediate="true"
-                                   DebounceInterval="500" />
-                </MudItem>
             </MudGrid>
 
             <!-- 数据表格 -->
             <div id="process-inspection-list-table">
             <MudTable @ref="table"
                       T="ProcessInspectionDto"
-                      ServerData="OnServerData"
-                      Loading="@isLoading"
+                      Items="@_filteredItems"
                       Dense="true"
                       Hover="true"
                       Class="mt-4 auto-table"
                       Elevation="0"
+                      RowsPerPage="10"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
                     <ColumnDisplaySelect Columns="_allColumns"
@@ -108,7 +89,7 @@
                         打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
-                        共 @totalCount 条记录
+                        共 @(_filteredItems?.Count ?? 0) 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
@@ -118,20 +99,21 @@
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
-                            @if (!string.IsNullOrEmpty(col.SortKey))
-                            {
-                                <span @onclick='() => ToggleSort(col.SortKey)' class="sortable-header">
-                                    @col.Label
-                                </span>
-                                @if (sortColumn == col.SortKey)
-                                {
-                                    <span class="sort-arrow">@GetSortIndicator(col.SortKey)</span>
-                                }
-                            }
-                            else
-                            {
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span class="th-label">@col.Label</span>
-                            }
+                                @if (col.FilterType != null)
+                                {
+                                    <ExcelFilter T="ProcessInspectionDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 AllItems="@_allItems"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 DisplaySelector="@(x => GetCellDisplayText(x, col.Key))"
+                                                 RawValueSelector="@(x => GetCellRawValue(x, col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))"
+                                                 SortRequested="@(args => OnExcelSortRequested(args.fieldKey, args.ascending))" />
+                                }
+                            </div>
                         </MudTh>
                     }
                     <MudTh>操作</MudTh>
@@ -142,7 +124,7 @@
                         {
                             <MudCheckBox T="bool"
                                          Value="@selectedIds.Contains(item.Id)"
-                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = records.Any() && records.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _filteredItems.Any() && _filteredItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
                                          Dense="true" />
                         }
                     </MudTd>
@@ -167,7 +149,7 @@
                     </MudTd>
                 </RowTemplate>
                 <PagerContent>
-                    <MudTablePager />
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
             </MudTable>
             </div>
@@ -177,7 +159,9 @@
 
 @code {
     private MudTable<ProcessInspectionDto>? table;
-    private List<ProcessInspectionDto> records = new();
+    private List<ProcessInspectionDto> _allItems = new();
+    private List<ProcessInspectionDto>? _filteredItemsList;
+    private List<ProcessInspectionDto> _filteredItems => _filteredItemsList ?? _allItems;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
     private bool _allSelected;
@@ -190,7 +174,7 @@
             _allSelected = value;
             if (value)
             {
-                foreach (var item in records)
+                foreach (var item in _filteredItems)
                     selectedIds.Add(item.Id);
             }
             else
@@ -200,16 +184,13 @@
             StateHasChanged();
         }
     }
-    private bool isLoading = false;
-    private string searchKeyword = string.Empty;
-    private int totalCount = 0;
-
+    private string _searchKeyword = string.Empty;
     private string sortColumn = "createdtime";
     private bool sortDescending = true;
 
-    // 检验日期筛选（字符串格式 yyyy-MM-dd）
-    private string? _inspectionDateFrom;
-    private string? _inspectionDateTo;
+    // ========== ExcelFilter 状态 ==========
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+    private Dictionary<string, List<ProcessInspectionDto>> _filterContexts = new();
 
     // ========== 列定义 ==========
 
@@ -219,32 +200,32 @@
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "InspectionDate",       Label = "检验日期",   SortKey = "inspectiondate" },
-        new() { Key = "BatchNo",               Label = "批次号",     SortKey = "batchno" },
-        new() { Key = "ProcessName",           Label = "工序名称",   SortKey = "processname" },
-        new() { Key = "ManufacturingSpec",     Label = "制造规格",   SortKey = "manufacturingspec" },
-        new() { Key = "SectionName",           Label = "工段名称",   SortKey = "sectionname" },
-        new() { Key = "SequenceNumber",        Label = "组内序号",   SortKey = "sequencenumber" },
-        new() { Key = "EquipmentName",         Label = "设备名称",   SortKey = "equipmentname" },
-        new() { Key = "Inspector",             Label = "检验员",     SortKey = "inspector" },
-        new() { Key = "Shift",                 Label = "班次",       SortKey = "shift" },
-        new() { Key = "Quantity",              Label = "检验支数",   SortKey = "quantity" },
-        new() { Key = "Weight",                Label = "检验重量",   SortKey = "weight" },
-        new() { Key = "InspectionItem",        Label = "检验项目",   SortKey = "inspectionitem" },
-        new() { Key = "QualifiedQuantity",           Label = "合格支数",     SortKey = "qualifiedquantity" },
-        new() { Key = "QualifiedWeight",             Label = "合格重量",     SortKey = "qualifiedweight" },
-        new() { Key = "QualifiedConcessionQuantity", Label = "让步放行支",   SortKey = "qualifiedconcessionquantity" },
-        new() { Key = "ConcessionRemark",            Label = "让步说明",     SortKey = "concessionremark" },
-        new() { Key = "DefectReworkQuantity",        Label = "次品返整支",   SortKey = "defectreworkquantity" },
-        new() { Key = "DefectWarehouseQuantity", Label = "次品入库支",   SortKey = "defectwarehousequantity" },
-        new() { Key = "DefectScrapQuantity",   Label = "次品报废支",   SortKey = "defectscrapquantity" },
-        new() { Key = "DefectDescription",     Label = "次品情况描述", SortKey = "defectdescription" },
-        new() { Key = "SourceUnit",            Label = "来料单位",   SortKey = "sourceunit" },
-        new() { Key = "TagNo",                 Label = "挂牌号",     SortKey = "tagno" },
-        new() { Key = "PlantGrade",            Label = "工厂牌号",   SortKey = "plantgrade" },
-        new() { Key = "Remark",                Label = "备注",       SortKey = "remark" },
-        new() { Key = "CreatedTime",           Label = "创建日期",   SortKey = "createdtime" },
-        new() { Key = "UpdatedTime",           Label = "更新日期",   SortKey = "updatedtime" },
+        new() { Key = "InspectionDate",       Label = "检验日期",   SortKey = "inspectiondate", FilterType = "date" },
+        new() { Key = "BatchNo",               Label = "批次号",     SortKey = "batchno", FilterType = "string" },
+        new() { Key = "ProcessName",           Label = "工序名称",   SortKey = "processname", FilterType = "string" },
+        new() { Key = "ManufacturingSpec",     Label = "制造规格",   SortKey = "manufacturingspec", FilterType = "string" },
+        new() { Key = "SectionName",           Label = "工段名称",   SortKey = "sectionname", FilterType = "string" },
+        new() { Key = "SequenceNumber",        Label = "组内序号",   SortKey = "sequencenumber", FilterType = "number" },
+        new() { Key = "EquipmentName",         Label = "设备名称",   SortKey = "equipmentname", FilterType = "string" },
+        new() { Key = "Inspector",             Label = "检验员",     SortKey = "inspector", FilterType = "string" },
+        new() { Key = "Shift",                 Label = "班次",       SortKey = "shift", FilterType = "string" },
+        new() { Key = "Quantity",              Label = "检验支数",   SortKey = "quantity", FilterType = "number" },
+        new() { Key = "Weight",                Label = "检验重量",   SortKey = "weight", FilterType = "number" },
+        new() { Key = "InspectionItem",        Label = "检验项目",   SortKey = "inspectionitem", FilterType = "string" },
+        new() { Key = "QualifiedQuantity",           Label = "合格支数",     SortKey = "qualifiedquantity", FilterType = "number" },
+        new() { Key = "QualifiedWeight",             Label = "合格重量",     SortKey = "qualifiedweight", FilterType = "number" },
+        new() { Key = "QualifiedConcessionQuantity", Label = "让步放行支",   SortKey = "qualifiedconcessionquantity", FilterType = "number" },
+        new() { Key = "ConcessionRemark",            Label = "让步说明",     SortKey = "concessionremark", FilterType = "string" },
+        new() { Key = "DefectReworkQuantity",        Label = "次品返整支",   SortKey = "defectreworkquantity", FilterType = "number" },
+        new() { Key = "DefectWarehouseQuantity", Label = "次品入库支",   SortKey = "defectwarehousequantity", FilterType = "number" },
+        new() { Key = "DefectScrapQuantity",   Label = "次品报废支",   SortKey = "defectscrapquantity", FilterType = "number" },
+        new() { Key = "DefectDescription",     Label = "次品情况描述", SortKey = "defectdescription", FilterType = "string" },
+        new() { Key = "SourceUnit",            Label = "来料单位",   SortKey = "sourceunit", FilterType = "string" },
+        new() { Key = "TagNo",                 Label = "挂牌号",     SortKey = "tagno", FilterType = "string" },
+        new() { Key = "PlantGrade",            Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string" },
+        new() { Key = "Remark",                Label = "备注",       SortKey = "remark", FilterType = "string" },
+        new() { Key = "CreatedTime",           Label = "创建日期",   SortKey = "createdtime", FilterType = "date" },
+        new() { Key = "UpdatedTime",           Label = "更新日期",   SortKey = "updatedtime", FilterType = "date" },
     };
 
     // ========== 内联编辑 ==========
@@ -447,6 +428,8 @@
             }
             _allColumns = reordered;
         }
+
+        await LoadAllDataAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -459,97 +442,174 @@
         }
     }
 
-    private string GetSortIndicator(string column)
+    private async Task LoadAllDataAsync()
     {
-        if (sortColumn != column) return "";
-        return sortDescending ? "\u25BC" : "\u25B2";
-    }
-
-    private async Task<TableData<ProcessInspectionDto>> OnServerData(TableState state)
-    {
-        isLoading = true;
-        StateHasChanged();
-
         try
         {
-            DateTime? inspectionDateFrom = DateTime.TryParse(_inspectionDateFrom, out var dtFrom) ? dtFrom : null;
-            DateTime? inspectionDateTo = DateTime.TryParse(_inspectionDateTo, out var dtTo) ? dtTo : null;
-            var result = await ProcessInspectionService.GetAllAsync(
-                state.Page + 1, state.PageSize,
-                string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
-                sortColumn, sortDescending,
-                inspectionDateFrom, inspectionDateTo);
-
+            var result = await ProcessInspectionService.GetAllListAsync();
             if (result.Success && result.Data != null)
             {
-                records = result.Data.Items;
-                totalCount = result.Data.TotalCount;
-                return new TableData<ProcessInspectionDto>
-                {
-                    Items = records,
-                    TotalItems = totalCount
-                };
+                _allItems = result.Data;
             }
-
-            return new TableData<ProcessInspectionDto>
+            else
             {
-                Items = new List<ProcessInspectionDto>(),
-                TotalItems = 0
-            };
+                Snackbar.Add(result.Message ?? "加载失败", Severity.Error);
+            }
+            _filteredItemsList = null;
+            RefreshFilteredData();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"加载失败: {ex.Message}");
             Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
-            return new TableData<ProcessInspectionDto>
-            {
-                Items = new List<ProcessInspectionDto>(),
-                TotalItems = 0
-            };
         }
         finally
         {
-            isLoading = false;
             StateHasChanged();
         }
     }
 
-    private async Task ToggleSort(string column)
-    {
-        if (sortColumn == column)
-            sortDescending = !sortDescending;
-        else
-        {
-            sortColumn = column;
-            sortDescending = false;
-        }
-        if (table != null)
-            await table.ReloadServerData();
-    }
-
-    private async Task Search()
-    {
-        if (table != null)
-            await table.ReloadServerData();
-    }
+    // ========== 搜索 ==========
 
     private async Task OnSearchChanged(string value)
     {
-        searchKeyword = value ?? string.Empty;
-        if (table != null)
-            await table.ReloadServerData();
+        _searchKeyword = value ?? string.Empty;
+        RefreshFilteredData();
     }
 
-    private async Task OnDateFromChanged(string value)
+    // ========== ExcelFilter 回调 ==========
+
+    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
     {
-        _inspectionDateFrom = value;
-        await Search();
+        if (selectedValues.Count > 0)
+            _columnFilters[fieldKey] = selectedValues;
+        else
+            _columnFilters.Remove(fieldKey);
+
+        RefreshFilteredData();
+        await SavePageStateAsync();
     }
 
-    private async Task OnDateToChanged(string value)
+    private async Task OnExcelSortRequested(string fieldKey, bool ascending)
     {
-        _inspectionDateTo = value;
-        await Search();
+        sortColumn = fieldKey;
+        sortDescending = !ascending;
+        RefreshFilteredData();
+        await SavePageStateAsync();
+    }
+
+    // ========== 客户端刷新 ==========
+
+    private void RefreshFilteredData()
+    {
+        var query = _allItems.AsEnumerable();
+
+        // 关键字搜索
+        if (!string.IsNullOrWhiteSpace(_searchKeyword))
+        {
+            var kw = _searchKeyword;
+            query = query.Where(x =>
+                (x.BatchNo != null && x.BatchNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.ProcessName != null && x.ProcessName.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.SectionName != null && x.SectionName.Contains(kw, StringComparison.OrdinalIgnoreCase))
+            );
+        }
+
+        // ExcelFilter 列筛选
+        foreach (var cf in _columnFilters)
+        {
+            var fieldKey = cf.Key;
+            var selected = cf.Value;
+            query = query.Where(x =>
+            {
+                var raw = GetCellRawValue(x, fieldKey);
+                return raw != null && selected.Contains(raw);
+            });
+        }
+
+        // 排序
+        if (!string.IsNullOrEmpty(sortColumn))
+        {
+            query = sortColumn switch
+            {
+                "inspectiondate" => sortDescending ? query.OrderByDescending(x => x.InspectionDate) : query.OrderBy(x => x.InspectionDate),
+                "batchno" => sortDescending ? query.OrderByDescending(x => x.BatchNo) : query.OrderBy(x => x.BatchNo),
+                "processname" => sortDescending ? query.OrderByDescending(x => x.ProcessName) : query.OrderBy(x => x.ProcessName),
+                "manufacturingspec" => sortDescending ? query.OrderByDescending(x => x.ManufacturingSpec ?? "") : query.OrderBy(x => x.ManufacturingSpec ?? ""),
+                "sectionname" => sortDescending ? query.OrderByDescending(x => x.SectionName) : query.OrderBy(x => x.SectionName),
+                "sequencenumber" => sortDescending ? query.OrderByDescending(x => x.SequenceNumber) : query.OrderBy(x => x.SequenceNumber),
+                "equipmentname" => sortDescending ? query.OrderByDescending(x => x.EquipmentName ?? "") : query.OrderBy(x => x.EquipmentName ?? ""),
+                "inspector" => sortDescending ? query.OrderByDescending(x => x.Inspector ?? "") : query.OrderBy(x => x.Inspector ?? ""),
+                "shift" => sortDescending ? query.OrderByDescending(x => x.Shift ?? "") : query.OrderBy(x => x.Shift ?? ""),
+                "quantity" => sortDescending ? query.OrderByDescending(x => x.Quantity) : query.OrderBy(x => x.Quantity),
+                "weight" => sortDescending ? query.OrderByDescending(x => x.Weight) : query.OrderBy(x => x.Weight),
+                "inspectionitem" => sortDescending ? query.OrderByDescending(x => x.InspectionItem ?? "") : query.OrderBy(x => x.InspectionItem ?? ""),
+                "qualifiedquantity" => sortDescending ? query.OrderByDescending(x => x.QualifiedQuantity) : query.OrderBy(x => x.QualifiedQuantity),
+                "qualifiedweight" => sortDescending ? query.OrderByDescending(x => x.QualifiedWeight) : query.OrderBy(x => x.QualifiedWeight),
+                "qualifiedconcessionquantity" => sortDescending ? query.OrderByDescending(x => x.QualifiedConcessionQuantity) : query.OrderBy(x => x.QualifiedConcessionQuantity),
+                "concessionremark" => sortDescending ? query.OrderByDescending(x => x.ConcessionRemark ?? "") : query.OrderBy(x => x.ConcessionRemark ?? ""),
+                "defectreworkquantity" => sortDescending ? query.OrderByDescending(x => x.DefectReworkQuantity) : query.OrderBy(x => x.DefectReworkQuantity),
+                "defectwarehousequantity" => sortDescending ? query.OrderByDescending(x => x.DefectWarehouseQuantity) : query.OrderBy(x => x.DefectWarehouseQuantity),
+                "defectscrapquantity" => sortDescending ? query.OrderByDescending(x => x.DefectScrapQuantity) : query.OrderBy(x => x.DefectScrapQuantity),
+                "defectdescription" => sortDescending ? query.OrderByDescending(x => x.DefectDescription ?? "") : query.OrderBy(x => x.DefectDescription ?? ""),
+                "sourceunit" => sortDescending ? query.OrderByDescending(x => x.SourceUnit ?? "") : query.OrderBy(x => x.SourceUnit ?? ""),
+                "tagno" => sortDescending ? query.OrderByDescending(x => x.TagNo ?? "") : query.OrderBy(x => x.TagNo ?? ""),
+                "plantgrade" => sortDescending ? query.OrderByDescending(x => x.PlantGrade ?? "") : query.OrderBy(x => x.PlantGrade ?? ""),
+                "remark" => sortDescending ? query.OrderByDescending(x => x.Remark ?? "") : query.OrderBy(x => x.Remark ?? ""),
+                "createdtime" => sortDescending ? query.OrderByDescending(x => x.CreatedTime) : query.OrderBy(x => x.CreatedTime),
+                "updatedtime" => sortDescending ? query.OrderByDescending(x => x.UpdatedTime) : query.OrderBy(x => x.UpdatedTime),
+                _ => sortDescending ? query.OrderByDescending(x => x.CreatedTime) : query.OrderBy(x => x.CreatedTime)
+            };
+        }
+
+        _filteredItemsList = query.ToList();
+        StateHasChanged();
+    }
+
+    // ========== 单元格原始值/显示值 ==========
+
+    private string? GetCellRawValue(ProcessInspectionDto item, string key) => key switch
+    {
+        "InspectionDate" => item.InspectionDate.ToString("yyyy-MM-dd"),
+        "BatchNo" => item.BatchNo,
+        "ProcessName" => item.ProcessName,
+        "ManufacturingSpec" => item.ManufacturingSpec,
+        "SectionName" => item.SectionName,
+        "SequenceNumber" => item.SequenceNumber.ToString(),
+        "EquipmentName" => item.EquipmentName,
+        "Inspector" => item.Inspector,
+        "Shift" => item.Shift,
+        "Quantity" => item.Quantity?.ToString(),
+        "Weight" => item.Weight?.ToString("G29"),
+        "InspectionItem" => item.InspectionItem,
+        "QualifiedQuantity" => item.QualifiedQuantity?.ToString(),
+        "QualifiedWeight" => item.QualifiedWeight?.ToString("G29"),
+        "QualifiedConcessionQuantity" => item.QualifiedConcessionQuantity?.ToString(),
+        "ConcessionRemark" => item.ConcessionRemark,
+        "DefectReworkQuantity" => item.DefectReworkQuantity?.ToString(),
+        "DefectWarehouseQuantity" => item.DefectWarehouseQuantity?.ToString(),
+        "DefectScrapQuantity" => item.DefectScrapQuantity?.ToString(),
+        "DefectDescription" => item.DefectDescription,
+        "SourceUnit" => item.SourceUnit,
+        "TagNo" => item.TagNo,
+        "PlantGrade" => item.PlantGrade,
+        "Remark" => item.Remark,
+        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        _ => null
+    };
+
+    private string? GetCellDisplayText(ProcessInspectionDto item, string key) => key switch
+    {
+        "ManufacturingSpec" => DisplayHelper.FormatSpecification(item.ManufacturingSpec),
+        _ => GetCellRawValue(item, key) ?? ""
+    };
+
+    // ========== 持久化 ==========
+
+    private async Task SavePageStateAsync()
+    {
+        await Task.CompletedTask;
     }
 
     private void NavigateToCreate() => Navigation.NavigateTo("/quality/process-inspection/create");
@@ -573,7 +633,7 @@
                 if (result.Success)
                 {
                     Snackbar.Add("删除成功", Severity.Success);
-                    await Search();
+                    await LoadAllDataAsync();
                 }
                 else
                 {
@@ -596,23 +656,20 @@
             Snackbar.Add("请先选择要打印的过程检验记录", Severity.Warning);
             return;
         }
-        await JS.InvokeVoidAsync("printTable", "#process-inspection-list-table", "过程检验（选中记录）");
+        // 从当前筛选后的数据中获取选中项的完整数据
+        var selectedItems = _filteredItems.Where(i => selectedIds.Contains(i.Id)).ToList();
+        var html = BuildPrintHtml(selectedItems);
+        await JS.InvokeVoidAsync("printRawHtml", html, "过程检验（选中记录）");
     }
 
     private async Task PrintAll()
     {
-        var result = await ProcessInspectionService.GetAllAsync(
-            1, 5000,
-            string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword,
-            sortColumn, sortDescending,
-            DateTime.TryParse(_inspectionDateFrom, out var dtFrom) ? dtFrom : null,
-            DateTime.TryParse(_inspectionDateTo, out var dtTo) ? dtTo : null);
-        if (!result.Success || result.Data == null || !result.Data.Items.Any())
+        if (!_filteredItems.Any())
         {
             Snackbar.Add("没有可打印的数据", Severity.Warning);
             return;
         }
-        var html = BuildPrintHtml(result.Data.Items);
+        var html = BuildPrintHtml(_filteredItems);
         await JS.InvokeVoidAsync("printRawHtml", html, "过程检验");
     }
 

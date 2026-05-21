@@ -16,7 +16,7 @@ public class QueryParams
     /// <summary>
     /// 每页条数
     /// </summary>
-    [Range(1, 10000, ErrorMessage = "每页条数必须在1-10000之间")]
+    [Range(1, 100000, ErrorMessage = "每页条数必须在1-100000之间")]
     public int PageSize { get; set; } = 20;
 
     /// <summary>
@@ -33,6 +33,11 @@ public class QueryParams
     /// 是否降序
     /// </summary>
     public bool IsDescending { get; set; } = true;
+
+    /// <summary>
+    /// 每列独立筛选条件列表
+    /// </summary>
+    public List<FilterDescriptor>? Filters { get; set; }
 
     /// <summary>
     /// 到料日期范围筛选-开始（仅检验到料使用）

@@ -7,6 +7,7 @@ using MES.Core.Exceptions;
 using MES.Core.Interfaces;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Order;
 using MES.Services.Printing;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -21,16 +22,19 @@ public class MaterialPlanService : IMaterialPlanService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<MaterialPlanService> _logger;
+    private readonly WorkOrderListSummaryService? _listSummaryService;
 
     /// <summary>
     /// 工厂牌号替代映射（高级可替低级）：key=低级, value=高级
     /// </summary>
     private static readonly Dictionary<string, string> GradeSubstitutes = Core.Constants.GradeSubstitutes.Mapping;
 
-    public MaterialPlanService(AppDbContext context, ILogger<MaterialPlanService> logger)
+    public MaterialPlanService(AppDbContext context, ILogger<MaterialPlanService> logger,
+        WorkOrderListSummaryService? listSummaryService = null)
     {
         _context = context;
         _logger = logger;
+        _listSummaryService = listSummaryService;
     }
 
     #region 原料采购计划
@@ -100,6 +104,7 @@ public class MaterialPlanService : IMaterialPlanService
             await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
 
             await transaction.CommitAsync();
+            await RefreshReadModelAsync(request.WorkOrderId);
         }
         catch
         {
@@ -130,6 +135,7 @@ public class MaterialPlanService : IMaterialPlanService
             await UpdateMaterialPlanStatusAsync(workOrderId);
 
             await transaction.CommitAsync();
+            await RefreshReadModelAsync(workOrderId);
         }
         catch
         {
@@ -209,6 +215,7 @@ public class MaterialPlanService : IMaterialPlanService
             await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
 
             await transaction.CommitAsync();
+            await RefreshReadModelAsync(request.WorkOrderId);
         }
         catch
         {
@@ -276,6 +283,7 @@ public class MaterialPlanService : IMaterialPlanService
             await _context.SaveChangesAsync();
             await UpdateMaterialPlanStatusAsync(workOrderId);
             await transaction.CommitAsync();
+            await RefreshReadModelAsync(workOrderId);
         }
         catch
         {
@@ -304,6 +312,7 @@ public class MaterialPlanService : IMaterialPlanService
             await UpdateMaterialPlanStatusAsync(workOrderId);
 
             await transaction.CommitAsync();
+            await RefreshReadModelAsync(workOrderId);
         }
         catch
         {
@@ -407,6 +416,7 @@ public class MaterialPlanService : IMaterialPlanService
             await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
 
             await transaction.CommitAsync();
+            await RefreshReadModelAsync(request.WorkOrderId);
         }
         catch
         {
@@ -505,6 +515,7 @@ public class MaterialPlanService : IMaterialPlanService
             await _context.SaveChangesAsync();
             await UpdateMaterialPlanStatusAsync(workOrderId);
             await transaction.CommitAsync();
+            await RefreshReadModelAsync(workOrderId);
         }
         catch
         {
@@ -533,6 +544,7 @@ public class MaterialPlanService : IMaterialPlanService
             await UpdateMaterialPlanStatusAsync(workOrderId);
 
             await transaction.CommitAsync();
+            await RefreshReadModelAsync(workOrderId);
         }
         catch
         {
@@ -922,6 +934,7 @@ public class MaterialPlanService : IMaterialPlanService
             await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
 
             await transaction.CommitAsync();
+            await RefreshReadModelAsync(request.WorkOrderId);
         }
         catch
         {
@@ -952,6 +965,7 @@ public class MaterialPlanService : IMaterialPlanService
             await UpdateMaterialPlanStatusAsync(workOrderId);
 
             await transaction.CommitAsync();
+            await RefreshReadModelAsync(workOrderId);
         }
         catch
         {
@@ -1401,6 +1415,18 @@ public class MaterialPlanService : IMaterialPlanService
         }
     }
 
+    private async Task RefreshReadModelAsync(int workOrderId)
+    {
+        if (_listSummaryService == null) return;
+        var salesOrderNo = await _context.WorkOrders
+            .AsNoTracking()
+            .Where(wo => wo.Id == workOrderId)
+            .Select(wo => wo.SalesOrderNo)
+            .FirstOrDefaultAsync();
+        if (salesOrderNo != null)
+            await _listSummaryService.RefreshBySalesOrderAsync(salesOrderNo);
+    }
+
     #endregion
 
     #region 打印
@@ -1703,6 +1729,7 @@ internal static class MaterialPlanMappingExtensions
             CreatedBy = entity.CreatedBy
         };
     }
+
 }
 
 #endregion

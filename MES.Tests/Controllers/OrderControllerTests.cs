@@ -5,6 +5,7 @@ using MES.Api.Controllers;
 using MES.Core.DTOs;
 using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Services.Order;
 
 namespace MES.Tests.Controllers;
 
@@ -16,7 +17,9 @@ public class OrderControllerTests : ControllerTestBase
     public OrderControllerTests()
     {
         _serviceMock = new Mock<IOrderService>();
-        _controller = new OrderController(_serviceMock.Object);
+        var summaryServiceMock = new Mock<OrderListSummaryService>(
+            Mock.Of<Data.AppDbContext>(), Mock.Of<ILogger<OrderListSummaryService>>());
+        _controller = new OrderController(_serviceMock.Object, summaryServiceMock.Object);
     }
 
     [Fact]

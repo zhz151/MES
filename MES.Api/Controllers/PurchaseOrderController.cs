@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
@@ -33,7 +34,8 @@ public class PurchaseOrderController : ControllerBase
         [FromQuery] DateTime? dateFrom = null,
         [FromQuery] DateTime? dateTo = null,
         [FromQuery] DateTime? requiredDateFrom = null,
-        [FromQuery] DateTime? requiredDateTo = null)
+        [FromQuery] DateTime? requiredDateTo = null,
+        [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
         var query = new PurchaseOrderQueryParams
@@ -49,8 +51,21 @@ public class PurchaseOrderController : ControllerBase
             RequiredDateFrom = requiredDateFrom,
             RequiredDateTo = requiredDateTo
         };
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        }
         var result = await _service.GetPagedAsync(query);
         return Ok(ApiResponse<PagedResult<PurchaseOrderDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("all")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<PurchaseOrderDto>>>> GetAllList()
+    {
+        var result = await _service.GetAllListAsync();
+        return Ok(ApiResponse<List<PurchaseOrderDto>>.Ok(result, "查询成功"));
     }
 
     [HttpGet("{id}")]

@@ -40,7 +40,7 @@ public class WorkOrderServiceTests : TestBase
         var gm = await SeedGradeMappingAsync(ctx);
 
         var notifMock = new Mock<INotificationService>();
-        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object);
+        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, null!);
 
         var order = await orderSvc.CreateAsync(new CreateSalesOrderRequest
         {

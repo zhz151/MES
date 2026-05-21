@@ -6,6 +6,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 
+using MES.Services.Helpers;
 using MES.Services.Printing;
 
 namespace MES.Services;
@@ -41,6 +42,8 @@ public class InspectionRecordService : IInspectionRecordService
 
         if (query.EquipmentId.HasValue)
             baseQuery = baseQuery.Where(x => x.Record.EquipmentId == query.EquipmentId.Value);
+
+        baseQuery = baseQuery.ApplyFilters(query.Filters);
 
         var totalCount = await baseQuery.CountAsync();
 
@@ -92,6 +95,28 @@ public class InspectionRecordService : IInspectionRecordService
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
+    }
+
+    public async Task<List<InspectionRecordListDto>> GetAllListAsync()
+    {
+        var baseQuery = from r in _context.InspectionRecords
+                        join e in _context.Equipment on r.EquipmentId equals e.Id
+                        orderby r.Id descending
+                        select new InspectionRecordListDto
+                        {
+                            Id = r.Id,
+                            RecordNo = r.RecordNo,
+                            EquipmentId = r.EquipmentId,
+                            EquipmentName = e.EquipmentName,
+                            EquipmentCode = e.EquipmentCode,
+                            Location = e.Location,
+                            ActualDate = r.ActualDate,
+                            Inspector = r.Inspector,
+                            ExecutionSummary = r.ExecutionSummary,
+                            Remark = r.Remark
+                        };
+
+        return await baseQuery.ToListAsync();
     }
 
     public async Task<InspectionRecordListDto> GetByIdAsync(int id)

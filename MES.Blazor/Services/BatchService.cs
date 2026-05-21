@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
@@ -25,10 +26,24 @@ public class BatchService
             if (!string.IsNullOrEmpty(query.BatchNo)) url += $"&batchNo={Uri.EscapeDataString(query.BatchNo)}";
             if (query.StartDateFrom.HasValue) url += $"&startDateFrom={query.StartDateFrom:yyyy-MM-dd}";
             if (query.StartDateTo.HasValue) url += $"&startDateTo={query.StartDateTo:yyyy-MM-dd}";
+            if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<ProductionBatchListDto>>>(url)
                    ?? ApiResponse<PagedResult<ProductionBatchListDto>>.Fail("获取数据失败");
         }
         catch (Exception ex) { return ApiResponse<PagedResult<ProductionBatchListDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<List<ProductionBatchListDto>> GetAllBatchListAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<ProductionBatchListDto>>>($"{BaseUrl}/all-list");
+            return response?.Data ?? new List<ProductionBatchListDto>();
+        }
+        catch (Exception ex)
+        {
+            return new List<ProductionBatchListDto>();
+        }
     }
 
     public async Task<ApiResponse<ProductionBatchDetailDto>> GetByIdAsync(int id)

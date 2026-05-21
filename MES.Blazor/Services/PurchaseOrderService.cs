@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
@@ -9,6 +10,16 @@ public class PurchaseOrderService
     private const string BaseUrl = "api/purchase-order";
 
     public PurchaseOrderService(AuthHttpClient http) => _http = http;
+
+    public async Task<ApiResponse<List<PurchaseOrderDto>>> GetAllListAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<PurchaseOrderDto>>>($"{BaseUrl}/all")
+                   ?? ApiResponse<List<PurchaseOrderDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<PurchaseOrderDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
 
     public async Task<ApiResponse<PagedResult<PurchaseOrderDto>>> GetPagedAsync(QueryParams query, string? status = null, DateTime? dateFrom = null, DateTime? dateTo = null, DateTime? requiredDateFrom = null, DateTime? requiredDateTo = null)
     {
@@ -23,6 +34,7 @@ public class PurchaseOrderService
             if (dateTo.HasValue) url += $"&dateTo={dateTo.Value:yyyy-MM-dd}";
             if (requiredDateFrom.HasValue) url += $"&requiredDateFrom={requiredDateFrom.Value:yyyy-MM-dd}";
             if (requiredDateTo.HasValue) url += $"&requiredDateTo={requiredDateTo.Value:yyyy-MM-dd}";
+            if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<PurchaseOrderDto>>>(url)
                    ?? ApiResponse<PagedResult<PurchaseOrderDto>>.Fail("获取数据失败");
         }

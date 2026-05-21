@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
@@ -28,7 +29,8 @@ public class SectionOutsourceService
         int pageIndex = 1, int pageSize = 20, string? keyword = null,
         string? sortBy = null, bool isDescending = true,
         DateTime? sendOutDateFrom = null, DateTime? sendOutDateTo = null,
-        DateTime? actualRecoveryDateFrom = null, DateTime? actualRecoveryDateTo = null)
+        DateTime? actualRecoveryDateFrom = null, DateTime? actualRecoveryDateTo = null,
+        string? filters = null)
     {
         try
         {
@@ -39,6 +41,7 @@ public class SectionOutsourceService
             if (sendOutDateTo.HasValue) url += $"&sendOutDateTo={sendOutDateTo.Value:yyyy-MM-dd}";
             if (actualRecoveryDateFrom.HasValue) url += $"&actualRecoveryDateFrom={actualRecoveryDateFrom.Value:yyyy-MM-dd}";
             if (actualRecoveryDateTo.HasValue) url += $"&actualRecoveryDateTo={actualRecoveryDateTo.Value:yyyy-MM-dd}";
+            if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<SectionOutsourceDto>>>(url)
                    ?? ApiResponse<PagedResult<SectionOutsourceDto>>.Fail("获取数据失败");
         }
@@ -100,7 +103,8 @@ public class SectionOutsourceService
     public async Task<ApiResponse<PagedResult<OutsourceRecoveryDto>>> GetRecoveriesPagedAsync(
         int pageIndex = 1, int pageSize = 20, string? keyword = null,
         string? sortBy = null, bool isDescending = true,
-        DateTime? recoveryDateFrom = null, DateTime? recoveryDateTo = null)
+        DateTime? recoveryDateFrom = null, DateTime? recoveryDateTo = null,
+        string? filters = null)
     {
         try
         {
@@ -109,6 +113,7 @@ public class SectionOutsourceService
             if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
             if (recoveryDateFrom.HasValue) url += $"&recoveryDateFrom={recoveryDateFrom.Value:yyyy-MM-dd}";
             if (recoveryDateTo.HasValue) url += $"&recoveryDateTo={recoveryDateTo.Value:yyyy-MM-dd}";
+            if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<OutsourceRecoveryDto>>>(url)
                    ?? ApiResponse<PagedResult<OutsourceRecoveryDto>>.Fail("获取数据失败");
         }

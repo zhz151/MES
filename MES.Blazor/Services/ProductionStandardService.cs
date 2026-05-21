@@ -1,4 +1,5 @@
 // 文件路径: MES.Blazor/Services/ProductionStandardService.cs
+using System.Text.Json;
 using MES.Core.DTOs;
 using MES.Core.Models;
 
@@ -30,6 +31,7 @@ public class ProductionStandardService
             {
                 url += $"&isActive={isActive.Value}";
             }
+            if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<ProductionStandardDto>>>(url);
             return response ?? ApiResponse<PagedResult<ProductionStandardDto>>.Fail("获取数据失败");
         }

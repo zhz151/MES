@@ -8,6 +8,7 @@ using MES.Core.Models;
 using MES.Core.Constants;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Helpers;
 using MES.Services.Printing;
 
 namespace MES.Services;
@@ -83,130 +84,11 @@ public class BatchService : IBatchService
         if (!string.IsNullOrEmpty(query.ProductionSubNo))
             queryable = queryable.Where(b => b.ProductionSubNo != null && b.ProductionSubNo.Contains(query.ProductionSubNo));
 
+        // 通用筛选
+        queryable = queryable.ApplyFilters(query.Filters);
+
         // 排序
-        queryable = (query.SortBy?.ToLower()) switch
-        {
-            "batchno" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.BatchNo)
-                : queryable.OrderBy(b => b.BatchNo),
-            "tagno" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.TagNo ?? "")
-                : queryable.OrderBy(b => b.TagNo ?? ""),
-            "createdtime" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.CreatedTime)
-                : queryable.OrderBy(b => b.CreatedTime),
-            "updatedtime" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.UpdatedTime)
-                : queryable.OrderBy(b => b.UpdatedTime),
-            "workorderno" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.WorkOrderNo)
-                : queryable.OrderBy(b => b.WorkOrderNo),
-            "salesorderno" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.SalesOrderNo)
-                : queryable.OrderBy(b => b.SalesOrderNo),
-            "productionmainno" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.ProductionMainNo)
-                : queryable.OrderBy(b => b.ProductionMainNo),
-            "productionsubno" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.ProductionSubNo ?? "")
-                : queryable.OrderBy(b => b.ProductionSubNo ?? ""),
-            "productiontype" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.ProductionType ?? "")
-                : queryable.OrderBy(b => b.ProductionType ?? ""),
-            "manufacturingitem" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.ManufacturingItem)
-                : queryable.OrderBy(b => b.ManufacturingItem),
-            "status" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.Status)
-                : queryable.OrderBy(b => b.Status),
-            "currentexecdate" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.CurrentExecDate)
-                : queryable.OrderBy(b => b.CurrentExecDate),
-            "currentgroupname" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.CurrentGroupName ?? "")
-                : queryable.OrderBy(b => b.CurrentGroupName ?? ""),
-            "currentsectionname" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.CurrentSectionName ?? "")
-                : queryable.OrderBy(b => b.CurrentSectionName ?? ""),
-            "currentequipmentname" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.CurrentEquipmentName ?? "")
-                : queryable.OrderBy(b => b.CurrentEquipmentName ?? ""),
-            "currentoutsource" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.CurrentOutsource ?? "")
-                : queryable.OrderBy(b => b.CurrentOutsource ?? ""),
-            "nextsectionname" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.NextSectionName ?? "")
-                : queryable.OrderBy(b => b.NextSectionName ?? ""),
-            "currentspec" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.CurrentSpec ?? "")
-                : queryable.OrderBy(b => b.CurrentSpec ?? ""),
-            "correspondingspec" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.CorrespondingSpec ?? "")
-                : queryable.OrderBy(b => b.CorrespondingSpec ?? ""),
-            "currentvalidqty" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.CurrentValidQty)
-                : queryable.OrderBy(b => b.CurrentValidQty),
-            "currentvalidweight" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.CurrentValidWeight)
-                : queryable.OrderBy(b => b.CurrentValidWeight),
-            "createdby" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.CreatedBy)
-                : queryable.OrderBy(b => b.CreatedBy),
-            "productionratio" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.ProductionRatio)
-                : queryable.OrderBy(b => b.ProductionRatio),
-            "signdate" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.SignDate)
-                : queryable.OrderBy(b => b.SignDate),
-            "salesman" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.Salesman)
-                : queryable.OrderBy(b => b.Salesman),
-            "endcustomer" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.EndCustomer ?? "")
-                : queryable.OrderBy(b => b.EndCustomer ?? ""),
-            "deliverydate" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.DeliveryDate)
-                : queryable.OrderBy(b => b.DeliveryDate),
-            "delaypenalty" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.DelayPenalty)
-                : queryable.OrderBy(b => b.DelayPenalty),
-            "materialname" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.MaterialName)
-                : queryable.OrderBy(b => b.MaterialName),
-            "settlementmethod" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.SettlementMethod)
-                : queryable.OrderBy(b => b.SettlementMethod),
-            "standardcode" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.StandardCode)
-                : queryable.OrderBy(b => b.StandardCode),
-            "deliverystate" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.DeliveryState)
-                : queryable.OrderBy(b => b.DeliveryState),
-            "plantgrade" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.PlantGrade)
-                : queryable.OrderBy(b => b.PlantGrade),
-            "specification" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.Specification)
-                : queryable.OrderBy(b => b.Specification),
-            "lengthstatus" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.LengthStatus)
-                : queryable.OrderBy(b => b.LengthStatus),
-            "totalquantity" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.TotalQuantity)
-                : queryable.OrderBy(b => b.TotalQuantity),
-            "totalmeters" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.TotalMeters)
-                : queryable.OrderBy(b => b.TotalMeters),
-            "totalweight" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.TotalWeight)
-                : queryable.OrderBy(b => b.TotalWeight),
-            "technicalrequirements" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.TechnicalRequirements)
-                : queryable.OrderBy(b => b.TechnicalRequirements),
-            _ => query.IsDescending
-                ? queryable.OrderByDescending(b => b.CreatedTime)
-                : queryable.OrderBy(b => b.CreatedTime)
-        };
+        queryable = queryable.ApplySort(query.SortBy, query.IsDescending);
 
         var totalCount = await queryable.CountAsync();
         var items = await queryable
@@ -253,7 +135,18 @@ public class BatchService : IBatchService
                 TotalQuantity = b.TotalQuantity,
                 TotalMeters = b.TotalMeters,
                 TotalWeight = b.TotalWeight,
-                TechnicalRequirements = b.TechnicalRequirements
+                TechnicalRequirements = b.TechnicalRequirements,
+                Remark = b.Remark,
+                SourceHeatNo = b.SourceHeatNo,
+                TotalItemCount = b.TotalItemCount,
+                SourceSpecification = b.SourceSpecification,
+                InputQuantity = b.InputQuantity,
+                InputWeight = b.InputWeight,
+                SolutionParams = b.SolutionParams,
+                QualityRemark = b.QualityRemark,
+                SourceMaterialType = b.SourceMaterialType,
+                SourceName = b.SourceName,
+                InboundDate = b.InboundDate
             })
             .ToListAsync();
 
@@ -298,9 +191,18 @@ public class BatchService : IBatchService
         }
 
         // ========== 有效投料疑问筛选（内存筛选，因该字段为计算字段） ==========
-        if (!string.IsNullOrEmpty(query.ValidInputQuestion))
+        var viqFilter = query.Filters?.FirstOrDefault(f => string.Equals(f.Field, "ValidInputQuestion", StringComparison.OrdinalIgnoreCase));
+        if (viqFilter != null && viqFilter.Values?.Count > 0)
         {
-            items = items.Where(i => string.Equals(i.ValidInputQuestion, query.ValidInputQuestion, StringComparison.OrdinalIgnoreCase)).ToList();
+            var viqValues = new HashSet<string>(viqFilter.Values, StringComparer.OrdinalIgnoreCase);
+            items = items.Where(i => !string.IsNullOrEmpty(i.ValidInputQuestion) && viqValues.Contains(i.ValidInputQuestion)).ToList();
+            if (viqFilter.IncludeNull)
+                items = items.Where(i => string.IsNullOrEmpty(i.ValidInputQuestion)).Concat(items).ToList();
+            totalCount = items.Count;
+        }
+        else if (viqFilter?.IncludeNull == true)
+        {
+            items = items.Where(i => string.IsNullOrEmpty(i.ValidInputQuestion)).ToList();
             totalCount = items.Count;
         }
 
@@ -311,6 +213,112 @@ public class BatchService : IBatchService
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
+    }
+
+    public async Task<List<ProductionBatchListDto>> GetAllBatchListAsync()
+    {
+        var queryable = _context.ProductionBatches
+            .AsNoTracking()
+            .AsQueryable();
+
+        var items = await queryable
+            .Select(b => new ProductionBatchListDto
+            {
+                Id = b.Id,
+                BatchNo = b.BatchNo,
+                TagNo = b.TagNo,
+                CreatedTime = b.CreatedTime,
+                UpdatedTime = b.UpdatedTime,
+                WorkOrderNo = b.WorkOrderNo,
+                SalesOrderNo = b.SalesOrderNo,
+                ProductionMainNo = b.ProductionMainNo,
+                ProductionSubNo = b.ProductionSubNo,
+                ProductionType = b.ProductionType,
+                ManufacturingItem = b.ManufacturingItem,
+                Status = b.Status.ToString(),
+                ProductionRatio = b.ProductionRatio,
+                CurrentExecDate = b.CurrentExecDate,
+                CurrentGroupName = b.CurrentGroupName,
+                CurrentSectionName = b.CurrentSectionName,
+                CurrentEquipmentName = b.CurrentEquipmentName,
+                CurrentOutsource = b.CurrentOutsource,
+                CurrentSpec = b.CurrentSpec,
+                NextSectionName = b.NextSectionName,
+                CorrespondingSpec = b.CorrespondingSpec,
+                CurrentValidQty = b.CurrentValidQty,
+                CurrentValidWeight = b.CurrentValidWeight,
+                CreatedBy = b.CreatedBy,
+                SignDate = b.SignDate,
+                Salesman = b.Salesman,
+                EndCustomer = b.EndCustomer,
+                DeliveryDate = b.DeliveryDate,
+                DelayPenalty = b.DelayPenalty,
+                MaterialName = b.MaterialName,
+                SettlementMethod = b.SettlementMethod,
+                StandardCode = b.StandardCode,
+                DeliveryState = b.DeliveryState,
+                PlantGrade = b.PlantGrade,
+                Specification = b.Specification,
+                LengthStatus = b.LengthStatus,
+                TotalQuantity = b.TotalQuantity,
+                TotalMeters = b.TotalMeters,
+                TotalWeight = b.TotalWeight,
+                TechnicalRequirements = b.TechnicalRequirements,
+                Remark = b.Remark,
+                SourceHeatNo = b.SourceHeatNo,
+                TotalItemCount = b.TotalItemCount,
+                SourceSpecification = b.SourceSpecification,
+                InputQuantity = b.InputQuantity,
+                InputWeight = b.InputWeight,
+                SolutionParams = b.SolutionParams,
+                QualityRemark = b.QualityRemark,
+                SourceMaterialType = b.SourceMaterialType,
+                SourceName = b.SourceName,
+                InboundDate = b.InboundDate
+            })
+            .ToListAsync();
+
+        // ========== 从 CustomerProfile 覆盖 Salesman/EndCustomer ==========
+        await PatchCustomerFieldsAsync(items);
+
+        // ========== 计算有效投料疑问 ==========
+        if (items.Count > 0)
+        {
+            var batchIds = items.Select(i => i.Id).ToList();
+            var allInspections = await _context.ProcessInspections
+                .Where(pi => batchIds.Contains(pi.ProductionBatchId))
+                .Include(pi => pi.ProcessGroup)
+                .ToListAsync();
+
+            var latestInspections = allInspections
+                .GroupBy(pi => pi.ProductionBatchId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(pi => pi.InspectionDate)
+                          .ThenByDescending(pi => pi.Id)
+                          .First());
+
+            foreach (var item in items)
+            {
+                if (latestInspections.TryGetValue(item.Id, out var inspection)
+                    && inspection.QualifiedQuantity.HasValue
+                    && inspection.ProcessGroup.ManufacturingMultiple > 0
+                    && item.CurrentValidQty is > 0
+                    && item.ProductionRatio > 0)
+                {
+                    var inspectionTheoryQty = inspection.QualifiedQuantity.Value * inspection.ProcessGroup.ManufacturingMultiple;
+                    var inputProductionQty = item.CurrentValidQty.Value * item.ProductionRatio;
+
+                    if (inputProductionQty > 0)
+                    {
+                        var ratio = (decimal)inspectionTheoryQty / inputProductionQty;
+                        item.ValidInputQuestion = (ratio > 1.02m || ratio < 0.98m) ? "疑问" : "正常";
+                    }
+                }
+            }
+        }
+
+        return items;
     }
 
     public async Task<ProductionBatchDetailDto> GetByIdAsync(int id)

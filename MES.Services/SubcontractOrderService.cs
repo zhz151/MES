@@ -6,6 +6,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Helpers;
 using MES.Services.Printing;
 
 namespace MES.Services;
@@ -53,6 +54,24 @@ public class SubcontractOrderService : ISubcontractOrderService
         if (!string.IsNullOrEmpty(query.Status) && Enum.TryParse<SubcontractOrderStatus>(query.Status, out var parsedStatus))
         {
             queryable = queryable.Where(s => s.Status == parsedStatus);
+        }
+
+        queryable = queryable.ApplyFilters(query.Filters);
+
+        // 跨表计算字段筛选（非 SubcontractOrder 直接属性）
+        if (query.Filters is { Count: > 0 })
+        {
+            foreach (var filter in query.Filters)
+            {
+                if (string.IsNullOrWhiteSpace(filter.Field)) continue;
+                switch (filter.Field.ToLower())
+                {
+                    case "suppliername":
+                        if (!string.IsNullOrEmpty(filter.Value))
+                            queryable = queryable.Where(s => _context.SupplierProfiles.Any(sp => sp.Id == s.SupplierId && sp.SupplierName.Contains(filter.Value)));
+                        break;
+                }
+            }
         }
 
         // 排序
@@ -140,6 +159,31 @@ public class SubcontractOrderService : ISubcontractOrderService
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
+    }
+
+    public async Task<List<SubcontractOrderDto>> GetAllListAsync()
+    {
+        var entityList = await _context.SubcontractOrders
+            .AsNoTracking()
+            .Include(s => s.ReturnItems.OrderBy(r => r.Sequence))
+            .OrderBy(s => s.OrderDate)
+            .ThenBy(s => s.OrderNo)
+            .ToListAsync();
+
+        // 填充供应商名称
+        var supplierIds = entityList.Where(i => i.SupplierId > 0).Select(i => i.SupplierId).Distinct().ToList();
+        var suppliers = await _context.SupplierProfiles
+            .AsNoTracking()
+            .Where(s => supplierIds.Contains(s.Id))
+            .ToDictionaryAsync(s => s.Id, s => s.SupplierName);
+
+        return entityList.Select(s =>
+        {
+            var dto = ToDto(s);
+            if (suppliers.TryGetValue(s.SupplierId, out var name))
+                dto.SupplierName = name;
+            return dto;
+        }).ToList();
     }
 
     public async Task<SubcontractOrderDto> GetByIdAsync(int id)
