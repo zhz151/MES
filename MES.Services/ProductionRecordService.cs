@@ -1611,6 +1611,18 @@ public class ProductionRecordService : IProductionRecordService
         if (query.ExecDateTo.HasValue)
             queryable = queryable.Where(r => r.ExecDate <= query.ExecDateTo.Value);
 
+        // 处理 BatchNo 导航属性筛选（ProductionRecord 实体无 BatchNo 属性，ApplyFilters 反射不到）
+        if (query.Filters != null)
+        {
+            var batchNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("BatchNo", StringComparison.OrdinalIgnoreCase));
+            if (batchNoFilter != null && batchNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(r => r.ProductionBatch != null
+                    && batchNoFilter.Values.Contains(r.ProductionBatch.BatchNo));
+                query.Filters.Remove(batchNoFilter);
+            }
+        }
+
         queryable = queryable.ApplyFilters(query.Filters);
         var totalCount = await queryable.CountAsync();
 
@@ -1927,6 +1939,20 @@ public class ProductionRecordService : IProductionRecordService
         if (query.ReceiveDateTo.HasValue)
             queryable = queryable.Where(m => m.ReceiveDate <= query.ReceiveDateTo.Value);
 
+        // 处理 BatchNo 导航属性筛选（MaterialReceiveCheck 实体无 BatchNo 属性）
+        if (query.Filters != null)
+        {
+            var batchNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("BatchNo", StringComparison.OrdinalIgnoreCase));
+            if (batchNoFilter != null && batchNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(m => m.ProductionBatch != null
+                    && batchNoFilter.Values.Contains(m.ProductionBatch.BatchNo));
+                query.Filters.Remove(batchNoFilter);
+            }
+        }
+
+        queryable = queryable.ApplyFilters(query.Filters);
+
         var totalCount = await queryable.CountAsync();
 
         queryable = (query.SortBy?.ToLower(), query.IsDescending) switch
@@ -2189,6 +2215,71 @@ public class ProductionRecordService : IProductionRecordService
         };
         var paged = await GetAllMaterialReceiveChecksAsync(query);
         return MaterialCheckPrintHelper.GenerateBatchPdf(paged.Items, columns);
+    }
+
+    // ========== 筛选上下文 ==========
+
+    public async Task<Dictionary<string, List<string>>> GetMaterialCheckFilterContextsAsync()
+    {
+        var query = from mc in _context.MaterialReceiveChecks
+                    join pb in _context.ProductionBatches on mc.ProductionBatchId equals pb.Id
+                    select new
+                    {
+                        mc.Shift,
+                        mc.Checker,
+                        mc.Remark,
+                        BatchNo = pb.BatchNo
+                    };
+
+        var results = await query.AsNoTracking().ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["BatchNo"] = results.Select(x => x.BatchNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Shift"] = results.Select(x => x.Shift).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Checker"] = results.Select(x => x.Checker).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Remark"] = results.Select(x => x.Remark).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!
+        };
+    }
+
+    /// <summary>
+    /// 获取生产记录筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var query = from r in _context.ProductionRecords
+                    join pb in _context.ProductionBatches on r.ProductionBatchId equals pb.Id
+                    select new
+                    {
+                        pb.BatchNo,
+                        r.ProcessName,
+                        r.ManufacturingSpec,
+                        r.SectionName,
+                        r.EquipmentName,
+                        r.Operator,
+                        r.Shift,
+                        r.TagNo,
+                        r.PlantGrade,
+                        r.Remark,
+                        r.ExecDate
+                    };
+
+        var results = await query.AsNoTracking().ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["BatchNo"] = results.Select(x => x.BatchNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["ProcessName"] = results.Select(x => x.ProcessName).Distinct().OrderBy(x => x).ToList(),
+            ["ManufacturingSpec"] = results.Select(x => x.ManufacturingSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["SectionName"] = results.Select(x => x.SectionName).Distinct().OrderBy(x => x).ToList(),
+            ["EquipmentName"] = results.Select(x => x.EquipmentName).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Operator"] = results.Select(x => x.Operator).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Shift"] = results.Select(x => x.Shift).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["TagNo"] = results.Select(x => x.TagNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["PlantGrade"] = results.Select(x => x.PlantGrade).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Remark"] = results.Select(x => x.Remark).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["ExecDate"] = results.Select(x => x.ExecDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList()
+        };
     }
 
     /// <summary>

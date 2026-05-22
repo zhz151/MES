@@ -248,6 +248,17 @@ public class ProductionRecordController : ControllerBase
     }
 
     /// <summary>
+    /// 获取生产记录筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    [HttpGet("all/filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
+    {
+        var result = await _service.GetFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
+
+    /// <summary>
     /// 获取所有内部生产记录列表（不含分页，用于 ProductionRecords 页面）
     /// </summary>
     [HttpGet("all-list")]
@@ -386,6 +397,19 @@ public class ProductionRecordController : ControllerBase
     }
 
     // ========== 打印 ==========
+
+    // ========== 筛选上下文 ==========
+
+    /// <summary>
+    /// 获取检验到料筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    [HttpGet("material-check/filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetMaterialCheckFilterContexts()
+    {
+        var result = await _service.GetMaterialCheckFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
 
     /// <summary>
     /// 批量创建检验到料（批次完成标志）

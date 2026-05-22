@@ -364,4 +364,33 @@ public class EquipmentService : IEquipmentService
         }
         return detail;
     }
+
+    public async Task<Dictionary<string, List<string>>> GetEquipmentFilterContextsAsync()
+    {
+        var contexts = new Dictionary<string, List<string>>();
+
+        contexts["EquipmentCode"] = await _context.Equipment
+            .AsNoTracking().Where(e => e.EquipmentCode != null)
+            .Select(e => e.EquipmentCode).Distinct().ToListAsync()!;
+        contexts["EquipmentName"] = await _context.Equipment
+            .AsNoTracking().Where(e => e.EquipmentName != null)
+            .Select(e => e.EquipmentName).Distinct().ToListAsync()!;
+        contexts["ModelNumber"] = await _context.Equipment
+            .AsNoTracking().Where(e => e.ModelNumber != null)
+            .Select(e => e.ModelNumber).Distinct().ToListAsync()!;
+        contexts["Location"] = await _context.Equipment
+            .AsNoTracking().Where(e => e.Location != null)
+            .Select(e => e.Location).Distinct().ToListAsync()!;
+        contexts["RelatedSection"] = await _context.Equipment
+            .AsNoTracking().Where(e => e.RelatedSection != null)
+            .Select(e => e.RelatedSection).Distinct().ToListAsync()!;
+        contexts["LifecycleStatus"] = await _context.Equipment
+            .AsNoTracking().Where(e => e.LifecycleStatus != null)
+            .Select(e => e.LifecycleStatus).Distinct().ToListAsync()!;
+        contexts["UsageType"] = await _context.Equipment
+            .AsNoTracking().Where(e => e.UsageType != null)
+            .Select(e => e.UsageType).Distinct().ToListAsync()!;
+
+        return contexts;
+    }
 }

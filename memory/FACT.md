@@ -4,50 +4,59 @@
 - **失败自愈上限**：连续失败 2 次后必须停下来问用户，不得继续自行重试
 - **所有业务和代码规则见 `docs/04_开发规范.md`**
 - **严禁未经用户同意执行 git 回滚/重置操作**：任何形式的 `git checkout --`、`git reset --hard`、`git revert` 等可能丢失代码的破坏性 git 操作，必须先获得用户明确批准。用户授权一次仅代表本次有效，不构成后续授权。
+- **严禁凭空猜测 EnumOptions 值**：ColumnDef 中 EnumOptions.Value 必须与 `GetCellRawValue()` 返回的数据库原始值一致，添加前必须核查 DisplayHelper 映射和实体字段注释，禁止编造。
 
-## 关键陷阱：Items 模式列筛选必须用 GetCellRawValue
-- ExcelFilter 内部存储的是 `GetCellRawValue()` 返回的**原始值**（enum 名、bool 字符串、原始数值等）
-- `RefreshFilteredData` 中遍历 `_columnFilters` 做 `Where` 比对时，**必须用 `GetCellRawValue(item, col.Key)`**
+## 关键陷阱：列筛选必须用 GetCellRawValue（所有模式通用）
+- ExcelFilter 内部存储的是 `GetCellRawValue()` 返回的**原始值**（enum 名、bool 字符串、原始数值、日期字符串等）
+- ServerData 模式：后端 filter-contexts 端点返回原始值，前端 `GetCellRawValue` 也返回原始值，两者必须一致，ExcelFilter 基于原始值做筛选匹配
 - **禁止使用 `GetCellDisplayText`**（返回中文/格式化显示文本，与原始值不匹配导致筛选无效）
-- 联动筛选 `_filterContexts` 的比对同样必须用 `GetCellRawValue`，禁止用 `GetCellDisplayText`
 - 此规则已在 `docs/04_开发规范.md` 的 §9.4（禁止事项）、§18.3（工作流/强制检查）、B13 检查清单中明确写入
 
-## 修改页面 checklist（防止遗漏）
-修改 Blazor 列表页时，必须逐项核对以下内容是否被影响：
-1. **持久化**：任何影响数据展示的用户交互状态（列筛选、排序、关键字、状态下拉、列显隐顺序），必须在 `SavePageStateAsync` 中保存、在 `OnAfterRenderAsync` 中恢复。新增交互状态后要同时更新持久化。
-2. **回调持久化**：`OnColumnFilterChanged`/`OnExcelSortRequested`/`OnSearchChanged`/`ToggleSort` 等交互回调**必须调用 `await SavePageStateAsync()`**，缺少任何一个就是 bug。
-3. **全字段排序/筛选**：所有列必须同时定义 `SortKey`（排序）和 `FilterType`（筛选），缺少任何一个就是规范违规。
-4. **联动筛选**：Excel 列筛选的上下文（_filterContexts）必须在 `RefreshFilteredData` 中更新，并且在页面模板中传递正确的上下文给每个 ExcelFilter。
-5. **Snackbar 合并通知**：多条同类异常必须合并为一条 Snackbar（`string.Join` 汇总+总数），禁止在 `foreach` 循环中逐条调用 `Snackbar.Add`。
-6. **模板判空**：Items 模式 Razor 模板中所有 `_allItems` 引用必须判空（`_allItems?.Count ?? 0`），Blazor WASM 首次渲染时数据尚未加载。
-7. **GetCellRawValue enum 须 ToString**：`GetCellRawValue` 返回 `string?`，enum 类型属性必须加 `.ToString()`。
+## 关键陷阱：FilterDescriptor.Operator 必须显式设置 "in"
+- `FilterDescriptor.Operator` 的默认值是 `"contains"`（类定义），不是 `"in"`
+- `SerializeFilters()` 中必须显式设置 `Operator = "in"`，否则 `BuildStringContains` 使用 `null Value` 返回空，筛选被静默跳过
+- 当前所有页面已正确设置 `Operator = "in"`（2026-05-22 检查确认）
 
-## 重要文件路径
-- **工单执行状况服务**: `MES.Services/WorkOrderExecutionService.cs`
-- **用料计划满足率计算**: `MES.Services/PlanRateCalculator.cs`
-- **订单服务**: `MES.Services/Order/OrderService.cs`
-- **订单列表读模型服务**: `MES.Services/Order/OrderListSummaryService.cs`
-- **订单列表读模型实体**: `MES.Data.Entities/OrderListSummary`
-- **订单列表页**: `MES.Blazor/Pages/Orders.razor`
+## 关键陷阱：导航属性列需单独处理筛选
+- `ApplyFilters` 通过反射在实体类型上查找属性名，导航属性字段（如 `ProductionRecord.BatchNo` 来自 `r.ProductionBatch.BatchNo`）无法被反射到
+- 必须在 `ApplyFilters` 调用**之前**单独处理导航属性筛选，然后从 `Filters` 中移除该条件
+- 示例：`ProductionRecordService.GetAllProductionRecordsAsync` 中 BatchNo 的导航属性筛选处理
 
-## 关键决策记录
+## 关键陷阱：后处理覆盖字段的筛选查询也必须指向同一数据源
+- 仅修正 filter-contexts 的显示层不够。如果 `GetPagedAsync` 中有后处理覆盖了字段的显示值（如 `PatchCustomerFieldsAsync` 从 CustomerProfile 覆盖 Salesman/EndCustomer），该字段的筛选查询也必须指向覆盖后的数据源
+- 否则用户选了筛选值，`ApplyFilters` 在旧快照上搜不到 → 返回空结果
+- 做法：在 `ApplyFilters` 前单独处理（通过 SalesOrderNo 等关联字段桥接查询），然后 Remove 出 Filters 列表
 
-### 读模型 RowVersion 处理（2026-05-21）
-- 读模型表 OrderListSummary 有自己的 `rowversion` 列（SQL Server 自动管理）
-- `GetPagedAsync` 返回列表 DTO 时，RowVersion 必须来自 **SalesOrder** 表，不是 OrderListSummary
-- 读模型的 RowVersion 仅用于读模型自身的并发控制，与业务表无关
-- 实现方式：在 `GetPagedAsync` 中 `Select` 之后批量查询 `SalesOrders` 取 RowVersion
+## 关键陷阱：BuildIn DateTime 用 .Date 截断匹配（2026-05-23 更新）
+- `BuildIn` 的 DateTime 分支中，memberForContains 必须通过 `Expression.Property(memberForContains, "Date")` 截取到日期部分
+- 这样 `2026-05-23 08:30:00` 在数据库中可以被 `"2026-05-23"` 的筛选值匹配
+- 同时保留 `Nullable<DateTime>` 的 `.Value` 处理（针对 `DateTime?` 类型）
+- 影响所有 `DateTime` 类型的筛选列（如 IncomingDate、InspectionDate 等业务日期字段）
+- `DateTimeOffset` 类型（CreatedTime/UpdatedTime 等时间戳）不设 FilterType，仅排序
 
-### EF Core 关键陷阱
-- `IsRowVersion()` 列在 INSERT 时被 EF Core 自动排除，UPDATE 时在 WHERE 中用 original value
-- `SetValues` 可能隐式修改 `IsRowVersion` 属性的 current value，应手动逐属性复制
-- `rowversion` 列的值由 SQL Server 自动生成，不可显式写入
+## 关键陷阱：筛选上下文排除枚举列
+- `GetFilterContextsAsync` 禁止返回有固定 `EnumOptions` 的枚举列（Status/ProductionType/MaterialName/DelayPenalty 等）
+- 否则前端 `EnumOptions fallback` 被绕过，筛选项显示英文而非中文
+- 枚举列的筛选选项由前端 `BuildFilterContextOptions` 的 `EnumOptions fallback` 直接提供中文 Display
+- `GetFilterContextsAsync` 仅返回 string/bool/date 等非枚举列的 distinct 值
 
-## 实体关系
-- OrderListSummary ↔ SalesOrder：通过 OrderId 关联
-- OrderListSummary 是物化读模型，从 SalesOrders + OrderItems + CustomerProfiles + ProductRequirements 聚合计算
+## 关键陷阱：布尔 EnumOptions 大小写
+- `bool.ToString()` 返回 PascalCase（"True"/"False"），EnumOptions.Value 必须用 PascalCase
+- 小写 "true"/"false" 会导致 `GetCellRawValue` 返回的 "True" 与 EnumOptions 不匹配 → 筛选无效
 
-### 全站 Items+ExcelFilter 模式迁移完成（2026-05-22）
-- 所有 29 个列表页已从 ServerData 模式迁移为 Items+ExcelFilter 模式
-- 所有外部筛选器（MudSelect 状态筛选、日期范围筛选）已全部移除，由列头 ExcelFilter 替代
-- 搜索框仅保留模糊搜索（MudTextField + 搜索图标），无其他外部筛选组件
+## 关键陷阱：EnumOptions 值必须与数据库实际值匹配
+- 所有枚举存储为字符串类型的字段（ProductionType/MaterialName/SettlementMethod 等），EnumOptions.Value 必须与数据库中存储的原始值完全一致
+- 添加前必须核查两处：① `DisplayHelper` 中该字段的映射（如 `GetProductionTypeText("RoughTube")`）；② 实体字段注释
+- 禁止凭空猜测 EnumOptions 值，否则筛选永远返回空结果
+
+## 关键陷阱：ExcelFilter 不提供排序（2026-05-23 更新）
+- ExcelFilter 组件**只负责列筛选**，不包含排序按钮
+- 排序统一由列名点击 `ToggleSort(col.Key)` 提供
+- Code-behind 中不应有 `OnExcelSortRequested` 方法
+- sortColumn 只来自 ToggleSort（col.Key，PascalCase），`LoadDataFromServer` 直接按 `c.Key == sortColumn` 匹配
+
+## 关键陷阱：Controller 筛选参数绑定（2026-06-23 新增）
+- `[FromQuery] QueryParams query` 中 `query.Filters`（`List<FilterDescriptor>?`）是复杂类型，ASP.NET Core 默认模型绑定器无法从查询字符串反序列化 JSON 数组到此属性
+- filters 被静默置 null，筛选不生效且没有任何报错——这是最隐蔽的筛选失效原因
+- 必须写为 `[FromQuery] string? filters = null` + `JsonSerializer.Deserialize<List<FilterDescriptor>>(filters)`
+- 已修复 3 个 Controller（ProductionStandardController、GradeMappingController、WorkOrderExecutionController）

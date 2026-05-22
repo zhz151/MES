@@ -12,6 +12,7 @@ public interface IRepairOrderService
     Task<List<RepairOrderListDto>> CreateBatchAsync(List<CreateRepairOrderRequest> requests);
     Task<RepairOrderListDto> UpdateAsync(int id, UpdateRepairOrderRequest request);
     Task DeleteAsync(int id);
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
     Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
     Task<byte[]> PrintAllAsync(RepairOrderQueryParams query, List<PrintColumnDef> columns);
 }

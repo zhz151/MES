@@ -990,6 +990,60 @@ public class PurchaseOrderService : IPurchaseOrderService
         };
     }
 
+    // ========== 筛选上下文 ==========
+
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var query = from p in _context.PurchaseOrders.AsNoTracking()
+                    join s in _context.SupplierProfiles.AsNoTracking() on p.SupplierId equals s.Id into sj
+                    from s in sj.DefaultIfEmpty()
+                    join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
+                    from w in wj.DefaultIfEmpty()
+                    select new
+                    {
+                        p.OrderNo,
+                        p.OrderDate,
+                        p.RequiredDate,
+                        p.MaterialCategory,
+                        p.PlantGrade,
+                        p.Specification,
+                        p.SourceWorkOrderNo,
+                        SupplierName = s.SupplierName,
+                        WoSalesOrderNo = w.SalesOrderNo,
+                        WoProductionMainNo = w.ProductionMainNo,
+                        WoProductionSubNo = w.ProductionSubNo,
+                        WoSignDate = (DateTime?)w.SignDate,
+                        WoSalesman = w.Salesman,
+                        WoEndCustomer = w.EndCustomer,
+                        WoDeliveryDate = (DateTime?)w.DeliveryDate,
+                        WoPlantGrade = w.PlantGrade,
+                        WoSpecification = w.Specification
+                    };
+
+        var all = await query.ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["OrderNo"] = all.Select(x => x.OrderNo).Distinct().OrderBy(x => x).ToList(),
+            ["SourceWorkOrderNo"] = all.Where(x => x.SourceWorkOrderNo != null).Select(x => x.SourceWorkOrderNo!).Distinct().OrderBy(x => x).ToList(),
+            ["OrderDate"] = all.Select(x => x.OrderDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["RequiredDate"] = all.Select(x => x.RequiredDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["MaterialCategory"] = all.Select(x => x.MaterialCategory).Distinct().OrderBy(x => x).ToList(),
+            ["PlantGrade"] = all.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
+            ["Specification"] = all.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
+            ["SupplierName"] = all.Where(x => x.SupplierName != null).Select(x => x.SupplierName!).Distinct().OrderBy(x => x).ToList(),
+            ["WoSalesOrderNo"] = all.Where(x => x.WoSalesOrderNo != null).Select(x => x.WoSalesOrderNo!).Distinct().OrderBy(x => x).ToList(),
+            ["WoProductionMainNo"] = all.Where(x => x.WoProductionMainNo != null).Select(x => x.WoProductionMainNo!).Distinct().OrderBy(x => x).ToList(),
+            ["WoProductionSubNo"] = all.Where(x => x.WoProductionSubNo != null).Select(x => x.WoProductionSubNo!).Distinct().OrderBy(x => x).ToList(),
+            ["WoSignDate"] = all.Where(x => x.WoSignDate != null).Select(x => x.WoSignDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["WoSalesman"] = all.Where(x => x.WoSalesman != null).Select(x => x.WoSalesman!).Distinct().OrderBy(x => x).ToList(),
+            ["WoEndCustomer"] = all.Where(x => x.WoEndCustomer != null).Select(x => x.WoEndCustomer!).Distinct().OrderBy(x => x).ToList(),
+            ["WoDeliveryDate"] = all.Where(x => x.WoDeliveryDate != null).Select(x => x.WoDeliveryDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["WoPlantGrade"] = all.Where(x => x.WoPlantGrade != null).Select(x => x.WoPlantGrade!).Distinct().OrderBy(x => x).ToList(),
+            ["WoSpecification"] = all.Where(x => x.WoSpecification != null).Select(x => x.WoSpecification!).Distinct().OrderBy(x => x).ToList(),
+        };
+    }
+
     // ========== 打印 ==========
 
     public async Task<byte[]> PrintOrderAsync(int id)

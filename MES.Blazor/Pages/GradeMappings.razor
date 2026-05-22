@@ -6,13 +6,15 @@
 @using MES.Blazor.Helpers
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
-@using Microsoft.AspNetCore.Components.Rendering
+@using MES.Blazor.Models
+@using System.Text.Json
 @inject GradeMappingService GradeMappingService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
+@inject PageStateService PageState
 @attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
@@ -55,12 +57,12 @@
             <div id="grade-mappings-list-table">
             <MudTable @ref="table"
                       T="StandardGradeMappingDto"
-                      Items="@_filteredItems"
+                      ServerData="@LoadDataFromServer"
                       Dense="true"
                       Hover="true"
                       Class="mt-4 auto-table"
                       Elevation="0"
-                      RowsPerPage="10"
+                      RowsPerPage="@_pageSize"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
                     <ColumnDisplaySelect Columns="_allColumns"
@@ -90,7 +92,7 @@
                         打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
-                        共 @(_filteredItems?.Count ?? 0) 条记录
+                        共 @_totalCount 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
@@ -101,18 +103,16 @@
                     {
                         <MudTh>
                             <div style="display:inline-flex; align-items:center; gap:4px;">
-                                <span class="th-label">@col.Label</span>
+                                <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
                                 @if (col.FilterType != null)
                                 {
                                     <ExcelFilter T="StandardGradeMappingDto"
                                                  Label="@col.Label"
                                                  FieldKey="@col.Key"
-                                                 AllItems="@_allItems"
+                                                 FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"
                                                  ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
-                                                 DisplaySelector="@(x => GetCellDisplayText(x, col.Key))"
-                                                 RawValueSelector="@(x => GetCellRawValue(x, col.Key))"
-                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))"
-                                                 SortRequested="@(args => OnExcelSortRequested(args.fieldKey, args.ascending))" />
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))" />
+
                                 }
                             </div>
                         </MudTh>
@@ -125,7 +125,7 @@
                         {
                             <MudCheckBox T="bool"
                                          Value="@selectedIds.Contains(item.Id)"
-                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _filteredItems.Any() && _filteredItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
                                          Dense="true" />
                         }
                     </MudTd>
@@ -157,557 +157,3 @@
         </MudCardContent>
     </MudCard>
 </MudContainer>
-
-@code {
-    private MudTable<StandardGradeMappingDto>? table;
-    private List<StandardGradeMappingDto> _allItems = new();
-    private List<StandardGradeMappingDto>? _filteredItemsList;
-    private List<StandardGradeMappingDto> _filteredItems => _filteredItemsList ?? _allItems;
-    private HashSet<int> selectedIds = new();
-    private bool _allSelected;
-    private bool _isArrowNavSetup;
-    private bool allSelected
-    {
-        get => _allSelected;
-        set
-        {
-            if (_allSelected == value) return;
-            _allSelected = value;
-            if (value)
-            {
-                foreach (var item in _filteredItems)
-                    selectedIds.Add(item.Id);
-            }
-            else
-            {
-                selectedIds.Clear();
-            }
-            StateHasChanged();
-        }
-    }
-    private string _searchKeyword = string.Empty;
-
-    private string sortColumn = "StandardGrade";
-    private bool sortDescending = true;
-
-    // ExcelFilter 状态
-    private Dictionary<string, HashSet<string>> _columnFilters = new();
-    private Dictionary<string, List<StandardGradeMappingDto>> _filterContexts = new();
-
-    // ========== 内联编辑 ==========
-
-    private HashSet<int> _editingIds = new();
-    private Dictionary<int, EditCache> _editCache = new();
-    private bool _isSaving;
-
-    private class EditCache
-    {
-        public string StandardGrade { get; set; } = string.Empty;
-        public string PlantGrade { get; set; } = string.Empty;
-        public decimal? Density { get; set; }
-        public string? HeatTreatment { get; set; }
-        public bool SpecialMaterial { get; set; }
-        public string? SpecialNote { get; set; }
-        public string? Remark { get; set; }
-    }
-
-    // ========== 列定义 ==========
-
-    private List<ColumnDef> _allColumns = new();
-    private List<ColumnDef> _visibleColumns =>
-        _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
-
-    private static List<ColumnDef> GetAllColumnDefs() => new()
-    {
-        new() { Key = "StandardGrade",  Label = "标准牌号",   SortKey = "standardgrade",  FilterType = "string" },
-        new() { Key = "PlantGrade",     Label = "工厂牌号",   SortKey = "plantgrade",     FilterType = "string" },
-        new() { Key = "Density",        Label = "密度(g/cm³)",SortKey = "density",        FilterType = "number" },
-        new() { Key = "HeatTreatment",  Label = "热处理工艺", SortKey = "heattreatment",  FilterType = "string" },
-        new() { Key = "SpecialMaterial",Label = "特殊材料",   SortKey = "specialmaterial",FilterType = "boolean" },
-        new() { Key = "SpecialNote",    Label = "特殊注意事项",                            FilterType = "string" },
-        new() { Key = "Remark",         Label = "备注",                                    FilterType = "string" },
-    };
-
-    // ========== 列选择操作 ==========
-
-    private async Task OnColumnToggle(ColumnDef col)
-    {
-        await SaveColumnPrefs();
-    }
-
-    private async Task SaveColumnPrefs()
-    {
-        await ColumnPrefs.SaveAsync("grade_mappings", null, _allColumns);
-    }
-
-    private async Task ResetColumnDisplay()
-    {
-        _allColumns = GetAllColumnDefs();
-        await SaveColumnPrefs();
-    }
-
-    private async Task MoveColumnUp(ColumnDef col)
-    {
-        await SaveColumnPrefs();
-    }
-
-    private async Task MoveColumnDown(ColumnDef col)
-    {
-        await SaveColumnPrefs();
-    }
-
-    // ========== 初始化 ==========
-
-    protected override async Task OnInitializedAsync()
-    {
-        _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("grade_mappings", null);
-        if (saved.Count > 0)
-        {
-            foreach (var s in saved)
-            {
-                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
-                if (match != null)
-                    match.Visible = s.Visible;
-            }
-            var reordered = new List<ColumnDef>();
-            foreach (var s in saved)
-            {
-                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
-                if (match != null && !reordered.Contains(match))
-                    reordered.Add(match);
-            }
-            foreach (var c in _allColumns)
-            {
-                if (!reordered.Contains(c))
-                    reordered.Add(c);
-            }
-            _allColumns = reordered;
-        }
-        await LoadAllDataAsync();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!_isArrowNavSetup)
-        {
-            _isArrowNavSetup = true;
-            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#grade-mappings-list-table"))
-                _isArrowNavSetup = false;
-        }
-    }
-
-    // ========== 数据加载 ==========
-
-    private async Task LoadAllDataAsync()
-    {
-        try
-        {
-            _allItems = await GradeMappingService.GetAllAsync();
-            _filteredItemsList = null;
-            RefreshFilteredData();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"加载失败: {ex.Message}");
-            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            StateHasChanged();
-        }
-    }
-
-    // ========== 搜索 ==========
-
-    private async Task OnSearchChanged(string value)
-    {
-        _searchKeyword = value ?? string.Empty;
-        RefreshFilteredData();
-    }
-
-    // ========== ExcelFilter 回调 ==========
-
-    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
-    {
-        if (selectedValues.Count > 0)
-            _columnFilters[fieldKey] = selectedValues;
-        else
-            _columnFilters.Remove(fieldKey);
-        RefreshFilteredData();
-        await SavePageStateAsync();
-    }
-
-    private async Task OnExcelSortRequested(string fieldKey, bool ascending)
-    {
-        sortColumn = fieldKey;
-        sortDescending = !ascending;
-        RefreshFilteredData();
-        await SavePageStateAsync();
-    }
-
-    private async Task SavePageStateAsync()
-    {
-        await Task.CompletedTask;
-    }
-
-    // ========== 客户端刷新 ==========
-
-    private void RefreshFilteredData()
-    {
-        var query = _allItems.AsEnumerable();
-
-        // 关键字搜索
-        if (!string.IsNullOrWhiteSpace(_searchKeyword))
-        {
-            var kw = _searchKeyword;
-            query = query.Where(x =>
-                (x.StandardGrade?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (x.PlantGrade?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (x.HeatTreatment?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (x.SpecialNote?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (x.Remark?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
-            );
-        }
-
-        // ExcelFilter 列筛选
-        foreach (var cf in _columnFilters)
-        {
-            var fieldKey = cf.Key;
-            var selected = cf.Value;
-            query = query.Where(x =>
-            {
-                var raw = GetCellRawValue(x, fieldKey);
-                return raw != null && selected.Contains(raw);
-            });
-        }
-
-        // 排序
-        if (!string.IsNullOrEmpty(sortColumn))
-        {
-            query = sortColumn switch
-            {
-                "StandardGrade" => sortDescending ? query.OrderByDescending(x => x.StandardGrade) : query.OrderBy(x => x.StandardGrade),
-                "PlantGrade" => sortDescending ? query.OrderByDescending(x => x.PlantGrade) : query.OrderBy(x => x.PlantGrade),
-                "Density" => sortDescending ? query.OrderByDescending(x => x.Density) : query.OrderBy(x => x.Density),
-                "HeatTreatment" => sortDescending ? query.OrderByDescending(x => x.HeatTreatment) : query.OrderBy(x => x.HeatTreatment),
-                "SpecialMaterial" => sortDescending ? query.OrderByDescending(x => x.SpecialMaterial) : query.OrderBy(x => x.SpecialMaterial),
-                "SpecialNote" => sortDescending ? query.OrderByDescending(x => x.SpecialNote) : query.OrderBy(x => x.SpecialNote),
-                "Remark" => sortDescending ? query.OrderByDescending(x => x.Remark) : query.OrderBy(x => x.Remark),
-                _ => query
-            };
-        }
-
-        _filteredItemsList = query.ToList();
-        StateHasChanged();
-    }
-
-    // ========== GetCellRawValue / GetCellDisplayText ==========
-
-    private string? GetCellRawValue(StandardGradeMappingDto item, string key) => key switch
-    {
-        "StandardGrade" => item.StandardGrade,
-        "PlantGrade" => item.PlantGrade,
-        "Density" => item.Density.ToString("G29"),
-        "HeatTreatment" => item.HeatTreatment,
-        "SpecialMaterial" => item.SpecialMaterial.ToString(),
-        "SpecialNote" => item.SpecialNote,
-        "Remark" => item.Remark,
-        _ => null
-    };
-
-    private string? GetCellDisplayText(StandardGradeMappingDto item, string key) => key switch
-    {
-        "SpecialMaterial" => item.SpecialMaterial ? DisplayHelper.GetRequirementTypeText(RequirementType.Special) : DisplayHelper.GetRequirementTypeText(RequirementType.Normal),
-        _ => GetCellRawValue(item, key) ?? ""
-    };
-
-    private void NavigateToCreate() => Navigation.NavigateTo("/grade-mappings/create");
-
-    // ========== 内联编辑操作 ==========
-
-    private void StartEdit(StandardGradeMappingDto item)
-    {
-        if (!_editingIds.Add(item.Id)) return;
-        _editCache[item.Id] = new EditCache
-        {
-            StandardGrade = item.StandardGrade,
-            PlantGrade = item.PlantGrade,
-            Density = item.Density,
-            HeatTreatment = item.HeatTreatment,
-            SpecialMaterial = item.SpecialMaterial,
-            SpecialNote = item.SpecialNote,
-            Remark = item.Remark
-        };
-    }
-
-    private void CancelEdit(StandardGradeMappingDto item)
-    {
-        _editingIds.Remove(item.Id);
-        _editCache.Remove(item.Id);
-    }
-
-    private async Task SaveEdit(StandardGradeMappingDto item)
-    {
-        if (!_editCache.TryGetValue(item.Id, out var cache)) return;
-
-        var errors = new List<string>();
-        if (string.IsNullOrWhiteSpace(cache.StandardGrade)) errors.Add("标准牌号不能为空");
-        if (string.IsNullOrWhiteSpace(cache.PlantGrade)) errors.Add("工厂牌号不能为空");
-        if (cache.Density == null || cache.Density <= 0) errors.Add("密度必须大于0");
-        if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
-
-        _isSaving = true;
-        StateHasChanged();
-
-        try
-        {
-            var request = new UpdateGradeMappingRequest
-            {
-                StandardGrade = cache.StandardGrade,
-                PlantGrade = cache.PlantGrade,
-                Density = cache.Density,
-                HeatTreatment = cache.HeatTreatment,
-                SpecialMaterial = cache.SpecialMaterial,
-                SpecialNote = cache.SpecialNote,
-                Remark = cache.Remark
-            };
-
-            var result = await GradeMappingService.UpdateAsync(item.Id, request);
-            if (result.Success)
-            {
-                item.StandardGrade = cache.StandardGrade;
-                item.PlantGrade = cache.PlantGrade;
-                item.Density = cache.Density.Value;
-                item.HeatTreatment = cache.HeatTreatment;
-                item.SpecialMaterial = cache.SpecialMaterial;
-                item.SpecialNote = cache.SpecialNote;
-                item.Remark = cache.Remark;
-
-                _editingIds.Remove(item.Id);
-                _editCache.Remove(item.Id);
-                Snackbar.Add("更新成功", Severity.Success);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "更新失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"更新失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _isSaving = false;
-            StateHasChanged();
-        }
-    }
-
-    // ========== 删除 ==========
-
-    private async Task DeleteItem(StandardGradeMappingDto mapping)
-    {
-        var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
-        {
-            ["ContentText"] = $"确定要删除牌号对照 \"{mapping.StandardGrade}\" 吗？\n\n如果该牌号已被订单使用，删除后可能导致数据问题！",
-            ["ConfirmText"] = "确认删除",
-            ["Color"] = Color.Error
-        });
-        var dialogResult = await dialog.Result;
-        if (!dialogResult.Canceled)
-        {
-            try
-            {
-                var result = await GradeMappingService.DeleteAsync(mapping.Id);
-                if (result.Success)
-                {
-                    Snackbar.Add("删除成功", Severity.Success);
-                    await LoadAllDataAsync();
-                }
-                else
-                {
-                    Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
-                }
-            }
-            catch (Exception ex)
-            {
-                Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
-            }
-        }
-    }
-
-    // ========== 单元格渲染 ==========
-
-    private RenderFragment RenderCell(StandardGradeMappingDto item, ColumnDef col) => builder =>
-    {
-        var isEditing = _editingIds.Contains(item.Id);
-        var cache = isEditing && _editCache.TryGetValue(item.Id, out var c) ? c : null;
-
-        switch (col.Key)
-        {
-            case "StandardGrade":
-                if (isEditing && cache != null)
-                {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Dense", true);
-                    builder.AddAttribute(2, "Variant", Variant.Outlined);
-                    builder.AddAttribute(3, "Value", cache.StandardGrade);
-                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.StandardGrade = v));
-                    builder.AddAttribute(5, "Class", "compact-input");
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.AddContent(0, item.StandardGrade);
-                }
-                break;
-            case "PlantGrade":
-                if (isEditing && cache != null)
-                {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Dense", true);
-                    builder.AddAttribute(2, "Variant", Variant.Outlined);
-                    builder.AddAttribute(3, "Value", cache.PlantGrade);
-                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.PlantGrade = v));
-                    builder.AddAttribute(5, "Class", "compact-input");
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.AddContent(0, item.PlantGrade);
-                }
-                break;
-            case "Density":
-                if (isEditing && cache != null)
-                {
-                    builder.OpenComponent<MudNumericField<decimal?>>(0);
-                    builder.AddAttribute(1, "Dense", true);
-                    builder.AddAttribute(2, "Variant", Variant.Outlined);
-                    builder.AddAttribute(3, "HideSpinButtons", true);
-                    builder.AddAttribute(4, "Format", "G29");
-                    builder.AddAttribute(5, "Value", cache.Density);
-                    builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => cache.Density = v));
-                    builder.AddAttribute(7, "Class", "compact-input");
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.AddContent(0, item.Density.ToString("G29"));
-                }
-                break;
-            case "HeatTreatment":
-                if (isEditing && cache != null)
-                {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Dense", true);
-                    builder.AddAttribute(2, "Variant", Variant.Outlined);
-                    builder.AddAttribute(3, "Value", cache.HeatTreatment);
-                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.HeatTreatment = v));
-                    builder.AddAttribute(5, "Class", "compact-input");
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.AddContent(0, item.HeatTreatment);
-                }
-                break;
-            case "SpecialMaterial":
-                if (isEditing && cache != null)
-                {
-                    builder.OpenComponent<MudSwitch<bool>>(0);
-                    builder.AddAttribute(1, "Value", cache.SpecialMaterial);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<bool>(this, v => cache.SpecialMaterial = v));
-                    builder.AddAttribute(3, "Dense", true);
-                    builder.AddAttribute(4, "Color", Color.Success);
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.OpenComponent<MudChip>(0);
-                    builder.AddAttribute(1, "Size", Size.Small);
-                    builder.AddAttribute(2, "Color", item.SpecialMaterial ? Color.Warning : Color.Default);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.SpecialMaterial ? DisplayHelper.GetRequirementTypeText(RequirementType.Special) : DisplayHelper.GetRequirementTypeText(RequirementType.Normal))));
-                    builder.CloseComponent();
-                }
-                break;
-            case "SpecialNote":
-                if (isEditing && cache != null)
-                {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Dense", true);
-                    builder.AddAttribute(2, "Variant", Variant.Outlined);
-                    builder.AddAttribute(3, "Value", cache.SpecialNote);
-                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.SpecialNote = v));
-                    builder.AddAttribute(5, "Class", "compact-input");
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.AddContent(0, item.SpecialNote);
-                }
-                break;
-            case "Remark":
-                if (isEditing && cache != null)
-                {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Dense", true);
-                    builder.AddAttribute(2, "Variant", Variant.Outlined);
-                    builder.AddAttribute(3, "Value", cache.Remark);
-                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.Remark = v));
-                    builder.AddAttribute(5, "Class", "compact-input");
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.AddContent(0, item.Remark);
-                }
-                break;
-            default:
-                builder.AddContent(0, "");
-                break;
-        }
-    };
-
-    // ========== 打印方法 ==========
-
-    private async Task PrintSelected()
-    {
-        if (!selectedIds.Any())
-        {
-            Snackbar.Add("请先选择要打印的牌号", Severity.Warning);
-            return;
-        }
-        try
-        {
-            var ids = selectedIds.ToArray();
-            var result = await GradeMappingService.PrintGradeMappingBatchAsync(ids);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task PrintAll()
-    {
-        try
-        {
-            var result = await GradeMappingService.PrintGradeMappingAllAsync(
-                string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                sortColumn, sortDescending);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
-}

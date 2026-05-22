@@ -1,3 +1,4 @@
+using Bunit;
 using FluentAssertions;
 using MES.Core.DTOs;
 using MES.Core.Models;
@@ -10,8 +11,9 @@ public class SectionOutsourcesTests : TestBase
 {
     public SectionOutsourcesTests()
     {
-        RegisterServices(typeof(SectionOutsourceService));
+        RegisterServices(typeof(SectionOutsourceService), typeof(ProductionRecordService));
         ConfigureEmptyResponse("/api/section-outsource/list");
+        ConfigureEmptyResponse("/api/section-outsource/recoveries/filter-contexts");
     }
 
     [Fact]
@@ -36,12 +38,14 @@ public class SectionOutsourcesTests : TestBase
     {
         ConfigureListResponse(status);
         var cut = Ctx.RenderComponent<SectionOutsources>();
+        cut.WaitForState(() => cut.Markup.Contains(expectedText));
         cut.Markup.Should().Contain(expectedText);
     }
 
     private void ConfigureListResponse(string status)
     {
         ConfigureEmptyResponse("/api/section-outsource/list");
+        ConfigureEmptyResponse("/api/section-outsource/recoveries/filter-contexts");
         var pagedResult = new PagedResult<SectionOutsourceDto>
         {
             Items = new List<SectionOutsourceDto>

@@ -27,4 +27,7 @@ public interface IProductionStandardService
     Task<byte[]> PrintStandardAsync(int id);
     Task<byte[]> PrintStandardBatchAsync(int[] ids);
     Task<byte[]> PrintStandardAllAsync(string? keyword, bool? isActive, string? sortBy = null, bool isDescending = false);
+
+    // ========== 筛选上下文 ==========
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 }

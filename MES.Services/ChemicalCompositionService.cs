@@ -240,6 +240,54 @@ public class ChemicalCompositionService : IChemicalCompositionService
         await _context.SaveChangesAsync();
     }
 
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var all = await _context.ChemicalCompositions
+            .AsNoTracking()
+            .Select(r => new
+            {
+                r.PlantGrade,
+                r.Carbon,
+                r.Silicon,
+                r.Manganese,
+                r.Phosphorus,
+                r.Sulfur,
+                r.Nickel,
+                r.Chromium,
+                r.Molybdenum,
+                r.Copper,
+                r.Nitrogen,
+                r.Niobium,
+                r.Titanium,
+                r.Iron,
+                r.Aluminum,
+                r.Tungsten,
+                r.PREN
+            })
+            .ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["PlantGrade"] = all.Select(x => x.PlantGrade).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+            ["Carbon"] = all.Select(x => x.Carbon ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Silicon"] = all.Select(x => x.Silicon ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Manganese"] = all.Select(x => x.Manganese ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Phosphorus"] = all.Select(x => x.Phosphorus ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Sulfur"] = all.Select(x => x.Sulfur ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Nickel"] = all.Select(x => x.Nickel ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Chromium"] = all.Select(x => x.Chromium ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Molybdenum"] = all.Select(x => x.Molybdenum ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Copper"] = all.Select(x => x.Copper ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Nitrogen"] = all.Select(x => x.Nitrogen ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Niobium"] = all.Select(x => x.Niobium ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Titanium"] = all.Select(x => x.Titanium ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Iron"] = all.Select(x => x.Iron ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Aluminum"] = all.Select(x => x.Aluminum ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Tungsten"] = all.Select(x => x.Tungsten ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["PREN"] = all.Select(x => x.PREN ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList()
+        };
+    }
+
     public async Task<byte[]> GenerateTemplateAsync()
     {
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;

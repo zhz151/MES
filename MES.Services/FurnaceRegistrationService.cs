@@ -358,6 +358,36 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
         await _context.SaveChangesAsync();
     }
 
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var all = await _context.FurnaceRegistrations
+            .AsNoTracking()
+            .Select(r => new
+            {
+                r.RawMaterialUnit,
+                r.RawMaterialType,
+                r.RegisteredGrade,
+                r.RelatedPlantGrade,
+                r.FurnaceNumber,
+                r.Specification,
+                r.IncomingDate,
+                r.Remark
+            })
+            .ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["RawMaterialUnit"] = all.Select(x => x.RawMaterialUnit).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+            ["RawMaterialType"] = all.Select(x => x.RawMaterialType).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+            ["RegisteredGrade"] = all.Select(x => x.RegisteredGrade).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+            ["RelatedPlantGrade"] = all.Select(x => x.RelatedPlantGrade ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["FurnaceNumber"] = all.Select(x => x.FurnaceNumber).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+            ["Specification"] = all.Select(x => x.Specification ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["IncomingDate"] = all.Select(x => x.IncomingDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList(),
+            ["Remark"] = all.Select(x => x.Remark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList()
+        };
+    }
+
     public async Task<string?> LookupPlantGradeAsync(string registeredGrade)
     {
         if (string.IsNullOrWhiteSpace(registeredGrade))

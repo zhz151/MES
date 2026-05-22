@@ -264,4 +264,28 @@ public class InventoryController : ControllerBase
         var pdfBytes = await _service.PrintOutboundSelectedAsync(request);
         return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes), "打印成功"));
     }
+
+    // ========== 筛选上下文 ==========
+
+    /// <summary>
+    /// 获取出库记录筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    [HttpGet("outbound-filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetOutboundFilterContexts()
+    {
+        var result = await _service.GetOutboundFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
+
+    /// <summary>
+    /// 获取库存批次筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    [HttpGet("inventory-filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetInventoryFilterContexts()
+    {
+        var result = await _service.GetInventoryFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
 }

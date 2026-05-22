@@ -35,65 +35,62 @@
             @Label
         </div>
 
-        @* 排序按钮 *@
-        <div style="display:flex; gap:4px; margin-bottom:6px;">
-            <button type="button" @onclick="SortAsc"
-                    style="flex:1; padding:4px 8px; cursor:pointer; border:1px solid #ccc; background:#fff; border-radius:3px; font-size:12px;">
-                升序
-            </button>
-            <button type="button" @onclick="SortDesc"
-                    style="flex:1; padding:4px 8px; cursor:pointer; border:1px solid #ccc; background:#fff; border-radius:3px; font-size:12px;">
-                降序
-            </button>
-        </div>
+        @* 排序按钮（已移除 — 排序统一由列头点击 ToggleSort 提供） *@
 
-        @* 搜索框 *@
-        <input type="text"
-               placeholder="搜索..."
-               value="@_searchText"
-               @oninput="OnSearchInput"
-               style="width:100%; padding:6px 8px; box-sizing:border-box; border:1px solid #ccc; border-radius:3px; font-size:13px; margin-bottom:6px;" />
+        @if (_hasFilterOptions)
+        {
+            @* 搜索框 *@
+            <input type="text"
+                   placeholder="搜索..."
+                   value="@_searchText"
+                   @oninput="OnSearchInput"
+                   style="width:100%; padding:6px 8px; box-sizing:border-box; border:1px solid #ccc; border-radius:3px; font-size:13px; margin-bottom:6px;" />
 
-        @* 全选 / 清除 *@
-        <div style="display:flex; gap:8px; margin-bottom:4px;">
-            <button type="button" @onclick="SelectAll"
-                    style="font-size:12px; padding:2px 6px; cursor:pointer; border:none; background:transparent; color:#1976d2;">
-                全选
+            @* 全选 / 清除 *@
+            <div style="display:flex; gap:8px; margin-bottom:4px;">
+                <button type="button" @onclick="SelectAll"
+                        style="font-size:12px; padding:2px 6px; cursor:pointer; border:none; background:transparent; color:#1976d2;">
+                    全选
+                </button>
+                <button type="button" @onclick="ClearAll"
+                        style="font-size:12px; padding:2px 6px; cursor:pointer; border:none; background:transparent; color:#999;">
+                    清除
+                </button>
+                <span style="flex:1; text-align:right; font-size:11px; color:#999; align-self:center;">
+                    @_selectedValues.Count / @_filteredOptions.Count
+                </span>
+            </div>
+
+            @* 值列表 *@
+            <div style="max-height:220px; overflow-y:auto; border:1px solid #eee; border-radius:3px; padding:2px 0;">
+                @if (_filteredOptions.Count == 0)
+                {
+                    <div style="padding:8px; color:#999; text-align:center; font-size:12px;">无匹配项</div>
+                }
+                @foreach (var opt in _filteredOptions)
+                {
+                    var isChecked = _selectedValues.Contains(opt.Value);
+                    <label style="display:flex; align-items:center; padding:3px 6px; cursor:pointer; font-size:13px; gap:6px; @(isChecked ? "background:#e3f2fd;" : "")">
+                        <input type="checkbox"
+                               checked="@isChecked"
+                               @onchange="@((ChangeEventArgs e) => ToggleValue(opt.Value, (bool)(e.Value ?? false)))"
+                               style="margin:0;" />
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@opt.Display</span>
+                        <span style="margin-left:auto; font-size:11px; color:#999;">@opt.Count</span>
+                    </label>
+                }
+            </div>
+
+            @* 确定按钮 *@
+            <button type="button" @onclick="ApplyAsync"
+                    style="width:100%; padding:6px; cursor:pointer; border:1px solid #1976d2; background:#1976d2; color:#fff; border-radius:3px; margin-top:6px; font-size:13px;">
+                确定
             </button>
-            <button type="button" @onclick="ClearAll"
-                    style="font-size:12px; padding:2px 6px; cursor:pointer; border:none; background:transparent; color:#999;">
-                清除
-            </button>
-            <span style="flex:1; text-align:right; font-size:11px; color:#999; align-self:center;">
-                @_selectedValues.Count / @_filteredOptions.Count
-            </span>
-        </div>
-
-        @* 值列表 *@
-        <div style="max-height:220px; overflow-y:auto; border:1px solid #eee; border-radius:3px; padding:2px 0;">
-            @if (_filteredOptions.Count == 0)
-            {
-                <div style="padding:8px; color:#999; text-align:center; font-size:12px;">无匹配项</div>
-            }
-            @foreach (var opt in _filteredOptions)
-            {
-                var isChecked = _selectedValues.Contains(opt.Value);
-                <label style="display:flex; align-items:center; padding:3px 6px; cursor:pointer; font-size:13px; gap:6px; @(isChecked ? "background:#e3f2fd;" : "")">
-                    <input type="checkbox"
-                           checked="@isChecked"
-                           @onchange="@((ChangeEventArgs e) => ToggleValue(opt.Value, (bool)(e.Value ?? false)))"
-                           style="margin:0;" />
-                    <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@opt.Display</span>
-                    <span style="margin-left:auto; font-size:11px; color:#999;">@opt.Count</span>
-                </label>
-            }
-        </div>
-
-        @* 确定按钮 *@
-        <button type="button" @onclick="ApplyAsync"
-                style="width:100%; padding:6px; cursor:pointer; border:1px solid #1976d2; background:#1976d2; color:#fff; border-radius:3px; margin-top:6px; font-size:13px;">
-            确定
-        </button>
+        }
+        else
+        {
+            <div style="padding:12px; color:#999; text-align:center; font-size:12px;">该列无可用筛选项</div>
+        }
     </div>
 }
 
@@ -105,21 +102,23 @@
     private bool _isOpen;
     private string _searchText = "";
     private HashSet<string> _selectedValues = new();
-    private List<FilterOption> _allOptions = new();
-    private List<FilterOption> _filteredOptions => string.IsNullOrEmpty(_searchText)
+    private List<ExcelFilterOption> _allOptions = new();
+    private List<ExcelFilterOption> _filteredOptions => string.IsNullOrEmpty(_searchText)
         ? _allOptions
         : _allOptions.Where(o => o.Display.Contains(_searchText, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    private bool _hasFilterOptions => _allOptions.Count > 0;
 
     private const string _nullPlaceholder = "__EXCEL_FILTER_NULL__";
 
     [Parameter] public string Label { get; set; } = "";
     [Parameter] public string FieldKey { get; set; } = "";
     [Parameter] public List<T> AllItems { get; set; } = new();
+    [Parameter] public List<ExcelFilterOption>? FilterOptions { get; set; }
     [Parameter] public HashSet<string>? ActiveFilterValues { get; set; }
     [Parameter] public Func<T, string?>? DisplaySelector { get; set; }
     [Parameter] public Func<T, string?>? RawValueSelector { get; set; }
     [Parameter] public EventCallback<(string fieldKey, HashSet<string> selectedValues)> FilterChanged { get; set; }
-    [Parameter] public EventCallback<(string fieldKey, bool ascending)> SortRequested { get; set; }
 
     private string _filterColor => _selectedValues.Count > 0 ? "#1976d2" : "#999";
 
@@ -128,12 +127,21 @@
 
     protected override void OnParametersSet()
     {
-        if (AllItems.Count > 0 && DisplaySelector != null && RawValueSelector != null)
+        if (FilterOptions != null)
         {
-            // AllItems 改变时才重建选项（避免不必要重建）
+            // FilterOptions 模式：直接使用传入的选项列表
+            if (_allOptions.Count != FilterOptions.Count || _lastItemsCount != FilterOptions.Count)
+            {
+                _allOptions = FilterOptions.Select(v => new ExcelFilterOption { Value = v.Value, Display = v.Display, Count = v.Count }).ToList();
+                _lastItemsCount = FilterOptions.Count;
+            }
+        }
+        else if (AllItems.Count > 0 && DisplaySelector != null && RawValueSelector != null)
+        {
+            // AllItems 模式：从数据中提取选项
             if (AllItems.Count != _lastItemsCount || AllItems.GetHashCode() != _itemsVersion)
             {
-                RebuildOptions();
+                RebuildOptionsFromItems();
                 _lastItemsCount = AllItems.Count;
                 _itemsVersion = AllItems.GetHashCode();
             }
@@ -149,9 +157,10 @@
         }
     }
 
-    private void RebuildOptions()
+    private void RebuildOptionsFromItems()
     {
-        var grouped = new Dictionary<string, FilterOption>();
+        if (AllItems.Count == 0 || DisplaySelector == null || RawValueSelector == null) return;
+        var grouped = new Dictionary<string, ExcelFilterOption>();
         foreach (var item in AllItems)
         {
             var raw = RawValueSelector!(item);
@@ -164,7 +173,7 @@
             }
             else
             {
-                grouped[key] = new FilterOption { Value = key, Display = displayText, Count = 1 };
+                grouped[key] = new ExcelFilterOption { Value = key, Display = displayText, Count = 1 };
             }
         }
 
@@ -185,7 +194,14 @@
                 _selectedValues = new HashSet<string>(ActiveFilterValues);
             else
                 _selectedValues = new();
-            RebuildOptions();
+            if (FilterOptions != null)
+            {
+                _allOptions = FilterOptions.Select(v => new ExcelFilterOption { Value = v.Value, Display = v.Display, Count = v.Count }).ToList();
+            }
+            else
+            {
+                RebuildOptionsFromItems();
+            }
             StateHasChanged();
             await Task.Delay(50);
             try { await JS.InvokeVoidAsync("positionFilterPopup", _btnId, _popupId); } catch { }
@@ -227,24 +243,4 @@
         StateHasChanged();
     }
 
-    private async Task SortAsc()
-    {
-        await SortRequested.InvokeAsync((FieldKey, true));
-        _isOpen = false;
-        StateHasChanged();
-    }
-
-    private async Task SortDesc()
-    {
-        await SortRequested.InvokeAsync((FieldKey, false));
-        _isOpen = false;
-        StateHasChanged();
-    }
-
-    private class FilterOption
-    {
-        public string Value { get; set; } = "";
-        public string Display { get; set; } = "";
-        public int Count { get; set; }
-    }
 }

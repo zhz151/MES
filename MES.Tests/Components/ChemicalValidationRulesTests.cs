@@ -13,6 +13,8 @@ public class ChemicalValidationRulesTests : TestBase
     {
         RegisterServices(typeof(ChemicalValidationRuleService));
         ConfigureEmptyResponse("/api/chemical-validation-rule/all");
+        ConfigureEmptyResponse("/api/chemical-validation-rule/filter-contexts");
+        ConfigureEmptyResponse("/api/chemical-validation-rule/filter-contexts");
     }
 
     [Fact]
@@ -41,6 +43,7 @@ public class ChemicalValidationRulesTests : TestBase
     private void ConfigureListResponse()
     {
         ConfigureEmptyResponse("/api/chemical-validation-rule/all");
+        ConfigureEmptyResponse("/api/chemical-validation-rule/filter-contexts");
         var pagedResult = new PagedResult<ChemicalValidationRuleDto>
         {
             Items = new List<ChemicalValidationRuleDto>

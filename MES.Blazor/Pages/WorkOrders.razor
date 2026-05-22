@@ -7,6 +7,8 @@
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
 @using MES.Blazor.Components
+@using MES.Blazor.Models
+@using System.Text.Json
 @inject WorkOrderService WorkOrderService
 @inject NotificationService NotificationService
 @inject NavigationManager Navigation
@@ -14,6 +16,7 @@
 @inject IDialogService DialogService
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
+@inject PageStateService PageState
 @attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
@@ -36,7 +39,7 @@
             <MudButton Variant="Variant.Filled"
                        Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Refresh"
-                       OnClick="LoadAllDataAsync"
+                       OnClick="CheckAllOrderChange"
                        Class="ml-2">
                 刷新
             </MudButton>
@@ -139,12 +142,12 @@
             <div id="workorders-list-table">
             <MudTable @ref="table"
                       T="WorkOrderListDto"
-                      Items="@_filteredItems"
+                      ServerData="@LoadDataFromServer"
                       Dense="true"
                       Hover="true"
                       Class="mt-4 auto-table"
                       Elevation="0"
-                      RowsPerPage="10"
+                      RowsPerPage="@_pageSize"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
                     <ColumnDisplaySelect Columns="_allColumns"
@@ -174,7 +177,7 @@
                         打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-2">
-                        共 @(_filteredItems?.Count ?? 0) 条记录
+                        共 @_totalCount 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
@@ -185,18 +188,16 @@
                     {
                         <MudTh>
                             <div style="display:inline-flex; align-items:center; gap:4px;">
-                                <span class="th-label">@col.Label</span>
+                                <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
                                 @if (col.FilterType != null)
                                 {
                                     <ExcelFilter T="WorkOrderListDto"
                                                  Label="@col.Label"
                                                  FieldKey="@col.Key"
-                                                 AllItems="@_allItems"
+                                                 FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"
                                                  ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
-                                                 DisplaySelector="@(x => GetCellDisplayText(x, col.Key))"
-                                                 RawValueSelector="@(x => GetCellRawValue(x, col.Key))"
-                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))"
-                                                 SortRequested="@(args => OnExcelSortRequested(args.fieldKey, args.ascending))" />
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))" />
+
                                 }
                             </div>
                         </MudTh>
@@ -207,7 +208,7 @@
                     <MudTd Style="width: 40px;">
                         <MudCheckBox T="bool"
                                      Value="@selectedWorkOrderNos.Contains(item.WorkOrderNo)"
-                                     ValueChanged="@((v) => { if(v) selectedWorkOrderNos.Add(item.WorkOrderNo); else selectedWorkOrderNos.Remove(item.WorkOrderNo); _allSelected = _filteredItems.Any() && _filteredItems.All(i => selectedWorkOrderNos.Contains(i.WorkOrderNo)); StateHasChanged(); })"
+                                     ValueChanged="@((v) => { if(v) selectedWorkOrderNos.Add(item.WorkOrderNo); else selectedWorkOrderNos.Remove(item.WorkOrderNo); _allSelected = _pageItems.Any() && _pageItems.All(i => selectedWorkOrderNos.Contains(i.WorkOrderNo)); StateHasChanged(); })"
                                      Dense="true" />
                     </MudTd>
                     @foreach (var col in _visibleColumns)
@@ -273,644 +274,3 @@ else if (item.Status == 2)
         </MudCardContent>
     </MudCard>
 </MudContainer>
-
-@code {
-    private MudTable<WorkOrderListDto>? table;
-    private List<WorkOrderListDto> _allItems = new();
-    private List<WorkOrderListDto>? _filteredItemsList;
-    private List<WorkOrderListDto> _filteredItems => _filteredItemsList ?? _allItems;
-    private List<CancelledOrderDto> cancelledOrders = new();
-    private bool isSyncing = false;
-    private string _searchKeyword = string.Empty;
-    private bool _isArrowNavSetup;
-
-    // 排序状态
-    private string sortColumn = "signdate";
-    private bool sortDescending = true;
-
-    // 选中
-    private bool _allSelected;
-    private bool allSelected
-    {
-        get => _allSelected;
-        set
-        {
-            if (_allSelected == value) return;
-            _allSelected = value;
-            if (value)
-            {
-                foreach (var item in _filteredItems)
-                    selectedWorkOrderNos.Add(item.WorkOrderNo);
-            }
-            else
-            {
-                selectedWorkOrderNos.Clear();
-            }
-            StateHasChanged();
-        }
-    }
-    private HashSet<string> selectedWorkOrderNos = new();
-
-    // ========== ExcelFilter 筛选 ==========
-    private Dictionary<string, HashSet<string>> _columnFilters = new();
-    private Dictionary<string, List<WorkOrderListDto>> _filterContexts = new();
-
-    // ========== 列选择管理 ==========
-    private List<ColumnDef> _allColumns = new();
-    private List<ColumnDef> _visibleColumns =>
-        _allColumns.Where(c => c.Visible).ToList();
-
-    private static List<ColumnDef> GetAllColumnDefs() => new()
-    {
-        new() { Key = "workorderno",    Label = "工单号",   SortKey = "workorderno",    FilterType = "string" },
-        new() { Key = "salesorderno",   Label = "订单号",   SortKey = "salesorderno",   FilterType = "string" },
-        new() { Key = "productionmainno", Label = "主号",   SortKey = "productionmainno", FilterType = "string" },
-        new() { Key = "productionsubno",  Label = "次号",   SortKey = "productionsubno",  FilterType = "string" },
-        new() { Key = "signdate",       Label = "签订日期", SortKey = "signdate",       FilterType = "date" },
-        new() { Key = "salesman",       Label = "业务员",   SortKey = "salesman",       FilterType = "string" },
-        new() { Key = "endcustomer",    Label = "最终客户", SortKey = "endcustomer",    FilterType = "string" },
-        new() { Key = "deliverydate",   Label = "交货日期", SortKey = "deliverydate",   FilterType = "date" },
-        new() { Key = "delaypenalty",   Label = "延期罚款", SortKey = "delaypenalty",   FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否" },
-        new() { Key = "settlementmethod", Label = "结算方式", SortKey = "settlementmethod", FilterType = "enum",
-               EnumOptions = new List<EnumOption> { new("Theoretical", "理算"), new("Weighing", "过磅") } },
-        new() { Key = "plantgrade",     Label = "工厂牌号", SortKey = "plantgrade",     FilterType = "string" },
-        new() { Key = "materialname",   Label = "物料名称", SortKey = "materialname",   FilterType = "enum",
-               EnumOptions = new List<EnumOption> { new("SeamlessPipe", "无缝管"), new("WeldedPipe", "焊管") } },
-        new() { Key = "specification",  Label = "规格",     SortKey = "specification",  FilterType = "string" },
-        new() { Key = "lengthstatus",   Label = "长度状态", SortKey = "lengthstatus",   FilterType = "enum",
-               EnumOptions = new List<EnumOption> { new("Fixed", "定尺"), new("Range", "范围尺"), new("Multiple", "倍尺"), new("Unlimited", "不限") } },
-        new() { Key = "totalquantity",  Label = "总数量",   SortKey = "totalquantity",  FilterType = "number" },
-        new() { Key = "totalweight",    Label = "总重量",   SortKey = "totalweight",    FilterType = "number" },
-        new() { Key = "deliverystate",  Label = "交货状态", SortKey = "deliverystate",  FilterType = "string" },
-        new() { Key = "totalitemcount", Label = "含项次数", SortKey = "totalitemcount", FilterType = "number" },
-        new() { Key = "status",         Label = "状态",     SortKey = "status",         FilterType = "enum",
-               EnumOptions = new List<EnumOption> { new("0", "未编制"), new("1", "已确定"), new("2", "待修正"), new("3", "已取消") } },
-        new() { Key = "materialplanstatus", Label = "用料计划状态" },
-        new() { Key = "materialplanrate", Label = "满足率(%)", SortKey = "materialplanrate", FilterType = "number" },
-        new() { Key = "latestplandate", Label = "最新计划日期", SortKey = "latestplandate", FilterType = "date" },
-    };
-
-    private async Task OnColumnToggle(ColumnDef col)
-    {
-        await SaveColumnPrefs();
-    }
-
-    private async Task SaveColumnPrefs()
-    {
-        await ColumnPrefs.SaveAsync("workorders", null, _allColumns);
-    }
-
-    private async Task ResetColumnDisplay()
-    {
-        _allColumns = GetAllColumnDefs();
-        await SaveColumnPrefs();
-    }
-
-    private async Task MoveColumnUp(ColumnDef col)
-    {
-        await SaveColumnPrefs();
-    }
-
-    private async Task MoveColumnDown(ColumnDef col)
-    {
-        await SaveColumnPrefs();
-    }
-
-    // ========== 单元格渲染 ==========
-
-    private RenderFragment RenderCell(WorkOrderListDto item, ColumnDef col) => builder =>
-    {
-        switch (col.Key)
-        {
-            case "workorderno":
-                builder.OpenComponent<MudLink>(0);
-                builder.AddAttribute(1, "Typo", Typo.body2);
-                builder.AddAttribute(2, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => NavigateToTrace(item.SalesOrderNo)));
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.WorkOrderNo)));
-                builder.CloseComponent();
-                break;
-            case "salesorderno":
-                builder.AddContent(0, item.SalesOrderNo);
-                break;
-            case "productionmainno":
-                builder.AddContent(0, item.ProductionMainNo);
-                break;
-            case "productionsubno":
-                builder.AddContent(0, item.ProductionSubNo ?? "-");
-                break;
-            case "signdate":
-                builder.AddContent(0, item.SignDate.ToString("yyyy-MM-dd"));
-                break;
-            case "salesman":
-                builder.AddContent(0, item.Salesman);
-                break;
-            case "endcustomer":
-                builder.AddContent(0, item.EndCustomer);
-                break;
-            case "deliverydate":
-                builder.AddContent(0, item.DeliveryDate.ToString("yyyy-MM-dd"));
-                break;
-            case "delaypenalty":
-                builder.AddContent(0, DisplayHelper.GetYesNoText(item.DelayPenalty));
-                break;
-            case "settlementmethod":
-                builder.AddContent(0, DisplayHelper.GetSettlementMethodText(item.SettlementMethod));
-                break;
-            case "plantgrade":
-                builder.AddContent(0, item.PlantGrade);
-                break;
-            case "materialname":
-                builder.AddContent(0, DisplayHelper.GetMaterialNameText(item.MaterialName));
-                break;
-            case "specification":
-                builder.AddContent(0, item.Specification);
-                break;
-            case "lengthstatus":
-                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
-                break;
-            case "minlength":
-                builder.AddContent(0, item.MinLength?.ToString("G29") ?? "-");
-                break;
-            case "maxlength":
-                builder.AddContent(0, item.MaxLength?.ToString("G29") ?? "-");
-                break;
-            case "totalquantity":
-                builder.AddContent(0, item.TotalQuantity);
-                break;
-            case "totalweight":
-                builder.AddContent(0, Math.Round(item.TotalWeight).ToString("F0"));
-                break;
-            case "deliverystate":
-                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
-                break;
-            case "totalitemcount":
-                builder.AddContent(0, item.TotalItemCount);
-                break;
-            case "status":
-                builder.OpenComponent<MudChip>(0);
-                builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", GetStatusColor(item.Status));
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.StatusText)));
-                builder.CloseComponent();
-                break;
-            case "materialplanstatus":
-                builder.OpenComponent<MudChip>(0);
-                builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", GetPlanStatusColor(item.MaterialPlanStatus));
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetPlanStatusText(item.MaterialPlanStatus))));
-                builder.CloseComponent();
-                break;
-            case "materialplanrate":
-                builder.AddContent(0, item.MaterialPlanRate > 0 ? $"{item.MaterialPlanRate}%" : "-");
-                break;
-            case "mainnomaterialplanrate":
-                builder.AddContent(0, item.MainNoMaterialPlanRate > 0 ? $"{item.MainNoMaterialPlanRate}%" : "-");
-                break;
-            case "latestplandate":
-                builder.AddContent(0, item.LatestPlanDate?.ToString("yyyy-MM-dd") ?? "-");
-                break;
-        }
-    };
-
-    // ========== ExcelFilter 辅助方法 ==========
-
-    private string? GetCellRawValue(WorkOrderListDto item, string key) => key switch
-    {
-        "workorderno" => item.WorkOrderNo,
-        "salesorderno" => item.SalesOrderNo,
-        "productionmainno" => item.ProductionMainNo,
-        "productionsubno" => item.ProductionSubNo,
-        "signdate" => item.SignDate.ToString("yyyy-MM-dd"),
-        "salesman" => item.Salesman,
-        "endcustomer" => item.EndCustomer,
-        "deliverydate" => item.DeliveryDate.ToString("yyyy-MM-dd"),
-        "delaypenalty" => item.DelayPenalty.ToString(),
-        "settlementmethod" => item.SettlementMethod.ToString(),
-        "plantgrade" => item.PlantGrade,
-        "materialname" => item.MaterialName.ToString(),
-        "specification" => item.Specification,
-        "lengthstatus" => item.LengthStatus.ToString(),
-        "totalquantity" => item.TotalQuantity.ToString(),
-        "totalweight" => item.TotalWeight.ToString("G29"),
-        "deliverystate" => item.DeliveryState.ToString(),
-        "totalitemcount" => item.TotalItemCount.ToString(),
-        "status" => item.Status.ToString(),
-        "materialplanrate" => item.MaterialPlanRate.ToString("G29"),
-        "latestplandate" => item.LatestPlanDate?.ToString("yyyy-MM-dd"),
-        _ => null
-    };
-
-    private string? GetCellDisplayText(WorkOrderListDto item, string key) => key switch
-    {
-        "delaypenalty" => DisplayHelper.GetYesNoText(item.DelayPenalty),
-        "settlementmethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod),
-        "materialname" => DisplayHelper.GetMaterialNameText(item.MaterialName),
-        "lengthstatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
-        "deliverystate" => DisplayHelper.GetDeliveryStateText(item.DeliveryState),
-        "status" => item.StatusText,
-        _ => GetCellRawValue(item, key)
-    };
-
-    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
-    {
-        _columnFilters[fieldKey] = selectedValues;
-        RefreshFilteredData();
-        await SavePageStateAsync();
-    }
-
-    private async Task OnExcelSortRequested(string fieldKey, bool ascending)
-    {
-        sortColumn = fieldKey;
-        sortDescending = !ascending;
-        RefreshFilteredData();
-        await SavePageStateAsync();
-    }
-
-    // ========== 数据加载与筛选 ==========
-
-    private async Task LoadAllDataAsync()
-    {
-        try
-        {
-            var result = await WorkOrderService.GetAllAsync();
-            if (result.Success && result.Data != null)
-            {
-                _allItems = result.Data;
-                _filteredItemsList = null;
-                RefreshFilteredData();
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "加载失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
-        }
-        await LoadCancelledOrders();
-    }
-
-    private void RefreshFilteredData()
-    {
-        var query = _allItems.AsEnumerable();
-
-        // 关键字搜索
-        if (!string.IsNullOrWhiteSpace(_searchKeyword))
-        {
-            var kw = _searchKeyword.ToLower();
-            query = query.Where(x =>
-                (x.WorkOrderNo != null && x.WorkOrderNo.ToLower().Contains(kw)) ||
-                (x.SalesOrderNo != null && x.SalesOrderNo.ToLower().Contains(kw)) ||
-                (x.Salesman != null && x.Salesman.ToLower().Contains(kw)) ||
-                (x.PlantGrade != null && x.PlantGrade.ToLower().Contains(kw)) ||
-                (x.Specification != null && x.Specification.ToLower().Contains(kw)));
-        }
-
-        // 列筛选
-        foreach (var kvp in _columnFilters)
-        {
-            if (kvp.Value.Count == 0) continue;
-            query = query.Where(x =>
-            {
-                var raw = GetCellRawValue(x, kvp.Key) ?? "__EXCEL_FILTER_NULL__";
-                return kvp.Value.Contains(raw);
-            });
-        }
-
-        // 排序
-        query = sortColumn switch
-        {
-            "workorderno" => sortDescending ? query.OrderByDescending(x => x.WorkOrderNo) : query.OrderBy(x => x.WorkOrderNo),
-            "salesorderno" => sortDescending ? query.OrderByDescending(x => x.SalesOrderNo) : query.OrderBy(x => x.SalesOrderNo),
-            "productionmainno" => sortDescending ? query.OrderByDescending(x => x.ProductionMainNo) : query.OrderBy(x => x.ProductionMainNo),
-            "productionsubno" => sortDescending ? query.OrderByDescending(x => x.ProductionSubNo ?? "") : query.OrderBy(x => x.ProductionSubNo ?? ""),
-            "signdate" => sortDescending ? query.OrderByDescending(x => x.SignDate) : query.OrderBy(x => x.SignDate),
-            "salesman" => sortDescending ? query.OrderByDescending(x => x.Salesman) : query.OrderBy(x => x.Salesman),
-            "endcustomer" => sortDescending ? query.OrderByDescending(x => x.EndCustomer ?? "") : query.OrderBy(x => x.EndCustomer ?? ""),
-            "deliverydate" => sortDescending ? query.OrderByDescending(x => x.DeliveryDate) : query.OrderBy(x => x.DeliveryDate),
-            "delaypenalty" => sortDescending ? query.OrderByDescending(x => x.DelayPenalty) : query.OrderBy(x => x.DelayPenalty),
-            "settlementmethod" => sortDescending ? query.OrderByDescending(x => x.SettlementMethod) : query.OrderBy(x => x.SettlementMethod),
-            "plantgrade" => sortDescending ? query.OrderByDescending(x => x.PlantGrade) : query.OrderBy(x => x.PlantGrade),
-            "materialname" => sortDescending ? query.OrderByDescending(x => x.MaterialName) : query.OrderBy(x => x.MaterialName),
-            "specification" => sortDescending ? query.OrderByDescending(x => x.Specification) : query.OrderBy(x => x.Specification),
-            "lengthstatus" => sortDescending ? query.OrderByDescending(x => x.LengthStatus) : query.OrderBy(x => x.LengthStatus),
-            "totalquantity" => sortDescending ? query.OrderByDescending(x => x.TotalQuantity) : query.OrderBy(x => x.TotalQuantity),
-            "totalweight" => sortDescending ? query.OrderByDescending(x => x.TotalWeight) : query.OrderBy(x => x.TotalWeight),
-            "deliverystate" => sortDescending ? query.OrderByDescending(x => x.DeliveryState) : query.OrderBy(x => x.DeliveryState),
-            "totalitemcount" => sortDescending ? query.OrderByDescending(x => x.TotalItemCount) : query.OrderBy(x => x.TotalItemCount),
-            "status" => sortDescending ? query.OrderByDescending(x => x.Status) : query.OrderBy(x => x.Status),
-            "materialplanrate" => sortDescending ? query.OrderByDescending(x => x.MaterialPlanRate) : query.OrderBy(x => x.MaterialPlanRate),
-            "latestplandate" => sortDescending ? query.OrderByDescending(x => x.LatestPlanDate) : query.OrderBy(x => x.LatestPlanDate),
-            _ => sortDescending ? query.OrderByDescending(x => x.SignDate) : query.OrderBy(x => x.SignDate)
-        };
-
-        _filteredItemsList = query.ToList();
-    }
-
-    // 通知提醒条
-    private List<NotificationDto>? _orderChangeNotices;
-    private List<NotificationDto>? _orderDeletedNotices;
-
-    protected override async Task OnInitializedAsync()
-    {
-        // 初始化列定义
-        _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("workorders", null);
-        if (saved.Count > 0)
-        {
-            foreach (var s in saved)
-            {
-                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
-                if (match != null)
-                    match.Visible = s.Visible;
-            }
-            var reordered = new List<ColumnDef>();
-            foreach (var s in saved)
-            {
-                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
-                if (match != null && !reordered.Contains(match))
-                    reordered.Add(match);
-            }
-            foreach (var c in _allColumns)
-            {
-                if (!reordered.Contains(c))
-                    reordered.Add(c);
-            }
-            _allColumns = reordered;
-        }
-
-        await CheckNotifications();
-        await LoadAllDataAsync();
-        await base.OnInitializedAsync();
-    }
-
-    private async Task CheckNotifications()
-    {
-        try
-        {
-            var changeTask = NotificationService.GetByTypeAsync("OrderChanged");
-            var deletedTask = NotificationService.GetByTypeAsync("OrderDeleted");
-            await Task.WhenAll(changeTask, deletedTask);
-
-            var changeResult = await changeTask;
-            if (changeResult.Success && changeResult.Data != null)
-                _orderChangeNotices = changeResult.Data;
-            else
-                _orderChangeNotices = null;
-
-            var deletedResult = await deletedTask;
-            if (deletedResult.Success && deletedResult.Data != null)
-                _orderDeletedNotices = deletedResult.Data;
-            else
-                _orderDeletedNotices = null;
-        }
-        catch
-        {
-            _orderChangeNotices = null;
-            _orderDeletedNotices = null;
-        }
-    }
-
-    private async Task DismissOrderChangeNotices()
-    {
-        var result = await NotificationService.MarkAllByTypeAsReadAsync("OrderChanged");
-        if (result.Success)
-        {
-            _orderChangeNotices = null;
-            Snackbar.Add("提醒已忽略", Severity.Success);
-        }
-    }
-
-    private async Task DismissOrderDeletedNotices()
-    {
-        var result = await NotificationService.MarkAllByTypeAsReadAsync("OrderDeleted");
-        if (result.Success)
-        {
-            _orderDeletedNotices = null;
-            Snackbar.Add("提醒已忽略", Severity.Success);
-        }
-    }
-
-    private async Task LoadCancelledOrders()
-    {
-        try
-        {
-            var result = await WorkOrderService.GetCancelledOrdersAsync();
-            if (result.Success && result.Data != null)
-            {
-                cancelledOrders = result.Data;
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"加载待删除订单失败: {ex.Message}");
-        }
-    }
-
-    private async Task CheckAllOrderChange()
-    {
-        isSyncing = true;
-        try
-        {
-            var result = await WorkOrderService.CheckAllOrderChangeAsync();
-            if (result.Success)
-            {
-                Snackbar.Add("订单变更检测完成，工单状态已同步", Severity.Success);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "同步失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"同步失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            isSyncing = false;
-        }
-        await CheckNotifications();
-        await LoadAllDataAsync();
-    }
-
-    private async Task OnSearchChanged(string value)
-    {
-        _searchKeyword = value ?? string.Empty;
-        RefreshFilteredData();
-        await LoadCancelledOrders();
-    }
-
-    private async Task FilterByStatus(string status)
-    {
-        _columnFilters["status"] = new HashSet<string> { status };
-        RefreshFilteredData();
-        await LoadCancelledOrders();
-    }
-
-    private Color GetStatusColor(int status)
-    {
-        return status switch
-        {
-            0 => Color.Default,
-            1 => Color.Success,
-            2 => Color.Warning,
-            _ => Color.Default
-        };
-    }
-
-    private static Color GetPlanStatusColor(int status) => status switch
-    {
-        0 => Color.Default,
-        1 => Color.Warning,
-        2 => Color.Info,
-        3 => Color.Success,
-        4 => Color.Error,
-        _ => Color.Default
-    };
-
-    private static string GetPlanStatusText(int status) => status switch
-    {
-        0 => "未计划",
-        1 => "部分",
-        2 => "理论满足",
-        3 => "满足",
-        4 => "超量",
-        _ => "未知"
-    };
-
-    private void NavigateToGenerate(string salesOrderNo, string status)
-    {
-        Navigation.NavigateTo($"/workorders/generate?salesOrderNo={Uri.EscapeDataString(salesOrderNo)}&status={status}");
-    }
-
-    private void NavigateToRegenerate(string salesOrderNo, string status)
-    {
-        Navigation.NavigateTo($"/workorders/generate?salesOrderNo={Uri.EscapeDataString(salesOrderNo)}&status={status}&regenerate=true");
-    }
-
-    private void NavigateToUpdate(string salesOrderNo, string status)
-    {
-        Navigation.NavigateTo($"/workorders/generate?salesOrderNo={Uri.EscapeDataString(salesOrderNo)}&status={status}&update=true");
-    }
-
-    private void NavigateToTrace(string salesOrderNo)
-    {
-        Navigation.NavigateTo($"/workorders/relation?salesOrderNo={Uri.EscapeDataString(salesOrderNo)}");
-    }
-
-    private async Task SoftDeleteWorkOrder(int workOrderId, string orderNumber)
-    {
-        var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
-        {
-            ["ContentText"] = $"确定要删除订单 \"{orderNumber}\" 关联的工单吗？\n\n删除后数据将不可恢复！",
-            ["ConfirmText"] = "确认删除",
-            ["Color"] = Color.Error
-        });
-        var dialogResult = await dialog.Result;
-        if (dialogResult.Canceled) return;
-
-        try
-        {
-            var result = await WorkOrderService.SoftDeleteAsync(workOrderId);
-            if (result.Success)
-            {
-                Snackbar.Add($"工单已删除", Severity.Success);
-                await LoadCancelledOrders();
-                await LoadAllDataAsync();
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!_isArrowNavSetup)
-        {
-            _isArrowNavSetup = true;
-            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#workorders-list-table"))
-                _isArrowNavSetup = false;
-        }
-    }
-
-    private async Task PrintSelected()
-    {
-        if (!selectedWorkOrderNos.Any()) return;
-        try
-        {
-            var result = await WorkOrderService.PrintOrderWorkOrdersBatchAsync(selectedWorkOrderNos.ToArray());
-            if (result.Success && result.Data != null)
-            {
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task PrintAll()
-    {
-        try
-        {
-            var queryParams = new WorkOrderQueryParams
-            {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            };
-            var result = await WorkOrderService.PrintOrderWorkOrdersAllAsync(queryParams);
-            if (result.Success && result.Data != null)
-            {
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task PrintOrderWorkOrders(string salesOrderNo)
-    {
-        try
-        {
-            var result = await WorkOrderService.PrintOrderWorkOrdersAsync(salesOrderNo);
-            if (result.Success && result.Data != null)
-            {
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    // ========== 持久化 ==========
-
-    private async Task SavePageStateAsync()
-    {
-        // TODO: 使用 PageStateService 保存排序/筛选状态到 localStorage
-        await Task.CompletedTask;
-    }
-}

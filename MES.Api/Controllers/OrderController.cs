@@ -196,4 +196,19 @@ public class OrderController : ControllerBase
     }
 
     #endregion
+
+    #region 筛选上下文
+
+    /// <summary>
+    /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    [HttpGet("filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
+    {
+        var result = await _orderService.GetOrderFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
+
+    #endregion
 }

@@ -1565,4 +1565,37 @@ public async Task DeleteAsync(int id)
     }
 
     #endregion
+
+    // ========== 筛选上下文 ==========
+
+    public async Task<Dictionary<string, List<string>>> GetOrderFilterContextsAsync()
+    {
+        var query = _context.Set<OrderListSummary>().AsNoTracking();
+
+        var all = await query
+            .Select(x => new
+            {
+                x.OrderNumber,
+                x.SignDate,
+                x.Salesman,
+                x.CustomerName,
+                x.EndCustomer,
+                x.DeliveryStart,
+                x.DeliveryEnd,
+                x.LastChangeDate
+            })
+            .ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["OrderNumber"] = all.Select(x => x.OrderNumber).Distinct().OrderBy(x => x).ToList(),
+            ["SignDate"] = all.Select(x => x.SignDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["Salesman"] = all.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
+            ["CustomerName"] = all.Select(x => x.CustomerName).Distinct().OrderBy(x => x).ToList(),
+            ["EndCustomer"] = all.Where(x => x.EndCustomer != null).Select(x => x.EndCustomer!).Distinct().OrderBy(x => x).ToList(),
+            ["DeliveryStart"] = all.Where(x => x.DeliveryStart != null).Select(x => x.DeliveryStart!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["DeliveryEnd"] = all.Where(x => x.DeliveryEnd != null).Select(x => x.DeliveryEnd!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["LastChangeDate"] = all.Where(x => x.LastChangeDate != null).Select(x => x.LastChangeDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+        };
+    }
 }

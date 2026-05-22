@@ -14,6 +14,7 @@ public class BatchesTests : TestBase
         RegisterServices(typeof(BatchService), typeof(ProductionRecordService),
             typeof(WorkOrderService), typeof(OrderService));
         ConfigureEmptyResponse("/api/batch/list");
+        ConfigureEmptyResponse("/api/batch/filter-contexts");
     }
 
     [Fact]
@@ -27,8 +28,7 @@ public class BatchesTests : TestBase
     public void Render_HasFilter()
     {
         var cut = Ctx.RenderComponent<Batches>();
-        cut.Markup.Should().Contain("有效投料疑问");
-        cut.Markup.Should().Contain("状态筛选");
+        cut.Markup.Should().Contain("模糊搜索");
     }
 
     [Theory]

@@ -1259,6 +1259,54 @@ public class InventoryService : IInventoryService
         return TablePrintHelper.GeneratePdf("出 库 记 录 打 印", items, request.Columns);
     }
 
+    public async Task<Dictionary<string, List<string>>> GetOutboundFilterContextsAsync()
+    {
+        var records = _context.OutboundRecords.AsNoTracking();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["BatchNo"] = await _context.InventoryBatches.AsNoTracking()
+                .Where(b => _context.OutboundRecords.Select(r => r.InventoryBatchId).Contains(b.Id))
+                .Select(b => b.BatchNo).Distinct().OrderBy(x => x).ToListAsync(),
+            ["OutboundType"] = await records.Select(r => r.OutboundType.ToString()).Distinct().OrderBy(x => x).ToListAsync(),
+            ["SourceOrderNo"] = await records.Where(r => r.SourceOrderNo != null).Select(r => r.SourceOrderNo!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["TargetCompany"] = await records.Where(r => r.TargetCompany != null).Select(r => r.TargetCompany!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["Remark"] = await records.Where(r => r.Remark != null).Select(r => r.Remark!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["CreatedBy"] = await records.Select(r => r.CreatedBy).Distinct().OrderBy(x => x).ToListAsync(),
+        };
+    }
+
+    public async Task<Dictionary<string, List<string>>> GetInventoryFilterContextsAsync()
+    {
+        var query = _context.InventoryBatches.AsNoTracking();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["BatchNo"] = await query.Select(b => b.BatchNo).Distinct().OrderBy(x => x).ToListAsync(),
+            ["InboundDate"] = await query.Select(b => b.InboundDate.Date.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToListAsync(),
+            ["SourceOrderNo"] = await query.Where(b => b.SourceOrderNo != null).Select(b => b.SourceOrderNo!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["MaterialType"] = await query.Select(b => b.MaterialType).Distinct().OrderBy(x => x).ToListAsync(),
+            ["SourceName"] = await query.Select(b => b.SourceName).Distinct().OrderBy(x => x).ToListAsync(),
+            ["SurfaceCondition"] = await query.Where(b => b.SurfaceCondition != null).Select(b => b.SurfaceCondition!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["LocationArea"] = await query.Where(b => b.LocationArea != null).Select(b => b.LocationArea!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["LocationRack"] = await query.Where(b => b.LocationRack != null).Select(b => b.LocationRack!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["HeatNo"] = await query.Where(b => b.HeatNo != null).Select(b => b.HeatNo!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["PlantGrade"] = await query.Select(b => b.PlantGrade).Distinct().OrderBy(x => x).ToListAsync(),
+            ["Specification"] = await query.Select(b => b.Specification).Distinct().OrderBy(x => x).ToListAsync(),
+            ["Remark"] = await query.Where(b => b.Remark != null).Select(b => b.Remark!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["IsLinkedToWorkOrder"] = await query.Select(b => b.IsLinkedToWorkOrder.ToString()).Distinct().OrderBy(x => x).ToListAsync(),
+            ["WorkOrderNo"] = await query.Where(b => b.WorkOrderNo != null).Select(b => b.WorkOrderNo!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["SalesOrderNo"] = await query.Where(b => b.SalesOrderNo != null).Select(b => b.SalesOrderNo!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["ProductionBatchNo"] = await query.Where(b => b.ProductionBatchNo != null).Select(b => b.ProductionBatchNo!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["ActualSpecification"] = await query.Where(b => b.ActualSpecification != null).Select(b => b.ActualSpecification!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["DefectReason"] = await query.Where(b => b.DefectReason != null).Select(b => b.DefectReason!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["LiabilityType"] = await query.Where(b => b.LiabilityType != null).Select(b => b.LiabilityType!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["OriginalSupplier"] = await query.Where(b => b.OriginalSupplier != null).Select(b => b.OriginalSupplier!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["TagNo"] = await query.Where(b => b.TagNo != null).Select(b => b.TagNo!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["DefectRemark"] = await query.Where(b => b.DefectRemark != null).Select(b => b.DefectRemark!).Distinct().OrderBy(x => x).ToListAsync(),
+        };
+    }
+
     /// <summary>
     /// 入库批次变更后自动同步采购单/委外单的收货数量及状态
     /// </summary>

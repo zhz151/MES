@@ -79,4 +79,9 @@ public interface IOrderService
     /// 打印订单技术要求PDF
     /// </summary>
     Task<byte[]> PrintOrderRequirementsAsync(int orderId);
+
+    /// <summary>
+    /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    Task<Dictionary<string, List<string>>> GetOrderFilterContextsAsync();
 }

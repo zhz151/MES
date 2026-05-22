@@ -1,12 +1,16 @@
 @page "/warehouse/outbound-history"
 @page "/warehouse/outbound-history/{Code}"
+@using System.Text.Json
 @using MES.Blazor.Services
 @using MES.Blazor.Helpers
+@using MES.Blazor.Components
+@using MES.Blazor.Models
 @using MES.Core.DTOs
 @using MES.Core.Models
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
 @inject InventoryService InventoryService
+@inject PageStateService PageState
 @inject WarehouseService WarehouseService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -70,11 +74,10 @@
             </MudGrid>
 
             <!-- 表格 -->
-            <div style="overflow-x:auto; max-width:100%;">
-            <MudTable @ref="_table" T="OutboundRecordDto" Items="@_filteredItems"
+            <div id="outbound-history-list-table">
+            <MudTable @ref="_table" T="OutboundRecordDto" ServerData="@LoadDataFromServer"
                       Dense="true" Hover="true"
-                      Elevation="0" Striped="true" RowsPerPage="10" RowsPerPageLabel="每页行数:"
-                      MultiSelection="true" @bind-SelectedItems="_selectedItems"
+                      Elevation="0" Striped="true" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:"
                       Class="auto-table outbound-edit-table">
                 <ToolBarContent>
                     <ColumnDisplaySelect Columns="_allColumns"
@@ -101,30 +104,35 @@
                                OnClick="PrintAll" Class="mr-4">
                         打印全部
                     </MudButton>
+                    <MudText Typo="Typo.body2" Class="ml-auto">
+                        共 @_totalCount 条记录
+                    </MudText>
                 </ToolBarContent>
                 <HeaderContent>
+                    <MudTh Style="width: 40px;">
+                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
+                    </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
                             <div style="display:inline-flex; align-items:center; gap:4px;">
-                                <span class="th-label">
+                                <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">
                                     @col.Label
                                     @if (col.IsRequired)
                                     {
                                         <span class="required-star">*</span>
                                     }
+                                    @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}
                                 </span>
                                 @if (col.FilterType != null)
                                 {
                                     <ExcelFilter T="OutboundRecordDto"
                                                  Label="@col.Label"
                                                  FieldKey="@col.Key"
-                                                 AllItems="@_allItems"
+                                                 FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"
                                                  ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
-                                                 DisplaySelector="@(x => GetCellDisplayText(x, col.Key))"
-                                                 RawValueSelector="@(x => GetCellRawValue(x, col.Key))"
-                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))"
-                                                 SortRequested="@(args => OnExcelSortRequested(args.fieldKey, args.ascending))" />
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))" />
+
                                 }
                             </div>
                         </MudTh>
@@ -134,6 +142,7 @@
                 <RowTemplate Context="item">
                     @if (_editingRowId == item.Id)
                     {
+                        <MudTd Style="width: 40px;"></MudTd>
                         @foreach (var col in _visibleColumns)
                         {
                             <MudTd>@RenderInlineEditor(item, col)</MudTd>
@@ -155,6 +164,12 @@
                     }
                     else
                     {
+                        <MudTd Style="width: 40px;">
+                            <MudCheckBox T="bool"
+                                         Value="@_selectedItems.Contains(item)"
+                                         ValueChanged="@((v) => { if(v) _selectedItems.Add(item); else _selectedItems.Remove(item); _allSelected = _pageItems.Any() && _pageItems.All(i => _selectedItems.Contains(i)); StateHasChanged(); })"
+                                         Dense="true" />
+                        </MudTd>
                         @foreach (var col in _visibleColumns)
                         {
                             <MudTd>@RenderCell(item, col)</MudTd>
@@ -173,7 +188,7 @@
                     }
                 </RowTemplate>
                 <PagerContent>
-                    <MudText Typo="Typo.body2" Class="d-flex align-center mr-auto">共 @(_filteredItems?.Count ?? 0) 条记录</MudText>
+                    <MudText Typo="Typo.body2" Class="d-flex align-center mr-auto">共 @_totalCount 条记录</MudText>
                     <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
                 <NoRecordsContent>
@@ -184,662 +199,3 @@
         </MudCardContent>
     </MudCard>
 </MudContainer>
-
-@code {
-    [Parameter]
-    public string? Code { get; set; }
-
-    private int? _filterWarehouseId;
-    private string _warehouseName = string.Empty;
-    private List<OutboundRecordDto> _allItems = new();
-    private List<OutboundRecordDto>? _filteredItemsList;
-    private List<OutboundRecordDto> _filteredItems => _filteredItemsList ?? _allItems;
-    private string _searchKeyword = string.Empty;
-
-    // 排序状态
-    private string sortColumn = "outbounddate";
-    private bool sortDescending = true;
-
-    // ========== ExcelFilter 状态 ==========
-    private Dictionary<string, HashSet<string>> _columnFilters = new();
-    private Dictionary<string, List<OutboundRecordDto>> _filterContexts = new();
-
-    // 编辑状态
-    private int? _savingItemId;
-    private long? _editingRowId;
-    private MudTable<OutboundRecordDto>? _table;
-
-    // 编辑暂存状态
-    private Dictionary<long, string> _editDateStrings = new();
-    private Dictionary<long, string> _editOutboundTypes = new();
-
-    private void ClearEditState()
-    {
-        _editingRowId = null;
-        _editDateStrings.Clear();
-        _editOutboundTypes.Clear();
-    }
-
-    // ========== 列定义 ==========
-
-    private List<ColumnDef> _allColumns = new();
-    private List<ColumnDef> _visibleColumns =>
-        _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
-    private static List<ColumnDef> GetAllColumnDefs() => new()
-    {
-        new() { Key = "BatchNo",          Label = "批次号",   SortKey = "batchno", FilterType = "string" },
-        new() { Key = "OutboundDate",     Label = "出库日期", SortKey = "outbounddate",     IsRequired = true, FilterType = "date" },
-        new() { Key = "OutboundType",     Label = "出库类型", SortKey = "outboundtype",     IsRequired = true, FilterType = "enum",
-            EnumOptions = new() { new("SalesOut", "销售出库"), new("SubcontractOut", "委外出库"), new("ReturnOut", "退货出库"), new("ProductionPick", "生产领用"), new("InspectionPick", "检验领用"), new("TransferOut", "移库出库"), new("OtherOut", "其他出库") } },
-        new() { Key = "SourceOrderNo",    Label = "物料单号", SortKey = "sourceorderno", FilterType = "string" },
-        new() { Key = "TargetCompany",    Label = "目标单位", SortKey = "targetcompany", FilterType = "string" },
-        new() { Key = "OutboundQuantity", Label = "出库支数", SortKey = "outboundquantity", IsRequired = true, FilterType = "number" },
-        new() { Key = "OutboundWeight",   Label = "出库重量", SortKey = "outboundweight",   IsRequired = true, FilterType = "number" },
-        new() { Key = "Remark",           Label = "备注", SortKey = "remark", FilterType = "string" },
-        new() { Key = "CreatedBy",        Label = "创建人",   SortKey = "createdby", FilterType = "string" },
-    };
-
-    private static void ApplyWarehouseDefaults(List<ColumnDef> cols, string whCode)
-    {
-        foreach (var c in cols)
-        {
-            c.IsApplicable = true;
-            c.Visible = true;
-        }
-        // 所有仓库全部字段适用
-    }
-
-    // ========== 列选择操作 ==========
-
-    private async Task OnColumnToggle(ColumnDef col)
-    {
-        await SaveColumnPrefs();
-    }
-
-    private async Task SaveColumnPrefs()
-    {
-        var whCode = Code?.ToUpperInvariant() ?? "";
-        await ColumnPrefs.SaveAsync("outbound_history", whCode, _allColumns);
-    }
-
-    private async Task ResetColumnDisplay()
-    {
-        _allColumns = GetAllColumnDefs();
-        ApplyWarehouseDefaults(_allColumns, Code?.ToUpperInvariant() ?? "");
-        await SaveColumnPrefs();
-    }
-
-    private async Task MoveColumnUp(ColumnDef col)
-    {
-        await SaveColumnPrefs();
-    }
-
-    private async Task MoveColumnDown(ColumnDef col)
-    {
-        await SaveColumnPrefs();
-    }
-
-    // ========== 编辑器类型推断 ==========
-
-    private static string GetEditorType(string key) => key switch
-    {
-        "OutboundType" => "select",
-        "OutboundQuantity" => "int",
-        "OutboundWeight" => "decimal",
-        "OutboundDate" => "date",
-        _ => "text"
-    };
-
-    private static bool IsReadOnlyField(string key) => key switch
-    {
-        "BatchNo" or "CreatedBy" => true,
-        _ => false
-    };
-
-    private readonly List<(string Value, string Text)> _outboundTypeOptions = new()
-    {
-        ("SalesOut", "销售出库"),
-        ("SubcontractOut", "委外出库"),
-        ("ReturnOut", "退货出库"),
-        ("ProductionPick", "生产领用"),
-        ("InspectionPick", "检验领用"),
-        ("TransferOut", "移库出库"),
-        ("OtherOut", "其他出库"),
-    };
-
-    // ========== 只读单元格渲染 ==========
-
-    private RenderFragment RenderCell(OutboundRecordDto item, ColumnDef col) => builder =>
-    {
-        switch (col.Key)
-        {
-            case "BatchNo":
-                builder.AddContent(0, item.BatchNo);
-                break;
-            case "OutboundDate":
-                builder.AddContent(0, item.OutboundDate.ToString("yyyy-MM-dd"));
-                break;
-            case "OutboundType":
-                builder.OpenComponent<MudChip>(0);
-                builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", Color.Warning);
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetOutboundTypeText(item.OutboundType))));
-                builder.CloseComponent();
-                break;
-            case "SourceOrderNo":
-                if (!string.IsNullOrEmpty(item.SourceOrderNo))
-                    builder.AddContent(0, item.SourceOrderNo);
-                break;
-            case "TargetCompany":
-                builder.AddContent(0, item.TargetCompany);
-                break;
-            case "OutboundQuantity":
-                builder.AddContent(0, item.OutboundQuantity);
-                break;
-            case "OutboundWeight":
-                builder.AddContent(0, item.OutboundWeight.ToString("G29"));
-                break;
-            case "Remark":
-                builder.AddContent(0, item.Remark);
-                break;
-            case "CreatedBy":
-                builder.AddContent(0, item.CreatedBy);
-                break;
-        }
-    };
-
-    // ========== 内联编辑渲染 ==========
-
-    private RenderFragment RenderInlineEditor(OutboundRecordDto item, ColumnDef col) => builder =>
-    {
-        if (IsReadOnlyField(col.Key))
-        {
-            RenderCell(item, col)(builder);
-            return;
-        }
-
-        switch (GetEditorType(col.Key))
-        {
-            case "select":
-                if (!_editOutboundTypes.ContainsKey(item.Id))
-                    _editOutboundTypes[item.Id] = item.OutboundType;
-                var selVal = _editOutboundTypes[item.Id];
-                builder.OpenComponent<MudSelect<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Value", selVal);
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v =>
-                {
-                    _editOutboundTypes[item.Id] = v ?? item.OutboundType;
-                }));
-                builder.AddAttribute(5, "ChildContent", (RenderFragment)(b2 =>
-                {
-                    foreach (var opt in _outboundTypeOptions)
-                    {
-                        b2.OpenComponent<MudSelectItem<string>>(0);
-                        b2.AddAttribute(1, "Value", opt.Value);
-                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Text)));
-                        b2.CloseComponent();
-                    }
-                }));
-                builder.CloseComponent();
-                break;
-
-            case "int":
-                builder.OpenComponent<MudNumericField<int>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "HideSpinButtons", true);
-                builder.AddAttribute(3, "Value", item.OutboundQuantity);
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<int>(this, v => item.OutboundQuantity = v));
-                builder.CloseComponent();
-                break;
-
-            case "decimal":
-                builder.OpenComponent<MudNumericField<decimal>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "HideSpinButtons", true);
-                builder.AddAttribute(3, "Format", "G29");
-                builder.AddAttribute(4, "Value", item.OutboundWeight);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<decimal>(this, v => item.OutboundWeight = v));
-                builder.CloseComponent();
-                break;
-
-            case "date":
-                if (!_editDateStrings.ContainsKey(item.Id))
-                    _editDateStrings[item.Id] = item.OutboundDate.ToString("yyyy-MM-dd");
-                var dateVal = _editDateStrings[item.Id];
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Value", dateVal);
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v =>
-                {
-                    _editDateStrings[item.Id] = v ?? item.OutboundDate.ToString("yyyy-MM-dd");
-                    if (DateTime.TryParse(v, out var dt))
-                        item.OutboundDate = dt;
-                }));
-                builder.CloseComponent();
-                break;
-
-            default: // text
-                var txtVal = col.Key switch
-                {
-                    "SourceOrderNo" => item.SourceOrderNo,
-                    "TargetCompany" => item.TargetCompany,
-                    "Remark" => item.Remark,
-                    _ => ""
-                };
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Value", txtVal);
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v =>
-                {
-                    switch (col.Key)
-                    {
-                        case "SourceOrderNo": item.SourceOrderNo = v; break;
-                        case "TargetCompany": item.TargetCompany = v; break;
-                        case "Remark": item.Remark = v; break;
-                    }
-                }));
-                builder.CloseComponent();
-                break;
-        }
-    };
-
-    // ========== 编辑状态管理 ==========
-
-    private void StartEdit(OutboundRecordDto item)
-    {
-        _editingRowId = item.Id;
-        _editDateStrings[item.Id] = item.OutboundDate.ToString("yyyy-MM-dd");
-        _editOutboundTypes[item.Id] = item.OutboundType;
-    }
-
-    private void CancelEdit()
-    {
-        ClearEditState();
-    }
-
-    // ========== 初始化 ==========
-
-    protected override async Task OnInitializedAsync()
-    {
-        // 预加载仓库列表
-        var warehouses = await WarehouseService.GetAllAsync(true);
-        if (warehouses.Success && warehouses.Data != null)
-            _warehouses = warehouses.Data;
-
-        await ResolveWarehouse();
-        await LoadAllDataAsync();
-    }
-
-    protected override async Task OnParametersSetAsync()
-    {
-        if (!string.IsNullOrEmpty(Code))
-        {
-            await ResolveWarehouse();
-            ClearEditState();
-            await LoadAllDataAsync();
-        }
-    }
-
-    private List<WarehouseDto> _warehouses = new();
-
-    private async Task ResolveWarehouse()
-    {
-        _searchKeyword = string.Empty;
-        _columnFilters.Clear();
-        _filteredItemsList = null;
-        var whCode = Code?.ToUpperInvariant() ?? "";
-        var wh = _warehouses.FirstOrDefault(w => w.Code.Equals(whCode, StringComparison.OrdinalIgnoreCase));
-        if (wh != null)
-        {
-            _filterWarehouseId = wh.Id;
-            _warehouseName = wh.Name;
-        }
-        else if (!string.IsNullOrEmpty(Code))
-        {
-            _filterWarehouseId = null;
-            _warehouseName = Code;
-        }
-
-        // 列定义
-        _allColumns = GetAllColumnDefs();
-        ApplyWarehouseDefaults(_allColumns, whCode);
-
-        // 加载用户偏好
-        var saved = await ColumnPrefs.LoadAsync("outbound_history", whCode);
-        if (saved.Count > 0)
-        {
-            foreach (var s in saved)
-            {
-                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
-                if (match != null)
-                    match.Visible = s.Visible;
-            }
-            var reordered = new List<ColumnDef>();
-            foreach (var s in saved)
-            {
-                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
-                if (match != null && !reordered.Contains(match))
-                    reordered.Add(match);
-            }
-            foreach (var c in _allColumns)
-            {
-                if (!reordered.Contains(c))
-                    reordered.Add(c);
-            }
-            _allColumns = reordered;
-        }
-
-        // 不适用列强制隐藏
-        foreach (var c in _allColumns)
-        {
-            if (!c.IsApplicable) c.Visible = false;
-        }
-    }
-
-    // ========== 数据加载 ==========
-
-    private async Task LoadAllDataAsync()
-    {
-        try
-        {
-            var query = new OutboundQueryParams
-            {
-                PageIndex = 1,
-                PageSize = 100000,
-                SortBy = sortColumn,
-                IsDescending = sortDescending,
-                WarehouseId = _filterWarehouseId,
-                Keyword = null,
-            };
-
-            var result = await InventoryService.GetOutboundRecordsAsync(query);
-            if (result.Success && result.Data != null)
-            {
-                _allItems = result.Data.Items;
-                _filteredItemsList = null;
-                RefreshFilteredData();
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            StateHasChanged();
-        }
-    }
-
-    // ========== 搜索与排序 ==========
-
-    private async Task OnSearchChanged(string value)
-    {
-        _searchKeyword = value ?? string.Empty;
-        ClearEditState();
-        RefreshFilteredData();
-    }
-
-    // ========== ExcelFilter 回调 ==========
-
-    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
-    {
-        if (selectedValues.Count > 0)
-            _columnFilters[fieldKey] = selectedValues;
-        else
-            _columnFilters.Remove(fieldKey);
-
-        RefreshFilteredData();
-        await SavePageStateAsync();
-    }
-
-    private async Task OnExcelSortRequested(string fieldKey, bool ascending)
-    {
-        sortColumn = fieldKey;
-        sortDescending = !ascending;
-        RefreshFilteredData();
-        await SavePageStateAsync();
-    }
-
-    // ========== 持久化 ==========
-
-    private async Task SavePageStateAsync()
-    {
-        await Task.CompletedTask;
-    }
-
-    // ========== 客户端刷新 ==========
-
-    private void RefreshFilteredData()
-    {
-        ClearEditState();
-
-        var query = _allItems.AsEnumerable();
-
-        // 关键字搜索
-        if (!string.IsNullOrWhiteSpace(_searchKeyword))
-        {
-            var kw = _searchKeyword;
-            query = query.Where(x =>
-                (x.BatchNo != null && x.BatchNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
-                (x.SourceOrderNo != null && x.SourceOrderNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
-                (x.TargetCompany != null && x.TargetCompany.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
-                (x.CreatedBy != null && x.CreatedBy.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
-                (x.Remark != null && x.Remark.Contains(kw, StringComparison.OrdinalIgnoreCase))
-            );
-        }
-
-        // ExcelFilter 列筛选
-        foreach (var cf in _columnFilters)
-        {
-            var fieldKey = cf.Key;
-            var selected = cf.Value;
-            query = query.Where(x =>
-            {
-                var raw = GetCellRawValue(x, fieldKey);
-                return raw != null && selected.Contains(raw);
-            });
-        }
-
-        // 排序
-        if (!string.IsNullOrEmpty(sortColumn))
-        {
-            query = sortColumn switch
-            {
-                "batchno" => sortDescending ? query.OrderByDescending(x => x.BatchNo ?? "") : query.OrderBy(x => x.BatchNo ?? ""),
-                "outbounddate" => sortDescending ? query.OrderByDescending(x => x.OutboundDate) : query.OrderBy(x => x.OutboundDate),
-                "outboundtype" => sortDescending ? query.OrderByDescending(x => x.OutboundType) : query.OrderBy(x => x.OutboundType),
-                "sourceorderno" => sortDescending ? query.OrderByDescending(x => x.SourceOrderNo ?? "") : query.OrderBy(x => x.SourceOrderNo ?? ""),
-                "targetcompany" => sortDescending ? query.OrderByDescending(x => x.TargetCompany ?? "") : query.OrderBy(x => x.TargetCompany ?? ""),
-                "outboundquantity" => sortDescending ? query.OrderByDescending(x => x.OutboundQuantity) : query.OrderBy(x => x.OutboundQuantity),
-                "outboundweight" => sortDescending ? query.OrderByDescending(x => x.OutboundWeight) : query.OrderBy(x => x.OutboundWeight),
-                "remark" => sortDescending ? query.OrderByDescending(x => x.Remark ?? "") : query.OrderBy(x => x.Remark ?? ""),
-                "createdby" => sortDescending ? query.OrderByDescending(x => x.CreatedBy ?? "") : query.OrderBy(x => x.CreatedBy ?? ""),
-                _ => sortDescending ? query.OrderByDescending(x => x.OutboundDate) : query.OrderBy(x => x.OutboundDate)
-            };
-        }
-
-        _filteredItemsList = query.ToList();
-        StateHasChanged();
-    }
-
-    // ========== 单元格原始值/显示值 ==========
-
-    private string? GetCellRawValue(OutboundRecordDto item, string key) => key switch
-    {
-        "BatchNo" => item.BatchNo,
-        "OutboundDate" => item.OutboundDate.ToString("yyyy-MM-dd"),
-        "OutboundType" => item.OutboundType,
-        "SourceOrderNo" => item.SourceOrderNo,
-        "TargetCompany" => item.TargetCompany,
-        "OutboundQuantity" => item.OutboundQuantity.ToString("G29"),
-        "OutboundWeight" => item.OutboundWeight.ToString("G29"),
-        "Remark" => item.Remark,
-        "CreatedBy" => item.CreatedBy,
-        _ => null
-    };
-
-    private string? GetCellDisplayText(OutboundRecordDto item, string key) => key switch
-    {
-        "OutboundType" => GetOutboundTypeText(item.OutboundType),
-        _ => GetCellRawValue(item, key) ?? ""
-    };
-
-    // ========== 行保存 ==========
-
-    private async Task SaveRow(OutboundRecordDto item)
-    {
-        var errors = new List<string>();
-        var parsedDate = item.OutboundDate;
-        if (_editDateStrings.TryGetValue(item.Id, out var dateStr))
-        {
-            if (!DateTime.TryParse(dateStr, out parsedDate))
-                errors.Add("出库日期无效，请按 yyyy-MM-dd 格式输入");
-        }
-        if (item.OutboundQuantity < 1) errors.Add("出库支数必须大于0");
-        if (item.OutboundWeight <= 0) errors.Add("出库重量必须大于0");
-
-        if (errors.Any())
-        {
-            Snackbar.Add(string.Join("\n", errors), Severity.Error);
-            return;
-        }
-
-        _savingItemId = 1;
-        StateHasChanged();
-
-        try
-        {
-            var outboundType = _editOutboundTypes.TryGetValue(item.Id, out var typ) ? typ : item.OutboundType;
-
-            var request = new UpdateOutboundRecordRequest
-            {
-                OutboundType = outboundType,
-                OutboundDate = parsedDate,
-                SourceOrderNo = string.IsNullOrEmpty(item.SourceOrderNo) ? null : item.SourceOrderNo,
-                TargetCompany = string.IsNullOrEmpty(item.TargetCompany) ? null : item.TargetCompany,
-                OutboundQuantity = item.OutboundQuantity,
-                OutboundWeight = item.OutboundWeight,
-                Remark = string.IsNullOrEmpty(item.Remark) ? null : item.Remark,
-            };
-
-            var result = await InventoryService.UpdateOutboundRecordAsync(item.Id, request);
-            if (result.Success)
-            {
-                Snackbar.Add("更改成功", Severity.Success);
-                item.OutboundDate = parsedDate;
-                item.OutboundType = outboundType;
-                _editingRowId = null;
-                _editDateStrings.Remove(item.Id);
-                _editOutboundTypes.Remove(item.Id);
-                await LoadAllDataAsync();
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "更改失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"网络错误: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _savingItemId = null;
-            StateHasChanged();
-        }
-    }
-
-    // ========== 删除 ==========
-
-    private async Task ConfirmDelete(OutboundRecordDto item)
-    {
-        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认",
-            new DialogParameters
-            {
-                { "ContentText", $"确认物理删除出库记录（批次：{item.BatchNo}，日期：{item.OutboundDate:yyyy-MM-dd}）？\n此操作不可恢复！" },
-                { "ConfirmText", "确认删除" },
-                { "Color", Color.Error }
-            });
-        var dialogResult = await dialog.Result;
-        if (dialogResult.Canceled) return;
-
-        try
-        {
-            var result = await InventoryService.HardDeleteOutboundRecordAsync(item.Id);
-            if (result.Success)
-            {
-                Snackbar.Add("出库记录已删除", Severity.Success);
-                ClearEditState();
-                await LoadAllDataAsync();
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"网络错误: {ex.Message}", Severity.Error);
-        }
-    }
-
-    // ========== 多选 ==========
-    private HashSet<OutboundRecordDto> _selectedItems = new();
-
-    // ========== 打印 ==========
-
-    private async Task PrintSelected()
-    {
-        if (!_selectedItems.Any())
-        {
-            Snackbar.Add("请先选择要打印的出库记录", Severity.Warning);
-            return;
-        }
-        try
-        {
-            var columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
-            var ids = _selectedItems.Select(i => i.Id).ToArray();
-            var result = await InventoryService.PrintOutboundSelectedAsync(new OutboundPrintSelectedRequest
-            {
-                Ids = ids,
-                Columns = columns
-            });
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
-        }
-        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
-    }
-
-    private async Task PrintAll()
-    {
-        try
-        {
-            var columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
-            var result = await InventoryService.PrintOutboundAllAsync(new OutboundPrintAllRequest
-            {
-                Keyword = string.IsNullOrEmpty(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending,
-                WarehouseId = _filterWarehouseId,
-                Columns = columns
-            });
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
-        }
-        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
-    }
-
-    // ========== 辅助方法 ==========
-
-    private static string GetOutboundTypeText(string type) => DisplayHelper.GetOutboundTypeText(type);
-
-    private void GoBack() => Navigation.NavigateTo(!string.IsNullOrEmpty(Code) ? $"/warehouse/{Code.ToLowerInvariant()}" : "/warehouse");
-}

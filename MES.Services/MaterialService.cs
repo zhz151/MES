@@ -274,6 +274,20 @@ public class MaterialService : IMaterialService
 
     // ========== 打印 ==========
 
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var query = _context.Materials.AsNoTracking();
+        return new Dictionary<string, List<string>>
+        {
+            ["MaterialCode"] = await query.Where(m => m.MaterialCode != null).Select(m => m.MaterialCode).Distinct().OrderBy(x => x).ToListAsync(),
+            ["MaterialCategory"] = await query.Where(m => m.MaterialCategory != null).Select(m => m.MaterialCategory).Distinct().OrderBy(x => x).ToListAsync(),
+            ["PlantGrade"] = await query.Where(m => m.PlantGrade != null).Select(m => m.PlantGrade).Distinct().OrderBy(x => x).ToListAsync(),
+            ["Specification"] = await query.Where(m => m.Specification != null).Select(m => m.Specification).Distinct().OrderBy(x => x).ToListAsync(),
+            ["Remark"] = await query.Where(m => m.Remark != null).Select(m => m.Remark).Distinct().OrderBy(x => x).ToListAsync(),
+            ["IsActive"] = await query.Select(m => m.IsActive.ToString()).Distinct().OrderBy(x => x).ToListAsync(),
+        };
+    }
+
     public async Task<byte[]> PrintMaterialAsync(int id)
     {
         var dto = await GetByIdAsync(id);

@@ -131,6 +131,21 @@ public class GradeMappingService
         }
     }
 
+    // ========== 筛选上下文 ==========
+
+    /// <summary>
+    /// 获取筛选上下文（各列可选值列表）
+    /// </summary>
+    public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<Dictionary<string, List<string>>>>($"{BaseUrl}/filter-contexts")
+                   ?? ApiResponse<Dictionary<string, List<string>>>.Fail("获取筛选上下文失败");
+        }
+        catch (Exception ex) { return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     // ========== 打印 ==========
 
     /// <summary>打印单个牌号对照</summary>

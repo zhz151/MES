@@ -53,6 +53,9 @@ public abstract class TestBase : IDisposable
         // ColumnPrefsService
         Ctx.Services.AddSingleton(new ColumnPrefsService(_localStorage));
 
+        // PageStateService
+        Ctx.Services.AddSingleton(new PageStateService(_localStorage));
+
         // Silent JS Runtime
         Ctx.Services.AddSingleton<IJSRuntime>(new SilentJsRuntime());
 

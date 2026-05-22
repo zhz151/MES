@@ -272,4 +272,32 @@ public class BatchService
         }
         catch (Exception ex) { return ApiResponse<List<BatchOperationLogDto>>.Fail($"网络错误: {ex.Message}"); }
     }
+
+    // ========== 通用查询（支持 validInputQuestion） ==========
+
+    public async Task<ApiResponse<PagedResult<ProductionBatchListDto>>> GetAllAsync(int pageIndex, int pageSize, string? keyword, string? sortBy, bool isDescending, string? filters, string? validInputQuestion)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/list?pageIndex={pageIndex}&pageSize={pageSize}&sortBy={Uri.EscapeDataString(sortBy ?? "CreatedTime")}&isDescending={isDescending.ToString().ToLower()}";
+            if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
+            if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
+            if (!string.IsNullOrEmpty(validInputQuestion)) url += $"&validInputQuestion={Uri.EscapeDataString(validInputQuestion)}";
+            return await _http.GetFromJsonAsync<ApiResponse<PagedResult<ProductionBatchListDto>>>(url)
+                   ?? ApiResponse<PagedResult<ProductionBatchListDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<PagedResult<ProductionBatchListDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    // ========== 筛选上下文 ==========
+
+    public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<Dictionary<string, List<string>>>>($"{BaseUrl}/filter-contexts")
+                   ?? ApiResponse<Dictionary<string, List<string>>>.Fail("获取筛选上下文失败");
+        }
+        catch (Exception ex) { return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}"); }
+    }
 }

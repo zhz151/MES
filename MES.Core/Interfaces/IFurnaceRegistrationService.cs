@@ -42,4 +42,9 @@ public interface IFurnaceRegistrationService
     /// 根据登记牌号查询关联工厂牌号
     /// </summary>
     Task<string?> LookupPlantGradeAsync(string registeredGrade);
+
+    /// <summary>
+    /// 获取筛选上下文（各列的 DISTINCT 值，用于 ExcelFilter）
+    /// </summary>
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 }

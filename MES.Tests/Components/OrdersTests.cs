@@ -15,6 +15,7 @@ public class OrdersTests : TestBase
     {
         RegisterServices(typeof(OrderService), typeof(ProductRequirementService));
         ConfigureEmptyResponse("/api/order/list");
+        ConfigureEmptyResponse("/api/order/filter-contexts");
     }
 
     [Fact]
@@ -28,8 +29,7 @@ public class OrdersTests : TestBase
     public void Render_HasFilter()
     {
         var cut = Ctx.RenderComponent<CascadingAuthenticationState>(p => p.AddChildContent<Orders>());
-        cut.Markup.Should().Contain("技术要求状态");
-        cut.Markup.Should().Contain("订单状态");
+        cut.Markup.Should().Contain("关键字搜索");
     }
 
     [Theory]

@@ -227,6 +227,16 @@ public class WorkOrderController : ControllerBase
         return Ok(ApiResponse.Ok("用料计划总览读模型刷新完成"));
     }
 
+    // ========== 筛选上下文 ==========
+
+    [HttpGet("filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetWorkOrderFilterContexts()
+    {
+        var result = await _workOrderService.GetWorkOrderFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
+
     [HttpGet("list-all")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<WorkOrderListDto>>>> GetAllList()

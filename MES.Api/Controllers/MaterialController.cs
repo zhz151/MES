@@ -129,6 +129,19 @@ public class MaterialController : ControllerBase
         return Ok(ApiResponse.Ok("删除成功"));
     }
 
+    // ========== 筛选上下文 ==========
+
+    /// <summary>
+    /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    [HttpGet("filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
+    {
+        var result = await _service.GetFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result, "查询成功"));
+    }
+
     // ========== 打印 ==========
 
     [HttpGet("{id}/print")]

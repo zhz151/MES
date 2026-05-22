@@ -113,4 +113,9 @@ Task<byte[]> PrintWorkOrdersByOrderBatchAsync(string[] salesOrderNos);
 /// </summary>
 Task<byte[]> PrintWorkOrdersByOrderAllAsync(WorkOrderQueryParams query);
 
+/// <summary>
+/// 获取工单筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+/// </summary>
+Task<Dictionary<string, List<string>>> GetWorkOrderFilterContextsAsync();
+
 }

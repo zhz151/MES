@@ -278,4 +278,19 @@ public class GradeMappingService : IGradeMappingService
         var paged = await GetPagedAsync(query);
         return GradeMappingPrintHelper.GenerateBatchPdf(paged.Items);
     }
+
+    // ========== 筛选上下文 ==========
+
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var query = _context.StandardGradeMappings.AsNoTracking();
+        return new Dictionary<string, List<string>>
+        {
+            ["StandardGrade"] = await query.Select(x => x.StandardGrade).Distinct().OrderBy(x => x).ToListAsync(),
+            ["PlantGrade"] = await query.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToListAsync(),
+            ["HeatTreatment"] = await query.Where(x => x.HeatTreatment != null).Select(x => x.HeatTreatment!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["SpecialNote"] = await query.Where(x => x.SpecialNote != null).Select(x => x.SpecialNote!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["Remark"] = await query.Where(x => x.Remark != null).Select(x => x.Remark!).Distinct().OrderBy(x => x).ToListAsync(),
+        };
+    }
 }

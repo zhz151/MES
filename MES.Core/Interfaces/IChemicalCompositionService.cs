@@ -47,4 +47,9 @@ public interface IChemicalCompositionService
     /// 预览Excel导入结果（不写入数据库）
     /// </summary>
     Task<ImportPreviewResult> PreviewImportAsync(byte[] fileData, string fileName);
+
+    /// <summary>
+    /// 获取筛选上下文（各列的 DISTINCT 值，用于 ExcelFilter）
+    /// </summary>
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 }

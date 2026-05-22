@@ -96,4 +96,14 @@ public interface IInventoryService
     /// 打印选中出库记录
     /// </summary>
     Task<byte[]> PrintOutboundSelectedAsync(OutboundPrintSelectedRequest request);
+
+    /// <summary>
+    /// 获取出库记录筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    Task<Dictionary<string, List<string>>> GetOutboundFilterContextsAsync();
+
+    /// <summary>
+    /// 获取库存批次筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    Task<Dictionary<string, List<string>>> GetInventoryFilterContextsAsync();
 }

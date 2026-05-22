@@ -555,6 +555,40 @@ public class SubcontractOrderService : ISubcontractOrderService
         return await _purchaseService.GetPlanDetailAsync(workOrderNo, materialCategory);
     }
 
+    // ========== 筛选上下文 ==========
+
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var query = from s in _context.SubcontractOrders.AsNoTracking()
+                    join sp in _context.SupplierProfiles.AsNoTracking() on s.SupplierId equals sp.Id into sj
+                    from sp in sj.DefaultIfEmpty()
+                    select new
+                    {
+                        s.OrderNo,
+                        s.OrderDate,
+                        s.ProcessType,
+                        s.OutMaterialCategory,
+                        s.OutPlantGrade,
+                        s.OutSpecification,
+                        s.ReturnDeadline,
+                        SupplierName = sp.SupplierName
+                    };
+
+        var all = await query.ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["OrderNo"] = all.Select(x => x.OrderNo).Distinct().OrderBy(x => x).ToList(),
+            ["OrderDate"] = all.Select(x => x.OrderDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["ProcessType"] = all.Select(x => x.ProcessType).Distinct().OrderBy(x => x).ToList(),
+            ["OutMaterialCategory"] = all.Select(x => x.OutMaterialCategory).Distinct().OrderBy(x => x).ToList(),
+            ["OutPlantGrade"] = all.Select(x => x.OutPlantGrade).Distinct().OrderBy(x => x).ToList(),
+            ["OutSpecification"] = all.Select(x => x.OutSpecification).Distinct().OrderBy(x => x).ToList(),
+            ["ReturnDeadline"] = all.Where(x => x.ReturnDeadline != null).Select(x => x.ReturnDeadline!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["SupplierName"] = all.Where(x => x.SupplierName != null).Select(x => x.SupplierName!).Distinct().OrderBy(x => x).ToList(),
+        };
+    }
+
     // ========== 打印 ==========
 
     public async Task<byte[]> PrintOrderAsync(int id)

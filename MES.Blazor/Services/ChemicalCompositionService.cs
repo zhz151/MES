@@ -94,4 +94,14 @@ public class ChemicalCompositionService
         }
         catch (Exception ex) { return ApiResponse<MES.Core.Models.ImportResult>.Fail($"网络错误: {ex.Message}"); }
     }
+
+    public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<Dictionary<string, List<string>>>>($"{BaseUrl}/filter-contexts")
+                   ?? ApiResponse<Dictionary<string, List<string>>>.Fail("获取筛选上下文失败");
+        }
+        catch (Exception ex) { return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}"); }
+    }
 }

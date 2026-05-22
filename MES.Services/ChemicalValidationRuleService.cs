@@ -209,6 +209,69 @@ public class ChemicalValidationRuleService : IChemicalValidationRuleService
             .ToListAsync();
     }
 
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var all = await _context.ChemicalValidationRules
+            .AsNoTracking()
+            .Select(r => new
+            {
+                r.PlantGrade,
+                r.CMin, r.CMax,
+                r.SiMin, r.SiMax,
+                r.MnMin, r.MnMax,
+                r.PMin, r.PMax,
+                r.SMin, r.SMax,
+                r.NiMin, r.NiMax,
+                r.CrMin, r.CrMax,
+                r.MoMin, r.MoMax,
+                r.CuMin, r.CuMax,
+                r.NMin, r.NMax,
+                r.NbMin, r.NbMax,
+                r.TiMin, r.TiMax,
+                r.FeMin, r.FeMax,
+                r.AlMin, r.AlMax,
+                r.WMin, r.WMax,
+                r.PRENMin
+            })
+            .ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["PlantGrade"] = all.Select(x => x.PlantGrade).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+            ["CMin"] = all.Select(x => x.CMin ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["CMax"] = all.Select(x => x.CMax ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["SiMin"] = all.Select(x => x.SiMin ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["SiMax"] = all.Select(x => x.SiMax ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["MnMin"] = all.Select(x => x.MnMin ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["MnMax"] = all.Select(x => x.MnMax ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["PMin"] = all.Select(x => x.PMin ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["PMax"] = all.Select(x => x.PMax ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["SMin"] = all.Select(x => x.SMin ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["SMax"] = all.Select(x => x.SMax ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["NiMin"] = all.Select(x => x.NiMin ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["NiMax"] = all.Select(x => x.NiMax ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["CrMin"] = all.Select(x => x.CrMin ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["CrMax"] = all.Select(x => x.CrMax ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["MoMin"] = all.Select(x => x.MoMin ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["MoMax"] = all.Select(x => x.MoMax ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["CuMin"] = all.Select(x => x.CuMin ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["CuMax"] = all.Select(x => x.CuMax ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["NMin"] = all.Select(x => x.NMin ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["NMax"] = all.Select(x => x.NMax ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["NbMin"] = all.Select(x => x.NbMin ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["NbMax"] = all.Select(x => x.NbMax ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["TiMin"] = all.Select(x => x.TiMin ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["TiMax"] = all.Select(x => x.TiMax ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["FeMin"] = all.Select(x => x.FeMin ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["FeMax"] = all.Select(x => x.FeMax ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["AlMin"] = all.Select(x => x.AlMin ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["AlMax"] = all.Select(x => x.AlMax ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["WMin"] = all.Select(x => x.WMin ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["WMax"] = all.Select(x => x.WMax ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["PRENMin"] = all.Select(x => x.PRENMin ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList()
+        };
+    }
+
     public async Task<ChemicalValidationRuleDto?> GetByPlantGradeAsync(string plantGrade)
     {
         return await _context.ChemicalValidationRules

@@ -40,6 +40,22 @@ public class WorkOrderExecutionService
     }
 
     /// <summary>
+    /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<Dictionary<string, List<string>>>>($"{BaseUrl}/filter-contexts");
+            return response ?? ApiResponse<Dictionary<string, List<string>>>.Fail("获取筛选上下文失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// 全量刷新所有工单的执行状况汇总
     /// </summary>
     public async Task<ApiResponse<WorkOrderExecutionRefreshResultDto>> RefreshAllAsync()

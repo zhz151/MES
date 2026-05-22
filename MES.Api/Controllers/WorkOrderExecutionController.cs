@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
@@ -24,8 +25,19 @@ public class WorkOrderExecutionController : ControllerBase
     /// </summary>
     [HttpGet("list")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<PagedResult<WorkOrderExecutionSummaryDto>>>> GetPaged([FromQuery] QueryParams query)
+    public async Task<ActionResult<ApiResponse<PagedResult<WorkOrderExecutionSummaryDto>>>> GetPaged(
+        [FromQuery] QueryParams query,
+        [FromQuery] string? filters = null)
     {
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try
+            {
+                var f = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (f != null && f.Count > 0) query.Filters = f;
+            }
+            catch { }
+        }
         var result = await _service.GetPagedAsync(query);
         return Ok(ApiResponse<PagedResult<WorkOrderExecutionSummaryDto>>.Ok(result));
     }

@@ -301,4 +301,28 @@ public class SectionOutsourceController : ControllerBase
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
+
+    // ========== 筛选上下文 ==========
+
+    /// <summary>
+    /// 获取委外回收筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    [HttpGet("recoveries/filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetRecoveryFilterContexts()
+    {
+        var result = await _service.GetOutsourceRecoveryFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
+
+    /// <summary>
+    /// 获取工段委外发出筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    [HttpGet("filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
+    {
+        var result = await _service.GetFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
 }

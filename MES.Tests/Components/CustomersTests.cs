@@ -14,6 +14,7 @@ public class CustomersTests : TestBase
     {
         RegisterServices(typeof(CustomerService));
         ConfigureEmptyResponse("/api/customer/list");
+        ConfigureEmptyResponse("/api/customer/filter-contexts");
     }
 
     [Fact]
@@ -44,6 +45,7 @@ public class CustomersTests : TestBase
     private void ConfigureListResponse(CustomerStatus status)
     {
         ConfigureEmptyResponse("/api/customer/list");
+        ConfigureEmptyResponse("/api/customer/filter-contexts");
         var pagedResult = new PagedResult<CustomerProfileDto>
         {
             Items = new List<CustomerProfileDto>

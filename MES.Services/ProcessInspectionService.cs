@@ -59,6 +59,18 @@ public class ProcessInspectionService : IProcessInspectionService
         if (query.InspectionDateTo.HasValue)
             queryable = queryable.Where(r => r.InspectionDate <= query.InspectionDateTo.Value);
 
+        // 处理 BatchNo 导航属性筛选（ProcessInspection 实体无 BatchNo 属性）
+        if (query.Filters != null)
+        {
+            var batchNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("BatchNo", StringComparison.OrdinalIgnoreCase));
+            if (batchNoFilter != null && batchNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(r => r.ProductionBatch != null
+                    && batchNoFilter.Values.Contains(r.ProductionBatch.BatchNo));
+                query.Filters.Remove(batchNoFilter);
+            }
+        }
+
         queryable = queryable.ApplyFilters(query.Filters);
         var totalCount = await queryable.CountAsync();
 
@@ -147,6 +159,51 @@ public class ProcessInspectionService : IProcessInspectionService
                         UpdatedTime = pi.UpdatedTime
                     };
         return await query.ToListAsync();
+    }
+
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var all = await _context.ProcessInspections
+            .AsNoTracking()
+            .Include(r => r.ProductionBatch)
+            .Select(r => new
+            {
+                r.ProductionBatch.BatchNo,
+                r.ProcessName,
+                r.ManufacturingSpec,
+                r.SectionName,
+                r.EquipmentName,
+                r.Inspector,
+                r.Shift,
+                r.InspectionItem,
+                r.ConcessionRemark,
+                r.DefectDescription,
+                r.SourceUnit,
+                r.TagNo,
+                r.PlantGrade,
+                r.InspectionDate,
+                r.Remark
+            })
+            .ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["BatchNo"] = all.Select(x => x.BatchNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+            ["ProcessName"] = all.Select(x => x.ProcessName).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+            ["ManufacturingSpec"] = all.Select(x => x.ManufacturingSpec ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["SectionName"] = all.Select(x => x.SectionName).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+            ["EquipmentName"] = all.Select(x => x.EquipmentName ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Inspector"] = all.Select(x => x.Inspector ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Shift"] = all.Select(x => x.Shift ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["InspectionItem"] = all.Select(x => x.InspectionItem ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["ConcessionRemark"] = all.Select(x => x.ConcessionRemark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["DefectDescription"] = all.Select(x => x.DefectDescription ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["SourceUnit"] = all.Select(x => x.SourceUnit ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["TagNo"] = all.Select(x => x.TagNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["PlantGrade"] = all.Select(x => x.PlantGrade ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["InspectionDate"] = all.Select(x => x.InspectionDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList(),
+            ["Remark"] = all.Select(x => x.Remark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList()
+        };
     }
 
     public async Task<List<ProcessInspectionDto>> BatchCreateAsync(List<CreateProcessInspectionRequest> requests)

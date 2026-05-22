@@ -124,6 +124,19 @@ public class MaterialService
         catch (Exception ex) { return ApiResponse<List<BatchMaterialMatchItem>>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    /// <summary>
+    /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<Dictionary<string, List<string>>>>($"{BaseUrl}/filter-contexts")
+                   ?? ApiResponse<Dictionary<string, List<string>>>.Fail("获取筛选上下文失败");
+        }
+        catch (Exception ex) { return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     // ========== 打印 ==========
 
     public async Task<ApiResponse<string>> PrintMaterialAsync(int id)

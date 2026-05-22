@@ -393,6 +393,46 @@ public async Task<ApiResponse<OrderWorkOrderRelationDto>> GetOrderWorkOrderRelat
     }
 
     /// <summary>
+    /// 分页查询工单列表（简化参数版本，用于 ServerData 模式）
+    /// </summary>
+    public async Task<ApiResponse<PagedResult<WorkOrderListDto>>> GetPagedAsync(
+        int pageIndex = 1, int pageSize = 20, string? keyword = null,
+        string? sortBy = null, bool isDescending = true, string? filters = null,
+        string? planTypeFilter = null)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/list?pageIndex={pageIndex}&pageSize={pageSize}&isDescending={isDescending.ToString().ToLower()}";
+            if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
+            if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
+            if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
+            if (!string.IsNullOrEmpty(planTypeFilter)) url += $"&planTypeFilter={Uri.EscapeDataString(planTypeFilter)}";
+            var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<WorkOrderListDto>>>(url);
+            return response ?? ApiResponse<PagedResult<WorkOrderListDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<PagedResult<WorkOrderListDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 获取工单筛选上下文（各列去重值）
+    /// </summary>
+    public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<Dictionary<string, List<string>>>>($"{BaseUrl}/filter-contexts");
+            return response ?? ApiResponse<Dictionary<string, List<string>>>.Fail("获取筛选上下文失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// 获取所有用料计划总览数据（无分页，客户端筛选排序）
     /// </summary>
     public async Task<ApiResponse<List<WorkOrderListDto>>> GetAllAsync()

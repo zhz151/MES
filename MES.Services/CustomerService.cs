@@ -287,6 +287,38 @@ public class CustomerService : ICustomerService
             .ToListAsync();
     }
 
+    public async Task<Dictionary<string, List<string>>> GetCustomerFilterContextsAsync()
+    {
+        // 注意：枚举列（Status）不在此处返回，
+        // 由前端 EnumOptions fallback 直接提供带中文 Display 的选项，避免映射丢失。
+        var all = await _context.CustomerProfiles
+            .AsNoTracking()
+            .Select(c => new
+            {
+                c.CustomerCode,
+                c.Salesman,
+                c.CustomerUnit,
+                c.EndCustomer,
+                c.ContactPerson,
+                c.ContactPhone,
+                c.Address,
+                c.Remark
+            })
+            .ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["CustomerCode"] = all.Select(x => x.CustomerCode).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+            ["Salesman"] = all.Select(x => x.Salesman).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+            ["CustomerUnit"] = all.Select(x => x.CustomerUnit).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+            ["EndCustomer"] = all.Select(x => x.EndCustomer ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["ContactPerson"] = all.Select(x => x.ContactPerson ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["ContactPhone"] = all.Select(x => x.ContactPhone ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Address"] = all.Select(x => x.Address ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Remark"] = all.Select(x => x.Remark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList()
+        };
+    }
+
     // ========== 打印 ==========
 
     public async Task<byte[]> PrintCustomerAsync(int id)

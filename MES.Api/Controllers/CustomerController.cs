@@ -125,6 +125,17 @@ public class CustomerController : ControllerBase
         return Ok(ApiResponse<List<CustomerSelectDto>>.Ok(result, "查询成功"));
     }
 
+    /// <summary>
+    /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    [HttpGet("filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
+    {
+        var result = await _customerService.GetCustomerFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
+
     // ========== 打印 ==========
 
     /// <summary>

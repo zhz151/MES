@@ -273,4 +273,17 @@ public class ProductionStandardService : IProductionStandardService
         var paged = await GetPagedAsync(query, isActive);
         return StandardPrintHelper.GenerateBatchPdf(paged.Items);
     }
+
+    // ========== 筛选上下文 ==========
+
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var query = _context.ProductionStandards.AsNoTracking();
+        return new Dictionary<string, List<string>>
+        {
+            ["StandardCode"] = await query.Select(x => x.StandardCode).Distinct().OrderBy(x => x).ToListAsync(),
+            ["StandardName"] = await query.Select(x => x.StandardName).Distinct().OrderBy(x => x).ToListAsync(),
+            ["Remark"] = await query.Where(x => x.Remark != null).Select(x => x.Remark!).Distinct().OrderBy(x => x).ToListAsync(),
+        };
+    }
 }

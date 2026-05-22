@@ -300,6 +300,31 @@ public class ProductionRecordService
         catch (Exception ex) { return ApiResponse<List<MaterialReceiveCheckDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    // ========== 筛选上下文 ==========
+
+    public async Task<ApiResponse<Dictionary<string, List<string>>>> GetMaterialCheckFilterContextsAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<Dictionary<string, List<string>>>>($"{BaseUrl}/material-check/filter-contexts")
+                   ?? ApiResponse<Dictionary<string, List<string>>>.Fail("获取筛选上下文失败");
+        }
+        catch (Exception ex) { return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    /// <summary>
+    /// 获取生产记录筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<Dictionary<string, List<string>>>>($"{BaseUrl}/all/filter-contexts")
+                   ?? ApiResponse<Dictionary<string, List<string>>>.Fail("获取筛选上下文失败");
+        }
+        catch (Exception ex) { return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     // ========== 批次跟踪字段 ==========
 
     public async Task<ApiResponse<object>> RefreshBatchTrackingAsync(int batchId)

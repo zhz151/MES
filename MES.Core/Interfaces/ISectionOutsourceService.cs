@@ -98,4 +98,14 @@ public interface ISectionOutsourceService
     Task<byte[]> PrintRecoveryAllAsync(string? keyword, string? sortBy, bool isDescending,
         DateTime? recoveryDateFrom, DateTime? recoveryDateTo,
         List<PrintColumnDef> columns);
+
+    /// <summary>
+    /// 获取委外回收筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    Task<Dictionary<string, List<string>>> GetOutsourceRecoveryFilterContextsAsync();
+
+    /// <summary>
+    /// 获取工段委外发出筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 }

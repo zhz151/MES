@@ -59,6 +59,45 @@ public class CustomerService
     }
 
     /// <summary>
+    /// 分页查询客户列表（直接参数风格，支持筛选过滤）
+    /// </summary>
+    public async Task<ApiResponse<PagedResult<CustomerProfileDto>>> GetAllAsync(
+        int pageIndex = 1, int pageSize = 20,
+        string? keyword = null, string? sortBy = null,
+        bool isDescending = true, List<FilterDescriptor>? filters = null)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/list?pageIndex={pageIndex}&pageSize={pageSize}&sortBy={Uri.EscapeDataString(sortBy ?? "CreatedTime")}&isDescending={isDescending.ToString().ToLower()}";
+            if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
+            if (filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(filters))}";
+
+            var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<CustomerProfileDto>>>(url);
+            return response ?? ApiResponse<PagedResult<CustomerProfileDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<PagedResult<CustomerProfileDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<Dictionary<string, List<string>>>>($"{BaseUrl}/filter-contexts");
+            return response ?? ApiResponse<Dictionary<string, List<string>>>.Fail("获取筛选上下文失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// 获取所有客户（用于下拉框）
     /// </summary>
     public async Task<List<CustomerProfileDto>> GetAllAsync()

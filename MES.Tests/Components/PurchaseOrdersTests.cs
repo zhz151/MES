@@ -22,6 +22,7 @@ public class PurchaseOrdersTests : TestBase
         ConfigureResponse("/api/purchase-order/sync-all", new ApiResponse<object> { Success = true, Code = 200, Message = "OK", Data = new { } }, "POST");
         ConfigureResponse("/api/purchase-order/procurement-status", new ApiResponse<List<ProcurementStatusDto>> { Success = true, Code = 200, Data = new List<ProcurementStatusDto>() });
         ConfigureResponse("/api/purchase-order/mismatched-orders", new ApiResponse<List<OrderMismatchInfo>> { Success = true, Code = 200, Data = new List<OrderMismatchInfo>() });
+        ConfigureResponse("/api/purchase-order/filter-contexts", new ApiResponse<Dictionary<string, List<string>>> { Success = true, Code = 200, Data = new Dictionary<string, List<string>>() });
     }
 
     [Fact]
@@ -35,7 +36,7 @@ public class PurchaseOrdersTests : TestBase
     public void Render_HasFilter()
     {
         var cut = Ctx.RenderComponent<PurchaseOrders>();
-        cut.Markup.Should().Contain("全部状态");
+        cut.Markup.Should().Contain("状态");
     }
 
     [Fact]

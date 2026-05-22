@@ -114,4 +114,27 @@ public class MaintenanceOrderService
         }
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
+
+    public async Task<ApiResponse<PagedResult<MaintenanceOrderListDto>>> GetPagedAsync(int pageIndex, int pageSize, string? keyword, string? sortBy, bool isDescending, string? filters)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/list?pageIndex={pageIndex}&pageSize={pageSize}&sortBy={Uri.EscapeDataString(sortBy ?? "Id")}&isDescending={isDescending.ToString().ToLower()}";
+            if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
+            if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
+            return await _http.GetFromJsonAsync<ApiResponse<PagedResult<MaintenanceOrderListDto>>>(url)
+                   ?? ApiResponse<PagedResult<MaintenanceOrderListDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<PagedResult<MaintenanceOrderListDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<Dictionary<string, List<string>>>>($"{BaseUrl}/filter-contexts")
+                   ?? ApiResponse<Dictionary<string, List<string>>>.Fail("获取筛选上下文失败");
+        }
+        catch (Exception ex) { return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}"); }
+    }
 }

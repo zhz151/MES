@@ -126,6 +126,11 @@ public interface IBatchService
     /// </summary>
     Task<AdjacentBatchDto> GetAdjacentBatchAsync(int currentId);
 
+    /// <summary>
+    /// 获取 ExcelFilter 列筛选上下文（各列 distinct 值）
+    /// </summary>
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
+
     // ========== 批次操作日志 ==========
 
     /// <summary>

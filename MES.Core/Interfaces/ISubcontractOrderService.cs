@@ -20,6 +20,9 @@ public interface ISubcontractOrderService
     Task<List<OrderMismatchInfo>> GetMismatchedSubcontractOrdersAsync();
     Task<PlanDetailDto?> GetPlanDetailAsync(string workOrderNo, string materialCategory);
 
+    // ========== 筛选上下文 ==========
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
+
     // ========== 打印 ==========
     Task<byte[]> PrintOrderAsync(int id);
     Task<byte[]> PrintOrderBatchAsync(int[] ids);

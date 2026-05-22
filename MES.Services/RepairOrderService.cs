@@ -275,6 +275,47 @@ public class RepairOrderService : IRepairOrderService
         await _context.SaveChangesAsync();
     }
 
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var query = from r in _context.RepairOrders.AsNoTracking()
+                    join e in _context.Equipment.AsNoTracking() on r.EquipmentId equals e.Id
+                    select new
+                    {
+                        r.RepairOrderNo,
+                        r.FaultDescription,
+                        r.FaultType,
+                        r.ReportPerson,
+                        r.ReportTime,
+                        r.RepairPerson,
+                        r.RepairStartTime,
+                        r.RepairEndTime,
+                        r.RepairContent,
+                        r.SparePartUsed,
+                        e.EquipmentName,
+                        e.EquipmentCode,
+                        Location = e.Location
+                    };
+
+        var all = await query.ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["RepairOrderNo"] = all.Select(x => x.RepairOrderNo).Distinct().OrderBy(x => x).ToList(),
+            ["EquipmentName"] = all.Select(x => x.EquipmentName).Distinct().OrderBy(x => x).ToList(),
+            ["EquipmentCode"] = all.Select(x => x.EquipmentCode).Distinct().OrderBy(x => x).ToList(),
+            ["EquipmentLocation"] = all.Where(x => x.Location != null).Select(x => x.Location!).Distinct().OrderBy(x => x).ToList(),
+            ["FaultDescription"] = all.Select(x => x.FaultDescription).Distinct().OrderBy(x => x).ToList(),
+            ["FaultType"] = all.Where(x => x.FaultType != null).Select(x => x.FaultType!).Distinct().OrderBy(x => x).ToList(),
+            ["ReportPerson"] = all.Select(x => x.ReportPerson).Distinct().OrderBy(x => x).ToList(),
+            ["ReportTime"] = all.Select(x => x.ReportTime.ToString("yyyy-MM-dd HH:mm")).Distinct().OrderBy(x => x).ToList(),
+            ["RepairPerson"] = all.Where(x => x.RepairPerson != null).Select(x => x.RepairPerson!).Distinct().OrderBy(x => x).ToList(),
+            ["RepairStartTime"] = all.Where(x => x.RepairStartTime != null).Select(x => x.RepairStartTime!.Value.ToString("yyyy-MM-dd HH:mm")).Distinct().OrderBy(x => x).ToList(),
+            ["RepairEndTime"] = all.Where(x => x.RepairEndTime != null).Select(x => x.RepairEndTime!.Value.ToString("yyyy-MM-dd HH:mm")).Distinct().OrderBy(x => x).ToList(),
+            ["RepairContent"] = all.Where(x => x.RepairContent != null).Select(x => x.RepairContent!).Distinct().OrderBy(x => x).ToList(),
+            ["SparePartUsed"] = all.Where(x => x.SparePartUsed != null).Select(x => x.SparePartUsed!).Distinct().OrderBy(x => x).ToList(),
+        };
+    }
+
     public async Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
     {
         var query = new RepairOrderQueryParams

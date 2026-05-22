@@ -21,6 +21,11 @@ public interface IMaterialService
     Task<MaterialDto> UpdateAsync(int id, UpdateMaterialRequest request);
     Task DeleteAsync(int id);
 
+    /// <summary>
+    /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
+
     // ========== 打印 ==========
     Task<byte[]> PrintMaterialAsync(int id);
     Task<byte[]> PrintMaterialBatchAsync(int[] ids);

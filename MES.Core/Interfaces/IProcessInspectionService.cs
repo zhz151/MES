@@ -19,6 +19,11 @@ public interface IProcessInspectionService
     Task<List<ProcessInspectionDto>> GetAllListAsync();
 
     /// <summary>
+    /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
+
+    /// <summary>
     /// 批量创建过程检验记录
     /// </summary>
     Task<List<ProcessInspectionDto>> BatchCreateAsync(List<CreateProcessInspectionRequest> requests);

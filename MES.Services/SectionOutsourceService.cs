@@ -115,6 +115,37 @@ public class SectionOutsourceService : ISectionOutsourceService
             queryable = queryable.Where(s => s.OutsourceRecoveries.Any(r => r.RecoveryDate < to));
         }
 
+        // 处理 BatchNo 导航属性筛选（SectionOutsource 实体无 BatchNo 属性，ApplyFilters 反射不到）
+        if (query.Filters != null)
+        {
+            var batchNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("BatchNo", StringComparison.OrdinalIgnoreCase));
+            if (batchNoFilter != null && batchNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(s => s.ProductionBatch != null
+                    && batchNoFilter.Values.Contains(s.ProductionBatch.BatchNo));
+                query.Filters.Remove(batchNoFilter);
+            }
+        }
+
+        // 处理 ActualRecoveryDate 计算字段筛选（从 OutsourceRecoveries 聚合，非实体属性）
+        if (query.Filters != null)
+        {
+            var actualRecoveryFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("ActualRecoveryDate", StringComparison.OrdinalIgnoreCase));
+            if (actualRecoveryFilter != null && actualRecoveryFilter.Values?.Count > 0)
+            {
+                var parsedDates = actualRecoveryFilter.Values
+                    .Select(v => DateTime.TryParse(v, out var d) ? (DateTime?)d.Date : null)
+                    .Where(d => d.HasValue)
+                    .Select(d => d!.Value)
+                    .ToHashSet();
+                if (parsedDates.Count > 0)
+                {
+                    queryable = queryable.Where(s => s.OutsourceRecoveries.Any(r => parsedDates.Contains(r.RecoveryDate.Date)));
+                }
+                query.Filters.Remove(actualRecoveryFilter);
+            }
+        }
+
         queryable = queryable.ApplyFilters(query.Filters);
 
         var totalCount = await queryable.CountAsync();
@@ -480,6 +511,73 @@ public class SectionOutsourceService : ISectionOutsourceService
         {
             var to = query.RecoveryDateTo.Value.Date.AddDays(1);
             queryable = queryable.Where(r => r.RecoveryDate < to);
+        }
+
+        // 处理导航属性筛选（OutsourceRecovery 实体无这些属性，ApplyFilters 反射不到）
+        if (query.Filters != null)
+        {
+            var batchNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("BatchNo", StringComparison.OrdinalIgnoreCase));
+            if (batchNoFilter != null && batchNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(r => r.SectionOutsource.ProductionBatch.BatchNo != null
+                    && batchNoFilter.Values.Contains(r.SectionOutsource.ProductionBatch.BatchNo));
+                query.Filters.Remove(batchNoFilter);
+            }
+
+            var vendorFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("OutsourceVendor", StringComparison.OrdinalIgnoreCase));
+            if (vendorFilter != null && vendorFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(r => r.SectionOutsource.OutsourceVendor != null
+                    && vendorFilter.Values.Contains(r.SectionOutsource.OutsourceVendor));
+                query.Filters.Remove(vendorFilter);
+            }
+
+            var processFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("ProcessName", StringComparison.OrdinalIgnoreCase));
+            if (processFilter != null && processFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(r => processFilter.Values.Contains(r.SectionOutsource.ProcessName));
+                query.Filters.Remove(processFilter);
+            }
+
+            var sectionFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("SectionName", StringComparison.OrdinalIgnoreCase));
+            if (sectionFilter != null && sectionFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(r => r.SectionOutsource.SectionName != null
+                    && sectionFilter.Values.Contains(r.SectionOutsource.SectionName));
+                query.Filters.Remove(sectionFilter);
+            }
+
+            var mfgSpecFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("ManufacturingSpec", StringComparison.OrdinalIgnoreCase));
+            if (mfgSpecFilter != null && mfgSpecFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(r => r.SectionOutsource.ManufacturingSpec != null
+                    && mfgSpecFilter.Values.Contains(r.SectionOutsource.ManufacturingSpec));
+                query.Filters.Remove(mfgSpecFilter);
+            }
+
+            var outsourceSpecFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("OutsourceSpec", StringComparison.OrdinalIgnoreCase));
+            if (outsourceSpecFilter != null && outsourceSpecFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(r => r.SectionOutsource.OutsourceSpec != null
+                    && outsourceSpecFilter.Values.Contains(r.SectionOutsource.OutsourceSpec));
+                query.Filters.Remove(outsourceSpecFilter);
+            }
+
+            var tagNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("TagNo", StringComparison.OrdinalIgnoreCase));
+            if (tagNoFilter != null && tagNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(r => r.SectionOutsource.TagNo != null
+                    && tagNoFilter.Values.Contains(r.SectionOutsource.TagNo));
+                query.Filters.Remove(tagNoFilter);
+            }
+
+            var plantGradeFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("PlantGrade", StringComparison.OrdinalIgnoreCase));
+            if (plantGradeFilter != null && plantGradeFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(r => r.SectionOutsource.PlantGrade != null
+                    && plantGradeFilter.Values.Contains(r.SectionOutsource.PlantGrade));
+                query.Filters.Remove(plantGradeFilter);
+            }
         }
 
         queryable = queryable.ApplyFilters(query.Filters);
@@ -878,6 +976,105 @@ public class SectionOutsourceService : ISectionOutsourceService
         }).ToList();
 
         return TablePrintHelper.GeneratePdf("委外回收列表", data, columns);
+    }
+
+    // ========== 筛选上下文 ==========
+
+    public async Task<Dictionary<string, List<string>>> GetOutsourceRecoveryFilterContextsAsync()
+    {
+        var recoveries = _context.OutsourceRecoveries
+            .AsNoTracking()
+            .Include(r => r.SectionOutsource)
+                .ThenInclude(s => s.ProductionBatch);
+
+        return new Dictionary<string, List<string>>
+        {
+            ["BatchNo"] = await recoveries
+                .Select(r => r.SectionOutsource.ProductionBatch.BatchNo)
+                .Distinct().OrderBy(x => x).ToListAsync(),
+            ["OutsourceVendor"] = await recoveries
+                .Select(r => r.SectionOutsource.OutsourceVendor)
+                .Distinct().OrderBy(x => x).ToListAsync(),
+            ["ProcessName"] = await recoveries
+                .Select(r => r.SectionOutsource.ProcessName)
+                .Distinct().OrderBy(x => x).ToListAsync(),
+            ["SectionName"] = await recoveries
+                .Select(r => r.SectionOutsource.SectionName)
+                .Distinct().OrderBy(x => x).ToListAsync(),
+            ["ManufacturingSpec"] = await recoveries
+                .Where(r => r.SectionOutsource.ManufacturingSpec != null)
+                .Select(r => r.SectionOutsource.ManufacturingSpec!)
+                .Distinct().OrderBy(x => x).ToListAsync(),
+            ["OutsourceSpec"] = await recoveries
+                .Where(r => r.SectionOutsource.OutsourceSpec != null)
+                .Select(r => r.SectionOutsource.OutsourceSpec!)
+                .Distinct().OrderBy(x => x).ToListAsync(),
+            ["TagNo"] = await recoveries
+                .Where(r => r.SectionOutsource.TagNo != null)
+                .Select(r => r.SectionOutsource.TagNo!)
+                .Distinct().OrderBy(x => x).ToListAsync(),
+            ["PlantGrade"] = await recoveries
+                .Where(r => r.SectionOutsource.PlantGrade != null)
+                .Select(r => r.SectionOutsource.PlantGrade!)
+                .Distinct().OrderBy(x => x).ToListAsync(),
+            ["Remark"] = await recoveries
+                .Where(r => r.Remark != null)
+                .Select(r => r.Remark!)
+                .Distinct().OrderBy(x => x).ToListAsync(),
+            ["RecoveryDate"] = await recoveries
+                .Select(r => r.RecoveryDate.ToString("yyyy-MM-dd"))
+                .Distinct().OrderBy(x => x).ToListAsync(),
+            ["CreatedTime"] = await recoveries
+                .Select(r => r.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"))
+                .Distinct().OrderBy(x => x).ToListAsync(),
+        };
+    }
+
+    /// <summary>
+    /// 获取工段委外发出筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var query = _context.SectionOutsources
+            .AsNoTracking()
+            .Include(s => s.ProductionBatch)
+            .Include(s => s.OutsourceRecoveries);
+
+        // 注意：枚举列（Status）不在此处返回，
+        // 由前端 EnumOptions fallback 直接提供带中文 Display 的选项，避免映射丢失。
+        var results = await query.Select(s => new
+        {
+            s.ProductionBatch.BatchNo,
+            s.ProcessName,
+            s.ManufacturingSpec,
+            s.SectionName,
+            s.OutsourceVendor,
+            s.TagNo,
+            s.PlantGrade,
+            s.OutsourceSpec,
+            s.Remark,
+            s.SendOutDate,
+            s.ExpectedReturnDate,
+            ActualRecoveryDate = s.OutsourceRecoveries.Max(r => (DateTime?)r.RecoveryDate)
+        }).ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["BatchNo"] = results.Select(x => x.BatchNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["ProcessName"] = results.Select(x => x.ProcessName).Distinct().OrderBy(x => x).ToList(),
+            ["ManufacturingSpec"] = results.Select(x => x.ManufacturingSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["SectionName"] = results.Select(x => x.SectionName).Distinct().OrderBy(x => x).ToList(),
+            ["OutsourceVendor"] = results.Select(x => x.OutsourceVendor).Distinct().OrderBy(x => x).ToList(),
+            ["TagNo"] = results.Select(x => x.TagNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["PlantGrade"] = results.Select(x => x.PlantGrade).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["OutsourceSpec"] = results.Select(x => x.OutsourceSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Remark"] = results.Select(x => x.Remark).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["SendOutDate"] = results.Select(x => x.SendOutDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["ExpectedReturnDate"] = results.Where(x => x.ExpectedReturnDate.HasValue)
+                .Select(x => x.ExpectedReturnDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["ActualRecoveryDate"] = results.Where(x => x.ActualRecoveryDate.HasValue)
+                .Select(x => x.ActualRecoveryDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+        };
     }
 
     // ========== 辅助方法 ==========

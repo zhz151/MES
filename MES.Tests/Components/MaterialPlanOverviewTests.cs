@@ -54,6 +54,9 @@ public class MaterialPlanOverviewTests : IDisposable
         // ColumnPrefsService（依赖 ILocalStorageService）
         _ctx.Services.AddSingleton(new ColumnPrefsService(localStorage.Object));
 
+        // PageStateService（依赖 ILocalStorageService）
+        _ctx.Services.AddSingleton(new PageStateService(localStorage.Object));
+
         // JS 运行时 stub（MudBlazor Popover 需要真实 IJSRuntime）
         _ctx.Services.AddSingleton<Microsoft.JSInterop.IJSRuntime>(
             new SilentJsRuntime());
@@ -64,6 +67,21 @@ public class MaterialPlanOverviewTests : IDisposable
         // Fake HttpClient → AuthHttpClient → WorkOrderService
         var handler = new FakeHandler(req =>
         {
+            // 筛选上下文端点：返回空字典
+            if (req.RequestUri!.AbsolutePath.Contains("/api/workorder/filter-contexts"))
+            {
+                var filterJson = JsonSerializer.Serialize(new ApiResponse<Dictionary<string, List<string>>>
+                {
+                    Success = true, Code = 200, Message = "OK",
+                    Data = new Dictionary<string, List<string>>()
+                });
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(filterJson, new MediaTypeHeaderValue("application/json"))
+                };
+            }
+
+            // 列表端点：捕获查询参数
             if (req.RequestUri!.AbsolutePath.Contains("/api/workorder/list"))
             {
                 var q = HttpUtility.ParseQueryString(req.RequestUri.Query);
@@ -111,14 +129,16 @@ public class MaterialPlanOverviewTests : IDisposable
     [Fact]
     public void PageIndex_FirstPage_IsOne()
     {
-        Render();
+        var cut = Render();
+        cut.WaitForState(() => _captured.PageIndex > 0);
         _captured.PageIndex.Should().Be(1);
     }
 
     [Fact]
     public void PageSize_MatchesRowsPerPage()
     {
-        Render();
+        var cut = Render();
+        cut.WaitForState(() => _captured.PageSize > 0);
         _captured.PageSize.Should().Be(10);
     }
 
@@ -127,7 +147,8 @@ public class MaterialPlanOverviewTests : IDisposable
     [Fact]
     public void NoFilters_SendsNullStatusParams()
     {
-        Render();
+        var cut = Render();
+        cut.WaitForState(() => _captured.PageIndex > 0);
         _captured.MaterialPlanStatus.Should().BeNull();
         _captured.MainNoStatus.Should().BeNull();
         _captured.OrderStatus.Should().BeNull();
@@ -146,9 +167,7 @@ public class MaterialPlanOverviewTests : IDisposable
     public void Render_HasFilters()
     {
         var cut = Render();
-        cut.Markup.Should().Contain("工单用料计划状态");
-        cut.Markup.Should().Contain("关联主号用料");
-        cut.Markup.Should().Contain("关联订单用料");
+        cut.Markup.Should().Contain("模糊搜索");
     }
 
     [Fact]
@@ -165,7 +184,7 @@ public class MaterialPlanOverviewTests : IDisposable
             r.TotalCount = 1;
         });
         var cut = Render();
-        cut.Markup.Should().Contain("WO-TEST-001");
+        cut.WaitForState(() => cut.Markup.Contains("WO-TEST-001"));
     }
 
     [Fact]
@@ -198,7 +217,7 @@ public class MaterialPlanOverviewTests : IDisposable
             r.TotalCount = 1;
         });
         var cut = Render();
-        cut.Markup.Should().Contain(expected);
+        cut.WaitForState(() => cut.Markup.Contains(expected));
     }
 
     [Theory]
@@ -219,7 +238,7 @@ public class MaterialPlanOverviewTests : IDisposable
             r.TotalCount = 1;
         });
         var cut = Render();
-        cut.Markup.Should().Contain(expected);
+        cut.WaitForState(() => cut.Markup.Contains(expected));
     }
 
     // ========== 辅助 ==========

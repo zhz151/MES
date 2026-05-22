@@ -218,6 +218,37 @@ public class MaintenanceOrderService : IMaintenanceOrderService
         await _context.SaveChangesAsync();
     }
 
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var query = from m in _context.MaintenanceOrders.AsNoTracking()
+                    join e in _context.Equipment.AsNoTracking() on m.EquipmentId equals e.Id
+                    select new
+                    {
+                        m.MaintOrderNo,
+                        m.ActualDate,
+                        m.Executor,
+                        m.ExecutionSummary,
+                        m.Remark,
+                        e.EquipmentName,
+                        e.EquipmentCode,
+                        e.Location
+                    };
+
+        var all = await query.ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["MaintOrderNo"] = all.Select(x => x.MaintOrderNo).Distinct().OrderBy(x => x).ToList(),
+            ["EquipmentName"] = all.Select(x => x.EquipmentName).Distinct().OrderBy(x => x).ToList(),
+            ["EquipmentCode"] = all.Select(x => x.EquipmentCode).Distinct().OrderBy(x => x).ToList(),
+            ["Location"] = all.Where(x => x.Location != null).Select(x => x.Location!).Distinct().OrderBy(x => x).ToList(),
+            ["ActualDate"] = all.Where(x => x.ActualDate != null).Select(x => x.ActualDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["Executor"] = all.Where(x => x.Executor != null).Select(x => x.Executor!).Distinct().OrderBy(x => x).ToList(),
+            ["ExecutionSummary"] = all.Where(x => x.ExecutionSummary != null).Select(x => x.ExecutionSummary!).Distinct().OrderBy(x => x).ToList(),
+            ["Remark"] = all.Where(x => x.Remark != null).Select(x => x.Remark!).Distinct().OrderBy(x => x).ToList(),
+        };
+    }
+
     public async Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
     {
         var query = new MaintenanceOrderQueryParams

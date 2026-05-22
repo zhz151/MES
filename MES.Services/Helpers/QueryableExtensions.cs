@@ -254,6 +254,70 @@ public static class QueryableExtensions
             return Expression.Call(containsMethod, Expression.Constant(list), member);
         }
 
+        // 布尔类型：解析 "True"/"False" 字符串为 bool 后匹配
+        if (underlyingType == typeof(bool))
+        {
+            var parsedValues = values
+                .Select(v => bool.TryParse(v, out var b) ? (bool?)b : null)
+                .Where(v => v.HasValue)
+                .Select(v => v!.Value)
+                .ToList();
+            if (parsedValues.Count == 0)
+                return null;
+            var list = Expression.Constant(parsedValues);
+            var containsMethod = typeof(List<bool>).GetMethod("Contains", [typeof(bool)]);
+            if (containsMethod == null)
+                return null;
+            return Expression.Call(list, containsMethod, member);
+        }
+
+        // DateTime 类型（含 Nullable<DateTime>）
+        if (underlyingType == typeof(DateTime))
+        {
+            // 解析筛选值为纯日期（去除时间部分），使 "2026-05-23" 匹配带时间的 DateTime
+            var parsedDates = values
+                .Select(v => DateTime.TryParse(v, out var dt) ? (DateTime?)dt.Date : null)
+                .Where(v => v.HasValue)
+                .Select(v => v!.Value)
+                .ToList();
+            if (parsedDates.Count == 0)
+                return null;
+            var dateList = Expression.Constant(parsedDates);
+            var dateContains = typeof(List<DateTime>).GetMethod("Contains", [typeof(DateTime)]);
+            if (dateContains == null)
+                return null;
+            // Nullable<DateTime> 类型需取 .Value 以匹配 Contains(DateTime)
+            var memberForContains = member;
+            if (member.Type != typeof(DateTime))
+                memberForContains = Expression.Property(member, "Value");
+            // 截取 Date 部分：使带时间的 DateTime 也能被纯日期值匹配
+            memberForContains = Expression.Property(memberForContains, "Date");
+            return Expression.Call(dateList, dateContains, memberForContains);
+        }
+
+        // 整数类型（如 MaterialPlanStatus=0/1/2/3/4 等状态字段）
+        if (underlyingType == typeof(int) || underlyingType == typeof(long)
+            || underlyingType == typeof(short) || underlyingType == typeof(byte))
+        {
+            var parsedValues = values
+                .Select(v => long.TryParse(v, out var n) ? (long?)n : null)
+                .Where(v => v.HasValue)
+                .Select(v => Convert.ChangeType(v!.Value, underlyingType))
+                .ToList();
+            if (parsedValues.Count == 0)
+                return null;
+            var listType = typeof(List<>).MakeGenericType(underlyingType);
+            var list = Activator.CreateInstance(listType);
+            var addMethod = listType.GetMethod("Add")!;
+            foreach (var v in parsedValues)
+                addMethod.Invoke(list, [v]);
+            var containsMethod = typeof(Enumerable)
+                .GetMethods()
+                .First(m => m.Name == "Contains" && m.GetParameters().Length == 2)
+                .MakeGenericMethod(underlyingType);
+            return Expression.Call(containsMethod, Expression.Constant(list), member);
+        }
+
         // 字符串列表
         var stringList = Expression.Constant(values);
         var stringContains = typeof(List<string>).GetMethod("Contains", [typeof(string)]);

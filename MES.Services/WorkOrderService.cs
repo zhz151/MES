@@ -1426,6 +1426,44 @@ public class WorkOrderService : IWorkOrderService
         return items;
     }
 
+    // ========== 筛选上下文 ==========
+
+    public async Task<Dictionary<string, List<string>>> GetWorkOrderFilterContextsAsync()
+    {
+        var items = await _context.Set<WorkOrderListSummary>()
+            .AsNoTracking()
+            .Select(s => new
+            {
+                s.WorkOrderNo,
+                s.SalesOrderNo,
+                s.ProductionMainNo,
+                s.ProductionSubNo,
+                s.SignDate,
+                s.Salesman,
+                s.EndCustomer,
+                s.DeliveryDate,
+                s.PlantGrade,
+                s.Specification,
+                s.LatestPlanDate
+            })
+            .ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["WorkOrderNo"] = items.Select(x => x.WorkOrderNo).Distinct().OrderBy(x => x).ToList(),
+            ["SalesOrderNo"] = items.Select(x => x.SalesOrderNo).Distinct().OrderBy(x => x).ToList(),
+            ["ProductionMainNo"] = items.Select(x => x.ProductionMainNo).Distinct().OrderBy(x => x).ToList(),
+            ["ProductionSubNo"] = items.Select(x => x.ProductionSubNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["SignDate"] = items.Select(x => x.SignDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["Salesman"] = items.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
+            ["EndCustomer"] = items.Select(x => x.EndCustomer).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["DeliveryDate"] = items.Select(x => x.DeliveryDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["PlantGrade"] = items.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
+            ["Specification"] = items.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
+            ["LatestPlanDate"] = items.Select(x => x.LatestPlanDate?.ToString("yyyy-MM-dd")).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!
+        };
+    }
+
     public async Task<PagedResult<WorkOrderListDto>> GetPagedAsync(WorkOrderQueryParams query)
     {
         if (_listSummaryService == null)

@@ -297,4 +297,38 @@ public class InventoryService
         }
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
+
+    // ========== 筛选上下文 ==========
+
+    /// <summary>
+    /// 获取出库记录筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<Dictionary<string, List<string>>>>($"{BaseUrl}/outbound-filter-contexts");
+            return response ?? ApiResponse<Dictionary<string, List<string>>>.Fail("获取筛选上下文失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 获取库存批次筛选上下文（各列去重值），用于 ExcelFilter 下拉选项（入库/库存页面使用）
+    /// </summary>
+    public async Task<ApiResponse<Dictionary<string, List<string>>>> GetInventoryFilterContextsAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<Dictionary<string, List<string>>>>($"{BaseUrl}/inventory-filter-contexts");
+            return response ?? ApiResponse<Dictionary<string, List<string>>>.Fail("获取筛选上下文失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
 }

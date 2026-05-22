@@ -81,6 +81,17 @@ public class ChemicalValidationRuleController : ControllerBase
     }
 
     /// <summary>
+    /// 获取筛选上下文（各列的 DISTINCT 值）
+    /// </summary>
+    [HttpGet("filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
+    {
+        var result = await _service.GetFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
     /// 根据工厂牌号获取验证规则
     /// </summary>
     [HttpGet("by-plant-grade")]

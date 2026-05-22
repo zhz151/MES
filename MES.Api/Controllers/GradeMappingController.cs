@@ -1,4 +1,5 @@
 // 文件路径: MES.Api/Controllers/GradeMappingController.cs
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
@@ -28,8 +29,19 @@ public class GradeMappingController : ControllerBase
     /// </summary>
     [HttpGet("list")]
     [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<PagedResult<StandardGradeMappingDto>>>> GetPaged([FromQuery] QueryParams query)
+    public async Task<ActionResult<ApiResponse<PagedResult<StandardGradeMappingDto>>>> GetPaged(
+        [FromQuery] QueryParams query,
+        [FromQuery] string? filters = null)
     {
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try
+            {
+                var f = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (f != null && f.Count > 0) query.Filters = f;
+            }
+            catch { }
+        }
         var result = await _service.GetPagedAsync(query);
         return Ok(ApiResponse<PagedResult<StandardGradeMappingDto>>.Ok(result, "查询成功"));
     }
@@ -139,5 +151,18 @@ public class GradeMappingController : ControllerBase
     {
         await _service.DeleteAsync(id);
         return Ok(ApiResponse<object>.Ok(new object(), "删除成功"));
+    }
+
+    // ========== 筛选上下文 ==========
+
+    /// <summary>
+    /// 获取牌号对照筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    [HttpGet("filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
+    {
+        var result = await _service.GetFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
     }
 }

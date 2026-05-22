@@ -287,6 +287,16 @@ public class BatchController : ControllerBase
         return Ok(ApiResponse<List<BatchOperationLogDto>>.Ok(result, "查询成功"));
     }
 
+    // ========== 筛选上下文 ==========
+
+    [HttpGet("filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
+    {
+        var result = await _service.GetFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
+
     // ========== 打印 ==========
 
     [HttpGet("{id}/print")]

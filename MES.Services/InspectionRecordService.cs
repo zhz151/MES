@@ -97,6 +97,24 @@ public class InspectionRecordService : IInspectionRecordService
         };
     }
 
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var records = _context.InspectionRecords.AsNoTracking();
+        var equipment = _context.Equipment.AsNoTracking();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["RecordNo"] = await records.Select(r => r.RecordNo).Distinct().OrderBy(x => x).ToListAsync(),
+            ["EquipmentName"] = await equipment.Where(e => e.EquipmentName != null).Select(e => e.EquipmentName).Distinct().OrderBy(x => x).ToListAsync(),
+            ["EquipmentCode"] = await equipment.Where(e => e.EquipmentCode != null).Select(e => e.EquipmentCode).Distinct().OrderBy(x => x).ToListAsync(),
+            ["Location"] = await equipment.Where(e => e.Location != null).Select(e => e.Location).Distinct().OrderBy(x => x).ToListAsync(),
+            ["ActualDate"] = await records.Where(r => r.ActualDate != null).Select(r => r.ActualDate!.Value.Date.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToListAsync(),
+            ["Inspector"] = await records.Where(r => r.Inspector != null).Select(r => r.Inspector!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["ExecutionSummary"] = await records.Where(r => r.ExecutionSummary != null).Select(r => r.ExecutionSummary!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["Remark"] = await records.Where(r => r.Remark != null).Select(r => r.Remark!).Distinct().OrderBy(x => x).ToListAsync(),
+        };
+    }
+
     public async Task<List<InspectionRecordListDto>> GetAllListAsync()
     {
         var baseQuery = from r in _context.InspectionRecords

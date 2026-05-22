@@ -165,6 +165,18 @@ public interface IProductionRecordService
     /// </summary>
     Task<List<OutsourceRecoveryDto>> BatchCreateOutsourceRecoveriesAsync(List<CreateOutsourceRecoveryRequest> requests);
 
+    // ========== 筛选上下文 ==========
+
+    /// <summary>
+    /// 获取生产记录筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
+
+    /// <summary>
+    /// 获取检验到料筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    Task<Dictionary<string, List<string>>> GetMaterialCheckFilterContextsAsync();
+
     // ========== 打印 ==========
 
     /// <summary>

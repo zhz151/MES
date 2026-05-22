@@ -24,6 +24,8 @@ public interface ICustomerService
     /// </summary>
     Task<List<CustomerSelectDto>> GetSelectListAsync();
 
+    Task<Dictionary<string, List<string>>> GetCustomerFilterContextsAsync();
+
     // ========== 打印 ==========
     Task<byte[]> PrintCustomerAsync(int id);
     Task<byte[]> PrintCustomerBatchAsync(int[] ids);

@@ -62,7 +62,17 @@ public class BatchService : IBatchService
                 b.PlantGrade.Contains(kw) ||
                 b.Specification.Contains(kw) ||
                 b.LengthStatus.Contains(kw) ||
-                b.TechnicalRequirements.Contains(kw));
+                b.TechnicalRequirements.Contains(kw) ||
+                (b.Remark != null && b.Remark.Contains(kw)) ||
+                (b.QualityRemark != null && b.QualityRemark.Contains(kw)) ||
+                (b.SourceHeatNo != null && b.SourceHeatNo.Contains(kw)) ||
+                (b.SourceName != null && b.SourceName.Contains(kw)) ||
+                (b.SourceBatchNo != null && b.SourceBatchNo.Contains(kw)) ||
+                (b.SourceSpecification != null && b.SourceSpecification.Contains(kw)) ||
+                (b.SourceMaterialType != null && b.SourceMaterialType.Contains(kw)) ||
+                (b.SourceLengthStatus != null && b.SourceLengthStatus.Contains(kw)) ||
+                (b.InboundSource != null && b.InboundSource.Contains(kw)) ||
+                (b.SolutionParams != null && b.SolutionParams.Contains(kw)));
         }
 
         // 筛选条件
@@ -83,6 +93,36 @@ public class BatchService : IBatchService
             queryable = queryable.Where(b => b.ProductionMainNo.Contains(query.ProductionMainNo));
         if (!string.IsNullOrEmpty(query.ProductionSubNo))
             queryable = queryable.Where(b => b.ProductionSubNo != null && b.ProductionSubNo.Contains(query.ProductionSubNo));
+
+        // 处理 Salesman/EndCustomer 筛选（来自 CustomerProfile，非 ProductionBatch 快照）
+        if (query.Filters != null)
+        {
+            var salesmanFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("Salesman", StringComparison.OrdinalIgnoreCase));
+            if (salesmanFilter != null && salesmanFilter.Values?.Count > 0)
+            {
+                var salesmanValues = salesmanFilter.Values;
+                var matchedOrderNos = _context.SalesOrders
+                    .AsNoTracking()
+                    .Include(so => so.Customer)
+                    .Where(so => so.Customer != null && salesmanValues.Contains(so.Customer.Salesman))
+                    .Select(so => so.OrderNumber);
+                queryable = queryable.Where(b => matchedOrderNos.Contains(b.SalesOrderNo));
+                query.Filters.Remove(salesmanFilter);
+            }
+
+            var endCustomerFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("EndCustomer", StringComparison.OrdinalIgnoreCase));
+            if (endCustomerFilter != null && endCustomerFilter.Values?.Count > 0)
+            {
+                var endCustomerValues = endCustomerFilter.Values;
+                var matchedOrderNos = _context.SalesOrders
+                    .AsNoTracking()
+                    .Include(so => so.Customer)
+                    .Where(so => so.Customer != null && so.Customer.EndCustomer != null && endCustomerValues.Contains(so.Customer.EndCustomer))
+                    .Select(so => so.OrderNumber);
+                queryable = queryable.Where(b => matchedOrderNos.Contains(b.SalesOrderNo));
+                query.Filters.Remove(endCustomerFilter);
+            }
+        }
 
         // 通用筛选
         queryable = queryable.ApplyFilters(query.Filters);
@@ -1288,7 +1328,17 @@ public class BatchService : IBatchService
                 (b.NextSectionName != null && b.NextSectionName.Contains(kw)) ||
                 (b.CorrespondingSpec != null && b.CorrespondingSpec.Contains(kw)) ||
                 b.ManufacturingItem.Contains(kw) ||
-                (b.ProductionType != null && b.ProductionType.Contains(kw)));
+                (b.ProductionType != null && b.ProductionType.Contains(kw)) ||
+                (b.Remark != null && b.Remark.Contains(kw)) ||
+                (b.QualityRemark != null && b.QualityRemark.Contains(kw)) ||
+                (b.SourceHeatNo != null && b.SourceHeatNo.Contains(kw)) ||
+                (b.SourceName != null && b.SourceName.Contains(kw)) ||
+                (b.SourceBatchNo != null && b.SourceBatchNo.Contains(kw)) ||
+                (b.SourceSpecification != null && b.SourceSpecification.Contains(kw)) ||
+                (b.SourceMaterialType != null && b.SourceMaterialType.Contains(kw)) ||
+                (b.SourceLengthStatus != null && b.SourceLengthStatus.Contains(kw)) ||
+                (b.InboundSource != null && b.InboundSource.Contains(kw)) ||
+                (b.SolutionParams != null && b.SolutionParams.Contains(kw)));
         }
         if (!string.IsNullOrEmpty(request.WorkOrderNo))
             queryable = queryable.Where(b => b.WorkOrderNo.Contains(request.WorkOrderNo));
@@ -1437,6 +1487,84 @@ public class BatchService : IBatchService
 
         var columns = request.Columns;
         return ProcessCardPrintHelper.GeneratePdf("工 艺 流 转 卡", entities, columns);
+    }
+
+    // ========== 筛选上下文 ==========
+
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        // 注意：枚举列（ProductionType/Status/MaterialName 等）不在此处返回，
+        // 由前端 EnumOptions fallback 直接提供带中文 Display 的选项，避免映射丢失。
+        var results = await _context.ProductionBatches
+            .AsNoTracking()
+            .Select(b => new
+            {
+                b.BatchNo, b.TagNo, b.WorkOrderNo, b.SalesOrderNo,
+                b.ProductionMainNo, b.ProductionSubNo,
+                b.CurrentExecDate,
+                b.CurrentGroupName, b.CurrentSectionName, b.CurrentEquipmentName,
+                b.CurrentOutsource, b.CurrentSpec, b.NextSectionName,
+                b.CorrespondingSpec, b.SignDate, b.Salesman, b.EndCustomer,
+                b.DeliveryDate,
+                b.StandardCode, b.PlantGrade, b.Specification, b.CreatedBy
+            })
+            .ToListAsync();
+
+        // ========== 从 CustomerProfile 覆盖业务员/最终用户（与 GetPagedAsync 的 PatchCustomerFieldsAsync 一致） ==========
+        var orderNos = results.Select(x => x.SalesOrderNo).Distinct().ToList();
+        Dictionary<string, (string Salesman, string? EndCustomer)> customerByOrderNo = new();
+        if (orderNos.Count > 0)
+        {
+            customerByOrderNo = await _context.SalesOrders
+                .AsNoTracking()
+                .Include(so => so.Customer)
+                .Where(so => orderNos.Contains(so.OrderNumber))
+                .ToDictionaryAsync(so => so.OrderNumber, so =>
+                    (so.Customer?.Salesman ?? "", so.Customer?.EndCustomer));
+        }
+        // 用一个可变类型承载 patched 值
+        var patchedResults = results.Select(r =>
+        {
+            var salesman = r.Salesman;
+            var endCustomer = r.EndCustomer;
+            if (customerByOrderNo.TryGetValue(r.SalesOrderNo, out var c))
+            {
+                salesman = c.Salesman;
+                endCustomer = c.EndCustomer;
+            }
+            return new { r.BatchNo, r.TagNo, r.WorkOrderNo, r.SalesOrderNo, r.ProductionMainNo,
+                r.ProductionSubNo, r.CurrentExecDate, r.CurrentGroupName, r.CurrentSectionName,
+                r.CurrentEquipmentName, r.CurrentOutsource, r.CurrentSpec, r.NextSectionName,
+                r.CorrespondingSpec, r.SignDate, Salesman = salesman, EndCustomer = endCustomer,
+                r.DeliveryDate, r.StandardCode, r.PlantGrade, r.Specification, r.CreatedBy };
+        }).ToList();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["BatchNo"] = patchedResults.Select(x => x.BatchNo).Distinct().OrderBy(x => x).ToList(),
+            ["TagNo"] = patchedResults.Select(x => x.TagNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["WorkOrderNo"] = patchedResults.Select(x => x.WorkOrderNo).Distinct().OrderBy(x => x).ToList(),
+            ["SalesOrderNo"] = patchedResults.Select(x => x.SalesOrderNo).Distinct().OrderBy(x => x).ToList(),
+            ["ProductionMainNo"] = patchedResults.Select(x => x.ProductionMainNo).Distinct().OrderBy(x => x).ToList(),
+            ["ProductionSubNo"] = patchedResults.Select(x => x.ProductionSubNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["CurrentExecDate"] = patchedResults.Where(x => x.CurrentExecDate.HasValue)
+                .Select(x => x.CurrentExecDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["CurrentGroupName"] = patchedResults.Select(x => x.CurrentGroupName).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["CurrentSectionName"] = patchedResults.Select(x => x.CurrentSectionName).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["CurrentEquipmentName"] = patchedResults.Select(x => x.CurrentEquipmentName).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["CurrentOutsource"] = patchedResults.Select(x => x.CurrentOutsource).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["CurrentSpec"] = patchedResults.Select(x => x.CurrentSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["NextSectionName"] = patchedResults.Select(x => x.NextSectionName).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["CorrespondingSpec"] = patchedResults.Select(x => x.CorrespondingSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["SignDate"] = patchedResults.Select(x => x.SignDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["Salesman"] = patchedResults.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
+            ["EndCustomer"] = patchedResults.Select(x => x.EndCustomer).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["DeliveryDate"] = patchedResults.Select(x => x.DeliveryDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["StandardCode"] = patchedResults.Select(x => x.StandardCode).Distinct().OrderBy(x => x).ToList(),
+            ["PlantGrade"] = patchedResults.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
+            ["Specification"] = patchedResults.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
+            ["CreatedBy"] = patchedResults.Select(x => x.CreatedBy).Distinct().OrderBy(x => x).ToList(),
+        };
     }
 
     // ========== 辅助方法 ==========

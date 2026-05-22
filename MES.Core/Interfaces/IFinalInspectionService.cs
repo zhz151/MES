@@ -47,4 +47,9 @@ public interface IFinalInspectionService
     /// 根据生产编号调取批次信息（用于新建页自动填充）
     /// </summary>
     Task<BatchLookupResultDto?> LookupBatchAsync(string batchNo);
+
+    /// <summary>
+    /// 获取筛选上下文（各列的 DISTINCT 值，用于 ExcelFilter）
+    /// </summary>
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 }
