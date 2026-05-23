@@ -28,13 +28,19 @@ public class SectionOutsourceService : ISectionOutsourceService
 
     // ========== 工段委外 ==========
 
-    public async Task<List<SectionOutsourceDto>> GetByIdsAsync(int[] ids)
+    public async Task<List<SectionOutsourceDto>> GetByIdsAsync(string ids)
     {
+        var idList = ids.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(id => int.TryParse(id, out var parsed) ? parsed : (int?)null)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .ToArray();
+        if (idList.Length == 0) return new List<SectionOutsourceDto>();
         return await _context.SectionOutsources
             .AsNoTracking()
             .Include(s => s.ProductionBatch)
             .Include(s => s.OutsourceRecoveries)
-            .Where(s => ids.Contains(s.Id))
+            .Where(s => idList.Contains(s.Id))
             .Select(s => new SectionOutsourceDto
             {
                 Id = s.Id,

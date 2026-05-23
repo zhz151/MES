@@ -513,4 +513,112 @@ public class BatchControllerTests : ControllerTestBase
         Assert.True(response.Success);
         Assert.NotNull(response.Data);
     }
+
+    [Fact]
+    public async Task GetFilterContexts_ReturnsOk()
+    {
+        var filterContexts = new Dictionary<string, List<string>>
+        {
+            ["Field1"] = new() { "A", "B" }
+        };
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(filterContexts);
+        var result = await _controller.GetFilterContexts();
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetFilterContexts_Empty_ReturnsEmpty()
+    {
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+        var result = await _controller.GetFilterContexts();
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Empty(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesKeyword_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<BatchQueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionBatchListDto> { Items = new List<ProductionBatchListDto>() });
+        await _controller.GetPaged(keyword: "测试");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<BatchQueryParams>(q => q.Keyword == "测试")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesSortBy_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<BatchQueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionBatchListDto> { Items = new List<ProductionBatchListDto>() });
+        await _controller.GetPaged(sortBy: "BatchNo", isDescending: false);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<BatchQueryParams>(q => q.SortBy == "BatchNo" && q.IsDescending == false)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_DefaultSortBy_IsCreatedTime()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<BatchQueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionBatchListDto> { Items = new List<ProductionBatchListDto>() });
+        await _controller.GetPaged();
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<BatchQueryParams>(q => q.SortBy == "CreatedTime")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesFiltersJson_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<BatchQueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionBatchListDto> { Items = new List<ProductionBatchListDto>() });
+        var filtersJson = "[{\"Field\":\"BatchNo\",\"Operator\":\"contains\",\"Value\":\"TEST\"}]";
+        await _controller.GetPaged(filters: filtersJson);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<BatchQueryParams>(q =>
+            q.Filters != null && q.Filters.Count == 1 && q.Filters[0].Field == "BatchNo")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesWorkOrderNo_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<BatchQueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionBatchListDto> { Items = new List<ProductionBatchListDto>() });
+        await _controller.GetPaged(workOrderNo: "WO001");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<BatchQueryParams>(q => q.WorkOrderNo == "WO001")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesStatus_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<BatchQueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionBatchListDto> { Items = new List<ProductionBatchListDto>() });
+        await _controller.GetPaged(status: "InProgress");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<BatchQueryParams>(q => q.Status == "InProgress")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesBatchNo_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<BatchQueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionBatchListDto> { Items = new List<ProductionBatchListDto>() });
+        await _controller.GetPaged(batchNo: "B001");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<BatchQueryParams>(q => q.BatchNo == "B001")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesStartDateFrom_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<BatchQueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionBatchListDto> { Items = new List<ProductionBatchListDto>() });
+        var date = new DateTime(2026, 1, 1);
+        await _controller.GetPaged(startDateFrom: date);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<BatchQueryParams>(q => q.StartDateFrom == date)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_LimitsPageSize()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<BatchQueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionBatchListDto> { Items = new List<ProductionBatchListDto>() });
+        await _controller.GetPaged(pageSize: 9999);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<BatchQueryParams>(q => q.PageSize == 5000)), Times.Once);
+    }
 }

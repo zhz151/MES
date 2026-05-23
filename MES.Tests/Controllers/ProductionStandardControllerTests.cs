@@ -223,4 +223,81 @@ public class ProductionStandardControllerTests : ControllerTestBase
         Assert.True(response.Success);
         Assert.NotNull(response.Data);
     }
+
+    [Fact]
+    public async Task GetFilterContexts_ReturnsOk()
+    {
+        // Arrange
+        var ctx = new Dictionary<string, List<string>> { ["StandardName"] = new() { "测试标准" } };
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(ctx);
+
+        // Act
+        var result = await _controller.GetFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetFilterContexts_Empty_ReturnsEmpty()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+
+        // Act
+        var result = await _controller.GetFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Empty(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetPaged_LimitsPageSize()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<bool?>()))
+            .ReturnsAsync(new PagedResult<ProductionStandardDto> { Items = new List<ProductionStandardDto>() });
+        var result = await _controller.GetPaged(new QueryParams { PageSize = 9999 });
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.PageSize == 9999), It.IsAny<bool?>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesKeyword_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<bool?>()))
+            .ReturnsAsync(new PagedResult<ProductionStandardDto> { Items = new List<ProductionStandardDto>() });
+        await _controller.GetPaged(new QueryParams { Keyword = "测试" });
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Keyword == "测试"), It.IsAny<bool?>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesSortBy_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<bool?>()))
+            .ReturnsAsync(new PagedResult<ProductionStandardDto> { Items = new List<ProductionStandardDto>() });
+        await _controller.GetPaged(new QueryParams { SortBy = "StandardName" });
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "StandardName"), It.IsAny<bool?>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesFilters_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<bool?>()))
+            .ReturnsAsync(new PagedResult<ProductionStandardDto> { Items = new List<ProductionStandardDto>() });
+        var filtersJson = "[{\"Field\":\"StandardName\",\"Operator\":\"equals\",\"Value\":\"测试标准\"}]";
+        await _controller.GetPaged(new QueryParams(), filters: filtersJson);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Filters != null && q.Filters.Count > 0), It.IsAny<bool?>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesIsActive_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<bool?>()))
+            .ReturnsAsync(new PagedResult<ProductionStandardDto> { Items = new List<ProductionStandardDto>() });
+        await _controller.GetPaged(new QueryParams(), isActive: true);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.IsAny<QueryParams>(), true), Times.Once);
+    }
 }

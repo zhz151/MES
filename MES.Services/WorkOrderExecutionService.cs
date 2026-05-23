@@ -687,6 +687,45 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         target.LastRefreshTime = source.LastRefreshTime;
     }
 
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var query = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
+
+        var all = await query
+            .Select(s => new
+            {
+                s.WorkOrderNo,
+                s.Salesman,
+                s.CustomerName,
+                s.SettlementMethod,
+                s.SalesOrderNo,
+                s.ProductionMainNo,
+                s.ProductionSubNo,
+                s.MaterialName,
+                s.DeliveryState,
+                s.PlantGrade,
+                s.Specification,
+                s.LengthStatus
+            })
+            .ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo).Distinct().OrderBy(x => x).ToList(),
+            ["Salesman"] = all.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
+            ["CustomerName"] = all.Select(x => x.CustomerName).Distinct().OrderBy(x => x).ToList(),
+            ["SettlementMethod"] = all.Select(x => x.SettlementMethod).Distinct().OrderBy(x => x).ToList(),
+            ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo).Distinct().OrderBy(x => x).ToList(),
+            ["ProductionMainNo"] = all.Select(x => x.ProductionMainNo).Distinct().OrderBy(x => x).ToList(),
+            ["ProductionSubNo"] = all.Where(x => x.ProductionSubNo != null).Select(x => x.ProductionSubNo!).Distinct().OrderBy(x => x).ToList(),
+            ["MaterialName"] = all.Select(x => x.MaterialName).Distinct().OrderBy(x => x).ToList(),
+            ["DeliveryState"] = all.Select(x => x.DeliveryState).Distinct().OrderBy(x => x).ToList(),
+            ["PlantGrade"] = all.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
+            ["Specification"] = all.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
+            ["LengthStatus"] = all.Select(x => x.LengthStatus).Distinct().OrderBy(x => x).ToList(),
+        };
+    }
+
     private static IQueryable<WorkOrderExecutionSummary> ApplySorting(
         IQueryable<WorkOrderExecutionSummary> query, string sortBy, bool isDescending)
     {
@@ -695,8 +734,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         {
             ("workorderno", false) => query.OrderBy(x => x.WorkOrderNo),
             ("workorderno", true) => query.OrderByDescending(x => x.WorkOrderNo),
-            ("salesmanno", false) => query.OrderBy(x => x.Salesman),
-            ("salesmanno", true) => query.OrderByDescending(x => x.Salesman),
+            ("salesman", false) => query.OrderBy(x => x.Salesman),
+            ("salesman", true) => query.OrderByDescending(x => x.Salesman),
             ("customername", false) => query.OrderBy(x => x.CustomerName),
             ("customername", true) => query.OrderByDescending(x => x.CustomerName),
             ("signdate", false) => query.OrderBy(x => x.SignDate),

@@ -56,23 +56,23 @@ public class SubcontractOrderService : ISubcontractOrderService
             queryable = queryable.Where(s => s.Status == parsedStatus);
         }
 
-        queryable = queryable.ApplyFilters(query.Filters);
-
-        // 跨表计算字段筛选（非 SubcontractOrder 直接属性）
-        if (query.Filters is { Count: > 0 })
+        // 跨表计算字段筛选（非 SubcontractOrder 直接属性，ApplyFilters 无法处理）
+        // 需提前处理并从 Filters 中移除
+        if (query.Filters != null)
         {
-            foreach (var filter in query.Filters)
+            var supplierFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("SupplierName", StringComparison.OrdinalIgnoreCase));
+            if (supplierFilter != null)
             {
-                if (string.IsNullOrWhiteSpace(filter.Field)) continue;
-                switch (filter.Field.ToLower())
-                {
-                    case "suppliername":
-                        if (!string.IsNullOrEmpty(filter.Value))
-                            queryable = queryable.Where(s => _context.SupplierProfiles.Any(sp => sp.Id == s.SupplierId && sp.SupplierName.Contains(filter.Value)));
-                        break;
-                }
+                var op = supplierFilter.Operator?.ToLowerInvariant() ?? "contains";
+                if (op == "in" && supplierFilter.Values?.Count > 0)
+                    queryable = queryable.Where(s => _context.SupplierProfiles.Any(sp => sp.Id == s.SupplierId && supplierFilter.Values.Contains(sp.SupplierName)));
+                else if (!string.IsNullOrEmpty(supplierFilter.Value))
+                    queryable = queryable.Where(s => _context.SupplierProfiles.Any(sp => sp.Id == s.SupplierId && sp.SupplierName.Contains(supplierFilter.Value)));
+                query.Filters.Remove(supplierFilter);
             }
         }
+
+        queryable = queryable.ApplyFilters(query.Filters);
 
         // 排序
         queryable = query.SortBy?.ToLower() switch

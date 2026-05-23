@@ -612,4 +612,155 @@ public class PurchaseOrderServiceTests : TestBase
         result.Items.Should().HaveCount(1);
         result.Items[0].Remark.Should().Be("采购备注测试");
     }
+
+    // ========== 筛选测试（FilterDescriptor） ==========
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_OrderNo_Contains_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedOrderAsync(ctx, sid);
+        ctx.PurchaseOrders.Add(new PurchaseOrder
+        {
+            OrderNo = "CG20260101099",
+            SupplierId = sid,
+            OrderDate = DateTime.Today,
+            Status = PurchaseOrderStatus.Open,
+            MaterialCategory = "钢管",
+            PlantGrade = "304",
+            Specification = "273*10",
+            Quantity = 50,
+            Weight = 500m,
+            RequiredDate = DateTime.Today.AddDays(30)
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new PurchaseOrderQueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "OrderNo", Operator = "contains", Value = "099" }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].OrderNo.Should().Be("CG20260101099");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_MaterialCategory_In_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedOrderAsync(ctx, sid);
+        ctx.PurchaseOrders.Add(new PurchaseOrder
+        {
+            OrderNo = "CG20260101099",
+            SupplierId = sid,
+            OrderDate = DateTime.Today,
+            Status = PurchaseOrderStatus.Open,
+            MaterialCategory = "圆钢",
+            PlantGrade = "45#",
+            Specification = "50*1000",
+            Quantity = 100,
+            Weight = 5000m,
+            RequiredDate = DateTime.Today.AddDays(30)
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new PurchaseOrderQueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "MaterialCategory", Operator = "in", Values = new List<string> { "圆钢" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].MaterialCategory.Should().Be("圆钢");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_NoMatch_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedOrderAsync(ctx, sid);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new PurchaseOrderQueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "OrderNo", Operator = "contains", Value = "NONEXISTENT" }
+            }
+        });
+
+        result.Items.Should().BeEmpty();
+    }
+
+    // ========== GetFilterContextsAsync ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回OrderNo选项()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedOrderAsync(ctx, sid);
+        ctx.PurchaseOrders.Add(new PurchaseOrder
+        {
+            OrderNo = "CG20260101099",
+            SupplierId = sid,
+            OrderDate = DateTime.Today,
+            Status = PurchaseOrderStatus.Open,
+            MaterialCategory = "圆钢",
+            PlantGrade = "45#",
+            Specification = "50*1000",
+            Quantity = 100,
+            Weight = 5000m,
+            RequiredDate = DateTime.Today.AddDays(30)
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts.Should().ContainKey("OrderNo");
+        contexts.Should().ContainKey("MaterialCategory");
+        contexts.Should().ContainKey("PlantGrade");
+        contexts.Should().ContainKey("Specification");
+        contexts["OrderNo"].Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["OrderNo"].Should().BeEmpty();
+        contexts["MaterialCategory"].Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_SupplierName从关联表取()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx, name: "大明钢铁");
+        await SeedOrderAsync(ctx, sid);
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts.Should().ContainKey("SupplierName");
+        contexts["SupplierName"].Should().Contain("大明钢铁");
+    }
 }

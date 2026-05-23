@@ -115,7 +115,8 @@ public partial class Batches
         new() { Key = "TotalWeight",        Label = "总重量",   SortKey = "totalweight" },
         new() { Key = "TechnicalRequirements", Label = "技术要求", SortKey = "technicalrequirements", FilterType = "enum",
             EnumOptions = new() { new("Normal", "普通"), new("Special", "特殊") } },
-        new() { Key = "ValidInputQuestion",   Label = "有效投料疑问", SortKey = null },
+        new() { Key = "ValidInputQuestion",   Label = "有效投料疑问", SortKey = null, FilterType = "enum",
+            EnumOptions = new() { new("True", "疑问"), new("False", "正常") } },
         new() { Key = "CreatedBy",          Label = "创建人",   SortKey = "createdby", FilterType = "string" },
     };
 
@@ -392,14 +393,13 @@ public partial class Batches
         await LoadFilterContextsAsync();
     }
 
-    // ========== 即时更新（工单号验证 + 执行状态刷新）==========
+    // ========== 工单号验证 ==========
 
     private async Task CheckWorkOrdersAsync()
     {
         isSyncing = true;
         try
         {
-            // 1) 工单号验证
             var verifyResult = await BatchService.VerifyWorkOrderNosAsync();
             if (verifyResult.Success && verifyResult.Data != null)
             {
@@ -408,27 +408,13 @@ public partial class Batches
                     Snackbar.Add($"发现 {_workOrderMismatches.Count} 个批次的工单号不匹配", Severity.Warning);
                 else
                     Snackbar.Add("所有批次工单号验证通过", Severity.Success);
-            }
 
-            // 2) 刷新全量批次的执行状态（只刷新当前页的数据）
-            if (_pageItems.Count > 0)
-            {
-                var currentIds = _pageItems.Select(i => i.Id).ToList();
-                var refreshTasks = currentIds.Select(id => ProdRecordService.RefreshBatchTrackingAsync(id));
-                var results = await Task.WhenAll(refreshTasks);
-                var failCount = results.Count(r => !r.Success);
-                if (failCount > 0)
-                    Snackbar.Add($"执行状态刷新：{results.Length - failCount} 成功，{failCount} 失败", Severity.Warning);
-                else
-                    Snackbar.Add($"已刷新 {results.Length} 个批次的执行状态", Severity.Success);
-
-                // 重新加载当前页
                 if (table != null) await table.ReloadServerData();
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"即时更新失败: {ex.Message}", Severity.Error);
+            Snackbar.Add($"工单号验证失败: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -445,6 +431,9 @@ public partial class Batches
 
     private async Task NavigateToWorkOrder(string workOrderNo)
     {
+        if (workOrderNo == "非工单" || string.IsNullOrWhiteSpace(workOrderNo))
+            return;
+
         try
         {
             var result = await WorkOrderService.GetByWorkOrderNoAsync(workOrderNo);
@@ -597,7 +586,7 @@ public partial class Batches
         "TotalMeters" => item.TotalMeters.ToString("G29"),
         "TotalWeight" => item.TotalWeight.ToString("G29"),
         "TechnicalRequirements" => DisplayHelper.GetTechnicalRequirementsText(item.TechnicalRequirements),
-        "ValidInputQuestion" => item.ValidInputQuestion ?? "",
+        "ValidInputQuestion" => item.ValidInputQuestion.HasValue ? DisplayHelper.GetYesNoText(item.ValidInputQuestion.Value) : "",
         "CreatedBy" => item.CreatedBy,
         _ => ""
     };
@@ -627,7 +616,7 @@ public partial class Batches
                 builder.AddContent(0, item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
             case "WorkOrderNo":
-                if (!string.IsNullOrEmpty(item.WorkOrderNo))
+                if (!string.IsNullOrEmpty(item.WorkOrderNo) && item.WorkOrderNo != "非工单")
                 {
                     builder.OpenComponent<MudLink>(0);
                     builder.AddAttribute(1, "Typo", Typo.body2);
@@ -638,7 +627,7 @@ public partial class Batches
                 }
                 else
                 {
-                    builder.AddContent(0, "");
+                    builder.AddContent(0, item.WorkOrderNo ?? "");
                 }
                 break;
             case "SalesOrderNo":
@@ -657,13 +646,13 @@ public partial class Batches
                 }
                 break;
             case "ValidInputQuestion":
-                var vq = item.ValidInputQuestion;
-                if (!string.IsNullOrEmpty(vq))
+                if (item.ValidInputQuestion.HasValue)
                 {
+                    var vq = item.ValidInputQuestion.Value;
                     builder.OpenComponent<MudChip>(0);
                     builder.AddAttribute(1, "Size", Size.Small);
-                    builder.AddAttribute(2, "Color", vq == "疑问" ? Color.Warning : Color.Success);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, vq)));
+                    builder.AddAttribute(2, "Color", vq ? Color.Warning : Color.Success);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, vq ? "疑问" : "正常")));
                     builder.CloseComponent();
                 }
                 break;

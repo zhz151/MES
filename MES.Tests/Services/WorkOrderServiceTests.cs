@@ -761,4 +761,84 @@ public class WorkOrderServiceTests : TestBase
         result.Items.Should().NotBeEmpty();
         result.Items.Any(i => i.Specification == "219*8").Should().BeTrue();
     }
+
+    // ========== 筛选上下文 ==========
+
+    [Fact]
+    public async Task GetWorkOrderFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        ctx.Set<WorkOrderListSummary>().AddRange(
+            new WorkOrderListSummary
+            {
+                WorkOrderNo = "WO001",
+                SalesOrderNo = "SO001",
+                ProductionMainNo = "D01",
+                ProductionSubNo = "C01",
+                SignDate = DateTime.Today,
+                Salesman = "张三",
+                DeliveryDate = DateTime.Today.AddMonths(1),
+                PlantGrade = "304",
+                Specification = "219*8",
+                Status = (int)WorkOrderStatus.Confirmed,
+                SettlementMethod = "理计",
+                MaterialName = "无缝管",
+                DeliveryState = "固溶酸洗",
+                LengthStatus = "定尺",
+                TechnicalRequirements = "无",
+                TotalQuantity = 10,
+                TotalMeters = 60,
+                TotalWeight = 2500m,
+                TotalItemCount = 1,
+                CreatedTime = DateTimeOffset.Now,
+                UpdatedTime = DateTimeOffset.Now
+            },
+            new WorkOrderListSummary
+            {
+                WorkOrderNo = "WO002",
+                SalesOrderNo = "SO002",
+                ProductionMainNo = "D02",
+                ProductionSubNo = null,
+                SignDate = DateTime.Today,
+                Salesman = "李四",
+                DeliveryDate = DateTime.Today.AddMonths(1),
+                PlantGrade = "20#",
+                Specification = "273*10",
+                Status = (int)WorkOrderStatus.Pending,
+                SettlementMethod = "理计",
+                MaterialName = "无缝管",
+                DeliveryState = "固溶酸洗",
+                LengthStatus = "定尺",
+                TechnicalRequirements = "无",
+                TotalQuantity = 5,
+                TotalMeters = 30,
+                TotalWeight = 2000m,
+                TotalItemCount = 1,
+                CreatedTime = DateTimeOffset.Now,
+                UpdatedTime = DateTimeOffset.Now
+            }
+        );
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetWorkOrderFilterContextsAsync();
+
+        result.Should().ContainKeys("WorkOrderNo", "SalesOrderNo", "ProductionMainNo", "ProductionSubNo", "SignDate", "Salesman", "PlantGrade", "Specification", "DeliveryDate");
+        result["WorkOrderNo"].Should().BeEquivalentTo(new[] { "WO001", "WO002" }, options => options.WithStrictOrdering());
+        result["Salesman"].Should().BeEquivalentTo(new[] { "张三", "李四" });
+        result["ProductionSubNo"].Should().HaveCount(1).And.Contain("C01");
+    }
+
+    [Fact]
+    public async Task GetWorkOrderFilterContextsAsync_无数据_各字段返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetWorkOrderFilterContextsAsync();
+
+        result.Should().ContainKeys("WorkOrderNo", "SalesOrderNo", "ProductionMainNo", "ProductionSubNo", "SignDate", "Salesman", "EndCustomer", "DeliveryDate", "PlantGrade", "Specification", "LatestPlanDate");
+        foreach (var kvp in result)
+            kvp.Value.Should().BeEmpty($"字段 {kvp.Key} 应返回空列表");
+    }
 }

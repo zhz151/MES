@@ -143,4 +143,97 @@ public class WarehouseControllerTests : ControllerTestBase
         var response = Assert.IsType<ApiResponse<object>>(okResult.Value);
         Assert.True(response.Success);
     }
+
+    [Fact]
+    public async Task GetFilterContexts_ReturnsOk()
+    {
+        // Arrange
+        var filterContexts = new Dictionary<string, List<string>>
+        {
+            ["Field1"] = new() { "A", "B" }
+        };
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(filterContexts);
+
+        // Act
+        var result = await _controller.GetFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesKeyword_ToService()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<bool?>()))
+            .ReturnsAsync(new PagedResult<WarehouseDto> { Items = new List<WarehouseDto>() });
+
+        // Act
+        await _controller.GetPaged(new QueryParams { Keyword = "测试搜索" });
+
+        // Assert
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Keyword == "测试搜索"), It.IsAny<bool?>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesSortBy_ToService()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<bool?>()))
+            .ReturnsAsync(new PagedResult<WarehouseDto> { Items = new List<WarehouseDto>() });
+
+        // Act
+        await _controller.GetPaged(new QueryParams { SortBy = "Name", IsDescending = false });
+
+        // Assert
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "Name" && q.IsDescending == false), It.IsAny<bool?>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_DefaultSortBy_IsCreatedTime()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<bool?>()))
+            .ReturnsAsync(new PagedResult<WarehouseDto> { Items = new List<WarehouseDto>() });
+
+        // Act
+        await _controller.GetPaged(new QueryParams());
+
+        // Assert
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "CreatedTime"), It.IsAny<bool?>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesFiltersJson_ToService()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<bool?>()))
+            .ReturnsAsync(new PagedResult<WarehouseDto> { Items = new List<WarehouseDto>() });
+
+        var filtersJson = "[{\"Field\":\"Name\",\"Operator\":\"contains\",\"Value\":\"test\"}]";
+
+        // Act
+        await _controller.GetPaged(new QueryParams(), filters: filtersJson);
+
+        // Assert
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q =>
+            q.Filters != null && q.Filters.Count == 1 && q.Filters[0].Field == "Name"), It.IsAny<bool?>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetFilterContexts_Empty_ReturnsEmpty()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+
+        // Act
+        var result = await _controller.GetFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Empty(response.Data!);
+    }
 }

@@ -42,8 +42,12 @@ public class InventoryController : ControllerBase
     [HttpGet("all")]
     [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<InventoryBatchDto>>>> GetAll(
-        [FromQuery] InventoryQueryParams query)
+        [FromQuery] InventoryQueryParams query,
+        [FromQuery] string? filters = null)
     {
+        if (!string.IsNullOrEmpty(filters))
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
         var result = await _service.GetAllListAsync(query);
         return Ok(ApiResponse<List<InventoryBatchDto>>.Ok(result, "查询成功"));
     }

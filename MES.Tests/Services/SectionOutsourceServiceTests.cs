@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Core.DTOs;
 using MES.Core.Enums;
@@ -18,12 +19,11 @@ namespace MES.Tests.Services;
 /// </summary>
 public class SectionOutsourceServiceTests : TestBase
 {
-    private SectionOutsourceService CreateService(AppDbContext ctx)
+    private static SectionOutsourceService CreateService(AppDbContext ctx)
     {
-        var mockProductionRecordService = new Mock<IProductionRecordService>();
-        return new SectionOutsourceService(ctx,
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<SectionOutsourceService>.Instance,
-            mockProductionRecordService.Object);
+        var loggerMock = new Mock<ILogger<SectionOutsourceService>>();
+        var prodRecSvcMock = new Mock<IProductionRecordService>();
+        return new SectionOutsourceService(ctx, loggerMock.Object, prodRecSvcMock.Object);
     }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")
@@ -137,7 +137,7 @@ public class SectionOutsourceServiceTests : TestBase
         var id = await ctx.SectionOutsources.Select(s => s.Id).FirstAsync();
         var svc = CreateService(ctx);
 
-        var result = await svc.GetByIdsAsync(new[] { id });
+        var result = await svc.GetByIdsAsync(id.ToString());
 
         result.Should().HaveCount(1);
         result[0].Id.Should().Be(id);
@@ -149,7 +149,7 @@ public class SectionOutsourceServiceTests : TestBase
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        var result = await svc.GetByIdsAsync(Array.Empty<int>());
+        var result = await svc.GetByIdsAsync("");
 
         result.Should().BeEmpty();
     }
@@ -448,5 +448,181 @@ public class SectionOutsourceServiceTests : TestBase
 
         result.Items.Should().HaveCount(1);
         result.Items[0].Remark.Should().Be("工段委外备注");
+    }
+
+    // ========== 筛选测试（FilterDescriptor） ==========
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_ProcessName_Contains_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-FLTR");
+        await SeedOutsourceAsync(ctx, batch.Id, vendor: "委外厂A");
+        ctx.SectionOutsources.Add(new SectionOutsource
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = "酸洗",
+            ManufacturingSpec = "219*8",
+            SectionName = "酸洗",
+            SequenceNumber = 2,
+            OutsourceVendor = "委外厂B",
+            SendOutDate = DateTime.Today,
+            SendQuantity = 20,
+            SendWeight = 2000m,
+            Status = SectionOutsourceStatus.PendingRecovery
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "ProcessName", Operator = "contains", Value = "酸洗" }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].ProcessName.Should().Be("酸洗");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_OutsourceVendor_In_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-VENDOR");
+        await SeedOutsourceAsync(ctx, batch.Id, vendor: "委外厂A");
+        await SeedOutsourceAsync(ctx, batch.Id, vendor: "委外厂B");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "OutsourceVendor", Operator = "in", Values = new List<string> { "委外厂A" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].OutsourceVendor.Should().Be("委外厂A");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_BatchNo_In_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var batchA = await SeedBatchAsync(ctx, "BATCH-FLTR-A");
+        var batchB = await SeedBatchAsync(ctx, "BATCH-FLTR-B");
+        await SeedOutsourceAsync(ctx, batchA.Id, vendor: "委外厂A");
+        await SeedOutsourceAsync(ctx, batchB.Id, vendor: "委外厂B");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "BatchNo", Operator = "in", Values = new List<string> { "BATCH-FLTR-A" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].BatchNo.Should().Be("BATCH-FLTR-A");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_NoMatch_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-NOMATCH");
+        await SeedOutsourceAsync(ctx, batch.Id);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "ProcessName", Operator = "contains", Value = "NONEXISTENT" }
+            }
+        });
+
+        result.Items.Should().BeEmpty();
+    }
+
+    // ========== GetFilterContextsAsync ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-CTX");
+        await SeedOutsourceAsync(ctx, batch.Id, vendor: "委外厂A");
+        ctx.SectionOutsources.Add(new SectionOutsource
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = "酸洗",
+            ManufacturingSpec = "273*10",
+            SectionName = "酸洗",
+            SequenceNumber = 2,
+            OutsourceVendor = "委外厂B",
+            SendOutDate = DateTime.Today,
+            SendQuantity = 20,
+            SendWeight = 2000m,
+            Status = SectionOutsourceStatus.PendingRecovery
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts.Should().ContainKey("ProcessName");
+        contexts["ProcessName"].Should().Contain(new[] { "冷轧", "酸洗" });
+        contexts.Should().ContainKey("OutsourceVendor");
+        contexts["OutsourceVendor"].Should().Contain(new[] { "委外厂A", "委外厂B" });
+        contexts.Should().ContainKey("BatchNo");
+        contexts["BatchNo"].Should().Contain("BATCH-CTX");
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["ProcessName"].Should().BeEmpty();
+        contexts["OutsourceVendor"].Should().BeEmpty();
+        contexts["BatchNo"].Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_计算字段排除null()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-NULL");
+        ctx.SectionOutsources.Add(new SectionOutsource
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = "冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = "冷轧拔",
+            SequenceNumber = 1,
+            OutsourceVendor = "委外厂A",
+            SendOutDate = DateTime.Today,
+            SendQuantity = 10,
+            SendWeight = 1000m,
+            Status = SectionOutsourceStatus.PendingRecovery,
+            ExpectedReturnDate = null
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["ExpectedReturnDate"].Should().BeEmpty();
     }
 }

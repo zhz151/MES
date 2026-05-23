@@ -381,4 +381,138 @@ public class MaterialServiceTests : TestBase
         result.Items.Should().HaveCount(1);
         result.Items[0].Remark.Should().Be("物料备注测试");
     }
+
+    // ========== 筛选测试（FilterDescriptor） ==========
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_MaterialCategoryContains_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedMaterialAsync(ctx, category: "不锈钢管");
+        await SeedMaterialAsync(ctx, category: "碳钢管");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "MaterialCategory", Operator = "contains", Value = "不锈钢" }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].MaterialCategory.Should().Be("不锈钢管");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_PlantGradeIn_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedMaterialAsync(ctx, category: "钢管", grade: "20#");
+        await SeedMaterialAsync(ctx, category: "钢管", grade: "304");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "PlantGrade", Operator = "in", Values = new List<string> { "304" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].PlantGrade.Should().Be("304");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_NoMatch_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        await SeedMaterialAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "MaterialCategory", Operator = "contains", Value = "NONEXISTENT" }
+            }
+        });
+
+        result.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_IsActiveIn_返回激活()
+    {
+        var ctx = CreateDbContext();
+        await SeedMaterialAsync(ctx, category: "激活", isActive: true);
+        await SeedMaterialAsync(ctx, category: "停用", isActive: false);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "IsActive", Operator = "in", Values = new List<string> { "True" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].IsActive.Should().BeTrue();
+    }
+
+    // ========== GetFilterContextsAsync ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        await SeedMaterialAsync(ctx, category: "钢管", grade: "20#", spec: "219*8");
+        await SeedMaterialAsync(ctx, category: "不锈钢管", grade: "304", spec: "273*10");
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts.Should().ContainKey("MaterialCategory");
+        contexts["MaterialCategory"].Should().BeEquivalentTo(new[] { "不锈钢管", "钢管" }, opts => opts.WithStrictOrdering());
+        contexts.Should().ContainKey("PlantGrade");
+        contexts["PlantGrade"].Should().BeEquivalentTo(new[] { "20#", "304" }, opts => opts.WithStrictOrdering());
+        contexts["IsActive"].Should().Contain("True");
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["MaterialCategory"].Should().BeEmpty();
+        contexts["PlantGrade"].Should().BeEmpty();
+        contexts["Specification"].Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_Nullable字段排除null()
+    {
+        var ctx = CreateDbContext();
+        ctx.Materials.Add(new Material
+        {
+            MaterialCode = "MA0001", MaterialCategory = "钢管", PlantGrade = "20#",
+            Specification = "219*8", IsActive = true, Remark = null
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["MaterialCategory"].Should().HaveCount(1);
+        contexts["Remark"].Should().BeEmpty();
+    }
 }

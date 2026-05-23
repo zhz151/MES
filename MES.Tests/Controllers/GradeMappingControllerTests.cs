@@ -222,4 +222,66 @@ public class GradeMappingControllerTests : ControllerTestBase
         Assert.True(response.Success);
         Assert.NotNull(response.Data);
     }
+
+    [Fact]
+    public async Task GetFilterContexts_ReturnsOk()
+    {
+        var filterContexts = new Dictionary<string, List<string>>
+        {
+            ["Field1"] = new() { "A", "B" }
+        };
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(filterContexts);
+        var result = await _controller.GetFilterContexts();
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesKeyword_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<StandardGradeMappingDto> { Items = new List<StandardGradeMappingDto>() });
+        await _controller.GetPaged(new QueryParams { Keyword = "测试" });
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Keyword == "测试")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesSortBy_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<StandardGradeMappingDto> { Items = new List<StandardGradeMappingDto>() });
+        await _controller.GetPaged(new QueryParams { SortBy = "Code", IsDescending = false });
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "Code" && q.IsDescending == false)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_DefaultSortBy_IsCreatedTime()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<StandardGradeMappingDto> { Items = new List<StandardGradeMappingDto>() });
+        await _controller.GetPaged(new QueryParams());
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "CreatedTime")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesFiltersJson_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<StandardGradeMappingDto> { Items = new List<StandardGradeMappingDto>() });
+        var filtersJson = "[{\"Field\":\"Code\",\"Operator\":\"contains\",\"Value\":\"T\"}]";
+        await _controller.GetPaged(new QueryParams(), filters: filtersJson);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q =>
+            q.Filters != null && q.Filters.Count == 1 && q.Filters[0].Field == "Code")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetFilterContexts_Empty_ReturnsEmpty()
+    {
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+        var result = await _controller.GetFilterContexts();
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Empty(response.Data!);
+    }
 }

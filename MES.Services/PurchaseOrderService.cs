@@ -92,26 +92,38 @@ public class PurchaseOrderService : IPurchaseOrderService
             queryable = queryable.Where(p => p.RequiredDate < to);
         }
 
-        queryable = queryable.ApplyFilters(query.Filters);
-
-        // 跨表计算字段筛选（非 PurchaseOrder 直接属性）
-        if (query.Filters is { Count: > 0 })
+        // 跨表计算字段筛选（非 PurchaseOrder 直接属性，ApplyFilters 无法处理）
+        // 需提前处理并从 Filters 中移除，避免 ApplyFilters 反射时找不到属性
+        var crossTableFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            foreach (var filter in query.Filters)
+            "SupplierName", "WoSalesOrderNo", "WoProductionMainNo", "WoSignDate",
+            "WoSalesman", "WoDeliveryDate", "WoPlantGrade", "WoSpecification",
+            "WoMaxLength", "WoTotalQuantity", "WoTotalWeight", "WoTotalItemCount"
+        };
+        if (query.Filters != null)
+        {
+            foreach (var filter in query.Filters.Where(f => crossTableFields.Contains(f.Field)).ToList())
             {
                 if (string.IsNullOrWhiteSpace(filter.Field)) continue;
+                var op = filter.Operator?.ToLowerInvariant() ?? "contains";
                 switch (filter.Field.ToLower())
                 {
                     case "suppliername":
-                        if (!string.IsNullOrEmpty(filter.Value))
+                        if (op == "in" && filter.Values?.Count > 0)
+                            queryable = queryable.Where(p => _context.SupplierProfiles.Any(s => s.Id == p.SupplierId && filter.Values.Contains(s.SupplierName)));
+                        else if (!string.IsNullOrEmpty(filter.Value))
                             queryable = queryable.Where(p => _context.SupplierProfiles.Any(s => s.Id == p.SupplierId && s.SupplierName.Contains(filter.Value)));
                         break;
                     case "wosalesorderno":
-                        if (!string.IsNullOrEmpty(filter.Value))
+                        if (op == "in" && filter.Values?.Count > 0)
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && filter.Values.Contains(wo.SalesOrderNo)));
+                        else if (!string.IsNullOrEmpty(filter.Value))
                             queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.SalesOrderNo.Contains(filter.Value)));
                         break;
                     case "woproductionmainno":
-                        if (!string.IsNullOrEmpty(filter.Value))
+                        if (op == "in" && filter.Values?.Count > 0)
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && filter.Values.Contains(wo.ProductionMainNo)));
+                        else if (!string.IsNullOrEmpty(filter.Value))
                             queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.ProductionMainNo.Contains(filter.Value)));
                         break;
                     case "wosigndate":
@@ -121,7 +133,9 @@ public class PurchaseOrderService : IPurchaseOrderService
                             queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.SignDate <= wsdTo));
                         break;
                     case "wosalesman":
-                        if (!string.IsNullOrEmpty(filter.Value))
+                        if (op == "in" && filter.Values?.Count > 0)
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && filter.Values.Contains(wo.Salesman)));
+                        else if (!string.IsNullOrEmpty(filter.Value))
                             queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.Salesman.Contains(filter.Value)));
                         break;
                     case "wodeliverydate":
@@ -131,11 +145,15 @@ public class PurchaseOrderService : IPurchaseOrderService
                             queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.DeliveryDate <= wddTo));
                         break;
                     case "woplantgrade":
-                        if (!string.IsNullOrEmpty(filter.Value))
+                        if (op == "in" && filter.Values?.Count > 0)
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && filter.Values.Contains(wo.PlantGrade)));
+                        else if (!string.IsNullOrEmpty(filter.Value))
                             queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.PlantGrade.Contains(filter.Value)));
                         break;
                     case "wospecification":
-                        if (!string.IsNullOrEmpty(filter.Value))
+                        if (op == "in" && filter.Values?.Count > 0)
+                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && filter.Values.Contains(wo.Specification)));
+                        else if (!string.IsNullOrEmpty(filter.Value))
                             queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.Specification.Contains(filter.Value)));
                         break;
                     case "womaxlength":
@@ -163,8 +181,11 @@ public class PurchaseOrderService : IPurchaseOrderService
                             queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.TotalItemCount <= wicMax));
                         break;
                 }
+                query.Filters.Remove(filter);
             }
         }
+
+        queryable = queryable.ApplyFilters(query.Filters);
 
         // 工单来源字段排序（先提取带 LEFT JOIN 的 queryable）
         var withWorkOrder = queryable.GroupJoin(

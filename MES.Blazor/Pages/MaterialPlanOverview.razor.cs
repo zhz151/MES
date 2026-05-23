@@ -370,12 +370,6 @@ public partial class MaterialPlanOverview
         await LoadFilterContextsAsync();
     }
 
-    private async Task RefreshAsync()
-    {
-        if (table != null) await table.ReloadServerData();
-        Snackbar.Add("已刷新", Severity.Normal);
-    }
-
     // ========== 选中 ==========
 
     private void ToggleSelectWorkOrder(int id, bool selected)

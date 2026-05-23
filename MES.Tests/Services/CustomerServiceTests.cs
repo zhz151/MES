@@ -316,4 +316,53 @@ public class CustomerServiceTests : TestBase
         result.Items.Should().HaveCount(1);
         result.Items[0].Address.Should().Be("北京市海淀区");
     }
+
+    // ========== 筛选上下文 ==========
+
+    [Fact]
+    public async Task GetCustomerFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        // 种子 2 个不同客户
+        ctx.CustomerProfiles.AddRange(
+            new CustomerProfile { CustomerCode = "C001", CustomerUnit = "客户A", Salesman = "张三", EndCustomer = "最终A", ContactPerson = "李四", ContactPhone = "13800138001", Address = "北京", Remark = "备注A", Status = CustomerStatus.Active },
+            new CustomerProfile { CustomerCode = "C002", CustomerUnit = "客户B", Salesman = "王五", EndCustomer = null, ContactPerson = null, ContactPhone = null, Address = null, Remark = null, Status = CustomerStatus.Active }
+        );
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetCustomerFilterContextsAsync();
+
+        result.Should().ContainKey("CustomerCode");
+        result.Should().ContainKey("Salesman");
+        result.Should().ContainKey("CustomerUnit");
+        result.Should().ContainKey("EndCustomer");
+        result.Should().ContainKey("ContactPerson");
+        result.Should().ContainKey("ContactPhone");
+        result.Should().ContainKey("Address");
+        result.Should().ContainKey("Remark");
+
+        result["CustomerCode"].Should().BeEquivalentTo(new[] { "C001", "C002" }, options => options.WithStrictOrdering());
+        result["Salesman"].Should().BeEquivalentTo(new[] { "张三", "王五" });
+        result["CustomerUnit"].Should().BeEquivalentTo(new[] { "客户A", "客户B" });
+        // EndCustomer 应排除 null
+        result["EndCustomer"].Should().HaveCount(1).And.Contain("最终A");
+        // ContactPerson 应排除 null
+        result["ContactPerson"].Should().HaveCount(1).And.Contain("李四");
+        // Remark 应排除 null
+        result["Remark"].Should().HaveCount(1).And.Contain("备注A");
+    }
+
+    [Fact]
+    public async Task GetCustomerFilterContextsAsync_无数据_各字段返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetCustomerFilterContextsAsync();
+
+        result.Should().ContainKeys("CustomerCode", "Salesman", "CustomerUnit", "EndCustomer", "ContactPerson", "ContactPhone", "Address", "Remark");
+        foreach (var kvp in result)
+            kvp.Value.Should().BeEmpty($"字段 {kvp.Key} 应返回空列表");
+    }
 }

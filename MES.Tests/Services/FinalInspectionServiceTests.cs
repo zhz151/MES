@@ -398,4 +398,152 @@ public class FinalInspectionServiceTests : TestBase
         result.Items.Should().HaveCount(1);
         result.Items[0].Remark.Should().Be("测试备注");
     }
+
+    // ========== 筛选测试（FilterDescriptor） ==========
+
+    [Fact]
+    public async Task GetAllAsync_Filters_BatchNoContains_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var batch1 = await SeedBatchAsync(ctx, "BATCH001");
+        var batch2 = await SeedBatchAsync(ctx, "BATCH002");
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001", ProductionBatchId = batch1.Id, Quantity = 10
+        });
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today,
+            BatchNo = "BATCH002", ProductionBatchId = batch2.Id, Quantity = 20
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "BatchNo", Operator = "contains", Value = "BATCH001" }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].BatchNo.Should().Be("BATCH001");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_Filters_MaterialNameIn_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var batch1 = await SeedBatchAsync(ctx, "B001");
+        var batch2 = await SeedBatchAsync(ctx, "B002");
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today,
+            BatchNo = "B001", ProductionBatchId = batch1.Id, Quantity = 10, MaterialName = "不锈钢"
+        });
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today,
+            BatchNo = "B002", ProductionBatchId = batch2.Id, Quantity = 20, MaterialName = "碳钢"
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "MaterialName", Operator = "in", Values = new List<string> { "不锈钢" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].MaterialName.Should().Be("不锈钢");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_Filters_NoMatch_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        await SeedInspectionAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "BatchNo", Operator = "contains", Value = "NONEXISTENT" }
+            }
+        });
+
+        result.Items.Should().BeEmpty();
+    }
+
+    // ========== GetFilterContextsAsync ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        var batch1 = await SeedBatchAsync(ctx, "BATCH001");
+        var batch2 = await SeedBatchAsync(ctx, "BATCH002");
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001", ProductionBatchId = batch1.Id, Quantity = 10, PlantGrade = "304"
+        });
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today,
+            BatchNo = "BATCH002", ProductionBatchId = batch2.Id, Quantity = 20, PlantGrade = "316L"
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts.Should().ContainKey("BatchNo");
+        contexts["BatchNo"].Should().BeEquivalentTo(new[] { "BATCH001", "BATCH002" }, opts => opts.WithStrictOrdering());
+        contexts.Should().ContainKey("PlantGrade");
+        contexts["PlantGrade"].Should().BeEquivalentTo(new[] { "304", "316L" }, opts => opts.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["BatchNo"].Should().BeEmpty();
+        contexts["PlantGrade"].Should().BeEmpty();
+        contexts["MaterialName"].Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_Nullable字段排除null()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001", ProductionBatchId = batch.Id, Quantity = 10,
+            MaterialName = null, TagNo = null
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["BatchNo"].Should().HaveCount(1);
+        contexts["MaterialName"].Should().BeEmpty();
+        contexts["TagNo"].Should().BeEmpty();
+    }
 }

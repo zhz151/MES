@@ -396,7 +396,6 @@
                 builder.AddAttribute(3, "Size", Size.Small);
                 builder.AddAttribute(5, "Value",r.BatchNo);
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.BatchNo = v; await OnAutoFillAsync(r); }));
-                builder.AddAttribute(6, "Placeholder", "输入批次号");
                 builder.CloseComponent();
                 break;
             case "ProcessName":

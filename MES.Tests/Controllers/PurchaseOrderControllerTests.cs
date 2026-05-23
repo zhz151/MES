@@ -266,4 +266,89 @@ public class PurchaseOrderControllerTests : ControllerTestBase
         var (_, response) = AssertOk<ApiResponse<PlanDetailDto>>(result);
         Assert.False(response.Success);
     }
+
+    [Fact]
+    public async Task GetFilterContexts_ReturnsOk()
+    {
+        var filterContexts = new Dictionary<string, List<string>>
+        {
+            ["Field1"] = new() { "A", "B" }
+        };
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(filterContexts);
+        var result = await _controller.GetFilterContexts();
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetFilterContexts_Empty_ReturnsEmpty()
+    {
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+        var result = await _controller.GetFilterContexts();
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Empty(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesKeyword_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<PurchaseOrderQueryParams>()))
+            .ReturnsAsync(new PagedResult<PurchaseOrderDto> { Items = new List<PurchaseOrderDto>() });
+        await _controller.GetPaged(keyword: "测试");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<PurchaseOrderQueryParams>(q => q.Keyword == "测试")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesSortBy_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<PurchaseOrderQueryParams>()))
+            .ReturnsAsync(new PagedResult<PurchaseOrderDto> { Items = new List<PurchaseOrderDto>() });
+        await _controller.GetPaged(sortBy: "OrderNo");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<PurchaseOrderQueryParams>(q => q.SortBy == "OrderNo")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_UsesDefaultSortBy_WhenNotProvided()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<PurchaseOrderQueryParams>()))
+            .ReturnsAsync(new PagedResult<PurchaseOrderDto> { Items = new List<PurchaseOrderDto>() });
+        await _controller.GetPaged();
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<PurchaseOrderQueryParams>(q => q.SortBy == "CreatedTime")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesFilters_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<PurchaseOrderQueryParams>()))
+            .ReturnsAsync(new PagedResult<PurchaseOrderDto> { Items = new List<PurchaseOrderDto>() });
+        var filtersJson = "[{\"Field\":\"Status\",\"Operator\":\"equals\",\"Value\":\"Open\"}]";
+        await _controller.GetPaged(filters: filtersJson);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<PurchaseOrderQueryParams>(q => q.Filters != null && q.Filters.Count > 0)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesStatus_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<PurchaseOrderQueryParams>()))
+            .ReturnsAsync(new PagedResult<PurchaseOrderDto> { Items = new List<PurchaseOrderDto>() });
+        await _controller.GetPaged(status: "Open");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<PurchaseOrderQueryParams>(q => q.Status == "Open")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesDateParams_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<PurchaseOrderQueryParams>()))
+            .ReturnsAsync(new PagedResult<PurchaseOrderDto> { Items = new List<PurchaseOrderDto>() });
+        var dateFrom = new DateTime(2025, 1, 1);
+        var dateTo = new DateTime(2025, 12, 31);
+        var requiredFrom = new DateTime(2025, 2, 1);
+        var requiredTo = new DateTime(2025, 11, 30);
+        await _controller.GetPaged(dateFrom: dateFrom, dateTo: dateTo, requiredDateFrom: requiredFrom, requiredDateTo: requiredTo);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<PurchaseOrderQueryParams>(q =>
+            q.DateFrom == dateFrom && q.DateTo == dateTo &&
+            q.RequiredDateFrom == requiredFrom && q.RequiredDateTo == requiredTo)), Times.Once);
+    }
 }

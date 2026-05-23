@@ -220,4 +220,139 @@ public class EquipmentControllerTests : ControllerTestBase
         Assert.True(response.Success);
         Assert.NotNull(response.Data);
     }
+
+    [Fact]
+    public async Task GetFilterContexts_ReturnsOk()
+    {
+        // Arrange
+        var filterContexts = new Dictionary<string, List<string>>
+        {
+            ["Field1"] = new() { "A", "B" }
+        };
+        _serviceMock.Setup(x => x.GetEquipmentFilterContextsAsync()).ReturnsAsync(filterContexts);
+
+        // Act
+        var result = await _controller.GetFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetFilterContexts_Empty_ReturnsEmpty()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetEquipmentFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+
+        // Act
+        var result = await _controller.GetFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Empty(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesKeyword_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<EquipmentQueryParams>()))
+            .ReturnsAsync(new PagedResult<EquipmentListDto> { Items = new List<EquipmentListDto>() });
+        await _controller.GetPaged(keyword: "测试");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.Keyword == "测试")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesSortBy_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<EquipmentQueryParams>()))
+            .ReturnsAsync(new PagedResult<EquipmentListDto> { Items = new List<EquipmentListDto>() });
+        await _controller.GetPaged(sortBy: "EquipmentName", isDescending: false);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.SortBy == "EquipmentName" && q.IsDescending == false)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_DefaultSortBy_IsCreatedTime()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<EquipmentQueryParams>()))
+            .ReturnsAsync(new PagedResult<EquipmentListDto> { Items = new List<EquipmentListDto>() });
+        await _controller.GetPaged();
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.SortBy == "CreatedTime")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesFiltersJson_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<EquipmentQueryParams>()))
+            .ReturnsAsync(new PagedResult<EquipmentListDto> { Items = new List<EquipmentListDto>() });
+        var filtersJson = "[{\"Field\":\"EquipmentName\",\"Operator\":\"contains\",\"Value\":\"TEST\"}]";
+        await _controller.GetPaged(filters: filtersJson);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q =>
+            q.Filters != null && q.Filters.Count == 1 && q.Filters[0].Field == "EquipmentName")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesLifecycleStatus_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<EquipmentQueryParams>()))
+            .ReturnsAsync(new PagedResult<EquipmentListDto> { Items = new List<EquipmentListDto>() });
+        await _controller.GetPaged(lifecycleStatus: "正常");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.LifecycleStatus == "正常")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesUsageType_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<EquipmentQueryParams>()))
+            .ReturnsAsync(new PagedResult<EquipmentListDto> { Items = new List<EquipmentListDto>() });
+        await _controller.GetPaged(usageType: "生产");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.UsageType == "生产")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesRunningStatus_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<EquipmentQueryParams>()))
+            .ReturnsAsync(new PagedResult<EquipmentListDto> { Items = new List<EquipmentListDto>() });
+        await _controller.GetPaged(runningStatus: "运行");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.RunningStatus == "运行")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesInspectionStatus_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<EquipmentQueryParams>()))
+            .ReturnsAsync(new PagedResult<EquipmentListDto> { Items = new List<EquipmentListDto>() });
+        await _controller.GetPaged(inspectionStatus: "已检");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.InspectionStatus == "已检")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesMaintStatus_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<EquipmentQueryParams>()))
+            .ReturnsAsync(new PagedResult<EquipmentListDto> { Items = new List<EquipmentListDto>() });
+        await _controller.GetPaged(maintStatus: "正常");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.MaintStatus == "正常")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesLocation_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<EquipmentQueryParams>()))
+            .ReturnsAsync(new PagedResult<EquipmentListDto> { Items = new List<EquipmentListDto>() });
+        await _controller.GetPaged(location: "A区");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.Location == "A区")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesRelatedSection_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<EquipmentQueryParams>()))
+            .ReturnsAsync(new PagedResult<EquipmentListDto> { Items = new List<EquipmentListDto>() });
+        await _controller.GetPaged(relatedSection: "热处理");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.RelatedSection == "热处理")), Times.Once);
+    }
 }

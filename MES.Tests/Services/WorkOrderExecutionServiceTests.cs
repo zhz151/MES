@@ -898,6 +898,39 @@ public class WorkOrderExecutionServiceTests : TestBase
         s.TheoreticalOutputWeight.Should().Be(2312.5m);
     }
 
+    // ========== 筛选上下文 ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回正确选项()
+    {
+        using var ctx = CreateDbContext();
+        SeedSummary(ctx, "WO001", "SO001", "D01", salesman: "张三", materialName: "无缝管", deliveryState: "固溶酸洗", plantGrade: "304", specification: "219*8", lengthStatus: "Fixed");
+        SeedSummary(ctx, "WO002", "SO002", "D02", salesman: "李四", materialName: "焊管", deliveryState: "退火", plantGrade: "Q345B", specification: "273*10", lengthStatus: "Unlimited");
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetFilterContextsAsync();
+
+        result.Should().ContainKeys("WorkOrderNo", "Salesman", "CustomerName", "SettlementMethod", "SalesOrderNo", "ProductionMainNo", "MaterialName", "DeliveryState", "PlantGrade", "Specification", "LengthStatus");
+        result["WorkOrderNo"].Should().BeEquivalentTo(new[] { "WO001", "WO002" }, options => options.WithStrictOrdering());
+        result["Salesman"].Should().BeEquivalentTo(new[] { "张三", "李四" });
+        result["MaterialName"].Should().BeEquivalentTo(new[] { "无缝管", "焊管" });
+        result["ProductionSubNo"].Should().BeEmpty(); // SeedSummary 不设 subNo
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_无数据_各字段返回空列表()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetFilterContextsAsync();
+
+        result.Should().ContainKeys("WorkOrderNo", "Salesman", "CustomerName", "SettlementMethod", "SalesOrderNo", "ProductionMainNo", "ProductionSubNo", "MaterialName", "DeliveryState", "PlantGrade", "Specification", "LengthStatus");
+        foreach (var kvp in result)
+            kvp.Value.Should().BeEmpty($"字段 {kvp.Key} 应返回空列表");
+    }
+
     // ==================== 辅助方法 ====================
 
     private void SeedSummary(AppDbContext ctx,

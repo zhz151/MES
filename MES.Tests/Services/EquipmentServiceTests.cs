@@ -447,4 +447,39 @@ public class EquipmentServiceTests : TestBase
         result.Items.Should().HaveCount(1);
         result.Items[0].UsageType.Should().Be("Secondary");
     }
+
+    // ========== 筛选上下文 ==========
+
+    [Fact]
+    public async Task GetEquipmentFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        ctx.Equipment.AddRange(
+            new Equipment { EquipmentCode = "EQ-001", EquipmentName = "车床", ModelNumber = "M1", Location = "A区", RelatedSection = "加工", LifecycleStatus = "Active", UsageType = "Primary" },
+            new Equipment { EquipmentCode = "EQ-002", EquipmentName = "铣床", ModelNumber = null, Location = "B区", RelatedSection = null, LifecycleStatus = "Standby", UsageType = "Secondary" }
+        );
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetEquipmentFilterContextsAsync();
+
+        result.Should().ContainKeys("EquipmentCode", "EquipmentName", "ModelNumber", "Location", "RelatedSection", "LifecycleStatus", "UsageType");
+        result["EquipmentCode"].Should().BeEquivalentTo(new[] { "EQ-001", "EQ-002" }, options => options.WithStrictOrdering());
+        result["EquipmentName"].Should().BeEquivalentTo(new[] { "车床", "铣床" }, options => options.WithStrictOrdering());
+        result["ModelNumber"].Should().HaveCount(1).And.Contain("M1");
+        result["LifecycleStatus"].Should().BeEquivalentTo(new[] { "Active", "Standby" }, options => options.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task GetEquipmentFilterContextsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetEquipmentFilterContextsAsync();
+
+        result.Should().ContainKeys("EquipmentCode", "EquipmentName", "ModelNumber", "Location", "RelatedSection", "LifecycleStatus", "UsageType");
+        foreach (var kvp in result)
+            kvp.Value.Should().BeEmpty($"字段 {kvp.Key} 应返回空列表");
+    }
 }

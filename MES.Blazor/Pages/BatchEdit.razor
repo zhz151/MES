@@ -199,7 +199,6 @@
                             <th>单支重(kg)</th>
                             <th>领料支数</th>
                             <th>领料重量(kg)</th>
-                            <th>仓库名称</th>
                             <th>来源工单号</th>
                         </tr>
                     </thead>
@@ -225,7 +224,6 @@
                             <td><MudNumericField T="decimal?" @bind-Value="request.SourceUnitWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td>
                             <td><MudNumericField T="int?" @bind-Value="request.InputQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></td>
                             <td><MudNumericField T="decimal?" @bind-Value="request.InputWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td>
-                            <td><MudTextField T="string" @bind-Value="editWarehouseName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
                             <td><MudTextField T="string" @bind-Value="editSourceWorkOrderNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
                         </tr>
                     </tbody>
@@ -255,7 +253,7 @@
             <MudCardContent>
                 <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
                     <div style="display:flex; align-items:center; gap:8px; flex:1; max-width:400px;">
-                        <MudTextField T="string" Placeholder="工单号" @bind-Value="request.WorkOrderNo"
+                        <MudTextField T="string" @bind-Value="request.WorkOrderNo"
                                       Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="flex:1;" />
                         <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
                                    OnClick="ConfirmWorkOrder" Disabled="@workOrderLoading">
@@ -414,7 +412,7 @@
                     </div>
                     <div class="d-flex align-center" style="gap:6px;">
                         <span style="white-space:nowrap; font-weight:500;">有效重量(kg)</span>
-                        <MudNumericField T="decimal?" @bind-Value="request.CurrentValidWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="0" HideSpinButtons="true" Style="width:100px;" />
+                        <MudNumericField T="decimal?" @bind-Value="request.CurrentValidWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" Style="width:100px;" />
                     </div>
                     <div class="d-flex align-center" style="gap:6px;">
                         <span style="white-space:nowrap; font-weight:500;">备注</span>
@@ -437,7 +435,7 @@
             <MudCardContent>
                 <div style="margin-bottom:8px; display:flex; justify-content:flex-end;">
                     <div style="width:130px;">
-                        <MudTextField T="string" @bind-Value="_copyBatchNo" Placeholder="输入批次号"
+                        <MudTextField T="string" @bind-Value="_copyBatchNo"
                                       Dense="true" Variant="Variant.Outlined" Size="Size.Small" />
                     </div>
                 </div>
@@ -566,7 +564,6 @@
     // ========== 仓库补充字段（不在UpdateProductionBatchRequest中） ==========
     private string? editInboundSource;
     private string? editInboundDateStr;
-    private string? editWarehouseName;
     private string? editSourceWorkOrderNo;
 
     // ========== 基础信息扩展字段 ==========
@@ -801,7 +798,6 @@
         editInboundDateStr = originalBatch.InboundDate?.ToString("yyyy-MM-dd");
         request.InboundDate = originalBatch.InboundDate;
         request.WarehouseId = originalBatch.WarehouseId;
-        editWarehouseName = originalBatch.WarehouseName;
         editSourceWorkOrderNo = originalBatch.WorkOrderNo;
 
         // 工单信息
@@ -914,7 +910,6 @@
         request.InputQuantity = batch.OutboundQuantity;
         request.InputWeight = batch.OutboundWeight;
         request.WarehouseId = batch.WarehouseId;
-        editWarehouseName = batch.WarehouseName;
         editSourceWorkOrderNo = batch.WorkOrderNo;
 
         if (!string.IsNullOrWhiteSpace(batch.WorkOrderNo) && string.IsNullOrWhiteSpace(request.WorkOrderNo))
@@ -953,6 +948,16 @@
             request.MaterialName = "SeamlessPipe";
             ClearWorkOrderFields();
             Snackbar.Add("工单号为空，已设置默认值（可手工修改）", Severity.Info);
+            return;
+        }
+
+        if (request.WorkOrderNo == "非工单")
+        {
+            // 无对应工单的库存生产：清空工单字段
+            request.PlantGrade = request.SourcePlantGrade;
+            request.MaterialName = "SeamlessPipe";
+            ClearWorkOrderFields();
+            Snackbar.Add("已标记为「非工单」生产，工单字段已清空（可手工修改）", Severity.Info);
             return;
         }
 
@@ -1371,10 +1376,70 @@
         if (!string.IsNullOrEmpty(editInboundDateStr) && !DateTime.TryParse(editInboundDateStr, out _))
             errors.Add("入库日期格式无效（正确格式：yyyy-MM-dd）");
 
+        // ========== 统一必填（两路径共用） ==========
         if (string.IsNullOrWhiteSpace(request.ProductionType))
             errors.Add("生产类型不能为空");
         if (string.IsNullOrWhiteSpace(request.ManufacturingItem))
             errors.Add("制造物品不能为空");
+
+        var effectivePlantGrade = request.PlantGrade ?? originalBatch.PlantGrade;
+        var effectiveSpec = request.Specification ?? originalBatch.Specification;
+        var effectiveDelivery = request.DeliveryState ?? originalBatch.DeliveryState;
+        var effectiveMaterialName = request.MaterialName ?? originalBatch.MaterialName;
+        var effectiveLengthStatus = request.LengthStatus ?? originalBatch.LengthStatus;
+        var effectiveTotalWeight = request.TotalWeight ?? originalBatch.TotalWeight;
+        var effectiveProductionRatio = request.ProductionRatio ?? originalBatch.ProductionRatio;
+        var effectiveTotalQuantity = request.TotalQuantity ?? originalBatch.TotalQuantity;
+        var effectiveSourceGrade = request.SourcePlantGrade ?? originalBatch.SourcePlantGrade;
+        var effectiveSourceSpec = request.SourceSpecification ?? originalBatch.SourceSpecification;
+        var effectiveSourceLengthStatus = request.SourceLengthStatus ?? originalBatch.SourceLengthStatus;
+        var effectiveInputWeight = request.InputWeight ?? originalBatch.InputWeight;
+        var effectiveInputQuantity = request.InputQuantity ?? originalBatch.InputQuantity;
+
+        if (string.IsNullOrWhiteSpace(effectivePlantGrade))
+            errors.Add("工厂牌号不能为空");
+        if (string.IsNullOrWhiteSpace(effectiveSpec))
+            errors.Add("规格不能为空");
+        if (string.IsNullOrWhiteSpace(effectiveDelivery))
+            errors.Add("交货状态不能为空");
+        if (string.IsNullOrWhiteSpace(effectiveMaterialName))
+            errors.Add("物料名称不能为空");
+        if (string.IsNullOrWhiteSpace(effectiveLengthStatus))
+            errors.Add("长度状态不能为空");
+        if (effectiveTotalWeight <= 0)
+            errors.Add("总重量必须大于0");
+        // 制几率必须大于0
+        if (effectiveProductionRatio <= 0)
+            errors.Add("制几率必须大于0");
+        // 定尺时总支数必须大于0
+        if (effectiveLengthStatus == "Fixed" && effectiveTotalQuantity <= 0)
+            errors.Add("总支数（定尺时必须大于0）");
+        if (string.IsNullOrWhiteSpace(effectiveSourceGrade))
+            errors.Add("仓库工厂牌号不能为空");
+        if (string.IsNullOrWhiteSpace(effectiveSourceSpec))
+            errors.Add("仓库规格不能为空");
+        if (string.IsNullOrWhiteSpace(effectiveSourceLengthStatus))
+            errors.Add("来源长度状态不能为空");
+        if (effectiveInputWeight == null || effectiveInputWeight <= 0)
+            errors.Add("领料重量必须大于0");
+        if (effectiveInputQuantity == null || effectiveInputQuantity <= 0)
+            errors.Add("领料支数必须大于0");
+
+        // ========== 有工单路径额外验证 ==========
+        var effectiveWorkOrderNo = request.WorkOrderNo ?? originalBatch.WorkOrderNo;
+        if (effectiveWorkOrderNo != "非工单")
+        {
+            var effectiveSettlementMethod = request.SettlementMethod ?? originalBatch.SettlementMethod;
+            var effectiveStandardCode = request.StandardCode ?? originalBatch.StandardCode;
+            var effectiveTechnicalRequirements = request.TechnicalRequirements ?? originalBatch.TechnicalRequirements;
+
+            if (string.IsNullOrWhiteSpace(effectiveSettlementMethod))
+                errors.Add("结算方式不能为空");
+            if (string.IsNullOrWhiteSpace(effectiveStandardCode))
+                errors.Add("产品标准编码不能为空");
+            if (string.IsNullOrWhiteSpace(effectiveTechnicalRequirements))
+                errors.Add("技术要求不能为空");
+        }
 
         // 工厂牌号验证（高代低）
         if (!GradeSubstitutes.IsSubstitutable(request.PlantGrade, request.SourcePlantGrade))

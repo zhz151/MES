@@ -286,4 +286,143 @@ public class SupplierServiceTests : TestBase
         result.Items.Should().HaveCount(1);
         result.Items[0].Remark.Should().Be("优质供应商备注");
     }
+
+    // ========== 筛选测试（FilterDescriptor） ==========
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_SupplierNameContains_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedSupplierAsync(ctx, name: "大明钢铁");
+        await SeedSupplierAsync(ctx, name: "宝钢");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "SupplierName", Operator = "contains", Value = "大明" }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].SupplierName.Should().Be("大明钢铁");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_SupplierCodeIn_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedSupplierAsync(ctx, name: "供应商A", code: "SU0001");
+        await SeedSupplierAsync(ctx, name: "供应商B", code: "SU0002");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "SupplierCode", Operator = "in", Values = new List<string> { "SU0002" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].SupplierName.Should().Be("供应商B");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_NoMatch_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        await SeedSupplierAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "SupplierName", Operator = "contains", Value = "NONEXISTENT" }
+            }
+        });
+
+        result.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_IsActiveIn_返回激活()
+    {
+        var ctx = CreateDbContext();
+        await SeedSupplierAsync(ctx, name: "激活供应商");
+        ctx.SupplierProfiles.Add(new SupplierProfile
+        {
+            SupplierCode = "SU9999", SupplierName = "停用供应商", IsActive = false
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "IsActive", Operator = "in", Values = new List<string> { "True" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].IsActive.Should().BeTrue();
+    }
+
+    // ========== GetFilterContextsAsync ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        await SeedSupplierAsync(ctx, name: "供应商A", contact: "张三");
+        await SeedSupplierAsync(ctx, name: "供应商B", contact: "李四");
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts.Should().ContainKey("SupplierName");
+        contexts["SupplierName"].Should().BeEquivalentTo(new[] { "供应商A", "供应商B" }, opts => opts.WithStrictOrdering());
+        contexts.Should().ContainKey("ContactPerson");
+        contexts["ContactPerson"].Should().Contain("张三");
+        contexts["ContactPerson"].Should().Contain("李四");
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["SupplierName"].Should().BeEmpty();
+        contexts["SupplierCode"].Should().BeEmpty();
+        contexts["ContactPerson"].Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_Nullable字段排除null()
+    {
+        var ctx = CreateDbContext();
+        ctx.SupplierProfiles.Add(new SupplierProfile
+        {
+            SupplierCode = "SU0001", SupplierName = "测试供应商",
+            IsActive = true, ContactPerson = null, Remark = null
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["SupplierName"].Should().HaveCount(1);
+        contexts["ContactPerson"].Should().BeEmpty();
+        contexts["Remark"].Should().BeEmpty();
+    }
 }

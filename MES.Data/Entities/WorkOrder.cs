@@ -11,7 +11,7 @@ public class WorkOrder : BaseEntity
 {
     /// <summary>
     /// 工单号（业务唯一标识）
-    /// 格式：GD + yyMMdd + 3位序号
+    /// 格式：{订单号}-{主号}[-{次号}]，如 PO2026001-D01-C01
     /// </summary>
     public string WorkOrderNo { get; set; } = null!;
 

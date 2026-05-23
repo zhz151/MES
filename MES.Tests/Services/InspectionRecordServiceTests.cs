@@ -272,4 +272,166 @@ public class InspectionRecordServiceTests : TestBase
         result.Items[0].Remark.Should().Be("A备注");
         result.Items[1].Remark.Should().Be("B备注");
     }
+
+    // ========== 通用筛选测试（FilterDescriptor） ==========
+
+    /// <summary>
+    /// 注意：InspectionRecordService 内部 JOIN Equipment 后匿名类型的 RecordNo/Inspector
+    /// 等属性无法被 ApplyFilters 反射识别，需通过 Keyword 搜索测试。
+    /// EquipmentName/EquipmentCode/Location 等 Equipment 字段由服务手动处理筛选。
+    /// </summary>
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_RecordNo_Contains_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var eq = await SeedEquipmentAsync(ctx);
+        await SeedInspectionRecordAsync(ctx, eq.Id, "DJ-001");
+        await SeedInspectionRecordAsync(ctx, eq.Id, "DJ-002");
+        var svc = CreateService(ctx);
+
+        // Keyword 搜索能跨 JOIN 匿名类型匹配 Record.RecordNo
+        var result = await svc.GetPagedAsync(new InspectionRecordQueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Keyword = "DJ-001"
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].RecordNo.Should().Be("DJ-001");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_EquipmentName_In_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedEquipmentAsync(ctx, name: "设备A", code: "EQ001");
+        var eqB = await SeedEquipmentAsync(ctx, name: "设备B", code: "EQ002");
+        await SeedInspectionRecordAsync(ctx, eqB.Id, "DJ-001");
+        await SeedInspectionRecordAsync(ctx, eqB.Id, "DJ-002");
+        var svc = CreateService(ctx);
+
+        // EquipmentName 来自 JOIN 的 Equipment 表，由服务手动处理筛选
+        var result = await svc.GetPagedAsync(new InspectionRecordQueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "EquipmentName", Operator = "in", Values = new List<string> { "设备B" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(2);
+        result.Items.All(i => i.EquipmentName == "设备B").Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_Inspector_Equals_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var eq = await SeedEquipmentAsync(ctx);
+        ctx.InspectionRecords.AddRange(
+            new InspectionRecord { RecordNo = "DJ-001", EquipmentId = eq.Id, ActualDate = DateTime.Today, Inspector = "张三", ExecutionSummary = "正常" },
+            new InspectionRecord { RecordNo = "DJ-002", EquipmentId = eq.Id, ActualDate = DateTime.Today, Inspector = "李四", ExecutionSummary = "正常" }
+        );
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        // Keyword 搜索能跨 JOIN 匿名类型匹配 Record.Inspector
+        var result = await svc.GetPagedAsync(new InspectionRecordQueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Keyword = "张三"
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Inspector.Should().Be("张三");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_NoMatch_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var eq = await SeedEquipmentAsync(ctx);
+        await SeedInspectionRecordAsync(ctx, eq.Id, "DJ-001");
+        var svc = CreateService(ctx);
+
+        // 使用 EquipmentName filter（服务手动处理）测试无匹配
+        var result = await svc.GetPagedAsync(new InspectionRecordQueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "EquipmentName", Operator = "in", Values = new List<string> { "NONEXISTENT" } }
+            }
+        });
+
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
+    }
+
+    // ========== GetFilterContextsAsync ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        var eqA = await SeedEquipmentAsync(ctx, name: "设备A", code: "EQ001", location: "车间A");
+        var eqB = await SeedEquipmentAsync(ctx, name: "设备B", code: "EQ002", location: "车间B");
+        ctx.InspectionRecords.AddRange(
+            new InspectionRecord { RecordNo = "DJ-001", EquipmentId = eqA.Id, ActualDate = DateTime.Today, Inspector = "张三", ExecutionSummary = "正常", Remark = "备注1" },
+            new InspectionRecord { RecordNo = "DJ-002", EquipmentId = eqB.Id, ActualDate = DateTime.Today, Inspector = "李四", ExecutionSummary = "异常" }
+        );
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts.Should().ContainKey("RecordNo");
+        contexts["RecordNo"].Should().BeEquivalentTo(new[] { "DJ-001", "DJ-002" }, opts => opts.WithStrictOrdering());
+        contexts.Should().ContainKey("EquipmentName");
+        contexts["EquipmentName"].Should().BeEquivalentTo(new[] { "设备A", "设备B" }, opts => opts.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts.Should().ContainKeys(
+            "RecordNo", "EquipmentName", "EquipmentCode",
+            "Location", "ActualDate", "Inspector",
+            "ExecutionSummary", "Remark");
+        foreach (var kvp in contexts)
+            kvp.Value.Should().BeEmpty($"{kvp.Key} should be empty when no data");
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_Nullable字段排除null()
+    {
+        var ctx = CreateDbContext();
+        var eq = await SeedEquipmentAsync(ctx);
+        // Inspector 为 null 的记录
+        ctx.InspectionRecords.Add(new InspectionRecord
+        {
+            RecordNo = "DJ-NULL",
+            EquipmentId = eq.Id,
+            ActualDate = DateTime.Today,
+            Inspector = null,
+            ExecutionSummary = "正常"
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["Inspector"].Should().BeEmpty();
+    }
 }

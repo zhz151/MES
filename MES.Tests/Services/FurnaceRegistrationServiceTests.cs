@@ -344,4 +344,120 @@ public class FurnaceRegistrationServiceTests : TestBase
         resultAsc.Items[0].RelatedPlantGrade.Should().Be("A-Grade");
         resultAsc.Items[1].RelatedPlantGrade.Should().Be("B-Grade");
     }
+
+    // ========== 筛选测试（FilterDescriptor） ==========
+
+    [Fact]
+    public async Task GetAllAsync_Filters_RawMaterialUnitContains_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedFurnaceAsync(ctx, furnaceNo: "FUR001", unit: "钢厂A");
+        await SeedFurnaceAsync(ctx, furnaceNo: "FUR002", unit: "钢厂B");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "RawMaterialUnit", Operator = "contains", Value = "钢厂A" }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].RawMaterialUnit.Should().Be("钢厂A");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_Filters_FurnaceNumberIn_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedFurnaceAsync(ctx, furnaceNo: "FUR001");
+        await SeedFurnaceAsync(ctx, furnaceNo: "FUR002");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "FurnaceNumber", Operator = "in", Values = new List<string> { "FUR001" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].FurnaceNumber.Should().Be("FUR001");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_Filters_NoMatch_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        await SeedFurnaceAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "FurnaceNumber", Operator = "contains", Value = "NONEXISTENT" }
+            }
+        });
+
+        result.Items.Should().BeEmpty();
+    }
+
+    // ========== GetFilterContextsAsync ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        await SeedFurnaceAsync(ctx, furnaceNo: "FUR001", unit: "钢厂A", grade: "Q345B");
+        await SeedFurnaceAsync(ctx, furnaceNo: "FUR002", unit: "钢厂B", grade: "20#");
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts.Should().ContainKey("RawMaterialUnit");
+        contexts["RawMaterialUnit"].Should().BeEquivalentTo(new[] { "钢厂A", "钢厂B" }, opts => opts.WithStrictOrdering());
+        contexts.Should().ContainKey("FurnaceNumber");
+        contexts["FurnaceNumber"].Should().BeEquivalentTo(new[] { "FUR001", "FUR002" }, opts => opts.WithStrictOrdering());
+        contexts["RegisteredGrade"].Should().BeEquivalentTo(new[] { "20#", "Q345B" }, opts => opts.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["RawMaterialUnit"].Should().BeEmpty();
+        contexts["FurnaceNumber"].Should().BeEmpty();
+        contexts["RegisteredGrade"].Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_Nullable字段排除null()
+    {
+        var ctx = CreateDbContext();
+        ctx.FurnaceRegistrations.Add(new FurnaceRegistration
+        {
+            IncomingDate = DateTime.Today, RawMaterialUnit = "钢厂A", RawMaterialType = "管坯",
+            RegisteredGrade = "Q345B", FurnaceNumber = "FUR001",
+            Specification = null, RelatedPlantGrade = null, Remark = null,
+            Quantity = 10, Weight = 1000m
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["FurnaceNumber"].Should().HaveCount(1);
+        contexts["Specification"].Should().BeEmpty();
+        contexts["Remark"].Should().BeEmpty();
+    }
 }

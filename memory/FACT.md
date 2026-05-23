@@ -55,7 +55,7 @@
 - Code-behind 中不应有 `OnExcelSortRequested` 方法
 - sortColumn 只来自 ToggleSort（col.Key，PascalCase），`LoadDataFromServer` 直接按 `c.Key == sortColumn` 匹配
 
-## 关键陷阱：Controller 筛选参数绑定（2026-06-23 新增）
+## 关键陷阱：Controller 筛选参数绑定（2026-05-23 新增）
 - `[FromQuery] QueryParams query` 中 `query.Filters`（`List<FilterDescriptor>?`）是复杂类型，ASP.NET Core 默认模型绑定器无法从查询字符串反序列化 JSON 数组到此属性
 - filters 被静默置 null，筛选不生效且没有任何报错——这是最隐蔽的筛选失效原因
 - 必须写为 `[FromQuery] string? filters = null` + `JsonSerializer.Deserialize<List<FilterDescriptor>>(filters)`

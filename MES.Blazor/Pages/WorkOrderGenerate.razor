@@ -7,6 +7,7 @@
 @inject WorkOrderService WorkOrderService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 @inject IJSRuntime JS
 @attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
 
@@ -360,6 +361,19 @@
                $"{item.WallThicknessPositive}|{item.LengthStatus}";
     }
 
+    private static string GetMainNoPrefix(MaterialName materialName, LengthStatus lengthStatus)
+    {
+        if (materialName == MaterialName.WeldedPipe)
+            return "H";
+        return lengthStatus switch
+        {
+            LengthStatus.Fixed => "D",
+            LengthStatus.Range => "F",
+            LengthStatus.NonFixed => "L",
+            _ => "D"
+        };
+    }
+
     private async Task SubmitWorkOrders()
     {
         if (orderItems == null || !orderItems.Any())
@@ -386,6 +400,37 @@
             else if (lengthStatus != LengthStatus.Fixed && !string.IsNullOrEmpty(subNo))
             {
                 errors.Add($"项次 {item.Sequence} 为{DisplayHelper.GetLengthStatusText(lengthStatus)}模式，不需要填写次号");
+            }
+        }
+
+        if (errors.Any())
+        {
+            Snackbar.Add(string.Join("；", errors), Severity.Error);
+            return;
+        }
+
+        // 验证主号前缀（可编辑项次）
+        foreach (var item in orderItems)
+        {
+            var mainNo = item.SuggestedMainNo;
+            if (string.IsNullOrEmpty(mainNo)) continue; // 主号为空由后续验证处理
+
+            // Update 模式下已有原始主号的项次为只读，不验证前缀（历史数据可能已不符合规则）
+            if (generateMode == WorkOrderGenerateMode.Update && !string.IsNullOrEmpty(item.OriginalMainNo))
+                continue;
+
+            var expectedPrefix = GetMainNoPrefix(item.MaterialName, item.LengthStatus);
+            if (!mainNo.StartsWith(expectedPrefix))
+            {
+                var prefixDesc = expectedPrefix switch
+                {
+                    "H" => "焊管",
+                    "D" => "定尺",
+                    "F" => "范围尺",
+                    "L" => "非定尺",
+                    _ => expectedPrefix
+                };
+                errors.Add($"项次 {item.Sequence} 的主号 \"{mainNo}\" 首字母应为 \"{expectedPrefix}\"（{DisplayHelper.GetMaterialNameText(item.MaterialName)}/{DisplayHelper.GetLengthStatusText(item.LengthStatus)} → {prefixDesc}）");
             }
         }
 
@@ -455,6 +500,35 @@
                 ProductionSubNo = string.IsNullOrEmpty(subNo) ? null : subNo,
                 OrderItemIds = group.Value.Select(x => x.Sequence).Distinct().ToList()
             });
+        }
+
+        // 验证工单号是否重复（不同分组生成了相同工单号）
+        var workOrderNoSet = new HashSet<string>();
+        var duplicateNos = new List<string>();
+        foreach (var g in workOrderGroups)
+        {
+            var subPart = string.IsNullOrEmpty(g.ProductionSubNo) ? "" : $"-{g.ProductionSubNo}";
+            var woNo = $"{salesOrderNo}-{g.ProductionMainNo}{subPart}";
+            if (!workOrderNoSet.Add(woNo))
+                duplicateNos.Add(woNo);
+        }
+        if (duplicateNos.Any())
+        {
+            errors.Add($"工单号重复，无法生成：{string.Join("，", duplicateNos)}");
+            Snackbar.Add(string.Join("；", errors), Severity.Error);
+            return;
+        }
+
+        // Regenerate 模式：提交前确认（将物理删除现有工单及关联用料计划）
+        if (generateMode == WorkOrderGenerateMode.Regenerate)
+        {
+            var confirm = await DialogService.ShowMessageBox(
+                "确认重新生成",
+                "重新生成将物理删除该订单所有现有工单及关联的用料计划（荒管采购/成品采购/库存使用/圆棒穿孔），确定继续？",
+                yesText: "确定重新生成",
+                cancelText: "取消");
+            if (confirm != true)
+                return;
         }
 
         var request = new CreateWorkOrderRequest

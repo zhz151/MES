@@ -530,4 +530,131 @@ public class SubcontractOrderServiceTests : TestBase
         result.Items.Should().HaveCount(1);
         result.Items[0].Remark.Should().Be("委外备注信息");
     }
+
+    // ========== 筛选测试（FilterDescriptor） ==========
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_OrderNoContains_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedOrderAsync(ctx, sid);
+        var order = await ctx.SubcontractOrders.FirstAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new SubcontractQueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "OrderNo", Operator = "contains", Value = order.OrderNo[..^1] }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].OrderNo.Should().Be(order.OrderNo);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_ProcessTypeIn_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedOrderAsync(ctx, sid);
+        var sid2 = await SeedSupplierAsync(ctx, name: "其他供应商");
+        ctx.SubcontractOrders.Add(new SubcontractOrder
+        {
+            OrderNo = "WW20260101003", SupplierId = sid2, OrderDate = DateTime.Today,
+            Status = SubcontractOrderStatus.Sent, ProcessType = "抛光",
+            OutMaterialCategory = "钢管", OutPlantGrade = "304", OutSpecification = "273*10",
+            OutQuantity = 50, OutWeight = 500m
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new SubcontractQueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "ProcessType", Operator = "in", Values = new List<string> { "车丝" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].ProcessType.Should().Be("车丝");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_NoMatch_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedOrderAsync(ctx, sid);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new SubcontractQueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "OrderNo", Operator = "contains", Value = "NONEXISTENT" }
+            }
+        });
+
+        result.Items.Should().BeEmpty();
+    }
+
+    // ========== GetFilterContextsAsync ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx, name: "委外供应商A");
+        var order = await SeedOrderAsync(ctx, sid);
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts.Should().ContainKey("OrderNo");
+        contexts["OrderNo"].Should().Contain(order.OrderNo);
+        contexts.Should().ContainKey("ProcessType");
+        contexts["ProcessType"].Should().Contain("车丝");
+        contexts["SupplierName"].Should().Contain("委外供应商A");
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["OrderNo"].Should().BeEmpty();
+        contexts["ProcessType"].Should().BeEmpty();
+        contexts["OutMaterialCategory"].Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_Nullable字段排除null()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx, name: "供应商A");
+        ctx.SubcontractOrders.Add(new SubcontractOrder
+        {
+            OrderNo = "WW20260101099", SupplierId = sid, OrderDate = DateTime.Today,
+            Status = SubcontractOrderStatus.Sent, ProcessType = "车丝",
+            OutMaterialCategory = "钢管", OutPlantGrade = "20#", OutSpecification = "219*8",
+            OutQuantity = 100, OutWeight = 1000m, ReturnDeadline = null
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["OrderNo"].Should().HaveCount(1);
+        contexts["ReturnDeadline"].Should().BeEmpty();
+    }
 }

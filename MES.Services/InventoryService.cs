@@ -195,6 +195,21 @@ public class InventoryService : IInventoryService
         if (!string.IsNullOrEmpty(query.OriginalSupplier))
             queryable = queryable.Where(b => b.OriginalSupplier != null && b.OriginalSupplier.Contains(query.OriginalSupplier));
 
+        // 处理 WarehouseName 筛选（由 FillWarehouseNamesAsync 后处理填充，非 InventoryBatch 直接属性）
+        if (query.Filters != null)
+        {
+            var whFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("WarehouseName", StringComparison.OrdinalIgnoreCase));
+            if (whFilter != null)
+            {
+                var op = whFilter.Operator?.ToLowerInvariant() ?? "contains";
+                if (op == "in" && whFilter.Values?.Count > 0)
+                    queryable = queryable.Where(b => _context.Warehouses.Any(w => w.Id == b.WarehouseId && whFilter.Values.Contains(w.Name)));
+                else if (!string.IsNullOrEmpty(whFilter.Value))
+                    queryable = queryable.Where(b => _context.Warehouses.Any(w => w.Id == b.WarehouseId && w.Name.Contains(whFilter.Value)));
+                query.Filters.Remove(whFilter);
+            }
+        }
+
         queryable = queryable.ApplyFilters(query.Filters);
 
         // 排序
@@ -305,6 +320,9 @@ public class InventoryService : IInventoryService
             "islinkedtoworkorder" => query.IsDescending
                 ? queryable.OrderByDescending(b => b.IsLinkedToWorkOrder)
                 : queryable.OrderBy(b => b.IsLinkedToWorkOrder),
+            "warehousename" => query.IsDescending
+                ? queryable.Join(_context.Warehouses, b => b.WarehouseId, w => w.Id, (b, w) => new { b, w.Name }).OrderByDescending(x => x.Name).Select(x => x.b)
+                : queryable.Join(_context.Warehouses, b => b.WarehouseId, w => w.Id, (b, w) => new { b, w.Name }).OrderBy(x => x.Name).Select(x => x.b),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(b => b.CreatedTime)
                 : queryable.OrderBy(b => b.CreatedTime)
@@ -674,23 +692,22 @@ public class InventoryService : IInventoryService
             }
         }
 
-        queryable = queryable.ApplyFilters(query.Filters);
-
-        // 跨表计算字段筛选（非 OutboundRecord 直接属性）
-        if (query.Filters is { Count: > 0 })
+        // 跨表计算字段筛选（非 OutboundRecord 直接属性，ApplyFilters 无法处理）
+        if (query.Filters != null)
         {
-            foreach (var filter in query.Filters)
+            var batchNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("BatchNo", StringComparison.OrdinalIgnoreCase));
+            if (batchNoFilter != null)
             {
-                if (string.IsNullOrWhiteSpace(filter.Field)) continue;
-                switch (filter.Field.ToLower())
-                {
-                    case "batchno":
-                        if (!string.IsNullOrEmpty(filter.Value))
-                            queryable = queryable.Where(r => _context.InventoryBatches.Any(b => b.Id == r.InventoryBatchId && b.BatchNo.Contains(filter.Value)));
-                        break;
-                }
+                var op = batchNoFilter.Operator?.ToLowerInvariant() ?? "contains";
+                if (op == "in" && batchNoFilter.Values?.Count > 0)
+                    queryable = queryable.Where(r => _context.InventoryBatches.Any(b => b.Id == r.InventoryBatchId && batchNoFilter.Values.Contains(b.BatchNo)));
+                else if (!string.IsNullOrEmpty(batchNoFilter.Value))
+                    queryable = queryable.Where(r => _context.InventoryBatches.Any(b => b.Id == r.InventoryBatchId && b.BatchNo.Contains(batchNoFilter.Value)));
+                query.Filters.Remove(batchNoFilter);
             }
         }
+
+        queryable = queryable.ApplyFilters(query.Filters);
 
         queryable = query.SortBy?.ToLower() switch
         {

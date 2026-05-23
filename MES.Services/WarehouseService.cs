@@ -159,4 +159,17 @@ public class WarehouseService : IWarehouseService
         _context.Warehouses.Remove(entity);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var query = _context.Warehouses.AsNoTracking();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["Code"] = await query.Select(w => w.Code).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToListAsync(),
+            ["Name"] = await query.Select(w => w.Name).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToListAsync(),
+            ["IsActive"] = await query.Select(w => w.IsActive.ToString()).Distinct().OrderBy(v => v).ToListAsync(),
+            ["Remark"] = await query.Where(w => w.Remark != null).Select(w => w.Remark!).Distinct().OrderBy(v => v).ToListAsync(),
+        };
+    }
 }

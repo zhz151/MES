@@ -807,8 +807,28 @@
             if (item.ContractWeight <= 0)
                 errors.Add($"项次 {item.Sequence}: 合同重量必须大于0");
 
-            if (item.LengthStatus == LengthStatus.Fixed && item.TheoreticalWeight <= 0)
-                errors.Add($"项次 {item.Sequence}: 请先计算理算重量");
+            // 交货日期验证
+            if (item.DeliveryDate == default)
+                errors.Add($"项次 {item.Sequence}: 交货日期不能为空");
+
+            // 理算重量验证（定尺模式需要计算）
+            if (item.LengthStatus == LengthStatus.Fixed)
+            {
+                if (item.TheoreticalWeight <= 0)
+                {
+                    errors.Add($"项次 {item.Sequence}: 请先计算理算重量");
+                }
+                else
+                {
+                    var ratio = item.ContractWeight / item.TheoreticalWeight;
+                    const decimal lowerBound = 0.94m;
+                    const decimal upperBound = 1.06m;
+                    if (ratio < lowerBound)
+                        warnings.Add($"项次 {item.Sequence}: 合同重量 {item.ContractWeight:F2} kg 低于理算重量 {item.TheoreticalWeight:F2} kg 的94%，可能亏损，是否继续？");
+                    else if (ratio > upperBound)
+                        warnings.Add($"项次 {item.Sequence}: 合同重量 {item.ContractWeight:F2} kg 高于理算重量 {item.TheoreticalWeight:F2} kg 的106%，请确认");
+                }
+            }
         }
 
         if (errors.Any())
@@ -966,17 +986,7 @@
         switch (col.Key)
         {
             case "ordernumber":
-                if (_isEditMode)
-                {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Value", _headerEditItem.OrderNumber);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => _headerEditItem.OrderNumber = v));
-                    builder.AddAttribute(3, "Dense", true);
-                    builder.AddAttribute(4, "Variant", Variant.Outlined);
-                    builder.AddAttribute(5, "Size", Size.Small);
-                    builder.CloseComponent();
-                }
-                else { builder.AddContent(0, item.OrderNumber); }
+                builder.AddContent(0, item.OrderNumber);
                 break;
             case "signdate":
                 if (_isEditMode)

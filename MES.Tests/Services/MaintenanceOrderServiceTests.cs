@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs;
 using MES.Core.Exceptions;
+using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services;
@@ -270,5 +271,135 @@ public class MaintenanceOrderServiceTests : TestBase
 
         result.Items[0].Remark.Should().Be("A备注");
         result.Items[1].Remark.Should().Be("B备注");
+    }
+
+    // ========== 筛选测试（FilterDescriptor） ==========
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_EquipmentNameContains_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var eq1 = await SeedEquipmentAsync(ctx, name: "设备A", code: "EQ001");
+        var eq2 = await SeedEquipmentAsync(ctx, name: "设备B", code: "EQ002");
+        await SeedMaintenanceOrderAsync(ctx, eq1.Id, "BY-001");
+        await SeedMaintenanceOrderAsync(ctx, eq2.Id, "BY-002");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new MaintenanceOrderQueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "EquipmentName", Operator = "contains", Value = "设备A" }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].EquipmentName.Should().Be("设备A");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_EquipmentNameIn_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var eq1 = await SeedEquipmentAsync(ctx, name: "设备A", code: "EQ001");
+        var eq2 = await SeedEquipmentAsync(ctx, name: "设备B", code: "EQ002");
+        ctx.MaintenanceOrders.AddRange(
+            new MaintenanceOrder { MaintOrderNo = "BY-001", EquipmentId = eq1.Id, ActualDate = DateTime.Today, Executor = "张三", ExecutionSummary = "正常" },
+            new MaintenanceOrder { MaintOrderNo = "BY-002", EquipmentId = eq2.Id, ActualDate = DateTime.Today, Executor = "李四", ExecutionSummary = "正常" }
+        );
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new MaintenanceOrderQueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "EquipmentName", Operator = "in", Values = new List<string> { "设备B" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].EquipmentName.Should().Be("设备B");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters_NoMatch_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var eq = await SeedEquipmentAsync(ctx, name: "设备A", code: "EQ001");
+        await SeedMaintenanceOrderAsync(ctx, eq.Id, "BY-001");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new MaintenanceOrderQueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "EquipmentName", Operator = "contains", Value = "NONEXISTENT" }
+            }
+        });
+
+        result.Items.Should().BeEmpty();
+    }
+
+    // ========== GetFilterContextsAsync ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        var eq = await SeedEquipmentAsync(ctx, name: "设备A", code: "EQ001", location: "车间X");
+        ctx.MaintenanceOrders.Add(new MaintenanceOrder
+        {
+            MaintOrderNo = "BY-001", EquipmentId = eq.Id, ActualDate = DateTime.Today,
+            Executor = "张三", ExecutionSummary = "保养正常"
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts.Should().ContainKey("MaintOrderNo");
+        contexts["MaintOrderNo"].Should().Contain("BY-001");
+        contexts.Should().ContainKey("EquipmentName");
+        contexts["EquipmentName"].Should().Contain("设备A");
+        contexts["EquipmentCode"].Should().Contain("EQ001");
+        contexts["Executor"].Should().Contain("张三");
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["MaintOrderNo"].Should().BeEmpty();
+        contexts["EquipmentName"].Should().BeEmpty();
+        contexts["Executor"].Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_Nullable字段排除null()
+    {
+        var ctx = CreateDbContext();
+        var eq = await SeedEquipmentAsync(ctx, name: "设备A", code: "EQ001");
+        ctx.MaintenanceOrders.Add(new MaintenanceOrder
+        {
+            MaintOrderNo = "BY-001", EquipmentId = eq.Id, ActualDate = DateTime.Today,
+            Executor = null, ExecutionSummary = null, Remark = null
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["MaintOrderNo"].Should().HaveCount(1);
+        contexts["Executor"].Should().BeEmpty();
+        contexts["ExecutionSummary"].Should().BeEmpty();
+        contexts["Remark"].Should().BeEmpty();
     }
 }

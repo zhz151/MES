@@ -43,6 +43,29 @@ public class MaintenanceOrderService : IMaintenanceOrderService
         if (query.EquipmentId.HasValue)
             baseQuery = baseQuery.Where(x => x.Order.EquipmentId == query.EquipmentId.Value);
 
+        // 处理 Equipment 关联字段筛选（EquipmentName/EquipmentCode/Location 来自 Equipment 表，
+        // ApplyFilters 通过反射在匿名类型 { Order, Equipment } 上找不到这些属性，需手动处理）
+        if (query.Filters != null)
+        {
+            var equipmentFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "EquipmentName", "EquipmentCode", "Location" };
+            foreach (var f in query.Filters.Where(f => equipmentFields.Contains(f.Field)).ToList())
+            {
+                var op = f.Operator?.ToLowerInvariant() ?? "contains";
+                if (op == "in" && f.Values?.Count > 0)
+                {
+                    var values = f.Values;
+                    var fieldName = f.Field;
+                    baseQuery = baseQuery.Where(x => values.Contains(EF.Property<string>(x.Equipment, fieldName)));
+                }
+                else if (op == "contains" && !string.IsNullOrEmpty(f.Value))
+                {
+                    var val = f.Value;
+                    var fieldName = f.Field;
+                    baseQuery = baseQuery.Where(x => EF.Property<string>(x.Equipment, fieldName).Contains(val));
+                }
+                query.Filters.Remove(f);
+            }
+        }
         baseQuery = baseQuery.ApplyFilters(query.Filters);
 
         var totalCount = await baseQuery.CountAsync();

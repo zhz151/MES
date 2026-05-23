@@ -416,4 +416,149 @@ public class ProductionRecordServiceTests : TestBase
         result.Items.Should().HaveCount(1);
         result.Items[0].Remark.Should().Be("生产记录备注测试");
     }
+
+    // ========== 筛选测试（FilterDescriptor） ==========
+
+    [Fact]
+    public async Task GetAllProductionRecordsAsync_Filters_ProcessNameContains_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH001");
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx);
+
+        await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001", ProcessName = "冷轧", ManufacturingSpec = "219*8",
+            SectionName = "冷轧拔", ExecDate = DateTime.Today, Quantity = 10
+        });
+        await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001", ProcessName = "冷拔", ManufacturingSpec = "219*8",
+            SectionName = "冷轧拔", ExecDate = DateTime.Today, Quantity = 20
+        });
+
+        var result = await svc.GetAllProductionRecordsAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "ProcessName", Operator = "contains", Value = "冷轧" }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].ProcessName.Should().Be("冷轧");
+    }
+
+    [Fact]
+    public async Task GetAllProductionRecordsAsync_Filters_SectionNameIn_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH001");
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx);
+
+        await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001", ProcessName = "冷轧", ManufacturingSpec = "219*8",
+            SectionName = "冷轧拔", ExecDate = DateTime.Today, Quantity = 10
+        });
+
+        var result = await svc.GetAllProductionRecordsAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "SectionName", Operator = "in", Values = new List<string> { "冷轧拔" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task GetAllProductionRecordsAsync_Filters_NoMatch_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH001");
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx);
+        await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001", ProcessName = "冷轧", ManufacturingSpec = "219*8",
+            SectionName = "冷轧拔", ExecDate = DateTime.Today, Quantity = 10
+        });
+
+        var result = await svc.GetAllProductionRecordsAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "ProcessName", Operator = "contains", Value = "NONEXISTENT" }
+            }
+        });
+
+        result.Items.Should().BeEmpty();
+    }
+
+    // ========== GetFilterContextsAsync ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH001");
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx);
+
+        await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001", ProcessName = "冷轧", ManufacturingSpec = "219*8",
+            SectionName = "冷轧拔", ExecDate = DateTime.Today, Quantity = 10
+        });
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts.Should().ContainKey("BatchNo");
+        contexts["BatchNo"].Should().Contain("BATCH001");
+        contexts.Should().ContainKey("ProcessName");
+        contexts["ProcessName"].Should().Contain("冷轧");
+        contexts["SectionName"].Should().Contain("冷轧拔");
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["BatchNo"].Should().BeEmpty();
+        contexts["ProcessName"].Should().BeEmpty();
+        contexts["SectionName"].Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_Nullable字段排除null()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH001");
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx);
+
+        // 创建一条只有必要字段的记录，可选字段为null
+        await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001", ProcessName = "冷轧", ManufacturingSpec = "219*8",
+            SectionName = "冷轧拔", ExecDate = DateTime.Today, Quantity = 10,
+            EquipmentName = null, Operator = null, Shift = null
+        });
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["BatchNo"].Should().HaveCount(1);
+        contexts["Operator"].Should().BeEmpty();
+    }
 }

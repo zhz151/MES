@@ -58,6 +58,20 @@ public class EquipmentService : IEquipmentService
         var filterInspectionStatus = query.InspectionStatus;
         var filterMaintStatus = query.MaintStatus;
 
+        // 从 ExcelFilter 提取后处理状态字段筛选（RunningStatus/InspectionStatus/MaintStatus 由 ComputeStatusesAsync
+        // 在后端计算，ApplyFilters 无法在 Equipment 实体上找到这些属性）
+        var statusExcelFilters = new List<(string Field, List<string> Values)>();
+        if (query.Filters != null)
+        {
+            var statusFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "RunningStatus", "InspectionStatus", "MaintStatus" };
+            foreach (var f in query.Filters.Where(f => statusFields.Contains(f.Field)).ToList())
+            {
+                if (f.Values?.Count > 0)
+                    statusExcelFilters.Add((f.Field, f.Values));
+                query.Filters.Remove(f);
+            }
+        }
+
         q = q.ApplyFilters(query.Filters);
         q = q.ApplySort(query.SortBy ?? "equipmentcode", query.IsDescending);
 
@@ -75,6 +89,19 @@ public class EquipmentService : IEquipmentService
             items = items.Where(e => e.InspectionStatus == filterInspectionStatus).ToList();
         if (!string.IsNullOrEmpty(filterMaintStatus))
             items = items.Where(e => e.MaintStatus == filterMaintStatus).ToList();
+        // 应用 ExcelFilter 状态筛选（来自 query.Filters 提取的 Values）
+        if (statusExcelFilters.Count > 0)
+        {
+            items = items.Where(e =>
+                statusExcelFilters.All(sf =>
+                    sf.Values.Contains(sf.Field.ToLowerInvariant() switch
+                    {
+                        "runningstatus" => e.RunningStatus,
+                        "inspectionstatus" => e.InspectionStatus,
+                        "maintstatus" => e.MaintStatus,
+                        _ => ""
+                    }))).ToList();
+        }
 
         return new PagedResult<EquipmentListDto>
         {

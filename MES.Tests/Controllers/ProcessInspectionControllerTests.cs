@@ -136,4 +136,87 @@ public class ProcessInspectionControllerTests : ControllerTestBase
         var (_, response) = AssertBadRequest<ApiResponse<List<ProcessInspectionDto>>>(result);
         Assert.False(response.Success);
     }
+
+    [Fact]
+    public async Task GetFilterContexts_ReturnsOk()
+    {
+        var filterContexts = new Dictionary<string, List<string>>
+        {
+            ["Field1"] = new() { "A", "B" }
+        };
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(filterContexts);
+        var result = await _controller.GetFilterContexts();
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetAll_PassesKeyword_ToService()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ProcessInspectionDto> { Items = new List<ProcessInspectionDto>() });
+
+        // Act
+        await _controller.GetAll(keyword: "测试搜索");
+
+        // Assert
+        _serviceMock.Verify(x => x.GetAllAsync(It.Is<QueryParams>(q => q.Keyword == "测试搜索")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAll_PassesSortBy_ToService()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ProcessInspectionDto> { Items = new List<ProcessInspectionDto>() });
+
+        // Act
+        await _controller.GetAll(sortBy: "ProcessName", isDescending: false);
+
+        // Assert
+        _serviceMock.Verify(x => x.GetAllAsync(It.Is<QueryParams>(q => q.SortBy == "ProcessName" && q.IsDescending == false)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAll_DefaultSortBy_IsCreatedTime()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ProcessInspectionDto> { Items = new List<ProcessInspectionDto>() });
+
+        // Act
+        await _controller.GetAll();
+
+        // Assert
+        _serviceMock.Verify(x => x.GetAllAsync(It.Is<QueryParams>(q => q.SortBy == "createdtime")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAll_PassesFiltersJson_ToService()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ProcessInspectionDto> { Items = new List<ProcessInspectionDto>() });
+
+        var filtersJson = "[{\"Field\":\"ProcessName\",\"Operator\":\"contains\",\"Value\":\"test\"}]";
+
+        // Act
+        await _controller.GetAll(filters: filtersJson);
+
+        // Assert
+        _serviceMock.Verify(x => x.GetAllAsync(It.Is<QueryParams>(q =>
+            q.Filters != null && q.Filters.Count == 1 && q.Filters[0].Field == "ProcessName")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetFilterContexts_Empty_ReturnsEmpty()
+    {
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+        var result = await _controller.GetFilterContexts();
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Empty(response.Data!);
+    }
 }

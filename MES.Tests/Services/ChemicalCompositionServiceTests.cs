@@ -223,4 +223,118 @@ public class ChemicalCompositionServiceTests : TestBase
         result.Items.Should().HaveCount(1);
         result.Items[0].Carbon.Should().Be("0.12");
     }
+
+    // ========== 筛选测试（FilterDescriptor） ==========
+
+    [Fact]
+    public async Task GetAllAsync_Filters_PlantGradeContains_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedChemicalAsync(ctx, plantGrade: "Q345B");
+        await SeedChemicalAsync(ctx, plantGrade: "20#");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "PlantGrade", Operator = "contains", Value = "Q345" }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].PlantGrade.Should().Be("Q345B");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_Filters_PlantGradeIn_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedChemicalAsync(ctx, plantGrade: "Q345B");
+        await SeedChemicalAsync(ctx, plantGrade: "20#");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "PlantGrade", Operator = "in", Values = new List<string> { "20#" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].PlantGrade.Should().Be("20#");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_Filters_NoMatch_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        await SeedChemicalAsync(ctx, plantGrade: "Q345B");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "PlantGrade", Operator = "contains", Value = "NONEXISTENT" }
+            }
+        });
+
+        result.Items.Should().BeEmpty();
+    }
+
+    // ========== GetFilterContextsAsync ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        await SeedChemicalAsync(ctx, plantGrade: "Q345B", carbon: "0.12");
+        await SeedChemicalAsync(ctx, plantGrade: "20#", carbon: "0.20");
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts.Should().ContainKey("PlantGrade");
+        contexts["PlantGrade"].Should().BeEquivalentTo(new[] { "20#", "Q345B" }, opts => opts.WithStrictOrdering());
+        contexts.Should().ContainKey("Carbon");
+        contexts["Carbon"].Should().BeEquivalentTo(new[] { "0.12", "0.20" }, opts => opts.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["PlantGrade"].Should().BeEmpty();
+        contexts["Carbon"].Should().BeEmpty();
+        contexts["Silicon"].Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_Nullable字段排除null()
+    {
+        var ctx = CreateDbContext();
+        ctx.ChemicalCompositions.Add(new ChemicalComposition
+        {
+            PlantGrade = "Q345B",
+            Carbon = null,
+            Silicon = null
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["PlantGrade"].Should().HaveCount(1);
+        contexts["Carbon"].Should().BeEmpty();
+        contexts["Silicon"].Should().BeEmpty();
+    }
 }

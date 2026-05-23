@@ -60,16 +60,6 @@
                         导出数据
                     </MudButton>
                 </MudItem>
-                <MudItem xs="12" sm="4">
-                    <MudButton Variant="Variant.Filled"
-                               Color="Color.Warning"
-                               FullWidth="true"
-                               StartIcon="@Icons.Material.Filled.Refresh"
-                               OnClick="RefreshEntities"
-                               Disabled="@isLoading">
-                        刷新列表
-                    </MudButton>
-                </MudItem>
             </MudGrid>
         </MudPaper>
     }
@@ -362,12 +352,6 @@
         {
             isLoading = false;
         }
-    }
-
-    private async Task RefreshEntities()
-    {
-        await LoadEntities();
-        Snackbar.Add("已刷新", Severity.Info);
     }
 
     private void OnFileSelected(IBrowserFile file)

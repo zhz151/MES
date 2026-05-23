@@ -2586,6 +2586,9 @@ namespace MES.Data.Migrations
                     b.Property<DateTimeOffset>("UpdatedTime")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<bool?>("ValidInputQuestion")
+                        .HasColumnType("bit");
+
                     b.Property<decimal>("WallThicknessNegative")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(18,3)")

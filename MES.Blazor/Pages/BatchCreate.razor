@@ -245,7 +245,7 @@
         <MudCardContent>
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
                 <div style="display:flex; align-items:center; gap:8px; flex:1; max-width:400px;">
-                    <MudTextField T="string" Placeholder="工单号" @bind-Value="request.WorkOrderNo"
+                    <MudTextField T="string" @bind-Value="request.WorkOrderNo"
                                   Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="flex:1;" />
                     <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
                                OnClick="ConfirmWorkOrder" Disabled="@workOrderLoading">
@@ -429,7 +429,7 @@
         <MudCardContent>
             <div style="margin-bottom:8px; display:flex; justify-content:flex-end;">
                 <div style="width:130px;">
-                    <MudTextField T="string" @bind-Value="_copyBatchNo" Placeholder="输入批次号"
+                    <MudTextField T="string" @bind-Value="_copyBatchNo"
                                   Dense="true" Variant="Variant.Outlined" Size="Size.Small" />
                 </div>
             </div>
@@ -788,6 +788,17 @@
             ClearWorkOrderFields();
             request.ProductionRatio = 0;
             Snackbar.Add("工单号为空，已设置默认值（可手工修改）", Severity.Info);
+            return;
+        }
+
+        if (request.WorkOrderNo == "非工单")
+        {
+            // 无对应工单的库存生产：清空工单字段
+            request.PlantGrade = request.SourcePlantGrade;
+            request.MaterialName = "SeamlessPipe";
+            ClearWorkOrderFields();
+            request.ProductionRatio = 0;
+            Snackbar.Add("已标记为「非工单」生产，工单字段已清空（可手工修改）", Severity.Info);
             return;
         }
 
@@ -1184,9 +1195,57 @@
     {
         var errors = new List<string>();
 
+        // ========== 统一必填（两路径共用） ==========
+
         // 生产类型必填
         if (string.IsNullOrWhiteSpace(request.ProductionType))
             errors.Add("生产类型不能为空");
+        // 制造物品必填
+        if (string.IsNullOrWhiteSpace(request.ManufacturingItem))
+            errors.Add("制造物品不能为空");
+
+        // 工单规格必填
+        if (string.IsNullOrWhiteSpace(request.PlantGrade))
+            errors.Add("工厂牌号不能为空");
+        if (string.IsNullOrWhiteSpace(request.Specification))
+            errors.Add("规格不能为空");
+        if (string.IsNullOrWhiteSpace(request.DeliveryState))
+            errors.Add("交货状态不能为空");
+        if (string.IsNullOrWhiteSpace(request.MaterialName))
+            errors.Add("物料名称不能为空");
+        if (string.IsNullOrWhiteSpace(request.LengthStatus))
+            errors.Add("长度状态不能为空");
+        if (request.TotalWeight == null || request.TotalWeight <= 0)
+            errors.Add("总重量必须大于0");
+        // 制几率必须大于0
+        if (request.ProductionRatio <= 0)
+            errors.Add("制几率必须大于0");
+        // 定尺时总支数必须大于0
+        if (request.LengthStatus == "Fixed" && (request.TotalQuantity == null || request.TotalQuantity <= 0))
+            errors.Add("总支数（定尺时必须大于0）");
+
+        // 仓库来源必填
+        if (string.IsNullOrWhiteSpace(request.SourcePlantGrade))
+            errors.Add("仓库工厂牌号不能为空");
+        if (string.IsNullOrWhiteSpace(request.SourceSpecification))
+            errors.Add("仓库规格不能为空");
+        if (string.IsNullOrWhiteSpace(request.SourceLengthStatus))
+            errors.Add("来源长度状态不能为空");
+        if (request.InputWeight == null || request.InputWeight <= 0)
+            errors.Add("领料重量必须大于0");
+        if (request.InputQuantity == null || request.InputQuantity <= 0)
+            errors.Add("领料支数必须大于0");
+
+        // ========== 有工单路径额外验证 ==========
+        if (request.WorkOrderNo != "非工单")
+        {
+            if (string.IsNullOrWhiteSpace(request.SettlementMethod))
+                errors.Add("结算方式不能为空");
+            if (string.IsNullOrWhiteSpace(request.StandardCode))
+                errors.Add("产品标准编码不能为空");
+            if (string.IsNullOrWhiteSpace(request.TechnicalRequirements))
+                errors.Add("技术要求不能为空");
+        }
 
         // 工厂牌号验证（高代低）
         if (!GradeSubstitutes.IsSubstitutable(request.PlantGrade, request.SourcePlantGrade))

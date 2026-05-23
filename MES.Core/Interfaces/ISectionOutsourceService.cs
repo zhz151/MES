@@ -18,7 +18,7 @@ public interface ISectionOutsourceService
     /// <summary>
     /// 根据ID列表获取委外发出记录（用于批量回收）
     /// </summary>
-    Task<List<SectionOutsourceDto>> GetByIdsAsync(int[] ids);
+    Task<List<SectionOutsourceDto>> GetByIdsAsync(string ids);
 
     /// <summary>
     /// 创建委外发出（使用 BatchNo 模式）

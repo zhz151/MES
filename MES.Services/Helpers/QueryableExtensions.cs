@@ -268,7 +268,11 @@ public static class QueryableExtensions
             var containsMethod = typeof(List<bool>).GetMethod("Contains", [typeof(bool)]);
             if (containsMethod == null)
                 return null;
-            return Expression.Call(list, containsMethod, member);
+            // Nullable<bool> 类型需取 .Value 以匹配 Contains(bool)
+            var memberForContains = member;
+            if (member.Type != typeof(bool))
+                memberForContains = Expression.Property(member, "Value");
+            return Expression.Call(list, containsMethod, memberForContains);
         }
 
         // DateTime 类型（含 Nullable<DateTime>）

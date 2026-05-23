@@ -2,11 +2,13 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs;
+using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Models;
 using MES.Services;
 using MES.Tests.Tests;
 using MES.Data;
+using MES.Data.Entities;
 using Moq;
 
 namespace MES.Tests.Services;
@@ -706,5 +708,87 @@ public class InventoryServiceTests : TestBase
 
         result.Items.Should().HaveCount(1);
         result.Items[0].OutboundType.Should().Be("TransferOut");
+    }
+
+    // ========== 库存筛选上下文 ==========
+
+    [Fact]
+    public async Task GetInventoryFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx);
+        // 直接插入 InventoryBatch
+        ctx.InventoryBatches.AddRange(
+            new InventoryBatch { BatchNo = "CK001", WarehouseId = wh.Id, MaterialType = "无缝管", PlantGrade = "Q345B", Specification = "219*8", InboundSource = "采购", SourceName = "供应商A", InboundDate = DateTime.Today, InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m, IsLinkedToWorkOrder = false },
+            new InventoryBatch { BatchNo = "CK002", WarehouseId = wh.Id, MaterialType = "焊管", PlantGrade = "Q235B", Specification = "159*6", InboundSource = "采购", SourceName = "供应商B", InboundDate = DateTime.Today, InitialQuantity = 20, InitialWeight = 2000m, RemainingQuantity = 20, RemainingWeight = 2000m, IsLinkedToWorkOrder = true, SurfaceCondition = "酸洗", HeatNo = "H001", LocationArea = "A区", LocationRack = "R01" }
+        );
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetInventoryFilterContextsAsync();
+
+        result.Should().ContainKeys("BatchNo", "InboundDate", "MaterialType", "SourceName", "PlantGrade", "Specification", "IsLinkedToWorkOrder");
+        result["BatchNo"].Should().BeEquivalentTo(new[] { "CK001", "CK002" }, options => options.WithStrictOrdering());
+        result["MaterialType"].Should().BeEquivalentTo(new[] { "无缝管", "焊管" });
+        result["IsLinkedToWorkOrder"].Should().BeEquivalentTo(new[] { "False", "True" });
+        result["SurfaceCondition"].Should().Contain("酸洗");
+        result["HeatNo"].Should().Contain("H001");
+        result["LocationArea"].Should().Contain("A区");
+    }
+
+    [Fact]
+    public async Task GetInventoryFilterContextsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetInventoryFilterContextsAsync();
+
+        result.Should().NotBeNull();
+        foreach (var kvp in result)
+            kvp.Value.Should().BeEmpty($"字段 {kvp.Key} 应返回空列表");
+    }
+
+    // ========== 出库筛选上下文 ==========
+
+    [Fact]
+    public async Task GetOutboundFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx);
+        // 需要 InventoryBatch 才能创建 OutboundRecord
+        var batch = new InventoryBatch { BatchNo = "CK001", WarehouseId = wh.Id, MaterialType = "无缝管", PlantGrade = "Q345B", Specification = "219*8", InboundSource = "采购", SourceName = "供应商A", InboundDate = DateTime.Today, InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m };
+        ctx.InventoryBatches.Add(batch);
+        await ctx.SaveChangesAsync();
+        ctx.OutboundRecords.AddRange(
+            new OutboundRecord { InventoryBatchId = batch.Id, OutboundType = Core.Enums.OutboundType.SalesOut, SourceOrderNo = "SO001", TargetCompany = "客户A", OutboundQuantity = 2, OutboundWeight = 200m, OutboundDate = DateTime.Today, CreatedBy = "user1" },
+            new OutboundRecord { InventoryBatchId = batch.Id, OutboundType = Core.Enums.OutboundType.TransferOut, SourceOrderNo = null, TargetCompany = null, OutboundQuantity = 3, OutboundWeight = 300m, OutboundDate = DateTime.Today, CreatedBy = "user2", Remark = "调拨" }
+        );
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetOutboundFilterContextsAsync();
+
+        result.Should().ContainKeys("BatchNo", "OutboundType", "SourceOrderNo", "TargetCompany", "Remark", "CreatedBy");
+        result["BatchNo"].Should().Contain("CK001");
+        result["OutboundType"].Should().Contain("SalesOut").And.Contain("TransferOut");
+        result["SourceOrderNo"].Should().HaveCount(1).And.Contain("SO001");
+        result["TargetCompany"].Should().HaveCount(1).And.Contain("客户A");
+        result["Remark"].Should().HaveCount(1).And.Contain("调拨");
+        // AppDbContext.SaveChangesAsync 将 CreatedBy 覆盖为 "system"（无 HttpContext 时）
+        result["CreatedBy"].Should().AllBe("system");
+    }
+
+    [Fact]
+    public async Task GetOutboundFilterContextsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetOutboundFilterContextsAsync();
+
+        result.Should().NotBeNull();
+        foreach (var kvp in result)
+            kvp.Value.Should().BeEmpty($"字段 {kvp.Key} 应返回空列表");
     }
 }

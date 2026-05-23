@@ -1509,6 +1509,7 @@ public class WorkOrderService : IWorkOrderService
                     (s.ProductionSubNo != null && s.ProductionSubNo.Contains(keyword)) ||
                     s.Salesman.Contains(keyword) ||
                     (s.EndCustomer != null && s.EndCustomer.Contains(keyword)) ||
+                    s.MaterialName.Contains(keyword) ||
                     s.LatestPlanDate == date);
             }
             else
@@ -1520,6 +1521,8 @@ public class WorkOrderService : IWorkOrderService
                     (s.ProductionSubNo != null && s.ProductionSubNo.Contains(keyword)) ||
                     s.Salesman.Contains(keyword) ||
                     (s.EndCustomer != null && s.EndCustomer.Contains(keyword)) ||
+                    s.MaterialName.Contains(keyword) ||
+                    (s.StandardCode != null && s.StandardCode.Contains(keyword)) ||
                     s.PlantGrade.Contains(keyword) ||
                     s.Specification.Contains(keyword));
             }
@@ -1749,6 +1752,8 @@ public class WorkOrderService : IWorkOrderService
 
         var workOrders = await workOrderQuery.Skip(query.Skip).Take(query.PageSize).ToListAsync();
         var items = workOrders.Select(wo => wo.ToListDto()).ToList();
+
+        await EnrichWithAggregatedStatusAsync(items);
 
         return new PagedResult<WorkOrderListDto>
         {

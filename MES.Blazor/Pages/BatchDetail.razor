@@ -98,9 +98,6 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">对应规格</MudText><MudText Typo="Typo.body2">@(batch.CorrespondingSpec ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">强制完成</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetYesNoText(batch.IsForceCompleted))</MudText></div>
                 <div class="d-flex align-center" Style="gap:6px; width:100%; flex-wrap:wrap;">
-                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Info"
-                               StartIcon="@Icons.Material.Filled.Refresh"
-                               OnClick="RefreshTracking">刷新执行状态</MudButton>
                     @if (batch.Status == "None")
                     {
                         <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Error"
@@ -263,7 +260,6 @@
             </MudText>
             <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">来源库存批次</MudText><MudText Typo="Typo.body2">@(batch.SourceBatchNo ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">仓库名称</MudText><MudText Typo="Typo.body2">@(batch.WarehouseName ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">来源工单号</MudText><MudText Typo="Typo.body2">@(batch.WorkOrderNo ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">原料类型</MudText><MudText Typo="Typo.body2">@(batch.SourceMaterialType ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">入库来源</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetInboundSourceText(batch.InboundSource)</MudText></div>
@@ -290,9 +286,16 @@
             <MudText Typo="Typo.caption" Class="detail-subsection font-weight-bold mb-2">基本信息</MudText>
             <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">工单号</MudText>
-                    <MudLink Typo="Typo.body2" Class="detail-link" OnClick="() => NavigateToWorkOrder(batch.WorkOrderNo)">
-                        @batch.WorkOrderNo
-                    </MudLink></div>
+                    @if (batch.WorkOrderNo == "非工单")
+                    {
+                        <MudText Typo="Typo.body2">@batch.WorkOrderNo</MudText>
+                    }
+                    else
+                    {
+                        <MudLink Typo="Typo.body2" Class="detail-link" OnClick="() => NavigateToWorkOrder(batch.WorkOrderNo)">
+                            @batch.WorkOrderNo
+                        </MudLink>
+                    }</div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">源订单号</MudText>
                     <MudLink Typo="Typo.body2" Class="detail-link" OnClick="() => NavigateToSalesOrder(batch.SalesOrderNo)">
                         @batch.SalesOrderNo
@@ -599,24 +602,6 @@
 
     private void GoBack() => Navigation.NavigateTo("/batches");
 
-    private async Task RefreshTracking()
-    {
-        try
-        {
-            var result = await ProdRecordService.RefreshBatchTrackingAsync(Id);
-            if (result.Success)
-            {
-                Snackbar.Add("执行状态已刷新", Severity.Success);
-                await LoadData();
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "刷新失败", Severity.Error);
-            }
-        }
-        catch (Exception ex) { Snackbar.Add($"刷新失败: {ex.Message}", Severity.Error); }
-    }
-
     // ========== 操作日志 ==========
 
     private void ToggleOperationLog()
@@ -743,6 +728,9 @@
 
     private async Task NavigateToWorkOrder(string workOrderNo)
     {
+        if (workOrderNo == "非工单" || string.IsNullOrWhiteSpace(workOrderNo))
+            return;
+
         try
         {
             var result = await WorkOrderService.GetByWorkOrderNoAsync(workOrderNo);

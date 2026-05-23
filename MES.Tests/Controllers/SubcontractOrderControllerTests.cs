@@ -250,4 +250,74 @@ public class SubcontractOrderControllerTests : ControllerTestBase
         var (_, response) = AssertOk<ApiResponse<PlanDetailDto>>(result);
         Assert.False(response.Success);
     }
+
+    [Fact]
+    public async Task GetFilterContexts_ReturnsOk()
+    {
+        var filterContexts = new Dictionary<string, List<string>>
+        {
+            ["Field1"] = new() { "A", "B" }
+        };
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(filterContexts);
+        var result = await _controller.GetFilterContexts();
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetFilterContexts_Empty_ReturnsEmpty()
+    {
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+        var result = await _controller.GetFilterContexts();
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Empty(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesKeyword_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<SubcontractQueryParams>()))
+            .ReturnsAsync(new PagedResult<SubcontractOrderDto> { Items = new List<SubcontractOrderDto>() });
+        await _controller.GetPaged(keyword: "测试");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<SubcontractQueryParams>(q => q.Keyword == "测试")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesSortBy_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<SubcontractQueryParams>()))
+            .ReturnsAsync(new PagedResult<SubcontractOrderDto> { Items = new List<SubcontractOrderDto>() });
+        await _controller.GetPaged(sortBy: "OrderNo");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<SubcontractQueryParams>(q => q.SortBy == "OrderNo")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_UsesDefaultSortBy_WhenNotProvided()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<SubcontractQueryParams>()))
+            .ReturnsAsync(new PagedResult<SubcontractOrderDto> { Items = new List<SubcontractOrderDto>() });
+        await _controller.GetPaged();
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<SubcontractQueryParams>(q => q.SortBy == "CreatedTime")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesFilters_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<SubcontractQueryParams>()))
+            .ReturnsAsync(new PagedResult<SubcontractOrderDto> { Items = new List<SubcontractOrderDto>() });
+        var filtersJson = "[{\"Field\":\"Status\",\"Operator\":\"equals\",\"Value\":\"Sent\"}]";
+        await _controller.GetPaged(filters: filtersJson);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<SubcontractQueryParams>(q => q.Filters != null && q.Filters.Count > 0)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesStatus_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<SubcontractQueryParams>()))
+            .ReturnsAsync(new PagedResult<SubcontractOrderDto> { Items = new List<SubcontractOrderDto>() });
+        await _controller.GetPaged(status: "Sent");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<SubcontractQueryParams>(q => q.Status == "Sent")), Times.Once);
+    }
 }

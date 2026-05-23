@@ -604,4 +604,306 @@ public class ProductionRecordControllerTests : ControllerTestBase
         Assert.True(response.Success);
         Assert.NotNull(response.Data);
     }
+
+    [Fact]
+    public async Task GetFilterContexts_ReturnsOk()
+    {
+        // Arrange
+        var ctx = new Dictionary<string, List<string>> { ["BatchNo"] = new() { "REC001" } };
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(ctx);
+
+        // Act
+        var result = await _controller.GetFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetFilterContexts_Empty_ReturnsEmpty()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+
+        // Act
+        var result = await _controller.GetFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Empty(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetMaterialCheckFilterContexts_ReturnsOk()
+    {
+        // Arrange
+        var ctx = new Dictionary<string, List<string>> { ["BatchNo"] = new() { "BATCH001" } };
+        _serviceMock.Setup(x => x.GetMaterialCheckFilterContextsAsync()).ReturnsAsync(ctx);
+
+        // Act
+        var result = await _controller.GetMaterialCheckFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetMaterialCheckFilterContexts_Empty_ReturnsEmpty()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetMaterialCheckFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+
+        // Act
+        var result = await _controller.GetMaterialCheckFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Empty(response.Data!);
+    }
+
+    // ========== GetProductionRecords parameter forwarding ==========
+
+    [Fact]
+    public async Task GetProductionRecords_LimitsPageSize()
+    {
+        _serviceMock.Setup(x => x.GetProductionRecordsAsync(It.IsAny<int>(), It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionRecordDto> { Items = new List<ProductionRecordDto>() });
+        await _controller.GetProductionRecords(1, pageSize: 10000);
+        _serviceMock.Verify(x => x.GetProductionRecordsAsync(1, It.Is<QueryParams>(q => q.PageSize == 5000)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetProductionRecords_PassesKeyword_ToService()
+    {
+        _serviceMock.Setup(x => x.GetProductionRecordsAsync(It.IsAny<int>(), It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionRecordDto> { Items = new List<ProductionRecordDto>() });
+        await _controller.GetProductionRecords(1, keyword: "测试");
+        _serviceMock.Verify(x => x.GetProductionRecordsAsync(1, It.Is<QueryParams>(q => q.Keyword == "测试")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetProductionRecords_PassesSortBy_ToService()
+    {
+        _serviceMock.Setup(x => x.GetProductionRecordsAsync(It.IsAny<int>(), It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionRecordDto> { Items = new List<ProductionRecordDto>() });
+        await _controller.GetProductionRecords(1, sortBy: "BatchNo");
+        _serviceMock.Verify(x => x.GetProductionRecordsAsync(1, It.Is<QueryParams>(q => q.SortBy == "BatchNo")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetProductionRecords_UsesDefaultSortBy_WhenNotProvided()
+    {
+        _serviceMock.Setup(x => x.GetProductionRecordsAsync(It.IsAny<int>(), It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionRecordDto> { Items = new List<ProductionRecordDto>() });
+        await _controller.GetProductionRecords(1);
+        _serviceMock.Verify(x => x.GetProductionRecordsAsync(1, It.Is<QueryParams>(q => q.SortBy == "createdtime")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetProductionRecords_PassesFilters_ToService()
+    {
+        _serviceMock.Setup(x => x.GetProductionRecordsAsync(It.IsAny<int>(), It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionRecordDto> { Items = new List<ProductionRecordDto>() });
+        var filtersJson = "[{\"Field\":\"BatchNo\",\"Operator\":\"equals\",\"Value\":\"REC001\"}]";
+        await _controller.GetProductionRecords(1, filters: filtersJson);
+        _serviceMock.Verify(x => x.GetProductionRecordsAsync(1, It.Is<QueryParams>(q => q.Filters != null && q.Filters.Count > 0)), Times.Once);
+    }
+
+    // ========== GetAllProductionRecords parameter forwarding ==========
+
+    [Fact]
+    public async Task GetAllProductionRecords_LimitsPageSize()
+    {
+        _serviceMock.Setup(x => x.GetAllProductionRecordsAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionRecordDto> { Items = new List<ProductionRecordDto>() });
+        await _controller.GetAllProductionRecords(pageSize: 10000);
+        _serviceMock.Verify(x => x.GetAllProductionRecordsAsync(It.Is<QueryParams>(q => q.PageSize == 5000)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllProductionRecords_PassesKeyword_ToService()
+    {
+        _serviceMock.Setup(x => x.GetAllProductionRecordsAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionRecordDto> { Items = new List<ProductionRecordDto>() });
+        await _controller.GetAllProductionRecords(keyword: "测试");
+        _serviceMock.Verify(x => x.GetAllProductionRecordsAsync(It.Is<QueryParams>(q => q.Keyword == "测试")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllProductionRecords_PassesSortBy_ToService()
+    {
+        _serviceMock.Setup(x => x.GetAllProductionRecordsAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionRecordDto> { Items = new List<ProductionRecordDto>() });
+        await _controller.GetAllProductionRecords(sortBy: "BatchNo");
+        _serviceMock.Verify(x => x.GetAllProductionRecordsAsync(It.Is<QueryParams>(q => q.SortBy == "BatchNo")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllProductionRecords_UsesDefaultSortBy_WhenNotProvided()
+    {
+        _serviceMock.Setup(x => x.GetAllProductionRecordsAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionRecordDto> { Items = new List<ProductionRecordDto>() });
+        await _controller.GetAllProductionRecords();
+        _serviceMock.Verify(x => x.GetAllProductionRecordsAsync(It.Is<QueryParams>(q => q.SortBy == "createdtime")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllProductionRecords_PassesFilters_ToService()
+    {
+        _serviceMock.Setup(x => x.GetAllProductionRecordsAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ProductionRecordDto> { Items = new List<ProductionRecordDto>() });
+        var filtersJson = "[{\"Field\":\"BatchNo\",\"Operator\":\"equals\",\"Value\":\"REC001\"}]";
+        await _controller.GetAllProductionRecords(filters: filtersJson);
+        _serviceMock.Verify(x => x.GetAllProductionRecordsAsync(It.Is<QueryParams>(q => q.Filters != null && q.Filters.Count > 0)), Times.Once);
+    }
+
+    // ========== GetAllSectionOutsources parameter forwarding ==========
+
+    [Fact]
+    public async Task GetAllSectionOutsources_LimitsPageSize()
+    {
+        _serviceMock.Setup(x => x.GetAllSectionOutsourcesAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<SectionOutsourceDto> { Items = new List<SectionOutsourceDto>() });
+        await _controller.GetAllSectionOutsources(pageSize: 10000);
+        _serviceMock.Verify(x => x.GetAllSectionOutsourcesAsync(It.Is<QueryParams>(q => q.PageSize == 5000)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllSectionOutsources_PassesKeyword_ToService()
+    {
+        _serviceMock.Setup(x => x.GetAllSectionOutsourcesAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<SectionOutsourceDto> { Items = new List<SectionOutsourceDto>() });
+        await _controller.GetAllSectionOutsources(keyword: "测试");
+        _serviceMock.Verify(x => x.GetAllSectionOutsourcesAsync(It.Is<QueryParams>(q => q.Keyword == "测试")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllSectionOutsources_PassesSortBy_ToService()
+    {
+        _serviceMock.Setup(x => x.GetAllSectionOutsourcesAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<SectionOutsourceDto> { Items = new List<SectionOutsourceDto>() });
+        await _controller.GetAllSectionOutsources(sortBy: "BatchNo");
+        _serviceMock.Verify(x => x.GetAllSectionOutsourcesAsync(It.Is<QueryParams>(q => q.SortBy == "BatchNo")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllSectionOutsources_UsesDefaultSortBy_WhenNotProvided()
+    {
+        _serviceMock.Setup(x => x.GetAllSectionOutsourcesAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<SectionOutsourceDto> { Items = new List<SectionOutsourceDto>() });
+        await _controller.GetAllSectionOutsources();
+        _serviceMock.Verify(x => x.GetAllSectionOutsourcesAsync(It.Is<QueryParams>(q => q.SortBy == "createdtime")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllSectionOutsources_PassesFilters_ToService()
+    {
+        _serviceMock.Setup(x => x.GetAllSectionOutsourcesAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<SectionOutsourceDto> { Items = new List<SectionOutsourceDto>() });
+        var filtersJson = "[{\"Field\":\"BatchNo\",\"Operator\":\"equals\",\"Value\":\"BATCH001\"}]";
+        await _controller.GetAllSectionOutsources(filters: filtersJson);
+        _serviceMock.Verify(x => x.GetAllSectionOutsourcesAsync(It.Is<QueryParams>(q => q.Filters != null && q.Filters.Count > 0)), Times.Once);
+    }
+
+    // ========== GetAllOutsourceRecoveries parameter forwarding ==========
+
+    [Fact]
+    public async Task GetAllOutsourceRecoveries_LimitsPageSize()
+    {
+        _serviceMock.Setup(x => x.GetAllOutsourceRecoveriesAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<OutsourceRecoveryDto> { Items = new List<OutsourceRecoveryDto>() });
+        await _controller.GetAllOutsourceRecoveries(pageSize: 10000);
+        _serviceMock.Verify(x => x.GetAllOutsourceRecoveriesAsync(It.Is<QueryParams>(q => q.PageSize == 5000)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllOutsourceRecoveries_PassesKeyword_ToService()
+    {
+        _serviceMock.Setup(x => x.GetAllOutsourceRecoveriesAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<OutsourceRecoveryDto> { Items = new List<OutsourceRecoveryDto>() });
+        await _controller.GetAllOutsourceRecoveries(keyword: "测试");
+        _serviceMock.Verify(x => x.GetAllOutsourceRecoveriesAsync(It.Is<QueryParams>(q => q.Keyword == "测试")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllOutsourceRecoveries_PassesSortBy_ToService()
+    {
+        _serviceMock.Setup(x => x.GetAllOutsourceRecoveriesAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<OutsourceRecoveryDto> { Items = new List<OutsourceRecoveryDto>() });
+        await _controller.GetAllOutsourceRecoveries(sortBy: "SectionOutsourceId");
+        _serviceMock.Verify(x => x.GetAllOutsourceRecoveriesAsync(It.Is<QueryParams>(q => q.SortBy == "SectionOutsourceId")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllOutsourceRecoveries_UsesDefaultSortBy_WhenNotProvided()
+    {
+        _serviceMock.Setup(x => x.GetAllOutsourceRecoveriesAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<OutsourceRecoveryDto> { Items = new List<OutsourceRecoveryDto>() });
+        await _controller.GetAllOutsourceRecoveries();
+        _serviceMock.Verify(x => x.GetAllOutsourceRecoveriesAsync(It.Is<QueryParams>(q => q.SortBy == "createdtime")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllOutsourceRecoveries_PassesFilters_ToService()
+    {
+        _serviceMock.Setup(x => x.GetAllOutsourceRecoveriesAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<OutsourceRecoveryDto> { Items = new List<OutsourceRecoveryDto>() });
+        var filtersJson = "[{\"Field\":\"SectionOutsourceId\",\"Operator\":\"equals\",\"Value\":\"1\"}]";
+        await _controller.GetAllOutsourceRecoveries(filters: filtersJson);
+        _serviceMock.Verify(x => x.GetAllOutsourceRecoveriesAsync(It.Is<QueryParams>(q => q.Filters != null && q.Filters.Count > 0)), Times.Once);
+    }
+
+    // ========== GetAllMaterialReceiveChecks parameter forwarding ==========
+
+    [Fact]
+    public async Task GetAllMaterialReceiveChecks_LimitsPageSize()
+    {
+        _serviceMock.Setup(x => x.GetAllMaterialReceiveChecksAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<MaterialReceiveCheckDto> { Items = new List<MaterialReceiveCheckDto>() });
+        await _controller.GetAllMaterialReceiveChecks(pageSize: 10000);
+        _serviceMock.Verify(x => x.GetAllMaterialReceiveChecksAsync(It.Is<QueryParams>(q => q.PageSize == 5000)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllMaterialReceiveChecks_PassesKeyword_ToService()
+    {
+        _serviceMock.Setup(x => x.GetAllMaterialReceiveChecksAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<MaterialReceiveCheckDto> { Items = new List<MaterialReceiveCheckDto>() });
+        await _controller.GetAllMaterialReceiveChecks(keyword: "测试");
+        _serviceMock.Verify(x => x.GetAllMaterialReceiveChecksAsync(It.Is<QueryParams>(q => q.Keyword == "测试")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllMaterialReceiveChecks_PassesSortBy_ToService()
+    {
+        _serviceMock.Setup(x => x.GetAllMaterialReceiveChecksAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<MaterialReceiveCheckDto> { Items = new List<MaterialReceiveCheckDto>() });
+        await _controller.GetAllMaterialReceiveChecks(sortBy: "BatchNo");
+        _serviceMock.Verify(x => x.GetAllMaterialReceiveChecksAsync(It.Is<QueryParams>(q => q.SortBy == "BatchNo")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllMaterialReceiveChecks_UsesDefaultSortBy_WhenNotProvided()
+    {
+        _serviceMock.Setup(x => x.GetAllMaterialReceiveChecksAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<MaterialReceiveCheckDto> { Items = new List<MaterialReceiveCheckDto>() });
+        await _controller.GetAllMaterialReceiveChecks();
+        _serviceMock.Verify(x => x.GetAllMaterialReceiveChecksAsync(It.Is<QueryParams>(q => q.SortBy == "createdtime")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllMaterialReceiveChecks_PassesFilters_ToService()
+    {
+        _serviceMock.Setup(x => x.GetAllMaterialReceiveChecksAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<MaterialReceiveCheckDto> { Items = new List<MaterialReceiveCheckDto>() });
+        var filtersJson = "[{\"Field\":\"BatchNo\",\"Operator\":\"equals\",\"Value\":\"BATCH001\"}]";
+        await _controller.GetAllMaterialReceiveChecks(filters: filtersJson);
+        _serviceMock.Verify(x => x.GetAllMaterialReceiveChecksAsync(It.Is<QueryParams>(q => q.Filters != null && q.Filters.Count > 0)), Times.Once);
+    }
 }

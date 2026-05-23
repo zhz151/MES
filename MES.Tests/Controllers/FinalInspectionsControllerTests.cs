@@ -218,4 +218,87 @@ public class FinalInspectionsControllerTests : ControllerTestBase
         var (_, response) = AssertOk<ApiResponse<BatchLookupResultDto?>>(result);
         Assert.Null(response.Data);
     }
+
+    [Fact]
+    public async Task GetFilterContexts_ReturnsOk()
+    {
+        var filterContexts = new Dictionary<string, List<string>>
+        {
+            ["Field1"] = new() { "A", "B" }
+        };
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(filterContexts);
+        var result = await _controller.GetFilterContexts();
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetAll_PassesKeyword_ToService()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<FinalInspectionDto> { Items = new List<FinalInspectionDto>() });
+
+        // Act
+        await _controller.GetAll(keyword: "测试搜索");
+
+        // Assert
+        _serviceMock.Verify(x => x.GetAllAsync(It.Is<QueryParams>(q => q.Keyword == "测试搜索")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAll_PassesSortBy_ToService()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<FinalInspectionDto> { Items = new List<FinalInspectionDto>() });
+
+        // Act
+        await _controller.GetAll(sortBy: "InspectionItem", isDescending: false);
+
+        // Assert
+        _serviceMock.Verify(x => x.GetAllAsync(It.Is<QueryParams>(q => q.SortBy == "InspectionItem" && q.IsDescending == false)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAll_DefaultSortBy_IsInspectionDate()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<FinalInspectionDto> { Items = new List<FinalInspectionDto>() });
+
+        // Act
+        await _controller.GetAll();
+
+        // Assert
+        _serviceMock.Verify(x => x.GetAllAsync(It.Is<QueryParams>(q => q.SortBy == "inspectiondate")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAll_PassesFiltersJson_ToService()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<FinalInspectionDto> { Items = new List<FinalInspectionDto>() });
+
+        var filtersJson = "[{\"Field\":\"InspectionItem\",\"Operator\":\"contains\",\"Value\":\"test\"}]";
+
+        // Act
+        await _controller.GetAll(filters: filtersJson);
+
+        // Assert
+        _serviceMock.Verify(x => x.GetAllAsync(It.Is<QueryParams>(q =>
+            q.Filters != null && q.Filters.Count == 1 && q.Filters[0].Field == "InspectionItem")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetFilterContexts_Empty_ReturnsEmpty()
+    {
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+        var result = await _controller.GetFilterContexts();
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Empty(response.Data!);
+    }
 }

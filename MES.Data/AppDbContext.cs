@@ -1634,7 +1634,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.ItemCount).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.HasTechReqCount).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
-            entity.Property(e => e.RowVersion).IsRowVersion().IsRequired();
+            entity.Property(e => e.RowVersion).IsRowVersion().IsRequired(false);
             entity.Property(e => e.LastChangeDate).HasColumnType("datetime2");
 
             // 索引

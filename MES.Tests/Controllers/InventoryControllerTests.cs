@@ -314,4 +314,142 @@ public class InventoryControllerTests : ControllerTestBase
         var (_, response) = AssertBadRequest<ApiResponse<BatchOutboundResult>>(result);
         Assert.False(response.Success);
     }
+
+    [Fact]
+    public async Task GetInventoryFilterContexts_ReturnsOk()
+    {
+        // Arrange
+        var ctx = new Dictionary<string, List<string>> { ["BatchNo"] = new() { "CK001" } };
+        _serviceMock.Setup(x => x.GetInventoryFilterContextsAsync()).ReturnsAsync(ctx);
+
+        // Act
+        var result = await _controller.GetInventoryFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetInventoryFilterContexts_Empty_ReturnsEmpty()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetInventoryFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+
+        // Act
+        var result = await _controller.GetInventoryFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Empty(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetOutboundFilterContexts_ReturnsOk()
+    {
+        // Arrange
+        var ctx = new Dictionary<string, List<string>> { ["OutboundType"] = new() { "SalesOut" } };
+        _serviceMock.Setup(x => x.GetOutboundFilterContextsAsync()).ReturnsAsync(ctx);
+
+        // Act
+        var result = await _controller.GetOutboundFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesKeyword_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<InventoryQueryParams>()))
+            .ReturnsAsync(new PagedResult<InventoryBatchDto> { Items = new List<InventoryBatchDto>() });
+        await _controller.GetPaged(new InventoryQueryParams { Keyword = "测试" });
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<InventoryQueryParams>(q => q.Keyword == "测试")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesSortBy_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<InventoryQueryParams>()))
+            .ReturnsAsync(new PagedResult<InventoryBatchDto> { Items = new List<InventoryBatchDto>() });
+        await _controller.GetPaged(new InventoryQueryParams { SortBy = "Code", IsDescending = false });
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<InventoryQueryParams>(q => q.SortBy == "Code" && q.IsDescending == false)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_DefaultSortBy_IsCreatedTime()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<InventoryQueryParams>()))
+            .ReturnsAsync(new PagedResult<InventoryBatchDto> { Items = new List<InventoryBatchDto>() });
+        await _controller.GetPaged(new InventoryQueryParams());
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<InventoryQueryParams>(q => q.SortBy == "CreatedTime")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesFiltersJson_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<InventoryQueryParams>()))
+            .ReturnsAsync(new PagedResult<InventoryBatchDto> { Items = new List<InventoryBatchDto>() });
+        var filtersJson = "[{\"Field\":\"Code\",\"Operator\":\"contains\",\"Value\":\"T\"}]";
+        await _controller.GetPaged(new InventoryQueryParams(), filters: filtersJson);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<InventoryQueryParams>(q =>
+            q.Filters != null && q.Filters.Count == 1 && q.Filters[0].Field == "Code")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetOutboundRecords_PassesKeyword_ToService()
+    {
+        _serviceMock.Setup(x => x.GetOutboundRecordsAsync(It.IsAny<OutboundQueryParams>()))
+            .ReturnsAsync(new PagedResult<OutboundRecordDto> { Items = new List<OutboundRecordDto>() });
+        await _controller.GetOutboundRecords(new OutboundQueryParams { Keyword = "测试" });
+        _serviceMock.Verify(x => x.GetOutboundRecordsAsync(It.Is<OutboundQueryParams>(q => q.Keyword == "测试")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetOutboundRecords_PassesSortBy_ToService()
+    {
+        _serviceMock.Setup(x => x.GetOutboundRecordsAsync(It.IsAny<OutboundQueryParams>()))
+            .ReturnsAsync(new PagedResult<OutboundRecordDto> { Items = new List<OutboundRecordDto>() });
+        await _controller.GetOutboundRecords(new OutboundQueryParams { SortBy = "Code", IsDescending = false });
+        _serviceMock.Verify(x => x.GetOutboundRecordsAsync(It.Is<OutboundQueryParams>(q => q.SortBy == "Code" && q.IsDescending == false)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetOutboundRecords_DefaultSortBy_IsCreatedTime()
+    {
+        _serviceMock.Setup(x => x.GetOutboundRecordsAsync(It.IsAny<OutboundQueryParams>()))
+            .ReturnsAsync(new PagedResult<OutboundRecordDto> { Items = new List<OutboundRecordDto>() });
+        await _controller.GetOutboundRecords(new OutboundQueryParams());
+        _serviceMock.Verify(x => x.GetOutboundRecordsAsync(It.Is<OutboundQueryParams>(q => q.SortBy == "CreatedTime")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetOutboundRecords_PassesFiltersJson_ToService()
+    {
+        _serviceMock.Setup(x => x.GetOutboundRecordsAsync(It.IsAny<OutboundQueryParams>()))
+            .ReturnsAsync(new PagedResult<OutboundRecordDto> { Items = new List<OutboundRecordDto>() });
+        var filtersJson = "[{\"Field\":\"Code\",\"Operator\":\"contains\",\"Value\":\"T\"}]";
+        await _controller.GetOutboundRecords(new OutboundQueryParams(), filters: filtersJson);
+        _serviceMock.Verify(x => x.GetOutboundRecordsAsync(It.Is<OutboundQueryParams>(q =>
+            q.Filters != null && q.Filters.Count == 1 && q.Filters[0].Field == "Code")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetOutboundFilterContexts_Empty_ReturnsEmpty()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetOutboundFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+
+        // Act
+        var result = await _controller.GetOutboundFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Empty(response.Data!);
+    }
 }

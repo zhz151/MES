@@ -242,4 +242,97 @@ public class ChemicalCompositionControllerTests : ControllerTestBase
         Assert.True(response.Data!.HasRolledBack);
         Assert.Contains("已回滚", response.Message);
     }
+
+    [Fact]
+    public async Task GetFilterContexts_ReturnsOk()
+    {
+        // Arrange
+        var filterContexts = new Dictionary<string, List<string>>
+        {
+            ["Field1"] = new() { "A", "B" }
+        };
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(filterContexts);
+
+        // Act
+        var result = await _controller.GetFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetAll_PassesKeyword_ToService()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ChemicalCompositionDto> { Items = new List<ChemicalCompositionDto>() });
+
+        // Act
+        await _controller.GetAll(keyword: "测试搜索");
+
+        // Assert
+        _serviceMock.Verify(x => x.GetAllAsync(It.Is<QueryParams>(q => q.Keyword == "测试搜索")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAll_PassesSortBy_ToService()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ChemicalCompositionDto> { Items = new List<ChemicalCompositionDto>() });
+
+        // Act
+        await _controller.GetAll(sortBy: "PlantGrade", isDescending: false);
+
+        // Assert
+        _serviceMock.Verify(x => x.GetAllAsync(It.Is<QueryParams>(q => q.SortBy == "PlantGrade" && q.IsDescending == false)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAll_DefaultSortBy_IsPlantGrade()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ChemicalCompositionDto> { Items = new List<ChemicalCompositionDto>() });
+
+        // Act
+        await _controller.GetAll();
+
+        // Assert
+        _serviceMock.Verify(x => x.GetAllAsync(It.Is<QueryParams>(q => q.SortBy == "plantgrade")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAll_PassesFiltersJson_ToService()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<ChemicalCompositionDto> { Items = new List<ChemicalCompositionDto>() });
+
+        var filtersJson = "[{\"Field\":\"PlantGrade\",\"Operator\":\"contains\",\"Value\":\"304\"}]";
+
+        // Act
+        await _controller.GetAll(filters: filtersJson);
+
+        // Assert
+        _serviceMock.Verify(x => x.GetAllAsync(It.Is<QueryParams>(q =>
+            q.Filters != null && q.Filters.Count == 1 && q.Filters[0].Field == "PlantGrade")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetFilterContexts_Empty_ReturnsEmpty()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+
+        // Act
+        var result = await _controller.GetFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Empty(response.Data!);
+    }
 }

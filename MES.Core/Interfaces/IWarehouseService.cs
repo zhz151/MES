@@ -11,4 +11,5 @@ public interface IWarehouseService
     Task<WarehouseDto> CreateAsync(CreateWarehouseRequest request);
     Task<WarehouseDto> UpdateAsync(int id, UpdateWarehouseRequest request);
     Task DeleteAsync(int id);
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 }

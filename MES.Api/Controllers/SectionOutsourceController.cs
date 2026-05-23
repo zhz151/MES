@@ -37,12 +37,7 @@ public class SectionOutsourceController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(ids))
             return BadRequest(ApiResponse<List<SectionOutsourceDto>>.Fail("ids参数不能为空"));
-        var idList = ids.Split(',', StringSplitOptions.RemoveEmptyEntries)
-            .Select(id => int.TryParse(id, out var parsed) ? parsed : (int?)null)
-            .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .ToArray();
-        var result = await _service.GetByIdsAsync(idList);
+        var result = await _service.GetByIdsAsync(ids);
         return Ok(ApiResponse<List<SectionOutsourceDto>>.Ok(result, "查询成功"));
     }
 

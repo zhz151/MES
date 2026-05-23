@@ -1367,6 +1367,32 @@ public class ProductionRecordService : IProductionRecordService
             ? pgSpecLookup.GetValueOrDefault(nextSection.pgId)
             : null;
 
+        // ====== 8. 有效投料疑问 ======
+        var latestInspection = processInspections
+            .OrderByDescending(p => p.InspectionDate)
+            .ThenByDescending(p => p.Id)
+            .FirstOrDefault();
+        if (latestInspection?.QualifiedQuantity.HasValue == true
+            && batch.CurrentValidQty is > 0
+            && batch.ProductionRatio > 0)
+        {
+            var pg = batch.ProcessGroups.FirstOrDefault(pg => pg.Id == latestInspection.ProcessGroupId);
+            if (pg?.ManufacturingMultiple > 0)
+            {
+                var inspectionTheoryQty = latestInspection.QualifiedQuantity.Value * pg.ManufacturingMultiple;
+                var inputProductionQty = batch.CurrentValidQty.Value * batch.ProductionRatio;
+                if (inputProductionQty > 0)
+                {
+                    var ratio = (decimal)inspectionTheoryQty / inputProductionQty;
+                    batch.ValidInputQuestion = (ratio > 1.02m || ratio < 0.98m);
+                }
+            }
+        }
+        else
+        {
+            batch.ValidInputQuestion = null;
+        }
+
         _context.ProductionBatches.Update(batch);
         await _context.SaveChangesAsync();
         }
@@ -1575,6 +1601,32 @@ public class ProductionRecordService : IProductionRecordService
             batch.CorrespondingSpec = nextSection != null
                 ? pgSpecLookup.GetValueOrDefault(nextSection.pgId)
                 : null;
+
+            // 有效投料疑问
+            var latestInspection = processInspections
+                .OrderByDescending(p => p.InspectionDate)
+                .ThenByDescending(p => p.Id)
+                .FirstOrDefault();
+            if (latestInspection?.QualifiedQuantity.HasValue == true
+                && batch.CurrentValidQty is > 0
+                && batch.ProductionRatio > 0)
+            {
+                var pg = batch.ProcessGroups.FirstOrDefault(pg => pg.Id == latestInspection.ProcessGroupId);
+                if (pg?.ManufacturingMultiple > 0)
+                {
+                    var inspectionTheoryQty = latestInspection.QualifiedQuantity.Value * pg.ManufacturingMultiple;
+                    var inputProductionQty = batch.CurrentValidQty.Value * batch.ProductionRatio;
+                    if (inputProductionQty > 0)
+                    {
+                        var ratio = (decimal)inspectionTheoryQty / inputProductionQty;
+                        batch.ValidInputQuestion = (ratio > 1.02m || ratio < 0.98m);
+                    }
+                }
+            }
+            else
+            {
+                batch.ValidInputQuestion = null;
+            }
         }
 
         _context.ProductionBatches.UpdateRange(batchDict.Values);

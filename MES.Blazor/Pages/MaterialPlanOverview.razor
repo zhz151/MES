@@ -25,13 +25,6 @@
                 </div>
             </CardHeaderContent>
             <CardHeaderActions>
-                <MudButton Variant="Variant.Outlined"
-                           Color="Color.Info"
-                           StartIcon="@Icons.Material.Filled.Refresh"
-                           OnClick="() => RefreshAsync()"
-                           Size="Size.Small">
-                    刷新
-                </MudButton>
             </CardHeaderActions>
         </MudCardHeader>
 
@@ -110,7 +103,14 @@
                     {
                         <MudTh>
                             <div style="display:inline-flex; align-items:center; gap:4px;">
-                                <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
+                                @if (col.SortKey != null)
+                                {
+                                    <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
+                                }
+                                else
+                                {
+                                    <span class="th-label">@col.Label</span>
+                                }
                                 @if (col.FilterType != null)
                                 {
                                     <ExcelFilter T="WorkOrderListDto"

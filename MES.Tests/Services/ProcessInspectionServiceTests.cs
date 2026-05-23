@@ -322,4 +322,117 @@ public class ProcessInspectionServiceTests : TestBase
         result.Items.Should().HaveCount(1);
         result.Items[0].Remark.Should().Be("过程备注测试");
     }
+
+    // ========== 筛选测试（FilterDescriptor） ==========
+
+    [Fact]
+    public async Task GetAllAsync_Filters_BatchNoIn_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedInspectionAsync(ctx, batchNo: "BATCH001");
+        await SeedInspectionAsync(ctx, batchNo: "BATCH002");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "BatchNo", Operator = "in", Values = new List<string> { "BATCH001" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_Filters_ProcessNameContains_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedInspectionAsync(ctx, batchNo: "BATCH001", processName: "冷轧");
+        await SeedInspectionAsync(ctx, batchNo: "BATCH002", processName: "冷拔");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "ProcessName", Operator = "contains", Value = "冷轧" }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_Filters_NoMatch_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        await SeedInspectionAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "ProcessName", Operator = "contains", Value = "NONEXISTENT" }
+            }
+        });
+
+        result.Items.Should().BeEmpty();
+    }
+
+    // ========== GetFilterContextsAsync ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        await SeedInspectionAsync(ctx, batchNo: "BATCH001", processName: "冷轧", sectionName: "冷轧拔");
+        await SeedInspectionAsync(ctx, batchNo: "BATCH002", processName: "冷拔", sectionName: "冷轧拔");
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts.Should().ContainKey("BatchNo");
+        contexts["BatchNo"].Should().BeEquivalentTo(new[] { "BATCH001", "BATCH002" }, opts => opts.WithStrictOrdering());
+        contexts.Should().ContainKey("ProcessName");
+        contexts["ProcessName"].Should().BeEquivalentTo(new[] { "冷拔", "冷轧" }, opts => opts.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["BatchNo"].Should().BeEmpty();
+        contexts["ProcessName"].Should().BeEmpty();
+        contexts["SectionName"].Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_Nullable字段排除null()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH001");
+        ctx.ProcessInspections.Add(new ProcessInspection
+        {
+            ProductionBatchId = batch.Id, ProcessName = "冷轧", SectionName = "冷轧拔",
+            SequenceNumber = 1, InspectionDate = DateTime.Today, Quantity = 10,
+            EquipmentName = null, Inspector = null, Remark = null
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["BatchNo"].Should().HaveCount(1);
+        contexts["EquipmentName"].Should().BeEmpty();
+        contexts["Remark"].Should().BeEmpty();
+    }
 }

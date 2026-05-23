@@ -286,4 +286,114 @@ public class GradeMappingServiceTests : TestBase
         result.Items.Should().HaveCount(1);
         result.Items[0].SpecialNote.Should().Be("特殊工艺要求");
     }
+
+    // ========== 筛选测试（FilterDescriptor） ==========
+
+    [Fact]
+    public async Task GetPagedAsync_Filters标准牌号Contains_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedMappingAsync(ctx, standardGrade: "Q345B", plantGrade: "Q345B");
+        await SeedMappingAsync(ctx, standardGrade: "20#", plantGrade: "20#G");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "StandardGrade", Operator = "contains", Value = "Q345" }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].StandardGrade.Should().Be("Q345B");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters工厂牌号Equals_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedMappingAsync(ctx, standardGrade: "A", plantGrade: "304");
+        await SeedMappingAsync(ctx, standardGrade: "B", plantGrade: "316L");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "PlantGrade", Operator = "equals", Value = "304" }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].PlantGrade.Should().Be("304");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_Filters无匹配_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        await SeedMappingAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "StandardGrade", Operator = "equals", Value = "NONEXISTENT" }
+            }
+        });
+
+        result.Items.Should().BeEmpty();
+    }
+
+    // ========== GetFilterContextsAsync ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        await SeedMappingAsync(ctx, standardGrade: "Q345B", plantGrade: "Q345B");
+        await SeedMappingAsync(ctx, standardGrade: "20#", plantGrade: "20#G");
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts.Should().ContainKey("StandardGrade");
+        contexts["StandardGrade"].Should().BeEquivalentTo(new[] { "20#", "Q345B" }, opts => opts.WithStrictOrdering());
+        contexts.Should().ContainKey("PlantGrade");
+        contexts["PlantGrade"].Should().BeEquivalentTo(new[] { "20#G", "Q345B" }, opts => opts.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["StandardGrade"].Should().BeEmpty();
+        contexts["PlantGrade"].Should().BeEmpty();
+        contexts["HeatTreatment"].Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_Nullable字段排除null()
+    {
+        var ctx = CreateDbContext();
+        await SeedMappingAsync(ctx, standardGrade: "A", plantGrade: "A");
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        // HeatTreatment 为 null 的不会被返回
+        var contexts = await svc.GetFilterContextsAsync();
+        contexts["HeatTreatment"].Should().BeEmpty();
+    }
 }

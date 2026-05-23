@@ -220,4 +220,75 @@ public class RepairOrderControllerTests : ControllerTestBase
         Assert.True(response.Success);
         Assert.NotNull(response.Data);
     }
+
+    [Fact]
+    public async Task GetFilterContexts_ReturnsOk()
+    {
+        var filterContexts = new Dictionary<string, List<string>>
+        {
+            ["Field1"] = new() { "A", "B" }
+        };
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(filterContexts);
+        var result = await _controller.GetFilterContexts();
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetPaged_LimitsPageSize()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<RepairOrderQueryParams>()))
+            .ReturnsAsync(new PagedResult<RepairOrderListDto> { Items = new List<RepairOrderListDto>() });
+        await _controller.GetPaged(pageSize: 9999);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<RepairOrderQueryParams>(q => q.PageSize == 5000)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesKeyword_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<RepairOrderQueryParams>()))
+            .ReturnsAsync(new PagedResult<RepairOrderListDto> { Items = new List<RepairOrderListDto>() });
+        await _controller.GetPaged(keyword: "测试");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<RepairOrderQueryParams>(q => q.Keyword == "测试")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesSortBy_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<RepairOrderQueryParams>()))
+            .ReturnsAsync(new PagedResult<RepairOrderListDto> { Items = new List<RepairOrderListDto>() });
+        await _controller.GetPaged(sortBy: "Code", isDescending: false);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<RepairOrderQueryParams>(q => q.SortBy == "Code" && q.IsDescending == false)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_DefaultSortBy_IsReportTime()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<RepairOrderQueryParams>()))
+            .ReturnsAsync(new PagedResult<RepairOrderListDto> { Items = new List<RepairOrderListDto>() });
+        await _controller.GetPaged();
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<RepairOrderQueryParams>(q => q.SortBy == "ReportTime")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesFiltersJson_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<RepairOrderQueryParams>()))
+            .ReturnsAsync(new PagedResult<RepairOrderListDto> { Items = new List<RepairOrderListDto>() });
+        var filtersJson = "[{\"Field\":\"Code\",\"Operator\":\"contains\",\"Value\":\"T\"}]";
+        await _controller.GetPaged(filters: filtersJson);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<RepairOrderQueryParams>(q =>
+            q.Filters != null && q.Filters.Count == 1 && q.Filters[0].Field == "Code")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetFilterContexts_Empty_ReturnsEmpty()
+    {
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+        var result = await _controller.GetFilterContexts();
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Empty(response.Data!);
+    }
 }

@@ -637,4 +637,54 @@ public class OrderServiceTests : TestBase
             }
         };
     }
+
+    // ========== 筛选上下文 ==========
+
+    [Fact]
+    public async Task GetOrderFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        ctx.Set<MES.Data.Entities.OrderListSummary>().AddRange(
+            new MES.Data.Entities.OrderListSummary
+            {
+                OrderNumber = "SO001",
+                SignDate = DateTime.Today.AddDays(-1),
+                CustomerName = "客户A",
+                Salesman = "张三",
+                Status = SalesOrderStatus.Confirmed,
+                CreatedTime = DateTimeOffset.Now,
+                UpdatedTime = DateTimeOffset.Now
+            },
+            new MES.Data.Entities.OrderListSummary
+            {
+                OrderNumber = "SO002",
+                SignDate = DateTime.Today,
+                CustomerName = "客户B",
+                Salesman = "李四",
+                Status = SalesOrderStatus.Confirmed,
+                CreatedTime = DateTimeOffset.Now,
+                UpdatedTime = DateTimeOffset.Now
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetOrderFilterContextsAsync();
+
+        result.Should().ContainKeys("OrderNumber", "SignDate", "Salesman", "CustomerName");
+        result["OrderNumber"].Should().BeEquivalentTo(new[] { "SO001", "SO002" }, options => options.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task GetOrderFilterContextsAsync_无数据_各字段返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetOrderFilterContextsAsync();
+
+        result.Should().ContainKeys("OrderNumber", "SignDate", "Salesman", "CustomerName", "EndCustomer", "DeliveryStart", "DeliveryEnd", "LastChangeDate");
+        foreach (var kvp in result)
+            kvp.Value.Should().BeEmpty($"字段 {kvp.Key} 应返回空列表");
+    }
 }

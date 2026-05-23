@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
@@ -22,8 +23,12 @@ public class WarehouseController : ControllerBase
     [HttpGet("list")]
     [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<PagedResult<WarehouseDto>>>> GetPaged(
-        [FromQuery] QueryParams query, [FromQuery] bool? isActive = null)
+        [FromQuery] QueryParams query, [FromQuery] bool? isActive = null,
+        [FromQuery] string? filters = null)
     {
+        if (!string.IsNullOrEmpty(filters))
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
         var result = await _service.GetPagedAsync(query, isActive);
         return Ok(ApiResponse<PagedResult<WarehouseDto>>.Ok(result, "查询成功"));
     }
@@ -64,6 +69,14 @@ public class WarehouseController : ControllerBase
 
         var result = await _service.UpdateAsync(id, request);
         return Ok(ApiResponse<WarehouseDto>.Ok(result, "更新成功"));
+    }
+
+    [HttpGet("filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
+    {
+        var result = await _service.GetFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
     }
 
     [HttpDelete("{id}")]

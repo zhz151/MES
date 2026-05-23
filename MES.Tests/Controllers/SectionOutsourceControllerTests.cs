@@ -26,7 +26,7 @@ public class SectionOutsourceControllerTests : ControllerTestBase
     {
         // Arrange
         var list = new List<SectionOutsourceDto> { new() { Id = 1, BatchNo = "BATCH001" } };
-        _serviceMock.Setup(x => x.GetByIdsAsync(new[] { 1, 2 })).ReturnsAsync(list);
+        _serviceMock.Setup(x => x.GetByIdsAsync("1,2")).ReturnsAsync(list);
 
         // Act
         var result = await _controller.GetByIds("1,2");
@@ -282,5 +282,154 @@ public class SectionOutsourceControllerTests : ControllerTestBase
         // Assert
         var (_, response) = AssertOk<ApiResponse<List<OutsourceRecoveryDto>>>(result);
         Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetFilterContexts_ReturnsOk()
+    {
+        // Arrange
+        var ctx = new Dictionary<string, List<string>> { ["BatchNo"] = new() { "BATCH001" } };
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(ctx);
+
+        // Act
+        var result = await _controller.GetFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetFilterContexts_Empty_ReturnsEmpty()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+
+        // Act
+        var result = await _controller.GetFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Empty(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetRecoveryFilterContexts_ReturnsOk()
+    {
+        // Arrange
+        var ctx = new Dictionary<string, List<string>> { ["RecoveryDate"] = new() { "2025-01-01" } };
+        _serviceMock.Setup(x => x.GetOutsourceRecoveryFilterContextsAsync()).ReturnsAsync(ctx);
+
+        // Act
+        var result = await _controller.GetRecoveryFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!);
+    }
+
+    [Fact]
+    public async Task GetRecoveryFilterContexts_Empty_ReturnsEmpty()
+    {
+        // Arrange
+        _serviceMock.Setup(x => x.GetOutsourceRecoveryFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+
+        // Act
+        var result = await _controller.GetRecoveryFilterContexts();
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.True(response.Success);
+        Assert.Empty(response.Data!);
+    }
+
+    // ========== GetPaged parameter forwarding ==========
+
+    [Fact]
+    public async Task GetPaged_PassesKeyword_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<SectionOutsourceDto> { Items = new List<SectionOutsourceDto>() });
+        await _controller.GetPaged(keyword: "测试");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Keyword == "测试")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesSortBy_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<SectionOutsourceDto> { Items = new List<SectionOutsourceDto>() });
+        await _controller.GetPaged(sortBy: "BatchNo");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "BatchNo")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_UsesDefaultSortBy_WhenNotProvided()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<SectionOutsourceDto> { Items = new List<SectionOutsourceDto>() });
+        await _controller.GetPaged();
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "createdtime")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesFilters_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<SectionOutsourceDto> { Items = new List<SectionOutsourceDto>() });
+        var filtersJson = "[{\"Field\":\"BatchNo\",\"Operator\":\"equals\",\"Value\":\"BATCH001\"}]";
+        await _controller.GetPaged(filters: filtersJson);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Filters != null && q.Filters.Count > 0)), Times.Once);
+    }
+
+    // ========== GetRecoveriesPaged parameter forwarding ==========
+
+    [Fact]
+    public async Task GetRecoveriesPaged_LimitsPageSize()
+    {
+        _serviceMock.Setup(x => x.GetRecoveriesPagedAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<OutsourceRecoveryDto> { Items = new List<OutsourceRecoveryDto>() });
+        await _controller.GetRecoveriesPaged(pageSize: 10000);
+        _serviceMock.Verify(x => x.GetRecoveriesPagedAsync(It.Is<QueryParams>(q => q.PageSize == 5000)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetRecoveriesPaged_PassesKeyword_ToService()
+    {
+        _serviceMock.Setup(x => x.GetRecoveriesPagedAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<OutsourceRecoveryDto> { Items = new List<OutsourceRecoveryDto>() });
+        await _controller.GetRecoveriesPaged(keyword: "测试");
+        _serviceMock.Verify(x => x.GetRecoveriesPagedAsync(It.Is<QueryParams>(q => q.Keyword == "测试")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetRecoveriesPaged_PassesSortBy_ToService()
+    {
+        _serviceMock.Setup(x => x.GetRecoveriesPagedAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<OutsourceRecoveryDto> { Items = new List<OutsourceRecoveryDto>() });
+        await _controller.GetRecoveriesPaged(sortBy: "SectionOutsourceId");
+        _serviceMock.Verify(x => x.GetRecoveriesPagedAsync(It.Is<QueryParams>(q => q.SortBy == "SectionOutsourceId")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetRecoveriesPaged_UsesDefaultSortBy_WhenNotProvided()
+    {
+        _serviceMock.Setup(x => x.GetRecoveriesPagedAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<OutsourceRecoveryDto> { Items = new List<OutsourceRecoveryDto>() });
+        await _controller.GetRecoveriesPaged();
+        _serviceMock.Verify(x => x.GetRecoveriesPagedAsync(It.Is<QueryParams>(q => q.SortBy == "recoverydate")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetRecoveriesPaged_PassesFilters_ToService()
+    {
+        _serviceMock.Setup(x => x.GetRecoveriesPagedAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<OutsourceRecoveryDto> { Items = new List<OutsourceRecoveryDto>() });
+        var filtersJson = "[{\"Field\":\"SectionOutsourceId\",\"Operator\":\"equals\",\"Value\":\"1\"}]";
+        await _controller.GetRecoveriesPaged(filters: filtersJson);
+        _serviceMock.Verify(x => x.GetRecoveriesPagedAsync(It.Is<QueryParams>(q => q.Filters != null && q.Filters.Count > 0)), Times.Once);
     }
 }

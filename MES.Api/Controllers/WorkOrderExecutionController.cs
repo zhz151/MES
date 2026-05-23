@@ -52,4 +52,15 @@ public class WorkOrderExecutionController : ControllerBase
         var result = await _service.RefreshAllAsync();
         return Ok(Core.Models.ApiResponse<WorkOrderExecutionRefreshResultDto>.Ok(result, $"刷新完成，共{result.RefreshedCount}条"));
     }
+
+    /// <summary>
+    /// 获取筛选上下文（各列的筛选项列表）
+    /// </summary>
+    [HttpGet("filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
+    {
+        var result = await _service.GetFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
 }

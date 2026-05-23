@@ -17,4 +17,9 @@ public interface IWorkOrderExecutionService
     /// 全量刷新所有工单的执行状况汇总数据
     /// </summary>
     Task<WorkOrderExecutionRefreshResultDto> RefreshAllAsync();
+
+    /// <summary>
+    /// 获取筛选上下文（各列的筛选项列表）
+    /// </summary>
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 }

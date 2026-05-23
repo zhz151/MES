@@ -51,7 +51,7 @@ public class ProductionBatchListDto
     /// <summary>
     /// 有效投料疑问：基于最近过程检验计算，正常/疑问
     /// </summary>
-    public string? ValidInputQuestion { get; set; }
+    public bool? ValidInputQuestion { get; set; }
 
     // ========== 扩展字段（从 Entity 补充） ==========
     public string? Remark { get; set; }

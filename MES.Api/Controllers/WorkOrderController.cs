@@ -28,8 +28,12 @@ public class WorkOrderController : ControllerBase
     [HttpGet("order-status")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<PagedResult<OrderWorkOrderStatusDto>>>> GetOrderWorkOrderStatus(
-        [FromQuery] WorkOrderQueryParams query)
+        [FromQuery] WorkOrderQueryParams query,
+        [FromQuery] string? filters = null)
     {
+        if (!string.IsNullOrEmpty(filters))
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
         var result = await _workOrderService.GetOrderWorkOrderStatusPageAsync(query);
         return Ok(ApiResponse<PagedResult<OrderWorkOrderStatusDto>>.Ok(result, "查询成功"));
     }
@@ -255,7 +259,7 @@ public class WorkOrderController : ControllerBase
         string salesOrderNo)
     {
         if (string.IsNullOrWhiteSpace(salesOrderNo))
-            return BadRequest(ApiResponse<List<OrderWorkOrderRelationDto>>.Fail("订单号不能为空"));
+            return BadRequest(ApiResponse<OrderWorkOrderRelationDto>.Fail("订单号不能为空"));
 
         var result = await _workOrderService.GetOrderWorkOrderRelationAsync(salesOrderNo);
         return Ok(ApiResponse<OrderWorkOrderRelationDto>.Ok(result, "查询成功"));

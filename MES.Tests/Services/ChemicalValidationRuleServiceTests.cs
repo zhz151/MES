@@ -211,4 +211,119 @@ public class ChemicalValidationRuleServiceTests : TestBase
 
         result.Should().BeNull();
     }
+
+    // ========== 筛选测试（FilterDescriptor） ==========
+
+    [Fact]
+    public async Task GetAllAsync_Filters_PlantGradeContains_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedRuleAsync(ctx, plantGrade: "Q345B");
+        await SeedRuleAsync(ctx, plantGrade: "20#");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "PlantGrade", Operator = "contains", Value = "Q345" }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].PlantGrade.Should().Be("Q345B");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_Filters_CMinIn_返回匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedRuleAsync(ctx, plantGrade: "Q345B", cMin: "0.10");
+        await SeedRuleAsync(ctx, plantGrade: "20#", cMin: "0.18");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "CMin", Operator = "in", Values = new List<string> { "0.18" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].PlantGrade.Should().Be("20#");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_Filters_NoMatch_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        await SeedRuleAsync(ctx, plantGrade: "Q345B");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetAllAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "PlantGrade", Operator = "contains", Value = "NONEXISTENT" }
+            }
+        });
+
+        result.Items.Should().BeEmpty();
+    }
+
+    // ========== GetFilterContextsAsync ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        await SeedRuleAsync(ctx, plantGrade: "Q345B", cMin: "0.10", cMax: "0.15");
+        await SeedRuleAsync(ctx, plantGrade: "20#", cMin: "0.18", cMax: "0.22");
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts.Should().ContainKey("PlantGrade");
+        contexts["PlantGrade"].Should().BeEquivalentTo(new[] { "20#", "Q345B" }, opts => opts.WithStrictOrdering());
+        contexts.Should().ContainKey("CMin");
+        contexts["CMin"].Should().BeEquivalentTo(new[] { "0.10", "0.18" }, opts => opts.WithStrictOrdering());
+        contexts["CMax"].Should().BeEquivalentTo(new[] { "0.15", "0.22" }, opts => opts.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_无数据_返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["PlantGrade"].Should().BeEmpty();
+        contexts["CMin"].Should().BeEmpty();
+        contexts["CMax"].Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_Nullable字段排除null()
+    {
+        var ctx = CreateDbContext();
+        ctx.ChemicalValidationRules.Add(new ChemicalValidationRule
+        {
+            PlantGrade = "Q345B",
+            CMin = null,
+            CMax = null
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["PlantGrade"].Should().HaveCount(1);
+        contexts["CMin"].Should().BeEmpty();
+        contexts["CMax"].Should().BeEmpty();
+    }
 }

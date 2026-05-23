@@ -60,7 +60,6 @@ public class ProductionBatchDetailDto
     // ========== 仓库冗余 ==========
     public string? SourceBatchNo { get; set; }
     public int? WarehouseId { get; set; }
-    public string? WarehouseName { get; set; }
     public string? SourceMaterialType { get; set; }
     public string? InboundSource { get; set; }
     public string? SourceName { get; set; }

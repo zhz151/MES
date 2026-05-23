@@ -186,65 +186,13 @@ public class BatchService : IBatchService
                 QualityRemark = b.QualityRemark,
                 SourceMaterialType = b.SourceMaterialType,
                 SourceName = b.SourceName,
-                InboundDate = b.InboundDate
+                InboundDate = b.InboundDate,
+                ValidInputQuestion = b.ValidInputQuestion
             })
             .ToListAsync();
 
         // ========== 从 CustomerProfile 覆盖 Salesman/EndCustomer ==========
         await PatchCustomerFieldsAsync(items);
-
-        // ========== 计算有效投料疑问 ==========
-        if (items.Count > 0)
-        {
-            var batchIds = items.Select(i => i.Id).ToList();
-            var allInspections = await _context.ProcessInspections
-                .Where(pi => batchIds.Contains(pi.ProductionBatchId))
-                .Include(pi => pi.ProcessGroup)
-                .ToListAsync();
-
-            var latestInspections = allInspections
-                .GroupBy(pi => pi.ProductionBatchId)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.OrderByDescending(pi => pi.InspectionDate)
-                          .ThenByDescending(pi => pi.Id)
-                          .First());
-
-            foreach (var item in items)
-            {
-                if (latestInspections.TryGetValue(item.Id, out var inspection)
-                    && inspection.QualifiedQuantity.HasValue
-                    && inspection.ProcessGroup.ManufacturingMultiple > 0
-                    && item.CurrentValidQty is > 0
-                    && item.ProductionRatio > 0)
-                {
-                    var inspectionTheoryQty = inspection.QualifiedQuantity.Value * inspection.ProcessGroup.ManufacturingMultiple;
-                    var inputProductionQty = item.CurrentValidQty.Value * item.ProductionRatio;
-
-                    if (inputProductionQty > 0)
-                    {
-                        var ratio = (decimal)inspectionTheoryQty / inputProductionQty;
-                        item.ValidInputQuestion = (ratio > 1.02m || ratio < 0.98m) ? "疑问" : "正常";
-                    }
-                }
-            }
-        }
-
-        // ========== 有效投料疑问筛选（内存筛选，因该字段为计算字段） ==========
-        var viqFilter = query.Filters?.FirstOrDefault(f => string.Equals(f.Field, "ValidInputQuestion", StringComparison.OrdinalIgnoreCase));
-        if (viqFilter != null && viqFilter.Values?.Count > 0)
-        {
-            var viqValues = new HashSet<string>(viqFilter.Values, StringComparer.OrdinalIgnoreCase);
-            items = items.Where(i => !string.IsNullOrEmpty(i.ValidInputQuestion) && viqValues.Contains(i.ValidInputQuestion)).ToList();
-            if (viqFilter.IncludeNull)
-                items = items.Where(i => string.IsNullOrEmpty(i.ValidInputQuestion)).Concat(items).ToList();
-            totalCount = items.Count;
-        }
-        else if (viqFilter?.IncludeNull == true)
-        {
-            items = items.Where(i => string.IsNullOrEmpty(i.ValidInputQuestion)).ToList();
-            totalCount = items.Count;
-        }
 
         return new PagedResult<ProductionBatchListDto>
         {
@@ -314,49 +262,13 @@ public class BatchService : IBatchService
                 QualityRemark = b.QualityRemark,
                 SourceMaterialType = b.SourceMaterialType,
                 SourceName = b.SourceName,
-                InboundDate = b.InboundDate
+                InboundDate = b.InboundDate,
+                ValidInputQuestion = b.ValidInputQuestion
             })
             .ToListAsync();
 
         // ========== 从 CustomerProfile 覆盖 Salesman/EndCustomer ==========
         await PatchCustomerFieldsAsync(items);
-
-        // ========== 计算有效投料疑问 ==========
-        if (items.Count > 0)
-        {
-            var batchIds = items.Select(i => i.Id).ToList();
-            var allInspections = await _context.ProcessInspections
-                .Where(pi => batchIds.Contains(pi.ProductionBatchId))
-                .Include(pi => pi.ProcessGroup)
-                .ToListAsync();
-
-            var latestInspections = allInspections
-                .GroupBy(pi => pi.ProductionBatchId)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.OrderByDescending(pi => pi.InspectionDate)
-                          .ThenByDescending(pi => pi.Id)
-                          .First());
-
-            foreach (var item in items)
-            {
-                if (latestInspections.TryGetValue(item.Id, out var inspection)
-                    && inspection.QualifiedQuantity.HasValue
-                    && inspection.ProcessGroup.ManufacturingMultiple > 0
-                    && item.CurrentValidQty is > 0
-                    && item.ProductionRatio > 0)
-                {
-                    var inspectionTheoryQty = inspection.QualifiedQuantity.Value * inspection.ProcessGroup.ManufacturingMultiple;
-                    var inputProductionQty = item.CurrentValidQty.Value * item.ProductionRatio;
-
-                    if (inputProductionQty > 0)
-                    {
-                        var ratio = (decimal)inspectionTheoryQty / inputProductionQty;
-                        item.ValidInputQuestion = (ratio > 1.02m || ratio < 0.98m) ? "疑问" : "正常";
-                    }
-                }
-            }
-        }
 
         return items;
     }
@@ -372,14 +284,6 @@ public class BatchService : IBatchService
             throw new BusinessException($"生产批次不存在 (Id={id})");
 
         var dto = ToDetailDto(entity);
-
-        // 填充仓库名称
-        if (dto.WarehouseId.HasValue)
-        {
-            var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId.Value);
-            if (warehouse != null)
-                dto.WarehouseName = warehouse.Name;
-        }
 
         // 从 CustomerProfile 取最新 Salesman/EndCustomer
         await PatchCustomerFieldsAsync(dto);
@@ -433,9 +337,12 @@ public class BatchService : IBatchService
         // 生成生产编号
         var batchNo = await GenerateBatchNoAsync();
 
-        // 如果提供了工单号，验证工单是否存在
+        // 工单号验证：非空；"非工单"跳过；其他值必须在工单表中存在
+        if (string.IsNullOrWhiteSpace(request.WorkOrderNo))
+            throw new BusinessException("工单号不能为空（无对应工单请填写「非工单」）");
+
         WorkOrder? workOrder = null;
-        if (!string.IsNullOrWhiteSpace(request.WorkOrderNo))
+        if (request.WorkOrderNo != "非工单")
         {
             workOrder = await _context.WorkOrders
                 .FirstOrDefaultAsync(w => w.WorkOrderNo == request.WorkOrderNo);
@@ -444,15 +351,60 @@ public class BatchService : IBatchService
                 throw new BusinessException($"工单不存在 (WorkOrderNo={request.WorkOrderNo})");
         }
 
-        // 生产类型必填
+        // ========== 统一必填（两路径共用） ==========
+
+        // 生产类型 / 制造物品
         if (string.IsNullOrWhiteSpace(request.ProductionType))
             throw new BusinessException("生产类型不能为空");
         if (string.IsNullOrWhiteSpace(request.ManufacturingItem))
             throw new BusinessException("制造物品不能为空");
 
+        // 工单规格必填
+        if (string.IsNullOrWhiteSpace(request.PlantGrade))
+            throw new BusinessException("工厂牌号不能为空");
+        if (string.IsNullOrWhiteSpace(request.Specification))
+            throw new BusinessException("规格不能为空");
+        if (string.IsNullOrWhiteSpace(request.DeliveryState))
+            throw new BusinessException("交货状态不能为空");
+        if (string.IsNullOrWhiteSpace(request.MaterialName))
+            throw new BusinessException("物料名称不能为空");
+        if (string.IsNullOrWhiteSpace(request.LengthStatus))
+            throw new BusinessException("长度状态不能为空");
+        if (request.TotalWeight == null || request.TotalWeight <= 0)
+            throw new BusinessException("总重量必须大于0");
+        // 制几率必须大于0
+        if (request.ProductionRatio <= 0)
+            throw new BusinessException("制几率必须大于0");
+        // 定尺时总支数必须大于0
+        if (request.LengthStatus == "Fixed" && (request.TotalQuantity == null || request.TotalQuantity <= 0))
+            throw new BusinessException("总支数（定尺时必须大于0）");
+
+        // 仓库来源必填
+        if (string.IsNullOrWhiteSpace(request.SourcePlantGrade))
+            throw new BusinessException("仓库工厂牌号不能为空");
+        if (string.IsNullOrWhiteSpace(request.SourceSpecification))
+            throw new BusinessException("仓库规格不能为空");
+        if (string.IsNullOrWhiteSpace(request.SourceLengthStatus))
+            throw new BusinessException("来源长度状态不能为空");
+        if (request.InputWeight == null || request.InputWeight <= 0)
+            throw new BusinessException("领料重量必须大于0");
+        if (request.InputQuantity == null || request.InputQuantity <= 0)
+            throw new BusinessException("领料支数必须大于0");
+
         // 工厂牌号验证（高代低）
         if (!GradeSubstitutes.IsSubstitutable(request.PlantGrade, request.SourcePlantGrade))
             throw new BusinessException("仓库工厂牌号与工单工厂牌号不一致，且不可替代（仅允许高代低）");
+
+        // ========== 有工单路径额外验证 ==========
+        if (request.WorkOrderNo != "非工单")
+        {
+            if (string.IsNullOrWhiteSpace(request.SettlementMethod))
+                throw new BusinessException("结算方式不能为空");
+            if (string.IsNullOrWhiteSpace(request.StandardCode))
+                throw new BusinessException("产品标准编码不能为空");
+            if (string.IsNullOrWhiteSpace(request.TechnicalRequirements))
+                throw new BusinessException("技术要求不能为空");
+        }
 
         var entity = new ProductionBatch
         {
@@ -682,14 +634,6 @@ public class BatchService : IBatchService
 
         var dto = ToDetailDto(entity);
 
-        // 填充仓库名称
-        if (dto.WarehouseId.HasValue)
-        {
-            var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId.Value);
-            if (warehouse != null)
-                dto.WarehouseName = warehouse.Name;
-        }
-
         // 从 CustomerProfile 取最新 Salesman/EndCustomer
         await PatchCustomerFieldsAsync(dto);
 
@@ -749,6 +693,10 @@ public class BatchService : IBatchService
         if (entity == null)
             throw new BusinessException($"生产批次不存在 (Id={id})");
 
+        // 仅允许删除"未产"状态的批次
+        if (entity.Status != BatchStatus.None)
+            throw new BusinessException($"仅允许删除「未产」状态的批次，当前状态为 {entity.Status}");
+
         // 收集所有工序组 ID，用于清理引用 ProcessGroup 的记录
         var processGroupIds = entity.ProcessGroups.Select(g => g.Id).ToList();
 
@@ -798,13 +746,89 @@ public class BatchService : IBatchService
         if (request.ProcessGroups != null && request.ProcessGroups.Count > 0)
             ValidateProcessGroupValues(request.ProcessGroups);
 
-        // 生产类型 / 制造物品 不允许为空
+        // ========== 统一必填（两路径共用） ==========
+
+        // 生产类型 / 制造物品
         if (string.IsNullOrWhiteSpace(request.ProductionType))
             throw new BusinessException("生产类型不能为空");
         if (string.IsNullOrWhiteSpace(request.ManufacturingItem))
             throw new BusinessException("制造物品不能为空");
 
-        // ===== 1. 更新批次头字段（所有可空 DTO 字段用 ?? entity.Field 防止空值覆盖） =====
+        // 工单规格必填（取请求值，未传则用实体现有值）
+        var effectivePlantGrade = request.PlantGrade ?? entity.PlantGrade;
+        var effectiveSpec = request.Specification ?? entity.Specification;
+        var effectiveDelivery = request.DeliveryState ?? entity.DeliveryState;
+        var effectiveMaterialName = request.MaterialName ?? entity.MaterialName;
+        var effectiveLengthStatus = request.LengthStatus ?? entity.LengthStatus;
+        var effectiveTotalWeight = request.TotalWeight ?? entity.TotalWeight;
+        var effectiveProductionRatio = request.ProductionRatio ?? entity.ProductionRatio;
+        var effectiveTotalQuantity = request.TotalQuantity ?? entity.TotalQuantity;
+        var effectiveSourceGrade = request.SourcePlantGrade ?? entity.SourcePlantGrade;
+        var effectiveSourceSpec = request.SourceSpecification ?? entity.SourceSpecification;
+        var effectiveSourceLengthStatus = request.SourceLengthStatus ?? entity.SourceLengthStatus;
+        var effectiveInputWeight = request.InputWeight ?? entity.InputWeight;
+        var effectiveInputQuantity = request.InputQuantity ?? entity.InputQuantity;
+
+        if (string.IsNullOrWhiteSpace(effectivePlantGrade))
+            throw new BusinessException("工厂牌号不能为空");
+        if (string.IsNullOrWhiteSpace(effectiveSpec))
+            throw new BusinessException("规格不能为空");
+        if (string.IsNullOrWhiteSpace(effectiveDelivery))
+            throw new BusinessException("交货状态不能为空");
+        if (string.IsNullOrWhiteSpace(effectiveMaterialName))
+            throw new BusinessException("物料名称不能为空");
+        if (string.IsNullOrWhiteSpace(effectiveLengthStatus))
+            throw new BusinessException("长度状态不能为空");
+        if (effectiveTotalWeight <= 0)
+            throw new BusinessException("总重量必须大于0");
+        // 制几率必须大于0
+        if (effectiveProductionRatio <= 0)
+            throw new BusinessException("制几率必须大于0");
+        // 定尺时总支数必须大于0
+        if (effectiveLengthStatus == "Fixed" && effectiveTotalQuantity <= 0)
+            throw new BusinessException("总支数（定尺时必须大于0）");
+        if (string.IsNullOrWhiteSpace(effectiveSourceGrade))
+            throw new BusinessException("仓库工厂牌号不能为空");
+        if (string.IsNullOrWhiteSpace(effectiveSourceSpec))
+            throw new BusinessException("仓库规格不能为空");
+        if (string.IsNullOrWhiteSpace(effectiveSourceLengthStatus))
+            throw new BusinessException("来源长度状态不能为空");
+        if (effectiveInputWeight == null || effectiveInputWeight <= 0)
+            throw new BusinessException("领料重量必须大于0");
+        if (effectiveInputQuantity == null || effectiveInputQuantity <= 0)
+            throw new BusinessException("领料支数必须大于0");
+
+        // ========== 有工单路径额外验证 ==========
+        var effectiveWorkOrderNo = request.WorkOrderNo ?? entity.WorkOrderNo;
+        if (effectiveWorkOrderNo != "非工单")
+        {
+            var effectiveSettlementMethod = request.SettlementMethod ?? entity.SettlementMethod;
+            var effectiveStandardCode = request.StandardCode ?? entity.StandardCode;
+            var effectiveTechnicalRequirements = request.TechnicalRequirements ?? entity.TechnicalRequirements;
+
+            if (string.IsNullOrWhiteSpace(effectiveSettlementMethod))
+                throw new BusinessException("结算方式不能为空");
+            if (string.IsNullOrWhiteSpace(effectiveStandardCode))
+                throw new BusinessException("产品标准编码不能为空");
+            if (string.IsNullOrWhiteSpace(effectiveTechnicalRequirements))
+                throw new BusinessException("技术要求不能为空");
+        }
+
+        // 工单号验证：非空；"非工单"跳过；其他值必须在工单表中存在
+        if (request.WorkOrderNo != null)
+        {
+            if (string.IsNullOrWhiteSpace(request.WorkOrderNo))
+                throw new BusinessException("工单号不能为空（无对应工单请填写「非工单」）");
+
+            if (request.WorkOrderNo != "非工单" && request.WorkOrderNo != entity.WorkOrderNo)
+            {
+                var workOrderExists = await _context.WorkOrders.AnyAsync(w => w.WorkOrderNo == request.WorkOrderNo);
+                if (!workOrderExists)
+                    throw new BusinessException($"工单不存在 (WorkOrderNo={request.WorkOrderNo})");
+            }
+        }
+
+        // ===== 1. 更新批次头字段 =====
         entity.TagNo = request.TagNo ?? entity.TagNo;
         entity.QualityRemark = request.QualityRemark ?? entity.QualityRemark;
         entity.SolutionParams = request.SolutionParams ?? entity.SolutionParams;
@@ -1623,10 +1647,10 @@ public class BatchService : IBatchService
 
     public async Task<List<BatchWorkOrderMismatchDto>> VerifyWorkOrderNosAsync()
     {
-        // 获取所有生产批次中非空的工单号
+        // 获取所有生产批次中非空的工单号（排除"非工单"标记）
         var batchWorkOrderNos = await _context.ProductionBatches
             .AsNoTracking()
-            .Where(b => !string.IsNullOrEmpty(b.WorkOrderNo))
+            .Where(b => !string.IsNullOrEmpty(b.WorkOrderNo) && b.WorkOrderNo != "非工单")
             .Select(b => new { b.Id, b.BatchNo, b.WorkOrderNo })
             .ToListAsync();
 

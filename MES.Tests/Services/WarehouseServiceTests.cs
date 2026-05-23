@@ -321,4 +321,39 @@ public class WarehouseServiceTests : TestBase
 
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*库存批次*");
     }
+
+    // ========== 筛选上下文 ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回正确选项()
+    {
+        var ctx = CreateDbContext();
+        ctx.Warehouses.AddRange(
+            new Warehouse { Code = "WH001", Name = "一号仓库", SortOrder = 1, IsActive = true, Remark = "主仓库" },
+            new Warehouse { Code = "WH002", Name = "二号仓库", SortOrder = 2, IsActive = false, Remark = null }
+        );
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetFilterContextsAsync();
+
+        result.Should().ContainKeys("Code", "Name", "IsActive", "Remark");
+        result["Code"].Should().BeEquivalentTo(new[] { "WH001", "WH002" }, options => options.WithStrictOrdering());
+        result["Name"].Should().BeEquivalentTo(new[] { "一号仓库", "二号仓库" });
+        result["IsActive"].Should().BeEquivalentTo(new[] { "False", "True" });
+        result["Remark"].Should().HaveCount(1).And.Contain("主仓库");
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_无数据_各字段返回空列表()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetFilterContextsAsync();
+
+        result.Should().ContainKeys("Code", "Name", "IsActive", "Remark");
+        foreach (var kvp in result)
+            kvp.Value.Should().BeEmpty($"字段 {kvp.Key} 应返回空列表");
+    }
 }
