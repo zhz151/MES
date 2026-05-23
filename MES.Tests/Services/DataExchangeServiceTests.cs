@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Helpers;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.DataExchange;
@@ -566,6 +567,120 @@ public class DataExchangeServiceTests : TestBase
         result.FailedCount.Should().Be(0);
         result.Strategy.Should().Be("skip");
         result.Errors.Should().BeEmpty();
+    }
+
+    // ========== 进口增强测试 ==========
+
+    [Fact]
+    public async Task ImportAsync_生产批次_含多FK和枚举()
+    {
+        var ctx = CreateDbContext();
+        // 先建仓库（FK 依赖）
+        ctx.Warehouses.Add(new Warehouse { Code = "WH001", Name = "原料仓", SortOrder = 1, IsActive = true });
+        await ctx.SaveChangesAsync();
+        var svc = CreateTestableService(ctx);
+
+        var bytes = CreateTestExcel("生产批次", new()
+        {
+            "生产编号", "状态", "制造物品", "强制完成",
+            "工单号", "订单号", "主号",
+            "签订日期", "业务员", "交货日期",
+            "物料名称", "结算方式", "标准编码", "交货状态", "工厂牌号", "规格",
+            "长度状态", "总数量(支)", "总米数(m)", "总重量(kg)", "总项次数", "技术要求",
+            "关联项次", "仓库编码", "延期罚款",
+        }, new()
+        {
+            new()
+            {
+                "B2026001",
+                EnumHelper.GetDisplayName(typeof(BatchStatus), BatchStatus.InProgress),       // 状态
+                EnumHelper.GetDisplayName(typeof(ManufacturingItem), ManufacturingItem.OrderFinishedProduct), // 制造物品
+                "是",                                                                         // 强制完成
+                "WO001", "SO2026001", "D01",
+                "2026-01-15", "张三", "2026-06-01",
+                EnumHelper.GetDisplayName(typeof(MaterialName), MaterialName.SeamlessPipe),     // 物料名称
+                EnumHelper.GetDisplayName(typeof(SettlementMethod), SettlementMethod.Weighing), // 结算方式
+                "GB/T 14976",
+                EnumHelper.GetDisplayName(typeof(DeliveryState), DeliveryState.SolutionAnnealedAndPickled),
+                "304", "48*4",
+                EnumHelper.GetDisplayName(typeof(LengthStatus), LengthStatus.Fixed),           // 长度状态
+                "100", "600", "5000", "2",
+                EnumHelper.GetDisplayName(typeof(RequirementType), RequirementType.Special),   // 技术要求
+                "1",                                                                          // 关联项次
+                "WH001",                                                                       // FK→Warehouse
+                "是",                                                                          // 延期罚款
+            },
+        });
+
+        var result = await svc.ImportAsync("ProductionBatch", bytes, "skip", "test");
+
+        result.HasRolledBack.Should().BeFalse();
+        result.Errors.Should().BeEmpty();
+        result.SuccessCount.Should().Be(1);
+        result.FailedCount.Should().Be(0);
+
+        var saved = await ctx.ProductionBatches.FirstAsync(b => b.BatchNo == "B2026001");
+        saved.BatchNo.Should().Be("B2026001");
+        saved.Status.Should().Be(BatchStatus.InProgress);
+        saved.ManufacturingItem.Should().Be(nameof(ManufacturingItem.OrderFinishedProduct));
+        saved.IsForceCompleted.Should().BeTrue();
+        saved.WorkOrderNo.Should().Be("WO001");
+        saved.SalesOrderNo.Should().Be("SO2026001");
+        saved.ProductionMainNo.Should().Be("D01");
+        saved.MaterialName.Should().Be(nameof(MaterialName.SeamlessPipe));
+        saved.SettlementMethod.Should().Be(nameof(SettlementMethod.Weighing));
+        saved.StandardCode.Should().Be("GB/T 14976");
+        saved.DeliveryState.Should().Be(nameof(DeliveryState.SolutionAnnealedAndPickled));
+        saved.PlantGrade.Should().Be("304");
+        saved.Specification.Should().Be("48*4");
+        saved.LengthStatus.Should().Be(nameof(LengthStatus.Fixed));
+        saved.TotalQuantity.Should().Be(100);
+        saved.TotalMeters.Should().Be(600m);
+        saved.TotalWeight.Should().Be(5000m);
+        saved.TotalItemCount.Should().Be(2);
+        saved.TechnicalRequirements.Should().Be(nameof(RequirementType.Special));
+        saved.WarehouseId.Should().Be(
+            ctx.Warehouses.Where(w => w.Code == "WH001").Select(w => w.Id).First());
+        saved.DelayPenalty.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ImportAsync_非法枚举值_失败()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateTestableService(ctx);
+
+        // 客户档案的"状态"列传入不存在的枚举值
+        var bytes = CreateTestExcel("客户档案", new() { "客户编码", "客户单位", "业务员", "状态" },
+            new() { new() { "C001", "测试客户", "张三", "未知状态" } });
+
+        var result = await svc.ImportAsync("CustomerProfile", bytes, "skip", "test");
+
+        result.SuccessCount.Should().Be(0);
+        result.FailedCount.Should().Be(1);
+        result.Errors.Should().Contain(e => e.Message.Contains("无法识别值") || e.Message.Contains("未知状态"));
+    }
+
+    [Fact]
+    public async Task ImportAsync_不存在的FK引用_导入成功但FK未解析()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateTestableService(ctx);
+
+        // 不建任何 CustomerProfile，引用一个不存在的客户编码
+        var bytes = CreateTestExcel("销售订单", new() { "订单号", "签订日期", "客户编码", "状态" },
+            new() { new() { "SO2026001", "2026-01-15", "C999", "已确认" } });
+
+        var result = await svc.ImportAsync("SalesOrder", bytes, "skip", "test");
+
+        // TestableDataExchangeService 跳过 FK 约束检查，所以导入本身成功
+        result.SuccessCount.Should().Be(1);
+        result.FailedCount.Should().Be(0);
+        result.HasRolledBack.Should().BeFalse();
+
+        // 但 FK 未被解析 → CustomerId 保持 0
+        var saved = await ctx.Set<SalesOrder>().FirstAsync(s => s.OrderNumber == "SO2026001");
+        saved.CustomerId.Should().Be(0);
     }
 }
 
