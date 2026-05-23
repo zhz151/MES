@@ -62,6 +62,7 @@ public class SectionOutsourceService : ISectionOutsourceService
                 ExpectedReturnDate = s.ExpectedReturnDate,
                 IsUrgent = s.IsUrgent,
                 Remark = s.Remark,
+                DataSource = s.DataSource,
                 CreatedTime = s.CreatedTime,
                 UpdatedTime = s.UpdatedTime,
                 TotalRecoveredQuantity = s.OutsourceRecoveries.Sum(r => r.RecoveryQuantity),
@@ -222,6 +223,7 @@ public class SectionOutsourceService : ISectionOutsourceService
                 ExpectedReturnDate = s.ExpectedReturnDate,
                 IsUrgent = s.IsUrgent,
                 Remark = s.Remark,
+                DataSource = s.DataSource,
                 CreatedTime = s.CreatedTime,
                 UpdatedTime = s.UpdatedTime,
                 TotalRecoveredQuantity = s.OutsourceRecoveries.Sum(r => r.RecoveryQuantity),
@@ -289,7 +291,8 @@ public class SectionOutsourceService : ISectionOutsourceService
             OutsourceSpec = request.OutsourceSpec,
             ExpectedReturnDate = request.ExpectedReturnDate,
             IsUrgent = request.IsUrgent,
-            Remark = request.Remark
+            Remark = request.Remark,
+            DataSource = request.DataSource ?? "MANUAL"
         };
 
         _context.SectionOutsources.Add(entity);
@@ -338,11 +341,15 @@ public class SectionOutsourceService : ISectionOutsourceService
             if (string.IsNullOrWhiteSpace(request.ManufacturingSpec))
                 requestErrors.Add($"第{i + 1}行：制造规格不能为空");
 
-            // 2) 发出重量不能大于批次领料重量
+            // 2) 委外规格不能为空
+            if (string.IsNullOrWhiteSpace(request.OutsourceSpec))
+                requestErrors.Add($"第{i + 1}行：委外规格不能为空");
+
+            // 3) 发出重量不能大于批次领料重量
             if (request.SendWeight.HasValue && request.SendWeight > 0 && request.SendWeight > batch.InputWeight)
                 requestErrors.Add($"第{i + 1}行：发出重量({request.SendWeight})不能大于批次领料重量({batch.InputWeight})");
 
-            // 3) 验证工段存在于工序组中（非0值）
+            // 4) 验证工段存在于工序组中（非0值）
             var pgId = request.ProcessGroupId;
             if (pgId == null || pgId == 0)
             {
@@ -356,6 +363,45 @@ public class SectionOutsourceService : ISectionOutsourceService
                 if (pg != null && ResolveSequenceNumber(pg, request.SectionName) == 0)
                     requestErrors.Add($"第{i + 1}行：工段「{request.SectionName}」不存在于工序组「{pg.ProcessName}」中，无法提交");
             }
+        }
+        if (requestErrors.Any())
+            throw new BusinessException(string.Join("；", requestErrors));
+
+        // 预查询：各批次已有的工段委外记录（用于重复校验）
+        var allExistingOutsources = await _context.SectionOutsources
+            .Where(s => allBatchIds.Contains(s.ProductionBatchId))
+            .ToListAsync();
+        var existingOutsourceByBatch = allExistingOutsources
+            .GroupBy(s => s.ProductionBatchId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // 5) 重复校验：同批次+同工序组+同工段+同委外单位 → 重复
+        for (int i = 0; i < requests.Count; i++)
+        {
+            var request = requests[i];
+            var batch = batchLookup[request.BatchNo];
+            var batchId = batch.Id;
+
+            var pgId = request.ProcessGroupId;
+            if (pgId == null || pgId == 0)
+            {
+                var matchedPg = pgByBatch.GetValueOrDefault(batchId)?
+                    .FirstOrDefault(pg => pg.ProcessName == request.ProcessName && pg.ManufacturingSpec == request.ManufacturingSpec);
+                pgId = matchedPg?.Id;
+            }
+            if (pgId == null || pgId == 0)
+                continue;
+
+            if (string.IsNullOrWhiteSpace(request.OutsourceVendor))
+                continue;
+
+            var existing = existingOutsourceByBatch.GetValueOrDefault(batchId, new List<SectionOutsource>());
+            var dup = existing.Any(s =>
+                s.ProcessGroupId == pgId.Value &&
+                s.SectionName == request.SectionName &&
+                s.OutsourceVendor == request.OutsourceVendor);
+            if (dup)
+                requestErrors.Add($"第{i + 1}行：该委外单位「{request.OutsourceVendor}」已在该批次该工序组该工段提交过委外，不能重复创建");
         }
         if (requestErrors.Any())
             throw new BusinessException(string.Join("；", requestErrors));
@@ -401,7 +447,8 @@ public class SectionOutsourceService : ISectionOutsourceService
                 OutsourceSpec = request.OutsourceSpec,
                 ExpectedReturnDate = request.ExpectedReturnDate,
                 IsUrgent = request.IsUrgent,
-                Remark = request.Remark
+                Remark = request.Remark,
+                DataSource = "MANUAL"
             });
         }
 
@@ -642,6 +689,7 @@ public class SectionOutsourceService : ISectionOutsourceService
                 UnprocessedQuantity = r.UnprocessedQuantity,
                 UnprocessedWeight = r.UnprocessedWeight,
                 Remark = r.Remark,
+                DataSource = r.DataSource,
                 CreatedTime = r.CreatedTime,
                 BatchNo = r.SectionOutsource.ProductionBatch.BatchNo,
                 OutsourceVendor = r.SectionOutsource.OutsourceVendor,
@@ -678,7 +726,8 @@ public class SectionOutsourceService : ISectionOutsourceService
             RecoveryWeight = request.RecoveryWeight,
             UnprocessedQuantity = request.UnprocessedQuantity,
             UnprocessedWeight = request.UnprocessedWeight,
-            Remark = request.Remark
+            Remark = request.Remark,
+            DataSource = request.DataSource ?? "MANUAL"
         };
 
         _context.OutsourceRecoveries.Add(entity);
@@ -701,6 +750,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             UnprocessedQuantity = entity.UnprocessedQuantity,
             UnprocessedWeight = entity.UnprocessedWeight,
             Remark = entity.Remark,
+            DataSource = entity.DataSource,
             CreatedTime = entity.CreatedTime
         };
     }
@@ -722,6 +772,50 @@ public class SectionOutsourceService : ISectionOutsourceService
                 throw new BusinessException($"工段委外记录不存在: {id}");
         }
 
+        // 预查询：已存在的委外回收记录（用于重复校验 + 回收总重量计算）
+        var existingRecoveries = await _context.OutsourceRecoveries
+            .Where(r => outsourceIds.Contains(r.SectionOutsourceId))
+            .ToListAsync();
+        var existingWeightByOutsource = existingRecoveries
+            .Where(r => r.RecoveryWeight.HasValue)
+            .GroupBy(r => r.SectionOutsourceId)
+            .ToDictionary(g => g.Key, g => g.Sum(r => r.RecoveryWeight!.Value));
+
+        // 批量校验
+        var recoveryErrors = new List<string>();
+        // 跟踪本次提交中已累积的回收重量（用于同批次多行累计校验）
+        var pendingWeightByOutsource = new Dictionary<int, decimal>();
+        for (int i = 0; i < requests.Count; i++)
+        {
+            var request = requests[i];
+            var outsource = outsourceLookup[request.SectionOutsourceId];
+
+            // 1) 回收日期不能为空
+            if (request.RecoveryDate == default)
+                recoveryErrors.Add($"第{i + 1}行：回收日期不能为空");
+
+            // 2) 重复校验：同委外记录 + 同回收日期 → 重复
+            var dup = existingRecoveries.Any(r =>
+                r.SectionOutsourceId == request.SectionOutsourceId &&
+                r.RecoveryDate.Date == request.RecoveryDate.Date);
+            if (dup)
+                recoveryErrors.Add($"第{i + 1}行：该委外记录在 {request.RecoveryDate:yyyy-MM-dd} 已存在回收记录，不能重复创建");
+
+            // 3) 回收总重量不能大于发出重量
+            if (request.RecoveryWeight.HasValue && outsource.SendWeight.HasValue)
+            {
+                var existingWeight = existingWeightByOutsource.GetValueOrDefault(request.SectionOutsourceId, 0m);
+                var pendingWeight = pendingWeightByOutsource.GetValueOrDefault(request.SectionOutsourceId, 0m);
+                var totalWeight = existingWeight + pendingWeight + request.RecoveryWeight.Value;
+                if (totalWeight > outsource.SendWeight.Value)
+                    recoveryErrors.Add($"第{i + 1}行：回收总重量({totalWeight})不能大于发出重量({outsource.SendWeight})");
+                else
+                    pendingWeightByOutsource[request.SectionOutsourceId] = pendingWeight + request.RecoveryWeight.Value;
+            }
+        }
+        if (recoveryErrors.Any())
+            throw new BusinessException(string.Join("；", recoveryErrors));
+
         var entities = new List<OutsourceRecovery>();
         foreach (var request in requests)
         {
@@ -733,7 +827,8 @@ public class SectionOutsourceService : ISectionOutsourceService
                 RecoveryWeight = request.RecoveryWeight,
                 UnprocessedQuantity = request.UnprocessedQuantity,
                 UnprocessedWeight = request.UnprocessedWeight,
-                Remark = request.Remark
+                Remark = request.Remark,
+                DataSource = "MANUAL"
             });
         }
 
@@ -763,6 +858,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             UnprocessedQuantity = e.UnprocessedQuantity,
             UnprocessedWeight = e.UnprocessedWeight,
             Remark = e.Remark,
+            DataSource = e.DataSource,
             CreatedTime = e.CreatedTime
         }).ToList();
     }
@@ -1108,6 +1204,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             ExpectedReturnDate = entity.ExpectedReturnDate,
             IsUrgent = entity.IsUrgent,
             Remark = entity.Remark,
+            DataSource = entity.DataSource,
             CreatedTime = entity.CreatedTime,
             UpdatedTime = entity.UpdatedTime
         };

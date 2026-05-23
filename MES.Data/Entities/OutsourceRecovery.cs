@@ -40,6 +40,11 @@ public class OutsourceRecovery : BaseEntity
     /// </summary>
     public string? Remark { get; set; }
 
+    /// <summary>
+    /// 数据来源（SCAN=扫码报工，MANUAL=手动录入），默认 MANUAL
+    /// </summary>
+    public string? DataSource { get; set; }
+
     // ========== 导航属性 ==========
 
     /// <summary>

@@ -978,7 +978,8 @@
                 DefectScrapQuantity = _defectScrapQuantity,
                 DefectDescription = _defectDescription,
                 SourceUnit = _sourceUnit,
-                Remark = _remark
+                Remark = _remark,
+                DataSource = "SCAN"
             };
 
             var response = await ScanService.CreateInspectionAsync(request);
@@ -1040,7 +1041,8 @@
                 LengthAllowanceRange = _finalLengthAllowanceRange,
                 Pressure = _finalPressure,
                 HoldTime = _finalHoldTime,
-                Remark = _remark
+                Remark = _remark,
+                DataSource = "SCAN"
             };
 
             var response = await FinalInspectionService.BatchCreateAsync(new List<CreateFinalInspectionRequest> { request });

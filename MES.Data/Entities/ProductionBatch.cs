@@ -101,6 +101,12 @@ public class ProductionBatch : BaseEntity
     public bool? ValidInputQuestion { get; set; }
 
     /// <summary>
+    /// 当前工段是否完工：冷轧拔总重≥有效原料×95%→完工；工段委外有回收→完工；其它有记录即完工
+    /// null=无记录、true=完工、false=生产中
+    /// </summary>
+    public bool? CurrentSectionCompleted { get; set; }
+
+    /// <summary>
     /// 备注
     /// </summary>
     public string? Remark { get; set; }

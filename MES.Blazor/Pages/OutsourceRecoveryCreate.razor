@@ -275,7 +275,8 @@
                 RecoveryWeight = i.RecoveryWeight,
                 UnprocessedQuantity = i.UnprocessedQuantity,
                 UnprocessedWeight = i.UnprocessedWeight,
-                Remark = i.Remark?.Trim()
+                Remark = i.Remark?.Trim(),
+                DataSource = "MANUAL"
             }).ToList();
 
             var result = await SectionOutsourceService.BatchCreateRecoveriesAsync(requests);

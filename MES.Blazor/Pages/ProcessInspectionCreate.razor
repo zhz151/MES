@@ -344,6 +344,7 @@
                 TagNo = r.TagNo,
                 PlantGrade = r.PlantGrade,
                 Remark = r.Remark,
+                DataSource = "MANUAL",
             }).ToList();
 
             var result = await ProcessInspectionService.BatchCreateAsync(requests);

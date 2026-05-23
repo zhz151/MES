@@ -157,6 +157,7 @@ public class BatchService : IBatchService
                 CurrentSpec = b.CurrentSpec,
                 NextSectionName = b.NextSectionName,
                 CorrespondingSpec = b.CorrespondingSpec,
+                CurrentSectionCompleted = b.CurrentSectionCompleted,
                 CurrentValidQty = b.CurrentValidQty,
                 CurrentValidWeight = b.CurrentValidWeight,
                 CreatedBy = b.CreatedBy,
@@ -233,6 +234,7 @@ public class BatchService : IBatchService
                 CurrentSpec = b.CurrentSpec,
                 NextSectionName = b.NextSectionName,
                 CorrespondingSpec = b.CorrespondingSpec,
+                CurrentSectionCompleted = b.CurrentSectionCompleted,
                 CurrentValidQty = b.CurrentValidQty,
                 CurrentValidWeight = b.CurrentValidWeight,
                 CreatedBy = b.CreatedBy,
@@ -525,6 +527,9 @@ public class BatchService : IBatchService
             throw;
         }
 
+        // 刷新批次跟踪字段（包括有效投料疑问等计算字段）
+        await _productionRecordService.RefreshBatchTrackingFieldsAsync(entity.Id);
+
         _logger.LogInformation("创建生产批次 {BatchNo} (工单: {WorkOrderNo})", batchNo, entity.WorkOrderNo);
 
         return new ProductionBatchListDto
@@ -621,6 +626,9 @@ public class BatchService : IBatchService
         if (request.TechnicalRequirements != null) entity.TechnicalRequirements = request.TechnicalRequirements;
 
         await _context.SaveChangesAsync();
+
+        // 刷新批次跟踪字段（包括有效投料疑问等计算字段）
+        await _productionRecordService.RefreshBatchTrackingFieldsAsync(entity.Id);
 
         // 记录有效数量变更日志
         if (oldValidQty != request.CurrentValidQty || oldValidWeight != request.CurrentValidWeight)

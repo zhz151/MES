@@ -281,6 +281,7 @@
                 Shift = r.Shift,
                 Checker = r.Checker,
                 Remark = r.Remark,
+                DataSource = "MANUAL",
             }).ToList();
 
             var result = await ProdRecordService.BatchCreateMaterialReceiveChecksAsync(requests);

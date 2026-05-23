@@ -603,6 +603,16 @@ public static class DisplayHelper
     /// </summary>
     public static string GetYesNoText(bool value) => value ? "是" : "否";
 
+    /// <summary>
+    /// 获取工段完工状态中文文本
+    /// </summary>
+    public static string GetSectionCompletedText(bool? completed) => completed switch
+    {
+        true => "完工",
+        false => "生产中",
+        null => ""
+    };
+
     // ========== 委外加工单状态 ==========
 
     /// <summary>

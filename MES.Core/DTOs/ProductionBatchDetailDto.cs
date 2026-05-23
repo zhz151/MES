@@ -24,6 +24,7 @@ public class ProductionBatchDetailDto
     public string? CurrentSpec { get; set; }
     public string? NextSectionName { get; set; }
     public string? CorrespondingSpec { get; set; }
+    public bool? CurrentSectionCompleted { get; set; }
     public string? Remark { get; set; }
 
     // ========== 工单冗余 ==========

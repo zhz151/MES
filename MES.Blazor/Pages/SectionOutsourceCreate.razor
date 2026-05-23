@@ -309,7 +309,8 @@
                 OutsourceSpec = r.OutsourceSpec?.Trim(),
                 ExpectedReturnDate = r.ExpectedReturnDate,
                 IsUrgent = r.IsUrgent,
-                Remark = r.Remark?.Trim()
+                Remark = r.Remark?.Trim(),
+                DataSource = "MANUAL"
             }).ToList();
 
             var result = await SectionOutsourceService.BatchCreateAsync(requests);

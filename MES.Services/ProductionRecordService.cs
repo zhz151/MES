@@ -188,23 +188,14 @@ public class ProductionRecordService : IProductionRecordService
 
         var entities = new List<ProductionRecord>();
         var requestErrors = new List<string>();
-        var today = DateTime.Today;
 
-        // 预查询：各批次上个最近执行日期的最大 SequenceNumber
-        var prevRecords = await _context.ProductionRecords
-            .Where(r => allBatchIds.Contains(r.ProductionBatchId) && r.ExecDate < today)
+        // 预查询：各批次所有已有的生产记录（用于执行序号跳跃验证）
+        var allExistingRecords = await _context.ProductionRecords
+            .Where(r => allBatchIds.Contains(r.ProductionBatchId))
             .ToListAsync();
-        var prevMaxSeqByBatch = new Dictionary<int, int>();
-        var prevDateByBatch = prevRecords
+        var recordsByBatch = allExistingRecords
             .GroupBy(r => r.ProductionBatchId)
-            .ToDictionary(g => g.Key, g => g.Max(r => r.ExecDate));
-        foreach (var kv in prevDateByBatch)
-        {
-            var maxSeq = prevRecords
-                .Where(r => r.ProductionBatchId == kv.Key && r.ExecDate == kv.Value)
-                .Max(r => (int?)r.SequenceNumber) ?? 0;
-            prevMaxSeqByBatch[kv.Key] = maxSeq;
-        }
+            .ToDictionary(g => g.Key, g => g.ToList());
 
         // 预查询：各批次已存在的冷轧拔记录
         var existingColdRollDraw = await _context.ProductionRecords
@@ -229,13 +220,17 @@ public class ProductionRecordService : IProductionRecordService
             if (request.Weight.HasValue && request.Weight > 0 && request.Weight > (batch.CurrentValidWeight ?? batch.InputWeight))
                 requestErrors.Add($"第{i + 1}行：加工重量({request.Weight})不能大于有效原料重量({batch.CurrentValidWeight ?? batch.InputWeight})");
 
-            // 3) 执行序号不超上个最近日期最大值+7
+            // 3) 执行序号跳跃限制：以每条记录的 ExecDate 为准，对比该批次在此日期前已执行的最大序号，不能 > +7
             if (request.SequenceNumber > 0)
             {
-                var prevMax = prevMaxSeqByBatch.GetValueOrDefault(batchId, 0);
+                var batchRecords = recordsByBatch.GetValueOrDefault(batchId, new List<ProductionRecord>());
+                var prevMax = batchRecords
+                    .Where(r => r.ExecDate.Date < request.ExecDate.Date)
+                    .Select(r => (int?)r.SequenceNumber)
+                    .Max() ?? 0;
                 var maxAllowed = prevMax + 7;
                 if (request.SequenceNumber > maxAllowed)
-                    requestErrors.Add($"第{i + 1}行：执行序号({request.SequenceNumber})超过上个最近日期最大值({prevMax})+7={maxAllowed}");
+                    requestErrors.Add($"第{i + 1}行：执行序号({request.SequenceNumber})超过该日期前已执行最大值({prevMax})+7={maxAllowed}");
             }
         }
 
@@ -330,6 +325,72 @@ public class ProductionRecordService : IProductionRecordService
             }
         }
 
+        // 预查询：各批次各工序组的冷轧拔总重量（用于冷轧拔总加工重量验证）
+        var coldRollDrawWeightByKey = allExistingRecords
+            .Where(r => r.SectionName == "冷轧拔" && r.Weight.HasValue)
+            .GroupBy(r => new { r.ProductionBatchId, r.ProcessGroupId })
+            .ToDictionary(g => (g.Key.ProductionBatchId, g.Key.ProcessGroupId), g => g.Sum(r => r.Weight.Value));
+
+        var simpleDuplicateSections = new HashSet<string> { "油管断", "去油", "固溶", "矫直", "测壁厚", "酸洗", "外抛光", "内修磨", "外点磨", "打焊头", "润滑" };
+
+        // 5) 重复记录校验
+        for (int i = 0; i < requests.Count; i++)
+        {
+            var request = requests[i];
+            var batch = batchLookup[request.BatchNo];
+            var batchId = batch.Id;
+
+            // 解析 ProcessGroupId
+            var pgId = request.ProcessGroupId;
+            if (pgId == null || pgId == 0)
+            {
+                var matchedPg = pgByBatch.GetValueOrDefault(batchId)?
+                    .FirstOrDefault(pg => pg.ProcessName == request.ProcessName && pg.ManufacturingSpec == request.ManufacturingSpec);
+                pgId = matchedPg?.Id;
+            }
+            if (pgId == null || pgId == 0)
+                continue;
+
+            var batchRecords = recordsByBatch.GetValueOrDefault(batchId, new List<ProductionRecord>());
+
+            if (simpleDuplicateSections.Contains(request.SectionName))
+            {
+                // 规则(1)：同批次+同工序组+同工段 → 重复
+                var dup = batchRecords.Any(r =>
+                    r.ProcessGroupId == pgId.Value && r.SectionName == request.SectionName);
+                if (dup)
+                    requestErrors.Add($"第{i + 1}行：工段「{request.SectionName}」在该批次该工序组中已存在记录，不能重复创建");
+            }
+            else if (request.SectionName == "冷轧拔")
+            {
+                // 规则(2)：同批次+同工序组+同工段+同执行日期+同设备名称+同操作人 → 重复
+                var dup = batchRecords.Any(r =>
+                    r.ProcessGroupId == pgId.Value &&
+                    r.SectionName == "冷轧拔" &&
+                    r.ExecDate.Date == request.ExecDate.Date &&
+                    r.EquipmentName == request.EquipmentName &&
+                    r.Operator == request.Operator);
+                if (dup)
+                    requestErrors.Add($"第{i + 1}行：冷轧拔在该日期/设备/操作人下已存在记录，不能重复创建");
+
+                // 附加：冷轧拔总加工重量不能大于现有效原料重量
+                var existingWeight = coldRollDrawWeightByKey.GetValueOrDefault((batchId, pgId.Value), 0m);
+                var totalWeight = existingWeight + (request.Weight ?? 0m);
+                if (totalWeight > (batch.CurrentValidWeight ?? batch.InputWeight))
+                    requestErrors.Add($"第{i + 1}行：冷轧拔总加工重量({totalWeight})不能大于有效原料重量({batch.CurrentValidWeight ?? batch.InputWeight})");
+            }
+            else if (request.SectionName == "断切")
+            {
+                // 规则(3)：同批次+同工序组+同工段+同成品长度 → 重复
+                var dup = batchRecords.Any(r =>
+                    r.ProcessGroupId == pgId.Value &&
+                    r.SectionName == "断切" &&
+                    r.FinishedCutLength == request.FinishedCutLength);
+                if (dup)
+                    requestErrors.Add($"第{i + 1}行：断切在该批次该工序组中已存在相同成品长度的记录，不能重复创建");
+            }
+        }
+
         if (requestErrors.Any())
             throw new BusinessException(string.Join("；", requestErrors));
 
@@ -381,7 +442,8 @@ public class ProductionRecordService : IProductionRecordService
                 PostCutQuantity = request.PostCutQuantity,
                 TagNo = request.TagNo ?? batch.TagNo,
                 PlantGrade = request.PlantGrade ?? batch.PlantGrade,
-                Remark = request.Remark
+                Remark = request.Remark,
+                DataSource = "MANUAL"
             });
         }
 
@@ -779,7 +841,8 @@ public class ProductionRecordService : IProductionRecordService
             ReceivedWeight = request.ReceivedWeight,
             Shift = request.Shift,
             Checker = request.Checker,
-            Remark = request.Remark
+            Remark = request.Remark,
+            DataSource = request.DataSource ?? "MANUAL"
         };
 
         _context.MaterialReceiveChecks.Add(entity);
@@ -802,6 +865,7 @@ public class ProductionRecordService : IProductionRecordService
             Shift = entity.Shift,
             Checker = entity.Checker,
             Remark = entity.Remark,
+            DataSource = entity.DataSource,
             CreatedTime = entity.CreatedTime,
             UpdatedTime = entity.UpdatedTime
         };
@@ -868,11 +932,11 @@ public class ProductionRecordService : IProductionRecordService
                 ReceivedWeight = request.ReceivedWeight,
                 Shift = request.Shift,
                 Checker = request.Checker,
-                Remark = request.Remark
+                Remark = request.Remark,
+                DataSource = "MANUAL"
             });
         }
 
-        // 批次设为完成
         foreach (var batch in modifiedBatches)
             batch.Status = BatchStatus.Completed;
 
@@ -894,6 +958,7 @@ public class ProductionRecordService : IProductionRecordService
             Shift = e.Shift,
             Checker = e.Checker,
             Remark = e.Remark,
+            DataSource = e.DataSource,
             CreatedTime = e.CreatedTime,
             UpdatedTime = e.UpdatedTime
         }).ToList();
@@ -926,6 +991,7 @@ public class ProductionRecordService : IProductionRecordService
             Shift = entity.Shift,
             Checker = entity.Checker,
             Remark = entity.Remark,
+            DataSource = entity.DataSource,
             CreatedTime = entity.CreatedTime,
             UpdatedTime = entity.UpdatedTime
         };
@@ -1351,6 +1417,33 @@ public class ProductionRecordService : IProductionRecordService
             batch.CurrentOutsource = null;
         }
 
+        // ====== 6. 当前工段是否完工 ======
+        if (overallMaxSeq < 0)
+        {
+            // 无任何记录
+            batch.CurrentSectionCompleted = null;
+        }
+        else if (overallMaxSeq == maxRecordSeq && maxSeqRecord?.SectionName == "冷轧拔")
+        {
+            // 冷轧拔：总加工重量 ≥ 有效原料重量 × 95% 才算完工
+            var pgId = maxSeqRecord.ProcessGroupId;
+            var totalWeight = productionRecords
+                .Where(r => r.ProcessGroupId == pgId && r.SectionName == "冷轧拔" && r.Weight.HasValue)
+                .Sum(r => r.Weight.Value);
+            var threshold = (batch.CurrentValidWeight ?? batch.InputWeight ?? 0) * 0.95m;
+            batch.CurrentSectionCompleted = totalWeight >= threshold;
+        }
+        else if (overallMaxSeq == maxOutsourceSeq)
+        {
+            // 工段委外：有回收记录才算完工
+            batch.CurrentSectionCompleted = maxSeqOutsource?.RecoveryCount > 0;
+        }
+        else
+        {
+            // 其它工段（含过程检验）：有记录即完工
+            batch.CurrentSectionCompleted = true;
+        }
+
         // ====== 7. 下一工段 / 对应规格 ======
         // 取三者最大 SequenceNumber，+1 即为下一工段的全局执行序号
         var allSections = batch.ProcessGroups
@@ -1368,6 +1461,7 @@ public class ProductionRecordService : IProductionRecordService
             : null;
 
         // ====== 8. 有效投料疑问 ======
+        batch.ValidInputQuestion = false;
         var latestInspection = processInspections
             .OrderByDescending(p => p.InspectionDate)
             .ThenByDescending(p => p.Id)
@@ -1387,10 +1481,6 @@ public class ProductionRecordService : IProductionRecordService
                     batch.ValidInputQuestion = (ratio > 1.02m || ratio < 0.98m);
                 }
             }
-        }
-        else
-        {
-            batch.ValidInputQuestion = null;
         }
 
         _context.ProductionBatches.Update(batch);
@@ -1587,6 +1677,29 @@ public class ProductionRecordService : IProductionRecordService
                 batch.CurrentOutsource = null;
             }
 
+            // ====== 当前工段是否完工 ======
+            if (overallMaxSeq < 0)
+            {
+                batch.CurrentSectionCompleted = null;
+            }
+            else if (overallMaxSeq == maxRecordSeq && maxSeqRecord?.SectionName == "冷轧拔")
+            {
+                var pgId = maxSeqRecord.ProcessGroupId;
+                var totalWeight = productionRecords
+                    .Where(r => r.ProcessGroupId == pgId && r.SectionName == "冷轧拔" && r.Weight.HasValue)
+                    .Sum(r => r.Weight.Value);
+                var threshold = (batch.CurrentValidWeight ?? batch.InputWeight ?? 0) * 0.95m;
+                batch.CurrentSectionCompleted = totalWeight >= threshold;
+            }
+            else if (overallMaxSeq == maxOutsourceSeq)
+            {
+                batch.CurrentSectionCompleted = maxSeqOutsource?.RecoveryCount > 0;
+            }
+            else
+            {
+                batch.CurrentSectionCompleted = true;
+            }
+
             // 下一工段 / 对应规格
             var allSections = batch.ProcessGroups
                 .SelectMany(pg => GetSectionsFromProcessGroup(pg)
@@ -1603,29 +1716,12 @@ public class ProductionRecordService : IProductionRecordService
                 : null;
 
             // 有效投料疑问
-            var latestInspection = processInspections
-                .OrderByDescending(p => p.InspectionDate)
-                .ThenByDescending(p => p.Id)
-                .FirstOrDefault();
-            if (latestInspection?.QualifiedQuantity.HasValue == true
-                && batch.CurrentValidQty is > 0
-                && batch.ProductionRatio > 0)
+            // 对照现有效原料支数与投料支数，相差超过 5% → 疑问
+            batch.ValidInputQuestion = false;
+            if (batch.InputQuantity.HasValue && batch.InputQuantity > 0 && batch.CurrentValidQty.HasValue)
             {
-                var pg = batch.ProcessGroups.FirstOrDefault(pg => pg.Id == latestInspection.ProcessGroupId);
-                if (pg?.ManufacturingMultiple > 0)
-                {
-                    var inspectionTheoryQty = latestInspection.QualifiedQuantity.Value * pg.ManufacturingMultiple;
-                    var inputProductionQty = batch.CurrentValidQty.Value * batch.ProductionRatio;
-                    if (inputProductionQty > 0)
-                    {
-                        var ratio = (decimal)inspectionTheoryQty / inputProductionQty;
-                        batch.ValidInputQuestion = (ratio > 1.02m || ratio < 0.98m);
-                    }
-                }
-            }
-            else
-            {
-                batch.ValidInputQuestion = null;
+                var ratio = (decimal)batch.CurrentValidQty.Value / batch.InputQuantity.Value;
+                batch.ValidInputQuestion = ratio is < 0.95m or > 1.05m;
             }
         }
 
@@ -2045,6 +2141,7 @@ public class ProductionRecordService : IProductionRecordService
                 Shift = m.Shift,
                 Checker = m.Checker,
                 Remark = m.Remark,
+                DataSource = m.DataSource,
                 BatchNo = m.ProductionBatch.BatchNo,
                 CreatedTime = m.CreatedTime,
                 UpdatedTime = m.UpdatedTime

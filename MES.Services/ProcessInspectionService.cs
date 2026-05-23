@@ -108,6 +108,7 @@ public class ProcessInspectionService : IProcessInspectionService
                 PlantGrade = r.PlantGrade,
                 Remark = r.Remark,
                 BatchNo = r.ProductionBatch.BatchNo,
+                DataSource = r.DataSource,
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime
             })
@@ -233,6 +234,14 @@ public class ProcessInspectionService : IProcessInspectionService
         var entities = new List<ProcessInspection>();
         var errors = new List<string>();
 
+        // 预查询：各批次所有已有的过程检验记录（用于执行序号跳跃验证）
+        var allExistingRecords = await _context.ProcessInspections
+            .Where(r => allBatchIds.Contains(r.ProductionBatchId))
+            .ToListAsync();
+        var recordsByBatch = allExistingRecords
+            .GroupBy(r => r.ProductionBatchId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
         for (int i = 0; i < requests.Count; i++)
         {
             var request = requests[i];
@@ -278,6 +287,55 @@ public class ProcessInspectionService : IProcessInspectionService
                 }
             }
 
+            // 执行序号跳跃限制：以每条记录的 InspectionDate 为准，对比该批次在此日期前已执行的最大序号，不能 > +7
+            if (seqNum > 0)
+            {
+                var batchRecords = recordsByBatch.GetValueOrDefault(batchId, new List<ProcessInspection>());
+                var prevMax = batchRecords
+                    .Where(r => r.InspectionDate.Date < request.InspectionDate.Date)
+                    .Select(r => (int?)r.SequenceNumber)
+                    .Max() ?? 0;
+                var maxAllowed = prevMax + 7;
+                if (seqNum > maxAllowed)
+                    errors.Add($"第{i + 1}行：执行序号({seqNum})超过该日期前已执行最大值({prevMax})+7={maxAllowed}");
+            }
+
+            // 重复校验：同批次+同工序组+同工段 → 重复
+            if (pgId > 0)
+            {
+                var batchRecords = recordsByBatch.GetValueOrDefault(batchId, new List<ProcessInspection>());
+                var dup = batchRecords.Any(r =>
+                    r.ProcessGroupId == pgId.Value && r.SectionName == request.SectionName);
+                if (dup)
+                    errors.Add($"第{i + 1}行：工段「{request.SectionName}」在该批次该工序组中已存在过程检验记录，不能重复创建");
+            }
+
+            // 4) 检验支数 = 合格支数 + 返整支数 + 入库支数 + 报废支数
+            if (request.Quantity.HasValue)
+            {
+                var sum = (request.QualifiedQuantity ?? 0)
+                    + (request.DefectReworkQuantity ?? 0)
+                    + (request.DefectWarehouseQuantity ?? 0)
+                    + (request.DefectScrapQuantity ?? 0);
+                if (request.Quantity.Value != sum)
+                    errors.Add($"第{i + 1}行：检验支数({request.Quantity}) ≠ 合格支数({request.QualifiedQuantity ?? 0}) + 返整({request.DefectReworkQuantity ?? 0}) + 入库({request.DefectWarehouseQuantity ?? 0}) + 报废({request.DefectScrapQuantity ?? 0}) = {sum}");
+            }
+
+            // 5) 让步放行支数 ≤ 合格支数
+            if (request.QualifiedConcessionQuantity.HasValue && request.QualifiedQuantity.HasValue
+                && request.QualifiedConcessionQuantity.Value > request.QualifiedQuantity.Value)
+            {
+                errors.Add($"第{i + 1}行：让步放行支数({request.QualifiedConcessionQuantity})不能大于合格支数({request.QualifiedQuantity})");
+            }
+
+            // 6) 检验重量不能大于批次现有效原料重量
+            if (request.Weight.HasValue && request.Weight > 0)
+            {
+                var maxWeight = batch.CurrentValidWeight ?? batch.InputWeight;
+                if (request.Weight.Value > maxWeight)
+                    errors.Add($"第{i + 1}行：检验重量({request.Weight})不能大于现有效原料重量({maxWeight})");
+            }
+
             var entity = new ProcessInspection
             {
                 ProductionBatchId = batchId,
@@ -304,7 +362,8 @@ public class ProcessInspectionService : IProcessInspectionService
                 SourceUnit = request.SourceUnit,
                 TagNo = request.TagNo,
                 PlantGrade = request.PlantGrade,
-                Remark = request.Remark
+                Remark = request.Remark,
+                DataSource = request.DataSource ?? "MANUAL"
             };
 
             entities.Add(entity);
@@ -352,6 +411,7 @@ public class ProcessInspectionService : IProcessInspectionService
             PlantGrade = e.PlantGrade,
             Remark = e.Remark,
             BatchNo = batchLookup.Values.FirstOrDefault(b => b.Id == e.ProductionBatchId)?.BatchNo,
+            DataSource = e.DataSource,
             CreatedTime = e.CreatedTime,
             UpdatedTime = e.UpdatedTime
         }).ToList();
@@ -419,6 +479,7 @@ public class ProcessInspectionService : IProcessInspectionService
             PlantGrade = entity.PlantGrade,
             Remark = entity.Remark,
             BatchNo = entity.ProductionBatch.BatchNo,
+            DataSource = entity.DataSource,
             CreatedTime = entity.CreatedTime,
             UpdatedTime = entity.UpdatedTime
         };

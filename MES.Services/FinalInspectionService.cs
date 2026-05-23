@@ -150,6 +150,7 @@ public class FinalInspectionService : IFinalInspectionService
                 Pressure = r.Pressure,
                 HoldTime = r.HoldTime,
                 Remark = r.Remark,
+                DataSource = r.DataSource,
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime
             })
@@ -288,7 +289,8 @@ public class FinalInspectionService : IFinalInspectionService
             LengthAllowanceRange = request.LengthAllowanceRange,
             Pressure = request.Pressure,
             HoldTime = request.HoldTime,
-            Remark = request.Remark
+            Remark = request.Remark,
+            DataSource = request.DataSource ?? "MANUAL"
         };
 
         _context.FinalInspections.Add(entity);
@@ -329,6 +331,7 @@ public class FinalInspectionService : IFinalInspectionService
             Pressure = entity.Pressure,
             HoldTime = entity.HoldTime,
             Remark = entity.Remark,
+            DataSource = entity.DataSource,
             CreatedTime = entity.CreatedTime,
             UpdatedTime = entity.UpdatedTime
         };
@@ -397,6 +400,7 @@ public class FinalInspectionService : IFinalInspectionService
             Pressure = entity.Pressure,
             HoldTime = entity.HoldTime,
             Remark = entity.Remark,
+            DataSource = entity.DataSource,
             CreatedTime = entity.CreatedTime,
             UpdatedTime = entity.UpdatedTime
         };
@@ -426,6 +430,64 @@ public class FinalInspectionService : IFinalInspectionService
             if (!batchLookup.ContainsKey(bn))
                 throw new BusinessException($"批次不存在: {bn}");
         }
+
+        // 预查询：各批次已有的成品检验记录（用于重复校验）
+        var allBatchIds = batchLookup.Values.Select(b => b.Id).ToList();
+        var existingRecords = await _context.FinalInspections
+            .Where(f => allBatchIds.Contains(f.ProductionBatchId))
+            .ToListAsync();
+        var existingByBatch = existingRecords
+            .GroupBy(f => f.ProductionBatchId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // 重复校验：同批次 + 同物料名称 + 同检验项目 + 同定尺长度 + 同操作人 → 重复
+        var errors = new List<string>();
+        foreach (var (request, i) in requests.Select((r, idx) => (r, idx)))
+        {
+            var batch = batchLookup[request.BatchNo];
+            var batchId = batch.Id;
+
+            var materialName = request.MaterialName ?? batch.MaterialName;
+            var fixedLength = request.FixedLength ?? (batch.LengthStatus == "Fixed" && batch.MinLength.HasValue ? $"{batch.MinLength.Value:G29}mm" : null);
+            var operatorName = request.Operator;
+
+            var existing = existingByBatch.GetValueOrDefault(batchId, new List<FinalInspection>());
+            var dup = existing.Any(f =>
+                f.MaterialName == materialName &&
+                f.InspectionItem == request.InspectionItem &&
+                f.FixedLength == fixedLength &&
+                f.Operator == operatorName);
+            if (dup)
+                errors.Add($"第{i + 1}行：该批次已存在相同物料/检验项目/定尺/操作人的成品检验记录，不能重复创建");
+
+            // 2) 检验支数 = 合格支数 + 返整支数 + 入库支数 + 报废支数
+            if (request.Quantity.HasValue)
+            {
+                var sum = (request.QualifiedQuantity ?? 0)
+                    + (request.DefectReworkQuantity ?? 0)
+                    + (request.DefectWarehouseQuantity ?? 0)
+                    + (request.DefectScrapQuantity ?? 0);
+                if (request.Quantity.Value != sum)
+                    errors.Add($"第{i + 1}行：检验支数({request.Quantity}) ≠ 合格支数({request.QualifiedQuantity ?? 0}) + 返整({request.DefectReworkQuantity ?? 0}) + 入库({request.DefectWarehouseQuantity ?? 0}) + 报废({request.DefectScrapQuantity ?? 0}) = {sum}");
+            }
+
+            // 3) 让步放行支数 ≤ 合格支数
+            if (request.QualifiedConcessionQuantity.HasValue && request.QualifiedQuantity.HasValue
+                && request.QualifiedConcessionQuantity.Value > request.QualifiedQuantity.Value)
+            {
+                errors.Add($"第{i + 1}行：让步放行支数({request.QualifiedConcessionQuantity})不能大于合格支数({request.QualifiedQuantity})");
+            }
+
+            // 4) 检验重量不能大于批次现有效原料重量
+            if (request.Weight.HasValue && request.Weight > 0)
+            {
+                var maxWeight = batch.CurrentValidWeight ?? batch.InputWeight;
+                if (request.Weight.Value > maxWeight)
+                    errors.Add($"第{i + 1}行：检验重量({request.Weight})不能大于现有效原料重量({maxWeight})");
+            }
+        }
+        if (errors.Any())
+            throw new BusinessException(string.Join("；", errors));
 
         var entities = requests.Select(r =>
         {
@@ -463,7 +525,8 @@ public class FinalInspectionService : IFinalInspectionService
                 LengthAllowanceRange = r.LengthAllowanceRange,
                 Pressure = r.Pressure,
                 HoldTime = r.HoldTime,
-                Remark = r.Remark
+                Remark = r.Remark,
+                DataSource = r.DataSource ?? "MANUAL"
             };
         }).ToList();
 
@@ -505,6 +568,7 @@ public class FinalInspectionService : IFinalInspectionService
             Pressure = e.Pressure,
             HoldTime = e.HoldTime,
             Remark = e.Remark,
+            DataSource = e.DataSource,
             CreatedTime = e.CreatedTime,
             UpdatedTime = e.UpdatedTime
         }).ToList();

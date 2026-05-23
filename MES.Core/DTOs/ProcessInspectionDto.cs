@@ -49,6 +49,9 @@ public class ProcessInspectionDto
 
     /// <summary>更新时间</summary>
     public DateTimeOffset UpdatedTime { get; set; }
+
+    /// <summary>数据来源（SCAN=扫码报工，MANUAL=手动录入）</summary>
+    public string? DataSource { get; set; }
 }
 
 /// <summary>
@@ -132,6 +135,12 @@ public class CreateProcessInspectionRequest
 
     [MaxLength(500)]
     public string? Remark { get; set; }
+
+    /// <summary>
+    /// 数据来源（SCAN=扫码报工，MANUAL=手动录入）
+    /// </summary>
+    [MaxLength(10)]
+    public string? DataSource { get; set; }
 }
 
 /// <summary>

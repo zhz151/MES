@@ -45,6 +45,9 @@ public class SectionOutsourceDto
 
     /// <summary>实际回收日期（回收记录中最大的日期）</summary>
     public DateTime? ActualRecoveryDate { get; set; }
+
+    /// <summary>数据来源（SCAN=扫码报工，MANUAL=手动录入）</summary>
+    public string? DataSource { get; set; }
 }
 
 /// <summary>
@@ -97,6 +100,12 @@ public class CreateSectionOutsourceRequest
 
     [MaxLength(500)]
     public string? Remark { get; set; }
+
+    /// <summary>
+    /// 数据来源（SCAN=扫码报工，MANUAL=手动录入）
+    /// </summary>
+    [MaxLength(10)]
+    public string? DataSource { get; set; }
 }
 
 /// <summary>
@@ -164,6 +173,9 @@ public class OutsourceRecoveryDto
     public string? TagNo { get; set; }
     /// <summary>工厂牌号</summary>
     public string? PlantGrade { get; set; }
+
+    /// <summary>数据来源（SCAN=扫码报工，MANUAL=手动录入）</summary>
+    public string? DataSource { get; set; }
 }
 
 /// <summary>
@@ -188,6 +200,12 @@ public class CreateOutsourceRecoveryRequest
 
     [MaxLength(500)]
     public string? Remark { get; set; }
+
+    /// <summary>
+    /// 数据来源（SCAN=扫码报工，MANUAL=手动录入）
+    /// </summary>
+    [MaxLength(10)]
+    public string? DataSource { get; set; }
 }
 
 /// <summary>

@@ -82,6 +82,8 @@ public partial class Batches
         new() { Key = "CurrentExecDate",    Label = "截止执行日", SortKey = "currentexecdate", FilterType = "date" },
         new() { Key = "CurrentGroupName",   Label = "当前工序", SortKey = "currentgroupname", FilterType = "string" },
         new() { Key = "CurrentSectionName", Label = "当前工段", SortKey = "currentsectionname", FilterType = "string" },
+        new() { Key = "CurrentSectionCompleted", Label = "工段完工", SortKey = null, FilterType = "enum",
+            EnumOptions = new() { new("True", "完工"), new("False", "生产中") } },
         new() { Key = "CurrentEquipmentName", Label = "当前设备", SortKey = "currentequipmentname", FilterType = "string" },
         new() { Key = "CurrentOutsource",   Label = "当前委外", SortKey = "currentoutsource", FilterType = "string" },
         new() { Key = "CurrentSpec",        Label = "当前规格", SortKey = "currentspec", FilterType = "string" },
@@ -587,6 +589,7 @@ public partial class Batches
         "TotalWeight" => item.TotalWeight.ToString("G29"),
         "TechnicalRequirements" => DisplayHelper.GetTechnicalRequirementsText(item.TechnicalRequirements),
         "ValidInputQuestion" => item.ValidInputQuestion.HasValue ? DisplayHelper.GetYesNoText(item.ValidInputQuestion.Value) : "",
+        "CurrentSectionCompleted" => DisplayHelper.GetSectionCompletedText(item.CurrentSectionCompleted),
         "CreatedBy" => item.CreatedBy,
         _ => ""
     };
@@ -653,6 +656,17 @@ public partial class Batches
                     builder.AddAttribute(1, "Size", Size.Small);
                     builder.AddAttribute(2, "Color", vq ? Color.Warning : Color.Success);
                     builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, vq ? "疑问" : "正常")));
+                    builder.CloseComponent();
+                }
+                break;
+            case "CurrentSectionCompleted":
+                if (item.CurrentSectionCompleted.HasValue)
+                {
+                    var sc = item.CurrentSectionCompleted.Value;
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", sc ? Color.Success : Color.Warning);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, sc ? "完工" : "生产中")));
                     builder.CloseComponent();
                 }
                 break;

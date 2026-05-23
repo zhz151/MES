@@ -245,6 +245,7 @@ public static class DtoMapper
         CurrentGroupName = entity.CurrentGroupName,
         CurrentSectionName = entity.CurrentSectionName,
         CurrentExecDate = entity.CurrentExecDate,
+        CurrentSectionCompleted = entity.CurrentSectionCompleted,
         CreatedTime = entity.CreatedTime,
         CreatedBy = entity.CreatedBy
     };
@@ -261,6 +262,7 @@ public static class DtoMapper
         CurrentExecDate = entity.CurrentExecDate,
         CurrentGroupName = entity.CurrentGroupName,
         CurrentSectionName = entity.CurrentSectionName,
+        CurrentSectionCompleted = entity.CurrentSectionCompleted,
         CurrentEquipmentName = entity.CurrentEquipmentName,
         CurrentOutsource = entity.CurrentOutsource,
         NextSectionName = entity.NextSectionName,
