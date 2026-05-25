@@ -216,6 +216,18 @@ public class MaterialPlanController : ControllerBase
         return Ok(ApiResponse<RoundBarPiercingPlanDto>.Ok(result, "创建成功"));
     }
 
+    [HttpPut("piercing/{id}")]
+    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<RoundBarPiercingPlanDto>>> UpdatePiercingPlan(
+        int id, [FromBody] UpdateRoundBarPiercingPlanRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<RoundBarPiercingPlanDto>.Fail("请求参数无效"));
+
+        var result = await _materialPlanService.UpdatePiercingPlanAsync(id, request);
+        return Ok(ApiResponse<RoundBarPiercingPlanDto>.Ok(result, "更新成功"));
+    }
+
     [HttpDelete("piercing/{id}")]
     [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse>> DeletePiercingPlan(int id)

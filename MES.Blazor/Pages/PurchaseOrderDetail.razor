@@ -120,6 +120,7 @@
     private string _dateText = "";
     private string _requiredDateText = "";
     private string _quantityStr = "";
+    private string _inputMultipleStr = "";
     private string _unitWeightStr = "";
     private string _weightStr = "";
     private string _unitPriceStr = "";
@@ -141,6 +142,7 @@
         public string Specification { get; set; } = string.Empty;
         public decimal? SourceUnitWeight { get; set; }
         public int? SourceQuantity { get; set; }
+        public int? SourceInputMultiple { get; set; }
         public decimal SourceWeight { get; set; }
         public DateTime SourceRequiredDate { get; set; }
         public decimal? SourceUnitPrice { get; set; }
@@ -182,6 +184,7 @@
             new() { Key = "specification", Label = "规格", Visible = true },
             new() { Key = "unitweight", Label = "单支重量", Visible = true },
             new() { Key = "quantity", Label = "采购支数", Visible = true },
+            new() { Key = "inputmultiple", Label = "投料倍率", Visible = true },
             new() { Key = "weight", Label = "采购重量", Visible = true },
             new() { Key = "requireddate", Label = "要求到货日", Visible = true },
             new() { Key = "unitprice", Label = "单价", Visible = false },
@@ -284,6 +287,7 @@
             Specification = _order.Specification,
             SourceUnitWeight = _order.UnitWeight,
             SourceQuantity = _order.Quantity,
+            SourceInputMultiple = _order.InputMultiple,
             SourceWeight = _order.Weight,
             SourceRequiredDate = _order.RequiredDate,
             SourceUnitPrice = _order.UnitPrice,
@@ -294,6 +298,7 @@
         _requiredDateText = _order.RequiredDate.ToString("yyyy-MM-dd");
         _unitWeightStr = _order.UnitWeight?.ToString("G29") ?? "";
         _quantityStr = _order.Quantity?.ToString() ?? "";
+        _inputMultipleStr = _order.InputMultiple?.ToString() ?? "";
         _weightStr = _order.Weight.ToString("G29");
         _unitPriceStr = _order.UnitPrice?.ToString("G29") ?? "";
     }
@@ -330,6 +335,7 @@
         {
             _editOrder.SourceQuantity = qty;
             _editOrder.SourceWeight = wgt;
+            _editOrder.SourceInputMultiple = int.TryParse(_inputMultipleStr, out var im) ? im : null;
             _editOrder.SourceUnitWeight = decimal.TryParse(_unitWeightStr, out var uw) ? uw : null;
             _editOrder.SourceUnitPrice = decimal.TryParse(_unitPriceStr, out var up) ? up : null;
 
@@ -341,6 +347,7 @@
                 Specification = _editOrder.Specification,
                 UnitWeight = _editOrder.SourceUnitWeight,
                 Quantity = _editOrder.SourceQuantity,
+                InputMultiple = _editOrder.SourceInputMultiple,
                 Weight = _editOrder.SourceWeight,
                 RequiredDate = requiredDate,
                 UnitPrice = _editOrder.SourceUnitPrice,
@@ -540,6 +547,19 @@
                     builder.CloseComponent();
                 }
                 else { builder.AddContent(0, item.Quantity?.ToString("G29")); }
+                break;
+            case "inputmultiple":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", _inputMultipleStr);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => _inputMultipleStr = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, item.InputMultiple?.ToString() ?? "-"); }
                 break;
             case "weight":
                 if (_isEditMode)

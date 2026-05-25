@@ -14,4 +14,8 @@ public class PlanDetailDto
     public decimal Weight { get; set; }
     public string? Remark { get; set; }
     public DateTime? RequiredDate { get; set; }
+    /// <summary>
+    /// 投料倍率(1制几)
+    /// </summary>
+    public int? InputMultiple { get; set; }
 }

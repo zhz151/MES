@@ -219,9 +219,9 @@ public class SectionOutsourceServiceTests : TestBase
         var result = await svc.BatchCreateAsync(new List<CreateSectionOutsourceRequest>
         {
             new() { BatchNo = "BATCH001", ProcessName = "冷轧", ManufacturingSpec = "219*8",
-                SectionName = "冷轧拔", OutsourceVendor = "委外厂A", SendOutDate = DateTime.Today },
+                SectionName = "冷轧拔", OutsourceVendor = "委外厂A", OutsourceSpec = "219*8", SendOutDate = DateTime.Today },
             new() { BatchNo = "BATCH002", ProcessName = "酸洗", ManufacturingSpec = "219*8",
-                SectionName = "酸洗", OutsourceVendor = "委外厂B", SendOutDate = DateTime.Today }
+                SectionName = "酸洗", OutsourceVendor = "委外厂B", OutsourceSpec = "219*8", SendOutDate = DateTime.Today }
         });
 
         result.Should().HaveCount(2);

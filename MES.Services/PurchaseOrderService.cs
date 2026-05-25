@@ -262,6 +262,9 @@ public class PurchaseOrderService : IPurchaseOrderService
             "quantity" => query.IsDescending
                 ? queryable.OrderByDescending(p => p.Quantity)
                 : queryable.OrderBy(p => p.Quantity),
+            "inputmultiple" => query.IsDescending
+                ? queryable.OrderByDescending(p => p.InputMultiple)
+                : queryable.OrderBy(p => p.InputMultiple),
             "weight" => query.IsDescending
                 ? queryable.OrderByDescending(p => p.Weight)
                 : queryable.OrderBy(p => p.Weight),
@@ -428,6 +431,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 RequiredDate = request.RequiredDate,
                 UnitPrice = request.UnitPrice,
                 SourceWorkOrderNo = request.SourceWorkOrderNo,
+                InputMultiple = request.InputMultiple,
                 Remark = request.Remark
             };
 
@@ -496,6 +500,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                     RequiredDate = request.RequiredDate,
                     UnitPrice = request.UnitPrice,
                     SourceWorkOrderNo = request.SourceWorkOrderNo,
+                    InputMultiple = request.InputMultiple,
                     Remark = request.Remark
                 };
 
@@ -530,11 +535,24 @@ public class PurchaseOrderService : IPurchaseOrderService
         }
     }
 
-    public async Task<PurchaseOrderDto> UpdateAsync(int id, UpdatePurchaseOrderRequest request)
+    public async Task<PurchaseOrderDto> UpdateAsync(int id, UpdatePurchaseOrderRequest request, bool isAdmin = false)
     {
         var entity = await _context.PurchaseOrders
             .FirstOrDefaultAsync(p => p.Id == id);
         if (entity == null) throw new BusinessException("采购单不存在");
+
+        // 管理员可无视状态编辑任何采购单
+        if (isAdmin)
+        {
+            MapUpdateFields(entity, request);
+            await _context.SaveChangesAsync();
+
+            var dto = ToDto(entity);
+            var supplier = await _context.SupplierProfiles.FindAsync(entity.SupplierId);
+            if (supplier != null) dto.SupplierName = supplier.SupplierName;
+            return dto;
+        }
+
         if (entity.Status == PurchaseOrderStatus.Cancelled) throw new BusinessException("已取消的采购单无法编辑");
 
         if (entity.Status == PurchaseOrderStatus.Completed)
@@ -544,23 +562,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         }
         else
         {
-            entity.SupplierId = request.SupplierId;
-            entity.MaterialCategory = request.MaterialCategory;
-            entity.PlantGrade = request.PlantGrade;
-            entity.Specification = request.Specification;
-            entity.UnitWeight = request.UnitWeight ?? entity.UnitWeight;
-            entity.Quantity = request.Quantity ?? entity.Quantity;
-            entity.Weight = request.Weight;
-            entity.RequiredDate = request.RequiredDate;
-            entity.UnitPrice = request.UnitPrice ?? entity.UnitPrice;
-            entity.SourceWorkOrderNo = request.SourceWorkOrderNo ?? entity.SourceWorkOrderNo;
-            entity.Remark = request.Remark ?? entity.Remark;
-
-            // 重新计算总金额
-            if (request.Quantity.HasValue && request.UnitPrice.HasValue)
-                entity.TotalAmount = request.Quantity.Value * request.UnitPrice.Value;
-            else
-                entity.TotalAmount = null;
+            MapUpdateFields(entity, request);
 
             // 非强制完成时自动计算状态
             if (!entity.IsForceCompleted)
@@ -569,16 +571,37 @@ public class PurchaseOrderService : IPurchaseOrderService
 
         await _context.SaveChangesAsync();
 
-        var dto = ToDto(entity);
-        var supplier = await _context.SupplierProfiles.FindAsync(entity.SupplierId);
-        if (supplier != null) dto.SupplierName = supplier.SupplierName;
-        return dto;
+        var dto2 = ToDto(entity);
+        var supplier2 = await _context.SupplierProfiles.FindAsync(entity.SupplierId);
+        if (supplier2 != null) dto2.SupplierName = supplier2.SupplierName;
+        return dto2;
+    }
+
+    private static void MapUpdateFields(PurchaseOrder entity, UpdatePurchaseOrderRequest request)
+    {
+        entity.SupplierId = request.SupplierId;
+        entity.MaterialCategory = request.MaterialCategory;
+        entity.PlantGrade = request.PlantGrade;
+        entity.Specification = request.Specification;
+        entity.UnitWeight = request.UnitWeight ?? entity.UnitWeight;
+        entity.Quantity = request.Quantity ?? entity.Quantity;
+        entity.Weight = request.Weight;
+        entity.RequiredDate = request.RequiredDate;
+        entity.UnitPrice = request.UnitPrice ?? entity.UnitPrice;
+        entity.InputMultiple = request.InputMultiple;
+        entity.SourceWorkOrderNo = request.SourceWorkOrderNo ?? entity.SourceWorkOrderNo;
+        entity.Remark = request.Remark ?? entity.Remark;
+
+        // 重新计算总金额
+        if (request.Quantity.HasValue && request.UnitPrice.HasValue)
+            entity.TotalAmount = request.Quantity.Value * request.UnitPrice.Value;
+        else
+            entity.TotalAmount = null;
     }
 
     public async Task SyncAllAsync()
     {
         var orders = await _context.PurchaseOrders
-            .Where(p => p.Status != PurchaseOrderStatus.Cancelled && p.Status != PurchaseOrderStatus.Completed)
             .ToListAsync();
 
         var orderNos = orders.Select(o => o.OrderNo).ToList();
@@ -589,7 +612,7 @@ public class PurchaseOrderService : IPurchaseOrderService
 
         foreach (var order in orders)
         {
-            var orderBatches = batches.Where(b => b.SourceOrderNo == order.OrderNo).ToList();
+            var orderBatches = batches.Where(b => string.Equals(b.SourceOrderNo, order.OrderNo, StringComparison.OrdinalIgnoreCase)).ToList();
             if (orderBatches.Count == 0) continue;
 
             order.ReceivedQuantity = orderBatches.Sum(b => b.InitialQuantity);
@@ -640,13 +663,18 @@ public class PurchaseOrderService : IPurchaseOrderService
         await _context.SaveChangesAsync();
     }
 
-    public async Task DeleteAsync(int id)
+    public async Task DeleteAsync(int id, bool isAdmin = false)
     {
         var entity = await _context.PurchaseOrders
             .FirstOrDefaultAsync(p => p.Id == id);
         if (entity == null) throw new BusinessException("采购单不存在");
-        if (entity.Status == PurchaseOrderStatus.Completed) throw new BusinessException("已完成的采购单无法删除");
-        if (entity.Status == PurchaseOrderStatus.Cancelled) throw new BusinessException("该采购单已取消");
+
+        // 管理员可无视状态删除任何采购单
+        if (!isAdmin)
+        {
+            if (entity.Status == PurchaseOrderStatus.Completed) throw new BusinessException("已完成的采购单无法删除");
+            if (entity.Status == PurchaseOrderStatus.Cancelled) throw new BusinessException("该采购单已取消");
+        }
 
         _context.PurchaseOrders.Remove(entity);
         await _context.SaveChangesAsync();
@@ -654,9 +682,9 @@ public class PurchaseOrderService : IPurchaseOrderService
 
     private static void RecalcPurchaseStatus(PurchaseOrder order)
     {
-        if (order.ReceivedQuantity == 0)
+        if (order.ReceivedWeight == 0)
             order.Status = PurchaseOrderStatus.Open;
-        else if (order.Quantity.HasValue && order.ReceivedQuantity >= order.Quantity.Value)
+        else if (IsThresholdMet(order.ReceivedWeight, order.Weight))
             order.Status = PurchaseOrderStatus.Completed;
         else
             order.Status = PurchaseOrderStatus.Partial;
@@ -703,6 +731,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         ReceivedQuantity = entity.ReceivedQuantity,
         ReceivedWeight = entity.ReceivedWeight,
         SourceWorkOrderNo = entity.SourceWorkOrderNo,
+        InputMultiple = entity.InputMultiple,
         Remark = entity.Remark,
         CreatedTime = entity.CreatedTime
     };
@@ -783,7 +812,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             })
             .ToListAsync();
 
-        // 5. 按工单号聚合已采购重量
+        // 5. 按工单号聚合已采购重量（按采购单 Weight 汇总）
         var purchaseWeights = new Dictionary<string, decimal>();
         if (allWorkOrderNos.Count > 0)
         {
@@ -796,7 +825,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             purchaseWeights = purchaseData.ToDictionary(x => x.WorkOrderNo, x => x.Weight, StringComparer.OrdinalIgnoreCase);
         }
 
-        // 6. 按工单号+物料分类聚合已委外重量
+        // 6. 按工单号+物料分类聚合已委外重量（按 ReturnItems RequiredWeight 汇总）
         var subcontractWeights = new Dictionary<string, decimal>();
         if (allWorkOrderNos.Count > 0)
         {
@@ -828,8 +857,8 @@ public class PurchaseOrderService : IPurchaseOrderService
                     SubcontractWeight = subcontractW,
                     TotalWeight = total,
                     StatusText = total == 0 ? "未采购"
-                        : total < x.PlanWeight ? "部分采购"
-                        : "已采购"
+                        : IsThresholdMet(total, x.PlanWeight) ? "已采购"
+                        : "部分采购"
                 };
             })
             .Where(x => x.StatusText != "已采购" && !string.IsNullOrEmpty(x.WorkOrderNo))
@@ -873,7 +902,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             })
             .ToListAsync();
 
-        // 4. 按工单号聚合已委外重量
+        // 4. 按工单号聚合已委外重量（按 ReturnItems RequiredWeight 汇总）
         var subcontractWeights = new Dictionary<string, decimal>();
         if (allWorkOrderNos.Count > 0)
         {
@@ -902,8 +931,8 @@ public class PurchaseOrderService : IPurchaseOrderService
                     SubcontractWeight = subW,
                     TotalWeight = subW,
                     StatusText = subW == 0 ? "未穿孔"
-                        : subW < x.PlanWeight ? "部分穿孔"
-                        : "已穿孔"
+                        : IsThresholdMet(subW, x.PlanWeight) ? "已穿孔"
+                        : "部分穿孔"
                 };
             })
             .Where(x => x.StatusText != "已穿孔" && !string.IsNullOrEmpty(x.WorkOrderNo))
@@ -987,27 +1016,53 @@ public class PurchaseOrderService : IPurchaseOrderService
                 Quantity = semiPlan.RequiredPieces,
                 Weight = semiPlan.RequiredWeight,
                 Remark = semiPlan.Remark,
-                RequiredDate = semiPlan.RequiredDate
+                RequiredDate = semiPlan.RequiredDate,
+                InputMultiple = semiPlan.InputMultiple
             };
         }
 
         // 成品采购（临界成品/订单成品）
-        var finishedPlan = await _context.PurchaseFinishedPlans
+        if (materialCategory == "临界成品" || materialCategory == "订单成品" || materialCategory == "成品")
+        {
+            var finishedPlan = await _context.PurchaseFinishedPlans
+                .AsNoTracking()
+                .Where(p => p.WorkOrderId == workOrder.Id && p.RequiredWeight > 0)
+                .FirstOrDefaultAsync();
+            if (finishedPlan == null) return null;
+
+            return new PlanDetailDto
+            {
+                WorkOrderNo = workOrderNo,
+                MaterialCategory = materialCategory,
+                PlantGrade = finishedPlan.PlantGrade,
+                Specification = finishedPlan.Specification,
+                Quantity = finishedPlan.RequiredPiece,
+                Weight = finishedPlan.RequiredWeight,
+                Remark = finishedPlan.Remark,
+                RequiredDate = finishedPlan.RequiredDate,
+                InputMultiple = finishedPlan.InputMultiple
+            };
+        }
+
+        // 圆棒穿孔
+        var piercingPlan = await _context.RoundBarPiercingPlans
             .AsNoTracking()
             .Where(p => p.WorkOrderId == workOrder.Id && p.RequiredWeight > 0)
             .FirstOrDefaultAsync();
-        if (finishedPlan == null) return null;
+        if (piercingPlan == null) return null;
 
         return new PlanDetailDto
         {
             WorkOrderNo = workOrderNo,
             MaterialCategory = materialCategory,
-            PlantGrade = finishedPlan.PlantGrade,
-            Specification = finishedPlan.Specification,
-            Quantity = finishedPlan.RequiredPiece,
-            Weight = finishedPlan.RequiredWeight,
-            Remark = finishedPlan.Remark,
-            RequiredDate = finishedPlan.RequiredDate
+            PlantGrade = piercingPlan.PlantGrade,
+            Specification = piercingPlan.PiercingSpec,
+            UnitWeight = piercingPlan.RequiredUnitWeight,
+            Quantity = piercingPlan.RequiredPieces,
+            Weight = piercingPlan.RequiredWeight,
+            Remark = piercingPlan.Remark,
+            RequiredDate = piercingPlan.RequiredDate,
+            InputMultiple = piercingPlan.InputMultiple
         };
     }
 
@@ -1125,5 +1180,15 @@ public class PurchaseOrderService : IPurchaseOrderService
         };
         var paged = await GetPagedAsync(query);
         return PurchaseOrderPrintHelper.GenerateBatchPdf(paged.Items);
+    }
+
+    /// <summary>
+    /// 判断执行量是否达到完成阈值：
+    /// total >= planWeight * 0.965（完成率≥96.5%）
+    /// 且 total >= planWeight - 200（绝对偏差≤200kg）
+    /// </summary>
+    internal static bool IsThresholdMet(decimal total, decimal planWeight)
+    {
+        return total >= planWeight * 0.965m && total >= planWeight - 200m;
     }
 }

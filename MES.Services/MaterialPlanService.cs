@@ -187,6 +187,7 @@ public class MaterialPlanService : IMaterialPlanService
                 : throw new BusinessException($"无效的成品类型: {request.ProductType}"),
             RequiredPiece = request.RequiredPiece,
             RequiredWeight = request.RequiredWeight,
+            InputMultiple = request.InputMultiple,
             RequiredDate = request.RequiredDate,
             Remark = request.Remark,
             PlantGrade = request.PlantGrade,
@@ -259,6 +260,7 @@ public class MaterialPlanService : IMaterialPlanService
                     : throw new BusinessException($"无效的成品类型: {request.ProductType}"),
                 RequiredPiece = request.RequiredPiece,
                 RequiredWeight = request.RequiredWeight,
+                InputMultiple = request.InputMultiple,
                 RequiredDate = request.RequiredDate,
                 Remark = request.Remark,
                 PlantGrade = request.PlantGrade,
@@ -944,6 +946,74 @@ public class MaterialPlanService : IMaterialPlanService
 
         _logger.LogInformation("创建圆棒穿孔计划成功: 工单ID {WorkOrderId}, 圆棒规格 {Spec}, 穿孔规格 {Piercing}, 重量 {Weight}",
             request.WorkOrderId, request.RoundBarSpec, request.PiercingSpec, request.RequiredWeight);
+
+        return plan.ToDto();
+    }
+
+    public async Task<RoundBarPiercingPlanDto> UpdatePiercingPlanAsync(int id, UpdateRoundBarPiercingPlanRequest request)
+    {
+        var plan = await _context.RoundBarPiercingPlans.FindAsync(id);
+        if (plan == null)
+            throw new BusinessException("圆棒穿孔计划不存在");
+
+        var workOrder = await _context.WorkOrders.FindAsync(plan.WorkOrderId);
+        if (workOrder == null)
+            throw new BusinessException("关联工单不存在");
+
+        // 非定尺: 支数不能为空
+        if (workOrder.LengthStatus == LengthStatus.NonFixed && request.RequiredPieces == null)
+            throw new BusinessException("非定尺模式下需求支数为必填");
+
+        // 执行测算
+        var calc = await CalculateInternalAsync(workOrder, new CreatePurchaseSemiPlanRequest
+        {
+            AdjustedWallThickness = request.AdjustedWallThickness,
+            YieldRate = request.YieldRate,
+            InputMultiple = request.InputMultiple,
+            QualifiedRate = request.QualifiedRate
+        });
+
+        // 更新字段
+        plan.PlanDate = request.PlanDate;
+        plan.AdjustedWallThickness = request.AdjustedWallThickness;
+        plan.YieldRate = request.YieldRate;
+        plan.InputMultiple = request.InputMultiple;
+        plan.QualifiedRate = request.QualifiedRate;
+        plan.Density = calc.Density;
+        plan.UnitWeight = calc.UnitWeight;
+        plan.RawUnitWeight = calc.RawUnitWeight;
+        plan.PlantGrade = request.PlantGrade;
+        plan.RawMaterialType = Enum.TryParse<RawMaterialType>(request.RawMaterialType, out var rt)
+            ? rt
+            : throw new BusinessException($"无效的原料类型: {request.RawMaterialType}");
+        plan.RoundBarSpec = request.RoundBarSpec;
+        plan.PiercingSpec = request.PiercingSpec;
+        plan.RequiredUnitWeight = request.RequiredUnitWeight;
+        plan.RequiredPieces = request.RequiredPieces;
+        plan.RequiredWeight = request.RequiredWeight;
+        plan.RequiredDate = request.RequiredDate;
+        plan.ProcessPlan = request.ProcessPlan;
+        plan.Remark = request.Remark;
+
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+
+            // 刷新工单状态（与更新在同一事务中）
+            await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
+
+            await transaction.CommitAsync();
+            await RefreshReadModelAsync(plan.WorkOrderId);
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+
+        _logger.LogInformation("更新圆棒穿孔计划成功: ID {Id}, 工单ID {WorkOrderId}, 圆棒规格 {Spec}",
+            id, plan.WorkOrderId, request.RoundBarSpec);
 
         return plan.ToDto();
     }
@@ -1671,6 +1741,7 @@ internal static class MaterialPlanMappingExtensions
             ProductType = entity.ProductType.ToString(),
             RequiredPiece = entity.RequiredPiece,
             RequiredWeight = entity.RequiredWeight,
+            InputMultiple = entity.InputMultiple,
             RequiredDate = entity.RequiredDate,
             Remark = entity.Remark,
             CreatedTime = entity.CreatedTime,

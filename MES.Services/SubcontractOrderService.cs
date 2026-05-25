@@ -229,6 +229,7 @@ public class SubcontractOrderService : ISubcontractOrderService
                 UnitWeight = r.UnitWeight,
                 RequiredQuantity = r.RequiredQuantity,
                 RequiredWeight = r.RequiredWeight,
+                InputMultiple = r.InputMultiple,
                 ProcessStatusRemark = r.ProcessStatusRemark,
                 Remark = r.Remark,
                 ProcessUnitPrice = r.ProcessUnitPrice,
@@ -287,6 +288,7 @@ public class SubcontractOrderService : ISubcontractOrderService
                     UnitWeight = item.UnitWeight,
                     RequiredQuantity = item.RequiredQuantity,
                     RequiredWeight = item.RequiredWeight,
+                    InputMultiple = item.InputMultiple,
                     ProcessStatusRemark = item.ProcessStatusRemark,
                     Remark = item.Remark,
                     ProcessUnitPrice = item.ProcessUnitPrice,
@@ -313,6 +315,7 @@ public class SubcontractOrderService : ISubcontractOrderService
                 UnitWeight = r.UnitWeight,
                 RequiredQuantity = r.RequiredQuantity,
                 RequiredWeight = r.RequiredWeight,
+                InputMultiple = r.InputMultiple,
                 ProcessStatusRemark = r.ProcessStatusRemark,
                 Remark = r.Remark,
                 ProcessUnitPrice = r.ProcessUnitPrice,
@@ -377,6 +380,7 @@ public class SubcontractOrderService : ISubcontractOrderService
                     UnitWeight = item.UnitWeight,
                     RequiredQuantity = item.RequiredQuantity,
                     RequiredWeight = item.RequiredWeight,
+                    InputMultiple = item.InputMultiple,
                     ProcessStatusRemark = item.ProcessStatusRemark,
                     Remark = item.Remark,
                     ProcessUnitPrice = item.ProcessUnitPrice,
@@ -415,7 +419,6 @@ public class SubcontractOrderService : ISubcontractOrderService
     public async Task SyncAllAsync()
     {
         var orders = await _context.SubcontractOrders
-            .Where(s => s.Status != SubcontractOrderStatus.Cancelled && s.Status != SubcontractOrderStatus.Completed)
             .ToListAsync();
 
         var orderNos = orders.Select(o => o.OrderNo).ToList();
@@ -685,7 +688,7 @@ public class SubcontractOrderService : ISubcontractOrderService
     {
         if (order.InWeight == null || order.InWeight == 0)
             order.Status = SubcontractOrderStatus.Sent;
-        else if (order.InWeight >= order.OutWeight * 0.95m)
+        else if (PurchaseOrderService.IsThresholdMet(order.InWeight.Value, order.OutWeight))
             order.Status = SubcontractOrderStatus.Completed;
         else
             order.Status = SubcontractOrderStatus.PartialReturned;

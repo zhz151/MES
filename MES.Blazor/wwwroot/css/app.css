@@ -436,19 +436,32 @@ input[type="number"]::-webkit-outer-spin-button {
    紧凑表格样式 - 极小内边距，适配20+列密集表格
    ============================================================ */
 
-.compact-table.mud-table .mud-table-cell {
-    padding: 2px 3px !important;
+.compact-table.mud-table {
+    width: auto;
+    min-width: 100%;
 }
 
-.compact-table.mud-table .mud-select {
-    min-width: unset !important;
+.compact-table.mud-table .mud-table-cell {
+    padding: 1px 1px !important;
+}
+
+/* table-layout: fixed + MudTh 显式列宽，各列宽度由 <th> 的 Style 决定 */
+.compact-table .mud-table-root {
+    width: max-content !important;
+    table-layout: fixed !important;
+}
+
+/* 输入框填满所在单元格宽度 */
+.compact-table .mud-input {
+    width: 100%;
 }
 
 .compact-table.mud-table .mud-input input,
 .compact-table.mud-table .mud-select input {
-    padding: 0 0 0 4px !important;
+    padding: 0 0 0 1px !important;
 }
 
+/* MudSelect 内层输入容器预留下拉图标空间 */
 .compact-table.mud-table .mud-select .mud-input {
     padding-right: 16px !important;
 }
@@ -509,6 +522,8 @@ input[type="number"]::-webkit-outer-spin-button {
     font-size: 0.875rem;
     font-weight: 600;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     display: block;
     margin-bottom: 1px;
 }

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using MudBlazor;
@@ -23,6 +24,7 @@ public partial class SubcontractOrders
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
     private bool _allSelected;
+    private bool _isAdmin;
     private bool allSelected
     {
         get => _allSelected;
@@ -340,6 +342,11 @@ public partial class SubcontractOrders
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isAdmin = user.Claims.Any(c => c.Type == "role" && c.Value == "Admin")
+                || user.IsInRole("Admin");
+
         await LoadProcurementStatus();
 
         _allColumns = GetAllColumnDefs();
@@ -386,6 +393,10 @@ public partial class SubcontractOrders
                 catch { }
             }
         }
+
+        // 状态恢复后重新加载表格数据（首次渲染时 ServerData 可能已用默认值加载）
+        if (savedState != null && table != null)
+            await table.ReloadServerData();
 
         // 加载筛选上下文
         await LoadFilterContextsAsync();

@@ -362,7 +362,7 @@ public class SubcontractOrderServiceTests : TestBase
     }
 
     [Fact]
-    public async Task SyncSingleAsync_收回重量达到95_状态变为Completed()
+    public async Task SyncSingleAsync_收回重量达到96_5_状态变为Completed()
     {
         var ctx = CreateDbContext();
         var sid = await SeedSupplierAsync(ctx);
@@ -378,7 +378,7 @@ public class SubcontractOrderServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219*8",
             InitialQuantity = 100,
-            InitialWeight = 950m,
+            InitialWeight = 965m,
             WarehouseId = 1,
             InboundDate = DateTime.Today
         });
@@ -388,8 +388,8 @@ public class SubcontractOrderServiceTests : TestBase
         await svc.SyncSingleAsync(order.Id);
 
         var updated = await ctx.SubcontractOrders.FindAsync(order.Id);
-        updated!.InWeight.Should().Be(950m);
-        updated.Status.Should().Be(SubcontractOrderStatus.Completed); // 950/1000 >= 95%
+        updated!.InWeight.Should().Be(965m);
+        updated.Status.Should().Be(SubcontractOrderStatus.Completed); // 965/1000 >= 96.5%
     }
 
     [Fact]

@@ -1,0 +1,577 @@
+@page "/workorders/{WorkOrderId:int}/piercing-plan/edit/{Id:int}"
+@using System.Text.Json
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Enums
+@using MES.Blazor.Shared
+@using MES.Blazor.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inject MaterialPlanService MaterialPlanService
+@inject WorkOrderService WorkOrderService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = "WorkOrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Handyman" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">编辑圆棒穿孔计划</MudText>
+                </div>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回上一级</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <div id="piercing-plan-edit-table">
+            @if (isLoading)
+            {
+                <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+            }
+            else if (workOrder != null && plan != null)
+            {
+                <WorkOrderInfoCard WorkOrder="workOrder" />
+
+                <!-- ===== 一、测算参数与结果 ===== -->
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2 mt-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Calculate" Size="Size.Small" Class="mr-1" />测算参数与结果
+                </MudText>
+
+                <div Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;" Class="mb-3">
+                    <MudTable Items="@calcRows" Class="auto-table" Dense="true" Hover="true" Elevation="0" Style="table-layout:fixed;">
+                        <HeaderContent>
+                            <MudTh Style="width:110px;">调整成品壁厚(mm)</MudTh>
+                            <MudTh Style="width:70px;">成材率(%)</MudTh>
+                            <MudTh Style="width:70px;">正品率(%)</MudTh>
+                            <MudTh Style="width:70px;">每支产成</MudTh>
+                            <MudTh Style="width:60px;">操作</MudTh>
+                            <MudTh Style="width:80px;">密度(g/cm³)</MudTh>
+                            <MudTh Style="width:90px;">单米重量(kg/m)</MudTh>
+                            <MudTh Style="width:90px;">成品单重(kg/支)</MudTh>
+                            <MudTh Style="width:90px;">原料单重(kg/支)</MudTh>
+                            <MudTh Style="width:70px;">原料支数</MudTh>
+                            <MudTh Style="width:90px;">原料重量(kg)</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="item">
+                            <MudTd>
+                                <MudNumericField Dense="true" HideSpinButtons="true" T="decimal" Format="G29"
+                                                 Value="@item.AdjustedWallThickness"
+                                                 ValueChanged="@((decimal v) => { item.AdjustedWallThickness = v; })"
+                                                 Size="Size.Small"
+                                                 Variant="Variant.Outlined"
+                                                 Min="0"
+                                                 Class="my-n2" Style="width:80px;" />
+                            </MudTd>
+                            <MudTd>
+                                <MudNumericField Dense="true" HideSpinButtons="true" T="decimal" Format="G29"
+                                                 Value="@item.YieldRate"
+                                                 ValueChanged="@((decimal v) => { item.YieldRate = v; })"
+                                                 Size="Size.Small"
+                                                 Variant="Variant.Outlined"
+                                                 Min="0" Max="100"
+                                                 Class="my-n2" Style="width:60px;" />
+                            </MudTd>
+                            <MudTd>
+                                <MudNumericField Dense="true" HideSpinButtons="true" T="decimal" Format="G29"
+                                                 Value="@item.QualifiedRate"
+                                                 ValueChanged="@((decimal v) => { item.QualifiedRate = v; })"
+                                                 Size="Size.Small"
+                                                 Variant="Variant.Outlined"
+                                                 Min="0" Max="100"
+                                                 Class="my-n2" Style="width:60px;" />
+                            </MudTd>
+                            <MudTd>
+                                <MudNumericField Dense="true" HideSpinButtons="true" T="int"
+                                                 Value="@item.InputMultiple"
+                                                 ValueChanged="@((int v) => { item.InputMultiple = v; })"
+                                                 Size="Size.Small"
+                                                 Variant="Variant.Outlined"
+                                                 Min="1"
+                                                 Class="my-n2" Style="width:60px;" />
+                            </MudTd>
+                            <MudTd>
+                                <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                                           OnClick="Calculate" Class="my-n2">
+                                    测算
+                                </MudButton>
+                            </MudTd>
+                            @if (calcResult != null)
+                            {
+                                <MudTd>@calcResult.Density.ToString("G29")</MudTd>
+                                <MudTd>@calcResult.UnitWeightPerMeter.ToString("G29")</MudTd>
+                                <MudTd>@(calcResult.UnitWeight?.ToString("G29") ?? "-")</MudTd>
+                                <MudTd>@(calcResult.RawUnitWeight?.ToString("G29") ?? "-")</MudTd>
+                                <MudTd>@(calcResult.RequiredPieces?.ToString() ?? "-")</MudTd>
+                                <MudTd>@(calcResult.RequiredWeight?.ToString("G29") ?? "-")</MudTd>
+                            }
+                            else
+                            {
+                                <MudTd>@(item.Density?.ToString("G29") ?? "-")</MudTd>
+                                <MudTd>@(item.UnitWeightPerMeter?.ToString("G29") ?? "-")</MudTd>
+                                <MudTd>@(item.UnitWeight?.ToString("G29") ?? "-")</MudTd>
+                                <MudTd>@(item.RawUnitWeight?.ToString("G29") ?? "-")</MudTd>
+                                <MudTd>@(item.RequiredPieces?.ToString() ?? "-")</MudTd>
+                                <MudTd>@(item.RequiredWeight?.ToString("G29") ?? "-")</MudTd>
+                            }
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+
+                <!-- ===== 二、物料信息 ===== -->
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2 mt-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Inventory2" Size="Size.Small" Class="mr-1" />物料信息
+                </MudText>
+
+                <div Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;" Class="mb-3">
+                    <MudTable Items="@materialRows" Class="auto-table" Dense="true" Hover="true" Striped="true" Elevation="0" Style="table-layout:fixed;">
+                        <HeaderContent>
+                            <MudTh Style="width:110px;">原料类型</MudTh>
+                            <MudTh Style="width:90px;">工厂牌号</MudTh>
+                            <MudTh Style="width:100px;">圆棒规格<span class="required-star">*</span></MudTh>
+                            <MudTh Style="width:100px;">穿孔规格<span class="required-star">*</span></MudTh>
+                            <MudTh Style="width:90px;">需求单重(kg/支)</MudTh>
+                            <MudTh Style="width:80px;">需求支数</MudTh>
+                            <MudTh Style="width:150px;">需求重量(kg)</MudTh>
+                            <MudTh Style="width:150px;">要求到货日期<span class="required-star">*</span></MudTh>
+                            <MudTh Style="width:600px;">备注</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="item">
+                            <MudTd>
+                                <MudSelect Dense="true" T="string"
+                                           Value="@item.RawMaterialType"
+                                           ValueChanged="@((string v) => { item.RawMaterialType = v; })"
+                                           Size="Size.Small"
+                                           Variant="Variant.Outlined"
+                                           Class="my-n2" Style="width:110px;">
+                                    <MudSelectItem Value="@("SemiFinished")">荒管</MudSelectItem>
+                                    <MudSelectItem Value="@("SemiProduct")">半成品</MudSelectItem>
+                                    <MudSelectItem Value="@("RoundBar")">圆棒</MudSelectItem>
+                                </MudSelect>
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField Dense="true" T="string"
+                                              Value="@item.PlantGrade"
+                                              ValueChanged="@((string v) => { item.PlantGrade = v; })"
+                                              Size="Size.Small"
+                                              Variant="Variant.Outlined"
+                                              Class="my-n2" Style="width:80px;" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField Dense="true" T="string"
+                                              Value="@item.RoundBarSpec"
+                                              ValueChanged="@((string v) => { item.RoundBarSpec = v; })"
+                                              Size="Size.Small"
+                                              Variant="Variant.Outlined"
+                                              Class="my-n2" Style="width:90px;" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField Dense="true" T="string"
+                                              Value="@item.PiercingSpec"
+                                              ValueChanged="@((string v) => { item.PiercingSpec = v; })"
+                                              Size="Size.Small"
+                                              Variant="Variant.Outlined"
+                                              Class="my-n2" Style="width:90px;" />
+                            </MudTd>
+                            <MudTd>
+                                <MudNumericField Dense="true" HideSpinButtons="true" T="decimal?" Format="G29"
+                                                 Value="@item.RequiredUnitWeight"
+                                                 ValueChanged="@((decimal? v) => { item.RequiredUnitWeight = v; })"
+                                                 Size="Size.Small"
+                                                 Variant="Variant.Outlined"
+                                                 Min="0"
+                                                 Class="my-n2" Style="width:80px;" />
+                            </MudTd>
+                            <MudTd>
+                                <MudNumericField Dense="true" HideSpinButtons="true" T="int?"
+                                                 Value="@item.RequiredPieces"
+                                                 ValueChanged="@((int? v) => { item.RequiredPieces = v; })"
+                                                 Size="Size.Small"
+                                                 Variant="Variant.Outlined"
+                                                 Min="0"
+                                                 Disabled="@(!isNonFixedLength)"
+                                                 Class="my-n2" Style="width:70px;" />
+                            </MudTd>
+                            <MudTd>
+                                <MudNumericField Dense="true" HideSpinButtons="true" T="decimal?" Format="G29"
+                                                 Value="@item.RequiredWeight"
+                                                 ValueChanged="@((decimal? v) => { item.RequiredWeight = v; })"
+                                                 Size="Size.Small"
+                                                 Variant="Variant.Outlined"
+                                                 Min="0"
+                                                 Class="my-n2" Style="width:150px;" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField Dense="true" T="string"
+                                              Value="@item.RequiredDateStr"
+                                              ValueChanged="@((string v) => { item.RequiredDateStr = v; })"
+                                              Size="Size.Small"
+                                              Variant="Variant.Outlined"
+                                              Class="my-n2" Style="width:150px;" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField Dense="true" T="string"
+                                              Value="@item.Remark"
+                                              ValueChanged="@((string v) => { item.Remark = v; })"
+                                              Size="Size.Small"
+                                              Variant="Variant.Outlined"
+                                              Class="my-n2" Style="width:100%;" />
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+
+                <!-- ===== 三、工艺路线 ===== -->
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2 mt-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Route" Size="Size.Small" Class="mr-1" />工艺路线
+                </MudText>
+
+                <MudTextField Dense="true" T="string"
+                              @bind-Value="processPlanInput"
+                              Placeholder="67*5, 38*3, 32*2.5" />
+
+                <!-- ===== 验证消息 ===== -->
+                @if (!string.IsNullOrEmpty(validationMessage))
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Warning" Class="mb-2 mt-2">@validationMessage</MudText>
+                }
+
+                <!-- ===== 操作按钮 ===== -->
+                <div class="d-flex justify-end mt-2">
+                    <MudButton Variant="Variant.Text" OnClick="GoBack" Class="mr-2">取消</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Loading="@isSaving">
+                        保存
+                    </MudButton>
+                </div>
+            }
+            </div>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    [Parameter] public int WorkOrderId { get; set; }
+    [Parameter] public int Id { get; set; }
+
+    private WorkOrderDetailDto? workOrder;
+    private RoundBarPiercingPlanDto? plan;
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private string validationMessage = string.Empty;
+    private MaterialCalculateResult? calcResult;
+    private bool isNonFixedLength = false;
+    private string processPlanInput = string.Empty;
+
+    // 测算参数（单行，含已有计算结果）
+    private List<CalcParamRow> calcRows = new();
+
+    private class CalcParamRow
+    {
+        public decimal AdjustedWallThickness { get; set; }
+        public decimal YieldRate { get; set; }
+        public decimal QualifiedRate { get; set; }
+        public int InputMultiple { get; set; } = 1;
+
+        // 已有计算结果（未重新测算时显示）
+        public decimal? Density { get; set; }
+        public decimal? UnitWeightPerMeter { get; set; }
+        public decimal? UnitWeight { get; set; }
+        public decimal? RawUnitWeight { get; set; }
+        public int? RequiredPieces { get; set; }
+        public decimal? RequiredWeight { get; set; }
+    }
+
+    // 物料信息（单行）
+    private List<MaterialRow> materialRows = new();
+
+    private class MaterialRow
+    {
+        public string RawMaterialType { get; set; } = "RoundBar";
+        public string PlantGrade { get; set; } = string.Empty;
+        public string? RoundBarSpec { get; set; }
+        public string? PiercingSpec { get; set; }
+        public decimal? RequiredUnitWeight { get; set; }
+        public int? RequiredPieces { get; set; }
+        public decimal? RequiredWeight { get; set; }
+        public string RequiredDateStr { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
+        public string? Remark { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            // 加载工单
+            var woResult = await WorkOrderService.GetByIdAsync(WorkOrderId);
+            if (!woResult.Success || woResult.Data == null)
+            {
+                Snackbar.Add("工单不存在", Severity.Error);
+                return;
+            }
+            workOrder = woResult.Data;
+            isNonFixedLength = workOrder.LengthStatus != LengthStatus.Fixed;
+
+            // 加载穿孔计划
+            var planResult = await MaterialPlanService.GetPiercingPlanByIdAsync(Id);
+            if (!planResult.Success || planResult.Data == null)
+            {
+                Snackbar.Add("圆棒穿孔计划不存在", Severity.Error);
+                return;
+            }
+            plan = planResult.Data;
+
+            // 填充测算参数（含已有结果）
+            calcRows.Add(new CalcParamRow
+            {
+                AdjustedWallThickness = plan.AdjustedWallThickness,
+                YieldRate = plan.YieldRate,
+                QualifiedRate = plan.QualifiedRate,
+                InputMultiple = plan.InputMultiple,
+                Density = plan.Density,
+                UnitWeight = plan.UnitWeight,
+                RawUnitWeight = plan.RawUnitWeight,
+                RequiredPieces = plan.RequiredPieces,
+                RequiredWeight = plan.RequiredWeight
+            });
+
+            // 填充物料信息
+            materialRows.Add(new MaterialRow
+            {
+                RawMaterialType = plan.RawMaterialType,
+                PlantGrade = plan.PlantGrade,
+                RoundBarSpec = plan.RoundBarSpec,
+                PiercingSpec = plan.PiercingSpec,
+                RequiredUnitWeight = plan.RequiredUnitWeight,
+                RequiredPieces = plan.RequiredPieces,
+                RequiredWeight = plan.RequiredWeight,
+                RequiredDateStr = plan.RequiredDate.ToString("yyyy-MM-dd"),
+                Remark = plan.Remark
+            });
+
+            // 工艺路线
+            processPlanInput = FormatProcessPlanForEdit(plan.ProcessPlan);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    // ===== 测算 =====
+    private async Task Calculate()
+    {
+        validationMessage = string.Empty;
+
+        var row = calcRows.FirstOrDefault();
+        if (row == null) return;
+
+        if (row.AdjustedWallThickness <= 0)
+        {
+            validationMessage = "请输入调整成品壁厚";
+            return;
+        }
+        if (row.YieldRate <= 0)
+        {
+            validationMessage = "请输入成材率";
+            return;
+        }
+        if (row.QualifiedRate <= 0)
+        {
+            validationMessage = "请输入正品率";
+            return;
+        }
+
+        try
+        {
+            var request = new MaterialCalculateRequest
+            {
+                WorkOrderId = WorkOrderId,
+                AdjustedWallThickness = row.AdjustedWallThickness,
+                YieldRate = row.YieldRate,
+                InputMultiple = row.InputMultiple,
+                QualifiedRate = row.QualifiedRate
+            };
+
+            var result = await MaterialPlanService.CalculateAsync(request);
+            if (result.Success && result.Data != null)
+            {
+                calcResult = result.Data;
+                Snackbar.Add("测算完成", Severity.Success);
+
+                var firstMaterial = materialRows.FirstOrDefault();
+                if (firstMaterial != null)
+                {
+                    firstMaterial.RequiredUnitWeight = result.Data.RawUnitWeight;
+                    firstMaterial.RequiredWeight = result.Data.RequiredWeight;
+                    if (!isNonFixedLength)
+                    {
+                        firstMaterial.RequiredPieces = result.Data.RequiredPieces;
+                    }
+                }
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "测算失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"测算失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // ===== 保存 =====
+    private async Task Save()
+    {
+        validationMessage = string.Empty;
+
+        var calcRow = calcRows.FirstOrDefault();
+        if (calcRow == null)
+        {
+            validationMessage = "测算参数不存在";
+            return;
+        }
+
+        var errors = new List<string>();
+
+        if (calcRow.AdjustedWallThickness <= 0)
+            errors.Add("请输入调整成品壁厚");
+        if (calcRow.YieldRate <= 0)
+            errors.Add("请输入成材率");
+        if (calcRow.QualifiedRate <= 0)
+            errors.Add("请输入正品率");
+        if (calcRow.InputMultiple < 1)
+            errors.Add("原料每支产成数不能小于1");
+
+        // 验证物料信息
+        var material = materialRows.FirstOrDefault();
+        if (material == null)
+        {
+            errors.Add("物料信息不存在");
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(material.RawMaterialType))
+                errors.Add("请选择原料类型");
+            if (string.IsNullOrWhiteSpace(material.RoundBarSpec))
+                errors.Add("请输入圆棒规格");
+            if (string.IsNullOrWhiteSpace(material.PiercingSpec))
+                errors.Add("请输入穿孔规格");
+            if (string.IsNullOrWhiteSpace(material.RequiredDateStr) || !DateTime.TryParse(material.RequiredDateStr, out _))
+                errors.Add("请填写要求到货日期");
+            if (material.RequiredWeight == null || material.RequiredWeight <= 0)
+                errors.Add("请填写需求重量");
+            if (!isNonFixedLength && (material.RequiredPieces == null || material.RequiredPieces <= 0))
+                errors.Add("定尺工单需求支数为必填");
+        }
+
+        if (errors.Any())
+        {
+            validationMessage = string.Join("\n", errors);
+            return;
+        }
+
+        var planDate = DateTime.Today;
+
+        DateTime.TryParse(material!.RequiredDateStr, out var requiredDate);
+
+        isSaving = true;
+        try
+        {
+            var request = new UpdateRoundBarPiercingPlanRequest
+            {
+                PlanDate = planDate,
+                AdjustedWallThickness = calcRow.AdjustedWallThickness,
+                YieldRate = calcRow.YieldRate,
+                InputMultiple = calcRow.InputMultiple,
+                QualifiedRate = calcRow.QualifiedRate,
+                RawMaterialType = material!.RawMaterialType,
+                PlantGrade = material.PlantGrade,
+                RoundBarSpec = material.RoundBarSpec ?? string.Empty,
+                PiercingSpec = material.PiercingSpec ?? string.Empty,
+                RequiredUnitWeight = material.RequiredUnitWeight,
+                RequiredPieces = material.RequiredPieces,
+                RequiredWeight = material.RequiredWeight ?? 0,
+                RequiredDate = requiredDate,
+                ProcessPlan = ConvertProcessPlanToJson(processPlanInput),
+                Remark = material.Remark
+            };
+
+            var result = await MaterialPlanService.UpdatePiercingPlanAsync(Id, request);
+            if (result.Success)
+            {
+                Snackbar.Add("更新成功", Severity.Success);
+                GoBack();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "更新失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private static string FormatProcessPlanForEdit(string? processPlan)
+    {
+        if (string.IsNullOrEmpty(processPlan)) return string.Empty;
+        try
+        {
+            var steps = JsonSerializer.Deserialize<JsonElement[]>(processPlan);
+            if (steps == null || steps.Length == 0) return string.Empty;
+            var specs = steps.Select(s => s.GetProperty("spec").GetString()).Where(s => !string.IsNullOrEmpty(s));
+            return string.Join(", ", specs);
+        }
+        catch
+        {
+            return processPlan;
+        }
+    }
+
+    private static string? ConvertProcessPlanToJson(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return null;
+        var specs = input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select((s, idx) => new { step = idx + 1, spec = s })
+            .ToList();
+        return specs.Any() ? JsonSerializer.Serialize(specs) : null;
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo($"/workorders/{WorkOrderId}/material-plan");
+    }
+
+    private bool _isArrowNavSetup;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#piercing-plan-edit-table"))
+                _isArrowNavSetup = false;
+        }
+    }
+}

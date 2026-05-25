@@ -466,6 +466,10 @@ public partial class ChemicalValidationRules
             }
         }
 
+        // 状态恢复后重新加载表格数据（首次渲染时 ServerData 可能已用默认值加载）
+        if (savedState != null && table != null)
+            await table.ReloadServerData();
+
         await LoadFilterContextsAsync();
     }
 

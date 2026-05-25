@@ -98,6 +98,11 @@ public class PurchaseOrder : BaseEntity
     public string? SourceWorkOrderNo { get; set; }
 
     /// <summary>
+    /// 投料倍率(1制几)
+    /// </summary>
+    public int? InputMultiple { get; set; }
+
+    /// <summary>
     /// 备注
     /// </summary>
     public string? Remark { get; set; }

@@ -278,6 +278,19 @@ public class MaterialPlanService
         }
     }
 
+    public async Task<ApiResponse<RoundBarPiercingPlanDto>> UpdatePiercingPlanAsync(int id, UpdateRoundBarPiercingPlanRequest request)
+    {
+        try
+        {
+            var response = await _http.PutAsJsonAsync<UpdateRoundBarPiercingPlanRequest, ApiResponse<RoundBarPiercingPlanDto>>($"{BaseUrl}/piercing/{id}", request);
+            return response ?? ApiResponse<RoundBarPiercingPlanDto>.Fail("更新失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<RoundBarPiercingPlanDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
     public async Task<ApiResponse> DeletePiercingPlanAsync(int id)
     {
         try

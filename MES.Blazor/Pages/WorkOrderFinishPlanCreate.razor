@@ -75,6 +75,7 @@
                                 <MudTh Style="width:80px;">交货状态</MudTh>
                                 <MudTh Style="width:50px;">需用支数</MudTh>
                                 <MudTh Style="width:55px;">需用重量</MudTh>
+                                <MudTh Style="width:55px;">投料倍率</MudTh>
                                 <MudTh Style="width:70px;">要求到货日</MudTh>
                                 <MudTh Style="width:60px;">备注</MudTh>
                                 <MudTh Style="width:36px;">操作</MudTh>
@@ -183,6 +184,15 @@
                                                      Class="my-n2" Style="width:48px;" />
                                 </MudTd>
                                 <MudTd>
+                                    <MudNumericField Dense="true" HideSpinButtons="true" T="int?"
+                                                     Value="@item.InputMultiple"
+                                                     ValueChanged="@((int? v) => { item.InputMultiple = v; })"
+                                                     Size="Size.Small"
+                                                     Variant="Variant.Outlined"
+                                                     Min="1"
+                                                     Class="my-n2" Style="width:48px;" />
+                                </MudTd>
+                                <MudTd>
                                     <MudTextField Dense="true" T="string"
                                                   Value="@item.RequiredDateStr"
                                                   ValueChanged="@((string v) => { item.RequiredDateStr = v; })"
@@ -252,6 +262,7 @@
         public string DeliveryState { get; set; } = "SolutionAnnealedAndPickled";
         public int? RequiredPiece { get; set; }
         public decimal RequiredWeight { get; set; }
+        public int? InputMultiple { get; set; }
         public string RequiredDateStr { get; set; } = string.Empty;
         public string? Remark { get; set; }
     }
@@ -367,6 +378,7 @@
                     ProductType = row.ProductType,
                     RequiredPiece = row.RequiredPiece,
                     RequiredWeight = row.RequiredWeight,
+                    InputMultiple = row.InputMultiple,
                     RequiredDate = requiredDate,
                     Remark = row.Remark,
                     PlantGrade = row.PlantGrade,

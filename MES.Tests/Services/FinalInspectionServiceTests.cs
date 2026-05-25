@@ -234,8 +234,8 @@ public class FinalInspectionServiceTests : TestBase
 
         var result = await svc.BatchCreateAsync(new List<CreateFinalInspectionRequest>
         {
-            new() { InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today, BatchNo = "BATCH001", Quantity = 10 },
-            new() { InspectionItem = InspectionItem.HydrostaticPressure, InspectionDate = DateTime.Today, BatchNo = "BATCH002", Quantity = 20 }
+            new() { InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today, BatchNo = "BATCH001", Quantity = 10, QualifiedQuantity = 10 },
+            new() { InspectionItem = InspectionItem.HydrostaticPressure, InspectionDate = DateTime.Today, BatchNo = "BATCH002", Quantity = 20, QualifiedQuantity = 20 }
         });
 
         result.Should().HaveCount(2);

@@ -42,6 +42,12 @@ public class ColumnDef
     public bool IsRequired { get; set; }
 
     /// <summary>
+    /// 编辑模式列宽（px），仅 compact-table 下由 table-layout: fixed 生效
+    /// </summary>
+    [JsonIgnore]
+    public string? Width { get; set; }
+
+    /// <summary>
     /// 筛选类型：string/enum/date/number/boolean/null（null表示不可筛选）
     /// </summary>
     [JsonIgnore]

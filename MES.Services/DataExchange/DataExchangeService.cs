@@ -348,6 +348,7 @@ public class DataExchangeService : IDataExchangeService
             new("单支重量(kg)", "UnitWeight", typeof(decimal?), isRequired: false),
             new("采购支数", "Quantity", typeof(int?), isRequired: false),
             new("采购重量(kg)", "Weight", typeof(decimal)),
+            new("投料倍率", "InputMultiple", typeof(int?), isRequired: false),
             new("要求到货日期", "RequiredDate", typeof(DateTime)),
             new("单价", "UnitPrice", typeof(decimal?), isRequired: false),
             new("总金额", "TotalAmount", typeof(decimal?), isRequired: false),
@@ -374,13 +375,19 @@ public class DataExchangeService : IDataExchangeService
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        ["SubcontractReturnItem"] = new EntityDef("委外退货项", "委外退货项", typeof(SubcontractReturnItem), 7, null, new List<ColumnDef>
+        ["SubcontractReturnItem"] = new EntityDef("委外子项", "委外子项", typeof(SubcontractReturnItem), 7, null, new List<ColumnDef>
         {
             new("委外单号", null!) { IsFkColumn = true, FkEntityKey = "SubcontractOrder", FkLookupProperty = "OrderNo", FkTargetProperty = "SubcontractOrderId" },
             new("行号", "Sequence", typeof(int)),
             new("物料分类", "MaterialCategory"),
+            new("工厂牌号", "PlantGrade", typeof(string), isRequired: false),
             new("加工规格", "ProcessSpecification"),
+            new("单重(kg)", "UnitWeight", typeof(decimal?), isRequired: false),
+            new("需求支数", "RequiredQuantity", typeof(int?), isRequired: false),
+            new("需求重量(kg)", "RequiredWeight", typeof(decimal?), isRequired: false),
+            new("投料倍率", "InputMultiple", typeof(int?), isRequired: false),
             new("状态备注", "ProcessStatusRemark", typeof(string), isRequired: false),
+            new("备注", "Remark", typeof(string), isRequired: false),
             new("加工单价", "ProcessUnitPrice", typeof(decimal?), isRequired: false),
             new("加工总价", "ProcessTotalAmount", typeof(decimal?), isRequired: false),
             new("来源工单号", "SourceWorkOrderNo", typeof(string), isRequired: false),
@@ -663,6 +670,7 @@ public class DataExchangeService : IDataExchangeService
             new("交货状态", "DeliveryState", typeof(DeliveryState), isEnum: true),
             new("采购支数", "RequiredPiece", typeof(int?), isRequired: false),
             new("采购重量(kg)", "RequiredWeight", typeof(decimal)),
+            new("投料倍率", "InputMultiple", typeof(int?), isRequired: false),
             new("要求到货日期", "RequiredDate", typeof(DateTime?), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
@@ -1023,6 +1031,24 @@ public class DataExchangeService : IDataExchangeService
                 if (!row.Values.TryGetValue(colDef.Header, out var val) || string.IsNullOrWhiteSpace(val))
                     errors.Add($"{colDef.Header} 不能为空");
             }
+
+            // 验证FK列：用户提供了值但在FK缓存中找不到对应的引用记录
+            foreach (var colDef in def.Columns.Where(c => c.IsFkColumn && c.FkEntityKey != null && !c.FkRequiresJoin))
+            {
+                if (!row.Values.TryGetValue(colDef.Header, out var fkVal) || string.IsNullOrWhiteSpace(fkVal))
+                    continue;
+
+                if (!fkCache.TryGetValue(colDef.FkEntityKey!, out var lookup) || !lookup.ContainsKey(fkVal))
+                {
+                    var entityName = Registry.TryGetValue(colDef.FkEntityKey!, out var fkDef)
+                        ? fkDef.DisplayName
+                        : colDef.FkEntityKey!;
+                    errors.Add($"{colDef.Header} 的值 \"{fkVal}\" 在 {entityName} 表中不存在");
+                }
+            }
+
+            // 特殊处理：OutboundRecord 的批次号需要走 InventoryBatch 的 FK 缓存（常规 FK，会被上面循环覆盖）
+            // ProcessGroup/SectionOutsource/OrderItem 等复合键 FK 暂不在此处验证
 
             // 检查重复
             var rowKey = GetRowKey(def, row);
@@ -2300,6 +2326,38 @@ public class DataExchangeService : IDataExchangeService
 
         // 解析FK列
         ResolveForeignKeys(def, row, fkCache, entity, propertyCache);
+
+        // 验证FK列解析结果：用户提供了值但FK查找失败的列，记录为行错误
+        var unresolvedFkColumns = new List<string>();
+        foreach (var colDef in def.Columns.Where(c => c.IsFkColumn && c.FkTargetProperty != null))
+        {
+            if (!row.Values.TryGetValue(colDef.Header, out var fkCellValue) || string.IsNullOrWhiteSpace(fkCellValue))
+                continue;
+
+            if (!propertyCache.TryGetValue(colDef.FkTargetProperty!, out var fkProp))
+                continue;
+
+            var fkValue = fkProp.GetValue(entity);
+            if (fkProp.PropertyType.IsValueType && !fkProp.PropertyType.IsGenericType)
+            {
+                // 非可空值类型：默认值 = 0 / false，表示FK未解析
+                var defaultValue = Activator.CreateInstance(fkProp.PropertyType);
+                if (Equals(fkValue, defaultValue))
+                    unresolvedFkColumns.Add(colDef.Header);
+            }
+            else if (fkProp.PropertyType.IsGenericType &&
+                     fkProp.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
+            {
+                // 可空值类型：null 表示FK未解析
+                if (fkValue == null)
+                    unresolvedFkColumns.Add(colDef.Header);
+            }
+        }
+        if (unresolvedFkColumns.Count > 0)
+        {
+            var fkNames = string.Join("、", unresolvedFkColumns);
+            throw new BusinessException($"外键解析失败，在数据库中找不到对应的引用记录: {fkNames}");
+        }
 
         // 添加新实体到DbContext
         if (existingEntity == null)

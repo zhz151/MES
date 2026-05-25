@@ -87,6 +87,7 @@
                                 <MudTh>需求单重(kg/支)</MudTh>
                                 <MudTh>需求支数</MudTh>
                                 <MudTh>需求重量(kg)</MudTh>
+                                <MudTh>投料倍率</MudTh>
                                 <MudTh>要求到货日</MudTh>
                                 <MudTh>备注</MudTh>
                                 <MudTh>工艺路线</MudTh>
@@ -101,10 +102,14 @@
                                 <MudTd>@(plan.RequiredUnitWeight?.ToString("G29") ?? "-")</MudTd>
                                 <MudTd>@(plan.RequiredPieces?.ToString() ?? "-")</MudTd>
                                 <MudTd>@plan.RequiredWeight.ToString("G29")</MudTd>
+                                <MudTd>@(plan.InputMultiple.ToString())</MudTd>
                                 <MudTd>@plan.RequiredDate.ToString("yyyy-MM-dd")</MudTd>
                                 <MudTd>@(plan.Remark ?? "-")</MudTd>
                                 <MudTd>@FormatProcessPlan(plan.ProcessPlan)</MudTd>
                                 <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                                   Color="Color.Warning" OnClick="() => EditPiercingPlan(plan.Id)"
+                                                   Title="编辑" />
                                     <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
                                                    Color="Color.Info" OnClick="() => PrintPiercingPlan(plan.Id)"
                                                    Title="打印采购申请单" />
@@ -138,6 +143,7 @@
                                 <MudTh>需求单重(kg/支)</MudTh>
                                 <MudTh>需求支数</MudTh>
                                 <MudTh>需求重量(kg)</MudTh>
+                                <MudTh>投料倍率</MudTh>
                                 <MudTh>要求到货日</MudTh>
                                 <MudTh>备注</MudTh>
                                 <MudTh>工艺路线</MudTh>
@@ -151,6 +157,7 @@
                                 <MudTd>@(plan.RequiredUnitWeight?.ToString("G29") ?? "-")</MudTd>
                                 <MudTd>@(plan.RequiredPieces?.ToString() ?? "-")</MudTd>
                                 <MudTd>@plan.RequiredWeight.ToString("G29")</MudTd>
+                                <MudTd>@(plan.InputMultiple.ToString())</MudTd>
                                 <MudTd>@plan.RequiredDate.ToString("yyyy-MM-dd")</MudTd>
                                 <MudTd>@(plan.Remark ?? "-")</MudTd>
                                 <MudTd>@FormatProcessPlan(plan.ProcessPlan)</MudTd>
@@ -192,6 +199,7 @@
                                 <MudTh>交货状态</MudTh>
                                 <MudTh>需用支数</MudTh>
                                 <MudTh>需用重量(kg)</MudTh>
+                                <MudTh>投料倍率</MudTh>
                                 <MudTh>要求到货日</MudTh>
                                 <MudTh>备注</MudTh>
                                 <MudTh>操作</MudTh>
@@ -208,6 +216,7 @@
                                 <MudTd>@DisplayHelper.GetDeliveryStateText(plan.DeliveryState)</MudTd>
                                 <MudTd>@(plan.RequiredPiece?.ToString() ?? "-")</MudTd>
                                 <MudTd>@plan.RequiredWeight.ToString("G29")</MudTd>
+                                <MudTd>@(plan.InputMultiple?.ToString() ?? "-")</MudTd>
                                 <MudTd>@(plan.RequiredDate?.ToString("yyyy-MM-dd") ?? "-")</MudTd>
                                 <MudTd>@(plan.Remark ?? "-")</MudTd>
                                 <MudTd>
@@ -725,6 +734,11 @@
         {
             Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
         }
+    }
+
+    private void EditPiercingPlan(int id)
+    {
+        Navigation.NavigateTo($"/workorders/{WorkOrderId}/piercing-plan/edit/{id}");
     }
 
     // ===== 占比率计算 =====

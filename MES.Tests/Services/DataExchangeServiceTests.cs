@@ -662,7 +662,7 @@ public class DataExchangeServiceTests : TestBase
     }
 
     [Fact]
-    public async Task ImportAsync_不存在的FK引用_导入成功但FK未解析()
+    public async Task ImportAsync_不存在的FK引用_导入失败()
     {
         var ctx = CreateDbContext();
         var svc = CreateTestableService(ctx);
@@ -673,14 +673,15 @@ public class DataExchangeServiceTests : TestBase
 
         var result = await svc.ImportAsync("SalesOrder", bytes, "skip", "test");
 
-        // TestableDataExchangeService 跳过 FK 约束检查，所以导入本身成功
-        result.SuccessCount.Should().Be(1);
-        result.FailedCount.Should().Be(0);
+        // FK 解析失败 → 行级错误，SuccessCount = 0
+        result.SuccessCount.Should().Be(0);
+        result.FailedCount.Should().Be(1);
         result.HasRolledBack.Should().BeFalse();
+        result.Errors.Should().ContainSingle(e =>
+            e.Message.Contains("外键解析失败") && e.Message.Contains("客户编码"));
 
-        // 但 FK 未被解析 → CustomerId 保持 0
-        var saved = await ctx.Set<SalesOrder>().FirstAsync(s => s.OrderNumber == "SO2026001");
-        saved.CustomerId.Should().Be(0);
+        // 数据库中没有新记录
+        ctx.Set<SalesOrder>().Count().Should().Be(0);
     }
 }
 

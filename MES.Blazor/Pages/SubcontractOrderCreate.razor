@@ -162,6 +162,7 @@
                             <MudTh Style="width: 70px;">单重</MudTh>
                             <MudTh Style="width: 70px;">需求支数</MudTh>
                             <MudTh Style="width: 80px;">需求重量</MudTh>
+                            <MudTh Style="width: 70px;">投料倍率</MudTh>
                             <MudTh Style="width: 100px;">状态说明</MudTh>
                             <MudTh Style="width: 100px;">备注</MudTh>
                             <MudTh Style="width: 70px;">单价</MudTh>
@@ -208,6 +209,7 @@
                             <MudTd><MudTextField T="string" @bind-Value="item.UnitWeightStr" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 60px;"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.RequiredQuantityStr" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 60px;"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.RequiredWeightStr" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 70px;"/></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="item.InputMultipleStr" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 60px;"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.ProcessStatusRemark" Dense="true" Variant="Variant.Outlined" Size="Size.Small"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.UnitPriceStr" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 60px;"/></MudTd>
@@ -257,6 +259,7 @@
         public string UnitWeightStr { get; set; } = string.Empty;
         public string RequiredQuantityStr { get; set; } = string.Empty;
         public string RequiredWeightStr { get; set; } = string.Empty;
+        public string InputMultipleStr { get; set; } = string.Empty;
         public string? ProcessStatusRemark { get; set; }
         public string? Remark { get; set; }
         public string? SourceWorkOrderNo { get; set; }
@@ -269,6 +272,7 @@
         public decimal? UnitWeight => decimal.TryParse(UnitWeightStr, out var v) ? v : null;
         public int? RequiredQuantity => int.TryParse(RequiredQuantityStr, out var v) ? v : null;
         public decimal? RequiredWeight => decimal.TryParse(RequiredWeightStr, out var v) ? v : null;
+        public int? InputMultiple => int.TryParse(InputMultipleStr, out var v) ? v : null;
         public decimal? UnitPrice => decimal.TryParse(UnitPriceStr, out var v) ? v : null;
         public decimal? TotalAmount => decimal.TryParse(TotalAmountStr, out var v) ? v : null;
     }
@@ -340,6 +344,7 @@
             UnitWeightStr = plan.UnitWeight?.ToString("G29") ?? string.Empty,
             RequiredQuantityStr = plan.Quantity?.ToString() ?? string.Empty,
             RequiredWeightStr = plan.Weight.ToString("G29"),
+            InputMultipleStr = plan.InputMultiple?.ToString() ?? "",
             Remark = plan.Remark
         });
         Snackbar.Add($"已添加工单 {plan.WorkOrderNo}（{plan.MaterialCategory}）", Severity.Success);
@@ -529,6 +534,7 @@
                     UnitWeight = i.UnitWeight,
                     RequiredQuantity = i.RequiredQuantity,
                     RequiredWeight = i.RequiredWeight,
+                    InputMultiple = i.InputMultiple,
                     ProcessStatusRemark = i.ProcessStatusRemark,
                     Remark = i.Remark,
                     SourceWorkOrderNo = i.SourceWorkOrderNo,

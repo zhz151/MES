@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using MudBlazor;
@@ -22,6 +23,7 @@ public partial class PurchaseOrders
     private bool isSyncing;
     private string _searchKeyword = string.Empty;
     private bool _isArrowNavSetup;
+    private bool _isAdmin;
     private int _currentPage = 1;
     private int _pageSize = 10;
 
@@ -97,6 +99,7 @@ public partial class PurchaseOrders
         new() { Key = "Specification",       Label = "规格",         SortKey = "specification", FilterType = "string" },
         new() { Key = "UnitWeight",          Label = "单支重量",     SortKey = "unitweight" },
         new() { Key = "Quantity",            Label = "支数",         SortKey = "quantity" },
+        new() { Key = "InputMultiple",       Label = "投料倍率",     SortKey = "inputmultiple" },
         new() { Key = "Weight",              Label = "采购重量",     SortKey = "weight" },
         new() { Key = "RequiredDate",        Label = "要求到货日",   SortKey = "requireddate", FilterType = "date" },
         new() { Key = "SupplierName",        Label = "供应商",       SortKey = "suppliername", FilterType = "string" },
@@ -428,6 +431,9 @@ public partial class PurchaseOrders
             case "Quantity":
                 builder.AddContent(0, item.Quantity?.ToString("G29") ?? "-");
                 break;
+            case "InputMultiple":
+                builder.AddContent(0, item.InputMultiple?.ToString() ?? "-");
+                break;
             case "Weight":
                 builder.AddContent(0, item.Weight.ToString("G29"));
                 break;
@@ -454,6 +460,11 @@ public partial class PurchaseOrders
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isAdmin = user.Claims.Any(c => c.Type == "role" && c.Value == "Admin")
+                || user.IsInRole("Admin");
+
         await LoadProcurementStatus();
 
         // 列定义与偏好加载
@@ -501,6 +512,10 @@ public partial class PurchaseOrders
                 catch { }
             }
         }
+
+        // 状态恢复后重新加载表格数据（首次渲染时 ServerData 可能已用默认值加载）
+        if (savedState != null && table != null)
+            await table.ReloadServerData();
 
         // 加载筛选上下文
         await LoadFilterContextsAsync();

@@ -33,6 +33,11 @@ public class PurchaseFinishedPlan : BaseEntity
     public decimal RequiredWeight { get; set; }
 
     /// <summary>
+    /// 投料倍率(1制几)
+    /// </summary>
+    public int? InputMultiple { get; set; }
+
+    /// <summary>
     /// 要求到货日期
     /// </summary>
     public DateTime? RequiredDate { get; set; }

@@ -471,27 +471,27 @@
                     <MudTable T="CreateProcessGroupRequest" Items="@request.ProcessGroups" Dense="true" Hover="true" Elevation="0" Class="auto-table compact-table">
                         <HeaderContent>
                             <MudTh Style="width:40px;">#</MudTh>
-                            @if (GetPgCol("ProcessName").Visible) { <MudTh Style="width:100px;">工序名称</MudTh> }
-                            @if (GetPgCol("ManufacturingSpec").Visible) { <MudTh Style="width:100px;">制造规格</MudTh> }
+                            @if (GetPgCol("ProcessName").Visible) { <MudTh Style="width:120px;">工序名称</MudTh> }
+                            @if (GetPgCol("ManufacturingSpec").Visible) { <MudTh Style="width:120px;">制造规格</MudTh> }
                             @if (GetPgCol("OuterDiameterTolerance").Visible) { <MudTh Style="width:80px;">外径公差</MudTh> }
                             @if (GetPgCol("WallThicknessTolerance").Visible) { <MudTh Style="width:80px;">壁厚公差</MudTh> }
-                            @if (GetPgCol("ManufacturingLength").Visible) { <MudTh Style="width:90px;">制造长度</MudTh> }
-                            @if (GetPgCol("CuttingTreatment").Visible) { <MudTh Style="width:90px;">断切处理</MudTh> }
+                            @if (GetPgCol("ManufacturingLength").Visible) { <MudTh Style="width:80px;">制造长度</MudTh> }
+                            @if (GetPgCol("CuttingTreatment").Visible) { <MudTh Style="width:80px;">断切处理</MudTh> }
                             @if (GetPgCol("ManufacturingMultiple").Visible) { <MudTh Style="width:80px;">制成倍数</MudTh> }
-                            @if (GetPgCol("Remark").Visible) { <MudTh Style="width:100px;">备注</MudTh> }
-                            @if (GetPgCol("ColdRollDraw").Visible) { <MudTh Style="width:70px;">冷轧拔</MudTh> }
-                            @if (GetPgCol("OilPipeCut").Visible) { <MudTh Style="width:70px;">油管断</MudTh> }
+                            @if (GetPgCol("Remark").Visible) { <MudTh Style="width:120px;">备注</MudTh> }
+                            @if (GetPgCol("ColdRollDraw").Visible) { <MudTh Style="width:80px;">冷轧拔</MudTh> }
+                            @if (GetPgCol("OilPipeCut").Visible) { <MudTh Style="width:80px;">油管断</MudTh> }
                             @if (GetPgCol("Degrease").Visible) { <MudTh Style="width:60px;">去油</MudTh> }
                             @if (GetPgCol("Solution").Visible) { <MudTh Style="width:60px;">固溶</MudTh> }
                             @if (GetPgCol("Straighten").Visible) { <MudTh Style="width:60px;">矫直</MudTh> }
                             @if (GetPgCol("Cut").Visible) { <MudTh Style="width:60px;">断切</MudTh> }
                             @if (GetPgCol("ThicknessMeasure").Visible) { <MudTh Style="width:60px;">测壁厚</MudTh> }
                             @if (GetPgCol("Pickle").Visible) { <MudTh Style="width:60px;">酸洗</MudTh> }
-                            @if (GetPgCol("OuterPolish").Visible) { <MudTh Style="width:65px;">外抛光</MudTh> }
-                            @if (GetPgCol("InnerGrinding").Visible) { <MudTh Style="width:65px;">内修磨</MudTh> }
-                            @if (GetPgCol("OuterSpotGrinding").Visible) { <MudTh Style="width:65px;">外点磨</MudTh> }
+                            @if (GetPgCol("OuterPolish").Visible) { <MudTh Style="width:60px;">外抛光</MudTh> }
+                            @if (GetPgCol("InnerGrinding").Visible) { <MudTh Style="width:60px;">内修磨</MudTh> }
+                            @if (GetPgCol("OuterSpotGrinding").Visible) { <MudTh Style="width:60px;">外点磨</MudTh> }
                             @if (GetPgCol("Inspection").Visible) { <MudTh Style="width:60px;">检验</MudTh> }
-                            @if (GetPgCol("WeldingHead").Visible) { <MudTh Style="width:65px;">打焊头</MudTh> }
+                            @if (GetPgCol("WeldingHead").Visible) { <MudTh Style="width:60px;">打焊头</MudTh> }
                             @if (GetPgCol("Lubrication").Visible) { <MudTh Style="width:60px;">润滑</MudTh> }
                             @if (GetPgCol("Warehouse").Visible) { <MudTh Style="width:60px;">入库</MudTh> }
                             <MudTh Style="width:45px;">操作</MudTh>
@@ -501,7 +501,7 @@
                             @if (GetPgCol("ProcessName").Visible)
                             {
                                 <MudTd>
-                                    <MudSelect T="string" @bind-Value="pg.ProcessName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:90px;">
+                                    <MudSelect T="string" @bind-Value="pg.ProcessName" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
                                         <MudSelectItem Value="@("荒管处理")">荒管处理</MudSelectItem>
                                         <MudSelectItem Value="@("在制修检")">在制修检</MudSelectItem>
                                         <MudSelectItem Value="@("冷轧")">冷轧</MudSelectItem>
@@ -509,28 +509,28 @@
                                     </MudSelect>
                                 </MudTd>
                             }
-                            @if (GetPgCol("ManufacturingSpec").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.ManufacturingSpec" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:90px;" /></MudTd> }
-                            @if (GetPgCol("OuterDiameterTolerance").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.OuterDiameterTolerance" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:70px;" /></MudTd> }
-                            @if (GetPgCol("WallThicknessTolerance").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.WallThicknessTolerance" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:70px;" /></MudTd> }
-                            @if (GetPgCol("ManufacturingLength").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.ManufacturingLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:80px;" /></MudTd> }
-                            @if (GetPgCol("CuttingTreatment").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.CuttingTreatment" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:80px;" /></MudTd> }
-                            @if (GetPgCol("ManufacturingMultiple").Visible) { <MudTd><MudNumericField T="int" @bind-Value="pg.ManufacturingMultiple" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:60px;" HideSpinButtons="true" Min="1" /></MudTd> }
-                            @if (GetPgCol("Remark").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:90px;" /></MudTd> }
-                            @if (GetPgCol("ColdRollDraw").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.ColdRollDraw" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("OilPipeCut").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.OilPipeCut" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Degrease").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Degrease" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Solution").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Solution" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Straighten").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Straighten" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Cut").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Cut" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("ThicknessMeasure").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.ThicknessMeasure" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Pickle").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Pickle" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("OuterPolish").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.OuterPolish" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("InnerGrinding").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.InnerGrinding" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("OuterSpotGrinding").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.OuterSpotGrinding" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Inspection").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Inspection" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("WeldingHead").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.WeldingHead" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Lubrication").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Lubrication" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Warehouse").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Warehouse" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:50px;" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("ManufacturingSpec").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.ManufacturingSpec" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
+                            @if (GetPgCol("OuterDiameterTolerance").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.OuterDiameterTolerance" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
+                            @if (GetPgCol("WallThicknessTolerance").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.WallThicknessTolerance" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
+                            @if (GetPgCol("ManufacturingLength").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.ManufacturingLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
+                            @if (GetPgCol("CuttingTreatment").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.CuttingTreatment" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
+                            @if (GetPgCol("ManufacturingMultiple").Visible) { <MudTd><MudNumericField T="int" @bind-Value="pg.ManufacturingMultiple" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" Min="1" /></MudTd> }
+                            @if (GetPgCol("Remark").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
+                            @if (GetPgCol("ColdRollDraw").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.ColdRollDraw" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("OilPipeCut").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.OilPipeCut" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Degrease").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Degrease" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Solution").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Solution" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Straighten").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Straighten" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Cut").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Cut" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("ThicknessMeasure").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.ThicknessMeasure" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Pickle").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Pickle" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("OuterPolish").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.OuterPolish" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("InnerGrinding").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.InnerGrinding" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("OuterSpotGrinding").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.OuterSpotGrinding" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Inspection").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Inspection" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("WeldingHead").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.WeldingHead" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Lubrication").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Lubrication" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Warehouse").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Warehouse" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
                             <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteProcessGroupRow(pg))" /></MudTd>
                         </RowTemplate>
                     </MudTable>

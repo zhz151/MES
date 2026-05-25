@@ -126,30 +126,30 @@
                 else
                 {
                     <div style="overflow-x: auto;">
-                        <MudTable T="OrderItemViewModel" Items="@editItemViewModels" Dense="true" Hover="true" Elevation="0" RowsPerPage="10" RowsPerPageLabel="每页行数:" Class="auto-table">
+                        <MudTable T="OrderItemViewModel" Items="@editItemViewModels" Dense="true" Hover="true" Elevation="0" RowsPerPage="10" RowsPerPageLabel="每页行数:" Class="compact-table">
                             <HeaderContent>
-                                <MudTh>项次</MudTh>
-                                <MudTh>交货日期<span class="required-star">*</span></MudTh>
-                                <MudTh>延期罚款</MudTh>
-                                <MudTh>结算方式</MudTh>
-                                <MudTh>物料名称</MudTh>
-                                <MudTh>产品标准</MudTh>
-                                <MudTh>交货状态</MudTh>
-                                <MudTh>标准牌号<span class="required-star">*</span></MudTh>
-                                <MudTh>外径</MudTh>
-                                <MudTh>壁厚</MudTh>
-                                <MudTh>外径下差</MudTh>
-                                <MudTh>外径上差</MudTh>
-                                <MudTh>壁厚下差</MudTh>
-                                <MudTh>壁厚上差</MudTh>
-                                <MudTh>长度状态</MudTh>
-                                <MudTh>最小长度</MudTh>
-                                <MudTh>最大长度</MudTh>
-                                <MudTh>支数</MudTh>
-                                <MudTh>米数</MudTh>
-                                <MudTh>合同重量</MudTh>
-                                <MudTh>理算重量</MudTh>
-                                <MudTh>操作</MudTh>
+                                <MudTh Style="width:45px">项次</MudTh>
+                                <MudTh Style="width:120px">交货日期<span class="required-star">*</span></MudTh>
+                                <MudTh Style="width:60px">延期罚款</MudTh>
+                                <MudTh Style="width:120px">结算方式</MudTh>
+                                <MudTh Style="width:120px">物料名称</MudTh>
+                                <MudTh Style="width:120px">产品标准</MudTh>
+                                <MudTh Style="width:120px">交货状态</MudTh>
+                                <MudTh Style="width:120px">标准牌号<span class="required-star">*</span></MudTh>
+                                <MudTh Style="width:80px">外径</MudTh>
+                                <MudTh Style="width:80px">壁厚</MudTh>
+                                <MudTh Style="width:80px">外径下差</MudTh>
+                                <MudTh Style="width:80px">外径上差</MudTh>
+                                <MudTh Style="width:80px">壁厚下差</MudTh>
+                                <MudTh Style="width:80px">壁厚上差</MudTh>
+                                <MudTh Style="width:120px">长度状态</MudTh>
+                                <MudTh Style="width:80px">最小长度</MudTh>
+                                <MudTh Style="width:80px">最大长度</MudTh>
+                                <MudTh Style="width:80px">支数</MudTh>
+                                <MudTh Style="width:80px">米数</MudTh>
+                                <MudTh Style="width:80px">合同重量</MudTh>
+                                <MudTh Style="width:80px">理算重量</MudTh>
+                                <MudTh Style="width:60px">操作</MudTh>
                             </HeaderContent>
                             <PagerContent>
                                 <MudTablePager />
@@ -167,7 +167,6 @@
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 72px;"
                                                   />
                                 </MudTd>
 
@@ -223,63 +222,63 @@
                                 </MudTd>
 
                                 <!-- 外径 - 文本输入 -->
-                                <MudTd>
+                                <MudTd Class="narrow-cell">
                                     <MudTextField T="string"
                                                   @bind-Value="item.OuterDiameterStr"
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 45px;" />
+                                                  />
                                 </MudTd>
 
                                 <!-- 壁厚 - 文本输入 -->
-                                <MudTd>
+                                <MudTd Class="narrow-cell">
                                     <MudTextField T="string"
                                                   @bind-Value="item.WallThicknessStr"
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 45px;" />
+                                                  />
                                 </MudTd>
 
                                 <!-- 外径下差 - 文本输入 -->
-                                <MudTd>
+                                <MudTd Class="narrow-cell">
                                     <MudTextField T="string"
                                                   @bind-Value="item.OuterDiameterNegativeStr"
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 40px;" />
+                                                  />
                                 </MudTd>
 
                                 <!-- 外径上差 - 文本输入 -->
-                                <MudTd>
+                                <MudTd Class="narrow-cell">
                                     <MudTextField T="string"
                                                   @bind-Value="item.OuterDiameterPositiveStr"
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 40px;" />
+                                                  />
                                 </MudTd>
 
                                 <!-- 壁厚下差 - 文本输入 -->
-                                <MudTd>
+                                <MudTd Class="narrow-cell">
                                     <MudTextField T="string"
                                                   @bind-Value="item.WallThicknessNegativeStr"
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 40px;" />
+                                                  />
                                 </MudTd>
 
                                 <!-- 壁厚上差 - 文本输入 -->
-                                <MudTd>
+                                <MudTd Class="narrow-cell">
                                     <MudTextField T="string"
                                                   @bind-Value="item.WallThicknessPositiveStr"
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 40px;" />
+                                                  />
                                 </MudTd>
 
                                 <!-- 长度状态 - 下拉选择 -->
@@ -292,44 +291,44 @@
                                 </MudTd>
 
                                 <!-- 最小长度 - 文本输入 -->
-                                <MudTd>
+                                <MudTd Class="narrow-cell">
                                     <MudTextField T="string"
                                                   @bind-Value="item.MinLengthStr"
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 50px;" />
+                                                  />
                                 </MudTd>
 
                                 <!-- 最大长度 - 文本输入 -->
-                                <MudTd>
+                                <MudTd Class="narrow-cell">
                                     <MudTextField T="string"
                                                   @bind-Value="item.MaxLengthStr"
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 50px;" />
+                                                  />
                                 </MudTd>
 
                                 <!-- 支数 - 文本输入 -->
-                                <MudTd>
+                                <MudTd Class="narrow-cell">
                                     <MudTextField T="string"
                                                   @bind-Value="item.QuantityStr"
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 40px;" />
+                                                  />
                                 </MudTd>
 
                                 <!-- 米数 - 文本输入 + 计算按钮 -->
-                                <MudTd>
+                                <MudTd Class="narrow-cell">
                                     <div style="display: flex; align-items: center; gap: 4px;">
                                         <MudTextField T="string"
                                                       @bind-Value="item.MetersStr"
                                                       Dense="true"
                                                       Variant="Variant.Outlined"
                                                       Size="Size.Small"
-                                                      Style="width: 48px;" />
+                                                      />
                                         <MudIconButton Icon="@Icons.Material.Filled.Calculate"
                                                        Color="Color.Primary"
                                                        Size="Size.Small"
@@ -338,17 +337,17 @@
                                 </MudTd>
 
                                 <!-- 合同重量 - 文本输入 -->
-                                <MudTd>
+                                <MudTd Class="narrow-cell">
                                     <MudTextField T="string"
                                                   @bind-Value="item.ContractWeightStr"
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
-                                                  Style="width: 50px;" />
+                                                  />
                                 </MudTd>
 
                                 <!-- 理算重量 - 只读 + 计算按钮 -->
-                                <MudTd>
+                                <MudTd Class="narrow-cell">
                                     <div style="display: flex; align-items: center; gap: 4px;">
                                         <MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(item.TheoreticalWeight)</MudText>
                                         <MudIconButton Icon="@Icons.Material.Filled.Calculate"

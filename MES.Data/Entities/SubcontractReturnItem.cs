@@ -46,6 +46,11 @@ public class SubcontractReturnItem : BaseEntity
     public decimal? RequiredWeight { get; set; }
 
     /// <summary>
+    /// 投料倍率(1制几)
+    /// </summary>
+    public int? InputMultiple { get; set; }
+
+    /// <summary>
     /// 状态备注
     /// </summary>
     public string? ProcessStatusRemark { get; set; }

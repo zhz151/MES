@@ -23,7 +23,10 @@ public partial class WarehouseInventory
     private List<InventoryBatchDto> _pageItems = new();
     private int _totalCount;
     private int _currentPage = 1;
+    private int _restoredPageIndex;
+    private bool _isFirstLoad = true;
     private int _pageSize = 10;
+    private string _lastResolvedWarehouseCode = string.Empty;
     private List<WarehouseDto> warehouses = new();
 
     // 当前仓库信息
@@ -319,6 +322,13 @@ public partial class WarehouseInventory
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "InboundDate";
             var filtersJson = SerializeFilters();
 
+            // 恢复持久化的页码（MudTable 初始化时始终传 page=0）
+            if (_isFirstLoad)
+            {
+                state.Page = _restoredPageIndex;
+                _isFirstLoad = false;
+            }
+
             var query = new InventoryQueryParams
             {
                 PageIndex = state.Page + 1,
@@ -547,6 +557,7 @@ public partial class WarehouseInventory
                 sortColumn = savedState.SortBy ?? "InboundDate";
                 sortDescending = savedState.IsDescending;
                 _searchKeyword = savedState.Keyword ?? string.Empty;
+                _restoredPageIndex = savedState.PageIndex;
                 if (savedState.Extras?.ContainsKey("columnFilters") == true)
                 {
                     try
@@ -560,6 +571,10 @@ public partial class WarehouseInventory
                 }
             }
 
+            // 状态恢复后重新加载表格数据（首次渲染时 ServerData 可能已用默认值加载）
+            if (savedState != null && table != null)
+                await table.ReloadServerData();
+
             // 加载筛选上下文
             await LoadFilterContextsAsync();
         }
@@ -569,20 +584,30 @@ public partial class WarehouseInventory
     {
         if (!string.IsNullOrEmpty(Code))
         {
+            var prevCode = warehouseCode;
             await ResolveWarehouse();
-            if (table != null) await table.ReloadServerData();
+            // 仅在仓库代码实际变更时重新加载数据（OnInitializedAsync 已完成首次加载）
+            if (!string.Equals(prevCode, warehouseCode, StringComparison.OrdinalIgnoreCase))
+            {
+                if (table != null) await table.ReloadServerData();
+            }
         }
     }
 
     private async Task ResolveWarehouse()
     {
-        if (!string.IsNullOrEmpty(Code))
+        var newCode = Code?.ToUpperInvariant() ?? "";
+        warehouseCode = newCode;
+
+        // 切换仓库时清空该仓库的筛选状态（首次加载不清空，由 OnInitializedAsync 恢复持久化状态）
+        if (!string.IsNullOrEmpty(_lastResolvedWarehouseCode) &&
+            !string.Equals(_lastResolvedWarehouseCode, newCode, StringComparison.OrdinalIgnoreCase))
         {
-            warehouseCode = Code.ToUpperInvariant();
+            _searchKeyword = string.Empty;
+            _columnFilters.Clear();
         }
-        _searchKeyword = string.Empty;
+        _lastResolvedWarehouseCode = newCode;
         _outboundMode = false;
-        _columnFilters.Clear();
         _selectedItems.Clear();
 
         var wh = warehouses.FirstOrDefault(w => w.Code.Equals(warehouseCode, StringComparison.OrdinalIgnoreCase));

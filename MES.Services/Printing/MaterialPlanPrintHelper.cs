@@ -136,6 +136,7 @@ public static class MaterialPlanPrintHelper
                 columns.ConstantColumn(45);
                 columns.ConstantColumn(40);
                 columns.ConstantColumn(50);
+                columns.ConstantColumn(45);
                 columns.ConstantColumn(55);
                 columns.ConstantColumn(50);
                 columns.RelativeColumn();
@@ -151,6 +152,7 @@ public static class MaterialPlanPrintHelper
                 header.Cell().Element(CellHeaderStyle).Text("需求单重").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("需求支数").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("需求重量").FontSize(8).AlignCenter();
+                header.Cell().Element(CellHeaderStyle).Text("投料倍率").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("要求到货日").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("备注").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("工艺路线").FontSize(8).AlignCenter();
@@ -175,6 +177,7 @@ public static class MaterialPlanPrintHelper
                 table.Cell().Element(CellStyle).Text(plan.RequiredUnitWeight?.ToString("G29") is string uw ? $"{uw} kg/支" : "-").FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.RequiredPieces?.ToString() is string rp ? $"{rp} 支" : "-").FontSize(8);
                 table.Cell().Element(CellStyle).Text($"{plan.RequiredWeight:G29} kg").FontSize(8);
+                table.Cell().Element(CellStyle).Text($"{plan.InputMultiple}").FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(plan.RequiredDate.ToString("yyyy-MM-dd")).FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.Remark ?? "-").FontSize(8);
                 table.Cell().Element(CellStyle).Text(processPlan).FontSize(8);
@@ -220,13 +223,14 @@ public static class MaterialPlanPrintHelper
                 columns.ConstantColumn(45);
                 columns.ConstantColumn(40);
                 columns.ConstantColumn(50);
+                columns.ConstantColumn(45);
                 columns.ConstantColumn(50);
                 columns.RelativeColumn();
             });
 
             table.Header(header =>
             {
-                string[] headers = { "工单号", "计划日期", "成品类型", "工厂牌号", "规格", "外径公差", "壁厚公差", "长度状态", "长度(mm)", "交货状态", "需用支数", "需用重量", "要求到货日", "备注" };
+                string[] headers = { "工单号", "计划日期", "成品类型", "工厂牌号", "规格", "外径公差", "壁厚公差", "长度状态", "长度(mm)", "交货状态", "需用支数", "需用重量", "投料倍率", "要求到货日", "备注" };
                 foreach (var h in headers)
                     header.Cell().Element(CellHeaderStyle).Text(h).FontSize(8).AlignCenter();
             });
@@ -272,6 +276,7 @@ public static class MaterialPlanPrintHelper
                 table.Cell().Element(CellStyle).Text(deliveryStateText).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(plan.RequiredPiece?.ToString() is string rp ? $"{rp} 支" : "-").FontSize(8);
                 table.Cell().Element(CellStyle).Text($"{plan.RequiredWeight:G29} kg").FontSize(8);
+                table.Cell().Element(CellStyle).Text(plan.InputMultiple?.ToString() ?? "-").FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(plan.RequiredDate?.ToString("yyyy-MM-dd") ?? "-").FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.Remark ?? "-").FontSize(8);
             }
@@ -397,6 +402,7 @@ public static class MaterialPlanPrintHelper
                 columns.ConstantColumn(45);
                 columns.ConstantColumn(40);
                 columns.ConstantColumn(50);
+                columns.ConstantColumn(45);
                 columns.ConstantColumn(50);
                 columns.RelativeColumn();
             });
@@ -412,6 +418,7 @@ public static class MaterialPlanPrintHelper
                 header.Cell().Element(CellHeaderStyle).Text("需求单重").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("需求支数").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("需求重量").FontSize(8).AlignCenter();
+                header.Cell().Element(CellHeaderStyle).Text("投料倍率").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("要求到货日").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("工艺路线").FontSize(8).AlignCenter();
             });
@@ -436,6 +443,7 @@ public static class MaterialPlanPrintHelper
                 table.Cell().Element(CellStyle).Text(plan.RequiredUnitWeight?.ToString("G29") is string uw ? $"{uw} kg/支" : "-").FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.RequiredPieces?.ToString() is string rp ? $"{rp} 支" : "-").FontSize(8);
                 table.Cell().Element(CellStyle).Text($"{plan.RequiredWeight:G29} kg").FontSize(8);
+                table.Cell().Element(CellStyle).Text($"{plan.InputMultiple}").FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(plan.RequiredDate.ToString("yyyy-MM-dd")).FontSize(8);
                 table.Cell().Element(CellStyle).Text(processPlan).FontSize(8);
             }

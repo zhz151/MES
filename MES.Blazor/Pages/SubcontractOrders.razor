@@ -15,6 +15,7 @@
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
 @inject PageStateService PageState
+@inject AuthenticationStateProvider AuthProvider
 @attribute [Authorize(Roles = "MaterialStaff,MaterialDirector,Admin")]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
@@ -141,6 +142,11 @@
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Size="Size.Small" OnClick="() => NavigateToEdit(item.Id)" />
                             <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" OnClick="() => CancelOrder(item)" />
+                        }
+                        else if (_isAdmin)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Size="Size.Small" OnClick="() => NavigateToEdit(item.Id)" Title="管理员强制编辑" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" OnClick="() => CancelOrder(item)" Title="管理员强制取消" />
                         }
                     </MudTd>
                 </RowTemplate>

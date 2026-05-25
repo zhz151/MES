@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -19,6 +21,18 @@ public class PurchaseOrderControllerTests : ControllerTestBase
         _serviceMock = new Mock<IPurchaseOrderService>();
         _loggerMock = CreateLoggerMock<PurchaseOrderController>();
         _controller = new PurchaseOrderController(_serviceMock.Object, _loggerMock.Object);
+        // 设置非管理员的 HttpContext，避免 User.IsInRole("Admin") 引发 NullReferenceException
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
+                {
+                    new(ClaimTypes.Name, "testuser"),
+                    new(ClaimTypes.Role, "MaterialDirector"),
+                }, "test"))
+            }
+        };
     }
 
     [Fact]
@@ -123,7 +137,7 @@ public class PurchaseOrderControllerTests : ControllerTestBase
         // Arrange
         var request = new UpdatePurchaseOrderRequest { SupplierId = 1 };
         var dto = new PurchaseOrderDto { Id = 1, OrderNo = "PO002" };
-        _serviceMock.Setup(x => x.UpdateAsync(1, request)).ReturnsAsync(dto);
+        _serviceMock.Setup(x => x.UpdateAsync(1, request, false)).ReturnsAsync(dto);
 
         // Act
         var result = await _controller.Update(1, request);
@@ -151,7 +165,7 @@ public class PurchaseOrderControllerTests : ControllerTestBase
     public async Task Delete_ReturnsOk()
     {
         // Arrange
-        _serviceMock.Setup(x => x.DeleteAsync(1)).Returns(Task.CompletedTask);
+        _serviceMock.Setup(x => x.DeleteAsync(1, false)).Returns(Task.CompletedTask);
 
         // Act
         var result = await _controller.Delete(1);

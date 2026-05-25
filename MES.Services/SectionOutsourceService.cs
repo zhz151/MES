@@ -1084,51 +1084,39 @@ public class SectionOutsourceService : ISectionOutsourceService
 
     public async Task<Dictionary<string, List<string>>> GetOutsourceRecoveryFilterContextsAsync()
     {
-        var recoveries = _context.OutsourceRecoveries
+        var results = await _context.OutsourceRecoveries
             .AsNoTracking()
             .Include(r => r.SectionOutsource)
-                .ThenInclude(s => s.ProductionBatch);
+                .ThenInclude(s => s.ProductionBatch)
+            .Select(r => new
+            {
+                r.RecoveryDate,
+                r.CreatedTime,
+                BatchNo = r.SectionOutsource.ProductionBatch.BatchNo,
+                r.SectionOutsource.OutsourceVendor,
+                r.SectionOutsource.ProcessName,
+                r.SectionOutsource.SectionName,
+                ManufacturingSpec = r.SectionOutsource.ManufacturingSpec,
+                OutsourceSpec = r.SectionOutsource.OutsourceSpec,
+                r.SectionOutsource.TagNo,
+                r.SectionOutsource.PlantGrade,
+                r.Remark
+            })
+            .ToListAsync();
 
         return new Dictionary<string, List<string>>
         {
-            ["BatchNo"] = await recoveries
-                .Select(r => r.SectionOutsource.ProductionBatch.BatchNo)
-                .Distinct().OrderBy(x => x).ToListAsync(),
-            ["OutsourceVendor"] = await recoveries
-                .Select(r => r.SectionOutsource.OutsourceVendor)
-                .Distinct().OrderBy(x => x).ToListAsync(),
-            ["ProcessName"] = await recoveries
-                .Select(r => r.SectionOutsource.ProcessName)
-                .Distinct().OrderBy(x => x).ToListAsync(),
-            ["SectionName"] = await recoveries
-                .Select(r => r.SectionOutsource.SectionName)
-                .Distinct().OrderBy(x => x).ToListAsync(),
-            ["ManufacturingSpec"] = await recoveries
-                .Where(r => r.SectionOutsource.ManufacturingSpec != null)
-                .Select(r => r.SectionOutsource.ManufacturingSpec!)
-                .Distinct().OrderBy(x => x).ToListAsync(),
-            ["OutsourceSpec"] = await recoveries
-                .Where(r => r.SectionOutsource.OutsourceSpec != null)
-                .Select(r => r.SectionOutsource.OutsourceSpec!)
-                .Distinct().OrderBy(x => x).ToListAsync(),
-            ["TagNo"] = await recoveries
-                .Where(r => r.SectionOutsource.TagNo != null)
-                .Select(r => r.SectionOutsource.TagNo!)
-                .Distinct().OrderBy(x => x).ToListAsync(),
-            ["PlantGrade"] = await recoveries
-                .Where(r => r.SectionOutsource.PlantGrade != null)
-                .Select(r => r.SectionOutsource.PlantGrade!)
-                .Distinct().OrderBy(x => x).ToListAsync(),
-            ["Remark"] = await recoveries
-                .Where(r => r.Remark != null)
-                .Select(r => r.Remark!)
-                .Distinct().OrderBy(x => x).ToListAsync(),
-            ["RecoveryDate"] = await recoveries
-                .Select(r => r.RecoveryDate.ToString("yyyy-MM-dd"))
-                .Distinct().OrderBy(x => x).ToListAsync(),
-            ["CreatedTime"] = await recoveries
-                .Select(r => r.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"))
-                .Distinct().OrderBy(x => x).ToListAsync(),
+            ["BatchNo"] = results.Select(x => x.BatchNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["OutsourceVendor"] = results.Select(x => x.OutsourceVendor).Distinct().OrderBy(x => x).ToList(),
+            ["ProcessName"] = results.Select(x => x.ProcessName).Distinct().OrderBy(x => x).ToList(),
+            ["SectionName"] = results.Select(x => x.SectionName).Distinct().OrderBy(x => x).ToList(),
+            ["ManufacturingSpec"] = results.Where(x => x.ManufacturingSpec != null).Select(x => x.ManufacturingSpec!).Distinct().OrderBy(x => x).ToList()!,
+            ["OutsourceSpec"] = results.Where(x => x.OutsourceSpec != null).Select(x => x.OutsourceSpec!).Distinct().OrderBy(x => x).ToList()!,
+            ["TagNo"] = results.Where(x => x.TagNo != null).Select(x => x.TagNo!).Distinct().OrderBy(x => x).ToList()!,
+            ["PlantGrade"] = results.Where(x => x.PlantGrade != null).Select(x => x.PlantGrade!).Distinct().OrderBy(x => x).ToList()!,
+            ["Remark"] = results.Where(x => x.Remark != null).Select(x => x.Remark!).Distinct().OrderBy(x => x).ToList()!,
+            ["RecoveryDate"] = results.Select(x => x.RecoveryDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["CreatedTime"] = results.Select(x => x.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")).Distinct().OrderBy(x => x).ToList(),
         };
     }
 

@@ -48,46 +48,46 @@ public partial class WorkOrderExecution
         new() { Key = "SignDate",                Label = "订单日期",        SortKey = "SignDate", FilterType = "date" },
         new() { Key = "DeliveryDate",            Label = "交货日期",        SortKey = "DeliveryDate", FilterType = "date" },
         new() { Key = "DelayPenalty",            Label = "延期罚款",        SortKey = "DelayPenalty",            FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否" },
-        new() { Key = "SettlementMethod",        Label = "结算方式",        SortKey = "SettlementMethod",        FilterType = "string" },
+        new() { Key = "SettlementMethod",        Label = "结算方式",        SortKey = "SettlementMethod",        FilterType = "string", Visible = false },
         new() { Key = "SalesOrderNo",            Label = "订单号",          SortKey = "SalesOrderNo",            FilterType = "string" },
         new() { Key = "ProductionMainNo",        Label = "主号",            SortKey = "ProductionMainNo",        FilterType = "string" },
-        new() { Key = "ProductionSubNo",         Label = "次号",            SortKey = "ProductionSubNo",         FilterType = "string" },
+        new() { Key = "ProductionSubNo",         Label = "次号",            SortKey = "ProductionSubNo",         FilterType = "string", Visible = false },
         new() { Key = "MaterialName",            Label = "物料名称",        SortKey = "MaterialName",            FilterType = "string" },
-        new() { Key = "DeliveryState",           Label = "交货状态",        SortKey = "DeliveryState",           FilterType = "string" },
+        new() { Key = "DeliveryState",           Label = "交货状态",        SortKey = "DeliveryState",           FilterType = "string", Visible = false },
         new() { Key = "PlantGrade",              Label = "工厂牌号",        SortKey = "PlantGrade",              FilterType = "string" },
         new() { Key = "Specification",           Label = "规格",            SortKey = "Specification",           FilterType = "string" },
-        new() { Key = "LengthStatus",            Label = "长度状态",        SortKey = "LengthStatus",            FilterType = "string" },
-        new() { Key = "MinLength",               Label = "最小长度",        SortKey = "MinLength" },
-        new() { Key = "MaxLength",               Label = "最大长度",        SortKey = "MaxLength" },
-        new() { Key = "TotalItemCount",          Label = "含项次数",        SortKey = "TotalItemCount" },
-        new() { Key = "TotalQuantity",           Label = "总支数",          SortKey = "TotalQuantity" },
-        new() { Key = "TotalMeters",             Label = "总米数",          SortKey = "TotalMeters" },
-        new() { Key = "TotalWeight",             Label = "总重量",          SortKey = "TotalWeight" },
-        new() { Key = "LatestPlanDate",          Label = "用料计划截止日期", SortKey = "LatestPlanDate", FilterType = "date" },
-        new() { Key = "MaterialPlanRate",        Label = "工单满足率(%)",   SortKey = "MaterialPlanRate" },
-        new() { Key = "MaterialPlanStatus",      Label = "工单用料计划状态" },
-        new() { Key = "MainNoMaterialPlanRate",  Label = "主号满足率(%)",   SortKey = "MainNoMaterialPlanRate" },
-        new() { Key = "MainNoMaterialPlanStatus",Label = "关联主号用料状态" },
+        new() { Key = "LengthStatus",            Label = "长度状态",        SortKey = "LengthStatus",            FilterType = "string", Visible = false },
+        new() { Key = "MinLength",               Label = "最小长度",        SortKey = "MinLength", Visible = false },
+        new() { Key = "MaxLength",               Label = "最大长度",        SortKey = "MaxLength", Visible = false },
+        new() { Key = "TotalItemCount",          Label = "含项次数",        SortKey = "TotalItemCount", Visible = false },
+        new() { Key = "TotalQuantity",           Label = "总支数",          SortKey = "TotalQuantity", Visible = false },
+        new() { Key = "TotalMeters",             Label = "总米数",          SortKey = "TotalMeters", Visible = false },
+        new() { Key = "TotalWeight",             Label = "总重量",          SortKey = "TotalWeight", Visible = false },
+        new() { Key = "LatestPlanDate",          Label = "计划截止日",      SortKey = "LatestPlanDate", FilterType = "date" },
+        new() { Key = "MaterialPlanRate",        Label = "满足率(%)",      SortKey = "MaterialPlanRate" },
+        new() { Key = "MaterialPlanStatus",      Label = "用料计划状态" },
+        new() { Key = "MainNoMaterialPlanRate",  Label = "主号满足率(%)",   SortKey = "MainNoMaterialPlanRate", Visible = false },
+        new() { Key = "MainNoMaterialPlanStatus",Label = "主号计划状态", Visible = false },
         new() { Key = "InputStartDate",          Label = "投料起始日",      SortKey = "InputStartDate", FilterType = "date" },
         new() { Key = "InputEndDate",            Label = "投料截止日",      SortKey = "InputEndDate", FilterType = "date" },
-        new() { Key = "TotalBatchCount",         Label = "投料总批次数",    SortKey = "TotalBatchCount" },
-        new() { Key = "InputQuantity",           Label = "投料总支数",      SortKey = "InputQuantity" },
-        new() { Key = "InputWeight",             Label = "投料总重量",      SortKey = "InputWeight" },
-        new() { Key = "TheoreticalOutputQty",    Label = "理论生产成品支数", SortKey = "TheoreticalOutputQty" },
-        new() { Key = "TheoreticalOutputWeight", Label = "理论生产成品重量", SortKey = "TheoreticalOutputWeight" },
-        new() { Key = "InputOutputRatio",        Label = "工单投料成品比",  SortKey = "InputOutputRatio" },
-        new() { Key = "InputStatus",             Label = "工单投料状态" },
-        new() { Key = "MainNoInputRatio",        Label = "关联主号投料成品比", SortKey = "MainNoInputRatio" },
-        new() { Key = "MainNoInputStatus",       Label = "关联主号投料状态" },
-        new() { Key = "ValidBatchCount",         Label = "有效在产批次数",  SortKey = "ValidBatchCount" },
-        new() { Key = "ValidInputQuantity",      Label = "有效投料总支数",  SortKey = "ValidInputQuantity" },
-        new() { Key = "ValidInputWeight",        Label = "有效投料总重量",  SortKey = "ValidInputWeight" },
-        new() { Key = "ValidOutputQty",          Label = "有效生产成品支数", SortKey = "ValidOutputQty" },
-        new() { Key = "ValidOutputWeight",       Label = "有效生产成品重量", SortKey = "ValidOutputWeight" },
-        new() { Key = "ValidInputOutputRatio",   Label = "有效工单投料成品比", SortKey = "ValidInputOutputRatio" },
-        new() { Key = "ValidInputStatus",        Label = "有效工单投料状态" },
-        new() { Key = "MainNoValidInputRatio",   Label = "现有效关联主号投料成品比", SortKey = "MainNoValidInputRatio" },
-        new() { Key = "MainNoValidInputStatus",  Label = "现有效关联主号投料状态" },
+        new() { Key = "TotalBatchCount",         Label = "批次数",         SortKey = "TotalBatchCount" },
+        new() { Key = "InputQuantity",           Label = "投料总支数",      SortKey = "InputQuantity", Visible = false },
+        new() { Key = "InputWeight",             Label = "投料总重量",      SortKey = "InputWeight", Visible = false },
+        new() { Key = "TheoreticalOutputQty",    Label = "理论成品支数",   SortKey = "TheoreticalOutputQty", Visible = false },
+        new() { Key = "TheoreticalOutputWeight", Label = "理论成品重量",   SortKey = "TheoreticalOutputWeight", Visible = false },
+        new() { Key = "InputOutputRatio",        Label = "投料成品比",     SortKey = "InputOutputRatio" },
+        new() { Key = "InputStatus",             Label = "投料状态" },
+        new() { Key = "MainNoInputRatio",        Label = "主号投料比",     SortKey = "MainNoInputRatio", Visible = false },
+        new() { Key = "MainNoInputStatus",       Label = "主号投料状态", Visible = false },
+        new() { Key = "ValidBatchCount",         Label = "有效批次数",     SortKey = "ValidBatchCount" },
+        new() { Key = "ValidInputQuantity",      Label = "有效投料总支数",  SortKey = "ValidInputQuantity", Visible = false },
+        new() { Key = "ValidInputWeight",        Label = "有效投料总重量",  SortKey = "ValidInputWeight", Visible = false },
+        new() { Key = "ValidOutputQty",          Label = "有效成品支数",   SortKey = "ValidOutputQty", Visible = false },
+        new() { Key = "ValidOutputWeight",       Label = "有效成品重量",   SortKey = "ValidOutputWeight", Visible = false },
+        new() { Key = "ValidInputOutputRatio",   Label = "有效成品比",     SortKey = "ValidInputOutputRatio" },
+        new() { Key = "ValidInputStatus",        Label = "有效投料状态" },
+        new() { Key = "MainNoValidInputRatio",   Label = "有效主号投料比", SortKey = "MainNoValidInputRatio", Visible = false },
+        new() { Key = "MainNoValidInputStatus",  Label = "有效主号状态",   Visible = false },
     };
 
     // ========== 服务端数据加载 ==========
@@ -235,6 +235,26 @@ public partial class WorkOrderExecution
         if (table != null) await table.ReloadServerData();
     }
 
+    // ========== 列显隐事件 ==========
+
+    private async Task OnColumnToggle(ColumnDef col)
+    {
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task MoveColumnUp(ColumnDef col)
+    {
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task MoveColumnDown(ColumnDef col)
+    {
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
 
     private async Task ToggleSort(string sortKey)
     {
@@ -320,13 +340,32 @@ public partial class WorkOrderExecution
     {
         _allColumns = GetAllColumnDefs();
 
-        // 恢复排序/筛选状态
+        // 恢复排序/筛选/列显隐状态
         var savedState = await PageState.LoadAsync("workorderexecution");
         if (savedState != null)
         {
             sortColumn = savedState.SortBy ?? "LastRefreshTime";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
+
+            // 恢复列显隐
+            if (savedState.Extras?.ContainsKey("columnVisibility") == true)
+            {
+                try
+                {
+                    var raw = savedState.Extras["columnVisibility"];
+                    var visibleKeys = JsonSerializer.Deserialize<List<string>>(raw);
+                    if (visibleKeys != null)
+                    {
+                        var visibleSet = new HashSet<string>(visibleKeys);
+                        foreach (var col in _allColumns)
+                            col.Visible = visibleSet.Contains(col.Key);
+                    }
+                }
+                catch { }
+            }
+
+            // 恢复列筛选
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try
@@ -339,6 +378,10 @@ public partial class WorkOrderExecution
                 catch { }
             }
         }
+
+        // 状态恢复后重新加载表格数据（首次渲染时 ServerData 可能已用默认值加载）
+        if (savedState != null && table != null)
+            await table.ReloadServerData();
 
         // 加载筛选上下文
         await LoadFilterContextsAsync();
@@ -560,6 +603,10 @@ public partial class WorkOrderExecution
         var extras = new Dictionary<string, string>();
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
+
+        // 列显隐持久化
+        extras["columnVisibility"] = JsonSerializer.Serialize(_allColumns.Where(c => c.Visible).Select(c => c.Key).ToList());
+
         var state = new PageState
         {
             SortBy = sortColumn,

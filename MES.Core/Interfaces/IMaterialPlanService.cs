@@ -132,6 +132,11 @@ public interface IMaterialPlanService
     Task<RoundBarPiercingPlanDto> CreatePiercingPlanAsync(CreateRoundBarPiercingPlanRequest request);
 
     /// <summary>
+    /// 更新圆棒穿孔计划
+    /// </summary>
+    Task<RoundBarPiercingPlanDto> UpdatePiercingPlanAsync(int id, UpdateRoundBarPiercingPlanRequest request);
+
+    /// <summary>
     /// 删除圆棒穿孔计划
     /// </summary>
     Task DeletePiercingPlanAsync(int id);

@@ -10,11 +10,11 @@ public interface IPurchaseOrderService
     Task<PurchaseOrderDto> GetByIdAsync(int id);
     Task<PurchaseOrderDto> CreateAsync(CreatePurchaseOrderRequest request);
     Task<List<PurchaseOrderDto>> CreateBatchAsync(List<CreatePurchaseOrderRequest> requests);
-    Task<PurchaseOrderDto> UpdateAsync(int id, UpdatePurchaseOrderRequest request);
+    Task<PurchaseOrderDto> UpdateAsync(int id, UpdatePurchaseOrderRequest request, bool isAdmin = false);
     Task SyncAllAsync();
     Task SyncSingleAsync(int id);
     Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request);
-    Task DeleteAsync(int id);
+    Task DeleteAsync(int id, bool isAdmin = false);
     Task<List<ProcurementStatusDto>> GetProcurementStatusAsync();
     Task<List<ProcurementStatusDto>> GetPiercingProcurementStatusAsync();
     Task<List<OrderMismatchInfo>> GetMismatchedPurchaseOrdersAsync();

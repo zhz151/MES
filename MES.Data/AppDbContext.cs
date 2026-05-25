@@ -486,6 +486,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.ProductType).IsRequired().HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.RequiredPiece);
             entity.Property(e => e.RequiredWeight).IsRequired().HasColumnType("decimal(18,3)");
+            entity.Property(e => e.InputMultiple);
             entity.Property(e => e.RequiredDate).HasColumnType("date");
             entity.Property(e => e.Remark).HasMaxLength(500);
 
@@ -799,6 +800,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.ReceivedQuantity).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.ReceivedWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
             entity.Property(e => e.SourceWorkOrderNo).HasMaxLength(50);
+            entity.Property(e => e.InputMultiple);
             entity.Property(e => e.Remark).HasMaxLength(500);
             entity.HasIndex(e => e.OrderNo).IsUnique().HasDatabaseName("UK_PurchaseOrder_OrderNo");
             entity.HasIndex(e => e.SupplierId).HasDatabaseName("IX_PurchaseOrder_SupplierId");
@@ -864,6 +866,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.ProcessSpecification).IsRequired().HasMaxLength(100);
             entity.Property(e => e.UnitWeight).HasColumnType("decimal(18,4)");
             entity.Property(e => e.RequiredWeight).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.InputMultiple);
             entity.Property(e => e.ProcessStatusRemark).HasMaxLength(500);
             entity.Property(e => e.Remark).HasMaxLength(500);
             entity.Property(e => e.ProcessUnitPrice).HasColumnType("decimal(18,4)");

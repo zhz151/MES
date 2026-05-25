@@ -13,6 +13,7 @@ public class PurchaseFinishedPlanDto
     public string ProductType { get; set; } = null!;
     public int? RequiredPiece { get; set; }
     public decimal RequiredWeight { get; set; }
+    public int? InputMultiple { get; set; }
     public DateTime? RequiredDate { get; set; }
     public string? Remark { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
@@ -41,6 +42,7 @@ public class CreatePurchaseFinishedPlanRequest
     public string ProductType { get; set; } = null!;
     public int? RequiredPiece { get; set; }
     public decimal RequiredWeight { get; set; }
+    public int? InputMultiple { get; set; }
     public DateTime? RequiredDate { get; set; }
     public string? Remark { get; set; }
 

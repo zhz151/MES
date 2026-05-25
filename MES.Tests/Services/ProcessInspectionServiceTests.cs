@@ -175,6 +175,7 @@ public class ProcessInspectionServiceTests : TestBase
                 SectionName = "冷轧拔",
                 InspectionDate = DateTime.Today,
                 Quantity = 10,
+                QualifiedQuantity = 10,
                 Weight = 1000m
             }
         });

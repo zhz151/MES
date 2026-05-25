@@ -65,6 +65,10 @@
                       RowsPerPage="@_pageSize"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
                     <MudText Typo="Typo.body2">
                         共 @_totalCount 条记录
                         @if (lastRefreshTime.HasValue)

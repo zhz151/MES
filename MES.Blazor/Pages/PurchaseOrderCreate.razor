@@ -94,6 +94,7 @@
                             <MudTh Style="width: 120px;">规格<span class="required-star">*</span></MudTh>
                             <MudTh Style="width: 90px;">单支重量</MudTh>
                             <MudTh Style="width: 80px;">支数</MudTh>
+                            <MudTh Style="width: 80px;">投料倍率</MudTh>
                             <MudTh Style="width: 100px;">采购重量<span class="required-star">*</span></MudTh>
                             <MudTh Style="width: 140px;">要求到货日期</MudTh>
                             <MudTh Style="width: 120px;">备注</MudTh>
@@ -181,6 +182,13 @@
                             </MudTd>
                             <MudTd>
                                 <MudTextField T="string"
+                                              @bind-Value="row.InputMultipleStr"
+                                              Dense="true" Variant="Variant.Outlined" Size="Size.Small"
+                                              Style="width: 60px;"
+                                              Placeholder="1制几" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
                                               @bind-Value="row.WeightStr"
                                               Dense="true" Variant="Variant.Outlined" Size="Size.Small"
                                               Style="width: 80px;"
@@ -251,6 +259,7 @@
         public string Specification { get; set; } = string.Empty;
         public string UnitWeightStr { get; set; } = string.Empty;
         public string QuantityStr { get; set; } = string.Empty;
+        public string InputMultipleStr { get; set; } = string.Empty;
         public string WeightStr { get; set; } = string.Empty;
         public string UnitPriceStr { get; set; } = string.Empty;
         public string? Remark { get; set; }
@@ -260,6 +269,7 @@
 
         public decimal? UnitWeight => ParseDecimal(UnitWeightStr);
         public int? Quantity => ParseInt(QuantityStr);
+        public int? InputMultiple => ParseInt(InputMultipleStr);
         public decimal Weight => decimal.TryParse(WeightStr, out var v) ? v : 0;
         public decimal? UnitPrice => ParseDecimal(UnitPriceStr);
         private static decimal? ParseDecimal(string v) => decimal.TryParse(v, out var r) ? r : null;
@@ -315,6 +325,7 @@
             Specification = plan.Specification ?? string.Empty,
             UnitWeightStr = plan.UnitWeight?.ToString("G29") ?? string.Empty,
             QuantityStr = plan.Quantity?.ToString() ?? string.Empty,
+            InputMultipleStr = plan.InputMultiple?.ToString() ?? string.Empty,
             WeightStr = plan.Weight.ToString("G29"),
             Remark = plan.Remark,
             RequiredDateStr = plan.RequiredDate?.ToString("yyyy-MM-dd") ?? string.Empty
@@ -554,6 +565,7 @@
                 Specification = r.Specification,
                 UnitWeight = r.UnitWeight,
                 Quantity = r.Quantity,
+                InputMultiple = r.InputMultiple,
                 Weight = r.Weight,
                 UnitPrice = r.UnitPrice,
                 SourceWorkOrderNo = r.SourceWorkOrderNo,

@@ -57,6 +57,7 @@ public class SubcontractReturnItemDto
     public decimal? UnitWeight { get; set; }
     public int? RequiredQuantity { get; set; }
     public decimal? RequiredWeight { get; set; }
+    public int? InputMultiple { get; set; }
     public string? ProcessStatusRemark { get; set; }
     public string? Remark { get; set; }
     public decimal? ProcessUnitPrice { get; set; }
@@ -107,6 +108,7 @@ public class CreateReturnItemRequest
     public decimal? UnitWeight { get; set; }
     public int? RequiredQuantity { get; set; }
     public decimal? RequiredWeight { get; set; }
+    public int? InputMultiple { get; set; }
     public string? ProcessStatusRemark { get; set; }
     public string? Remark { get; set; }
     public decimal? ProcessUnitPrice { get; set; }

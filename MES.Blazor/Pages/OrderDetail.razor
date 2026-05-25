@@ -157,16 +157,16 @@
                               ReadOnly="@(!_isEditMode)"
                               RowsPerPage="10"
                               RowsPerPageLabel="每页行数:"
-                              Class="auto-table">
+                              Class="@(_isEditMode ? "compact-table" : "auto-table")">
                         <HeaderContent>
                             @foreach (var col in _visibleItemColumns)
                             {
-                                <MudTh>
+                                <MudTh Style="@(_isEditMode && col.Width != null ? $"width:{col.Width}px" : null)">
                                     @col.Label
                                     @if (col.IsRequired) { <span class="required-star">*</span> }
                                 </MudTh>
                             }
-                            @if (_isEditMode) { <MudTh>操作</MudTh> }
+                            @if (_isEditMode) { <MudTh Style="width:60px">操作</MudTh> }
                         </HeaderContent>
                         <RowTemplate Context="item">
                             @foreach (var col in _visibleItemColumns)
@@ -304,28 +304,28 @@
     {
         _itemColumns = new List<ColumnDef>
         {
-            new() { Key = "sequence", Label = "项次", Visible = true },
-            new() { Key = "deliverydate", Label = "交货日期", Visible = true, IsRequired = true },
-            new() { Key = "delaypenalty", Label = "延期罚款", Visible = true },
-            new() { Key = "settlementmethod", Label = "结算方式", Visible = true },
-            new() { Key = "materialname", Label = "物料名称", Visible = true },
-            new() { Key = "productionstandard", Label = "产品标准", Visible = true },
-            new() { Key = "deliverystate", Label = "交货状态", Visible = true },
-            new() { Key = "standardgrade", Label = "标准牌号", Visible = true },
-            new() { Key = "outerdiameter", Label = "外径", Visible = true },
-            new() { Key = "wallthickness", Label = "壁厚", Visible = true },
-            new() { Key = "outerdiameternegative", Label = "外径下差", Visible = false },
-            new() { Key = "outerdiameterpositive", Label = "外径上差", Visible = false },
-            new() { Key = "wallthicknessnegative", Label = "壁厚下差", Visible = false },
-            new() { Key = "wallthicknesspositive", Label = "壁厚上差", Visible = false },
-            new() { Key = "lengthstatus", Label = "长度状态", Visible = true },
-            new() { Key = "minlength", Label = "最小长度", Visible = true },
-            new() { Key = "maxlength", Label = "最大长度", Visible = true },
-            new() { Key = "quantity", Label = "支数", Visible = true },
-            new() { Key = "meters", Label = "米数", Visible = true },
-            new() { Key = "contractweight", Label = "合同重量", Visible = true },
-            new() { Key = "theoreticalweight", Label = "理算重量", Visible = true },
-            new() { Key = "remark", Label = "备注", Visible = false },
+            new() { Key = "sequence", Label = "项次", Visible = true, Width = "45" },
+            new() { Key = "deliverydate", Label = "交货日期", Visible = true, IsRequired = true, Width = "120" },
+            new() { Key = "delaypenalty", Label = "延期罚款", Visible = true, Width = "60" },
+            new() { Key = "settlementmethod", Label = "结算方式", Visible = true, Width = "120" },
+            new() { Key = "materialname", Label = "物料名称", Visible = true, Width = "120" },
+            new() { Key = "productionstandard", Label = "产品标准", Visible = true, Width = "120" },
+            new() { Key = "deliverystate", Label = "交货状态", Visible = true, Width = "120" },
+            new() { Key = "standardgrade", Label = "标准牌号", Visible = true, Width = "120" },
+            new() { Key = "outerdiameter", Label = "外径", Visible = true, Width = "80" },
+            new() { Key = "wallthickness", Label = "壁厚", Visible = true, Width = "80" },
+            new() { Key = "outerdiameternegative", Label = "外径下差", Visible = false, Width = "80" },
+            new() { Key = "outerdiameterpositive", Label = "外径上差", Visible = false, Width = "80" },
+            new() { Key = "wallthicknessnegative", Label = "壁厚下差", Visible = false, Width = "80" },
+            new() { Key = "wallthicknesspositive", Label = "壁厚上差", Visible = false, Width = "80" },
+            new() { Key = "lengthstatus", Label = "长度状态", Visible = true, Width = "120" },
+            new() { Key = "minlength", Label = "最小长度", Visible = true, Width = "80" },
+            new() { Key = "maxlength", Label = "最大长度", Visible = true, Width = "80" },
+            new() { Key = "quantity", Label = "支数", Visible = true, Width = "80" },
+            new() { Key = "meters", Label = "米数", Visible = true, Width = "80" },
+            new() { Key = "contractweight", Label = "合同重量", Visible = true, Width = "80" },
+            new() { Key = "theoreticalweight", Label = "理算重量", Visible = true, Width = "80" },
+            new() { Key = "remark", Label = "备注", Visible = false, Width = "120" },
         };
     }
 
@@ -1105,7 +1105,7 @@
                     builder.AddAttribute(3, "Dense", true);
                     builder.AddAttribute(4, "Variant", Variant.Outlined);
                     builder.AddAttribute(5, "Size", Size.Small);
-                    builder.AddAttribute(6, "Style", "width: 72px;");
+
                     builder.CloseComponent();
                 }
                 else { builder.AddContent(0, item.DeliveryDate.ToString("yyyy-MM-dd")); }
@@ -1131,7 +1131,7 @@
                     builder.AddAttribute(3, "Dense", true);
                     builder.AddAttribute(4, "Variant", Variant.Outlined);
                     builder.AddAttribute(5, "Size", Size.Small);
-                    builder.AddAttribute(6, "Style", "min-width: 60px;");
+
                     builder.AddAttribute(7, "ChildContent", (RenderFragment)(cb =>
                     {
                         cb.OpenComponent<MudSelectItem<SettlementMethod>>(0);
@@ -1259,7 +1259,7 @@
                     builder.AddAttribute(4, "Dense", true);
                     builder.AddAttribute(5, "Variant", Variant.Outlined);
                     builder.AddAttribute(6, "Size", Size.Small);
-                    builder.AddAttribute(7, "Style", "width: 45px;");
+
                     builder.AddAttribute(8, "HideSpinButtons", true);
                     builder.CloseComponent();
                 }
@@ -1275,7 +1275,7 @@
                     builder.AddAttribute(4, "Dense", true);
                     builder.AddAttribute(5, "Variant", Variant.Outlined);
                     builder.AddAttribute(6, "Size", Size.Small);
-                    builder.AddAttribute(7, "Style", "width: 45px;");
+
                     builder.AddAttribute(8, "HideSpinButtons", true);
                     builder.CloseComponent();
                 }
@@ -1291,7 +1291,7 @@
                     builder.AddAttribute(4, "Dense", true);
                     builder.AddAttribute(5, "Variant", Variant.Outlined);
                     builder.AddAttribute(6, "Size", Size.Small);
-                    builder.AddAttribute(7, "Style", "width: 40px;");
+
                     builder.AddAttribute(8, "HideSpinButtons", true);
                     builder.CloseComponent();
                 }
@@ -1307,7 +1307,7 @@
                     builder.AddAttribute(4, "Dense", true);
                     builder.AddAttribute(5, "Variant", Variant.Outlined);
                     builder.AddAttribute(6, "Size", Size.Small);
-                    builder.AddAttribute(7, "Style", "width: 40px;");
+
                     builder.AddAttribute(8, "HideSpinButtons", true);
                     builder.CloseComponent();
                 }
@@ -1323,7 +1323,7 @@
                     builder.AddAttribute(4, "Dense", true);
                     builder.AddAttribute(5, "Variant", Variant.Outlined);
                     builder.AddAttribute(6, "Size", Size.Small);
-                    builder.AddAttribute(7, "Style", "width: 40px;");
+
                     builder.AddAttribute(8, "HideSpinButtons", true);
                     builder.CloseComponent();
                 }
@@ -1339,7 +1339,7 @@
                     builder.AddAttribute(4, "Dense", true);
                     builder.AddAttribute(5, "Variant", Variant.Outlined);
                     builder.AddAttribute(6, "Size", Size.Small);
-                    builder.AddAttribute(7, "Style", "width: 40px;");
+
                     builder.AddAttribute(8, "HideSpinButtons", true);
                     builder.CloseComponent();
                 }
@@ -1383,7 +1383,7 @@
                     builder.AddAttribute(4, "Dense", true);
                     builder.AddAttribute(5, "Variant", Variant.Outlined);
                     builder.AddAttribute(6, "Size", Size.Small);
-                    builder.AddAttribute(7, "Style", "width: 50px;");
+
                     builder.AddAttribute(8, "HideSpinButtons", true);
                     builder.CloseComponent();
                 }
@@ -1399,7 +1399,7 @@
                     builder.AddAttribute(4, "Dense", true);
                     builder.AddAttribute(5, "Variant", Variant.Outlined);
                     builder.AddAttribute(6, "Size", Size.Small);
-                    builder.AddAttribute(7, "Style", "width: 50px;");
+
                     builder.AddAttribute(8, "HideSpinButtons", true);
                     builder.CloseComponent();
                 }
@@ -1415,7 +1415,7 @@
                     builder.AddAttribute(4, "Dense", true);
                     builder.AddAttribute(5, "Variant", Variant.Outlined);
                     builder.AddAttribute(6, "Size", Size.Small);
-                    builder.AddAttribute(7, "Style", "width: 40px;");
+
                     builder.AddAttribute(8, "HideSpinButtons", true);
                     builder.CloseComponent();
                 }
@@ -1433,7 +1433,7 @@
                     builder.AddAttribute(4, "Dense", true);
                     builder.AddAttribute(5, "Variant", Variant.Outlined);
                     builder.AddAttribute(6, "Size", Size.Small);
-                    builder.AddAttribute(7, "Style", "width:48px;");
+
                     builder.AddAttribute(8, "HideSpinButtons", true);
                     builder.CloseComponent();
                     builder.OpenComponent<MudIconButton>(0);
@@ -1456,7 +1456,7 @@
                     builder.AddAttribute(4, "Dense", true);
                     builder.AddAttribute(5, "Variant", Variant.Outlined);
                     builder.AddAttribute(6, "Size", Size.Small);
-                    builder.AddAttribute(7, "Style", "width: 50px;");
+
                     builder.AddAttribute(8, "HideSpinButtons", true);
                     builder.CloseComponent();
                 }

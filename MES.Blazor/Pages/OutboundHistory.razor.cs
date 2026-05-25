@@ -37,7 +37,10 @@ public partial class OutboundHistory
     private long? _editingRowId;
     private MudTable<OutboundRecordDto>? _table;
     private int _currentPage = 1;
+    private int _restoredPageIndex;
+    private bool _isFirstLoad = true;
     private int _pageSize = 10;
+    private string _lastResolvedWarehouseCode = string.Empty;
     private bool _allSelected;
     private bool allSelected
     {
@@ -137,6 +140,13 @@ public partial class OutboundHistory
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "outbounddate";
             var filtersJson = SerializeFilters();
+
+            // 恢复持久化的页码（MudTable 初始化时始终传 page=0）
+            if (_isFirstLoad)
+            {
+                state.Page = _restoredPageIndex;
+                _isFirstLoad = false;
+            }
 
             var query = new OutboundQueryParams
             {
@@ -492,6 +502,7 @@ public partial class OutboundHistory
             sortColumn = savedState.SortBy ?? "outbounddate";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
+            _restoredPageIndex = savedState.PageIndex;
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try
@@ -505,6 +516,10 @@ public partial class OutboundHistory
             }
         }
 
+        // 状态恢复后重新加载表格数据（首次渲染时 ServerData 可能已用默认值加载）
+        if (savedState != null && _table != null)
+            await _table.ReloadServerData();
+
         // 加载筛选上下文
         await LoadFilterContextsAsync();
     }
@@ -513,9 +528,14 @@ public partial class OutboundHistory
     {
         if (!string.IsNullOrEmpty(Code))
         {
+            var prevCode = _lastResolvedWarehouseCode;
             await ResolveWarehouse();
-            ClearEditState();
-            if (_table != null) await _table.ReloadServerData();
+            // 仅在仓库代码实际变更时重新加载数据（OnInitializedAsync 已完成首次加载）
+            if (!string.Equals(prevCode, _lastResolvedWarehouseCode, StringComparison.OrdinalIgnoreCase))
+            {
+                ClearEditState();
+                if (_table != null) await _table.ReloadServerData();
+            }
         }
     }
 
@@ -523,9 +543,16 @@ public partial class OutboundHistory
 
     private async Task ResolveWarehouse()
     {
-        _searchKeyword = string.Empty;
-        _columnFilters.Clear();
         var whCode = Code?.ToUpperInvariant() ?? "";
+
+        // 切换仓库时清空该仓库的筛选状态（首次加载不清空，由 OnInitializedAsync 恢复持久化状态）
+        if (!string.IsNullOrEmpty(_lastResolvedWarehouseCode) &&
+            !string.Equals(_lastResolvedWarehouseCode, whCode, StringComparison.OrdinalIgnoreCase))
+        {
+            _searchKeyword = string.Empty;
+            _columnFilters.Clear();
+        }
+        _lastResolvedWarehouseCode = whCode;
         var wh = _warehouses.FirstOrDefault(w => w.Code.Equals(whCode, StringComparison.OrdinalIgnoreCase));
         if (wh != null)
         {

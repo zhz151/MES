@@ -1295,32 +1295,62 @@ public class InventoryService : IInventoryService
 
     public async Task<Dictionary<string, List<string>>> GetInventoryFilterContextsAsync()
     {
-        var query = _context.InventoryBatches.AsNoTracking();
+        var results = await _context.InventoryBatches.AsNoTracking()
+            .Select(b => new
+            {
+                b.BatchNo,
+                b.InboundDate,
+                b.SourceOrderNo,
+                b.MaterialType,
+                b.SourceName,
+                b.SurfaceCondition,
+                b.LocationArea,
+                b.LocationRack,
+                b.HeatNo,
+                b.PlantGrade,
+                b.Specification,
+                b.Remark,
+                b.IsLinkedToWorkOrder,
+                b.WorkOrderNo,
+                b.SalesOrderNo,
+                b.ProductionBatchNo,
+                b.ActualSpecification,
+                b.DefectReason,
+                b.LiabilityType,
+                b.OriginalSupplier,
+                b.TagNo,
+                b.DefectRemark,
+                b.InboundSource,
+                b.LengthStatus
+            })
+            .ToListAsync();
 
         return new Dictionary<string, List<string>>
         {
-            ["BatchNo"] = await query.Select(b => b.BatchNo).Distinct().OrderBy(x => x).ToListAsync(),
-            ["InboundDate"] = await query.Select(b => b.InboundDate.Date.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToListAsync(),
-            ["SourceOrderNo"] = await query.Where(b => b.SourceOrderNo != null).Select(b => b.SourceOrderNo!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["MaterialType"] = await query.Select(b => b.MaterialType).Distinct().OrderBy(x => x).ToListAsync(),
-            ["SourceName"] = await query.Select(b => b.SourceName).Distinct().OrderBy(x => x).ToListAsync(),
-            ["SurfaceCondition"] = await query.Where(b => b.SurfaceCondition != null).Select(b => b.SurfaceCondition!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["LocationArea"] = await query.Where(b => b.LocationArea != null).Select(b => b.LocationArea!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["LocationRack"] = await query.Where(b => b.LocationRack != null).Select(b => b.LocationRack!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["HeatNo"] = await query.Where(b => b.HeatNo != null).Select(b => b.HeatNo!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["PlantGrade"] = await query.Select(b => b.PlantGrade).Distinct().OrderBy(x => x).ToListAsync(),
-            ["Specification"] = await query.Select(b => b.Specification).Distinct().OrderBy(x => x).ToListAsync(),
-            ["Remark"] = await query.Where(b => b.Remark != null).Select(b => b.Remark!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["IsLinkedToWorkOrder"] = await query.Select(b => b.IsLinkedToWorkOrder.ToString()).Distinct().OrderBy(x => x).ToListAsync(),
-            ["WorkOrderNo"] = await query.Where(b => b.WorkOrderNo != null).Select(b => b.WorkOrderNo!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["SalesOrderNo"] = await query.Where(b => b.SalesOrderNo != null).Select(b => b.SalesOrderNo!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["ProductionBatchNo"] = await query.Where(b => b.ProductionBatchNo != null).Select(b => b.ProductionBatchNo!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["ActualSpecification"] = await query.Where(b => b.ActualSpecification != null).Select(b => b.ActualSpecification!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["DefectReason"] = await query.Where(b => b.DefectReason != null).Select(b => b.DefectReason!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["LiabilityType"] = await query.Where(b => b.LiabilityType != null).Select(b => b.LiabilityType!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["OriginalSupplier"] = await query.Where(b => b.OriginalSupplier != null).Select(b => b.OriginalSupplier!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["TagNo"] = await query.Where(b => b.TagNo != null).Select(b => b.TagNo!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["DefectRemark"] = await query.Where(b => b.DefectRemark != null).Select(b => b.DefectRemark!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["BatchNo"] = results.Select(x => x.BatchNo).Distinct().OrderBy(x => x).ToList(),
+            ["InboundDate"] = results.Select(x => x.InboundDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["SourceOrderNo"] = results.Where(x => x.SourceOrderNo != null).Select(x => x.SourceOrderNo!).Distinct().OrderBy(x => x).ToList(),
+            ["MaterialType"] = results.Select(x => x.MaterialType).Distinct().OrderBy(x => x).ToList(),
+            ["SourceName"] = results.Select(x => x.SourceName).Distinct().OrderBy(x => x).ToList(),
+            ["SurfaceCondition"] = results.Where(x => x.SurfaceCondition != null).Select(x => x.SurfaceCondition!).Distinct().OrderBy(x => x).ToList(),
+            ["LocationArea"] = results.Where(x => x.LocationArea != null).Select(x => x.LocationArea!).Distinct().OrderBy(x => x).ToList(),
+            ["LocationRack"] = results.Where(x => x.LocationRack != null).Select(x => x.LocationRack!).Distinct().OrderBy(x => x).ToList(),
+            ["HeatNo"] = results.Where(x => x.HeatNo != null).Select(x => x.HeatNo!).Distinct().OrderBy(x => x).ToList(),
+            ["PlantGrade"] = results.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
+            ["Specification"] = results.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
+            ["Remark"] = results.Where(x => x.Remark != null).Select(x => x.Remark!).Distinct().OrderBy(x => x).ToList(),
+            ["IsLinkedToWorkOrder"] = results.Select(x => x.IsLinkedToWorkOrder.ToString()).Distinct().OrderBy(x => x).ToList(),
+            ["WorkOrderNo"] = results.Where(x => x.WorkOrderNo != null).Select(x => x.WorkOrderNo!).Distinct().OrderBy(x => x).ToList(),
+            ["SalesOrderNo"] = results.Where(x => x.SalesOrderNo != null).Select(x => x.SalesOrderNo!).Distinct().OrderBy(x => x).ToList(),
+            ["ProductionBatchNo"] = results.Where(x => x.ProductionBatchNo != null).Select(x => x.ProductionBatchNo!).Distinct().OrderBy(x => x).ToList(),
+            ["ActualSpecification"] = results.Where(x => x.ActualSpecification != null).Select(x => x.ActualSpecification!).Distinct().OrderBy(x => x).ToList(),
+            ["DefectReason"] = results.Where(x => x.DefectReason != null).Select(x => x.DefectReason!).Distinct().OrderBy(x => x).ToList(),
+            ["LiabilityType"] = results.Where(x => x.LiabilityType != null).Select(x => x.LiabilityType!).Distinct().OrderBy(x => x).ToList(),
+            ["OriginalSupplier"] = results.Where(x => x.OriginalSupplier != null).Select(x => x.OriginalSupplier!).Distinct().OrderBy(x => x).ToList(),
+            ["TagNo"] = results.Where(x => x.TagNo != null).Select(x => x.TagNo!).Distinct().OrderBy(x => x).ToList(),
+            ["DefectRemark"] = results.Where(x => x.DefectRemark != null).Select(x => x.DefectRemark!).Distinct().OrderBy(x => x).ToList(),
+            ["InboundSource"] = results.Select(x => x.InboundSource).Distinct().OrderBy(x => x).ToList(),
+            ["LengthStatus"] = results.Where(x => x.LengthStatus != null).Select(x => x.LengthStatus!).Distinct().OrderBy(x => x).ToList(),
         };
     }
 

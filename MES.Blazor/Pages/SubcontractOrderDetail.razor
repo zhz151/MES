@@ -192,6 +192,7 @@
         public string UnitWeightStr { get; set; } = string.Empty;
         public string RequiredQuantityStr { get; set; } = string.Empty;
         public string RequiredWeightStr { get; set; } = string.Empty;
+        public string InputMultipleStr { get; set; } = string.Empty;
         public string? ProcessStatusRemark { get; set; }
         public string? Remark { get; set; }
         public string? SourceWorkOrderNo { get; set; }
@@ -220,6 +221,7 @@
         public decimal? UnitWeight => decimal.TryParse(UnitWeightStr, out var v) ? v : null;
         public int? RequiredQuantity => int.TryParse(RequiredQuantityStr, out var v) ? v : null;
         public decimal? RequiredWeight => decimal.TryParse(RequiredWeightStr, out var v) ? v : null;
+        public int? InputMultiple => int.TryParse(InputMultipleStr, out var v) ? v : null;
         public decimal? ProcessUnitPrice => decimal.TryParse(UnitPriceStr, out var v) ? v : null;
         public decimal? ProcessTotalAmount => decimal.TryParse(TotalAmountStr, out var v) ? v : null;
     }
@@ -268,6 +270,7 @@
             new() { Key = "unitweight", Label = "单重", Visible = true },
             new() { Key = "requiredquantity", Label = "需求支数", Visible = true },
             new() { Key = "requiredweight", Label = "需求重量", Visible = true },
+            new() { Key = "inputmultiple", Label = "投料倍率", Visible = true },
             new() { Key = "processstatusremark", Label = "状态说明", Visible = true },
             new() { Key = "remark", Label = "备注", Visible = false },
             new() { Key = "sourceworkorderno", Label = "来源工单号", Visible = true },
@@ -392,6 +395,7 @@
             UnitWeightStr = i.UnitWeight?.ToString("G29") ?? "",
             RequiredQuantityStr = i.RequiredQuantity?.ToString() ?? "",
             RequiredWeightStr = i.RequiredWeight?.ToString("G29") ?? "",
+            InputMultipleStr = i.InputMultiple?.ToString() ?? "",
             ProcessStatusRemark = i.ProcessStatusRemark,
             Remark = i.Remark,
             SourceWorkOrderNo = i.SourceWorkOrderNo,
@@ -476,6 +480,7 @@
                     UnitWeight = i.UnitWeight,
                     RequiredQuantity = i.RequiredQuantity,
                     RequiredWeight = i.RequiredWeight,
+                    InputMultiple = i.InputMultiple,
                     ProcessStatusRemark = i.ProcessStatusRemark,
                     Remark = i.Remark,
                     SourceWorkOrderNo = i.SourceWorkOrderNo,
@@ -850,6 +855,19 @@
                     builder.CloseComponent();
                 }
                 else { builder.AddContent(0, item.RequiredWeight?.ToString("G29")); }
+                break;
+            case "inputmultiple":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", item.InputMultipleStr);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => item.InputMultipleStr = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, item.InputMultiple?.ToString() ?? "-"); }
                 break;
             case "processstatusremark":
                 if (_isEditMode)
