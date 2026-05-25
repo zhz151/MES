@@ -4,6 +4,7 @@ using MES.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MES.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260525175507_AddWorkOrderExecutionG11WarehousingFields")]
+    partial class AddWorkOrderExecutionG11WarehousingFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -4250,22 +4253,12 @@ namespace MES.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<int>("FlowIncompleteBatchCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
                     b.Property<decimal>("FlowOutputRatio")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(8,2)")
                         .HasDefaultValue(0m);
 
                     b.Property<int>("FlowStatus")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<int>("FlowTotalBatchCount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
@@ -4321,12 +4314,6 @@ namespace MES.Data.Migrations
                         .HasColumnType("decimal(18,3)")
                         .HasDefaultValue(0m);
 
-                    b.Property<DateTime?>("InspectionEndDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("InspectionStartDate")
-                        .HasColumnType("datetime2");
-
                     b.Property<DateTime?>("LastRefreshTime")
                         .HasColumnType("datetime2");
 
@@ -4364,6 +4351,16 @@ namespace MES.Data.Migrations
                         .HasDefaultValue(0m);
 
                     b.Property<int>("MainNoMaterialPlanStatus")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<decimal>("MainNoValidInputOutputRatio")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(8,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<int>("MainNoValidInputStatus")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
@@ -4471,11 +4468,6 @@ namespace MES.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<int>("ScheduleStage")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
                     b.Property<decimal>("ScrapRatio")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(8,2)")
@@ -4567,7 +4559,17 @@ namespace MES.Data.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<decimal>("ValidInputOutputRatio")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(8,2)")
+                        .HasDefaultValue(0m);
+
                     b.Property<int>("ValidInputQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("ValidInputStatus")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);

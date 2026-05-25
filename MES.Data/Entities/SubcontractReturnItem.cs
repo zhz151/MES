@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Data.Entities;
 
 /// <summary>
@@ -74,6 +76,28 @@ public class SubcontractReturnItem : BaseEntity
     /// 来源工单号
     /// </summary>
     public string? SourceWorkOrderNo { get; set; }
+
+    // ========== 回收执行数据（由 InventoryService/仓库进库数据计算） ==========
+
+    /// <summary>
+    /// 回收支数
+    /// </summary>
+    public int ReturnedQuantity { get; set; }
+
+    /// <summary>
+    /// 回收重量(kg)
+    /// </summary>
+    public decimal ReturnedWeight { get; set; }
+
+    /// <summary>
+    /// 加工状态
+    /// </summary>
+    public SubcontractProcessStatus ProcessStatus { get; set; } = SubcontractProcessStatus.Pending;
+
+    /// <summary>
+    /// 强制完成（true时状态固定为已完成，false时自动计算）
+    /// </summary>
+    public bool IsForceCompleted { get; set; }
 
     /// <summary>
     /// 导航属性

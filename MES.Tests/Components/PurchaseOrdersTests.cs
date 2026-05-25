@@ -99,26 +99,6 @@ public class PurchaseOrdersTests : TestBase
         cut.Markup.Should().Contain("已完成");
     }
 
-    [Fact]
-    public void StatusColumn_RendersCancelledAs已取消()
-    {
-        ConfigureListResponse(new List<PurchaseOrderDto>
-        {
-            new()
-            {
-                Id = 4, OrderNo = "PO-004", SupplierName = "测试供应商",
-                OrderDate = DateTime.Today, Status = PurchaseOrderStatus.Cancelled,
-                MaterialCategory = "管坯", Specification = "89×10",
-                Quantity = 100, Weight = 5000, RequiredDate = DateTime.Today.AddDays(30),
-                UnitWeight = 50, PlantGrade = "304", SupplierId = 1,
-                IsForceCompleted = false
-            }
-        });
-
-        var cut = Ctx.RenderComponent<PurchaseOrders>();
-        cut.Markup.Should().Contain("已取消");
-    }
-
     private void ConfigureListResponse(List<PurchaseOrderDto> items)
     {
         // 先配置初始空数据响应，避免首次 OnInitializedAsync 渲染时触发查询

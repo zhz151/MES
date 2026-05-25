@@ -248,7 +248,6 @@ public static class SubcontractOrderPrintHelper
         SubcontractOrderStatus.Sent => "已发出",
         SubcontractOrderStatus.PartialReturned => "部分收回",
         SubcontractOrderStatus.Completed => "已完成",
-        SubcontractOrderStatus.Cancelled => "已取消",
         _ => status.ToString()
     };
 

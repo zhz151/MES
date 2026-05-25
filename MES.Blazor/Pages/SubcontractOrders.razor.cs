@@ -79,7 +79,7 @@ public partial class SubcontractOrders
         new() { Key = "ReturnDeadline",      Label = "收回期限",     SortKey = "ReturnDeadline", FilterType = "date" },
         new() { Key = "SupplierName",        Label = "供应商",       SortKey = "SupplierName",        FilterType = "string" },
         new() { Key = "Status",              Label = "状态",         SortKey = "Status",              FilterType = "enum",
-            EnumOptions = new() { new("Sent", "已发出"), new("PartialReturned", "部分收回"), new("Completed", "已完成"), new("Cancelled", "已取消") } },
+            EnumOptions = new() { new("Sent", "已发出"), new("PartialReturned", "部分收回"), new("Completed", "已完成") } },
         new() { Key = "Returned",            Label = "已回收" },
     };
 
@@ -538,7 +538,7 @@ public partial class SubcontractOrders
 
     // ========== 辅助方法 ==========
 
-    private static Color GetStatusColor(SubcontractOrderStatus status) => status switch { SubcontractOrderStatus.Sent => Color.Info, SubcontractOrderStatus.PartialReturned => Color.Warning, SubcontractOrderStatus.Completed => Color.Success, SubcontractOrderStatus.Cancelled => Color.Default, _ => Color.Default };
+    private static Color GetStatusColor(SubcontractOrderStatus status) => status switch { SubcontractOrderStatus.Sent => Color.Info, SubcontractOrderStatus.PartialReturned => Color.Warning, SubcontractOrderStatus.Completed => Color.Success, _ => Color.Default };
     private static string GetStatusText(SubcontractOrderStatus status) => DisplayHelper.GetSubcontractOrderStatusText(status);
 
     private void NavigateToCreate() => Navigation.NavigateTo("/subcontract-orders/create");

@@ -179,7 +179,6 @@ public class EnumHelperTests
     [InlineData(PurchaseOrderStatus.Open, "未到货")]
     [InlineData(PurchaseOrderStatus.Partial, "部分到货")]
     [InlineData(PurchaseOrderStatus.Completed, "已完成")]
-    [InlineData(PurchaseOrderStatus.Cancelled, "已取消")]
     public void PurchaseOrderStatus_GetDisplayName(PurchaseOrderStatus value, string expected)
     {
         EnumHelper.GetDisplayName(value).Should().Be(expected);
@@ -189,7 +188,6 @@ public class EnumHelperTests
     [InlineData("未到货", PurchaseOrderStatus.Open)]
     [InlineData("部分到货", PurchaseOrderStatus.Partial)]
     [InlineData("已完成", PurchaseOrderStatus.Completed)]
-    [InlineData("已取消", PurchaseOrderStatus.Cancelled)]
     public void PurchaseOrderStatus_Parse_Chinese(string chinese, PurchaseOrderStatus expected)
     {
         EnumHelper.Parse<PurchaseOrderStatus>(chinese).Should().Be(expected);
@@ -199,7 +197,6 @@ public class EnumHelperTests
     [InlineData(SubcontractOrderStatus.Sent, "已发出未收回")]
     [InlineData(SubcontractOrderStatus.PartialReturned, "部分收回")]
     [InlineData(SubcontractOrderStatus.Completed, "已完成")]
-    [InlineData(SubcontractOrderStatus.Cancelled, "已取消")]
     public void SubcontractOrderStatus_GetDisplayName(SubcontractOrderStatus value, string expected)
     {
         EnumHelper.GetDisplayName(value).Should().Be(expected);

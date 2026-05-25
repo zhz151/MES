@@ -234,7 +234,11 @@ public class SubcontractOrderService : ISubcontractOrderService
                 Remark = r.Remark,
                 ProcessUnitPrice = r.ProcessUnitPrice,
                 ProcessTotalAmount = r.ProcessTotalAmount,
-                SourceWorkOrderNo = r.SourceWorkOrderNo
+                SourceWorkOrderNo = r.SourceWorkOrderNo,
+                ReturnedQuantity = r.ReturnedQuantity,
+                ReturnedWeight = r.ReturnedWeight,
+                ProcessStatus = r.ProcessStatus,
+                IsForceCompleted = r.IsForceCompleted
             };
 
             // 按每个 ReturnItem 各自的 SourceWorkOrderNo 填充 Wo* 字段
@@ -319,7 +323,12 @@ public class SubcontractOrderService : ISubcontractOrderService
                 ProcessStatusRemark = r.ProcessStatusRemark,
                 Remark = r.Remark,
                 ProcessUnitPrice = r.ProcessUnitPrice,
-                ProcessTotalAmount = r.ProcessTotalAmount
+                ProcessTotalAmount = r.ProcessTotalAmount,
+                SourceWorkOrderNo = r.SourceWorkOrderNo,
+                ReturnedQuantity = r.ReturnedQuantity,
+                ReturnedWeight = r.ReturnedWeight,
+                ProcessStatus = r.ProcessStatus,
+                IsForceCompleted = r.IsForceCompleted
             }).ToList();
 
             return dto;
@@ -337,8 +346,6 @@ public class SubcontractOrderService : ISubcontractOrderService
             .Include(s => s.ReturnItems)
             .FirstOrDefaultAsync(s => s.Id == id);
         if (entity == null) throw new BusinessException("委外单不存在");
-        if (entity.Status == SubcontractOrderStatus.Cancelled) throw new BusinessException("已取消的委外单无法编辑");
-
         if (entity.Status == SubcontractOrderStatus.Completed)
         {
             // 已完成：仅允许修改明细中的来源工单号
@@ -385,7 +392,8 @@ public class SubcontractOrderService : ISubcontractOrderService
                     Remark = item.Remark,
                     ProcessUnitPrice = item.ProcessUnitPrice,
                     ProcessTotalAmount = item.ProcessTotalAmount,
-                    SourceWorkOrderNo = item.SourceWorkOrderNo
+                    SourceWorkOrderNo = item.SourceWorkOrderNo,
+                    IsForceCompleted = item.IsForceCompleted
                 });
             }
         }
@@ -410,7 +418,11 @@ public class SubcontractOrderService : ISubcontractOrderService
             Remark = r.Remark,
             ProcessUnitPrice = r.ProcessUnitPrice,
             ProcessTotalAmount = r.ProcessTotalAmount,
-            SourceWorkOrderNo = r.SourceWorkOrderNo
+            SourceWorkOrderNo = r.SourceWorkOrderNo,
+            ReturnedQuantity = r.ReturnedQuantity,
+            ReturnedWeight = r.ReturnedWeight,
+            ProcessStatus = r.ProcessStatus,
+            IsForceCompleted = r.IsForceCompleted
         }).ToList();
 
         return dto;
@@ -419,6 +431,7 @@ public class SubcontractOrderService : ISubcontractOrderService
     public async Task SyncAllAsync()
     {
         var orders = await _context.SubcontractOrders
+            .Include(s => s.ReturnItems)
             .ToListAsync();
 
         var orderNos = orders.Select(o => o.OrderNo).ToList();
@@ -430,12 +443,20 @@ public class SubcontractOrderService : ISubcontractOrderService
         foreach (var order in orders)
         {
             var orderBatches = batches.Where(b => b.SourceOrderNo == order.OrderNo).ToList();
-            if (orderBatches.Count == 0) continue;
 
             order.InQuantity = orderBatches.Sum(b => b.InitialQuantity);
             order.InWeight = orderBatches.Sum(b => b.InitialWeight);
 
-            if (!order.IsForceCompleted)
+            // 同步每个 ReturnItem 的回收数据
+            foreach (var item in order.ReturnItems)
+            {
+                SyncReturnItemFromBatches(item, orderBatches);
+            }
+
+            // 主表强制完成 → 子表全部强制完成
+            if (order.IsForceCompleted)
+                ForceCompleteAllReturnItems(order);
+            else
                 RecalcSubcontractStatus(order);
         }
 
@@ -445,6 +466,7 @@ public class SubcontractOrderService : ISubcontractOrderService
     public async Task SyncSingleAsync(int id)
     {
         var order = await _context.SubcontractOrders
+            .Include(s => s.ReturnItems)
             .FirstOrDefaultAsync(s => s.Id == id);
         if (order == null) throw new BusinessException("委外单不存在");
 
@@ -456,26 +478,92 @@ public class SubcontractOrderService : ISubcontractOrderService
         order.InQuantity = batches.Sum(b => b.InitialQuantity);
         order.InWeight = batches.Sum(b => b.InitialWeight);
 
-        if (!order.IsForceCompleted)
+        // 同步每个 ReturnItem 的回收数据
+        foreach (var item in order.ReturnItems)
+        {
+            SyncReturnItemFromBatches(item, batches);
+        }
+
+        // 主表强制完成 → 子表全部强制完成
+        if (order.IsForceCompleted)
+            ForceCompleteAllReturnItems(order);
+        else if (!order.IsForceCompleted)
             RecalcSubcontractStatus(order);
 
         await _context.SaveChangesAsync();
     }
 
+    private static void SyncReturnItemFromBatches(SubcontractReturnItem item, List<InventoryBatch> batches)
+    {
+        if (string.IsNullOrEmpty(item.SourceWorkOrderNo)) return;
+
+        var itemBatches = batches
+            .Where(b => b.WorkOrderNo == item.SourceWorkOrderNo)
+            .ToList();
+
+        item.ReturnedQuantity = itemBatches.Sum(b => b.InitialQuantity);
+        item.ReturnedWeight = itemBatches.Sum(b => b.InitialWeight);
+
+        if (!item.IsForceCompleted)
+            RecalcReturnItemStatus(item);
+    }
+
+    private static void RecalcReturnItemStatus(SubcontractReturnItem item)
+    {
+        if (item.ReturnedQuantity <= 0 && item.ReturnedWeight <= 0)
+        {
+            item.ProcessStatus = SubcontractProcessStatus.Pending;
+        }
+        else if (item.RequiredQuantity.HasValue && item.ReturnedQuantity >= item.RequiredQuantity.Value)
+        {
+            item.ProcessStatus = SubcontractProcessStatus.Completed;
+        }
+        else if (item.RequiredWeight.HasValue && item.ReturnedWeight >= item.RequiredWeight.Value)
+        {
+            item.ProcessStatus = SubcontractProcessStatus.Completed;
+        }
+        else
+        {
+            item.ProcessStatus = SubcontractProcessStatus.PartialReturned;
+        }
+    }
+
     public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
     {
         var entity = await _context.SubcontractOrders
+            .Include(s => s.ReturnItems)
             .FirstOrDefaultAsync(s => s.Id == id);
         if (entity == null) throw new BusinessException("委外单不存在");
 
         entity.IsForceCompleted = request.IsForceCompleted;
 
         if (entity.IsForceCompleted)
+        {
             entity.Status = SubcontractOrderStatus.Completed;
+            // 级联：主表强制完成 → 子表全部强制完成
+            ForceCompleteAllReturnItems(entity);
+        }
         else
+        {
             RecalcSubcontractStatus(entity);
+            // 取消级联：每个子表按实际回收数据重新计算
+            foreach (var item in entity.ReturnItems)
+            {
+                item.IsForceCompleted = false;
+                RecalcReturnItemStatus(item);
+            }
+        }
 
         await _context.SaveChangesAsync();
+    }
+
+    private static void ForceCompleteAllReturnItems(SubcontractOrder order)
+    {
+        foreach (var item in order.ReturnItems)
+        {
+            item.IsForceCompleted = true;
+            item.ProcessStatus = SubcontractProcessStatus.Completed;
+        }
     }
 
     public async Task DeleteAsync(int id)
@@ -484,7 +572,6 @@ public class SubcontractOrderService : ISubcontractOrderService
             .FirstOrDefaultAsync(s => s.Id == id);
         if (entity == null) throw new BusinessException("委外单不存在");
         if (entity.Status == SubcontractOrderStatus.Completed) throw new BusinessException("已完成的委外单无法删除");
-        if (entity.Status == SubcontractOrderStatus.Cancelled) throw new BusinessException("该委外单已取消");
 
         _context.SubcontractOrders.Remove(entity);
         await _context.SaveChangesAsync();
@@ -657,7 +744,11 @@ public class SubcontractOrderService : ISubcontractOrderService
                     Remark = r.Remark,
                     ProcessUnitPrice = r.ProcessUnitPrice,
                     ProcessTotalAmount = r.ProcessTotalAmount,
-                    SourceWorkOrderNo = r.SourceWorkOrderNo
+                    SourceWorkOrderNo = r.SourceWorkOrderNo,
+                    ReturnedQuantity = r.ReturnedQuantity,
+                    ReturnedWeight = r.ReturnedWeight,
+                    ProcessStatus = r.ProcessStatus,
+                    IsForceCompleted = r.IsForceCompleted
                 };
                 if (r.SourceWorkOrderNo != null && workOrders.TryGetValue(r.SourceWorkOrderNo, out var wo))
                     FillWorkOrderFields(itemDto, wo);

@@ -297,11 +297,11 @@ public class PurchaseOrderServiceTests : TestBase
     }
 
     [Fact]
-    public async Task UpdateAsync_已取消_抛出BusinessException()
+    public async Task UpdateAsync_Completed_允许编辑()
     {
         var ctx = CreateDbContext();
         var sid = await SeedSupplierAsync(ctx);
-        var order = await SeedOrderAsync(ctx, sid, status: PurchaseOrderStatus.Cancelled);
+        var order = await SeedOrderAsync(ctx, sid, status: PurchaseOrderStatus.Completed);
         var svc = CreateService(ctx);
 
         var act = () => svc.UpdateAsync(order.Id, new UpdatePurchaseOrderRequest
@@ -315,7 +315,8 @@ public class PurchaseOrderServiceTests : TestBase
             RequiredDate = DateTime.Today.AddDays(30)
         });
 
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("*已取消*无法编辑*");
+        // Completed 订单允许编辑，不会抛出异常
+        await act.Should().NotThrowAsync();
     }
 
     // ========== SyncAllAsync / SyncSingleAsync ==========
@@ -448,18 +449,6 @@ public class PurchaseOrderServiceTests : TestBase
 
         var deleted = await ctx.PurchaseOrders.FindAsync(order.Id);
         deleted.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task DeleteAsync_已取消_抛出BusinessException()
-    {
-        var ctx = CreateDbContext();
-        var sid = await SeedSupplierAsync(ctx);
-        var order = await SeedOrderAsync(ctx, sid, status: PurchaseOrderStatus.Cancelled);
-        var svc = CreateService(ctx);
-
-        var act = () => svc.DeleteAsync(order.Id);
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("*已取消*");
     }
 
     [Fact]

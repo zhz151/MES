@@ -199,6 +199,12 @@
         public string UnitPriceStr { get; set; } = string.Empty;
         public string TotalAmountStr { get; set; } = string.Empty;
 
+        // ========== 回收执行数据（只读展示，由即时更新同步） ==========
+        public int ReturnedQuantity { get; set; }
+        public decimal ReturnedWeight { get; set; }
+        public SubcontractProcessStatus ProcessStatus { get; set; }
+        public bool IsForceCompleted { get; set; }
+
         // Wo* 字段（只读展示，每个 Sequence 各自关联）
         public string? WoSalesOrderNo { get; set; }
         public string? WoProductionMainNo { get; set; }
@@ -272,6 +278,11 @@
             new() { Key = "requiredweight", Label = "需求重量", Visible = true },
             new() { Key = "inputmultiple", Label = "投料倍率", Visible = true },
             new() { Key = "processstatusremark", Label = "状态说明", Visible = true },
+            // 回收执行数据（只读）
+            new() { Key = "returnedquantity", Label = "回收支数", Visible = true },
+            new() { Key = "returnedweight", Label = "回收重量", Visible = true },
+            new() { Key = "processstatus", Label = "加工状态", Visible = true },
+            new() { Key = "isforcecompleted", Label = "强制完成", Visible = true },
             new() { Key = "remark", Label = "备注", Visible = false },
             new() { Key = "sourceworkorderno", Label = "来源工单号", Visible = true },
             // Wo* 字段（来源工单号后面）
@@ -401,6 +412,11 @@
             SourceWorkOrderNo = i.SourceWorkOrderNo,
             UnitPriceStr = i.ProcessUnitPrice?.ToString("G29") ?? "",
             TotalAmountStr = i.ProcessTotalAmount?.ToString("G29") ?? "",
+            // 回收执行数据
+            ReturnedQuantity = i.ReturnedQuantity,
+            ReturnedWeight = i.ReturnedWeight,
+            ProcessStatus = i.ProcessStatus,
+            IsForceCompleted = i.IsForceCompleted,
             // Wo* 字段（每个 Sequence 各自关联）
             WoSalesOrderNo = i.WoSalesOrderNo,
             WoProductionMainNo = i.WoProductionMainNo,
@@ -485,7 +501,8 @@
                     Remark = i.Remark,
                     SourceWorkOrderNo = i.SourceWorkOrderNo,
                     ProcessUnitPrice = i.ProcessUnitPrice,
-                    ProcessTotalAmount = i.ProcessTotalAmount
+                    ProcessTotalAmount = i.ProcessTotalAmount,
+                    IsForceCompleted = i.IsForceCompleted
                 }).ToList()
             };
 
@@ -881,6 +898,31 @@
                     builder.CloseComponent();
                 }
                 else { builder.AddContent(0, item.ProcessStatusRemark); }
+                break;
+            case "returnedquantity":
+                builder.AddContent(0, item.ReturnedQuantity > 0 ? item.ReturnedQuantity.ToString() : "-");
+                break;
+            case "returnedweight":
+                builder.AddContent(0, item.ReturnedWeight > 0 ? Math.Round(item.ReturnedWeight).ToString("F0") : "-");
+                break;
+            case "processstatus":
+                builder.AddContent(0, DisplayHelper.GetSubcontractProcessStatusText(item.ProcessStatus));
+                if (item.IsForceCompleted) builder.AddContent(1, " (强制)");
+                break;
+            case "isforcecompleted":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudCheckBox<bool>>(0);
+                    builder.AddAttribute(1, "Value", item.IsForceCompleted);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<bool>(this, v => item.IsForceCompleted = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Color", Color.Success);
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, item.IsForceCompleted ? "是" : "否");
+                }
                 break;
             case "remark":
                 if (_isEditMode)

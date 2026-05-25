@@ -40,55 +40,167 @@ public partial class WorkOrderExecution
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
-    private static List<ColumnDef> GetAllColumnDefs() => new()
+    private static List<ColumnDef> GetAllColumnDefs()
     {
-        new() { Key = "WorkOrderNo",             Label = "工单号",          SortKey = "WorkOrderNo",             FilterType = "string" },
-        new() { Key = "Salesman",                Label = "业务员",          SortKey = "Salesman",                FilterType = "string" },
-        new() { Key = "CustomerName",            Label = "往来单位",        SortKey = "CustomerName",            FilterType = "string" },
-        new() { Key = "SignDate",                Label = "订单日期",        SortKey = "SignDate", FilterType = "date" },
-        new() { Key = "DeliveryDate",            Label = "交货日期",        SortKey = "DeliveryDate", FilterType = "date" },
-        new() { Key = "DelayPenalty",            Label = "延期罚款",        SortKey = "DelayPenalty",            FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否" },
-        new() { Key = "SettlementMethod",        Label = "结算方式",        SortKey = "SettlementMethod",        FilterType = "string", Visible = false },
-        new() { Key = "SalesOrderNo",            Label = "订单号",          SortKey = "SalesOrderNo",            FilterType = "string" },
-        new() { Key = "ProductionMainNo",        Label = "主号",            SortKey = "ProductionMainNo",        FilterType = "string" },
-        new() { Key = "ProductionSubNo",         Label = "次号",            SortKey = "ProductionSubNo",         FilterType = "string", Visible = false },
-        new() { Key = "MaterialName",            Label = "物料名称",        SortKey = "MaterialName",            FilterType = "string" },
-        new() { Key = "DeliveryState",           Label = "交货状态",        SortKey = "DeliveryState",           FilterType = "string", Visible = false },
-        new() { Key = "PlantGrade",              Label = "工厂牌号",        SortKey = "PlantGrade",              FilterType = "string" },
-        new() { Key = "Specification",           Label = "规格",            SortKey = "Specification",           FilterType = "string" },
-        new() { Key = "LengthStatus",            Label = "长度状态",        SortKey = "LengthStatus",            FilterType = "string", Visible = false },
-        new() { Key = "MinLength",               Label = "最小长度",        SortKey = "MinLength", Visible = false },
-        new() { Key = "MaxLength",               Label = "最大长度",        SortKey = "MaxLength", Visible = false },
-        new() { Key = "TotalItemCount",          Label = "含项次数",        SortKey = "TotalItemCount", Visible = false },
-        new() { Key = "TotalQuantity",           Label = "总支数",          SortKey = "TotalQuantity", Visible = false },
-        new() { Key = "TotalMeters",             Label = "总米数",          SortKey = "TotalMeters", Visible = false },
-        new() { Key = "TotalWeight",             Label = "总重量",          SortKey = "TotalWeight", Visible = false },
-        new() { Key = "LatestPlanDate",          Label = "计划截止日",      SortKey = "LatestPlanDate", FilterType = "date" },
-        new() { Key = "MaterialPlanRate",        Label = "满足率(%)",      SortKey = "MaterialPlanRate" },
-        new() { Key = "MaterialPlanStatus",      Label = "用料计划状态" },
-        new() { Key = "MainNoMaterialPlanRate",  Label = "主号满足率(%)",   SortKey = "MainNoMaterialPlanRate", Visible = false },
-        new() { Key = "MainNoMaterialPlanStatus",Label = "主号计划状态", Visible = false },
-        new() { Key = "InputStartDate",          Label = "投料起始日",      SortKey = "InputStartDate", FilterType = "date" },
-        new() { Key = "InputEndDate",            Label = "投料截止日",      SortKey = "InputEndDate", FilterType = "date" },
-        new() { Key = "TotalBatchCount",         Label = "批次数",         SortKey = "TotalBatchCount" },
-        new() { Key = "InputQuantity",           Label = "投料总支数",      SortKey = "InputQuantity", Visible = false },
-        new() { Key = "InputWeight",             Label = "投料总重量",      SortKey = "InputWeight", Visible = false },
-        new() { Key = "TheoreticalOutputQty",    Label = "理论成品支数",   SortKey = "TheoreticalOutputQty", Visible = false },
-        new() { Key = "TheoreticalOutputWeight", Label = "理论成品重量",   SortKey = "TheoreticalOutputWeight", Visible = false },
-        new() { Key = "InputOutputRatio",        Label = "投料成品比",     SortKey = "InputOutputRatio" },
-        new() { Key = "InputStatus",             Label = "投料状态" },
-        new() { Key = "MainNoInputRatio",        Label = "主号投料比",     SortKey = "MainNoInputRatio", Visible = false },
-        new() { Key = "MainNoInputStatus",       Label = "主号投料状态", Visible = false },
-        new() { Key = "ValidBatchCount",         Label = "有效批次数",     SortKey = "ValidBatchCount" },
-        new() { Key = "ValidInputQuantity",      Label = "有效投料总支数",  SortKey = "ValidInputQuantity", Visible = false },
-        new() { Key = "ValidInputWeight",        Label = "有效投料总重量",  SortKey = "ValidInputWeight", Visible = false },
-        new() { Key = "ValidOutputQty",          Label = "有效成品支数",   SortKey = "ValidOutputQty", Visible = false },
-        new() { Key = "ValidOutputWeight",       Label = "有效成品重量",   SortKey = "ValidOutputWeight", Visible = false },
-        new() { Key = "ValidInputOutputRatio",   Label = "有效成品比",     SortKey = "ValidInputOutputRatio" },
-        new() { Key = "ValidInputStatus",        Label = "有效投料状态" },
-        new() { Key = "MainNoValidInputRatio",   Label = "有效主号投料比", SortKey = "MainNoValidInputRatio", Visible = false },
-        new() { Key = "MainNoValidInputStatus",  Label = "有效主号状态",   Visible = false },
-    };
+        // G1: 工单基础数据
+        var g1 = new List<ColumnDef>
+        {
+            new() { Key = "WorkOrderNo",             Label = "工单号",          SortKey = "WorkOrderNo",             FilterType = "string", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "Salesman",                Label = "业务员",          SortKey = "Salesman",                FilterType = "string", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "CustomerName",            Label = "往来单位",        SortKey = "CustomerName",            FilterType = "string", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "SignDate",                Label = "订单日期",        SortKey = "SignDate",                FilterType = "date",   GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "DeliveryDate",            Label = "交货日期",        SortKey = "DeliveryDate",            FilterType = "date",   GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "DelayPenalty",            Label = "延期罚款",        SortKey = "DelayPenalty",            FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "SettlementMethod",        Label = "结算方式",        SortKey = "SettlementMethod",        FilterType = "string", Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "SalesOrderNo",            Label = "订单号",          SortKey = "SalesOrderNo",            FilterType = "string", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "ProductionMainNo",        Label = "主号",            SortKey = "ProductionMainNo",        FilterType = "string", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "ProductionSubNo",         Label = "次号",            SortKey = "ProductionSubNo",         FilterType = "string", Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "MaterialName",            Label = "物料名称",        SortKey = "MaterialName",            FilterType = "string", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "DeliveryState",           Label = "交货状态",        SortKey = "DeliveryState",           FilterType = "string", Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "PlantGrade",              Label = "工厂牌号",        SortKey = "PlantGrade",              FilterType = "string", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "Specification",           Label = "规格",            SortKey = "Specification",           FilterType = "string", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "LengthStatus",            Label = "长度状态",        SortKey = "LengthStatus",            FilterType = "string", Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "MinLength",               Label = "最小长度",        SortKey = "MinLength",               Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "MaxLength",               Label = "最大长度",        SortKey = "MaxLength",               Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "TotalItemCount",          Label = "含项次数",        SortKey = "TotalItemCount",          Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "TotalQuantity",           Label = "总支数",          SortKey = "TotalQuantity",           Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "TotalMeters",             Label = "总米数",          SortKey = "TotalMeters",             Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "TotalWeight",             Label = "总重量",          SortKey = "TotalWeight",             Visible = false, GroupKey = 1, GroupName = "基础数据" },
+        };
+
+        // G2: 用料计划
+        var g2 = new List<ColumnDef>
+        {
+            new() { Key = "LatestPlanDate",          Label = "计划截止日",      SortKey = "LatestPlanDate",          FilterType = "date",   GroupKey = 2, GroupName = "用料计划" },
+            new() { Key = "MaterialPlanRate",        Label = "满足率(%)",      SortKey = "MaterialPlanRate",                               GroupKey = 2, GroupName = "用料计划" },
+            new() { Key = "MaterialPlanStatus",      Label = "用料计划状态",                                                                               GroupKey = 2, GroupName = "用料计划" },
+            new() { Key = "MainNoMaterialPlanRate",  Label = "主号满足率(%)",   SortKey = "MainNoMaterialPlanRate",  Visible = false,       GroupKey = 2, GroupName = "用料计划" },
+            new() { Key = "MainNoMaterialPlanStatus",Label = "主号计划状态",    Visible = false,                                                   GroupKey = 2, GroupName = "用料计划" },
+        };
+
+        // G5: 物料执行实时信息
+        var g5 = new List<ColumnDef>
+        {
+            new() { Key = "PendingRoughTubeQty",        Label = "待回荒管支",     SortKey = "PendingRoughTubeQty",                               GroupKey = 5, GroupName = "物料执行" },
+            new() { Key = "PendingRoughTubeWeight",     Label = "待回荒管重",     SortKey = "PendingRoughTubeWeight",                            GroupKey = 5, GroupName = "物料执行" },
+            new() { Key = "PendingOutsourceFinishQty",  Label = "待回外购成支",   SortKey = "PendingOutsourceFinishQty",                         GroupKey = 5, GroupName = "物料执行" },
+            new() { Key = "PendingOutsourceFinishWeight",Label = "待回外购成重",  SortKey = "PendingOutsourceFinishWeight",                      GroupKey = 5, GroupName = "物料执行" },
+            new() { Key = "TheoreticalFinishQty",        Label = "理论成品支",    SortKey = "TheoreticalFinishQty",                              GroupKey = 5, GroupName = "物料执行" },
+            new() { Key = "TheoreticalFinishWeight",     Label = "理论成品重",    SortKey = "TheoreticalFinishWeight",                           GroupKey = 5, GroupName = "物料执行" },
+        };
+
+        // G6: 返整执行数据
+        var g6 = new List<ColumnDef>
+        {
+            new() { Key = "ReworkInputEndDate",          Label = "返整投料截止日", SortKey = "ReworkInputEndDate",      FilterType = "date",   GroupKey = 6, GroupName = "返整执行" },
+            new() { Key = "ReworkBatchCount",            Label = "返整批次数",     SortKey = "ReworkBatchCount",                               GroupKey = 6, GroupName = "返整执行" },
+            new() { Key = "ReworkInputQuantity",         Label = "返整投料支数",   SortKey = "ReworkInputQuantity",    Visible = false,       GroupKey = 6, GroupName = "返整执行" },
+            new() { Key = "ReworkInputWeight",           Label = "返整投料重量",   SortKey = "ReworkInputWeight",      Visible = false,       GroupKey = 6, GroupName = "返整执行" },
+            new() { Key = "ReworkTheoreticalOutputQty",  Label = "返整理论成品支", SortKey = "ReworkTheoreticalOutputQty",                      GroupKey = 6, GroupName = "返整执行" },
+            new() { Key = "ReworkTheoreticalOutputWeight",Label = "返整理论成品重",SortKey = "ReworkTheoreticalOutputWeight",                   GroupKey = 6, GroupName = "返整执行" },
+        };
+
+        // G3: 原始投料
+        var g3 = new List<ColumnDef>
+        {
+            new() { Key = "InputStartDate",          Label = "原始投料起始日",  SortKey = "InputStartDate",          FilterType = "date",   GroupKey = 3, GroupName = "原始投料" },
+            new() { Key = "InputEndDate",            Label = "原始投料截止日",  SortKey = "InputEndDate",            FilterType = "date",   GroupKey = 3, GroupName = "原始投料" },
+            new() { Key = "TotalBatchCount",         Label = "原始批次数",     SortKey = "TotalBatchCount",                                 GroupKey = 3, GroupName = "原始投料" },
+            new() { Key = "InputQuantity",           Label = "原始总支数",      SortKey = "InputQuantity",           Visible = false,       GroupKey = 3, GroupName = "原始投料" },
+            new() { Key = "InputWeight",             Label = "原始总重量",      SortKey = "InputWeight",             Visible = false,       GroupKey = 3, GroupName = "原始投料" },
+            new() { Key = "TheoreticalOutputQty",    Label = "原始理论成品支",   SortKey = "TheoreticalOutputQty",    Visible = false,       GroupKey = 3, GroupName = "原始投料" },
+            new() { Key = "TheoreticalOutputWeight", Label = "原始理论成品重",   SortKey = "TheoreticalOutputWeight", Visible = false,       GroupKey = 3, GroupName = "原始投料" },
+            new() { Key = "InputOutputRatio",        Label = "原始成品比",     SortKey = "InputOutputRatio",                                GroupKey = 3, GroupName = "原始投料" },
+            new() { Key = "InputStatus",             Label = "原始投料状态",                                                                              GroupKey = 3, GroupName = "原始投料" },
+            new() { Key = "MainNoInputRatio",        Label = "原始主号比",     SortKey = "MainNoInputRatio",        Visible = false,       GroupKey = 3, GroupName = "原始投料" },
+            new() { Key = "MainNoInputStatus",       Label = "原始主号状态",    Visible = false,                                                   GroupKey = 3, GroupName = "原始投料" },
+        };
+
+        // G4: 合格流转
+        var g4 = new List<ColumnDef>
+        {
+            new() { Key = "ValidBatchCount",         Label = "有效批次数",     SortKey = "ValidBatchCount",                                 GroupKey = 4, GroupName = "合格流转" },
+            new() { Key = "ValidInputQuantity",      Label = "有效流转总支数",  SortKey = "ValidInputQuantity",      Visible = false,       GroupKey = 4, GroupName = "合格流转" },
+            new() { Key = "ValidInputWeight",        Label = "有效流转总重量",  SortKey = "ValidInputWeight",        Visible = false,       GroupKey = 4, GroupName = "合格流转" },
+            new() { Key = "ValidOutputQty",          Label = "流转成品支数",   SortKey = "ValidOutputQty",          Visible = false,       GroupKey = 4, GroupName = "合格流转" },
+            new() { Key = "ValidOutputWeight",       Label = "流转成品重量",   SortKey = "ValidOutputWeight",       Visible = false,       GroupKey = 4, GroupName = "合格流转" },
+        };
+
+        // G7: 有效流转
+        var g7 = new List<ColumnDef>
+        {
+            new() { Key = "FlowOutputRatio",        Label = "流转成品比",     SortKey = "FlowOutputRatio",                                GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "FlowStatus",             Label = "有效流转状态",                                                                              GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "MainNoFlowRatio",        Label = "有效主号流转比", SortKey = "MainNoFlowOutputRatio",         Visible = false,       GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "MainNoFlowStatus",       Label = "有效主号状态",   Visible = false,                                                   GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "FlowTotalBatchCount",    Label = "总批次数",      SortKey = "FlowTotalBatchCount",                                 GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "FlowIncompleteBatchCount",Label = "未完成批数",    SortKey = "FlowIncompleteBatchCount",                            GroupKey = 7, GroupName = "有效流转" },
+        };
+
+        // G8: 过程不合格
+        var g8 = new List<ColumnDef>
+        {
+            new() { Key = "DefectiveRawQty",         Label = "原料不合格支数", SortKey = "DefectiveRawQty",                                 GroupKey = 8, GroupName = "过程不合格" },
+            new() { Key = "DefectiveRawWeight",      Label = "原料不合格重量", SortKey = "DefectiveRawWeight",      Visible = false,       GroupKey = 8, GroupName = "过程不合格" },
+            new() { Key = "DefectiveOutputQty",      Label = "影响成品支数",   SortKey = "DefectiveOutputQty",                              GroupKey = 8, GroupName = "过程不合格" },
+            new() { Key = "DefectiveOutputWeight",   Label = "影响成品重量",   SortKey = "DefectiveOutputWeight",   Visible = false,       GroupKey = 8, GroupName = "过程不合格" },
+            new() { Key = "DefectiveRatio",          Label = "不合格占比",     SortKey = "DefectiveRatio",                                   GroupKey = 8, GroupName = "过程不合格" },
+        };
+
+        // G9: 成检不合格
+        var g9 = new List<ColumnDef>
+        {
+            new() { Key = "InspectionStartDate",     Label = "成检起始日",    SortKey = "InspectionStartDate",    FilterType = "date",  GroupKey = 9, GroupName = "成检不合格" },
+            new() { Key = "InspectionEndDate",       Label = "成检截止日",    SortKey = "InspectionEndDate",      FilterType = "date",  GroupKey = 9, GroupName = "成检不合格" },
+            new() { Key = "InspectionDefectQty",     Label = "成检不合格支数", SortKey = "InspectionDefectQty",                             GroupKey = 9, GroupName = "成检不合格" },
+            new() { Key = "InspectionDefectWeight",  Label = "成检不合格重量", SortKey = "InspectionDefectWeight",  Visible = false,       GroupKey = 9, GroupName = "成检不合格" },
+            new() { Key = "InspectionDefectRatio",   Label = "成检不合格占比", SortKey = "InspectionDefectRatio",                          GroupKey = 9, GroupName = "成检不合格" },
+        };
+
+        // G10: 汇总不合格
+        var g10 = new List<ColumnDef>
+        {
+            new() { Key = "GeneralDefectWeight",     Label = "一般问题重",     SortKey = "GeneralDefectWeight",                             GroupKey = 10, GroupName = "汇总不合格" },
+            new() { Key = "GeneralDefectRatio",      Label = "一般问题占比",   SortKey = "GeneralDefectRatio",                              GroupKey = 10, GroupName = "汇总不合格" },
+            new() { Key = "SeriousDefectWeight",     Label = "严重问题重",     SortKey = "SeriousDefectWeight",    Visible = false,       GroupKey = 10, GroupName = "汇总不合格" },
+            new() { Key = "SeriousDefectRatio",      Label = "严重问题占比",   SortKey = "SeriousDefectRatio",                              GroupKey = 10, GroupName = "汇总不合格" },
+            new() { Key = "ScrapWeight",             Label = "成检报废重量",   SortKey = "ScrapWeight",            Visible = false,       GroupKey = 10, GroupName = "汇总不合格" },
+            new() { Key = "ScrapRatio",              Label = "成检报废占比",   SortKey = "ScrapRatio",                                       GroupKey = 10, GroupName = "汇总不合格" },
+        };
+
+        // G11: 成品入库
+        var g11 = new List<ColumnDef>
+        {
+            new() { Key = "WarehousingStartDate",    Label = "入库起始日",    SortKey = "WarehousingStartDate",    FilterType = "date",  GroupKey = 11, GroupName = "成品入库" },
+            new() { Key = "WarehousingEndDate",      Label = "入库截止日",    SortKey = "WarehousingEndDate",      FilterType = "date",  GroupKey = 11, GroupName = "成品入库" },
+            new() { Key = "WarehousingTotalQty",     Label = "入库总支数",    SortKey = "WarehousingTotalQty",                           GroupKey = 11, GroupName = "成品入库" },
+            new() { Key = "WarehousingTotalWeight",  Label = "入库总重量",    SortKey = "WarehousingTotalWeight",                        GroupKey = 11, GroupName = "成品入库" },
+            new() { Key = "WoWarehousingStatus",     Label = "工单入库状态",                                                    GroupKey = 11, GroupName = "成品入库" },
+            new() { Key = "MainNoWarehousingStatus", Label = "主号入库状态",  Visible = false,                                          GroupKey = 11, GroupName = "成品入库" },
+            new() { Key = "OrderWarehousingStatus",  Label = "订单入库状态",  Visible = false,                                          GroupKey = 11, GroupName = "成品入库" },
+        };
+
+        // G12: 实时关注
+        var g12 = new List<ColumnDef>
+        {
+            new() { Key = "ScheduleStage",           Label = "关注状态",                                                                                 GroupKey = 12, GroupName = "实时关注" },
+        };
+
+        var all = new List<ColumnDef>();
+        all.AddRange(g1);
+        all.AddRange(g2);
+        all.AddRange(g5);
+        all.AddRange(g3);
+        all.AddRange(g4);
+        all.AddRange(g6);
+        all.AddRange(g7);
+        all.AddRange(g8);
+        all.AddRange(g9);
+        all.AddRange(g10);
+        all.AddRange(g11);
+        all.AddRange(g12);
+        return all;
+    }
 
     // ========== 服务端数据加载 ==========
 
@@ -395,6 +507,7 @@ public partial class WorkOrderExecution
             if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#workorder-execution-table"))
                 _isArrowNavSetup = false;
         }
+
     }
 
     // ========== 单元格渲染 ==========
@@ -489,6 +602,62 @@ public partial class WorkOrderExecution
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.MainNoMaterialPlanStatusText)));
                 builder.CloseComponent();
                 break;
+            case "PendingRoughTubeQty":
+                builder.AddContent(0, item.PendingRoughTubeQty > 0 ? item.PendingRoughTubeQty.ToString() : "-");
+                break;
+            case "PendingRoughTubeWeight":
+                builder.AddContent(0, item.PendingRoughTubeWeight > 0 ? Math.Round(item.PendingRoughTubeWeight).ToString("F0") : "-");
+                break;
+            case "PendingOutsourceFinishQty":
+                builder.AddContent(0, item.PendingOutsourceFinishQty > 0 ? item.PendingOutsourceFinishQty.ToString() : "-");
+                break;
+            case "PendingOutsourceFinishWeight":
+                builder.AddContent(0, item.PendingOutsourceFinishWeight > 0 ? Math.Round(item.PendingOutsourceFinishWeight).ToString("F0") : "-");
+                break;
+            case "TheoreticalFinishQty":
+                builder.AddContent(0, item.TheoreticalFinishQty > 0 ? item.TheoreticalFinishQty.ToString("G29") : "-");
+                break;
+            case "TheoreticalFinishWeight":
+                builder.AddContent(0, item.TheoreticalFinishWeight > 0 ? Math.Round(item.TheoreticalFinishWeight).ToString("F0") : "-");
+                break;
+            case "ReworkInputEndDate":
+                builder.AddContent(0, item.ReworkInputEndDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "ReworkBatchCount":
+                builder.AddContent(0, item.ReworkBatchCount);
+                break;
+            case "ReworkInputQuantity":
+                builder.AddContent(0, item.ReworkInputQuantity);
+                break;
+            case "ReworkInputWeight":
+                builder.AddContent(0, Math.Round(item.ReworkInputWeight).ToString("F0"));
+                break;
+            case "ReworkTheoreticalOutputQty":
+                builder.AddContent(0, item.ReworkTheoreticalOutputQty.ToString("G29"));
+                break;
+            case "ReworkTheoreticalOutputWeight":
+                builder.AddContent(0, Math.Round(item.ReworkTheoreticalOutputWeight).ToString("F0"));
+                break;
+            case "FlowOutputRatio":
+                builder.AddContent(0, item.FlowOutputRatio > 0 ? $"{item.FlowOutputRatio}%" : "-");
+                break;
+            case "FlowStatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetInputStatusColor(item.FlowStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.FlowStatusText)));
+                builder.CloseComponent();
+                break;
+            case "MainNoFlowRatio":
+                builder.AddContent(0, item.MainNoFlowOutputRatio > 0 ? $"{item.MainNoFlowOutputRatio}%" : "-");
+                break;
+            case "MainNoFlowStatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetValidMainNoStatusColor(item.MainNoFlowStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.MainNoFlowStatusText)));
+                builder.CloseComponent();
+                break;
             case "InputStartDate":
                 builder.AddContent(0, item.InputStartDate?.ToString("yyyy-MM-dd") ?? "-");
                 break;
@@ -545,30 +714,156 @@ public partial class WorkOrderExecution
             case "ValidOutputWeight":
                 builder.AddContent(0, Math.Round(item.ValidOutputWeight).ToString("F0"));
                 break;
-            case "ValidInputOutputRatio":
-                builder.AddContent(0, item.ValidInputOutputRatio > 0 ? $"{item.ValidInputOutputRatio}%" : "-");
+
+            // ========== G8: 过程不合格 ==========
+            case "DefectiveRawQty":
+                builder.AddContent(0, item.DefectiveRawQty > 0 ? item.DefectiveRawQty.ToString() : "-");
                 break;
-            case "ValidInputStatus":
+            case "DefectiveRawWeight":
+                builder.AddContent(0, item.DefectiveRawWeight > 0 ? Math.Round(item.DefectiveRawWeight).ToString("F0") : "-");
+                break;
+            case "DefectiveOutputQty":
+                builder.AddContent(0, item.DefectiveOutputQty > 0 ? item.DefectiveOutputQty.ToString("G29") : "-");
+                break;
+            case "DefectiveOutputWeight":
+                builder.AddContent(0, item.DefectiveOutputWeight > 0 ? Math.Round(item.DefectiveOutputWeight).ToString("F0") : "-");
+                break;
+            case "DefectiveRatio":
+                builder.AddContent(0, item.DefectiveRatio > 0 ? $"{item.DefectiveRatio}%" : "-");
+                break;
+
+            // ========== G9: 成检不合格 ==========
+            case "InspectionStartDate":
+                builder.AddContent(0, item.InspectionStartDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "InspectionEndDate":
+                builder.AddContent(0, item.InspectionEndDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "InspectionDefectQty":
+                builder.AddContent(0, item.InspectionDefectQty > 0 ? item.InspectionDefectQty.ToString() : "-");
+                break;
+            case "InspectionDefectWeight":
+                builder.AddContent(0, item.InspectionDefectWeight > 0 ? Math.Round(item.InspectionDefectWeight).ToString("F0") : "-");
+                break;
+            case "InspectionDefectRatio":
+                builder.AddContent(0, item.InspectionDefectRatio > 0 ? $"{item.InspectionDefectRatio}%" : "-");
+                break;
+
+            // ========== G10: 汇总不合格 ==========
+            case "GeneralDefectWeight":
+                builder.AddContent(0, item.GeneralDefectWeight > 0 ? Math.Round(item.GeneralDefectWeight).ToString("F0") : "-");
+                break;
+            case "GeneralDefectRatio":
+                builder.AddContent(0, item.GeneralDefectRatio > 0 ? $"{item.GeneralDefectRatio}%" : "-");
+                break;
+            case "SeriousDefectWeight":
+                builder.AddContent(0, item.SeriousDefectWeight > 0 ? Math.Round(item.SeriousDefectWeight).ToString("F0") : "-");
+                break;
+            case "SeriousDefectRatio":
+                builder.AddContent(0, item.SeriousDefectRatio > 0 ? $"{item.SeriousDefectRatio}%" : "-");
+                break;
+            case "ScrapWeight":
+                builder.AddContent(0, item.ScrapWeight > 0 ? Math.Round(item.ScrapWeight).ToString("F0") : "-");
+                break;
+            case "ScrapRatio":
+                builder.AddContent(0, item.ScrapRatio > 0 ? $"{item.ScrapRatio}%" : "-");
+                break;
+
+            // ========== G11: 成品入库 ==========
+            case "WarehousingStartDate":
+                builder.AddContent(0, item.WarehousingStartDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "WarehousingEndDate":
+                builder.AddContent(0, item.WarehousingEndDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "WarehousingTotalQty":
+                builder.AddContent(0, item.WarehousingTotalQty > 0 ? item.WarehousingTotalQty.ToString() : "-");
+                break;
+            case "WarehousingTotalWeight":
+                builder.AddContent(0, item.WarehousingTotalWeight > 0 ? Math.Round(item.WarehousingTotalWeight).ToString("F0") : "-");
+                break;
+            case "WoWarehousingStatus":
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", GetInputStatusColor(item.ValidInputStatus));
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.ValidInputStatusText)));
+                builder.AddAttribute(2, "Color", GetWarehousingStatusColor(item.WoWarehousingStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.WoWarehousingStatusText)));
                 builder.CloseComponent();
                 break;
-            case "MainNoValidInputRatio":
-                builder.AddContent(0, item.MainNoValidInputOutputRatio > 0 ? $"{item.MainNoValidInputOutputRatio}%" : "-");
-                break;
-            case "MainNoValidInputStatus":
+            case "MainNoWarehousingStatus":
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", GetValidMainNoStatusColor(item.MainNoValidInputStatus));
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.MainNoValidInputStatusText)));
+                builder.AddAttribute(2, "Color", GetWarehousingStatusColor(item.MainNoWarehousingStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.MainNoWarehousingStatusText)));
+                builder.CloseComponent();
+                break;
+            case "OrderWarehousingStatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetWarehousingStatusColor(item.OrderWarehousingStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.OrderWarehousingStatusText)));
+                builder.CloseComponent();
+                break;
+            case "FlowTotalBatchCount":
+                builder.AddContent(0, item.FlowTotalBatchCount);
+                break;
+            case "FlowIncompleteBatchCount":
+                builder.AddContent(0, item.FlowIncompleteBatchCount);
+                break;
+            case "ScheduleStage":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetScheduleStageColor(item.ScheduleStage));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.ScheduleStageText)));
                 builder.CloseComponent();
                 break;
         }
     };
 
     // ========== 颜色 ==========
+
+    // ========== 分组 CSS class ==========
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1",
+            2 => "col-g2",
+            5 => "col-g5",
+            3 => "col-g3",
+            4 => "col-g4",
+            6 => "col-g6",
+            7 => "col-g7",
+            8 => "col-g8",
+            9 => "col-g9",
+            10 => "col-g10",
+            11 => "col-g11",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1-cell",
+            2 => "col-g2-cell",
+            5 => "col-g5-cell",
+            3 => "col-g3-cell",
+            4 => "col-g4-cell",
+            6 => "col-g6-cell",
+            7 => "col-g7-cell",
+            8 => "col-g8-cell",
+            9 => "col-g9-cell",
+            10 => "col-g10-cell",
+            11 => "col-g11-cell",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
 
     private static Color GetPlanStatusColor(int status) => status switch
     {
@@ -593,6 +888,23 @@ public partial class WorkOrderExecution
         0 => Color.Default,
         1 => Color.Warning,
         2 => Color.Success,
+        _ => Color.Default
+    };
+
+    private static Color GetWarehousingStatusColor(int status) => status switch
+    {
+        0 => Color.Default,
+        1 => Color.Warning,
+        2 => Color.Success,
+        _ => Color.Default
+    };
+
+    private static Color GetScheduleStageColor(int stage) => stage switch
+    {
+        0 => Color.Default,
+        1 => Color.Warning,
+        2 => Color.Success,
+        3 => Color.Info,
         _ => Color.Default
     };
 

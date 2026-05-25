@@ -90,26 +90,6 @@ public class SubcontractOrdersTests : TestBase
         cut.Markup.Should().Contain("已完成");
     }
 
-    [Fact]
-    public void StatusColumn_RendersCancelledAs已取消()
-    {
-        ConfigureListResponse(new List<SubcontractOrderDto>
-        {
-            new()
-            {
-                Id = 4, OrderNo = "SC-004", SupplierName = "测试供应商",
-                OrderDate = DateTime.Today, Status = SubcontractOrderStatus.Cancelled,
-                ProcessType = "切割", OutMaterialCategory = "管坯",
-                OutPlantGrade = "304", OutSpecification = "89×10",
-                OutQuantity = 100, OutWeight = 5000, SupplierId = 1,
-                IsForceCompleted = false
-            }
-        });
-
-        var cut = Ctx.RenderComponent<SubcontractOrders>();
-        cut.Markup.Should().Contain("已取消");
-    }
-
     private void ConfigureListResponse(List<SubcontractOrderDto> items)
     {
         ConfigureEmptyResponse("/api/subcontract/list");

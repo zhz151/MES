@@ -1,17 +1,17 @@
 namespace MES.Core.Enums;
 
 /// <summary>
-/// 委外加工单状态
+/// 委外加工状态
 /// </summary>
-public enum SubcontractOrderStatus
+public enum SubcontractProcessStatus
 {
     /// <summary>
-    /// 已发出未收回
+    /// 待回收
     /// </summary>
-    Sent,
+    Pending,
 
     /// <summary>
-    /// 部分收回
+    /// 部分回收
     /// </summary>
     PartialReturned,
 

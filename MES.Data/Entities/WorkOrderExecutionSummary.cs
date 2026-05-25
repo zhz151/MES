@@ -51,6 +51,25 @@ public class WorkOrderExecutionSummary : BaseEntity
     /// <summary>关联主号用料状态</summary>
     public int MainNoMaterialPlanStatus { get; set; }
 
+    // ========== Group 5: 物料执行实时信息（从采购订单聚合） ==========
+    /// <summary>待回荒管支数</summary>
+    public int PendingRoughTubeQty { get; set; }
+
+    /// <summary>待回荒管重量</summary>
+    public decimal PendingRoughTubeWeight { get; set; }
+
+    /// <summary>待回外购成支</summary>
+    public int PendingOutsourceFinishQty { get; set; }
+
+    /// <summary>待回外购成重</summary>
+    public decimal PendingOutsourceFinishWeight { get; set; }
+
+    /// <summary>理论成品支（Σ 每笔待回收支 × 投料倍率）</summary>
+    public decimal TheoreticalFinishQty { get; set; }
+
+    /// <summary>理论成品重（待回荒管重量 × 0.92 + 待回外购成重）</summary>
+    public decimal TheoreticalFinishWeight { get; set; }
+
     // ========== Group 3: 投料数据（所有关联批次） ==========
     /// <summary>投料起始日</summary>
     public DateTime? InputStartDate { get; set; }
@@ -101,17 +120,120 @@ public class WorkOrderExecutionSummary : BaseEntity
     /// <summary>有效生产成品重量</summary>
     public decimal ValidOutputWeight { get; set; }
 
-    /// <summary>有效工单投料成品比(%)</summary>
-    public decimal ValidInputOutputRatio { get; set; }
+    // ========== Group 6: 返整执行数据（ProductionType=返整 且 ManufacturingItem=订单成品） ==========
+    /// <summary>返整投料截止日</summary>
+    public DateTime? ReworkInputEndDate { get; set; }
 
-    /// <summary>有效工单投料状态</summary>
-    public int ValidInputStatus { get; set; }
+    /// <summary>返整批次数</summary>
+    public int ReworkBatchCount { get; set; }
 
-    /// <summary>现有效关联主号投料成品比(%)</summary>
-    public decimal MainNoValidInputOutputRatio { get; set; }
+    /// <summary>返整投料支数</summary>
+    public int ReworkInputQuantity { get; set; }
 
-    /// <summary>现有效关联主号投料状态(0=未计划 1=部分 2=满足)</summary>
-    public int MainNoValidInputStatus { get; set; }
+    /// <summary>返整投料重量</summary>
+    public decimal ReworkInputWeight { get; set; }
+
+    /// <summary>返整理论成品支数</summary>
+    public decimal ReworkTheoreticalOutputQty { get; set; }
+
+    /// <summary>返整理论成品重量</summary>
+    public decimal ReworkTheoreticalOutputWeight { get; set; }
+
+    // ========== Group 7: 有效流转（Group 4 + Group 6 合并比值） ==========
+    /// <summary>流转成品比(%)</summary>
+    public decimal FlowOutputRatio { get; set; }
+
+    /// <summary>有效流转状态(0=未投料 1=部分 2=满足)</summary>
+    public int FlowStatus { get; set; }
+
+    /// <summary>有效主号流转比(%)</summary>
+    public decimal MainNoFlowOutputRatio { get; set; }
+
+    /// <summary>有效主号状态(0=未计划 1=部分 2=满足)</summary>
+    public int MainNoFlowStatus { get; set; }
+
+    /// <summary>总批次数（制造物品=订单成品的所有批次计数）</summary>
+    public int FlowTotalBatchCount { get; set; }
+
+    /// <summary>未完成批数（上述批次中执行状态≠完成的计数）</summary>
+    public int FlowIncompleteBatchCount { get; set; }
+
+    // ========== Group 8: 过程不合格（G3 − G4，负值归零） ==========
+    /// <summary>原料不合格支数</summary>
+    public int DefectiveRawQty { get; set; }
+
+    /// <summary>原料不合格重量</summary>
+    public decimal DefectiveRawWeight { get; set; }
+
+    /// <summary>影响成品支数</summary>
+    public decimal DefectiveOutputQty { get; set; }
+
+    /// <summary>影响成品重量</summary>
+    public decimal DefectiveOutputWeight { get; set; }
+
+    /// <summary>不合格占比(%)</summary>
+    public decimal DefectiveRatio { get; set; }
+
+    // ========== Group 9: 成检不合格（从 FinalInspection 聚合） ==========
+    /// <summary>成检起始日</summary>
+    public DateTime? InspectionStartDate { get; set; }
+
+    /// <summary>成检截止日</summary>
+    public DateTime? InspectionEndDate { get; set; }
+
+    /// <summary>成检不合格支数（总检验支数−总合格支数）</summary>
+    public int InspectionDefectQty { get; set; }
+
+    /// <summary>成检不合格重量</summary>
+    public decimal InspectionDefectWeight { get; set; }
+
+    /// <summary>成检不合格占比(%)</summary>
+    public decimal InspectionDefectRatio { get; set; }
+
+    // ========== Group 10: 汇总不合格 ==========
+    /// <summary>一般问题重（=G6 返整理论成品重）</summary>
+    public decimal GeneralDefectWeight { get; set; }
+
+    /// <summary>一般问题占比(%)</summary>
+    public decimal GeneralDefectRatio { get; set; }
+
+    /// <summary>严重问题重（G8影响成品重+G9成检不合格重−G6返整理论成品重，负值归零）</summary>
+    public decimal SeriousDefectWeight { get; set; }
+
+    /// <summary>严重问题占比(%)</summary>
+    public decimal SeriousDefectRatio { get; set; }
+
+    /// <summary>成检报废重量</summary>
+    public decimal ScrapWeight { get; set; }
+
+    /// <summary>成检报废占比(%)</summary>
+    public decimal ScrapRatio { get; set; }
+
+    // ========== Group 11: 成品入库（从 InventoryBatch 聚合） ==========
+    /// <summary>入库起始日</summary>
+    public DateTime? WarehousingStartDate { get; set; }
+
+    /// <summary>入库截止日</summary>
+    public DateTime? WarehousingEndDate { get; set; }
+
+    /// <summary>入库总支数（SUM InitialQuantity）</summary>
+    public int WarehousingTotalQty { get; set; }
+
+    /// <summary>入库总重量（SUM InitialWeight）</summary>
+    public decimal WarehousingTotalWeight { get; set; }
+
+    /// <summary>工单入库状态(0=无入库 1=入库部分 2=入库完结)</summary>
+    public int WoWarehousingStatus { get; set; }
+
+    /// <summary>主号入库状态(0=无入库 1=入库部分 2=入库完结)</summary>
+    public int MainNoWarehousingStatus { get; set; }
+
+    /// <summary>订单入库状态(0=无入库 1=入库部分 2=入库完结)</summary>
+    public int OrderWarehousingStatus { get; set; }
+
+    // ========== Group 12: 实时关注 ==========
+    /// <summary>关注状态(0=无需排产 1=原料锁定 2=生产执行 3=成品检验)</summary>
+    public int ScheduleStage { get; set; }
 
     // ========== 刷新追踪 ==========
     /// <summary>最后刷新时间</summary>

@@ -64,6 +64,12 @@ public class SubcontractReturnItemDto
     public decimal? ProcessTotalAmount { get; set; }
     public string? SourceWorkOrderNo { get; set; }
 
+    // ========== 回收执行数据 ==========
+    public int ReturnedQuantity { get; set; }
+    public decimal ReturnedWeight { get; set; }
+    public SubcontractProcessStatus ProcessStatus { get; set; }
+    public bool IsForceCompleted { get; set; }
+
     // ========== 工单来源字段（按每个SourceWorkOrderNo各自关联） ==========
     public string? WoSalesOrderNo { get; set; }
     public string? WoProductionMainNo { get; set; }
@@ -114,6 +120,7 @@ public class CreateReturnItemRequest
     public decimal? ProcessUnitPrice { get; set; }
     public decimal? ProcessTotalAmount { get; set; }
     public string? SourceWorkOrderNo { get; set; }
+    public bool IsForceCompleted { get; set; }
 }
 
 public class UpdateSubcontractOrderRequest

@@ -127,13 +127,11 @@ public static class EnumHelper
 
         Register<PurchaseOrderStatus>(("Open", "未到货"),
                                        ("Partial", "部分到货"),
-                                       ("Completed", "已完成"),
-                                       ("Cancelled", "已取消"));
+                                       ("Completed", "已完成"));
 
         Register<SubcontractOrderStatus>(("Sent", "已发出未收回"),
                                           ("PartialReturned", "部分收回"),
-                                          ("Completed", "已完成"),
-                                          ("Cancelled", "已取消"));
+                                          ("Completed", "已完成"));
 
         Register<SectionOutsourceStatus>(("PendingRecovery", "待回收"),
                                           ("Recovered", "已回收"),

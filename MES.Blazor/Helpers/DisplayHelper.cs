@@ -199,7 +199,6 @@ public static class DisplayHelper
             PurchaseOrderStatus.Open => "已下单",
             PurchaseOrderStatus.Partial => "部分到货",
             PurchaseOrderStatus.Completed => "已完成",
-            PurchaseOrderStatus.Cancelled => "已取消",
             _ => "未知"
         };
     }
@@ -214,7 +213,6 @@ public static class DisplayHelper
             PurchaseOrderStatus.Open => Color.Info,
             PurchaseOrderStatus.Partial => Color.Warning,
             PurchaseOrderStatus.Completed => Color.Success,
-            PurchaseOrderStatus.Cancelled => Color.Default,
             _ => Color.Default
         };
     }
@@ -616,6 +614,20 @@ public static class DisplayHelper
     // ========== 委外加工单状态 ==========
 
     /// <summary>
+    /// 获取委外加工明细状态中文文本
+    /// </summary>
+    public static string GetSubcontractProcessStatusText(SubcontractProcessStatus status)
+    {
+        return status switch
+        {
+            SubcontractProcessStatus.Pending => "待回收",
+            SubcontractProcessStatus.PartialReturned => "部分回收",
+            SubcontractProcessStatus.Completed => "已完成",
+            _ => "未知"
+        };
+    }
+
+    /// <summary>
     /// 获取委外加工单状态中文文本
     /// </summary>
     public static string GetSubcontractOrderStatusText(SubcontractOrderStatus status)
@@ -625,7 +637,6 @@ public static class DisplayHelper
             SubcontractOrderStatus.Sent => "已发出",
             SubcontractOrderStatus.PartialReturned => "部分收回",
             SubcontractOrderStatus.Completed => "已完成",
-            SubcontractOrderStatus.Cancelled => "已取消",
             _ => "未知"
         };
     }
@@ -640,7 +651,6 @@ public static class DisplayHelper
             SubcontractOrderStatus.Sent => Color.Info,
             SubcontractOrderStatus.PartialReturned => Color.Warning,
             SubcontractOrderStatus.Completed => Color.Success,
-            SubcontractOrderStatus.Cancelled => Color.Default,
             _ => Color.Default
         };
     }

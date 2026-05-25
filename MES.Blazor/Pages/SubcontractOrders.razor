@@ -138,7 +138,7 @@
                         <MudTd>@RenderCell(item, col)</MudTd>
                     }
                     <MudTd>
-                        @if (item.Status != SubcontractOrderStatus.Completed && item.Status != SubcontractOrderStatus.Cancelled)
+                        @if (item.Status != SubcontractOrderStatus.Completed)
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Size="Size.Small" OnClick="() => NavigateToEdit(item.Id)" />
                             <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" OnClick="() => CancelOrder(item)" />

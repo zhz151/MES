@@ -872,6 +872,10 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.ProcessUnitPrice).HasColumnType("decimal(18,4)");
             entity.Property(e => e.ProcessTotalAmount).HasColumnType("decimal(18,2)");
             entity.Property(e => e.SourceWorkOrderNo).HasMaxLength(50);
+            entity.Property(e => e.ReturnedQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.ReturnedWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.ProcessStatus).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(SubcontractProcessStatus.Pending);
+            entity.Property(e => e.IsForceCompleted).IsRequired().HasDefaultValue(false);
             entity.HasIndex(e => new { e.SubcontractOrderId, e.Sequence })
                 .IsUnique()
                 .HasDatabaseName("UK_ReturnItem_Seq");
@@ -1581,6 +1585,14 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.MainNoMaterialPlanRate).HasColumnType("decimal(7,2)").HasDefaultValue(0m);
             entity.Property(e => e.MainNoMaterialPlanStatus).IsRequired().HasDefaultValue(0);
 
+            // Group 5
+            entity.Property(e => e.PendingRoughTubeQty).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.PendingRoughTubeWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.PendingOutsourceFinishQty).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.PendingOutsourceFinishWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.TheoreticalFinishQty).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.TheoreticalFinishWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+
             // Group 3
             entity.Property(e => e.InputStartDate).HasColumnType("date");
             entity.Property(e => e.InputEndDate).HasColumnType("date");
@@ -1600,10 +1612,56 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.ValidInputWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
             entity.Property(e => e.ValidOutputQty).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
             entity.Property(e => e.ValidOutputWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
-            entity.Property(e => e.ValidInputOutputRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
-            entity.Property(e => e.ValidInputStatus).IsRequired().HasDefaultValue(0);
-            entity.Property(e => e.MainNoValidInputOutputRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
-            entity.Property(e => e.MainNoValidInputStatus).IsRequired().HasDefaultValue(0);
+
+            // Group 6
+            entity.Property(e => e.ReworkInputEndDate).HasColumnType("date");
+            entity.Property(e => e.ReworkBatchCount).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.ReworkInputQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.ReworkInputWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.ReworkTheoreticalOutputQty).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.ReworkTheoreticalOutputWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+
+            // Group 7
+            entity.Property(e => e.FlowOutputRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
+            entity.Property(e => e.FlowStatus).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.MainNoFlowOutputRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
+            entity.Property(e => e.MainNoFlowStatus).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.FlowTotalBatchCount).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.FlowIncompleteBatchCount).IsRequired().HasDefaultValue(0);
+
+            // Group 8: 过程不合格
+            entity.Property(e => e.DefectiveRawQty).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.DefectiveRawWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.DefectiveOutputQty).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.DefectiveOutputWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.DefectiveRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
+
+            // Group 9: 成检不合格
+            entity.Property(e => e.InspectionStartDate).HasColumnType("datetime2");
+            entity.Property(e => e.InspectionEndDate).HasColumnType("datetime2");
+            entity.Property(e => e.InspectionDefectQty).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.InspectionDefectWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.InspectionDefectRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
+
+            // Group 10: 汇总不合格
+            entity.Property(e => e.GeneralDefectWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.GeneralDefectRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
+            entity.Property(e => e.SeriousDefectWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.SeriousDefectRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
+            entity.Property(e => e.ScrapWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.ScrapRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
+
+            // Group 11: 成品入库
+            entity.Property(e => e.WarehousingStartDate).HasColumnType("datetime2");
+            entity.Property(e => e.WarehousingEndDate).HasColumnType("datetime2");
+            entity.Property(e => e.WarehousingTotalQty).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.WarehousingTotalWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.WoWarehousingStatus).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.MainNoWarehousingStatus).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.OrderWarehousingStatus).IsRequired().HasDefaultValue(0);
+
+            // G12: 实时关注
+            entity.Property(e => e.ScheduleStage).IsRequired().HasDefaultValue(0);
 
             // 刷新追踪
             entity.Property(e => e.LastRefreshTime).HasColumnType("datetime2");

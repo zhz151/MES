@@ -767,6 +767,93 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 /* ============================================================
+   列分组样式 - 用于多列列表页的分组视觉呈现
+   ============================================================ */
+
+/* 分组列通用 - 居左排列，不换行 */
+.col-header-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    white-space: nowrap;
+}
+
+/* 分组标签徽章 - 紧凑小字 */
+.col-group-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 0 4px;
+    margin-right: 2px;
+    border-radius: 2px;
+    line-height: 1.6;
+    white-space: nowrap;
+}
+
+/* G1: 基础数据 - 无色调 */
+.col-g1 .col-group-badge { color: #455A64; background: #ECEFF1; }
+
+/* G2: 用料计划 - 蓝色系 */
+.col-g2 { background: #F5F9FF !important; }
+.col-g2 .col-group-badge { color: #1565C0; background: #BBDEFB; }
+.col-g2-cell { background: #F5F9FF !important; }
+
+/* G3: 投料数据 - 绿色系 */
+.col-g3 { background: #F4FAF5 !important; }
+.col-g3 .col-group-badge { color: #2E7D32; background: #C8E6C9; }
+.col-g3-cell { background: #F4FAF5 !important; }
+
+/* G4: 有效数据 - 橙色系 */
+.col-g4 { background: #FFF8F0 !important; }
+.col-g4 .col-group-badge { color: #E65100; background: #FFE0B2; }
+.col-g4-cell { background: #FFF8F0 !important; }
+
+/* G5: 物料执行 - 紫色系 */
+.col-g5 { background: #F8F4FC !important; }
+.col-g5 .col-group-badge { color: #6A1B9A; background: #E1BEE7; }
+.col-g5-cell { background: #F8F4FC !important; }
+
+/* G6: 返整执行 - 青色系 */
+.col-g6 { background: #E0F7FA !important; }
+.col-g6 .col-group-badge { color: #00695C; background: #B2DFDB; }
+.col-g6-cell { background: #E0F7FA !important; }
+
+/* G7: 有效流转 - 石灰系 */
+.col-g7 { background: #FFF3E0 !important; }
+.col-g7 .col-group-badge { color: #E65100; background: #FFE0B2; }
+.col-g7-cell { background: #FFF3E0 !important; }
+
+/* G8: 过程不合格 - 红粉系 */
+.col-g8 { background: #FFEBEE !important; }
+.col-g8 .col-group-badge { color: #C62828; background: #FFCDD2; }
+.col-g8-cell { background: #FFEBEE !important; }
+
+/* G9: 成检不合格 - 深橙系 */
+.col-g9 { background: #FFF3E0 !important; }
+.col-g9 .col-group-badge { color: #E65100; background: #FFE0B2; }
+.col-g9-cell { background: #FFF3E0 !important; }
+
+/* G10: 汇总不合格 - 棕灰系 */
+.col-g10 { background: #EFEBE9 !important; }
+.col-g10 .col-group-badge { color: #4E342E; background: #D7CCC8; }
+.col-g10-cell { background: #EFEBE9 !important; }
+
+/* G11: 成品入库 — 青绿系 */
+.col-g11 { background: #E8F5E9 !important; }
+.col-g11 .col-group-badge { color: #1B5E20; background: #A5D6A7; }
+.col-g11-cell { background: #E8F5E9 !important; }
+
+/* ========== 表格横向滚动条加高防误触 ========== */
+#workorder-execution-table .mud-table-container {
+    scrollbar-width: thick;
+}
+
+/* 分组起始列 - 左侧竖线分隔 */
+.col-group-start { border-left: 2px solid #BDBDBD !important; }
+.col-group-start-cell { border-left: 2px solid #E0E0E0 !important; }
+
+/* ============================================================
    批次新建页面 - 上下结构表单样式
    ============================================================ */
 

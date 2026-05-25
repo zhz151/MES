@@ -18,10 +18,5 @@ public enum PurchaseOrderStatus
     /// <summary>
     /// 已完成
     /// </summary>
-    Completed,
-
-    /// <summary>
-    /// 已取消
-    /// </summary>
-    Cancelled
+    Completed
 }

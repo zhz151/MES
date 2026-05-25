@@ -18,21 +18,26 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
         if (string.IsNullOrEmpty(connectionString))
         {
             // 从 appsettings.json 读取
-            var configPath = Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json");
-            if (!File.Exists(configPath))
+            var apiDir = Path.Combine(Directory.GetCurrentDirectory(), "..", "MES.Api");
+            var configPaths = new[]
             {
-                // 尝试从上级 MES.Api 目录查找
-                configPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "MES.Api", "appsettings.json");
-            }
+                Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json"),
+                Path.Combine(apiDir, "appsettings.json"),
+                // appsettings.Development.json 在 .gitignore 中，可存放真实连接串
+                Path.Combine(apiDir, "appsettings.Development.json"),
+            };
 
-            if (File.Exists(configPath))
+            foreach (var configPath in configPaths)
             {
+                if (!File.Exists(configPath)) continue;
                 var json = File.ReadAllText(configPath);
-                var config = System.Text.Json.JsonDocument.Parse(json);
-                connectionString = config.RootElement
-                    .GetProperty("ConnectionStrings")
-                    .GetProperty("Default")
-                    .GetString();
+                var doc = System.Text.Json.JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("ConnectionStrings", out var csNode)
+                    && csNode.TryGetProperty("Default", out var connNode))
+                {
+                    connectionString = connNode.GetString();
+                    if (!string.IsNullOrEmpty(connectionString)) break;
+                }
             }
         }
 

@@ -553,8 +553,6 @@ public class PurchaseOrderService : IPurchaseOrderService
             return dto;
         }
 
-        if (entity.Status == PurchaseOrderStatus.Cancelled) throw new BusinessException("已取消的采购单无法编辑");
-
         if (entity.Status == PurchaseOrderStatus.Completed)
         {
             // 已完成：仅允许修改来源工单号
@@ -673,7 +671,6 @@ public class PurchaseOrderService : IPurchaseOrderService
         if (!isAdmin)
         {
             if (entity.Status == PurchaseOrderStatus.Completed) throw new BusinessException("已完成的采购单无法删除");
-            if (entity.Status == PurchaseOrderStatus.Cancelled) throw new BusinessException("该采购单已取消");
         }
 
         _context.PurchaseOrders.Remove(entity);
@@ -1054,7 +1051,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         return new PlanDetailDto
         {
             WorkOrderNo = workOrderNo,
-            MaterialCategory = materialCategory,
+            MaterialCategory = "荒管", // 圆棒穿孔实际消耗的是荒管
             PlantGrade = piercingPlan.PlantGrade,
             Specification = piercingPlan.PiercingSpec,
             UnitWeight = piercingPlan.RequiredUnitWeight,

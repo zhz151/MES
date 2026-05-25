@@ -76,6 +76,18 @@ public class ColumnDef
     /// </summary>
     [JsonIgnore]
     public FilterDescriptor? ActiveFilter { get; set; }
+
+    /// <summary>
+    /// 分组键（1-4），用于列分组展示，null 表示不分组
+    /// </summary>
+    [JsonIgnore]
+    public int? GroupKey { get; set; }
+
+    /// <summary>
+    /// 分组名称（如"基础数据""用料计划"）
+    /// </summary>
+    [JsonIgnore]
+    public string? GroupName { get; set; }
 }
 
 /// <summary>

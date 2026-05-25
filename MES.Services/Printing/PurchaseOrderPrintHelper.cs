@@ -121,7 +121,6 @@ public static class PurchaseOrderPrintHelper
         PurchaseOrderStatus.Open => "已下单",
         PurchaseOrderStatus.Partial => "部分到货",
         PurchaseOrderStatus.Completed => "已完成",
-        PurchaseOrderStatus.Cancelled => "已取消",
         _ => status.ToString()
     };
 

@@ -104,7 +104,7 @@ public partial class PurchaseOrders
         new() { Key = "RequiredDate",        Label = "要求到货日",   SortKey = "requireddate", FilterType = "date" },
         new() { Key = "SupplierName",        Label = "供应商",       SortKey = "suppliername", FilterType = "string" },
         new() { Key = "Status",              Label = "状态",         FilterType = "enum",
-            EnumOptions = new() { new("Open", "已下单"), new("Partial", "部分到货"), new("Completed", "已完成"), new("Cancelled", "已取消") } },
+            EnumOptions = new() { new("Open", "已下单"), new("Partial", "部分到货"), new("Completed", "已完成") } },
         new() { Key = "Received",            Label = "已到货" },
     };
 
@@ -209,7 +209,6 @@ public partial class PurchaseOrders
                     "Open" => "已下单",
                     "Partial" => "部分到货",
                     "Completed" => "已完成",
-                    "Cancelled" => "已取消",
                     _ => opt.Value
                 };
             }

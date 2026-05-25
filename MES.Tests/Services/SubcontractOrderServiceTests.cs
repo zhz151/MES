@@ -276,11 +276,11 @@ public class SubcontractOrderServiceTests : TestBase
     }
 
     [Fact]
-    public async Task UpdateAsync_已取消_抛出BusinessException()
+    public async Task UpdateAsync_Completed_允许编辑()
     {
         var ctx = CreateDbContext();
         var sid = await SeedSupplierAsync(ctx);
-        var order = await SeedOrderAsync(ctx, sid, status: SubcontractOrderStatus.Cancelled);
+        var order = await SeedOrderAsync(ctx, sid, status: SubcontractOrderStatus.Completed);
         var svc = CreateService(ctx);
 
         var act = () => svc.UpdateAsync(order.Id, new UpdateSubcontractOrderRequest
@@ -295,7 +295,8 @@ public class SubcontractOrderServiceTests : TestBase
             ReturnItems = new List<MES.Core.DTOs.CreateReturnItemRequest>()
         });
 
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("*已取消*无法编辑*");
+        // Completed 订单允许编辑（仅来源工单号），不会抛出异常
+        await act.Should().NotThrowAsync();
     }
 
     [Fact]
@@ -457,18 +458,6 @@ public class SubcontractOrderServiceTests : TestBase
 
         var deleted = await ctx.SubcontractOrders.FindAsync(order.Id);
         deleted.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task DeleteAsync_已取消_抛出BusinessException()
-    {
-        var ctx = CreateDbContext();
-        var sid = await SeedSupplierAsync(ctx);
-        var order = await SeedOrderAsync(ctx, sid, status: SubcontractOrderStatus.Cancelled);
-        var svc = CreateService(ctx);
-
-        var act = () => svc.DeleteAsync(order.Id);
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("*已取消*");
     }
 
     [Fact]
