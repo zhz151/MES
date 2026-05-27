@@ -27,6 +27,8 @@ public class ProductionBatchListDto
     public string? NextSectionName { get; set; }
     public string? CorrespondingSpec { get; set; }
     public bool? CurrentSectionCompleted { get; set; }
+    public int RemainingWorkDays { get; set; }
+    public int TotalWorkDays { get; set; }
     public int? CurrentValidQty { get; set; }
     public decimal? CurrentValidWeight { get; set; }
     public string CreatedBy { get; set; } = null!;

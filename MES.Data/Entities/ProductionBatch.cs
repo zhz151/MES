@@ -107,6 +107,23 @@ public class ProductionBatch : BaseEntity
     public bool? CurrentSectionCompleted { get; set; }
 
     /// <summary>
+    /// 剩余工量（天）：从当前工段到最终完成日的预计天数，根据各工段类型累加计算
+    /// 完成/作废状态为0；四舍五入取整
+    /// </summary>
+    public int RemainingWorkDays { get; set; }
+
+    /// <summary>
+    /// 全工量（天）：从组内序号1开始，所有工段的标准天数累加
+    /// 用于反映批次总工时，不受当前进度影响；四舍五入取整
+    /// </summary>
+    public int TotalWorkDays { get; set; }
+
+    /// <summary>
+    /// 质量过程是否完结（人控开关，手动切换）
+    /// </summary>
+    public bool IsClosed { get; set; }
+
+    /// <summary>
     /// 备注
     /// </summary>
     public string? Remark { get; set; }

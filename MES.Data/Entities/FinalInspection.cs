@@ -76,6 +76,11 @@ public class FinalInspection : BaseEntity
     /// </summary>
     public string? FixedLength { get; set; }
 
+    /// <summary>
+    /// 生产类型（从批次冗余，待批次上下文枚举迁移后改为 ProductionType?）
+    /// </summary>
+    public string? ProductionType { get; set; }
+
     // ========== 执行信息 ==========
 
     /// <summary>

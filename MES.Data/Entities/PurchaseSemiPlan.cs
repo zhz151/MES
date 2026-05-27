@@ -107,4 +107,9 @@ public class PurchaseSemiPlan : BaseEntity
     /// 备注
     /// </summary>
     public string? Remark { get; set; }
+
+    /// <summary>
+    /// 工艺周期（天）：根据标准工艺生产周期自动计算
+    /// </summary>
+    public int StandardCycle { get; set; }
 }

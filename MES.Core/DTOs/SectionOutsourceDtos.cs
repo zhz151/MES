@@ -9,28 +9,48 @@ namespace MES.Core.DTOs;
 /// </summary>
 public class SectionOutsourceDto
 {
+    /// <summary>记录ID</summary>
     public int Id { get; set; }
+    /// <summary>关联生产批次ID</summary>
     public int ProductionBatchId { get; set; }
+    /// <summary>关联工序组ID</summary>
     public int ProcessGroupId { get; set; }
 
     /// <summary>批次号（冗余）</summary>
     public string BatchNo { get; set; } = null!;
+    /// <summary>工序名称（从ProcessGroup冗余）</summary>
     public string ProcessName { get; set; } = null!;
+    /// <summary>制造规格（从ProcessGroup冗余）</summary>
     public string? ManufacturingSpec { get; set; }
+    /// <summary>委外工段名称</summary>
     public string SectionName { get; set; } = null!;
+    /// <summary>执行序号（来自工序组中该工段的顺序值）</summary>
     public int SequenceNumber { get; set; }
+    /// <summary>委外单位</summary>
     public string OutsourceVendor { get; set; } = null!;
+    /// <summary>发出日期</summary>
     public DateTime SendOutDate { get; set; }
+    /// <summary>发出数量（支数）</summary>
     public int? SendQuantity { get; set; }
+    /// <summary>发出重量(kg)</summary>
     public decimal? SendWeight { get; set; }
+    /// <summary>状态（PendingRecovery=待回收, Recovered=已回收）</summary>
     public string Status { get; set; } = null!;
+    /// <summary>挂牌号</summary>
     public string? TagNo { get; set; }
+    /// <summary>工厂牌号</summary>
     public string? PlantGrade { get; set; }
+    /// <summary>委外规格</summary>
     public string? OutsourceSpec { get; set; }
+    /// <summary>要求收回日期</summary>
     public DateTime? ExpectedReturnDate { get; set; }
+    /// <summary>是否紧急</summary>
     public bool IsUrgent { get; set; }
+    /// <summary>备注</summary>
     public string? Remark { get; set; }
+    /// <summary>创建时间</summary>
     public DateTimeOffset CreatedTime { get; set; }
+    /// <summary>更新时间</summary>
     public DateTimeOffset UpdatedTime { get; set; }
 
     // ========== 回收汇总 ==========

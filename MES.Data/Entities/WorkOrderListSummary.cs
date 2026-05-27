@@ -147,6 +147,9 @@ public class WorkOrderListSummary : BaseEntity
     /// <summary>圆棒穿孔计划总支数</summary>
     public int? PiercingPlanTotalPieces { get; set; }
 
+    /// <summary>最大工艺周期（天）：4种用料计划中 StandardCycle 的最大值</summary>
+    public int MaxStandardCycle { get; set; }
+
     // ========== Group C: 预计算主号/订单聚合 ==========
 
     /// <summary>关联主号满足率(%)</summary>

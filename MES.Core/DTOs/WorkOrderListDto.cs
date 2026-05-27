@@ -229,6 +229,11 @@ public string StatusText
     public int? PiercingPlanTotalPieces { get; set; }
 
     /// <summary>
+    /// 最大工艺周期（天）
+    /// </summary>
+    public int MaxStandardCycle { get; set; }
+
+    /// <summary>
     /// 获取各类占比文本（如 "原30% 成20% 库40% 改10% 穿5%"）
     /// 定尺按支数，非定尺/范围尺按重量
     /// </summary>
@@ -244,30 +249,30 @@ public string StatusText
                 var totalQty = TotalQuantity;
                 if (totalQty <= 0) return null;
                 if (PiercingPlanTotalPieces > 0)
-                    parts.Add($"穿{Math.Round(PiercingPlanTotalPieces.Value / (decimal)totalQty * 100)}%");
+                    parts.Add($"穿{PiercingPlanTotalPieces.Value / (decimal)totalQty * 100:F0}%");
                 if (SemiPlanTotalPieces > 0)
-                    parts.Add($"荒{Math.Round(SemiPlanTotalPieces.Value / (decimal)totalQty * 100)}%");
+                    parts.Add($"荒{SemiPlanTotalPieces.Value / (decimal)totalQty * 100:F0}%");
                 if (FinishedPlanTotalPieces > 0)
-                    parts.Add($"成{Math.Round(FinishedPlanTotalPieces.Value / (decimal)totalQty * 100)}%");
+                    parts.Add($"成{FinishedPlanTotalPieces.Value / (decimal)totalQty * 100:F0}%");
                 if (InventoryPlanTotalPieces > 0)
-                    parts.Add($"库{Math.Round(InventoryPlanTotalPieces.Value / (decimal)totalQty * 100)}%");
+                    parts.Add($"库{InventoryPlanTotalPieces.Value / (decimal)totalQty * 100:F0}%");
                 if (ReworkPlanTotalPieces > 0)
-                    parts.Add($"改{Math.Round(ReworkPlanTotalPieces.Value / (decimal)totalQty * 100)}%");
+                    parts.Add($"改{ReworkPlanTotalPieces.Value / (decimal)totalQty * 100:F0}%");
             }
             else
             {
                 var totalWt = TotalWeight;
                 if (totalWt <= 0) return null;
                 if (PiercingPlanTotalWeight > 0)
-                    parts.Add($"穿{Math.Round(PiercingPlanTotalWeight.Value / totalWt * 100)}%");
+                    parts.Add($"穿{PiercingPlanTotalWeight.Value / totalWt * 100:F0}%");
                 if (SemiPlanTotalWeight > 0)
-                    parts.Add($"荒{Math.Round(SemiPlanTotalWeight.Value / totalWt * 100)}%");
+                    parts.Add($"荒{SemiPlanTotalWeight.Value / totalWt * 100:F0}%");
                 if (FinishedPlanTotalWeight > 0)
-                    parts.Add($"成{Math.Round(FinishedPlanTotalWeight.Value / totalWt * 100)}%");
+                    parts.Add($"成{FinishedPlanTotalWeight.Value / totalWt * 100:F0}%");
                 if (InventoryPlanTotalWeight > 0)
-                    parts.Add($"库{Math.Round(InventoryPlanTotalWeight.Value / totalWt * 100)}%");
+                    parts.Add($"库{InventoryPlanTotalWeight.Value / totalWt * 100:F0}%");
                 if (ReworkPlanTotalWeight > 0)
-                    parts.Add($"改{Math.Round(ReworkPlanTotalWeight.Value / totalWt * 100)}%");
+                    parts.Add($"改{ReworkPlanTotalWeight.Value / totalWt * 100:F0}%");
             }
 
             return parts.Any() ? string.Join(" ", parts) : null;

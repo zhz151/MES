@@ -720,6 +720,10 @@ namespace MES.Data.Migrations
                     b.Property<int>("ProductionBatchId")
                         .HasColumnType("int");
 
+                    b.Property<string>("ProductionType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<int?>("QualifiedConcessionQuantity")
                         .HasColumnType("int");
 
@@ -1284,6 +1288,11 @@ namespace MES.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int>("StandardCycle")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1461,6 +1470,10 @@ namespace MES.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("BatchNo")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("Checker")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -1474,27 +1487,57 @@ namespace MES.Data.Migrations
                         .HasColumnType("datetimeoffset");
 
                     b.Property<string>("DataSource")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("FurnaceNo")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("IsForceCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ManufacturingItem")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("PlantGrade")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int>("ProductionBatchId")
                         .HasColumnType("int");
 
+                    b.Property<string>("ProductionType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<DateTime>("ReceiveDate")
                         .HasColumnType("datetime2");
-
-                    b.Property<int?>("ReceivedQuantity")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("ReceivedWeight")
-                        .HasColumnType("decimal(18,3)");
 
                     b.Property<string>("Remark")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<string>("SalesOrderNo")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("Shift")
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("SourceUnit")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Specification")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TagNo")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
@@ -1503,6 +1546,10 @@ namespace MES.Data.Migrations
 
                     b.Property<DateTimeOffset>("UpdatedTime")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("WorkOrderNo")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("Id");
 
@@ -2410,6 +2457,11 @@ namespace MES.Data.Migrations
                     b.Property<decimal?>("InputWeight")
                         .HasColumnType("decimal(18,3)");
 
+                    b.Property<bool>("IsClosed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<bool>("IsForceCompleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -2482,6 +2534,9 @@ namespace MES.Data.Migrations
                     b.Property<string>("QualityRemark")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("RemainingWorkDays")
+                        .HasColumnType("int");
 
                     b.Property<string>("Remark")
                         .HasMaxLength(500)
@@ -2591,6 +2646,9 @@ namespace MES.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(18,3)")
                         .HasDefaultValue(0m);
+
+                    b.Property<int>("TotalWorkDays")
+                        .HasColumnType("int");
 
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
@@ -2892,6 +2950,11 @@ namespace MES.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<int>("StandardCycle")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -3111,6 +3174,11 @@ namespace MES.Data.Migrations
 
                     b.Property<decimal>("RequiredWeight")
                         .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("StandardCycle")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.Property<decimal?>("UnitWeight")
                         .HasColumnType("decimal(18,3)");
@@ -3368,6 +3436,11 @@ namespace MES.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int>("StandardCycle")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<decimal?>("UnitWeight")
                         .HasColumnType("decimal(18,3)");
 
@@ -3617,6 +3690,13 @@ namespace MES.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("SteelProperty")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("镍基合金");
+
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -3638,6 +3718,66 @@ namespace MES.Data.Migrations
                         .HasDatabaseName("UK_StandardGradeMapping_StandardGrade");
 
                     b.ToTable("StandardGradeMapping", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.StandardProcessCycle", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DeliveryState")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("PlantGrade")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ProductSpec")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RawMaterialType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("RawSpec")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("StandardCycleDays")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlantGrade")
+                        .HasDatabaseName("IX_StandardProcessCycle_PlantGrade");
+
+                    b.ToTable("StandardProcessCycle", (string)null);
                 });
 
             modelBuilder.Entity("MES.Data.Entities.SubcontractOrder", b =>
@@ -4723,6 +4863,11 @@ namespace MES.Data.Migrations
 
                     b.Property<decimal?>("MaxLength")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("MaxStandardCycle")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.Property<decimal?>("MinLength")
                         .HasColumnType("decimal(18,2)");

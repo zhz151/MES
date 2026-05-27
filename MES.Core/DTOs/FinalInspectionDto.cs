@@ -51,6 +51,9 @@ public class FinalInspectionDto
     /// <summary>定尺长度</summary>
     public string? FixedLength { get; set; }
 
+    /// <summary>生产类型</summary>
+    public string? ProductionType { get; set; }
+
     /// <summary>设备名称</summary>
     public string? EquipmentName { get; set; }
 
@@ -152,6 +155,9 @@ public class BatchLookupResultDto
 
     /// <summary>定尺长度</summary>
     public string? FixedLength { get; set; }
+
+    /// <summary>生产类型</summary>
+    public string? ProductionType { get; set; }
 }
 
 /// <summary>
@@ -190,6 +196,8 @@ public class CreateFinalInspectionRequest
     public string? Specification { get; set; }
     [MaxLength(50)]
     public string? FixedLength { get; set; }
+    [MaxLength(50)]
+    public string? ProductionType { get; set; }
     [MaxLength(100)]
     public string? EquipmentName { get; set; }
     [MaxLength(10)]

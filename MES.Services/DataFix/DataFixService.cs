@@ -5,6 +5,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace MES.Services.DataFix;
 
@@ -37,14 +38,29 @@ public class DataFixService : IDataFixService
     {
         var report = new DataFixReport();
 
-        report.SequenceNumbersFixed = await FixSequenceNumbersAsync();
-        report.OutsourceStatusFixed = await FixSectionOutsourceStatusAsync();
-        report.BatchTrackingFixed = await FixBatchTrackingAsync();
-        await FixPurchaseOrdersAsync();
-        await FixSubcontractOrdersAsync();
-        report.EquipmentFixed = await FixEquipmentTrackingAsync();
+        // 整个修复过程在单个事务中执行：任一步骤失败则全部回滚
+        await using var transaction = await _context.Database.BeginTransactionAsync();
 
-        _logger.LogInformation("全字段修复完成，总计 {Total} 条", report.Total);
+        try
+        {
+            report.SequenceNumbersFixed = await FixSequenceNumbersAsync();
+            report.OutsourceStatusFixed = await FixSectionOutsourceStatusAsync();
+            report.BatchTrackingFixed = await FixBatchTrackingAsync();
+            await FixPurchaseOrdersAsync();
+            await FixSubcontractOrdersAsync();
+            report.EquipmentFixed = await FixEquipmentTrackingAsync();
+            report.StandardCycleFixed = await FixStandardCycleAsync();
+
+            await transaction.CommitAsync();
+            _logger.LogInformation("全字段修复完成，总计 {Total} 条", report.Total);
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            _logger.LogError("全字段修复失败，已回滚");
+            throw;
+        }
+
         return report;
     }
 
@@ -202,17 +218,17 @@ public class DataFixService : IDataFixService
 
     private async Task<int> FixBatchTrackingAsync()
     {
-        var batchIds = await _context.Set<ProductionBatch>()
-            .Where(b => b.IsForceCompleted != true)
+        var allBatchIds = await _context.Set<ProductionBatch>()
             .Select(b => b.Id)
             .ToListAsync();
 
-        if (batchIds.Count == 0) return 0;
+        if (allBatchIds.Count == 0) return 0;
 
-        await _productionRecordService.BatchUpdateBatchTrackingAsync(batchIds);
+        // 全部批次参与跟踪字段刷新（包含已完成/强制完成，确保全工量等字段被计算）
+        await _productionRecordService.BatchUpdateBatchTrackingAsync(allBatchIds);
 
-        _logger.LogInformation("批次跟踪字段修复完成: {Count} 个批次", batchIds.Count);
-        return batchIds.Count;
+        _logger.LogInformation("批次跟踪字段修复完成: {Count} 个批次", allBatchIds.Count);
+        return allBatchIds.Count;
     }
 
     // ==================== 4. 修复采购订单 ====================
@@ -236,36 +252,48 @@ public class DataFixService : IDataFixService
     private async Task<int> FixEquipmentTrackingAsync()
     {
         var equipments = await _context.Set<Equipment>().ToListAsync();
-        int fixedCount = 0;
 
+        // 一次查询所有点检记录的最大日期（按设备分组）
+        var maxInsDates = await _context.Set<InspectionRecord>()
+            .Where(ir => ir.ActualDate != null)
+            .GroupBy(ir => ir.EquipmentId)
+            .Select(g => new { EquipmentId = g.Key, MaxDate = g.Max(ir => (DateTime?)ir.ActualDate) })
+            .ToDictionaryAsync(x => x.EquipmentId, x => x.MaxDate);
+
+        // 一次查询所有保养记录的最大日期（按设备分组）
+        var maxMaintDates = await _context.Set<MaintenanceOrder>()
+            .Where(mo => mo.ActualDate != null)
+            .GroupBy(mo => mo.EquipmentId)
+            .Select(g => new { EquipmentId = g.Key, MaxDate = g.Max(mo => (DateTime?)mo.ActualDate) })
+            .ToDictionaryAsync(x => x.EquipmentId, x => x.MaxDate);
+
+        // 一次查询所有维修记录的最大日期（按设备分组）
+        var maxRepairDates = await _context.Set<RepairOrder>()
+            .Where(ro => ro.RepairEndTime != null)
+            .GroupBy(ro => ro.EquipmentId)
+            .Select(g => new { EquipmentId = g.Key, MaxDate = g.Max(ro => (DateTime?)ro.RepairEndTime) })
+            .ToDictionaryAsync(x => x.EquipmentId, x => x.MaxDate);
+
+        int fixedCount = 0;
         foreach (var eq in equipments)
         {
             bool changed = false;
 
-            // 最近点检日期
-            var maxInspectionDate = await _context.Set<InspectionRecord>()
-                .Where(ir => ir.EquipmentId == eq.Id && ir.ActualDate != null)
-                .MaxAsync(ir => (DateTime?)ir.ActualDate);
+            var maxInspectionDate = maxInsDates.GetValueOrDefault(eq.Id);
             if (maxInspectionDate != eq.LastInspectionDate)
             {
                 eq.LastInspectionDate = maxInspectionDate;
                 changed = true;
             }
 
-            // 最近保养日期
-            var maxMaintDate = await _context.Set<MaintenanceOrder>()
-                .Where(mo => mo.EquipmentId == eq.Id && mo.ActualDate != null)
-                .MaxAsync(mo => (DateTime?)mo.ActualDate);
+            var maxMaintDate = maxMaintDates.GetValueOrDefault(eq.Id);
             if (maxMaintDate != eq.LastMaintDate)
             {
                 eq.LastMaintDate = maxMaintDate;
                 changed = true;
             }
 
-            // 最近维修日期
-            var maxRepairDate = await _context.Set<RepairOrder>()
-                .Where(ro => ro.EquipmentId == eq.Id && ro.RepairEndTime != null)
-                .MaxAsync(ro => (DateTime?)ro.RepairEndTime);
+            var maxRepairDate = maxRepairDates.GetValueOrDefault(eq.Id);
             if (maxRepairDate != eq.LastRepairDate)
             {
                 eq.LastRepairDate = maxRepairDate;
@@ -280,6 +308,115 @@ public class DataFixService : IDataFixService
 
         _logger.LogInformation("设备日期字段修复完成: {Count} 台", fixedCount);
         return fixedCount;
+    }
+
+    // ==================== 7. 回填工艺周期 ====================
+
+    private async Task<int> FixStandardCycleAsync()
+    {
+        // 加载基础数据
+        var workOrders = await _context.WorkOrders.ToDictionaryAsync(w => w.Id);
+        var cycles = await _context.StandardProcessCycles.ToListAsync();
+
+        int totalFixed = 0;
+
+        // ---- 7a. 荒管采购 ----
+        var semiPlans = await _context.PurchaseSemiPlans.ToListAsync();
+        foreach (var plan in semiPlans)
+        {
+            if (!workOrders.TryGetValue(plan.WorkOrderId, out var wo)) continue;
+            var deliveryText = GetDeliveryStateChinese(wo.DeliveryState);
+            var materialText = GetRawMaterialTypeChinese(plan.RawMaterialType);
+            var match = cycles.FirstOrDefault(c =>
+                c.PlantGrade == wo.PlantGrade &&
+                c.ProductSpec == wo.Specification &&
+                c.DeliveryState == deliveryText &&
+                c.RawMaterialType == materialText &&
+                c.RawSpec == plan.RawMaterialSpec);
+            plan.StandardCycle = match?.StandardCycleDays ?? 25;
+            totalFixed++;
+        }
+
+        // ---- 7b. 圆棒穿孔 ----
+        var piercingPlans = await _context.RoundBarPiercingPlans.ToListAsync();
+        foreach (var plan in piercingPlans)
+        {
+            if (!workOrders.TryGetValue(plan.WorkOrderId, out var wo)) continue;
+            var deliveryText = GetDeliveryStateChinese(wo.DeliveryState);
+            var match = cycles.FirstOrDefault(c =>
+                c.PlantGrade == wo.PlantGrade &&
+                c.ProductSpec == wo.Specification &&
+                c.DeliveryState == deliveryText &&
+                c.RawMaterialType == "荒管" &&
+                c.RawSpec == plan.PiercingSpec);
+            plan.StandardCycle = match?.StandardCycleDays ?? 25;
+            totalFixed++;
+        }
+
+        // ---- 7c. 成品采购 ----
+        var finishedPlans = await _context.PurchaseFinishedPlans.ToListAsync();
+        foreach (var plan in finishedPlans)
+        {
+            plan.StandardCycle = 3;
+            totalFixed++;
+        }
+
+        // ---- 7d. 库存使用/库料改制 ----
+        var inventoryPlans = await _context.InventoryPlans.ToListAsync();
+        foreach (var plan in inventoryPlans)
+        {
+            if (plan.ReworkType != null && workOrders.TryGetValue(plan.WorkOrderId, out var wo))
+            {
+                var deliveryText = GetDeliveryStateChinese(wo.DeliveryState);
+                var match = cycles.FirstOrDefault(c =>
+                    c.PlantGrade == wo.PlantGrade &&
+                    c.ProductSpec == wo.Specification &&
+                    c.DeliveryState == deliveryText &&
+                    c.RawMaterialType == plan.MaterialType &&
+                    c.RawSpec == plan.Specification);
+                plan.StandardCycle = match?.StandardCycleDays ?? 25;
+            }
+            else
+            {
+                plan.StandardCycle = 3;
+            }
+            totalFixed++;
+        }
+
+        if (totalFixed > 0)
+            await _context.SaveChangesAsync();
+
+        _logger.LogInformation("工艺周期回填完成: {Count} 条", totalFixed);
+        return totalFixed;
+    }
+
+    private static string GetDeliveryStateChinese(DeliveryState state)
+    {
+        return state switch
+        {
+            DeliveryState.SolutionAnnealedAndPickled => "固溶酸洗",
+            DeliveryState.SolutionAnnealedAndPickledUTube => "固溶酸洗-U型管",
+            DeliveryState.SolutionAnnealedAndPickledExternalPolished => "固溶酸洗-外抛光",
+            DeliveryState.SolutionAnnealedAndPickledInternalPolished => "固溶酸洗-内抛光",
+            DeliveryState.SolutionAnnealedAndPickledBothPolished => "固溶酸洗-内外抛光",
+            DeliveryState.SolutionAnnealedAndPickledCoiled => "固溶酸洗-盘管",
+            DeliveryState.Bright => "光亮",
+            DeliveryState.BrightUTube => "光亮-U型管",
+            DeliveryState.BrightCoiled => "光亮-盘管",
+            DeliveryState.Hard => "硬态",
+            _ => state.ToString()
+        };
+    }
+
+    private static string GetRawMaterialTypeChinese(RawMaterialType type)
+    {
+        return type switch
+        {
+            RawMaterialType.SemiFinished => "荒管",
+            RawMaterialType.SemiProduct => "半成品",
+            RawMaterialType.RoundBar => "圆棒",
+            _ => type.ToString()
+        };
     }
 
     // ==================== 工具方法 ====================

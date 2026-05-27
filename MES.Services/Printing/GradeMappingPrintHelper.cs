@@ -73,12 +73,13 @@ public static class GradeMappingPrintHelper
                 columns.ConstantColumn(70);   // 密度
                 columns.ConstantColumn(80);   // 热处理工艺（压窄）
                 columns.ConstantColumn(50);   // 特殊材料
+                columns.ConstantColumn(60);   // 钢性
                 columns.RelativeColumn();     // 备注（放宽）
             });
 
             table.Header(header =>
             {
-                string[] headers = { "序号", "标准牌号", "工厂牌号", "密度(g/cm³)", "热处理工艺", "特殊材料", "备注" };
+                string[] headers = { "序号", "标准牌号", "工厂牌号", "密度(g/cm³)", "热处理工艺", "特殊材料", "钢性", "备注" };
                 foreach (var h in headers)
                     header.Cell().Element(CellHeaderStyle).Text(h).FontSize(8).AlignCenter();
             });
@@ -93,6 +94,7 @@ public static class GradeMappingPrintHelper
                 table.Cell().Element(CellStyle).Text(m.Density.ToString("F4")).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(m.HeatTreatment ?? "-").FontSize(8);
                 table.Cell().Element(CellStyle).Text(m.SpecialMaterial ? "特殊" : "常规").FontSize(8).AlignCenter();
+                table.Cell().Element(CellStyle).Text(m.SteelProperty).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(m.Remark ?? "-").FontSize(8);
             }
         });

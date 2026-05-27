@@ -31,9 +31,10 @@
 
                 <!-- 工单模块 -->
                 <AuthorizeView Roles="WorkOrderStaff,WorkOrderDirector,Admin">
-                    <MudMenu Label="工单管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("workorders","material-plan-overview")">
+                    <MudMenu Label="工单管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("workorders","material-plan-overview","standard-process-cycles")">
                         <MudMenuItem Class="@GetMenuItemClass("/workorders")" OnClick='() => NavigateTo("/workorders")'>工单首页</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/material-plan-overview")" OnClick='() => NavigateTo("/material-plan-overview")'>用料计划总览</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/standard-process-cycles")" OnClick='() => NavigateTo("/standard-process-cycles")'>标准工艺生产周期</MudMenuItem>
                     </MudMenu>
                 </AuthorizeView>
 
@@ -50,7 +51,7 @@
 
                 <!-- 质量模块 -->
                 <AuthorizeView Roles="QualityStaff,QualityDirector,Admin">
-                    <MudMenu Label="质量管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("quality/furnace","quality/process-inspection","material-checks","quality/chemical-composition","quality/chemical-validate","quality/final-inspection","quality/lab-testing","quality/certificate")">
+                    <MudMenu Label="质量管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("quality/furnace","quality/process-inspection","material-checks","quality/chemical-composition","quality/chemical-validate","quality/final-inspection","quality/lab-testing","quality/certificate","quality-process-tracking")">
                         <MudMenuItem Class="@GetMenuItemClass("/quality/furnace")">
                             <span @onmouseenter="ShowFurnaceSub" @onmouseleave="StartFurnaceHideTimer"
                                   style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
@@ -73,6 +74,7 @@
                         <MudMenuItem Class="@GetMenuItemClass("/quality/process-inspection")" OnClick='() => NavigateTo("/quality/process-inspection")'>过程检验</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/material-checks")" OnClick='() => NavigateTo("/material-checks")'>检验到料</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/quality/final-inspection")" OnClick='() => NavigateTo("/quality/final-inspection")'>成品检验</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/quality-process-tracking")" OnClick='() => NavigateTo("/quality-process-tracking")'>成检到料及执行</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/quality/lab-testing")" OnClick='() => NavigateTo("/quality/lab-testing")'>理化检测</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/quality/certificate")" OnClick='() => NavigateTo("/quality/certificate")'>质量证明书</MudMenuItem>
                     </MudMenu>

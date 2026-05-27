@@ -14,16 +14,13 @@ public class DataFixReport
     /// <summary>批次跟踪字段修复条数</summary>
     public int BatchTrackingFixed { get; set; }
 
-    /// <summary>采购订单同步条数</summary>
-    public int PurchaseOrdersFixed { get; set; }
-
-    /// <summary>委外订单同步条数</summary>
-    public int SubcontractOrdersFixed { get; set; }
-
     /// <summary>设备日期字段修复条数</summary>
     public int EquipmentFixed { get; set; }
 
+    /// <summary>工艺周期回填条数</summary>
+    public int StandardCycleFixed { get; set; }
+
     /// <summary>总修复条数</summary>
     public int Total => SequenceNumbersFixed + OutsourceStatusFixed + BatchTrackingFixed
-                        + PurchaseOrdersFixed + SubcontractOrdersFixed + EquipmentFixed;
+                        + EquipmentFixed + StandardCycleFixed;
 }

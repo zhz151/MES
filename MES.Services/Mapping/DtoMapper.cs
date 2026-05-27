@@ -28,6 +28,7 @@ public static class DtoMapper
         HeatTreatment = entity.HeatTreatment,
         SpecialMaterial = entity.SpecialMaterial,
         SpecialNote = entity.SpecialNote,
+        SteelProperty = entity.SteelProperty,
         Remark = entity.Remark
     };
 
@@ -311,6 +312,17 @@ public static class DtoMapper
         UpdatedBy = entity.UpdatedBy,
         RowVersion = entity.RowVersion,
         ProcessGroups = entity.ProcessGroups?.Select(ToGroupDto).ToList() ?? new()
+    };
+
+    public static StandardProcessCycleDto ToDto(this StandardProcessCycle entity) => new()
+    {
+        Id = entity.Id,
+        PlantGrade = entity.PlantGrade,
+        RawMaterialType = entity.RawMaterialType,
+        RawSpec = entity.RawSpec,
+        ProductSpec = entity.ProductSpec,
+        DeliveryState = entity.DeliveryState,
+        StandardCycleDays = entity.StandardCycleDays
     };
 
     public static ProcessGroupDto ToGroupDto(this ProcessGroup entity) => new()

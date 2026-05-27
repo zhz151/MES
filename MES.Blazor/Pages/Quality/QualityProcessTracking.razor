@@ -1,0 +1,97 @@
+@page "/quality-process-tracking"
+@using MES.Blazor.Services
+@using MES.Blazor.Components
+@using MES.Blazor.Models
+@using MES.Blazor.Shared
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@inject QualityProcessTrackingService TrackingService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+@inject PageStateService PageState
+@inject ColumnPrefsService ColumnPrefs
+@attribute [Authorize(Roles = "QualityStaff,QualityDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5" Class="font-weight-bold">
+            <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" Color="Color.Primary" />
+            成检到料及执行
+        </MudText>
+    </div>
+
+    <MudCard>
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string" Label="批次号/制造物品/钢种/规格/确认人"
+                                  Value="@_searchKeyword" ValueChanged="@OnSearchChanged"
+                                  Immediate="true" DebounceInterval="500"
+                                  Clearable="true" ClearButton="true"
+                                  Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+            </MudGrid>
+
+            <MudTable @ref="table" T="QualityProcessTrackingDto"
+                      ServerData="@LoadDataFromServer"
+                      Dense="true" Hover="true" Class="mt-4 auto-table"
+                      Elevation="0" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:"
+                      id="quality-process-tracking-table">
+
+                <ToolBarContent>
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudText Typo="Typo.body2">
+                        共 @_totalCount 条记录
+                    </MudText>
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                </ToolBarContent>
+
+                <HeaderContent>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTh>
+                            <div class="col-header-cell">
+                                <span @onclick='() => ToggleSort(col.Key)'
+                                      style="cursor:pointer" class="th-label">
+                                    @col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}
+                                </span>
+                                @if (col.FilterType != null)
+                                {
+                                    <ExcelFilter T="QualityProcessTrackingDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))" />
+                                }
+                            </div>
+                        </MudTh>
+                    }
+                </HeaderContent>
+
+                <RowTemplate Context="item">
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd>@RenderCell(item, col)</MudTd>
+                    }
+                </RowTemplate>
+
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
+                </PagerContent>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>

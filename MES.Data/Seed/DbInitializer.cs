@@ -184,6 +184,7 @@ public static class DbInitializer
                     Density = 7.93m,
                     HeatTreatment = "Solution treatment 1010-1150℃, rapid cooling",
                     SpecialMaterial = false,
+                    SteelProperty = "镍基合金",
                     Remark = "Austenitic stainless steel"
                 },
                 new StandardGradeMapping
@@ -193,6 +194,7 @@ public static class DbInitializer
                     Density = 7.93m,
                     HeatTreatment = "Solution treatment 1010-1150℃, rapid cooling",
                     SpecialMaterial = false,
+                    SteelProperty = "镍基合金",
                     Remark = "Low carbon austenitic stainless steel"
                 },
                 // 316 Series
@@ -203,6 +205,7 @@ public static class DbInitializer
                     Density = 7.98m,
                     HeatTreatment = "Solution treatment 1010-1150℃, rapid cooling",
                     SpecialMaterial = false,
+                    SteelProperty = "镍基合金",
                     Remark = "Molybdenum-containing austenitic stainless steel"
                 },
                 new StandardGradeMapping
@@ -212,6 +215,7 @@ public static class DbInitializer
                     Density = 7.98m,
                     HeatTreatment = "Solution treatment 1010-1150℃, rapid cooling",
                     SpecialMaterial = false,
+                    SteelProperty = "镍基合金",
                     Remark = "Low carbon molybdenum-containing austenitic stainless steel"
                 },
                 // 321 Series
@@ -222,6 +226,7 @@ public static class DbInitializer
                     Density = 7.93m,
                     HeatTreatment = "Solution treatment 920-1150℃, rapid cooling",
                     SpecialMaterial = false,
+                    SteelProperty = "镍基合金",
                     Remark = "Titanium-stabilized austenitic stainless steel, resistant to intergranular corrosion"
                 },
                 // 310S Series
@@ -232,6 +237,7 @@ public static class DbInitializer
                     Density = 7.98m,
                     HeatTreatment = "Solution treatment 1030-1180℃, rapid cooling",
                     SpecialMaterial = false,
+                    SteelProperty = "镍基合金",
                     Remark = "High temperature resistant austenitic stainless steel"
                 },
                 // 201 Series
@@ -242,6 +248,7 @@ public static class DbInitializer
                     Density = 7.93m,
                     HeatTreatment = "Solution treatment 1010-1120℃, rapid cooling",
                     SpecialMaterial = false,
+                    SteelProperty = "镍基合金",
                     Remark = "Nickel-saving austenitic stainless steel"
                 },
                 // 202 Series
@@ -252,6 +259,7 @@ public static class DbInitializer
                     Density = 7.93m,
                     HeatTreatment = "Solution treatment 1010-1120℃, rapid cooling",
                     SpecialMaterial = false,
+                    SteelProperty = "镍基合金",
                     Remark = "Nickel-saving austenitic stainless steel"
                 },
                 // 309S Series
@@ -262,6 +270,7 @@ public static class DbInitializer
                     Density = 7.98m,
                     HeatTreatment = "Solution treatment 1030-1150℃, rapid cooling",
                     SpecialMaterial = false,
+                    SteelProperty = "镍基合金",
                     Remark = "High temperature resistant austenitic stainless steel"
                 },
                 // 347 Series
@@ -272,6 +281,7 @@ public static class DbInitializer
                     Density = 7.93m,
                     HeatTreatment = "Solution treatment 980-1150℃, rapid cooling",
                     SpecialMaterial = false,
+                    SteelProperty = "镍基合金",
                     Remark = "Niobium-stabilized austenitic stainless steel, resistant to intergranular corrosion"
                 },
                 // Special Materials
@@ -283,6 +293,7 @@ public static class DbInitializer
                     HeatTreatment = "Solution treatment 1090-1170℃, rapid cooling",
                     SpecialMaterial = true,
                     SpecialNote = "Super austenitic stainless steel, pay attention to pickling process",
+                    SteelProperty = "镍基合金",
                     Remark = "Super austenitic stainless steel"
                 },
                 new StandardGradeMapping
@@ -293,6 +304,7 @@ public static class DbInitializer
                     HeatTreatment = "Solution treatment 1020-1100℃, rapid cooling",
                     SpecialMaterial = true,
                     SpecialNote = "Duplex stainless steel, strictly control heat treatment temperature",
+                    SteelProperty = "镍基合金",
                     Remark = "Duplex stainless steel"
                 },
                 new StandardGradeMapping
@@ -303,6 +315,7 @@ public static class DbInitializer
                     HeatTreatment = "Solution treatment 1050-1120℃, rapid cooling",
                     SpecialMaterial = true,
                     SpecialNote = "Super duplex stainless steel, strictly control heat treatment process",
+                    SteelProperty = "镍基合金",
                     Remark = "Super duplex stainless steel"
                 }
             };
@@ -482,6 +495,181 @@ public static class DbInitializer
             };
 
             await context.Warehouses.AddRangeAsync(warehouses);
+            await context.SaveChangesAsync();
+        }
+
+        // ========== 7. Initialize Standard Process Cycles ==========
+        if (!context.StandardProcessCycles.Any())
+        {
+            var cycles = new List<StandardProcessCycle>
+            {
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "余库料", RawSpec = "10*1.5", ProductSpec = "8*1.5", DeliveryState = "固溶酸洗", StandardCycleDays = 7 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*12", ProductSpec = "60.3*8.74", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*11", ProductSpec = "60.3*8.74", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
+                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "荒管", RawSpec = "76*9", ProductSpec = "60.3*5.6", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "31000", RawMaterialType = "余库料", RawSpec = "71*8", ProductSpec = "60.3*5.6", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*9", ProductSpec = "60.3*5.54", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*8.5", ProductSpec = "60.3*5.54", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "78*8.5", ProductSpec = "60.3*5.54", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "76*9", ProductSpec = "60.3*5.54", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "76*8.5", ProductSpec = "60.3*5.54", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "余库料", RawSpec = "90*8", ProductSpec = "60.3*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*7.5", ProductSpec = "60.3*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
+                new StandardProcessCycle { PlantGrade = "25073", RawMaterialType = "余库料", RawSpec = "89*6", ProductSpec = "60.3*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 14 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*7.5", ProductSpec = "60.3*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "荒管", RawSpec = "76*7.5", ProductSpec = "60.3*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "76*7", ProductSpec = "60.3*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "76*6.5", ProductSpec = "60.3*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "荒管", RawSpec = "76*5.5", ProductSpec = "60.3*2.9", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*7.5", ProductSpec = "60.3*2.77", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "71*16", ProductSpec = "60.3*12.5", DeliveryState = "固溶酸洗", StandardCycleDays = 15 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*14", ProductSpec = "60.3*11.07", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "76*6.5", ProductSpec = "60*4", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "余库料", RawSpec = "76*5.5", ProductSpec = "60*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*5.5", ProductSpec = "60*3", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "8*1.5", ProductSpec = "6*1.5", DeliveryState = "固溶酸洗", StandardCycleDays = 7 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "76*9", ProductSpec = "57*4", DeliveryState = "固溶酸洗", StandardCycleDays = 11 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "76*7", ProductSpec = "57*4", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*5.5", ProductSpec = "57*4", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*7", ProductSpec = "57*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*6.5", ProductSpec = "57*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*6", ProductSpec = "57*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "60*5", ProductSpec = "54*5", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*5.5", ProductSpec = "51*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "76*7.5", ProductSpec = "50*4", DeliveryState = "固溶酸洗-外抛光", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*7.5", ProductSpec = "50*4", DeliveryState = "固溶酸洗-外抛光", StandardCycleDays = 20 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "76*6.5", ProductSpec = "50*4", DeliveryState = "固溶酸洗-外抛光", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*5.5", ProductSpec = "50*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "76*8.5", ProductSpec = "48.3*5.08", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*8", ProductSpec = "48.3*5.08", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "荒管", RawSpec = "76*8", ProductSpec = "48.3*5.08", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*7.5", ProductSpec = "48.3*5.08", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "67*8.5", ProductSpec = "48.3*5.08", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*8.5", ProductSpec = "48.3*5.08", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*7.5", ProductSpec = "48.3*5.08", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "余库料", RawSpec = "67*7", ProductSpec = "48.3*5.08", DeliveryState = "固溶酸洗", StandardCycleDays = 15 },
+                new StandardProcessCycle { PlantGrade = "31000", RawMaterialType = "余库料", RawSpec = "71*8", ProductSpec = "48.3*5", DeliveryState = "固溶酸洗", StandardCycleDays = 12 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*8", ProductSpec = "48.3*5", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*5.5", ProductSpec = "48.3*3.68", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "48.3*3.68", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "48.3*3.68", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
+                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "48.3*3.68", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5.2", ProductSpec = "48.3*3.68", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "48.3*3.68", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "荒管", RawSpec = "76*5.5", ProductSpec = "48.3*2.77", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*14", ProductSpec = "48.3*10.16", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*5.5", ProductSpec = "48*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "57*3.5", ProductSpec = "45*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "316H0", RawMaterialType = "余库料", RawSpec = "50.8*8", ProductSpec = "42*8", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "45*3", ProductSpec = "42*3", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "67*5", ProductSpec = "38*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 13 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "38*3", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "34*4.5", DeliveryState = "固溶酸洗", StandardCycleDays = 20 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "34*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "34*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "荒管", RawSpec = "67*7.5", ProductSpec = "33.7*4.5", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "34*3.1", ProductSpec = "33.7*2.6", DeliveryState = "固溶酸洗", StandardCycleDays = 7 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*12", ProductSpec = "33.4*9.09", DeliveryState = "固溶酸洗", StandardCycleDays = 30 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "78*13", ProductSpec = "33.4*9.09", DeliveryState = "固溶酸洗", StandardCycleDays = 20 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "67*8.5", ProductSpec = "33.4*6.35", DeliveryState = "固溶酸洗", StandardCycleDays = 23 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "67*7.5", ProductSpec = "33.4*4.55", DeliveryState = "固溶酸洗", StandardCycleDays = 20 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*7.5", ProductSpec = "33.4*4.55", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "67*7", ProductSpec = "33.4*4.55", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*7", ProductSpec = "33.4*4.55", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
+                new StandardProcessCycle { PlantGrade = "25073", RawMaterialType = "余库料", RawSpec = "48.3*5.08", ProductSpec = "33.4*4.55", DeliveryState = "固溶酸洗", StandardCycleDays = 13 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*7", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "31600", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "余库料", RawSpec = "67*6", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 13 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
+                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "余库料", RawSpec = "67*6", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 13 },
+                new StandardProcessCycle { PlantGrade = "31600", RawMaterialType = "余库料", RawSpec = "67*5.5", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 13 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "余库料", RawSpec = "67*5", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 13 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "余库料", RawSpec = "42*3.4", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "余库料", RawSpec = "35*2.5", ProductSpec = "33.4*2.77", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "35*2.5", ProductSpec = "33.4*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "33.4*5.3", ProductSpec = "32*5.5", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "32*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "67*5", ProductSpec = "32*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 14 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5.2", ProductSpec = "32*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "32*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "316H0", RawMaterialType = "余库料", RawSpec = "67*6.5", ProductSpec = "28*4", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
+                new StandardProcessCycle { PlantGrade = "31600", RawMaterialType = "余库料", RawSpec = "32*3.5", ProductSpec = "27*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "27*3", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "28*2", ProductSpec = "26.9*2", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "78*11", ProductSpec = "26.7*7.82", DeliveryState = "固溶酸洗", StandardCycleDays = 23 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "76*13", ProductSpec = "26.7*7.82", DeliveryState = "固溶酸洗", StandardCycleDays = 23 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "67*7.5", ProductSpec = "26.7*5.56", DeliveryState = "固溶酸洗", StandardCycleDays = 24 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*8", ProductSpec = "26.7*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "26.7*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 24 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "26.7*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "26.7*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "余库料", RawSpec = "67*6", ProductSpec = "26.7*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "26.7*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "余库料", RawSpec = "67*5.5", ProductSpec = "26.7*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "26.7*2.87", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
+                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "26.7*2.87", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5.2", ProductSpec = "26.7*2.87", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
+                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "余库料", RawSpec = "48*3.6", ProductSpec = "26.7*2.87", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "28*2", ProductSpec = "26.7*2.11", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "25*3", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
+                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "余库料", RawSpec = "27*3", ProductSpec = "25*3", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "余库料", RawSpec = "26.7*2.87", ProductSpec = "25*3", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5.5", ProductSpec = "25*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
+                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "荒管", RawSpec = "67*5.5", ProductSpec = "25*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5.2", ProductSpec = "25*2", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
+                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "荒管", RawSpec = "67*5.2", ProductSpec = "25*2", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5.2", ProductSpec = "25*2", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
+                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "荒管", RawSpec = "67*5.2", ProductSpec = "25*2", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "25*2", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
+                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "余库料", RawSpec = "67*5", ProductSpec = "25*2", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "28*2", ProductSpec = "24*2", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "余库料", RawSpec = "25*3", ProductSpec = "22*3", DeliveryState = "固溶酸洗", StandardCycleDays = 7 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*12", ProductSpec = "21.3*7.47", DeliveryState = "固溶酸洗", StandardCycleDays = 26 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "78*11", ProductSpec = "21.3*7.47", DeliveryState = "固溶酸洗", StandardCycleDays = 23 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "76*13", ProductSpec = "21.3*7.47", DeliveryState = "固溶酸洗", StandardCycleDays = 23 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*7.5", ProductSpec = "21.3*4.78", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "67*7", ProductSpec = "21.3*4.78", DeliveryState = "固溶酸洗", StandardCycleDays = 24 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "67*7", ProductSpec = "21.3*3.73", DeliveryState = "固溶酸洗", StandardCycleDays = 24 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "21.3*3.73", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "21.3*3.73", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
+                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "21.3*3.73", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
+                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "余库料", RawSpec = "67*5.5", ProductSpec = "21.3*3.73", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
+                new StandardProcessCycle { PlantGrade = "25073", RawMaterialType = "余库料", RawSpec = "26.7*3.5", ProductSpec = "21.3*3.73", DeliveryState = "固溶酸洗", StandardCycleDays = 11 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "25*3.5", ProductSpec = "21.3*3.73", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "67*4.8", ProductSpec = "21.3*2.9", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "21.3*2.77", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5.5", ProductSpec = "21.3*2.77", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "67*5", ProductSpec = "21.3*2.77", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "21.3*2.77", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
+                new StandardProcessCycle { PlantGrade = "3160T", RawMaterialType = "余库料", RawSpec = "25*3", ProductSpec = "21.3*2.77", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "31600", RawMaterialType = "余库料", RawSpec = "22*3", ProductSpec = "21*3", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "20*2", DeliveryState = "固溶酸洗-外抛光", StandardCycleDays = 26 },
+                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "余库料", RawSpec = "22*2.5", ProductSpec = "19*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 7 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5.5", ProductSpec = "19*2", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5.2", ProductSpec = "19*2", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "19*2", DeliveryState = "光亮", StandardCycleDays = 26 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "19*2", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
+                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "19*2", DeliveryState = "固溶酸洗-U型管", StandardCycleDays = 26 },
+                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "19*2", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
+                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "余库料", RawSpec = "38*3", ProductSpec = "19*2", DeliveryState = "固溶酸洗", StandardCycleDays = 12 },
+                new StandardProcessCycle { PlantGrade = "22052", RawMaterialType = "余库料", RawSpec = "38*2.7", ProductSpec = "19*2", DeliveryState = "固溶酸洗", StandardCycleDays = 15 },
+                new StandardProcessCycle { PlantGrade = "22052", RawMaterialType = "余库料", RawSpec = "32*2", ProductSpec = "19*2", DeliveryState = "固溶酸洗", StandardCycleDays = 11 },
+                new StandardProcessCycle { PlantGrade = "22052", RawMaterialType = "余库料", RawSpec = "25*2", ProductSpec = "19*2", DeliveryState = "固溶酸洗", StandardCycleDays = 11 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "38*2.7", ProductSpec = "18*1.5", DeliveryState = "固溶酸洗-外抛光", StandardCycleDays = 15 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "22*2", ProductSpec = "18*1.5", DeliveryState = "固溶酸洗", StandardCycleDays = 12 },
+                new StandardProcessCycle { PlantGrade = "316H0", RawMaterialType = "余库料", RawSpec = "21.3*2.9", ProductSpec = "16*3", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "20*0.95", ProductSpec = "15*1", DeliveryState = "固溶酸洗", StandardCycleDays = 7 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "18*1.9", ProductSpec = "15*1", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "余库料", RawSpec = "18*2.5", ProductSpec = "14*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 7 },
+                new StandardProcessCycle { PlantGrade = "31600", RawMaterialType = "余库料", RawSpec = "14*3", ProductSpec = "12*3", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "14*2", ProductSpec = "10*2", DeliveryState = "固溶酸洗", StandardCycleDays = 7 },
+                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "12*2", ProductSpec = "10*2", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
+            };
+
+            await context.StandardProcessCycles.AddRangeAsync(cycles);
             await context.SaveChangesAsync();
         }
     }

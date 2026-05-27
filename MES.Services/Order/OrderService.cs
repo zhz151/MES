@@ -1177,11 +1177,11 @@ public async Task DeleteAsync(int id)
         {
             case LengthStatus.Fixed:
                 if (quantity.HasValue && quantity > 0 && maxLength.HasValue && maxLength > 0)
-                    return Math.Round(maxLength.Value * quantity.Value / 1000, 2);
+                    return maxLength.Value * quantity.Value / 1000;
                 return null;
             case LengthStatus.Range:
             case LengthStatus.NonFixed:
-                return meters.HasValue ? Math.Round(meters.Value, 2) : 0;
+                return meters.HasValue ? meters.Value : 0;
             default:
                 return 0;
         }
@@ -1220,7 +1220,7 @@ public async Task DeleteAsync(int id)
 
         var weight = density * pi * effectiveWallThickness * (effectiveOuterDiameter - effectiveWallThickness) * meters / 1000;
         if (weight < 0) weight = 0;
-        return Math.Round(weight, 2);
+        return weight;
     }
 
     private static void SetOrderItemFields(OrderItem item,

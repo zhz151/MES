@@ -35,6 +35,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<ProductionStandard> ProductionStandards { get; set; } = null!;
     public DbSet<ProductRequirement> ProductRequirements { get; set; } = null!;
     public DbSet<StandardGradeMapping> StandardGradeMappings { get; set; } = null!;
+    public DbSet<StandardProcessCycle> StandardProcessCycles { get; set; } = null!;
     public DbSet<WorkOrder> WorkOrders { get; set; } = null!;
     public DbSet<OrderChangeNotification> OrderChangeNotifications { get; set; } = null!;
     public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
@@ -118,6 +119,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigurePurchaseFinishedPlan(builder);
         ConfigureRoundBarPiercingPlan(builder);
         ConfigureInventoryPlan(builder);
+
+        // ========== 工单上下文 ==========
+        ConfigureStandardProcessCycle(builder);
 
         // ========== 物料上下文 ==========
         ConfigureMaterial(builder);
@@ -349,6 +353,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.HeatTreatment).HasMaxLength(100);
             entity.Property(e => e.SpecialMaterial).HasDefaultValue(false);
             entity.Property(e => e.SpecialNote).HasMaxLength(500);
+            entity.Property(e => e.SteelProperty).IsRequired().HasMaxLength(20).HasDefaultValue("镍基合金");
             entity.Property(e => e.Remark).HasMaxLength(500);
             entity.HasIndex(e => e.StandardGrade).IsUnique().HasDatabaseName("UK_StandardGradeMapping_StandardGrade");
             entity.HasIndex(e => e.PlantGrade).HasDatabaseName("IX_StandardGradeMapping_PlantGrade");
@@ -466,6 +471,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.RequiredDate).IsRequired().HasColumnType("date");
             entity.Property(e => e.ProcessPlan).HasColumnType("nvarchar(max)");
             entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.Property(e => e.StandardCycle).IsRequired().HasDefaultValue(0);
             entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_PurchaseSemiPlan_WorkOrderId");
 
             entity.HasOne<WorkOrder>()
@@ -501,6 +507,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.MinLength).HasColumnType("decimal(18,2)");
             entity.Property(e => e.MaxLength).HasColumnType("decimal(18,2)");
             entity.Property(e => e.DeliveryState).IsRequired().HasConversion<string>().HasMaxLength(50);
+            entity.Property(e => e.StandardCycle).IsRequired().HasDefaultValue(0);
 
             entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_PurchaseFinishedPlan_WorkOrderId");
 
@@ -536,6 +543,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.RequiredDate).IsRequired().HasColumnType("date");
             entity.Property(e => e.ProcessPlan).HasColumnType("nvarchar(max)");
             entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.Property(e => e.StandardCycle).IsRequired().HasDefaultValue(0);
             entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_RoundBarPiercingPlan_WorkOrderId");
 
             entity.HasOne<WorkOrder>()
@@ -727,6 +735,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Remark).HasMaxLength(500);
             entity.Property(e => e.ReworkType).HasMaxLength(20).HasConversion<string>();
             entity.Property(e => e.ProcessPlan).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.StandardCycle).IsRequired().HasDefaultValue(0);
             entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_InventoryPlan_WorkOrderId");
             entity.HasIndex(e => e.InventoryBatchNo).HasDatabaseName("IX_InventoryPlan_InventoryBatchNo");
             entity.HasIndex(e => e.PlanStatus).HasDatabaseName("IX_InventoryPlan_PlanStatus");
@@ -957,6 +966,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.InputWeight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.CurrentValidQty);
             entity.Property(e => e.CurrentValidWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.IsClosed).IsRequired().HasDefaultValue(false);
 
             // 索引
             entity.HasIndex(e => e.BatchNo).IsUnique().HasDatabaseName("UK_ProductionBatch_BatchNo");
@@ -1140,11 +1150,22 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
             entity.Property(e => e.ProductionBatchId).IsRequired();
             entity.Property(e => e.ReceiveDate).IsRequired().HasColumnType("datetime2");
-            entity.Property(e => e.ReceivedQuantity);
-            entity.Property(e => e.ReceivedWeight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.Shift).HasMaxLength(10);
             entity.Property(e => e.Checker).HasMaxLength(50);
             entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.Property(e => e.DataSource).HasMaxLength(10);
+
+            entity.Property(e => e.BatchNo).HasMaxLength(50);
+            entity.Property(e => e.ManufacturingItem).HasMaxLength(50);
+            entity.Property(e => e.TagNo).HasMaxLength(50);
+            entity.Property(e => e.WorkOrderNo).HasMaxLength(50);
+            entity.Property(e => e.SalesOrderNo).HasMaxLength(50);
+            entity.Property(e => e.SourceUnit).HasMaxLength(200);
+            entity.Property(e => e.FurnaceNo).HasMaxLength(50);
+            entity.Property(e => e.PlantGrade).HasMaxLength(50);
+            entity.Property(e => e.Specification).HasMaxLength(100);
+            entity.Property(e => e.ProductionType).HasMaxLength(50);
+            entity.Property(e => e.IsForceCompleted);
 
             entity.HasOne(e => e.ProductionBatch)
                 .WithMany()
@@ -1364,6 +1385,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.PlantGrade).HasMaxLength(50);
             entity.Property(e => e.Specification).HasMaxLength(100);
             entity.Property(e => e.FixedLength).HasMaxLength(50);
+            entity.Property(e => e.ProductionType).HasMaxLength(50);
 
             // 执行信息
             entity.Property(e => e.EquipmentName).HasMaxLength(100);
@@ -1796,6 +1818,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.ReworkPlanTotalPieces).IsRequired(false);
             entity.Property(e => e.PiercingPlanTotalWeight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.PiercingPlanTotalPieces).IsRequired(false);
+            entity.Property(e => e.MaxStandardCycle).IsRequired().HasDefaultValue(0);
 
             // Group C: 预计算主号/订单聚合
             entity.Property(e => e.MainNoMaterialPlanRate).HasColumnType("decimal(7,2)").HasDefaultValue(0m);
@@ -1816,6 +1839,24 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => e.OrderMaterialPlanStatus).HasDatabaseName("IX_WOLS_OrderMaterialPlanStatus");
             entity.HasIndex(e => e.Status).HasDatabaseName("IX_WOLS_Status");
             entity.HasIndex(e => e.LatestPlanDate).HasDatabaseName("IX_WOLS_LatestPlanDate");
+        });
+    }
+
+    // ========== 工单上下文 ==========
+
+    private static void ConfigureStandardProcessCycle(ModelBuilder builder)
+    {
+        builder.Entity<StandardProcessCycle>(entity =>
+        {
+            entity.ToTable("StandardProcessCycle");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.RawMaterialType).IsRequired().HasConversion<string>().HasMaxLength(50);
+            entity.Property(e => e.RawSpec).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ProductSpec).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.DeliveryState).IsRequired().HasConversion<string>().HasMaxLength(50);
+            entity.Property(e => e.StandardCycleDays).IsRequired();
+            entity.HasIndex(e => e.PlantGrade).HasDatabaseName("IX_StandardProcessCycle_PlantGrade");
         });
     }
 }

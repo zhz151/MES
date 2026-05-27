@@ -7,11 +7,34 @@ namespace MES.Core.DTOs;
 /// </summary>
 public class SalesOrderListDto
 {
+    /// <summary>
+    /// 订单ID
+    /// </summary>
     public int Id { get; set; }
+
+    /// <summary>
+    /// 订单号
+    /// </summary>
     public string OrderNumber { get; set; } = null!;
+
+    /// <summary>
+    /// 签订日期
+    /// </summary>
     public DateTime SignDate { get; set; }
+
+    /// <summary>
+    /// 客户名称
+    /// </summary>
     public string CustomerName { get; set; } = null!;
+
+    /// <summary>
+    /// 业务员
+    /// </summary>
     public string Salesman { get; set; } = null!;
+
+    /// <summary>
+    /// 最终客户
+    /// </summary>
     public string? EndCustomer { get; set; }
 
     /// <summary>
@@ -39,7 +62,14 @@ public class SalesOrderListDto
     /// </summary>
     public int ItemCount { get; set; }
 
+    /// <summary>
+    /// 订单状态
+    /// </summary>
     public SalesOrderStatus Status { get; set; }
+
+    /// <summary>
+    /// 乐观并发控制版本号
+    /// </summary>
     public byte[] RowVersion { get; set; } = null!;
 
     /// <summary>

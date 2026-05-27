@@ -174,7 +174,8 @@ public class WorkOrderListSummaryService
         Dictionary<int, int> ReworkPiecesByWo,
         Dictionary<int, decimal> PiercingWeightByWo,
         Dictionary<int, int> PiercingPiecesByWo,
-        Dictionary<int, DateTime> LatestDateByWo);
+        Dictionary<int, DateTime> LatestDateByWo,
+        Dictionary<int, int> MaxCycleByWo);
 
     private async Task<PlanData> LoadPlanDataAsync(List<int> workOrderIds)
     {
@@ -218,6 +219,28 @@ public class WorkOrderListSummaryService
 
         // 最新计划日期
         var latestDateByWo = new Dictionary<int, DateTime>();
+
+        // 最大工艺周期：取4种计划中 StandardCycle 的最大值
+        var maxCycleByWo = new Dictionary<int, int>();
+        void MergeMaxCycle(IEnumerable<IGrouping<int, int>> groups)
+        {
+            foreach (var g in groups)
+            {
+                var max = g.Max();
+                if (maxCycleByWo.TryGetValue(g.Key, out var existing))
+                {
+                    if (max > existing) maxCycleByWo[g.Key] = max;
+                }
+                else
+                {
+                    maxCycleByWo[g.Key] = max;
+                }
+            }
+        }
+        MergeMaxCycle(semiPlans.GroupBy(p => p.WorkOrderId, p => p.StandardCycle));
+        MergeMaxCycle(finishPlans.GroupBy(p => p.WorkOrderId, p => p.StandardCycle));
+        MergeMaxCycle(inventoryPlans.GroupBy(p => p.WorkOrderId, p => p.StandardCycle));
+        MergeMaxCycle(piercingPlans.GroupBy(p => p.WorkOrderId, p => p.StandardCycle));
         void MergeMaxDate(IEnumerable<IGrouping<int, DateTime>> groups)
         {
             foreach (var g in groups)
@@ -246,7 +269,8 @@ public class WorkOrderListSummaryService
             inventoryWeightByWo, inventoryPiecesByWo,
             reworkWeightByWo, reworkPiecesByWo,
             piercingWeightByWo, piercingPiecesByWo,
-            latestDateByWo);
+            latestDateByWo,
+            maxCycleByWo);
     }
 
     /// <summary>加载客户数据字典（OrderNumber → (Salesman, EndCustomer)）</summary>
@@ -299,6 +323,7 @@ public class WorkOrderListSummaryService
         planData.PiercingWeightByWo.TryGetValue(woId, out var pW);
         planData.PiercingPiecesByWo.TryGetValue(woId, out var pP);
         planData.LatestDateByWo.TryGetValue(woId, out var latestDate);
+        planData.MaxCycleByWo.TryGetValue(woId, out var maxCycle);
 
         // 满足率
         var semi = planData.SemiByWo.TryGetValue(woId, out var s) ? s : new List<PurchaseSemiPlan>();
@@ -374,6 +399,7 @@ public class WorkOrderListSummaryService
             MainNoMaterialPlanStatus = (int)mainNoStatus,
             OrderMaterialPlanStatus = (int)orderMaterialPlanStatus,
             RowVersion = null,
+            MaxStandardCycle = maxCycle,
             LastRefreshTime = DateTime.Now
         };
     }
@@ -562,6 +588,7 @@ public class WorkOrderListSummaryService
                 existing.MainNoMaterialPlanRate = summary.MainNoMaterialPlanRate;
                 existing.MainNoMaterialPlanStatus = summary.MainNoMaterialPlanStatus;
                 existing.OrderMaterialPlanStatus = summary.OrderMaterialPlanStatus;
+                existing.MaxStandardCycle = summary.MaxStandardCycle;
                 existing.LastRefreshTime = summary.LastRefreshTime;
             }
             else

@@ -25,6 +25,8 @@ public class ProductionBatchDetailDto
     public string? NextSectionName { get; set; }
     public string? CorrespondingSpec { get; set; }
     public bool? CurrentSectionCompleted { get; set; }
+    public int RemainingWorkDays { get; set; }
+    public int TotalWorkDays { get; set; }
     public string? Remark { get; set; }
 
     // ========== 工单冗余 ==========

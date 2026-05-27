@@ -48,6 +48,7 @@ public class BatchQueryParams : QueryParams
     public string? ValidInputQuestion { get; set; }
 
     /// <summary>
+    /// 开始日期范围起始
     /// </summary>
     public DateTime? StartDateFrom { get; set; }
 

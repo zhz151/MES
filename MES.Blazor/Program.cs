@@ -33,6 +33,7 @@ builder.Services.AddScoped<AuthHttpClient>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<ProductionStandardService>();
 builder.Services.AddScoped<GradeMappingService>();
+builder.Services.AddScoped<StandardProcessCycleService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ProductRequirementService>();
 builder.Services.AddScoped<WorkOrderService>();
@@ -63,6 +64,8 @@ builder.Services.AddScoped<InspectionRecordService>();
 
 // ========== 读模型上下文 ==========
 builder.Services.AddScoped<MES.Blazor.Services.WorkOrderExecutionService>();
+
+builder.Services.AddScoped<QualityProcessTrackingService>();
 
 // ========== 扫码执行 ==========
 builder.Services.AddScoped<ScanService>();

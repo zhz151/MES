@@ -1,6 +1,7 @@
 @namespace MES.Blazor.Shared
 @using MES.Blazor.Services
 @using MES.Core.DTOs
+@using MES.Blazor.Helpers
 @inject SectionOutsourceService SectionOutsourceService
 @inject ISnackbar Snackbar
 
@@ -60,8 +61,8 @@
                             <MudItem xs="6" sm="3">
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">状态</MudText>
                                 <MudText Typo="Typo.body2">
-                                    <MudChip Size="Size.Small" Color="@(_selectedOutsource.Status == "Recovered" ? Color.Success : Color.Warning)">
-                                        @_selectedOutsource.Status
+                                    <MudChip Size="Size.Small" Color="@(DisplayHelper.GetSectionOutsourceStatusColor(_selectedOutsource.Status))">
+                                        @DisplayHelper.GetSectionOutsourceStatusText(_selectedOutsource.Status)
                                     </MudChip>
                                 </MudText>
                             </MudItem>
@@ -75,11 +76,11 @@
             </MudItem>
 
             <MudItem xs="12" sm="4">
-                <MudDatePicker Label="回收日期 *"
-                               Date="@_recoveryDate"
-                               DateChanged="@((DateTime? d) => { if (d.HasValue) _recoveryDate = d.Value; })"
-                               Dense="true" Variant="Variant.Outlined"
-                               AutoClose="true" />
+                <MudTextField T="string"
+                              Label="回收日期 *"
+                              @bind-Value="_recoveryDateStr"
+                              Placeholder="yyyy-MM-dd"
+                              Dense="true" Variant="Variant.Outlined" />
             </MudItem>
 
             <MudItem xs="12">
@@ -144,7 +145,7 @@
     [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
     private SectionOutsourceDto? _selectedOutsource;
-    private DateTime _recoveryDate = DateTime.Today;
+    private string _recoveryDateStr = DateTime.Today.ToString("yyyy-MM-dd");
     private int? _qty;
     private decimal? _wt;
     private int? _unprocessedQty;
@@ -184,10 +185,15 @@
         _submitting = true;
         try
         {
+            if (!DateTime.TryParse(_recoveryDateStr, out var recoveryDate))
+            {
+                Snackbar.Add("回收日期格式无效，请使用 yyyy-MM-dd 格式", Severity.Warning);
+                return;
+            }
             var request = new CreateOutsourceRecoveryRequest
             {
                 SectionOutsourceId = _selectedOutsource.Id,
-                RecoveryDate = _recoveryDate,
+                RecoveryDate = recoveryDate,
                 RecoveryQuantity = _qty,
                 RecoveryWeight = _wt,
                 UnprocessedQuantity = _unprocessedQty,

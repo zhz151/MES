@@ -16,6 +16,9 @@ public interface IOrderService
     /// </summary>
     Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, string? technicalStatus = null, string? orderStatus = null);
 
+    /// <summary>
+    /// 根据ID获取订单详情
+    /// </summary>
     Task<SalesOrderDetailDto> GetByIdAsync(int id);
 
     /// <summary>
@@ -23,14 +26,36 @@ public interface IOrderService
     /// </summary>
     Task<int?> GetIdByOrderNumberAsync(string orderNo);
 
+    /// <summary>
+    /// 创建订单
+    /// </summary>
     Task<SalesOrderListDto> CreateAsync(CreateSalesOrderRequest request);
+
+    /// <summary>
+    /// 更新订单
+    /// </summary>
     Task<SalesOrderListDto> UpdateAsync(int id, UpdateSalesOrderRequest request);
+
+    /// <summary>
+    /// 删除订单
+    /// </summary>
     Task DeleteAsync(int id);
 
     // ========== 项次管理 ==========
 
+    /// <summary>
+    /// 添加订单项次
+    /// </summary>
     Task<OrderItemDto> AddItemAsync(int orderId, AddOrderItemRequest request);
+
+    /// <summary>
+    /// 更新订单项次
+    /// </summary>
     Task<OrderItemDto> UpdateItemAsync(int orderId, int itemId, UpdateOrderItemRequest request);
+
+    /// <summary>
+    /// 删除订单项次
+    /// </summary>
     Task DeleteItemAsync(int orderId, int itemId);
 
     /// <summary>

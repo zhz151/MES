@@ -49,7 +49,9 @@ public class CustomerProfileDto
     /// </summary>
     public string? Address { get; set; }
 
-
+    /// <summary>
+    /// 客户状态
+    /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public CustomerStatus Status { get; set; }
 

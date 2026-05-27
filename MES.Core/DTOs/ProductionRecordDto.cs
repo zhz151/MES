@@ -176,31 +176,41 @@ public class ProductionRecordPrintAllRequest
 // ========== 检验到料 ==========
 
 /// <summary>
-/// 检验到料DTO
+/// 成检到料DTO
 /// </summary>
 public class MaterialReceiveCheckDto
 {
     public int Id { get; set; }
     public int ProductionBatchId { get; set; }
     public DateTime ReceiveDate { get; set; }
-    public int? ReceivedQuantity { get; set; }
-    public decimal? ReceivedWeight { get; set; }
     public string? Shift { get; set; }
     public string? Checker { get; set; }
     public string? Remark { get; set; }
+    public string? DataSource { get; set; }
 
-    // ========== 冗余字段（用于跨批次列表展示） ==========
-    /// <summary>批次号</summary>
+    // ========== 批次冗余字段 ==========
     public string? BatchNo { get; set; }
+    public string? ManufacturingItem { get; set; }
+    public string? TagNo { get; set; }
+    public string? WorkOrderNo { get; set; }
+    public string? SalesOrderNo { get; set; }
+    public string? SourceUnit { get; set; }
+    public string? FurnaceNo { get; set; }
+    public string? PlantGrade { get; set; }
+    public string? Specification { get; set; }
+    public string? ProductionType { get; set; }
+
+    // ========== 汇总计算字段 ==========
+    public int ProductionCutQuantity { get; set; }
+
+    // ========== 状态 ==========
+    public bool IsForceCompleted { get; set; }
 
     /// <summary>创建时间</summary>
     public DateTimeOffset CreatedTime { get; set; }
 
     /// <summary>更新时间</summary>
     public DateTimeOffset UpdatedTime { get; set; }
-
-    /// <summary>数据来源（SCAN=扫码报工，MANUAL=手动录入）</summary>
-    public string? DataSource { get; set; }
 }
 
 /// <summary>
@@ -226,7 +236,7 @@ public class MaterialCheckPrintAllRequest
 }
 
 /// <summary>
-/// 创建检验到料请求
+/// 创建成检到料请求
 /// </summary>
 public class CreateMaterialReceiveCheckRequest
 {
@@ -245,9 +255,6 @@ public class CreateMaterialReceiveCheckRequest
     [Required(ErrorMessage = "到料日期不能为空")]
     public DateTime ReceiveDate { get; set; }
 
-    public int? ReceivedQuantity { get; set; }
-    public decimal? ReceivedWeight { get; set; }
-
     [MaxLength(10)]
     public string? Shift { get; set; }
 
@@ -265,15 +272,12 @@ public class CreateMaterialReceiveCheckRequest
 }
 
 /// <summary>
-/// 更新检验到料请求（内联编辑用）
+/// 更新成检到料请求（内联编辑用）
 /// </summary>
 public class UpdateMaterialReceiveCheckRequest
 {
     [Required(ErrorMessage = "到料日期不能为空")]
     public DateTime ReceiveDate { get; set; }
-
-    public int? ReceivedQuantity { get; set; }
-    public decimal? ReceivedWeight { get; set; }
 
     [MaxLength(10)]
     public string? Shift { get; set; }
@@ -283,4 +287,7 @@ public class UpdateMaterialReceiveCheckRequest
 
     [MaxLength(500)]
     public string? Remark { get; set; }
+
+    /// <summary>强制完成</summary>
+    public bool? IsForceCompleted { get; set; }
 }

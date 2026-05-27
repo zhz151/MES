@@ -98,4 +98,9 @@ public class PurchaseFinishedPlan : BaseEntity
     /// 交货状态
     /// </summary>
     public DeliveryState DeliveryState { get; set; }
+
+    /// <summary>
+    /// 工艺周期（天）：成品采购默认为3天
+    /// </summary>
+    public int StandardCycle { get; set; }
 }
