@@ -27,6 +27,11 @@ public interface IMaterialPlanService
     Task<PurchaseSemiPlanDto> CreateSemiPlanAsync(CreatePurchaseSemiPlanRequest request);
 
     /// <summary>
+    /// 更新原料采购计划
+    /// </summary>
+    Task<PurchaseSemiPlanDto> UpdateSemiPlanAsync(int id, CreatePurchaseSemiPlanRequest request);
+
+    /// <summary>
     /// 删除原料采购计划
     /// </summary>
     Task DeleteSemiPlanAsync(int id);
@@ -54,6 +59,11 @@ public interface IMaterialPlanService
     Task<List<PurchaseFinishedPlanDto>> CreateFinishedPlanBatchAsync(List<CreatePurchaseFinishedPlanRequest> requests);
 
     /// <summary>
+    /// 更新成品采购计划
+    /// </summary>
+    Task<PurchaseFinishedPlanDto> UpdateFinishedPlanAsync(int id, CreatePurchaseFinishedPlanRequest request);
+
+    /// <summary>
     /// 删除成品采购计划
     /// </summary>
     Task DeleteFinishedPlanAsync(int id);
@@ -66,6 +76,11 @@ public interface IMaterialPlanService
     Task<List<InventoryPlanDto>> GetInventoryPlansAsync(int workOrderId);
 
     /// <summary>
+    /// 获取库存使用计划详情
+    /// </summary>
+    Task<InventoryPlanDto> GetInventoryPlanByIdAsync(int id);
+
+    /// <summary>
     /// 创建库存使用计划
     /// </summary>
     Task<InventoryPlanDto> CreateInventoryPlanAsync(CreateInventoryPlanRequest request);
@@ -76,6 +91,11 @@ public interface IMaterialPlanService
     Task<List<InventoryPlanDto>> CreateInventoryPlanBatchAsync(List<CreateInventoryPlanRequest> requests);
 
     /// <summary>
+    /// 更新库存使用计划
+    /// </summary>
+    Task<InventoryPlanDto> UpdateInventoryPlanAsync(int id, CreateInventoryPlanRequest request);
+
+    /// <summary>
     /// 删除库存使用计划
     /// </summary>
     Task DeleteInventoryPlanAsync(int id);
@@ -83,12 +103,12 @@ public interface IMaterialPlanService
     /// <summary>
     /// 获取工单可用库存批次列表
     /// </summary>
-    Task<List<AvailableInventoryBatchDto>> GetAvailableInventoryAsync(int workOrderId);
+    Task<List<AvailableInventoryBatchDto>> GetAvailableInventoryAsync(int workOrderId, int? excludePlanId = null);
 
     /// <summary>
     /// 获取工单可用改制库存（根据改制类型筛选）
     /// </summary>
-    Task<List<AvailableInventoryBatchDto>> GetAvailableReworkInventoryAsync(int workOrderId, ReworkType reworkType);
+    Task<List<AvailableInventoryBatchDto>> GetAvailableReworkInventoryAsync(int workOrderId, ReworkType reworkType, int? excludePlanId = null);
 
     /// <summary>
     /// 获取工单的改制计划列表

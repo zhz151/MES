@@ -12,7 +12,7 @@ internal static class PlanRateCalculator
     /// 从 5 种用料计划数据计算工单级满足率 + 状态
     /// </summary>
     public static (decimal rate, int status) ComputeWorkOrderRate(
-        WorkOrder wo,
+        Data.Entities.WorkOrder wo,
         List<PurchaseSemiPlan> semiPlans,
         List<PurchaseFinishedPlan> finishPlans,
         List<InventoryPlan> inventoryPlans,
@@ -45,7 +45,7 @@ internal static class PlanRateCalculator
         return (totalRate, (int)status);
     }
 
-    private static decimal CalculatePlanRate(WorkOrder wo, List<object> plans, bool isSemi, bool isPiercing)
+    private static decimal CalculatePlanRate(Data.Entities.WorkOrder wo, List<object> plans, bool isSemi, bool isPiercing)
     {
         if (wo.LengthStatus == LengthStatus.Fixed)
         {
@@ -95,7 +95,7 @@ internal static class PlanRateCalculator
         }
     }
 
-    private static decimal CalculateInventoryPlanRate(WorkOrder wo, List<InventoryPlan> plans)
+    private static decimal CalculateInventoryPlanRate(Data.Entities.WorkOrder wo, List<InventoryPlan> plans)
     {
         if (wo.LengthStatus == LengthStatus.Fixed)
         {

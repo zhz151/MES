@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using MES.Core.Enums;
 using MES.Data;
 using MES.Data.Entities;
+using WoEntity = MES.Data.Entities.WorkOrder;
 
 namespace MES.Services.Order;
 
@@ -299,9 +300,9 @@ public class WorkOrderListSummaryService
     }
 
     private WorkOrderListSummary BuildSummary(
-        WorkOrder wo,
+        WoEntity wo,
         PlanData planData,
-        List<WorkOrder> allWorkOrdersInOrder,
+        List<WoEntity> allWorkOrdersInOrder,
         Dictionary<string, (string salesman, string? endCustomer)> customerByOrderNo)
     {
         var woId = wo.Id;
@@ -405,7 +406,7 @@ public class WorkOrderListSummaryService
     }
 
     private static (decimal rate, MaterialPlanStatus status) CalculateMainNoAggregation(
-        List<WorkOrder> workOrders,
+        List<WoEntity> workOrders,
         List<PurchaseSemiPlan> semiPlans,
         List<PurchaseFinishedPlan> finishPlans,
         List<InventoryPlan> inventoryPlans,
@@ -490,7 +491,7 @@ public class WorkOrderListSummaryService
     }
 
     private static int CalculateOrderMaterialPlanStatus(
-        List<WorkOrder> allWorkOrdersInOrder,
+        List<WoEntity> allWorkOrdersInOrder,
         PlanData planData,
         string salesOrderNo)
     {

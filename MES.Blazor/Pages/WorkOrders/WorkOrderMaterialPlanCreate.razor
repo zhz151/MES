@@ -1,12 +1,14 @@
 @page "/workorders/{WorkOrderId:int}/material-plan/create"
-@using System.Text.Json
+@page "/workorders/{WorkOrderId:int}/material-plan/edit/{PlanId:int}"
 @using MES.Blazor.Services
 @using MES.Core.DTOs
 @using MES.Core.Enums
 @using MES.Blazor.Shared
 @using MES.Blazor.Helpers
+@using MES.Blazor.Models
 @using Microsoft.AspNetCore.Authorization
 @inject MaterialPlanService MaterialPlanService
+@inject MaterialPlanProcessGroupService ProcessGroupService
 @inject WorkOrderService WorkOrderService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -19,7 +21,7 @@
             <CardHeaderContent>
                 <div class="d-flex align-center">
                     <MudIcon Icon="@Icons.Material.Filled.Inventory2" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
-                    <MudText Typo="Typo.h5" Class="font-weight-bold">新增荒管采购计划</MudText>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">@(IsEditMode ? "编辑" : "新增")荒管采购计划</MudText>
                 </div>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -215,14 +217,95 @@
                     </MudTable>
                 </div>
 
-                <!-- ===== 三、工艺路线 ===== -->
+                <!-- ===== 三、工序组 ===== -->
                 <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2 mt-2">
-                    <MudIcon Icon="@Icons.Material.Filled.Route" Size="Size.Small" Class="mr-1" />工艺路线
+                    <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Class="mr-1" />工序组
                 </MudText>
 
-                <MudTextField Dense="true" T="string"
-                              @bind-Value="processPlanInput"
-                              Placeholder="67*5, 38*3, 32*2.5" />
+                <div class="d-flex flex-wrap align-center" style="gap:8px; margin-bottom:12px; justify-content:flex-end;">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Add" OnClick="AddProcessGroupRow">新增工序</MudButton>
+                    <ColumnDisplaySelect Columns="pgCols" ShowCommonFields="false"
+                                       OnColumnToggle="OnPgColumnToggle"
+                                       OnMoveUp="OnPgColumnMove"
+                                       OnMoveDown="OnPgColumnMove" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt" OnClick="ResetPgColumns" Class="ml-2">
+                        重置
+                    </MudButton>
+                </div>
+
+                <div class="table-container" style="overflow-x:auto; margin-bottom:12px;">
+                    <MudTable Items="@pgItems" Dense="true" Hover="true" Elevation="0" Striped="true"
+                              Class="auto-table compact-table" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; width:max-content;">
+                        <HeaderContent>
+                            <MudTh Style="width:45px;">#</MudTh>
+                            <MudTh Style="width:120px;">工序名称</MudTh>
+                            @if (GetPgCol("ManufacturingSpec").Visible) { <MudTh Style="width:100px;">制造规格</MudTh> }
+                            @if (GetPgCol("OuterDiameterTolerance").Visible) { <MudTh Style="width:80px;">外径公差</MudTh> }
+                            @if (GetPgCol("WallThicknessTolerance").Visible) { <MudTh Style="width:80px;">壁厚公差</MudTh> }
+                            @if (GetPgCol("ManufacturingLength").Visible) { <MudTh Style="width:80px;">制造长度</MudTh> }
+                            @if (GetPgCol("CuttingTreatment").Visible) { <MudTh Style="width:80px;">断切处理</MudTh> }
+                            @if (GetPgCol("ManufacturingMultiple").Visible) { <MudTh Style="width:80px;">制成倍数</MudTh> }
+                            @if (GetPgCol("Remark").Visible) { <MudTh Style="width:120px;">备注</MudTh> }
+                            @if (GetPgCol("ColdRollDraw").Visible) { <MudTh Style="width:80px;">冷轧拔</MudTh> }
+                            @if (GetPgCol("OilPipeCut").Visible) { <MudTh Style="width:80px;">油管断</MudTh> }
+                            @if (GetPgCol("Degrease").Visible) { <MudTh Style="width:60px;">去油</MudTh> }
+                            @if (GetPgCol("Solution").Visible) { <MudTh Style="width:60px;">固溶</MudTh> }
+                            @if (GetPgCol("Straighten").Visible) { <MudTh Style="width:60px;">矫直</MudTh> }
+                            @if (GetPgCol("Cut").Visible) { <MudTh Style="width:60px;">断切</MudTh> }
+                            @if (GetPgCol("ThicknessMeasure").Visible) { <MudTh Style="width:60px;">测厚</MudTh> }
+                            @if (GetPgCol("Pickle").Visible) { <MudTh Style="width:60px;">酸洗</MudTh> }
+                            @if (GetPgCol("OuterPolish").Visible) { <MudTh Style="width:60px;">外抛光</MudTh> }
+                            @if (GetPgCol("InnerGrinding").Visible) { <MudTh Style="width:60px;">内磨</MudTh> }
+                            @if (GetPgCol("OuterSpotGrinding").Visible) { <MudTh Style="width:60px;">外修磨</MudTh> }
+                            @if (GetPgCol("Inspection").Visible) { <MudTh Style="width:60px;">检验</MudTh> }
+                            @if (GetPgCol("WeldingHead").Visible) { <MudTh Style="width:60px;">焊头</MudTh> }
+                            @if (GetPgCol("Lubrication").Visible) { <MudTh Style="width:60px;">润滑</MudTh> }
+                            @if (GetPgCol("Warehouse").Visible) { <MudTh Style="width:60px;">入库</MudTh> }
+                            <MudTh Style="width:60px;">操作</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="pg">
+                            <MudTd Style="width:45px;">@(pgItems.IndexOf(pg) + 1)</MudTd>
+                            <MudTd Style="width:120px;">
+                                <MudSelect T="string" Value="@pg.ProcessName"
+                                           ValueChanged="@((string v) => { pg.ProcessName = v; ApplyProcessGroupDefaults(pg); })"
+                                           Dense="true" Variant="Variant.Outlined" Size="Size.Small">
+                                    <MudSelectItem Value="@("荒管处理")" />
+                                    <MudSelectItem Value="@("在制修检")" />
+                                    <MudSelectItem Value="@("冷轧")" />
+                                    <MudSelectItem Value="@("冷拔")" />
+                                </MudSelect>
+                            </MudTd>
+                            @if (GetPgCol("ManufacturingSpec").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.ManufacturingSpec" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
+                            @if (GetPgCol("OuterDiameterTolerance").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.OuterDiameterTolerance" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
+                            @if (GetPgCol("WallThicknessTolerance").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.WallThicknessTolerance" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
+                            @if (GetPgCol("ManufacturingLength").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.ManufacturingLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
+                            @if (GetPgCol("CuttingTreatment").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.CuttingTreatment" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
+                            @if (GetPgCol("ManufacturingMultiple").Visible) { <MudTd><MudNumericField T="int" @bind-Value="pg.ManufacturingMultiple" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" Min="1" /></MudTd> }
+                            @if (GetPgCol("Remark").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
+                            @if (GetPgCol("ColdRollDraw").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.ColdRollDraw" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("OilPipeCut").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.OilPipeCut" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Degrease").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Degrease" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Solution").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Solution" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Straighten").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Straighten" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Cut").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Cut" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("ThicknessMeasure").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.ThicknessMeasure" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Pickle").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Pickle" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("OuterPolish").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.OuterPolish" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("InnerGrinding").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.InnerGrinding" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("OuterSpotGrinding").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.OuterSpotGrinding" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Inspection").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Inspection" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("WeldingHead").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.WeldingHead" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Lubrication").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Lubrication" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @if (GetPgCol("Warehouse").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Warehouse" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteProcessGroupRow(pg))" /></MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent>
+                            <MudText Class="pa-4 text-center" Color="Color.Secondary">暂无工序组，可点击"新增工序"添加</MudText>
+                        </NoRecordsContent>
+                    </MudTable>
+                </div>
 
                 <!-- ===== 验证消息 ===== -->
                 @if (!string.IsNullOrEmpty(validationMessage))
@@ -245,6 +328,9 @@
 
 @code {
     [Parameter] public int WorkOrderId { get; set; }
+    [Parameter] public int PlanId { get; set; }
+
+    private bool IsEditMode => PlanId > 0;
 
     private WorkOrderDetailDto? workOrder;
     private bool isLoadingWorkOrder = true;
@@ -252,7 +338,37 @@
     private string validationMessage = string.Empty;
     private MaterialCalculateResult? calcResult;
     private bool isNonFixedLength = false;
-    private string processPlanInput = string.Empty;
+    private PurchaseSemiPlanDto? existingPlan;
+
+    // 工序组
+    private List<SavePlanProcessGroupItem> pgItems = new();
+    private List<ColumnDef> pgCols = GetProcessGroupDefaultColumns();
+    private static List<ColumnDef> GetProcessGroupDefaultColumns() => new()
+    {
+        new() { Key = "ManufacturingSpec", Label = "制造规格", Visible = true },
+        new() { Key = "OuterDiameterTolerance", Label = "外径公差", Visible = true },
+        new() { Key = "WallThicknessTolerance", Label = "壁厚公差", Visible = true },
+        new() { Key = "ManufacturingLength", Label = "制造长度", Visible = true },
+        new() { Key = "CuttingTreatment", Label = "断切处理", Visible = true },
+        new() { Key = "ManufacturingMultiple", Label = "制成倍数", Visible = true },
+        new() { Key = "Remark", Label = "备注", Visible = true },
+        new() { Key = "ColdRollDraw", Label = "冷轧拔", Visible = true },
+        new() { Key = "OilPipeCut", Label = "油管断", Visible = true },
+        new() { Key = "Degrease", Label = "去油", Visible = true },
+        new() { Key = "Solution", Label = "固溶", Visible = true },
+        new() { Key = "Straighten", Label = "矫直", Visible = true },
+        new() { Key = "Cut", Label = "断切", Visible = true },
+        new() { Key = "ThicknessMeasure", Label = "测厚", Visible = true },
+        new() { Key = "Pickle", Label = "酸洗", Visible = true },
+        new() { Key = "OuterPolish", Label = "外抛光", Visible = true },
+        new() { Key = "InnerGrinding", Label = "内磨", Visible = true },
+        new() { Key = "OuterSpotGrinding", Label = "外修磨", Visible = true },
+        new() { Key = "Inspection", Label = "检验", Visible = true },
+        new() { Key = "WeldingHead", Label = "焊头", Visible = true },
+        new() { Key = "Lubrication", Label = "润滑", Visible = true },
+        new() { Key = "Warehouse", Label = "仓库", Visible = true },
+    };
+    private ColumnDef GetPgCol(string key) => pgCols.First(c => c.Key == key);
 
     // 测算参数（单行）
     private List<CalcParamRow> calcRows = new();
@@ -283,6 +399,8 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadWorkOrder();
+        if (IsEditMode)
+            await LoadExistingPlan();
     }
 
     private async Task LoadWorkOrder()
@@ -301,7 +419,6 @@
                 {
                     PlantGrade = workOrder.PlantGrade ?? string.Empty
                 });
-                processPlanInput = string.Empty;
             }
             else
             {
@@ -424,6 +541,34 @@
                 errors.Add("定尺工单需求支数为必填");
         }
 
+        // 验证工序组
+        if (pgItems.Count > 0)
+        {
+            for (int i = 0; i < pgItems.Count; i++)
+            {
+                var pg = pgItems[i];
+                var rowNum = i + 1;
+
+                if (string.IsNullOrWhiteSpace(pg.ProcessName))
+                    errors.Add($"工序组第{rowNum}行：工序名称不能为空");
+
+                if (string.IsNullOrWhiteSpace(pg.ManufacturingSpec))
+                    errors.Add($"工序组第{rowNum}行：制造规格不能为空");
+
+                if (pg.ProcessName == "冷轧" || pg.ProcessName == "冷拔")
+                {
+                    if (pg.ColdRollDraw == null)
+                        errors.Add($"工序组第{rowNum}行：工序\"{pg.ProcessName}\"的冷轧拔不能为空");
+                }
+
+                if (pg.ProcessName == "荒管处理" || pg.ProcessName == "在制修检")
+                {
+                    if (pg.ColdRollDraw != null)
+                        errors.Add($"工序组第{rowNum}行：工序\"{pg.ProcessName}\"的冷轧拔必须为空");
+                }
+            }
+        }
+
         if (errors.Any())
         {
             validationMessage = string.Join("\n", errors);
@@ -452,19 +597,35 @@
                 RequiredPieces = material.RequiredPieces,
                 RequiredWeight = material.RequiredWeight ?? 0,
                 RequiredDate = requiredDate,
-                ProcessPlan = ConvertProcessPlanToJson(processPlanInput),
-                Remark = material.Remark
+                Remark = material.Remark,
+                ProcessGroups = pgItems
             };
 
-            var result = await MaterialPlanService.CreateSemiPlanAsync(request);
-            if (result.Success)
+            if (IsEditMode)
             {
-                Snackbar.Add("创建成功", Severity.Success);
-                GoBack();
+                var result = await MaterialPlanService.UpdateSemiPlanAsync(PlanId, request);
+                if (result.Success)
+                {
+                    Snackbar.Add("保存成功", Severity.Success);
+                    GoBack();
+                }
+                else
+                {
+                    Snackbar.Add(result.Message ?? "保存失败", Severity.Error);
+                }
             }
             else
             {
-                Snackbar.Add(result.Message ?? "创建失败", Severity.Error);
+                var result = await MaterialPlanService.CreateSemiPlanAsync(request);
+                if (result.Success)
+                {
+                    Snackbar.Add("创建成功", Severity.Success);
+                    GoBack();
+                }
+                else
+                {
+                    Snackbar.Add(result.Message ?? "创建失败", Severity.Error);
+                }
             }
         }
         catch (Exception ex)
@@ -477,19 +638,195 @@
         }
     }
 
-    private static string? ConvertProcessPlanToJson(string? input)
+    // ===== 编辑模式：加载已有计划数据 =====
+    private async Task LoadExistingPlan()
     {
-        if (string.IsNullOrWhiteSpace(input)) return null;
-        var specs = input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(s => !string.IsNullOrWhiteSpace(s))
-            .Select((s, idx) => new { step = idx + 1, spec = s })
-            .ToList();
-        return specs.Any() ? JsonSerializer.Serialize(specs) : null;
+        try
+        {
+            var planResult = await MaterialPlanService.GetSemiPlanByIdAsync(PlanId);
+            if (!planResult.Success || planResult.Data == null)
+            {
+                Snackbar.Add("计划不存在", Severity.Error);
+                GoBack();
+                return;
+            }
+
+            existingPlan = planResult.Data;
+            var plan = planResult.Data;
+
+            // 填充测算参数
+            calcRows.Clear();
+            calcRows.Add(new CalcParamRow
+            {
+                AdjustedWallThickness = plan.AdjustedWallThickness,
+                YieldRate = plan.YieldRate,
+                InputMultiple = plan.InputMultiple,
+                QualifiedRate = plan.QualifiedRate
+            });
+
+            // 如果已有测算结果则恢复显示
+            if (plan.Density > 0)
+            {
+                calcResult = new MaterialCalculateResult
+                {
+                    Density = plan.Density ?? 0,
+                    UnitWeightPerMeter = plan.UnitWeight ?? 0,
+                    UnitWeight = plan.UnitWeight,
+                    RawUnitWeight = plan.RawUnitWeight,
+                    RequiredPieces = plan.RequiredPieces,
+                    RequiredWeight = plan.RequiredWeight
+                };
+            }
+
+            // 填充原料信息
+            materialRows.Clear();
+            materialRows.Add(new MaterialRow
+            {
+                RawMaterialType = plan.RawMaterialType,
+                PlantGrade = plan.PlantGrade ?? string.Empty,
+                RawMaterialSpec = plan.RawMaterialSpec,
+                RequiredUnitWeight = plan.RequiredUnitWeight,
+                RequiredPieces = plan.RequiredPieces,
+                RequiredWeight = plan.RequiredWeight,
+                RequiredDateStr = plan.RequiredDate.ToString("yyyy-MM-dd"),
+                Remark = plan.Remark
+            });
+
+            // 加载工序组
+            var pgResult = await ProcessGroupService.GetByPlanAsync(1, PlanId);
+            if (pgResult.Success && pgResult.Data != null)
+            {
+                pgItems = pgResult.Data.Select(p => new SavePlanProcessGroupItem
+                {
+                    Id = p.Id,
+                    SequenceNumber = p.SequenceNumber,
+                    ProcessName = p.ProcessName,
+                    ManufacturingSpec = p.ManufacturingSpec,
+                    OuterDiameterTolerance = p.OuterDiameterTolerance,
+                    WallThicknessTolerance = p.WallThicknessTolerance,
+                    ManufacturingLength = p.ManufacturingLength,
+                    CuttingTreatment = p.CuttingTreatment,
+                    ManufacturingMultiple = p.ManufacturingMultiple,
+                    Remark = p.Remark,
+                    ColdRollDraw = p.ColdRollDraw,
+                    OilPipeCut = p.OilPipeCut,
+                    Degrease = p.Degrease,
+                    Solution = p.Solution,
+                    Straighten = p.Straighten,
+                    Cut = p.Cut,
+                    ThicknessMeasure = p.ThicknessMeasure,
+                    Pickle = p.Pickle,
+                    OuterPolish = p.OuterPolish,
+                    InnerGrinding = p.InnerGrinding,
+                    OuterSpotGrinding = p.OuterSpotGrinding,
+                    Inspection = p.Inspection,
+                    WeldingHead = p.WeldingHead,
+                    Lubrication = p.Lubrication,
+                    Warehouse = p.Warehouse
+                }).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载计划数据失败: {ex.Message}", Severity.Error);
+        }
     }
 
     private void GoBack()
     {
         Navigation.NavigateTo($"/workorders/{WorkOrderId}/material-plan");
+    }
+
+    // ===== 工序组操作 =====
+
+    private void AddProcessGroupRow()
+    {
+        pgItems.Add(new SavePlanProcessGroupItem
+        {
+            ProcessName = "荒管处理",
+            ManufacturingMultiple = 1
+        });
+        // 默认填充当前新增行的工段值
+        ApplyProcessGroupDefaults(pgItems.Last());
+    }
+
+    private static void ApplyProcessGroupDefaults(SavePlanProcessGroupItem pg)
+    {
+        // 清空所有工段
+        pg.ColdRollDraw = null;
+        pg.OilPipeCut = null;
+        pg.Degrease = null;
+        pg.Solution = null;
+        pg.Straighten = null;
+        pg.Cut = null;
+        pg.ThicknessMeasure = null;
+        pg.Pickle = null;
+        pg.OuterPolish = null;
+        pg.InnerGrinding = null;
+        pg.OuterSpotGrinding = null;
+        pg.Inspection = null;
+        pg.WeldingHead = null;
+        pg.Lubrication = null;
+        pg.Warehouse = null;
+
+        // 根据工序名称填充默认值
+        switch (pg.ProcessName)
+        {
+            case "荒管处理":
+                pg.Straighten = 1;
+                pg.Cut = 1;
+                pg.Pickle = 1;
+                pg.OuterPolish = 1;
+                pg.OuterSpotGrinding = 1;
+                pg.Inspection = 1;
+                break;
+            case "冷拔":
+                pg.ColdRollDraw = 1;
+                pg.Solution = 1;
+                pg.Straighten = 1;
+                pg.Cut = 1;
+                pg.Pickle = 1;
+                pg.Inspection = 1;
+                break;
+            case "冷轧":
+                pg.ColdRollDraw = 1;
+                pg.OilPipeCut = 1;
+                pg.Degrease = 1;
+                pg.Solution = 1;
+                pg.Straighten = 1;
+                pg.Cut = 1;
+                pg.Pickle = 1;
+                pg.Inspection = 1;
+                break;
+            case "在制修检":
+                pg.Solution = 1;
+                pg.Straighten = 1;
+                pg.Cut = 1;
+                pg.Pickle = 1;
+                pg.Inspection = 1;
+                break;
+        }
+    }
+
+    private void DeleteProcessGroupRow(SavePlanProcessGroupItem pg)
+    {
+        pgItems.Remove(pg);
+    }
+
+    private async Task OnPgColumnToggle(ColumnDef col)
+    {
+        // 列显隐仅在当前会话有效，无持久化
+        await Task.CompletedTask;
+    }
+
+    private async Task OnPgColumnMove(ColumnDef col)
+    {
+        await Task.CompletedTask;
+    }
+
+    private void ResetPgColumns()
+    {
+        pgCols = GetProcessGroupDefaultColumns();
     }
 
     private bool _isArrowNavSetup;

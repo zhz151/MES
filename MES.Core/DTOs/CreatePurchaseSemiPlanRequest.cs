@@ -23,8 +23,8 @@ public class CreatePurchaseSemiPlanRequest
     public decimal RequiredWeight { get; set; }
     public DateTime RequiredDate { get; set; }
 
-    // 工艺路线（JSON数组）
-    public string? ProcessPlan { get; set; }
+    // 工序组
+    public List<SavePlanProcessGroupItem>? ProcessGroups { get; set; }
 
     // 其他
     public string? Remark { get; set; }

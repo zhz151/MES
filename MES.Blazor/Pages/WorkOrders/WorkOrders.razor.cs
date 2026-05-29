@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.JSInterop;
 using MudBlazor;
 using MES.Blazor.Components;
@@ -27,6 +28,7 @@ public partial class WorkOrders
     private int _pageSize = 10;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
+    private bool _isAdmin;
 
     // 排序状态
     private string sortColumn = "SignDate";
@@ -66,34 +68,34 @@ public partial class WorkOrders
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "WorkOrderNo",       Label = "工单号",   SortKey = "WorkOrderNo",       FilterType = "string" },
-        new() { Key = "SalesOrderNo",      Label = "订单号",   SortKey = "SalesOrderNo",      FilterType = "string" },
-        new() { Key = "ProductionMainNo",  Label = "主号",     SortKey = "ProductionMainNo",  FilterType = "string" },
-        new() { Key = "ProductionSubNo",   Label = "次号",     SortKey = "ProductionSubNo",   FilterType = "string" },
-        new() { Key = "SignDate",          Label = "签订日期", SortKey = "SignDate", FilterType = "date" },
-        new() { Key = "Salesman",          Label = "业务员",   SortKey = "Salesman",          FilterType = "string" },
-        new() { Key = "EndCustomer",       Label = "最终客户", SortKey = "EndCustomer",       FilterType = "string" },
-        new() { Key = "DeliveryDate",      Label = "交货日期", SortKey = "DeliveryDate", FilterType = "date" },
-        new() { Key = "DelayPenalty",      Label = "延期罚款", SortKey = "DelayPenalty",      FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否" },
-        new() { Key = "SettlementMethod",  Label = "结算方式", SortKey = "SettlementMethod",  FilterType = "enum",
+        new() { Key = "WorkOrderNo",       Label = "工单号",   SortKey = "WorkOrderNo",       FilterType = "string", Width = "120" },
+        new() { Key = "SalesOrderNo",      Label = "订单号",   SortKey = "SalesOrderNo",      FilterType = "string", Width = "120" },
+        new() { Key = "ProductionMainNo",  Label = "主号",     SortKey = "ProductionMainNo",  FilterType = "string", Width = "120" },
+        new() { Key = "ProductionSubNo",   Label = "次号",     SortKey = "ProductionSubNo",   FilterType = "string", Width = "120" },
+        new() { Key = "SignDate",          Label = "签订日期", SortKey = "SignDate", FilterType = "date", Width = "120" },
+        new() { Key = "Salesman",          Label = "业务员",   SortKey = "Salesman",          FilterType = "string", Width = "120" },
+        new() { Key = "EndCustomer",       Label = "最终客户", SortKey = "EndCustomer",       FilterType = "string", Width = "120" },
+        new() { Key = "DeliveryDate",      Label = "交货日期", SortKey = "DeliveryDate", FilterType = "date", Width = "120" },
+        new() { Key = "DelayPenalty",      Label = "延期罚款", SortKey = "DelayPenalty",      FilterType = "boolean", Width = "60", BoolTrueLabel = "是", BoolFalseLabel = "否" },
+        new() { Key = "SettlementMethod",  Label = "结算方式", SortKey = "SettlementMethod",  FilterType = "enum", Width = "120",
                EnumOptions = new List<EnumOption> { new("Theoretical", "理算"), new("Weighing", "过磅") } },
-        new() { Key = "PlantGrade",        Label = "工厂牌号", SortKey = "PlantGrade",        FilterType = "string" },
-        new() { Key = "MaterialName",      Label = "物料名称", SortKey = "MaterialName",      FilterType = "enum",
+        new() { Key = "PlantGrade",        Label = "工厂牌号", SortKey = "PlantGrade",        FilterType = "string", Width = "120" },
+        new() { Key = "MaterialName",      Label = "物料名称", SortKey = "MaterialName",      FilterType = "enum", Width = "120",
                EnumOptions = new List<EnumOption> { new("SeamlessPipe", "无缝管"), new("WeldedPipe", "焊管") } },
-        new() { Key = "Specification",     Label = "规格",     SortKey = "Specification",     FilterType = "string" },
-        new() { Key = "LengthStatus",      Label = "长度状态", SortKey = "LengthStatus",      FilterType = "enum",
+        new() { Key = "Specification",     Label = "规格",     SortKey = "Specification",     FilterType = "string", Width = "120" },
+        new() { Key = "LengthStatus",      Label = "长度状态", SortKey = "LengthStatus",      FilterType = "enum", Width = "120",
                EnumOptions = new List<EnumOption> { new("Fixed", "定尺"), new("Range", "范围尺"), new("Multiple", "倍尺"), new("Unlimited", "不限") } },
-        new() { Key = "MinLength",         Label = "最小长度", SortKey = "MinLength" },
-        new() { Key = "MaxLength",         Label = "最大长度", SortKey = "MaxLength" },
-        new() { Key = "TotalQuantity",     Label = "总数量",   SortKey = "TotalQuantity" },
-        new() { Key = "TotalWeight",       Label = "总重量",   SortKey = "TotalWeight" },
-        new() { Key = "DeliveryState",     Label = "交货状态", SortKey = "DeliveryState",    FilterType = "string" },
-        new() { Key = "TotalItemCount",    Label = "含项次数", SortKey = "TotalItemCount" },
-        new() { Key = "Status",            Label = "状态",     SortKey = "Status",            FilterType = "enum",
+        new() { Key = "MinLength",         Label = "最小长度", SortKey = "MinLength", Width = "80" },
+        new() { Key = "MaxLength",         Label = "最大长度", SortKey = "MaxLength", Width = "80" },
+        new() { Key = "TotalQuantity",     Label = "总数量",   SortKey = "TotalQuantity", Width = "80" },
+        new() { Key = "TotalWeight",       Label = "总重量",   SortKey = "TotalWeight", Width = "80" },
+        new() { Key = "DeliveryState",     Label = "交货状态", SortKey = "DeliveryState",    FilterType = "string", Width = "120" },
+        new() { Key = "TotalItemCount",    Label = "含项次数", SortKey = "TotalItemCount", Width = "80" },
+        new() { Key = "Status",            Label = "状态",     SortKey = "Status",            FilterType = "enum", Width = "120",
                EnumOptions = new List<EnumOption> { new("0", "未编制"), new("1", "已确定"), new("2", "待修正"), new("3", "已取消") } },
-        new() { Key = "MaterialPlanStatus", Label = "用料计划状态" },
-        new() { Key = "MaterialPlanRate",  Label = "满足率(%)", SortKey = "MaterialPlanRate" },
-        new() { Key = "LatestPlanDate",    Label = "最新计划日期", SortKey = "LatestPlanDate", FilterType = "date" },
+        new() { Key = "MaterialPlanStatus", Label = "用料计划状态", Width = "80" },
+        new() { Key = "MaterialPlanRate",  Label = "满足率(%)", SortKey = "MaterialPlanRate", Width = "80" },
+        new() { Key = "LatestPlanDate",    Label = "最新计划日期", SortKey = "LatestPlanDate", FilterType = "date", Width = "120" },
     };
 
     // ========== 服务端数据加载 ==========
@@ -494,6 +496,11 @@ public partial class WorkOrders
             _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
         }
 
+        // 检查管理员权限
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isAdmin = user.IsInRole("Admin");
+
         // 状态恢复后重新加载表格数据（首次渲染时 ServerData 可能已用默认值加载）
         if (savedState != null && table != null)
             await table.ReloadServerData();
@@ -700,6 +707,38 @@ public partial class WorkOrders
             {
                 Snackbar.Add($"工单已删除", Severity.Success);
                 await LoadCancelledOrders();
+                if (table != null) await table.ReloadServerData();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // ========== 物理删除 ==========
+
+    private async Task DeleteWorkOrder(int workOrderId, string workOrderNo)
+    {
+        var dialog = DialogService.Show<ConfirmDialog>("确认删除", new DialogParameters
+        {
+            ["ContentText"] = $"确定要永久删除工单 \"{workOrderNo}\" 吗？\n\n此操作不可恢复！",
+            ["ConfirmText"] = "确认删除",
+            ["Color"] = Color.Error
+        });
+        var dialogResult = await dialog.Result;
+        if (dialogResult.Canceled) return;
+
+        try
+        {
+            var result = await WorkOrderService.DeleteAsync(workOrderId);
+            if (result.Success)
+            {
+                Snackbar.Add($"工单 \"{workOrderNo}\" 已删除", Severity.Success);
                 if (table != null) await table.ReloadServerData();
             }
             else

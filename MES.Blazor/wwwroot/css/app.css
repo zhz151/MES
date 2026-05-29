@@ -844,6 +844,18 @@ input[type="number"]::-webkit-outer-spin-button {
 .col-g11 .col-group-badge { color: #1B5E20; background: #A5D6A7; }
 .col-g11-cell { background: #E8F5E9 !important; }
 
+.col-g12 { background: #FFF8E1 !important; }
+.col-g12 .col-group-badge { color: #F57F17; background: #FFECB3; }
+.col-g12-cell { background: #FFF8E1 !important; }
+
+.col-g13 { background: #F3E5F5 !important; }
+.col-g13 .col-group-badge { color: #7B1FA2; background: #E1BEE7; }
+.col-g13-cell { background: #F3E5F5 !important; }
+
+.col-g14 { background: #E0F2F1 !important; }
+.col-g14 .col-group-badge { color: #00695C; background: #B2DFDB; }
+.col-g14-cell { background: #E0F2F1 !important; }
+
 /* ========== 表格横向滚动条加高防误触 ========== */
 #workorder-execution-table .mud-table-container {
     scrollbar-width: thick;

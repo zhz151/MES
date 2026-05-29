@@ -98,14 +98,6 @@ public class RoundBarPiercingPlan : BaseEntity
     /// </summary>
     public DateTime RequiredDate { get; set; }
 
-    // ========== 工艺路线 ==========
-
-    /// <summary>
-    /// 工艺路线（JSON数组）
-    /// [{"step":1,"spec":"67*5"},{"step":2,"spec":"38*3"},...]
-    /// </summary>
-    public string? ProcessPlan { get; set; }
-
     // ========== 其他 ==========
 
     /// <summary>

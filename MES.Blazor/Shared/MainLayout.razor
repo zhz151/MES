@@ -112,8 +112,10 @@
 
                 <!-- 现况查询 -->
                 <AuthorizeView>
-                    <MudMenu Label="现况查询" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("workorder-execution")">
+                    <MudMenu Label="现况查询" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("workorder-execution","sales-urgings","raw-material-lock-plan")">
                         <MudMenuItem Class="@GetMenuItemClass("/workorder-execution")" OnClick='() => NavigateTo("/workorder-execution")'>工单执行状况</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/sales-urgings")" OnClick='() => NavigateTo("/sales-urgings")'>销售催单</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/raw-material-lock-plan")" OnClick='() => NavigateTo("/raw-material-lock-plan")'>原锁计划及执行</MudMenuItem>
                     </MudMenu>
                 </AuthorizeView>
 

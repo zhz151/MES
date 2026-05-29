@@ -1095,10 +1095,11 @@
         request.ProcessGroups.Add(new CreateProcessGroupRequest { ProcessName = "荒管处理", ManufacturingMultiple = 1 });
     }
 
-    private async Task DeleteProcessGroupRow(CreateProcessGroupRequest pg)
+    private Task DeleteProcessGroupRow(CreateProcessGroupRequest pg)
     {
-        if (request.ProcessGroups == null) return;
+        if (request.ProcessGroups == null) return Task.CompletedTask;
         request.ProcessGroups.Remove(pg);
+        return Task.CompletedTask;
     }
 
     private async Task CopyProcessGroupsByBatchNo()

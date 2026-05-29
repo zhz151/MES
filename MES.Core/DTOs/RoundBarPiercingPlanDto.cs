@@ -96,11 +96,6 @@ public class RoundBarPiercingPlanDto
     public DateTime RequiredDate { get; set; }
 
     /// <summary>
-    /// 工艺路线（JSON数组）
-    /// </summary>
-    public string? ProcessPlan { get; set; }
-
-    /// <summary>
     /// 备注
     /// </summary>
     public string? Remark { get; set; }

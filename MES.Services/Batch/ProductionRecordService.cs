@@ -1150,9 +1150,6 @@ public class ProductionRecordService : IProductionRecordService
             .GroupBy(p => (p.ProcessGroupId, p.SectionName))
             .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.InspectionDate).First());
 
-        // 4c. 找到最后一个工段的序号（用于检验到料日期兜底）
-        var lastSectionSeq = -1;
-
         // 5. 构建所有工段的完成状态
         var maxRecordSeq = allRecords.Count > 0 ? allRecords.Max(r => r.SequenceNumber) : -1;
         var maxOutsourceSeq = allOutsources.Count > 0 ? allOutsources.Max(s => s.SequenceNumber) : -1;

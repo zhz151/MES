@@ -51,6 +51,9 @@ public class WorkOrderExecutionSummary : BaseEntity
     /// <summary>关联主号用料状态</summary>
     public int MainNoMaterialPlanStatus { get; set; }
 
+    /// <summary>工艺周期（天）：4种用料计划中 StandardCycle 的最大值，未计划时默认25</summary>
+    public int ProcessCycle { get; set; }
+
     // ========== Group 5: 物料执行实时信息（从采购订单聚合） ==========
     /// <summary>待回荒管支数</summary>
     public int PendingRoughTubeQty { get; set; }
@@ -158,6 +161,9 @@ public class WorkOrderExecutionSummary : BaseEntity
     /// <summary>未完成批数（上述批次中执行状态≠完成的计数）</summary>
     public int FlowIncompleteBatchCount { get; set; }
 
+    /// <summary>剩余工量（天）：关联批次中最大 RemainingWorkDays</summary>
+    public int FlowMaxRemainingWorkDays { get; set; }
+
     // ========== Group 8: 过程不合格（G3 − G4，负值归零） ==========
     /// <summary>原料不合格支数</summary>
     public int DefectiveRawQty { get; set; }
@@ -234,6 +240,21 @@ public class WorkOrderExecutionSummary : BaseEntity
     // ========== Group 12: 实时关注 ==========
     /// <summary>关注状态(0=无需排产 1=原料锁定 2=生产执行 3=成品检验)</summary>
     public int ScheduleStage { get; set; }
+
+    /// <summary>剩余总工量（天）：根据关注状态取关联主号的工艺周期/剩余工量</summary>
+    public int? TotalRemainingWorkDays { get; set; }
+
+    /// <summary>工单计划性（A+急/A急/B顺/C缓/D缓）</summary>
+    public string? UrgencyLevel { get; set; }
+
+    /// <summary>工艺预计完成日：今天 + 剩余总工量</summary>
+    public DateTime? EstimatedProcessCompletionDate { get; set; }
+
+    /// <summary>交期相差天数：工艺预计完成日 - 交货日期</summary>
+    public int? DaysDiffFromDelivery { get; set; }
+
+    /// <summary>原锁备注：原料锁定原因（A质量影响/B已购未回/C计划未执行/D未完善计划），仅ScheduleStage=1时有值</summary>
+    public string? RawMaterialLockRemark { get; set; }
 
     // ========== 刷新追踪 ==========
     /// <summary>最后刷新时间</summary>

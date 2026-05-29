@@ -105,11 +105,6 @@ public class InventoryPlanDto
     /// </summary>
     public string? ReworkTypeText { get; set; }
 
-    /// <summary>
-    /// 简化生产工艺（JSON数组）
-    /// </summary>
-    public string? ProcessPlan { get; set; }
-
     /// <summary>工艺周期（天）</summary>
     public int StandardCycle { get; set; }
 
@@ -194,10 +189,6 @@ public class CreateInventoryPlanRequest
     /// </summary>
     public string? ReworkType { get; set; }
 
-    /// <summary>
-    /// 简化生产工艺（JSON数组）
-    /// </summary>
-    public string? ProcessPlan { get; set; }
 }
 
 /// <summary>

@@ -60,7 +60,7 @@
                       ServerData="@LoadDataFromServer"
                       Dense="true"
                       Hover="true"
-                      Class="mt-4 auto-table"
+                      Class="mt-4 auto-table compact-table"
                       Elevation="0"
                       RowsPerPage="@_pageSize"
                       RowsPerPageLabel="每页行数:">
@@ -101,7 +101,7 @@
                     </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTh>
+                        <MudTh Style="width: col.Width">
                             <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
                                 @if (col.FilterType != null)

@@ -62,30 +62,30 @@ public partial class SectionOutsources
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "BatchNo",             Label = "批次号",       SortKey = "batchno",             FilterType = "string" },
-        new() { Key = "ProcessName",         Label = "工序名称",     SortKey = "processname",         FilterType = "string" },
-        new() { Key = "ManufacturingSpec",   Label = "制造规格",     SortKey = "manufacturingspec",   FilterType = "string" },
-        new() { Key = "SectionName",         Label = "工段名称",     SortKey = "sectionname",         FilterType = "string" },
-        new() { Key = "SequenceNumber",      Label = "组内序号",     SortKey = "sequencenumber" },
-        new() { Key = "OutsourceVendor",     Label = "委外单位",     SortKey = "outsourcevendor",     FilterType = "string" },
-        new() { Key = "SendOutDate",         Label = "发出日期",     SortKey = "sendoutdate",         FilterType = "date" },
-        new() { Key = "SendQuantity",        Label = "发出支数",     SortKey = "sendquantity" },
-        new() { Key = "SendWeight",          Label = "发出重量",     SortKey = "sendweight" },
-        new() { Key = "Status",              Label = "状态",         SortKey = "status",              FilterType = "enum",
+        new() { Key = "BatchNo",             Label = "批次号",       SortKey = "batchno",             FilterType = "string", Width = "120" },
+        new() { Key = "ProcessName",         Label = "工序名称",     SortKey = "processname",         FilterType = "string", Width = "120" },
+        new() { Key = "ManufacturingSpec",   Label = "制造规格",     SortKey = "manufacturingspec",   FilterType = "string", Width = "120" },
+        new() { Key = "SectionName",         Label = "工段名称",     SortKey = "sectionname",         FilterType = "string", Width = "120" },
+        new() { Key = "SequenceNumber",      Label = "组内序号",     SortKey = "sequencenumber", Width = "45" },
+        new() { Key = "OutsourceVendor",     Label = "委外单位",     SortKey = "outsourcevendor",     FilterType = "string", Width = "120" },
+        new() { Key = "SendOutDate",         Label = "发出日期",     SortKey = "sendoutdate",         FilterType = "date", Width = "120" },
+        new() { Key = "SendQuantity",        Label = "发出支数",     SortKey = "sendquantity", Width = "80" },
+        new() { Key = "SendWeight",          Label = "发出重量",     SortKey = "sendweight", Width = "80" },
+        new() { Key = "Status",              Label = "状态",         SortKey = "status",              FilterType = "enum", Width = "120",
             EnumOptions = new() { new("PendingRecovery", "待回收"), new("Recovered", "已回收"), new("InProgress", "在轧") } },
-        new() { Key = "TagNo",               Label = "挂牌号",       SortKey = "tagno",               FilterType = "string" },
-        new() { Key = "PlantGrade",          Label = "工厂牌号",     SortKey = "plantgrade",          FilterType = "string" },
-        new() { Key = "OutsourceSpec",       Label = "委外规格",     SortKey = "outsourcespec",       FilterType = "string" },
-        new() { Key = "ExpectedReturnDate",  Label = "要求收回日期", SortKey = "expectedreturndate",  FilterType = "date" },
-        new() { Key = "IsUrgent",            Label = "紧急",         SortKey = "isurgent",            FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否" },
-        new() { Key = "TotalRecoveredQuantity",     Label = "正常回收(支)",  SortKey = "totalrecoveredquantity" },
-        new() { Key = "TotalRecoveredWeight",       Label = "正常回收(重)",  SortKey = "totalrecoveredweight" },
-        new() { Key = "TotalUnprocessedQuantity",   Label = "非正常回收(支)", SortKey = "totalunprocessedquantity" },
-        new() { Key = "TotalUnprocessedWeight",     Label = "非正常回收(重)", SortKey = "totalunprocessedweight" },
-        new() { Key = "ActualRecoveryDate",  Label = "实际回收日期", SortKey = "actualrecoverydate",  FilterType = "date" },
-        new() { Key = "Remark",              Label = "备注",         SortKey = "remark",              FilterType = "string" },
-        new() { Key = "CreatedTime",         Label = "创建时间",     SortKey = "createdtime" },
-        new() { Key = "UpdatedTime",         Label = "更新时间",     SortKey = "updatedtime" },
+        new() { Key = "TagNo",               Label = "挂牌号",       SortKey = "tagno",               FilterType = "string", Width = "120" },
+        new() { Key = "PlantGrade",          Label = "工厂牌号",     SortKey = "plantgrade",          FilterType = "string", Width = "120" },
+        new() { Key = "OutsourceSpec",       Label = "委外规格",     SortKey = "outsourcespec",       FilterType = "string", Width = "120" },
+        new() { Key = "ExpectedReturnDate",  Label = "要求收回日期", SortKey = "expectedreturndate",  FilterType = "date", Width = "120" },
+        new() { Key = "IsUrgent",            Label = "紧急",         SortKey = "isurgent",            FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "60" },
+        new() { Key = "TotalRecoveredQuantity",     Label = "正常回收(支)",  SortKey = "totalrecoveredquantity", Width = "80" },
+        new() { Key = "TotalRecoveredWeight",       Label = "正常回收(重)",  SortKey = "totalrecoveredweight", Width = "80" },
+        new() { Key = "TotalUnprocessedQuantity",   Label = "非正常回收(支)", SortKey = "totalunprocessedquantity", Width = "80" },
+        new() { Key = "TotalUnprocessedWeight",     Label = "非正常回收(重)", SortKey = "totalunprocessedweight", Width = "80" },
+        new() { Key = "ActualRecoveryDate",  Label = "实际回收日期", SortKey = "actualrecoverydate",  FilterType = "date", Width = "120" },
+        new() { Key = "Remark",              Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120" },
+        new() { Key = "CreatedTime",         Label = "创建时间",     SortKey = "createdtime", Width = "120" },
+        new() { Key = "UpdatedTime",         Label = "更新时间",     SortKey = "updatedtime", Width = "120" },
     };
 
     // ========== 服务端数据加载 ==========
@@ -451,10 +451,12 @@ public partial class SectionOutsources
                 if (isEditing && cache != null)
                 {
                     builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Value", cache.ExpectedReturnDateText);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => cache.ExpectedReturnDateText = v));
-                    builder.AddAttribute(3, "Class", "compact-input");
-                    builder.AddAttribute(4, "Placeholder", "yyyy-MM-dd");
+                    builder.AddAttribute(1, "Dense", true);
+                    builder.AddAttribute(2, "Variant", Variant.Outlined);
+                    builder.AddAttribute(3, "Value", cache.ExpectedReturnDateText);
+                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => cache.ExpectedReturnDateText = v));
+                    builder.AddAttribute(5, "Class", "compact-input");
+                    builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd");
                     builder.CloseComponent();
                 }
                 else
@@ -511,30 +513,36 @@ public partial class SectionOutsources
     private void RenderEditTextField(RenderTreeBuilder builder, string value, Action<string> onChanged)
     {
         builder.OpenComponent<MudTextField<string>>(0);
-        builder.AddAttribute(1, "Value", value);
-        builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, onChanged));
-        builder.AddAttribute(3, "Class", "compact-input");
+        builder.AddAttribute(1, "Dense", true);
+        builder.AddAttribute(2, "Variant", Variant.Outlined);
+        builder.AddAttribute(3, "Value", value);
+        builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, onChanged));
+        builder.AddAttribute(5, "Class", "compact-input");
         builder.CloseComponent();
     }
 
     private void RenderEditIntField(RenderTreeBuilder builder, int? value, Action<int?> onChanged)
     {
         builder.OpenComponent<MudNumericField<int?>>(0);
-        builder.AddAttribute(1, "Value", value);
-        builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, onChanged));
-        builder.AddAttribute(3, "Class", "compact-input");
-        builder.AddAttribute(4, "HideSpinButtons", true);
+        builder.AddAttribute(1, "Dense", true);
+        builder.AddAttribute(2, "Variant", Variant.Outlined);
+        builder.AddAttribute(3, "Value", value);
+        builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<int?>(this, onChanged));
+        builder.AddAttribute(5, "Class", "compact-input");
+        builder.AddAttribute(6, "HideSpinButtons", true);
         builder.CloseComponent();
     }
 
     private void RenderEditDecimalField(RenderTreeBuilder builder, decimal? value, Action<decimal?> onChanged)
     {
         builder.OpenComponent<MudNumericField<decimal?>>(0);
-        builder.AddAttribute(1, "Value", value);
-        builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, onChanged));
-        builder.AddAttribute(3, "Class", "compact-input");
-        builder.AddAttribute(4, "HideSpinButtons", true);
-        builder.AddAttribute(5, "Format", "G29");
+        builder.AddAttribute(1, "Dense", true);
+        builder.AddAttribute(2, "Variant", Variant.Outlined);
+        builder.AddAttribute(3, "Value", value);
+        builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, onChanged));
+        builder.AddAttribute(5, "Class", "compact-input");
+        builder.AddAttribute(6, "HideSpinButtons", true);
+        builder.AddAttribute(7, "Format", "G29");
         builder.CloseComponent();
     }
 

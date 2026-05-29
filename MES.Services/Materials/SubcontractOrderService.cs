@@ -6,6 +6,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using WoEntity = MES.Data.Entities.WorkOrder;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
@@ -207,7 +208,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             .Distinct()
             .ToList();
 
-        var workOrders = new Dictionary<string, WorkOrder>();
+        var workOrders = new Dictionary<string, WoEntity>();
         if (woNos.Count > 0)
         {
             workOrders = await _context.WorkOrders
@@ -712,7 +713,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             .Select(r => r.SourceWorkOrderNo!)
             .Distinct()
             .ToList();
-        var workOrders = new Dictionary<string, WorkOrder>();
+        var workOrders = new Dictionary<string, WoEntity>();
         if (woNos.Count > 0)
         {
             workOrders = await _context.WorkOrders
@@ -827,7 +828,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         CreatedTime = entity.CreatedTime
     };
 
-    private static void FillWorkOrderFields(SubcontractOrderDto dto, WorkOrder wo)
+    private static void FillWorkOrderFields(SubcontractOrderDto dto, WoEntity wo)
     {
         dto.WoSalesOrderNo = wo.SalesOrderNo;
         dto.WoProductionMainNo = wo.ProductionMainNo;
@@ -848,7 +849,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         dto.WoTotalItemCount = wo.TotalItemCount;
     }
 
-    private static void FillWorkOrderFields(SubcontractReturnItemDto dto, WorkOrder wo)
+    private static void FillWorkOrderFields(SubcontractReturnItemDto dto, WoEntity wo)
     {
         dto.WoSalesOrderNo = wo.SalesOrderNo;
         dto.WoProductionMainNo = wo.ProductionMainNo;

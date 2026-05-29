@@ -306,11 +306,12 @@
     // ========== 编辑模式 ==========
     private void EnterEditMode() { _isEditMode = true; }
 
-    private async Task CancelEdit()
+    private Task CancelEdit()
     {
         _isEditMode = false;
         ResetEditModels();
         StateHasChanged();
+        return Task.CompletedTask;
     }
 
     private async Task Save()

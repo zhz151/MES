@@ -1,0 +1,576 @@
+using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
+using MudBlazor;
+using MES.Blazor.Components;
+using MES.Blazor.Helpers;
+using MES.Blazor.Models;
+using MES.Blazor.Services;
+using MES.Core.DTOs;
+using MES.Core.Models;
+using System.Text.Json;
+
+namespace MES.Blazor.Pages.Scheduling;
+
+public partial class SalesUrgings
+{
+    private MudTable<SalesUrgingDto>? table;
+    private List<SalesUrgingDto> _pageItems = new();
+    private int _totalCount;
+    private int _restoredPageIndex;
+    private int _currentPageIndex = 1;
+    private bool _isFirstLoad = true;
+    private int _pageSize = 10;
+    private bool isRefreshing;
+    private string _searchKeyword = string.Empty;
+
+    // 排序状态
+    private string sortColumn = "ScheduleStage";
+    private bool sortDescending = true;
+
+    // ========== ExcelFilter 筛选 ==========
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+    private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
+
+    // ========== 列定义 ==========
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns =>
+        _allColumns.Where(c => c.Visible).ToList();
+
+    private static List<ColumnDef> GetAllColumnDefs()
+    {
+        // G1: 工单基础数据
+        var g1 = new List<ColumnDef>
+        {
+            new() { Key = "WorkOrderNo",             Label = "工单号",          SortKey = "WorkOrderNo",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "Salesman",                Label = "业务员",          SortKey = "Salesman",                FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "CustomerName",            Label = "往来单位",        SortKey = "CustomerName",            FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "SignDate",                Label = "订单日期",        SortKey = "SignDate",                Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "DeliveryDate",            Label = "交货日期",        SortKey = "DeliveryDate",            Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "DelayPenalty",            Label = "延期罚款",        SortKey = "DelayPenalty",            FilterType = "boolean", Width = "120", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "SettlementMethod",        Label = "结算方式",        SortKey = "SettlementMethod",        FilterType = "enum", Width = "120", EnumOptions = new() { new("Weighing","过磅"), new("WeighingNegative","过磅-负"), new("Theoretical","理算") }, Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "SalesOrderNo",            Label = "订单号",          SortKey = "SalesOrderNo",            FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "ProductionMainNo",        Label = "主号",            SortKey = "ProductionMainNo",        FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "ProductionSubNo",         Label = "次号",            SortKey = "ProductionSubNo",         FilterType = "string", Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "MaterialName",            Label = "物料名称",        SortKey = "MaterialName",            FilterType = "enum", Width = "120", EnumOptions = new() { new("SeamlessPipe","无缝管"), new("WeldedPipe","焊管") }, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "DeliveryState",           Label = "交货状态",        SortKey = "DeliveryState",           FilterType = "enum", Width = "120", EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态") }, Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "PlantGrade",              Label = "工厂牌号",        SortKey = "PlantGrade",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "Specification",           Label = "规格",            SortKey = "Specification",           FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "LengthStatus",            Label = "长度状态",        SortKey = "LengthStatus",            FilterType = "enum", Width = "120", EnumOptions = new() { new("Fixed","定尺"), new("Range","范围尺"), new("NonFixed","非定尺") }, Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "TotalQuantity",           Label = "总支数",          SortKey = "TotalQuantity",           Width = "80", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "TotalWeight",             Label = "总重量",          SortKey = "TotalWeight",             Width = "80", GroupKey = 1, GroupName = "基础数据" },
+        };
+
+        // G12: 实时关注
+        var g12 = new List<ColumnDef>
+        {
+            new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = new() { new("0","无需排产"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "TotalRemainingWorkDays",  Label = "剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "UrgencyLevel",            Label = "工单计划性",    SortKey = "UrgencyLevel",            Width = "120",                              GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "EstimatedProcessCompletionDate",Label = "工艺预计完成日",SortKey = "EstimatedProcessCompletionDate", Width = "120",                  GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "DaysDiffFromDelivery",    Label = "交期相差天数",  SortKey = "DaysDiffFromDelivery",    Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "RawMaterialLockRemark",   Label = "原锁备注",     SortKey = "RawMaterialLockRemark",   Width = "120",                             GroupKey = 12, GroupName = "实时关注" },
+        };
+
+        // G13: 销售催单（手工编辑）
+        var g13 = new List<ColumnDef>
+        {
+            new() { Key = "IsSalesUrging",           Label = "销售催单",      SortKey = "IsSalesUrging",           FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "销售催单" },
+            new() { Key = "UrgingRemark",            Label = "催单备注",      SortKey = "UrgingRemark",            FilterType = "string", Width = "200", GroupKey = 13, GroupName = "销售催单" },
+        };
+
+        var all = new List<ColumnDef>();
+        all.AddRange(g1);
+        all.AddRange(g12);
+        all.AddRange(g13);
+        return all;
+    }
+
+    // ========== 服务端数据加载 ==========
+
+    private async Task<TableData<SalesUrgingDto>> LoadDataFromServer(TableState state)
+    {
+        // 恢复持久化的页码（MudTable 初始化时始终传 page=0）
+        if (_isFirstLoad)
+        {
+            state.Page = _restoredPageIndex;
+            _isFirstLoad = false;
+        }
+
+        try
+        {
+            var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "ScheduleStage";
+            var filtersJson = SerializeFilters();
+
+            var query = new QueryParams
+            {
+                PageIndex = state.Page + 1,
+                PageSize = state.PageSize,
+                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                SortBy = sortBy,
+                IsDescending = sortDescending
+            };
+            if (filtersJson != null)
+            {
+                query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filtersJson);
+            }
+
+            var result = await SalesUrgingService.GetPagedAsync(query);
+
+            if (result.Success && result.Data != null)
+            {
+                _pageItems = result.Data.Items;
+                _totalCount = result.Data.TotalCount;
+                _currentPageIndex = state.Page + 1;
+                await SavePageStateAsync();
+            }
+            else
+            {
+                _pageItems = new();
+                _totalCount = 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+            _pageItems = new();
+            _totalCount = 0;
+        }
+
+        return new TableData<SalesUrgingDto>
+        {
+            Items = _pageItems,
+            TotalItems = _totalCount
+        };
+    }
+
+    private string? SerializeFilters()
+    {
+        if (_columnFilters.Count == 0) return null;
+        var descriptors = new List<FilterDescriptor>();
+        foreach (var kvp in _columnFilters)
+        {
+            if (kvp.Value.Count == 0) continue;
+            descriptors.Add(new FilterDescriptor
+            {
+                Field = kvp.Key,
+                Operator = "in",
+                Values = kvp.Value.ToList()
+            });
+        }
+        return descriptors.Count > 0 ? JsonSerializer.Serialize(descriptors) : null;
+    }
+
+    // ========== 筛选上下文加载（ExcelFilter 下拉选项） ==========
+
+    private Task LoadFilterContextsAsync()
+    {
+        if (_pageItems.Count > 0)
+        {
+            BuildFilterContextOptions(_pageItems);
+        }
+        return Task.CompletedTask;
+    }
+
+    private void BuildFilterContextOptions(List<SalesUrgingDto> items)
+    {
+        _filterContextOptions.Clear();
+
+        // 字符串列从数据提取 DISTINCT 值
+        void AddStringOptions(string key, Func<SalesUrgingDto, string?> selector)
+        {
+            _filterContextOptions[key] = items
+                .Select(selector)
+                .Where(v => !string.IsNullOrEmpty(v))
+                .Distinct()
+                .OrderBy(v => v)
+                .Select(v => new ExcelFilterOption { Value = v!, Display = v!, Count = 0 })
+                .ToList();
+        }
+
+        AddStringOptions("WorkOrderNo", i => i.WorkOrderNo);
+        AddStringOptions("Salesman", i => i.Salesman);
+        AddStringOptions("CustomerName", i => i.CustomerName);
+        AddStringOptions("SalesOrderNo", i => i.SalesOrderNo);
+        AddStringOptions("ProductionMainNo", i => i.ProductionMainNo);
+        AddStringOptions("ProductionSubNo", i => i.ProductionSubNo);
+        AddStringOptions("PlantGrade", i => i.PlantGrade);
+        AddStringOptions("Specification", i => i.Specification);
+        AddStringOptions("UrgencyLevel", i => i.UrgencyLevel);
+        AddStringOptions("RawMaterialLockRemark", i => i.RawMaterialLockRemark);
+        AddStringOptions("UrgingRemark", i => i.UrgingRemark);
+
+        // DelayPenalty 列
+        if (_filterContextOptions.TryGetValue("DelayPenalty", out var delayOptions))
+        {
+            foreach (var opt in delayOptions)
+            {
+                opt.Display = opt.Value == "True" ? "是" : "否";
+            }
+        }
+
+        // 补充枚举列筛选选项（后端不返回枚举列 DISTINCT 值）
+        foreach (var col in _allColumns)
+        {
+            if (col.FilterType == "enum" && col.EnumOptions != null && !_filterContextOptions.ContainsKey(col.Key))
+            {
+                _filterContextOptions[col.Key] = col.EnumOptions.Select(e => new ExcelFilterOption
+                {
+                    Value = e.Value,
+                    Display = e.Display,
+                    Count = 0
+                }).ToList();
+            }
+        }
+
+        // 补充布尔列筛选选项
+        foreach (var col in _allColumns)
+        {
+            if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
+            {
+                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
+                {
+                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
+                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
+                };
+            }
+        }
+    }
+
+    // ========== ExcelFilter 事件 ==========
+
+    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
+    {
+        if (selectedValues.Count > 0)
+            _columnFilters[fieldKey] = selectedValues;
+        else
+            _columnFilters.Remove(fieldKey);
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    // ========== 列显隐事件 ==========
+
+    private async Task OnColumnToggle(ColumnDef col)
+    {
+        await SavePageStateAsync();
+    }
+
+    private async Task MoveColumnUp(ColumnDef col)
+    {
+        await SavePageStateAsync();
+    }
+
+    private async Task MoveColumnDown(ColumnDef col)
+    {
+        await SavePageStateAsync();
+    }
+
+    private async Task ToggleSort(string sortKey)
+    {
+        if (sortColumn == sortKey)
+            sortDescending = !sortDescending;
+        else
+        {
+            sortColumn = sortKey;
+            sortDescending = false;
+        }
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnSearchChanged(string value)
+    {
+        _searchKeyword = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    // ========== 内联编辑 ==========
+
+    private async Task ToggleSalesUrging(SalesUrgingDto item)
+    {
+        item.IsSalesUrging = !item.IsSalesUrging;
+        await SaveUrgingAsync(item);
+    }
+
+    private async Task OnUrgingRemarkChanged(SalesUrgingDto item, string? newValue)
+    {
+        item.UrgingRemark = newValue;
+        await SaveUrgingAsync(item);
+    }
+
+    private async Task SaveUrgingAsync(SalesUrgingDto item)
+    {
+        try
+        {
+            var result = await SalesUrgingService.SaveUrgingAsync(item.WorkOrderId, item.IsSalesUrging, item.UrgingRemark);
+            if (result.Success)
+            {
+                Snackbar.Add("保存成功", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "保存失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // ========== 即时更新 ==========
+
+    private async Task RefreshAll()
+    {
+        isRefreshing = true;
+        try
+        {
+            var result = await WorkOrderExecutionService.RefreshAllAsync();
+            if (result.Success)
+            {
+                Snackbar.Add($"刷新完成，共{result.Data?.RefreshedCount ?? 0}条", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "刷新失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"刷新失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isRefreshing = false;
+        }
+        if (table != null) await table.ReloadServerData();
+    }
+
+    // ========== 分组 CSS ==========
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1",
+            12 => "col-g12",
+            13 => "col-g13",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1-cell",
+            12 => "col-g12-cell",
+            13 => "col-g13-cell",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
+
+    // ========== 初始化 ==========
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allColumns = GetAllColumnDefs();
+
+        // 恢复排序/筛选/列显隐状态
+        var savedState = await PageState.LoadAsync("salesurgings");
+        if (savedState != null)
+        {
+            sortColumn = savedState.SortBy ?? "ScheduleStage";
+            sortDescending = savedState.IsDescending;
+            _searchKeyword = savedState.Keyword ?? string.Empty;
+            _restoredPageIndex = savedState.PageIndex;
+
+            // 恢复列显隐
+            if (savedState.Extras?.ContainsKey("columnVisibility") == true)
+            {
+                try
+                {
+                    var raw = savedState.Extras["columnVisibility"];
+                    var visibleKeys = JsonSerializer.Deserialize<List<string>>(raw);
+                    if (visibleKeys != null)
+                    {
+                        var visibleSet = new HashSet<string>(visibleKeys);
+                        foreach (var col in _allColumns)
+                            col.Visible = visibleSet.Contains(col.Key);
+                    }
+                }
+                catch { }
+            }
+
+            // 恢复列筛选
+            if (savedState.Extras?.ContainsKey("columnFilters") == true)
+            {
+                try
+                {
+                    var raw = savedState.Extras["columnFilters"];
+                    var dict = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(raw);
+                    if (dict != null)
+                        _columnFilters = dict.ToDictionary(kv => kv.Key, kv => new HashSet<string>(kv.Value));
+                }
+                catch { }
+            }
+        }
+
+        // 状态恢复后重新加载表格数据
+        if (savedState != null && table != null)
+            await table.ReloadServerData();
+    }
+
+    // ========== 单元格渲染 ==========
+
+    private RenderFragment RenderCell(SalesUrgingDto item, ColumnDef col) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "WorkOrderNo":
+                builder.AddContent(0, item.WorkOrderNo);
+                break;
+            case "Salesman":
+                builder.AddContent(0, item.Salesman);
+                break;
+            case "CustomerName":
+                builder.AddContent(0, item.CustomerName);
+                break;
+            case "SignDate":
+                builder.AddContent(0, item.SignDate.ToString("yyyy-MM-dd"));
+                break;
+            case "DeliveryDate":
+                builder.AddContent(0, item.DeliveryDate.ToString("yyyy-MM-dd"));
+                break;
+            case "DelayPenalty":
+                builder.AddContent(0, item.DelayPenaltyText);
+                break;
+            case "SettlementMethod":
+                builder.AddContent(0, DisplayHelper.GetSettlementMethodText(item.SettlementMethod));
+                break;
+            case "SalesOrderNo":
+                builder.AddContent(0, item.SalesOrderNo);
+                break;
+            case "ProductionMainNo":
+                builder.AddContent(0, item.ProductionMainNo);
+                break;
+            case "ProductionSubNo":
+                builder.AddContent(0, item.ProductionSubNo ?? "-");
+                break;
+            case "MaterialName":
+                builder.AddContent(0, DisplayHelper.GetMaterialNameText(item.MaterialName));
+                break;
+            case "DeliveryState":
+                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
+                break;
+            case "PlantGrade":
+                builder.AddContent(0, item.PlantGrade);
+                break;
+            case "Specification":
+                builder.AddContent(0, item.Specification);
+                break;
+            case "LengthStatus":
+                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                break;
+            case "TotalQuantity":
+                builder.AddContent(0, item.TotalQuantity);
+                break;
+            case "TotalWeight":
+                builder.AddContent(0, Math.Round(item.TotalWeight).ToString("F0"));
+                break;
+            case "ScheduleStage":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetScheduleStageColor(item.ScheduleStage));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.ScheduleStageText)));
+                builder.CloseComponent();
+                break;
+            case "TotalRemainingWorkDays":
+                builder.AddContent(0, item.TotalRemainingWorkDays.HasValue ? $"{item.TotalRemainingWorkDays}天" : "-");
+                break;
+            case "UrgencyLevel":
+                builder.AddContent(0, item.UrgencyLevel ?? "-");
+                break;
+            case "EstimatedProcessCompletionDate":
+                builder.AddContent(0, item.EstimatedProcessCompletionDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "DaysDiffFromDelivery":
+                builder.AddContent(0, item.DaysDiffFromDelivery.HasValue ? $"{item.DaysDiffFromDelivery}天" : "-");
+                break;
+            case "RawMaterialLockRemark":
+                builder.AddContent(0, item.RawMaterialLockRemark ?? "-");
+                break;
+            case "IsSalesUrging":
+                // 内联编辑：Switch 切换催单状态
+                builder.OpenElement(0, "div");
+                builder.AddAttribute(1, "style", "display:flex; align-items:center; gap:4px;");
+                builder.OpenComponent<MudSwitch<bool>>(2);
+                builder.AddAttribute(3, "Value", item.IsSalesUrging);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, v =>
+                {
+                    item.IsSalesUrging = v;
+                    _ = SaveUrgingAsync(item);
+                }));
+                builder.AddAttribute(5, "Color", Color.Primary);
+                builder.AddAttribute(6, "Dense", true);
+                builder.CloseComponent();
+                builder.AddContent(7, item.IsSalesUrging ? "是" : "否");
+                builder.CloseElement();
+                break;
+            case "UrgingRemark":
+                // 内联编辑：文本框
+                builder.OpenComponent<MudTextField<string?>>(0);
+                builder.AddAttribute(1, "Value", item.UrgingRemark);
+                builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string?>(this, v =>
+                {
+                    _ = OnUrgingRemarkChanged(item, v);
+                }));
+                builder.AddAttribute(3, "Dense", true);
+                builder.AddAttribute(4, "Immediate", true);
+                builder.AddAttribute(5, "DebounceInterval", (double)800);
+                builder.AddAttribute(6, "Placeholder", "输入催单备注");
+                builder.AddAttribute(7, "Class", "inline-edit-textfield");
+                builder.AddAttribute(8, "Style", "min-width:120px;");
+                builder.CloseComponent();
+                break;
+        }
+    };
+
+    // ========== 颜色 ==========
+
+    private static Color GetScheduleStageColor(int stage) => stage switch
+    {
+        0 => Color.Default,
+        1 => Color.Warning,
+        2 => Color.Success,
+        3 => Color.Info,
+        _ => Color.Default
+    };
+
+    // ========== 持久化 ==========
+
+    private async Task SavePageStateAsync()
+    {
+        var extras = new Dictionary<string, string>();
+        if (_columnFilters.Count > 0)
+            extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
+
+        // 列显隐持久化
+        extras["columnVisibility"] = JsonSerializer.Serialize(_allColumns.Where(c => c.Visible).Select(c => c.Key).ToList());
+
+        var state = new PageState
+        {
+            SortBy = sortColumn,
+            IsDescending = sortDescending,
+            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+            PageIndex = _currentPageIndex,
+            Extras = extras
+        };
+        await PageState.SaveAsync("salesurgings", state);
+    }
+}

@@ -329,7 +329,7 @@
         _isEditMode = true;
     }
 
-    private async Task CancelEdit()
+    private Task CancelEdit()
     {
         _isEditMode = false;
         // 重置编辑数据
@@ -349,6 +349,7 @@
             UpdatedTime = v.UpdatedTime
         }).ToList();
         StateHasChanged();
+        return Task.CompletedTask;
     }
 
     // ========== 保存 ==========

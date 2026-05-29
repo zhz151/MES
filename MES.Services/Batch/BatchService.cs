@@ -8,6 +8,7 @@ using MES.Core.Models;
 using MES.Core.Constants;
 using MES.Data;
 using MES.Data.Entities;
+using WoEntity = MES.Data.Entities.WorkOrder;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
@@ -347,7 +348,7 @@ public class BatchService : IBatchService
         if (string.IsNullOrWhiteSpace(request.WorkOrderNo))
             throw new BusinessException("工单号不能为空（无对应工单请填写「非工单」）");
 
-        WorkOrder? workOrder = null;
+        WoEntity? workOrder = null;
         if (request.WorkOrderNo != "非工单")
         {
             workOrder = await _context.WorkOrders
@@ -1605,7 +1606,7 @@ public class BatchService : IBatchService
 
     // ========== 辅助方法 ==========
 
-    private static int CalculateProductionRatio(CreateProductionBatchRequest request, WorkOrder? workOrder)
+    private static int CalculateProductionRatio(CreateProductionBatchRequest request, WoEntity? workOrder)
     {
         // 仅在定尺(Fixed)状态下计算
         var lengthStatus = request.LengthStatus ?? workOrder?.LengthStatus.ToString() ?? "";

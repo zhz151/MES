@@ -168,18 +168,18 @@
 
     private void Cancel() => MudDialog.Cancel();
 
-    private async Task Submit()
+    private Task Submit()
     {
         if (_selectedOutsource == null)
         {
             Snackbar.Add("请先选择委外记录", Severity.Warning);
-            return;
+            return Task.CompletedTask;
         }
 
         if (_qty == null && _wt == null && _unprocessedQty == null && _unprocessedWt == null)
         {
             Snackbar.Add("请至少输入一项回收数据", Severity.Warning);
-            return;
+            return Task.CompletedTask;
         }
 
         _submitting = true;
@@ -188,7 +188,7 @@
             if (!DateTime.TryParse(_recoveryDateStr, out var recoveryDate))
             {
                 Snackbar.Add("回收日期格式无效，请使用 yyyy-MM-dd 格式", Severity.Warning);
-                return;
+                return Task.CompletedTask;
             }
             var request = new CreateOutsourceRecoveryRequest
             {
@@ -206,5 +206,6 @@
         {
             _submitting = false;
         }
+        return Task.CompletedTask;
     }
 }

@@ -20,7 +20,7 @@ public partial class MaterialPlanOverview
     private List<WorkOrderListDto> _pageItems = new();
     private int _totalCount;
     private string errorMessage = string.Empty;
-    private bool _isArrowNavSetup;
+
 
     // 选中状态
     private bool _allSelected;
@@ -71,41 +71,41 @@ public partial class MaterialPlanOverview
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "WorkOrderNo",        Label = "工单号",     SortKey = "WorkOrderNo", FilterType = "string" },
-        new() { Key = "SalesOrderNo",       Label = "订单号",     SortKey = "SalesOrderNo", FilterType = "string" },
-        new() { Key = "ProductionMainNo",   Label = "主号",       SortKey = "ProductionMainNo", FilterType = "string" },
-        new() { Key = "ProductionSubNo",    Label = "次号",       SortKey = "ProductionSubNo", FilterType = "string" },
-        new() { Key = "SignDate",           Label = "签订日期",   SortKey = "signdate", FilterType = "date" },
-        new() { Key = "Salesman",           Label = "业务员",     SortKey = "salesman", FilterType = "string" },
-        new() { Key = "EndCustomer",        Label = "最终用户",   SortKey = "endcustomer", FilterType = "string" },
-        new() { Key = "DeliveryDate",       Label = "交货日期",   SortKey = "deliverydate", FilterType = "date" },
-        new() { Key = "DelayPenalty",       Label = "延期罚款",   SortKey = "delaypenalty", FilterType = "enum",
+        new() { Key = "WorkOrderNo",        Label = "工单号",     SortKey = "WorkOrderNo", FilterType = "string", Width = "120" },
+        new() { Key = "SalesOrderNo",       Label = "订单号",     SortKey = "SalesOrderNo", FilterType = "string", Width = "120" },
+        new() { Key = "ProductionMainNo",   Label = "主号",       SortKey = "ProductionMainNo", FilterType = "string", Width = "120" },
+        new() { Key = "ProductionSubNo",    Label = "次号",       SortKey = "ProductionSubNo", FilterType = "string", Width = "120" },
+        new() { Key = "SignDate",           Label = "签订日期",   SortKey = "signdate", FilterType = "date", Width = "120" },
+        new() { Key = "Salesman",           Label = "业务员",     SortKey = "salesman", FilterType = "string", Width = "120" },
+        new() { Key = "EndCustomer",        Label = "最终用户",   SortKey = "endcustomer", FilterType = "string", Width = "120" },
+        new() { Key = "DeliveryDate",       Label = "交货日期",   SortKey = "deliverydate", FilterType = "date", Width = "120" },
+        new() { Key = "DelayPenalty",       Label = "延期罚款",   SortKey = "delaypenalty", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("True", "是"), new("False", "否") } },
-        new() { Key = "SettlementMethod",   Label = "结算方式",   SortKey = "settlementmethod", FilterType = "enum",
+        new() { Key = "SettlementMethod",   Label = "结算方式",   SortKey = "settlementmethod", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("MonthlyStatement", "月结"), new("PerOrder", "单结"), new("Deposit", "定金"), new("FullPayment", "全款") } },
-        new() { Key = "PlantGrade",         Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string" },
-        new() { Key = "Specification",      Label = "规格",       SortKey = "specification", FilterType = "string" },
-        new() { Key = "MaterialName",       Label = "物料名称",   SortKey = "materialname", FilterType = "enum",
+        new() { Key = "PlantGrade",         Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string", Width = "120" },
+        new() { Key = "Specification",      Label = "规格",       SortKey = "specification", FilterType = "string", Width = "120" },
+        new() { Key = "MaterialName",       Label = "物料名称",   SortKey = "materialname", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("Tube", "管材"), new("Pipe", "管道"), new("Bar", "棒材"), new("Fitting", "管件"), new("Wire", "线材"), new("Strip", "带材"), new("Sheet", "板材"), new("Profile", "型材"), new("Other", "其他") } },
-        new() { Key = "LengthStatus",       Label = "长度状态",   SortKey = "lengthstatus", FilterType = "enum",
+        new() { Key = "LengthStatus",       Label = "长度状态",   SortKey = "lengthstatus", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("FixedLength", "定尺"), new("RandomLength", "不定尺"), new("MultipleLength", "倍尺") } },
-        new() { Key = "MaxLength",          Label = "最大长度",   SortKey = "maxlength" },
-        new() { Key = "MinLength",          Label = "最小长度",   SortKey = "minlength" },
-        new() { Key = "TotalQuantity",      Label = "总支数",     SortKey = "totalquantity" },
-        new() { Key = "TotalWeight",        Label = "总重量",     SortKey = "totalweight" },
-        new() { Key = "DeliveryState",      Label = "交货状态",   SortKey = "deliverystate", FilterType = "enum",
+        new() { Key = "MaxLength",          Label = "最大长度",   SortKey = "maxlength", Width = "80" },
+        new() { Key = "MinLength",          Label = "最小长度",   SortKey = "minlength", Width = "80" },
+        new() { Key = "TotalQuantity",      Label = "总支数",     SortKey = "totalquantity", Width = "80" },
+        new() { Key = "TotalWeight",        Label = "总重量",     SortKey = "totalweight", Width = "80" },
+        new() { Key = "DeliveryState",      Label = "交货状态",   SortKey = "deliverystate", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("Raw", "原料"), new("SemiFinished", "半成品"), new("Finished", "成品") } },
-        new() { Key = "TotalItemCount",     Label = "含项次数",   SortKey = "totalitemcount" },
-        new() { Key = "LatestPlanDate",          Label = "计划日期",       SortKey = "LatestPlanDate", FilterType = "date" },
-        new() { Key = "MaterialPlanStatus",      Label = "工单用料计划",   SortKey = "MaterialPlanStatus", FilterType = "enum",
+        new() { Key = "TotalItemCount",     Label = "含项次数",   SortKey = "totalitemcount", Width = "80" },
+        new() { Key = "LatestPlanDate",          Label = "计划日期",       SortKey = "LatestPlanDate", FilterType = "date", Width = "120" },
+        new() { Key = "MaterialPlanStatus",      Label = "工单用料计划",   SortKey = "MaterialPlanStatus", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("0", "未计划"), new("1", "部分"), new("2", "理论满足"), new("3", "满足"), new("4", "超量") } },
-        new() { Key = "MaterialPlanRate",        Label = "工单满足率",     SortKey = "MaterialPlanRate" },
-        new() { Key = "PlanProportion",          Label = "用料占比",       SortKey = null },
-        new() { Key = "MainNoMaterialPlanStatus",Label = "关联主号用料",   SortKey = "MainNoMaterialPlanStatus", FilterType = "enum",
+        new() { Key = "MaterialPlanRate",        Label = "工单满足率",     SortKey = "MaterialPlanRate", Width = "80" },
+        new() { Key = "PlanProportion",          Label = "用料占比",       SortKey = null, Width = "120" },
+        new() { Key = "MainNoMaterialPlanStatus",Label = "关联主号用料",   SortKey = "MainNoMaterialPlanStatus", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("0", "未计划"), new("1", "部分"), new("3", "满足"), new("4", "超量") } },
-        new() { Key = "OrderMaterialPlanStatus", Label = "关联订单用料",   SortKey = "OrderMaterialPlanStatus", FilterType = "enum",
+        new() { Key = "OrderMaterialPlanStatus", Label = "关联订单用料",   SortKey = "OrderMaterialPlanStatus", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("0", "未计划"), new("1", "部分"), new("3", "全部满足") } },
-        new() { Key = "MaxStandardCycle",       Label = "最大工艺周期",   SortKey = "MaxStandardCycle" },
+        new() { Key = "MaxStandardCycle",       Label = "最大工艺周期",   SortKey = "MaxStandardCycle", Width = "80" },
     };
 
     // ========== 服务端数据加载 ==========

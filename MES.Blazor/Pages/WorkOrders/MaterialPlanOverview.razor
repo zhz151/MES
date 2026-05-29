@@ -52,13 +52,14 @@
             </MudGrid>
 
             <!-- 数据表格 -->
+            <div id="material-plan-overview-list-table">
             <MudTable @ref="table"
                       T="WorkOrderListDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"
                       Hover="true"
                       Elevation="0"
-                      Class="auto-table"
+                      Class="auto-table compact-table"
                       RowsPerPage="@_pageSize"
                       RowsPerPageLabel="每页行数:">
                 <ToolBarContent>
@@ -101,7 +102,7 @@
                     </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTh>
+                        <MudTh Style="width: col.Width">
                             <div style="display:inline-flex; align-items:center; gap:4px;">
                                 @if (col.SortKey != null)
                                 {
@@ -151,6 +152,7 @@
                     <MudTablePager PageSizeOptions="new int[]{10, 15, 25, 50, 100}" />
                 </PagerContent>
             </MudTable>
+            </div>
         </MudCardContent>
     </MudCard>
 </MudContainer>

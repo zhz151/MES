@@ -97,40 +97,7 @@ public class MaterialPlanServiceTests : TestBase
             }
         });
 
-        // 种子标准工艺生产周期（所有工单通用）
-        await SeedStandardCycleAsync(ctx);
-
         return (result[0].Id, result[0].WorkOrderNo);
-    }
-
-    /// <summary>
-    /// 种子标准工艺生产周期：两种常见测试规格
-    /// </summary>
-    private async Task SeedStandardCycleAsync(AppDbContext ctx)
-    {
-        if (!await ctx.StandardProcessCycles.AnyAsync())
-        {
-            ctx.StandardProcessCycles.AddRange(
-                new StandardProcessCycle
-                {
-                    PlantGrade = "Q345B",
-                    ProductSpec = "219*8",
-                    DeliveryState = "固溶酸洗",
-                    RawMaterialType = "荒管",
-                    RawSpec = "245*10",
-                    StandardCycleDays = 15
-                },
-                new StandardProcessCycle
-                {
-                    PlantGrade = "Q345B",
-                    ProductSpec = "219*8",
-                    DeliveryState = "固溶酸洗",
-                    RawMaterialType = "荒管",
-                    RawSpec = "230*7",
-                    StandardCycleDays = 15
-                });
-            await ctx.SaveChangesAsync();
-        }
     }
 
     /// <summary>
@@ -193,6 +160,20 @@ public class MaterialPlanServiceTests : TestBase
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
     }
 
+    private static List<SavePlanProcessGroupItem> GetTestProcessGroups()
+    {
+        return new List<SavePlanProcessGroupItem>
+        {
+            new()
+            {
+                ProcessName = "荒管处理",
+                ColdRollDraw = 1,
+                Inspection = 2,
+                Warehouse = 3
+            }
+        };
+    }
+
     [Fact]
     public async Task CreateSemiPlanAsync_定尺_成功创建()
     {
@@ -213,7 +194,8 @@ public class MaterialPlanServiceTests : TestBase
             RawMaterialSpec = "245*10",
             RequiredPieces = 10,
             RequiredWeight = 1000m,
-            RequiredDate = DateTime.Today.AddMonths(1)
+            RequiredDate = DateTime.Today.AddMonths(1),
+            ProcessGroups = GetTestProcessGroups()
         });
 
         result.Should().NotBeNull();
@@ -297,7 +279,8 @@ public class MaterialPlanServiceTests : TestBase
             RawMaterialSpec = "245*10",
             RequiredPieces = 10,
             RequiredWeight = 1000m,
-            RequiredDate = DateTime.Today.AddMonths(1)
+            RequiredDate = DateTime.Today.AddMonths(1),
+            ProcessGroups = GetTestProcessGroups()
         });
 
         await svc.DeleteSemiPlanAsync(created.Id);
@@ -664,7 +647,8 @@ public class MaterialPlanServiceTests : TestBase
             RawMaterialSpec = "245*10",
             RequiredPieces = 10,
             RequiredWeight = 1000m,
-            RequiredDate = DateTime.Today.AddMonths(1)
+            RequiredDate = DateTime.Today.AddMonths(1),
+            ProcessGroups = GetTestProcessGroups()
         });
 
         var dto = await svc.GetWorkOrderMaterialPlanAsync(woId);
@@ -701,7 +685,8 @@ public class MaterialPlanServiceTests : TestBase
             RawMaterialSpec = "245*10",
             RequiredPieces = 10,
             RequiredWeight = 1000m,
-            RequiredDate = DateTime.Today.AddMonths(1)
+            RequiredDate = DateTime.Today.AddMonths(1),
+            ProcessGroups = GetTestProcessGroups()
         });
 
         // 创建成品采购计划
@@ -748,7 +733,8 @@ public class MaterialPlanServiceTests : TestBase
             RawMaterialSpec = "245*10",
             RequiredPieces = 10,
             RequiredWeight = 1000m,
-            RequiredDate = DateTime.Today.AddMonths(1)
+            RequiredDate = DateTime.Today.AddMonths(1),
+            ProcessGroups = GetTestProcessGroups()
         });
 
         // 删除后，状态恢复为未计划
@@ -895,8 +881,8 @@ public class MaterialPlanServiceTests : TestBase
             RequiredPieces = 10,
             RequiredWeight = 3000m,
             RequiredDate = DateTime.Today.AddMonths(1),
-            ProcessPlan = "[{\"step\":1,\"spec\":\"250*8\"},{\"step\":2,\"spec\":\"230*7\"}]",
-            Remark = "穿孔测试"
+            Remark = "穿孔测试",
+            ProcessGroups = GetTestProcessGroups()
         });
 
         result.Should().NotBeNull();
@@ -933,7 +919,8 @@ public class MaterialPlanServiceTests : TestBase
             PiercingSpec = "230*7",
             RequiredPieces = 10,
             RequiredWeight = 3000m,
-            RequiredDate = DateTime.Today.AddMonths(1)
+            RequiredDate = DateTime.Today.AddMonths(1),
+            ProcessGroups = GetTestProcessGroups()
         });
 
         result.Should().NotBeNull();
@@ -989,7 +976,8 @@ public class MaterialPlanServiceTests : TestBase
             PiercingSpec = "230*7",
             RequiredPieces = 10,
             RequiredWeight = 3000m,
-            RequiredDate = DateTime.Today.AddMonths(1)
+            RequiredDate = DateTime.Today.AddMonths(1),
+            ProcessGroups = GetTestProcessGroups()
         });
 
         await svc.DeletePiercingPlanAsync(created.Id);
@@ -1030,7 +1018,8 @@ public class MaterialPlanServiceTests : TestBase
             PiercingSpec = "230*7",
             RequiredPieces = 10,
             RequiredWeight = 3000m,
-            RequiredDate = DateTime.Today.AddMonths(1)
+            RequiredDate = DateTime.Today.AddMonths(1),
+            ProcessGroups = GetTestProcessGroups()
         });
 
         var tabs = await svc.GetWorkOrderMaterialPlanAsync(woId);

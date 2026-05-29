@@ -22,7 +22,7 @@ public partial class OutboundHistory
     private List<OutboundRecordDto> _pageItems = new();
     private int _totalCount;
     private string _searchKeyword = string.Empty;
-    private bool _isArrowNavSetup;
+
 
     // 排序状态
     private string sortColumn = "outbounddate";

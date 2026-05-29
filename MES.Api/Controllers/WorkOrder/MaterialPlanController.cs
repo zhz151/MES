@@ -51,6 +51,18 @@ public class MaterialPlanController : ControllerBase
         return Ok(ApiResponse<PurchaseSemiPlanDto>.Ok(result, "创建成功"));
     }
 
+    [HttpPut("semi/{id}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<PurchaseSemiPlanDto>>> UpdateSemiPlan(
+        int id, [FromBody] CreatePurchaseSemiPlanRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<PurchaseSemiPlanDto>.Fail("请求参数无效"));
+
+        var result = await _materialPlanService.UpdateSemiPlanAsync(id, request);
+        return Ok(ApiResponse<PurchaseSemiPlanDto>.Ok(result, "保存成功"));
+    }
+
     [HttpDelete("semi/{id}")]
     [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse>> DeleteSemiPlan(int id)
@@ -105,6 +117,15 @@ public class MaterialPlanController : ControllerBase
         return Ok(ApiResponse<List<PurchaseFinishedPlanDto>>.Ok(result, "批量创建成功"));
     }
 
+    [HttpPut("finished/{id}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<PurchaseFinishedPlanDto>>> UpdateFinishedPlan(
+        int id, [FromBody] CreatePurchaseFinishedPlanRequest request)
+    {
+        var result = await _materialPlanService.UpdateFinishedPlanAsync(id, request);
+        return Ok(ApiResponse<PurchaseFinishedPlanDto>.Ok(result, "更新成功"));
+    }
+
     [HttpDelete("finished/{id}")]
     [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse>> DeleteFinishedPlan(int id)
@@ -135,18 +156,19 @@ public class MaterialPlanController : ControllerBase
 
     [HttpGet("inventory/available/{workOrderId}")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<List<AvailableInventoryBatchDto>>>> GetAvailableInventory(int workOrderId)
+    public async Task<ActionResult<ApiResponse<List<AvailableInventoryBatchDto>>>> GetAvailableInventory(
+        int workOrderId, [FromQuery] int? excludePlanId = null)
     {
-        var result = await _materialPlanService.GetAvailableInventoryAsync(workOrderId);
+        var result = await _materialPlanService.GetAvailableInventoryAsync(workOrderId, excludePlanId);
         return Ok(ApiResponse<List<AvailableInventoryBatchDto>>.Ok(result, "查询成功"));
     }
 
     [HttpGet("rework-inventory/{workOrderId}")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<AvailableInventoryBatchDto>>>> GetAvailableReworkInventory(
-        int workOrderId, [FromQuery] ReworkType reworkType)
+        int workOrderId, [FromQuery] ReworkType reworkType, [FromQuery] int? excludePlanId = null)
     {
-        var result = await _materialPlanService.GetAvailableReworkInventoryAsync(workOrderId, reworkType);
+        var result = await _materialPlanService.GetAvailableReworkInventoryAsync(workOrderId, reworkType, excludePlanId);
         return Ok(ApiResponse<List<AvailableInventoryBatchDto>>.Ok(result, "查询成功"));
     }
 
@@ -174,6 +196,23 @@ public class MaterialPlanController : ControllerBase
 
         var result = await _materialPlanService.CreateInventoryPlanBatchAsync(requests);
         return Ok(ApiResponse<List<InventoryPlanDto>>.Ok(result, "批量创建成功"));
+    }
+
+    [HttpGet("inventory/plan/{id}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<InventoryPlanDto>>> GetInventoryPlanById(int id)
+    {
+        var result = await _materialPlanService.GetInventoryPlanByIdAsync(id);
+        return Ok(ApiResponse<InventoryPlanDto>.Ok(result, "查询成功"));
+    }
+
+    [HttpPut("inventory/{id}")]
+    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<InventoryPlanDto>>> UpdateInventoryPlan(
+        int id, [FromBody] CreateInventoryPlanRequest request)
+    {
+        var result = await _materialPlanService.UpdateInventoryPlanAsync(id, request);
+        return Ok(ApiResponse<InventoryPlanDto>.Ok(result, "更新成功"));
     }
 
     [HttpDelete("inventory/{id}")]

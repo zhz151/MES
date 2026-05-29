@@ -1,4 +1,5 @@
 @page "/workorders/{WorkOrderId:int}/finish-plan/create"
+@page "/workorders/{WorkOrderId:int}/finish-plan/edit/{PlanId:int}"
 @using MES.Blazor.Services
 @using MES.Core.DTOs
 @using MES.Blazor.Shared
@@ -29,7 +30,7 @@
             <CardHeaderContent>
                 <div class="d-flex align-center">
                     <MudIcon Icon="@Icons.Material.Filled.Checklist" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
-                    <MudText Typo="Typo.h5" Class="font-weight-bold">新增成品采购计划</MudText>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">@(IsEditMode ? "编辑" : "新增")成品采购计划</MudText>
                 </div>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -49,11 +50,14 @@
 
                 <!-- ===== 工具栏 ===== -->
                 <div class="d-flex align-center mb-3 mt-4">
-                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
-                               StartIcon="@Icons.Material.Filled.Add"
-                               OnClick="AddRow">
-                        新增行
-                    </MudButton>
+                    @if (!IsEditMode)
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="AddRow">
+                            新增行
+                        </MudButton>
+                    }
                     <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-3">
                         共 @rows.Count 条
                     </MudText>
@@ -65,20 +69,20 @@
                     <div Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;" Class="mb-3">
                         <MudTable Items="@rows" Class="finish-create-table auto-table" Dense="true" Hover="true" Striped="true" Elevation="0" RowsPerPage="10" RowsPerPageLabel="每页行数:">
                             <HeaderContent>
-                                <MudTh Style="width:80px;">成品类型</MudTh>
-                                <MudTh Style="width:55px;">工厂牌号</MudTh>
-                                <MudTh Style="width:55px;">规格</MudTh>
-                                <MudTh Style="width:70px;">外径公差</MudTh>
-                                <MudTh Style="width:70px;">壁厚公差</MudTh>
-                                <MudTh Style="width:65px;">长度状态</MudTh>
-                                <MudTh Style="width:70px;">长度(mm)</MudTh>
-                                <MudTh Style="width:80px;">交货状态</MudTh>
-                                <MudTh Style="width:50px;">需用支数</MudTh>
-                                <MudTh Style="width:55px;">需用重量</MudTh>
-                                <MudTh Style="width:55px;">投料倍率</MudTh>
-                                <MudTh Style="width:70px;">要求到货日</MudTh>
-                                <MudTh Style="width:60px;">备注</MudTh>
-                                <MudTh Style="width:36px;">操作</MudTh>
+                                <MudTh Style="width:120px;">成品类型<span class="required-star">*</span></MudTh>
+                                <MudTh Style="width:120px;">工厂牌号<span class="required-star">*</span></MudTh>
+                                <MudTh Style="width:120px;">规格<span class="required-star">*</span></MudTh>
+                                <MudTh Style="width:120px;">外径公差</MudTh>
+                                <MudTh Style="width:120px;">壁厚公差</MudTh>
+                                <MudTh Style="width:120px;">长度状态</MudTh>
+                                <MudTh Style="width:170px;">长度(mm)</MudTh>
+                                <MudTh Style="width:120px;">交货状态</MudTh>
+                                <MudTh Style="width:80px;">需用支数</MudTh>
+                                <MudTh Style="width:80px;">需用重量<span class="required-star">*</span></MudTh>
+                                <MudTh Style="width:80px;">投料倍率</MudTh>
+                                <MudTh Style="width:120px;">要求到货日<span class="required-star">*</span></MudTh>
+                                <MudTh Style="width:120px;">备注</MudTh>
+                                <MudTh Style="width:60px;">操作</MudTh>
                             </HeaderContent>
                             <RowTemplate Context="item">
                                 <MudTd>
@@ -87,7 +91,7 @@
                                                ValueChanged="@((string v) => { item.ProductType = v; })"
                                                Size="Size.Small"
                                                Variant="Variant.Outlined"
-                                               Class="my-n2" Style="width:75px;">
+                                               Class="my-n2" Style="width:115px;">
                                         <MudSelectItem Value="@("Order")">订单成品</MudSelectItem>
                                         <MudSelectItem Value="@("Critical")">临界成品</MudSelectItem>
                                     </MudSelect>
@@ -98,7 +102,7 @@
                                                   ValueChanged="@((string v) => { item.PlantGrade = v; })"
                                                   Size="Size.Small"
                                                   Variant="Variant.Outlined"
-                                                  Class="my-n2" Style="width:50px;" />
+                                                  Class="my-n2" Style="width:115px;" />
                                 </MudTd>
                                 <MudTd>
                                     <MudTextField Dense="true" T="string"
@@ -106,7 +110,7 @@
                                                   ValueChanged="@((string v) => { item.Specification = v; })"
                                                   Size="Size.Small"
                                                   Variant="Variant.Outlined"
-                                                  Class="my-n2" Style="width:50px;" />
+                                                  Class="my-n2" Style="width:115px;" />
                                 </MudTd>
                                 <MudTd>
                                     <MudTextField Dense="true" T="string"
@@ -114,7 +118,7 @@
                                                   ValueChanged="@((string v) => { item.OdToleranceStr = v; })"
                                                   Size="Size.Small"
                                                   Variant="Variant.Outlined"
-                                                  Class="my-n2" Style="width:65px;" />
+                                                  Class="my-n2" Style="width:115px;" />
                                 </MudTd>
                                 <MudTd>
                                     <MudTextField Dense="true" T="string"
@@ -122,7 +126,7 @@
                                                   ValueChanged="@((string v) => { item.WtToleranceStr = v; })"
                                                   Size="Size.Small"
                                                   Variant="Variant.Outlined"
-                                                  Class="my-n2" Style="width:65px;" />
+                                                  Class="my-n2" Style="width:115px;" />
                                 </MudTd>
                                 <MudTd>
                                     <MudSelect Dense="true" T="string"
@@ -130,7 +134,7 @@
                                                ValueChanged="@((string v) => { item.LengthStatus = v; })"
                                                Size="Size.Small"
                                                Variant="Variant.Outlined"
-                                               Class="my-n2" Style="width:60px;">
+                                               Class="my-n2" Style="width:115px;">
                                         <MudSelectItem Value="@("Fixed")">定尺</MudSelectItem>
                                         <MudSelectItem Value="@("Range")">范围</MudSelectItem>
                                         <MudSelectItem Value="@("NonFixed")">非定尺</MudSelectItem>
@@ -143,14 +147,14 @@
                                                          ValueChanged="@((decimal? v) => { item.MinLength = v; })"
                                                          Size="Size.Small"
                                                          Variant="Variant.Outlined"
-                                                         Class="my-n2" Style="width:32px;" />
+                                                         Class="my-n2" Style="width:72px;" />
                                         <MudText Typo="Typo.body2" Class="my-n2 align-self-center">~</MudText>
                                         <MudNumericField Dense="true" HideSpinButtons="true" T="decimal?" Format="G29"
                                                          Value="@item.MaxLength"
                                                          ValueChanged="@((decimal? v) => { item.MaxLength = v; })"
                                                          Size="Size.Small"
                                                          Variant="Variant.Outlined"
-                                                         Class="my-n2" Style="width:32px;" />
+                                                         Class="my-n2" Style="width:72px;" />
                                     </div>
                                 </MudTd>
                                 <MudTd>
@@ -159,7 +163,7 @@
                                                ValueChanged="@((string v) => { item.DeliveryState = v; })"
                                                Size="Size.Small"
                                                Variant="Variant.Outlined"
-                                               Class="my-n2" Style="width:75px;">
+                                               Class="my-n2" Style="width:115px;">
                                         <MudSelectItem Value="@("SolutionAnnealedAndPickled")">固溶酸洗</MudSelectItem>
                                         <MudSelectItem Value="@("Bright")">光亮</MudSelectItem>
                                         <MudSelectItem Value="@("Hard")">硬态</MudSelectItem>
@@ -172,7 +176,7 @@
                                                      Size="Size.Small"
                                                      Variant="Variant.Outlined"
                                                      Min="0"
-                                                     Class="my-n2" Style="width:42px;" />
+                                                     Class="my-n2" Style="width:75px;" />
                                 </MudTd>
                                 <MudTd>
                                     <MudNumericField Dense="true" HideSpinButtons="true" T="decimal" Format="G29"
@@ -181,7 +185,7 @@
                                                      Size="Size.Small"
                                                      Variant="Variant.Outlined"
                                                      Min="0"
-                                                     Class="my-n2" Style="width:48px;" />
+                                                     Class="my-n2" Style="width:75px;" />
                                 </MudTd>
                                 <MudTd>
                                     <MudNumericField Dense="true" HideSpinButtons="true" T="int?"
@@ -190,7 +194,7 @@
                                                      Size="Size.Small"
                                                      Variant="Variant.Outlined"
                                                      Min="1"
-                                                     Class="my-n2" Style="width:48px;" />
+                                                     Class="my-n2" Style="width:75px;" />
                                 </MudTd>
                                 <MudTd>
                                     <MudTextField Dense="true" T="string"
@@ -199,7 +203,7 @@
                                                   Size="Size.Small"
                                                   Variant="Variant.Outlined"
                                                   Placeholder="yyyy-MM-dd"
-                                                  Class="my-n2" Style="width:65px;" />
+                                                  Class="my-n2" Style="width:115px;" />
                                 </MudTd>
                                 <MudTd>
                                     <MudTextField Dense="true" T="string"
@@ -207,7 +211,7 @@
                                                   ValueChanged="@((string v) => { item.Remark = v; })"
                                                   Size="Size.Small"
                                                   Variant="Variant.Outlined"
-                                                  Class="my-n2" Style="width:55px;" />
+                                                  Class="my-n2" Style="width:115px;" />
                                 </MudTd>
                                 <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.Delete"
@@ -240,6 +244,9 @@
 
 @code {
     [Parameter] public int WorkOrderId { get; set; }
+    [Parameter] public int PlanId { get; set; }
+
+    private bool IsEditMode => PlanId > 0;
 
     private WorkOrderDetailDto? workOrder;
     private bool isLoadingWorkOrder = true;
@@ -247,6 +254,7 @@
     private bool _isArrowNavSetup;
     private string validationMessage = string.Empty;
 
+    private PurchaseFinishedPlanDto? existingPlan;
     private List<FinishPlanRow> rows = new();
 
     private class FinishPlanRow
@@ -270,6 +278,11 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadWorkOrder();
+
+        if (IsEditMode)
+        {
+            await LoadExistingPlan();
+        }
     }
 
     private async Task LoadWorkOrder()
@@ -315,6 +328,49 @@
         rows.Add(row);
     }
 
+    private async Task LoadExistingPlan()
+    {
+        try
+        {
+            var result = await MaterialPlanService.GetFinishedPlanByIdAsync(PlanId);
+            if (result.Success && result.Data != null)
+            {
+                existingPlan = result.Data;
+                rows.Clear();
+
+                // 公差格式转换
+                var odStr = $"-{existingPlan.OuterDiameterNegative:G29}/+{existingPlan.OuterDiameterPositive:G29}";
+                var wtStr = $"-{existingPlan.WallThicknessNegative:G29}/+{existingPlan.WallThicknessPositive:G29}";
+
+                rows.Add(new FinishPlanRow
+                {
+                    ProductType = existingPlan.ProductType,
+                    PlantGrade = existingPlan.PlantGrade,
+                    Specification = existingPlan.Specification,
+                    OdToleranceStr = odStr,
+                    WtToleranceStr = wtStr,
+                    LengthStatus = existingPlan.LengthStatus.ToString(),
+                    MinLength = existingPlan.MinLength,
+                    MaxLength = existingPlan.MaxLength,
+                    DeliveryState = existingPlan.DeliveryState.ToString(),
+                    RequiredPiece = existingPlan.RequiredPiece,
+                    RequiredWeight = existingPlan.RequiredWeight,
+                    InputMultiple = existingPlan.InputMultiple,
+                    RequiredDateStr = existingPlan.RequiredDate?.ToString("yyyy-MM-dd") ?? string.Empty,
+                    Remark = existingPlan.Remark,
+                });
+            }
+            else
+            {
+                Snackbar.Add("成品采购计划不存在", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载成品采购计划失败: {ex.Message}", Severity.Error);
+        }
+    }
+
     private void AddRow()
     {
         if (workOrder == null) return;
@@ -346,6 +402,8 @@
                 rowErrors.Add("规格不能为空");
             if (row.RequiredWeight <= 0)
                 rowErrors.Add("需用重量必须大于0");
+            if (string.IsNullOrWhiteSpace(row.RequiredDateStr))
+                rowErrors.Add("要求到货日不能为空");
 
             if (rowErrors.Any())
                 errors.Add($"第{i + 1}行：{string.Join("；", rowErrors)}");
@@ -360,9 +418,10 @@
         isSaving = true;
         try
         {
-            var requests = new List<CreatePurchaseFinishedPlanRequest>();
-            foreach (var row in rows)
+            if (IsEditMode)
             {
+                // 编辑模式：更新单个计划
+                var row = rows.First();
                 decimal odNeg = 0, odPos = 0, wtNeg = 0, wtPos = 0;
                 ParseTolerance(row.OdToleranceStr, out odNeg, out odPos);
                 ParseTolerance(row.WtToleranceStr, out wtNeg, out wtPos);
@@ -371,7 +430,7 @@
                 if (!string.IsNullOrWhiteSpace(row.RequiredDateStr) && DateTime.TryParse(row.RequiredDateStr, out var parsedDate))
                     requiredDate = parsedDate;
 
-                requests.Add(new CreatePurchaseFinishedPlanRequest
+                var request = new CreatePurchaseFinishedPlanRequest
                 {
                     WorkOrderId = WorkOrderId,
                     PlanDate = DateTime.Today,
@@ -391,19 +450,67 @@
                     MinLength = row.MinLength,
                     MaxLength = row.MaxLength,
                     DeliveryState = row.DeliveryState,
-                });
-            }
+                };
 
-            var result = await MaterialPlanService.CreateFinishedPlanBatchAsync(requests);
-            if (result.Success)
-            {
-                var count = result.Data?.Count ?? 0;
-                Snackbar.Add($"成功创建 {count} 条成品采购计划", Severity.Success);
-                GoBack();
+                var updateResult = await MaterialPlanService.UpdateFinishedPlanAsync(PlanId, request);
+                if (updateResult.Success)
+                {
+                    Snackbar.Add("更新成功", Severity.Success);
+                    GoBack();
+                }
+                else
+                {
+                    errors.Add(updateResult.Message ?? "更新失败");
+                }
             }
             else
             {
-                errors.Add(result.Message ?? "批量创建失败");
+                // 新建模式：批量创建
+                var requests = new List<CreatePurchaseFinishedPlanRequest>();
+                foreach (var row in rows)
+                {
+                    decimal odNeg2 = 0, odPos2 = 0, wtNeg2 = 0, wtPos2 = 0;
+                    ParseTolerance(row.OdToleranceStr, out odNeg2, out odPos2);
+                    ParseTolerance(row.WtToleranceStr, out wtNeg2, out wtPos2);
+
+                    DateTime? requiredDate = null;
+                    if (!string.IsNullOrWhiteSpace(row.RequiredDateStr) && DateTime.TryParse(row.RequiredDateStr, out var parsedDate))
+                        requiredDate = parsedDate;
+
+                    requests.Add(new CreatePurchaseFinishedPlanRequest
+                    {
+                        WorkOrderId = WorkOrderId,
+                        PlanDate = DateTime.Today,
+                        ProductType = row.ProductType,
+                        RequiredPiece = row.RequiredPiece,
+                        RequiredWeight = row.RequiredWeight,
+                        InputMultiple = row.InputMultiple,
+                        RequiredDate = requiredDate,
+                        Remark = row.Remark,
+                        PlantGrade = row.PlantGrade,
+                        Specification = row.Specification,
+                        OuterDiameterNegative = odNeg2,
+                        OuterDiameterPositive = odPos2,
+                        WallThicknessNegative = wtNeg2,
+                        WallThicknessPositive = wtPos2,
+                        LengthStatus = row.LengthStatus,
+                        MinLength = row.MinLength,
+                        MaxLength = row.MaxLength,
+                        DeliveryState = row.DeliveryState,
+                    });
+                }
+
+                var result = await MaterialPlanService.CreateFinishedPlanBatchAsync(requests);
+                if (result.Success)
+                {
+                    var count = result.Data?.Count ?? 0;
+                    Snackbar.Add($"成功创建 {count} 条成品采购计划", Severity.Success);
+                    GoBack();
+                }
+                else
+                {
+                    errors.Add(result.Message ?? "批量创建失败");
+                }
             }
 
             if (errors.Any())
@@ -436,7 +543,7 @@
 
     private void GoBack()
     {
-        Navigation.NavigateTo($"/workorders/{WorkOrderId}/finish-plan");
+        Navigation.NavigateTo($"/workorders/{WorkOrderId}/material-plan");
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

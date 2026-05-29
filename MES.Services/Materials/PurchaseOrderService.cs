@@ -5,6 +5,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using WoEntity = MES.Data.Entities.WorkOrder;
 using MES.Core.Enums;
 using MES.Services.Helpers;
 using MES.Services.Printing;
@@ -302,7 +303,7 @@ public class PurchaseOrderService : IPurchaseOrderService
 
         // 填充工单来源字段
         var sourceWoNos = entityList.Where(e => e.SourceWorkOrderNo != null).Select(e => e.SourceWorkOrderNo!).Distinct().ToList();
-        var workOrders = new Dictionary<string, WorkOrder>();
+        var workOrders = new Dictionary<string, WoEntity>();
         if (sourceWoNos.Count > 0)
         {
             workOrders = await _context.WorkOrders
@@ -350,7 +351,7 @@ public class PurchaseOrderService : IPurchaseOrderService
 
         // 填充工单来源字段
         var sourceWoNos = entityList.Where(e => e.SourceWorkOrderNo != null).Select(e => e.SourceWorkOrderNo!).Distinct().ToList();
-        var workOrders = new Dictionary<string, WorkOrder>();
+        var workOrders = new Dictionary<string, WoEntity>();
         if (sourceWoNos.Count > 0)
         {
             workOrders = await _context.WorkOrders
@@ -733,7 +734,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         CreatedTime = entity.CreatedTime
     };
 
-    private static void FillWorkOrderFields(PurchaseOrderDto dto, WorkOrder wo)
+    private static void FillWorkOrderFields(PurchaseOrderDto dto, WoEntity wo)
     {
         dto.WoSalesOrderNo = wo.SalesOrderNo;
         dto.WoProductionMainNo = wo.ProductionMainNo;
@@ -1145,7 +1146,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             .ToDictionaryAsync(s => s.Id, s => s.SupplierName);
 
         var woNos = entities.Where(e => !string.IsNullOrEmpty(e.SourceWorkOrderNo)).Select(e => e.SourceWorkOrderNo!).Distinct().ToList();
-        var workOrders = new Dictionary<string, WorkOrder>();
+        var workOrders = new Dictionary<string, WoEntity>();
         if (woNos.Count > 0)
         {
             workOrders = await _context.WorkOrders

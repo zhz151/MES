@@ -1,4 +1,5 @@
 @page "/workorders/{WorkOrderId:int}/inventory-plan/create"
+@page "/workorders/{WorkOrderId:int}/inventory-plan/edit/{PlanId:int}"
 @using MES.Blazor.Services
 @using MES.Core.DTOs
 @using MES.Core.Enums
@@ -18,7 +19,7 @@
             <CardHeaderContent>
                 <div class="d-flex align-center">
                     <MudIcon Icon="@Icons.Material.Filled.Warehouse" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
-                    <MudText Typo="Typo.h5" Class="font-weight-bold">新增库存使用计划</MudText>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">@(IsEditMode ? "编辑" : "新增")库存使用计划</MudText>
                 </div>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -41,7 +42,7 @@
                 <div class="d-flex align-center mb-3">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary"
                                StartIcon="@Icons.Material.Filled.Search"
-                               OnClick="LoadAvailableInventory"
+                               OnClick="() => LoadAvailableInventory()"
                                Disabled="isLoadingInventory">
                         @(isLoadingInventory ? "加载中..." : "展示可用库存")
                     </MudButton>
@@ -179,8 +180,12 @@
 
 @code {
     [Parameter] public int WorkOrderId { get; set; }
+    [Parameter] public int PlanId { get; set; }
+
+    private bool IsEditMode => PlanId > 0;
 
     private WorkOrderDetailDto? workOrder;
+    private InventoryPlanDto? existingPlan;
     private List<AvailableInventoryBatchDto> availableBatches = new();
     private bool isLoadingWorkOrder = true;
     private bool isLoadingInventory = false;
@@ -207,6 +212,11 @@
         {
             var result = await WorkOrderService.GetByIdAsync(WorkOrderId);
             workOrder = result.Success ? result.Data : null;
+
+            if (IsEditMode)
+            {
+                await LoadExistingPlan();
+            }
         }
         catch (Exception ex)
         {
@@ -218,7 +228,43 @@
         }
     }
 
-    private async Task LoadAvailableInventory()
+    private async Task LoadExistingPlan()
+    {
+        try
+        {
+            var planResult = await MaterialPlanService.GetInventoryPlanByIdAsync(PlanId);
+            if (!planResult.Success || planResult.Data == null)
+            {
+                Snackbar.Add("库存使用计划不存在", Severity.Error);
+                GoBack();
+                return;
+            }
+
+            existingPlan = planResult.Data;
+            var plan = planResult.Data;
+
+            // 加载可用库存并自动选中该批次（排除当前计划自身）
+            await LoadAvailableInventory(PlanId);
+
+            var matchBatch = availableBatches.FirstOrDefault(b => b.BatchNo == plan.InventoryBatchNo);
+            if (matchBatch != null)
+            {
+                var batchId = matchBatch.Id;
+                selections[batchId] = true;
+                inputMultiples[batchId] = plan.InputMultiple;
+                usageModes[batchId] = plan.UsageMode;
+                usedQuantities[batchId] = plan.UsedQuantity;
+                usedWeights[batchId] = plan.UsedWeight;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载计划数据失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadAvailableInventory(int? excludePlanId = null)
     {
         isLoadingInventory = true;
         errorMessage = null;
@@ -226,7 +272,7 @@
 
         try
         {
-            var result = await MaterialPlanService.GetAvailableInventoryAsync(WorkOrderId);
+            var result = await MaterialPlanService.GetAvailableInventoryAsync(WorkOrderId, excludePlanId);
             if (result.Success)
             {
                 availableBatches = result.Data ?? new();
@@ -315,7 +361,7 @@
         return string.IsNullOrEmpty(area) && string.IsNullOrEmpty(rack) ? "-" : $"{area}/{rack}";
     }
 
-    private void GoBack() => Navigation.NavigateTo($"/workorders/{WorkOrderId}/inventory-plan");
+    private void GoBack() => Navigation.NavigateTo($"/workorders/{WorkOrderId}/material-plan");
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -371,40 +417,82 @@
 
         try
         {
-            var requests = new List<CreateInventoryPlanRequest>();
-            foreach (var batchId in selectedIds)
+            if (IsEditMode && existingPlan != null)
             {
-                var batch = availableBatches.FirstOrDefault(b => b.Id == batchId);
-                if (batch == null) continue;
+                var batchId = selectedIds.FirstOrDefault();
+                if (batchId == 0)
+                {
+                    Snackbar.Add("未选择库存批次", Severity.Warning);
+                    return;
+                }
 
+                var batch = availableBatches.FirstOrDefault(b => b.Id == batchId);
                 var mode = usageModes.GetValueOrDefault(batchId, "All");
-                requests.Add(new CreateInventoryPlanRequest
+
+                var request = new CreateInventoryPlanRequest
                 {
                     WorkOrderId = WorkOrderId,
                     PlanDate = DateTime.Today,
-                    InventoryBatchNo = batch.BatchNo,
-                    MaterialType = batch.MaterialType,
-                    LocationArea = batch.LocationArea,
-                    LocationRack = batch.LocationRack,
+                    InventoryBatchNo = batch?.BatchNo ?? existingPlan.InventoryBatchNo,
+                    MaterialType = batch?.MaterialType ?? existingPlan.MaterialType,
+                    LocationArea = batch?.LocationArea,
+                    LocationRack = batch?.LocationRack,
                     InputMultiple = inputMultiples.GetValueOrDefault(batchId, 1),
                     UsageMode = mode,
                     RequiredDate = null,
                     Remark = null,
                     UsedQuantity = mode == "Partial" ? usedQuantities.GetValueOrDefault(batchId) : null,
                     UsedWeight = mode == "Partial" ? usedWeights.GetValueOrDefault(batchId) ?? 0 : 0,
-                });
-            }
+                };
 
-            var result = await MaterialPlanService.CreateInventoryPlanBatchAsync(requests);
-            if (result.Success)
-            {
-                var count = result.Data?.Count ?? 0;
-                Snackbar.Add($"成功创建 {count} 条库存使用计划", Severity.Success);
-                GoBack();
+                var result = await MaterialPlanService.UpdateInventoryPlanAsync(PlanId, request);
+                if (result.Success)
+                {
+                    Snackbar.Add("更新成功", Severity.Success);
+                    GoBack();
+                }
+                else
+                {
+                    Snackbar.Add(result.Message ?? "更新失败", Severity.Error);
+                }
             }
             else
             {
-                errors.Add(result.Message ?? "批量创建失败");
+                var requests = new List<CreateInventoryPlanRequest>();
+                foreach (var batchId in selectedIds)
+                {
+                    var batch = availableBatches.FirstOrDefault(b => b.Id == batchId);
+                    if (batch == null) continue;
+
+                    var mode = usageModes.GetValueOrDefault(batchId, "All");
+                    requests.Add(new CreateInventoryPlanRequest
+                    {
+                        WorkOrderId = WorkOrderId,
+                        PlanDate = DateTime.Today,
+                        InventoryBatchNo = batch.BatchNo,
+                        MaterialType = batch.MaterialType,
+                        LocationArea = batch.LocationArea,
+                        LocationRack = batch.LocationRack,
+                        InputMultiple = inputMultiples.GetValueOrDefault(batchId, 1),
+                        UsageMode = mode,
+                        RequiredDate = null,
+                        Remark = null,
+                        UsedQuantity = mode == "Partial" ? usedQuantities.GetValueOrDefault(batchId) : null,
+                        UsedWeight = mode == "Partial" ? usedWeights.GetValueOrDefault(batchId) ?? 0 : 0,
+                    });
+                }
+
+                var batchResult = await MaterialPlanService.CreateInventoryPlanBatchAsync(requests);
+                if (batchResult.Success)
+                {
+                    var count = batchResult.Data?.Count ?? 0;
+                    Snackbar.Add($"成功创建 {count} 条库存使用计划", Severity.Success);
+                    GoBack();
+                }
+                else
+                {
+                    errors.Add(batchResult.Message ?? "批量创建失败");
+                }
             }
 
             if (errors.Any())

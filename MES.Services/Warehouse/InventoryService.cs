@@ -8,6 +8,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using WoEntity = MES.Data.Entities.WorkOrder;
 using MES.Services.Mapping;
 using MES.Services.Helpers;
 using MES.Services.Printing;
@@ -42,7 +43,7 @@ public class InventoryService : IInventoryService
     /// <summary>
     /// 根据工单号自动填充订单号和项次ID列表（字典查找，无DB查询）
     /// </summary>
-    private static void AutoFillWorkOrderInfo(InventoryBatch entity, Dictionary<string, WorkOrder> workOrders)
+    private static void AutoFillWorkOrderInfo(InventoryBatch entity, Dictionary<string, WoEntity> workOrders)
     {
         if (string.IsNullOrEmpty(entity.WorkOrderNo))
             return;
@@ -377,7 +378,7 @@ public class InventoryService : IInventoryService
                     .AsNoTracking()
                     .Where(w => distinctWoNos.Contains(w.WorkOrderNo))
                     .ToDictionaryAsync(w => w.WorkOrderNo, w => w)
-                : new Dictionary<string, WorkOrder>();
+                : new Dictionary<string, WoEntity>();
 
             for (int i = 0; i < request.Rows.Count; i++)
             {

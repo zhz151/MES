@@ -25,3 +25,39 @@
 - `@foreach (var col in _visibleColumns)` 动态迭代
 - 硬编码 `@if` 块导致列顺序移动无效
 - RenderFragment builder 中 OnClick 必须用 `EventCallback.Factory.Create<MouseEventArgs?>`
+
+## 工序组模板 + 用料计划工序组（2026-05-28 完成）
+- ProcessGroupTemplate 独立模板实体（结构与 ProcessGroup 一致，去掉 ProductionBatchId）
+- 4个子实体：SemiPlanProcessGroup / FinishedPlanProcessGroup / InventoryPlanProcessGroup / PiercingPlanProcessGroup
+- 每个子实体 FK 指向各自的父表，级联删除，Unique index on (ParentFK, SequenceNumber)
+- 4个子实体共享 MaterialPlanProcessGroupDto，通过 ParentPlanId 区分
+- 调取即复制（快照，非活引用）：ApplyTemplateAsync 事务包裹，从模板库复制到子表
+- planType 映射：1=PurchaseSemiPlan, 2=PurchaseFinishedPlan, 3=InventoryPlan, 4=RoundBarPiercingPlan
+- 模板编辑页：ProcessName 使用 MudSelect（荒管处理/在制修检/冷轧/冷拔），15个工段使用 MudNumericField int?
+- 用料计划页每个 Tab 操作列新增"工序组"按钮（AccountTree 图标），弹出 ProcessGroupDialog
+- ProcessGroupDialog 展示工序组列表 + "从模板调取"按钮打开 TemplateSelectionDialog 多选
+- MES.Services 项目有 122 个预存编译错误（与本次修改无关，master 分支就有）
+- 迁移 SQL 手动编写（migrationBuilder.CreateTable）
+
+## 工单执行状况读模型 G12 扩展（V4.1 2026-05-28）
+- G2 新增 ProcessCycle（工艺周期）：4种用料计划 StandardCycle 最大值，无计划默认25
+- G7 新增 FlowMaxRemainingWorkDays（最大剩余工量）：关联批次 RemainingWorkDays 最大值
+- G12 新增 TotalRemainingWorkDays（剩余总工量）：ScheduleStage=1→主号max ProcessCycle+3, =2→主号max FlowMaxRemainingWorkDays, =3→3
+- G12 新增 UrgencyLevel（工单计划性）：A+急(>67)/A急(>60)/B顺(>53)/C缓(>45)/D缓(≤45)
+- G12 新增 EstimatedProcessCompletionDate（工艺预计完成日）：Today + TotalRemainingWorkDays
+- G12 新增 DaysDiffFromDelivery（交期相差天数）：EstimatedProcessCompletionDate - DeliveryDate
+- ScheduleStage=0（无需排产）时所有G12新字段均为 null
+- 以上共涉及6次迁移，以最后一次迁移为准
+- 文档已全部更新
+
+## 原锁备注字段 RawMaterialLockRemark（2026-05-29 新增）
+- WorkOrderExecutionSummary.G12 新增 RawMaterialLockRemark(nvarchar(20))，仅 ScheduleStage=1 时有值
+- 判定逻辑（优先级 A>B>C>D）：
+  - A质量影响：MainNoInputStatus=2 AND MainNoFlowStatus≠2
+  - B已购未回：G5理论成品按主号聚合比值 + MainNoFlowOutputRatio ≥ 100%
+  - C计划未执行：MainNoMaterialPlanStatus=3或4
+  - D未完善计划：MainNoMaterialPlanStatus=0或1
+- 迁移：20260529024024_AddRawMaterialLockRemarkToExecutionSummary
+
+## 待办任务
+- 工段产能表（后续排期，独立任务）

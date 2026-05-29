@@ -58,6 +58,19 @@ public class MaterialPlanService
         }
     }
 
+    public async Task<ApiResponse<PurchaseSemiPlanDto>> UpdateSemiPlanAsync(int id, CreatePurchaseSemiPlanRequest request)
+    {
+        try
+        {
+            var response = await _http.PutAsJsonAsync<CreatePurchaseSemiPlanRequest, ApiResponse<PurchaseSemiPlanDto>>($"{BaseUrl}/semi/{id}", request);
+            return response ?? ApiResponse<PurchaseSemiPlanDto>.Fail("保存失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<PurchaseSemiPlanDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
     public async Task<ApiResponse> DeleteSemiPlanAsync(int id)
     {
         try
@@ -94,6 +107,19 @@ public class MaterialPlanService
         {
             var response = await _http.GetFromJsonAsync<ApiResponse<PurchaseFinishedPlanDto>>($"{BaseUrl}/finished/detail/{id}");
             return response ?? ApiResponse<PurchaseFinishedPlanDto>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<PurchaseFinishedPlanDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<PurchaseFinishedPlanDto>> UpdateFinishedPlanAsync(int id, CreatePurchaseFinishedPlanRequest request)
+    {
+        try
+        {
+            var response = await _http.PutAsJsonAsync<CreatePurchaseFinishedPlanRequest, ApiResponse<PurchaseFinishedPlanDto>>($"{BaseUrl}/finished/{id}", request);
+            return response ?? ApiResponse<PurchaseFinishedPlanDto>.Fail("更新失败");
         }
         catch (Exception ex)
         {
@@ -170,11 +196,14 @@ public class MaterialPlanService
         }
     }
 
-    public async Task<ApiResponse<List<AvailableInventoryBatchDto>>> GetAvailableInventoryAsync(int workOrderId)
+    public async Task<ApiResponse<List<AvailableInventoryBatchDto>>> GetAvailableInventoryAsync(int workOrderId, int? excludePlanId = null)
     {
         try
         {
-            var response = await _http.GetFromJsonAsync<ApiResponse<List<AvailableInventoryBatchDto>>>($"{BaseUrl}/inventory/available/{workOrderId}");
+            var url = $"{BaseUrl}/inventory/available/{workOrderId}";
+            if (excludePlanId.HasValue)
+                url += $"?excludePlanId={excludePlanId.Value}";
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<AvailableInventoryBatchDto>>>(url);
             return response ?? ApiResponse<List<AvailableInventoryBatchDto>>.Fail("获取数据失败");
         }
         catch (Exception ex)
@@ -183,11 +212,14 @@ public class MaterialPlanService
         }
     }
 
-    public async Task<ApiResponse<List<AvailableInventoryBatchDto>>> GetAvailableReworkInventoryAsync(int workOrderId, ReworkType reworkType)
+    public async Task<ApiResponse<List<AvailableInventoryBatchDto>>> GetAvailableReworkInventoryAsync(int workOrderId, ReworkType reworkType, int? excludePlanId = null)
     {
         try
         {
-            var response = await _http.GetFromJsonAsync<ApiResponse<List<AvailableInventoryBatchDto>>>($"{BaseUrl}/rework-inventory/{workOrderId}?reworkType={reworkType}");
+            var url = $"{BaseUrl}/rework-inventory/{workOrderId}?reworkType={reworkType}";
+            if (excludePlanId.HasValue)
+                url += $"&excludePlanId={excludePlanId.Value}";
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<AvailableInventoryBatchDto>>>(url);
             return response ?? ApiResponse<List<AvailableInventoryBatchDto>>.Fail("获取数据失败");
         }
         catch (Exception ex)
@@ -219,6 +251,32 @@ public class MaterialPlanService
         catch (Exception ex)
         {
             return ApiResponse<List<InventoryPlanDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<InventoryPlanDto>> GetInventoryPlanByIdAsync(int id)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<InventoryPlanDto>>($"{BaseUrl}/inventory/plan/{id}");
+            return response ?? ApiResponse<InventoryPlanDto>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<InventoryPlanDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<InventoryPlanDto>> UpdateInventoryPlanAsync(int id, CreateInventoryPlanRequest request)
+    {
+        try
+        {
+            var response = await _http.PutAsJsonAsync<CreateInventoryPlanRequest, ApiResponse<InventoryPlanDto>>($"{BaseUrl}/inventory/{id}", request);
+            return response ?? ApiResponse<InventoryPlanDto>.Fail("更新失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<InventoryPlanDto>.Fail($"网络错误: {ex.Message}");
         }
     }
 

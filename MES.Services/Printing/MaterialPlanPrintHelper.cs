@@ -4,6 +4,7 @@ using QuestPDF.Infrastructure;
 using MES.Data.Entities;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using WoEntity = MES.Data.Entities.WorkOrder;
 
 namespace MES.Services.Printing;
 
@@ -15,53 +16,53 @@ public static class MaterialPlanPrintHelper
     // ==============================
     // 1. 原料采购申请单
     // ==============================
-    public static byte[] GenerateSemiPlanPdf(PurchaseSemiPlan plan, WorkOrder workOrder)
+    public static byte[] GenerateSemiPlanPdf(PurchaseSemiPlan plan, WoEntity workOrder)
     {
         return CreateSemiPlanDocument(plan, workOrder).GeneratePdf();
     }
 
-    public static Document CreateSemiPlanDocument(PurchaseSemiPlan plan, WorkOrder workOrder)
+    public static Document CreateSemiPlanDocument(PurchaseSemiPlan plan, WoEntity workOrder)
     {
-        return CreateBatchSemiPlanDocument(new List<(PurchaseSemiPlan, WorkOrder)> { (plan, workOrder) });
+        return CreateBatchSemiPlanDocument(new List<(PurchaseSemiPlan, WoEntity)> { (plan, workOrder) });
     }
 
     // ==============================
     // 2. 成品采购申请单
     // ==============================
-    public static byte[] GenerateFinishPlanPdf(PurchaseFinishedPlan plan, WorkOrder workOrder)
+    public static byte[] GenerateFinishPlanPdf(PurchaseFinishedPlan plan, WoEntity workOrder)
     {
         return CreateFinishPlanDocument(plan, workOrder).GeneratePdf();
     }
 
-    public static Document CreateFinishPlanDocument(PurchaseFinishedPlan plan, WorkOrder workOrder)
+    public static Document CreateFinishPlanDocument(PurchaseFinishedPlan plan, WoEntity workOrder)
     {
-        return CreateBatchFinishPlanDocument(new List<(PurchaseFinishedPlan, WorkOrder)> { (plan, workOrder) });
+        return CreateBatchFinishPlanDocument(new List<(PurchaseFinishedPlan, WoEntity)> { (plan, workOrder) });
     }
 
     // ==============================
     // 3. 库存使用单
     // ==============================
-    public static byte[] GenerateInventoryPlanPdf(InventoryPlan plan, WorkOrder workOrder)
+    public static byte[] GenerateInventoryPlanPdf(InventoryPlan plan, WoEntity workOrder)
     {
         return CreateInventoryPlanDocument(plan, workOrder).GeneratePdf();
     }
 
-    public static Document CreateInventoryPlanDocument(InventoryPlan plan, WorkOrder workOrder)
+    public static Document CreateInventoryPlanDocument(InventoryPlan plan, WoEntity workOrder)
     {
-        return CreateBatchInventoryPlanDocument(new List<(InventoryPlan, WorkOrder)> { (plan, workOrder) });
+        return CreateBatchInventoryPlanDocument(new List<(InventoryPlan, WoEntity)> { (plan, workOrder) });
     }
 
     // ==============================
     // 4. 库料改制单
     // ==============================
-    public static byte[] GenerateReworkPlanPdf(InventoryPlan plan, WorkOrder workOrder)
+    public static byte[] GenerateReworkPlanPdf(InventoryPlan plan, WoEntity workOrder)
     {
         return CreateReworkPlanDocument(plan, workOrder).GeneratePdf();
     }
 
-    public static Document CreateReworkPlanDocument(InventoryPlan plan, WorkOrder workOrder)
+    public static Document CreateReworkPlanDocument(InventoryPlan plan, WoEntity workOrder)
     {
-        return CreateBatchReworkPlanDocument(new List<(InventoryPlan, WorkOrder)> { (plan, workOrder) });
+        return CreateBatchReworkPlanDocument(new List<(InventoryPlan, WoEntity)> { (plan, workOrder) });
     }
 
     // ========== 公共组件 ==========
@@ -105,7 +106,7 @@ public static class MaterialPlanPrintHelper
     // ==============================
     // 5. 批量打印 - 原料采购汇总
     // ==============================
-    public static Document CreateBatchSemiPlanDocument(List<(PurchaseSemiPlan plan, WorkOrder workOrder)> items)
+    public static Document CreateBatchSemiPlanDocument(List<(PurchaseSemiPlan plan, WoEntity workOrder)> items)
     {
         if (!items.Any()) throw new BusinessException("items cannot be empty");
         return Document.Create(container =>
@@ -122,7 +123,7 @@ public static class MaterialPlanPrintHelper
         });
     }
 
-    private static void ComposeBatchSemiContent(IContainer container, List<(PurchaseSemiPlan plan, WorkOrder workOrder)> items)
+    private static void ComposeBatchSemiContent(IContainer container, List<(PurchaseSemiPlan plan, WoEntity workOrder)> items)
     {
         container.Table(table =>
         {
@@ -139,7 +140,6 @@ public static class MaterialPlanPrintHelper
                 columns.ConstantColumn(45);
                 columns.ConstantColumn(55);
                 columns.ConstantColumn(50);
-                columns.RelativeColumn();
             });
 
             table.Header(header =>
@@ -155,7 +155,6 @@ public static class MaterialPlanPrintHelper
                 header.Cell().Element(CellHeaderStyle).Text("投料倍率").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("要求到货日").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("备注").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("工艺路线").FontSize(8).AlignCenter();
             });
 
             foreach (var (plan, workOrder) in items)
@@ -167,7 +166,6 @@ public static class MaterialPlanPrintHelper
                     RawMaterialType.RoundBar => "圆棒",
                     _ => plan.RawMaterialType.ToString()
                 };
-                var processPlan = FormatProcessPlanText(plan.ProcessPlan);
 
                 table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
@@ -180,7 +178,6 @@ public static class MaterialPlanPrintHelper
                 table.Cell().Element(CellStyle).Text($"{plan.InputMultiple}").FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(plan.RequiredDate.ToString("yyyy-MM-dd")).FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.Remark ?? "-").FontSize(8);
-                table.Cell().Element(CellStyle).Text(processPlan).FontSize(8);
             }
         });
     }
@@ -188,7 +185,7 @@ public static class MaterialPlanPrintHelper
     // ==============================
     // 6. 批量打印 - 成品采购汇总
     // ==============================
-    public static Document CreateBatchFinishPlanDocument(List<(PurchaseFinishedPlan plan, WorkOrder workOrder)> items)
+    public static Document CreateBatchFinishPlanDocument(List<(PurchaseFinishedPlan plan, WoEntity workOrder)> items)
     {
         if (!items.Any()) throw new BusinessException("items cannot be empty");
         return Document.Create(container =>
@@ -205,7 +202,7 @@ public static class MaterialPlanPrintHelper
         });
     }
 
-    private static void ComposeBatchFinishContent(IContainer container, List<(PurchaseFinishedPlan plan, WorkOrder workOrder)> items)
+    private static void ComposeBatchFinishContent(IContainer container, List<(PurchaseFinishedPlan plan, WoEntity workOrder)> items)
     {
         container.Table(table =>
         {
@@ -286,7 +283,7 @@ public static class MaterialPlanPrintHelper
     // ==============================
     // 7. 批量打印 - 库存使用汇总
     // ==============================
-    public static Document CreateBatchInventoryPlanDocument(List<(InventoryPlan plan, WorkOrder workOrder)> items)
+    public static Document CreateBatchInventoryPlanDocument(List<(InventoryPlan plan, WoEntity workOrder)> items)
     {
         if (!items.Any()) throw new BusinessException("items cannot be empty");
         return Document.Create(container =>
@@ -303,7 +300,7 @@ public static class MaterialPlanPrintHelper
         });
     }
 
-    private static void ComposeBatchInventoryContent(IContainer container, List<(InventoryPlan plan, WorkOrder workOrder)> items)
+    private static void ComposeBatchInventoryContent(IContainer container, List<(InventoryPlan plan, WoEntity workOrder)> items)
     {
         container.Table(table =>
         {
@@ -357,20 +354,20 @@ public static class MaterialPlanPrintHelper
     // ==============================
     // 5. 圆棒穿孔申请单
     // ==============================
-    public static byte[] GeneratePiercingPlanPdf(RoundBarPiercingPlan plan, WorkOrder workOrder)
+    public static byte[] GeneratePiercingPlanPdf(RoundBarPiercingPlan plan, WoEntity workOrder)
     {
         return CreatePiercingPlanDocument(plan, workOrder).GeneratePdf();
     }
 
-    public static Document CreatePiercingPlanDocument(RoundBarPiercingPlan plan, WorkOrder workOrder)
+    public static Document CreatePiercingPlanDocument(RoundBarPiercingPlan plan, WoEntity workOrder)
     {
-        return CreateBatchPiercingPlanDocument(new List<(RoundBarPiercingPlan, WorkOrder)> { (plan, workOrder) });
+        return CreateBatchPiercingPlanDocument(new List<(RoundBarPiercingPlan, WoEntity)> { (plan, workOrder) });
     }
 
     // ==============================
     // 9. 批量打印 - 圆棒穿孔汇总
     // ==============================
-    public static Document CreateBatchPiercingPlanDocument(List<(RoundBarPiercingPlan plan, WorkOrder workOrder)> items)
+    public static Document CreateBatchPiercingPlanDocument(List<(RoundBarPiercingPlan plan, WoEntity workOrder)> items)
     {
         if (!items.Any()) throw new BusinessException("items cannot be empty");
         return Document.Create(container =>
@@ -387,7 +384,7 @@ public static class MaterialPlanPrintHelper
         });
     }
 
-    private static void ComposeBatchPiercingContent(IContainer container, List<(RoundBarPiercingPlan plan, WorkOrder workOrder)> items)
+    private static void ComposeBatchPiercingContent(IContainer container, List<(RoundBarPiercingPlan plan, WoEntity workOrder)> items)
     {
         container.Table(table =>
         {
@@ -404,7 +401,6 @@ public static class MaterialPlanPrintHelper
                 columns.ConstantColumn(50);
                 columns.ConstantColumn(45);
                 columns.ConstantColumn(50);
-                columns.RelativeColumn();
             });
 
             table.Header(header =>
@@ -420,7 +416,6 @@ public static class MaterialPlanPrintHelper
                 header.Cell().Element(CellHeaderStyle).Text("需求重量").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("投料倍率").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("要求到货日").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("工艺路线").FontSize(8).AlignCenter();
             });
 
             foreach (var (plan, workOrder) in items)
@@ -432,7 +427,6 @@ public static class MaterialPlanPrintHelper
                     RawMaterialType.RoundBar => "圆棒",
                     _ => plan.RawMaterialType.ToString()
                 };
-                var processPlan = FormatProcessPlanText(plan.ProcessPlan);
 
                 table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
@@ -445,7 +439,6 @@ public static class MaterialPlanPrintHelper
                 table.Cell().Element(CellStyle).Text($"{plan.RequiredWeight:G29} kg").FontSize(8);
                 table.Cell().Element(CellStyle).Text($"{plan.InputMultiple}").FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(plan.RequiredDate.ToString("yyyy-MM-dd")).FontSize(8);
-                table.Cell().Element(CellStyle).Text(processPlan).FontSize(8);
             }
         });
     }
@@ -453,7 +446,7 @@ public static class MaterialPlanPrintHelper
     // ==============================
     // 8. 批量打印 - 库料改制汇总
     // ==============================
-    public static Document CreateBatchReworkPlanDocument(List<(InventoryPlan plan, WorkOrder workOrder)> items)
+    public static Document CreateBatchReworkPlanDocument(List<(InventoryPlan plan, WoEntity workOrder)> items)
     {
         if (!items.Any()) throw new BusinessException("items cannot be empty");
         return Document.Create(container =>
@@ -470,7 +463,7 @@ public static class MaterialPlanPrintHelper
         });
     }
 
-    private static void ComposeBatchReworkContent(IContainer container, List<(InventoryPlan plan, WorkOrder workOrder)> items)
+    private static void ComposeBatchReworkContent(IContainer container, List<(InventoryPlan plan, WoEntity workOrder)> items)
     {
         container.Table(table =>
         {
@@ -487,12 +480,11 @@ public static class MaterialPlanPrintHelper
                 columns.ConstantColumn(55);
                 columns.ConstantColumn(55);
                 columns.ConstantColumn(50);
-                columns.RelativeColumn();
             });
 
             table.Header(header =>
             {
-                string[] headers = { "工单号", "计划日期", "批次号", "物料名称", "工厂牌号", "规格", "使用模式", "出库支数", "出库重量(kg)", "放置框架", "改制类型", "工艺路线" };
+                string[] headers = { "工单号", "计划日期", "批次号", "物料名称", "工厂牌号", "规格", "使用模式", "出库支数", "出库重量(kg)", "放置框架", "改制类型" };
                 foreach (var h in headers)
                     header.Cell().Element(CellHeaderStyle).Text(h).FontSize(8).AlignCenter();
             });
@@ -517,8 +509,6 @@ public static class MaterialPlanPrintHelper
                     _ => plan.ReworkType?.ToString() ?? "-"
                 };
 
-                var processPlan = FormatProcessPlanText(plan.ProcessPlan);
-
                 table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.BatchNo).FontSize(8);
@@ -530,7 +520,6 @@ public static class MaterialPlanPrintHelper
                 table.Cell().Element(CellStyle).Text($"{plan.UsedWeight:G29} kg").FontSize(8);
                 table.Cell().Element(CellStyle).Text(location).FontSize(8);
                 table.Cell().Element(CellStyle).Text(reworkTypeText).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(processPlan).FontSize(8);
             }
         });
     }
@@ -550,28 +539,6 @@ public static class MaterialPlanPrintHelper
         return container.Border(0.5f).BorderColor(Colors.Grey.Medium)
             .PaddingVertical(2).PaddingHorizontal(2)
             .AlignMiddle();
-    }
-
-    private static string FormatProcessPlanText(string? processPlan)
-    {
-        if (string.IsNullOrEmpty(processPlan)) return "-";
-        try
-        {
-            var steps = System.Text.Json.JsonSerializer.Deserialize<List<ProcessStep>>(processPlan);
-            if (steps?.Any() == true)
-                return string.Join(" → ", steps.OrderBy(s => s.step).Select(s => s.spec));
-            return processPlan;
-        }
-        catch
-        {
-            return processPlan;
-        }
-    }
-
-    private class ProcessStep
-    {
-        public int step { get; set; }
-        public string spec { get; set; } = null!;
     }
 
 }

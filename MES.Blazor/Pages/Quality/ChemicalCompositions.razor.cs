@@ -41,7 +41,7 @@ public partial class ChemicalCompositions
     private int _currentPage = 1;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
-    private int _pageSize = 10;
+
     private string _searchKeyword = string.Empty;
 
     // 排序
@@ -60,25 +60,25 @@ public partial class ChemicalCompositions
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "PlantGrade",   Label = "工厂牌号",     SortKey = "plantgrade", FilterType = "string" },
-        new() { Key = "Carbon",       Label = "C",           SortKey = "carbon", FilterType = "string" },
-        new() { Key = "Silicon",      Label = "Si",          SortKey = "silicon", FilterType = "string" },
-        new() { Key = "Manganese",    Label = "Mn",          SortKey = "manganese", FilterType = "string" },
-        new() { Key = "Phosphorus",   Label = "P",           SortKey = "phosphorus", FilterType = "string" },
-        new() { Key = "Sulfur",       Label = "S",           SortKey = "sulfur", FilterType = "string" },
-        new() { Key = "Nickel",       Label = "Ni",          SortKey = "nickel", FilterType = "string" },
-        new() { Key = "Chromium",     Label = "Cr",          SortKey = "chromium", FilterType = "string" },
-        new() { Key = "Molybdenum",   Label = "Mo",          SortKey = "molybdenum", FilterType = "string" },
-        new() { Key = "Copper",       Label = "Cu",          SortKey = "copper", FilterType = "string" },
-        new() { Key = "Nitrogen",     Label = "N",           SortKey = "nitrogen", FilterType = "string" },
-        new() { Key = "Niobium",      Label = "Nb",          SortKey = "niobium", FilterType = "string" },
-        new() { Key = "Titanium",     Label = "Ti",          SortKey = "titanium", FilterType = "string" },
-        new() { Key = "Iron",         Label = "Fe",          SortKey = "iron", FilterType = "string" },
-        new() { Key = "Aluminum",     Label = "Al",          SortKey = "aluminum", FilterType = "string" },
-        new() { Key = "Tungsten",     Label = "W",           SortKey = "tungsten", FilterType = "string" },
-        new() { Key = "PREN",         Label = "PREN腐蚀当量", SortKey = "pren", FilterType = "string" },
-        new() { Key = "CreatedTime",  Label = "创建日期",   SortKey = "createdtime" },
-        new() { Key = "UpdatedTime",  Label = "更新日期",   SortKey = "updatedtime" },
+        new() { Key = "PlantGrade",   Label = "工厂牌号",     SortKey = "plantgrade", FilterType = "string", IsRequired = true, Width = "120" },
+        new() { Key = "Carbon",       Label = "C",           SortKey = "carbon", FilterType = "string", Width = "80" },
+        new() { Key = "Silicon",      Label = "Si",          SortKey = "silicon", FilterType = "string", Width = "80" },
+        new() { Key = "Manganese",    Label = "Mn",          SortKey = "manganese", FilterType = "string", Width = "80" },
+        new() { Key = "Phosphorus",   Label = "P",           SortKey = "phosphorus", FilterType = "string", Width = "80" },
+        new() { Key = "Sulfur",       Label = "S",           SortKey = "sulfur", FilterType = "string", Width = "80" },
+        new() { Key = "Nickel",       Label = "Ni",          SortKey = "nickel", FilterType = "string", Width = "80" },
+        new() { Key = "Chromium",     Label = "Cr",          SortKey = "chromium", FilterType = "string", Width = "80" },
+        new() { Key = "Molybdenum",   Label = "Mo",          SortKey = "molybdenum", FilterType = "string", Width = "80" },
+        new() { Key = "Copper",       Label = "Cu",          SortKey = "copper", FilterType = "string", Width = "80" },
+        new() { Key = "Nitrogen",     Label = "N",           SortKey = "nitrogen", FilterType = "string", Width = "80" },
+        new() { Key = "Niobium",      Label = "Nb",          SortKey = "niobium", FilterType = "string", Width = "80" },
+        new() { Key = "Titanium",     Label = "Ti",          SortKey = "titanium", FilterType = "string", Width = "80" },
+        new() { Key = "Iron",         Label = "Fe",          SortKey = "iron", FilterType = "string", Width = "80" },
+        new() { Key = "Aluminum",     Label = "Al",          SortKey = "aluminum", FilterType = "string", Width = "80" },
+        new() { Key = "Tungsten",     Label = "W",           SortKey = "tungsten", FilterType = "string", Width = "80" },
+        new() { Key = "PREN",         Label = "PREN腐蚀当量", SortKey = "pren", FilterType = "string", Width = "80" },
+        new() { Key = "CreatedTime",  Label = "创建日期",   SortKey = "createdtime", Width = "120" },
+        new() { Key = "UpdatedTime",  Label = "更新日期",   SortKey = "updatedtime", Width = "120" },
     };
 
     // ========== 服务端数据加载 ==========

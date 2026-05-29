@@ -209,10 +209,11 @@
         StateHasChanged();
     }
 
-    private async Task CloseAsync()
+    private Task CloseAsync()
     {
         _isOpen = false;
         StateHasChanged();
+        return Task.CompletedTask;
     }
 
     private void OnSearchInput(ChangeEventArgs e)

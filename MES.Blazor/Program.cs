@@ -38,6 +38,7 @@ builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ProductRequirementService>();
 builder.Services.AddScoped<WorkOrderService>();
 builder.Services.AddScoped<MaterialPlanService>();
+builder.Services.AddScoped<MaterialPlanProcessGroupService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<WarehouseService>();
 builder.Services.AddScoped<InventoryService>();
@@ -69,5 +70,9 @@ builder.Services.AddScoped<QualityProcessTrackingService>();
 
 // ========== 扫码执行 ==========
 builder.Services.AddScoped<ScanService>();
+
+// ========== Scheduling 上下文 ==========
+builder.Services.AddScoped<SalesUrgingService>();
+builder.Services.AddScoped<RawMaterialLockPlanAndExecutionService>();
 
 await builder.Build().RunAsync();

@@ -222,7 +222,7 @@ public class MaterialPlanControllerTests : ControllerTestBase
     {
         // Arrange
         var list = new List<AvailableInventoryBatchDto> { new() { Id = 1, BatchNo = "BATCH001" } };
-        _serviceMock.Setup(x => x.GetAvailableInventoryAsync(1)).ReturnsAsync(list);
+        _serviceMock.Setup(x => x.GetAvailableInventoryAsync(1, It.IsAny<int?>())).ReturnsAsync(list);
 
         // Act
         var result = await _controller.GetAvailableInventory(1);
@@ -237,7 +237,7 @@ public class MaterialPlanControllerTests : ControllerTestBase
     {
         // Arrange
         var list = new List<AvailableInventoryBatchDto> { new() { Id = 1, BatchNo = "BATCH001" } };
-        _serviceMock.Setup(x => x.GetAvailableReworkInventoryAsync(1, It.IsAny<ReworkType>())).ReturnsAsync(list);
+        _serviceMock.Setup(x => x.GetAvailableReworkInventoryAsync(1, It.IsAny<ReworkType>(), It.IsAny<int?>())).ReturnsAsync(list);
 
         // Act
         var result = await _controller.GetAvailableReworkInventory(1, ReworkType.FewerPass);

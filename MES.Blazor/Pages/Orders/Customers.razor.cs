@@ -81,9 +81,9 @@ public partial class Customers
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "CustomerCode", Label = "客户编码", SortKey = "customercode", FilterType = "string" },
-        new() { Key = "Salesman",     Label = "业务员",   SortKey = "salesman",     FilterType = "string" },
-        new() { Key = "CustomerUnit", Label = "客户单位", SortKey = "customerunit", FilterType = "string" },
+        new() { Key = "CustomerCode", Label = "客户编码", SortKey = "customercode", FilterType = "string", IsRequired = true },
+        new() { Key = "Salesman",     Label = "业务员",   SortKey = "salesman",     FilterType = "string", IsRequired = true },
+        new() { Key = "CustomerUnit", Label = "客户单位", SortKey = "customerunit", FilterType = "string", IsRequired = true },
         new() { Key = "EndCustomer",  Label = "最终用户", SortKey = "endcustomer",  FilterType = "string" },
         new() { Key = "Status",       Label = "状态",     SortKey = "status",       FilterType = "enum",     EnumOptions = new() { new("Active", "启用"), new("Inactive", "停用") } },
         new() { Key = "ContactPerson",Label = "联系人",     SortKey = "contactperson", FilterType = "string" },

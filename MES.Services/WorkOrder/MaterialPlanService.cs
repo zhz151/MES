@@ -4,6 +4,7 @@ using MES.Core.DTOs;
 using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Helpers;
 using MES.Core.Interfaces;
 using MES.Data;
 using MES.Data.Entities;
@@ -12,6 +13,8 @@ using MES.Services.Printing;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+
+using WoEntity = MES.Data.Entities.WorkOrder;
 
 namespace MES.Services;
 
@@ -37,63 +40,86 @@ public class MaterialPlanService : IMaterialPlanService
         _listSummaryService = listSummaryService;
     }
 
-    #region 工艺周期计算
+    #region 工艺周期计算（基于工序组）
 
     /// <summary>
-    /// 交货状态枚举转中文文本（用于匹配 StandardProcessCycle）
+    /// 从工序组工段列表计算工艺周期（天）：累计所有工段天数 + 交货状态调整
     /// </summary>
-    private static string GetDeliveryStateChineseText(DeliveryState state)
+    internal static int CalculateStandardCycleFromSections(
+        List<(string SectionName, int Sequence)> sections,
+        DeliveryState deliveryState,
+        string? plantGrade)
     {
-        return state switch
+        if (sections.Count == 0) return 0;
+
+        double totalDays = 0;
+        foreach (var section in sections)
         {
-            DeliveryState.SolutionAnnealedAndPickled => "固溶酸洗",
-            DeliveryState.SolutionAnnealedAndPickledUTube => "固溶酸洗-U型管",
-            DeliveryState.SolutionAnnealedAndPickledExternalPolished => "固溶酸洗-外抛光",
-            DeliveryState.SolutionAnnealedAndPickledInternalPolished => "固溶酸洗-内抛光",
-            DeliveryState.SolutionAnnealedAndPickledBothPolished => "固溶酸洗-内外抛光",
-            DeliveryState.SolutionAnnealedAndPickledCoiled => "固溶酸洗-盘管",
-            DeliveryState.Bright => "光亮",
-            DeliveryState.BrightUTube => "光亮-U型管",
-            DeliveryState.BrightCoiled => "光亮-盘管",
-            DeliveryState.Hard => "硬态",
-            _ => state.ToString()
-        };
+            totalDays += GetSectionDay(section.SectionName, plantGrade);
+        }
+
+        // 交货状态调整：非固溶酸洗/非硬态 +4 天
+        if (deliveryState != DeliveryState.SolutionAnnealedAndPickled
+            && deliveryState != DeliveryState.Hard)
+        {
+            totalDays += 4;
+        }
+
+        return (int)Math.Round(totalDays, MidpointRounding.AwayFromZero);
     }
 
     /// <summary>
-    /// 原料类型枚举转中文文本（用于匹配 StandardProcessCycle）
+    /// 提取工序组的所有非空工段
     /// </summary>
-    private static string GetRawMaterialTypeChineseText(RawMaterialType type)
+    internal static List<(string SectionName, int Sequence)> ExtractSections(
+        int? coldRollDraw, int? oilPipeCut, int? degrease, int? solution,
+        int? straighten, int? cut, int? thicknessMeasure, int? pickle,
+        int? outerPolish, int? innerGrinding, int? outerSpotGrinding,
+        int? inspection, int? weldingHead, int? lubrication, int? warehouse)
     {
-        return type switch
-        {
-            RawMaterialType.SemiFinished => "荒管",
-            RawMaterialType.SemiProduct => "半成品",
-            RawMaterialType.RoundBar => "圆棒",
-            _ => type.ToString()
-        };
+        var sections = new List<(string, int)>();
+        if (coldRollDraw.HasValue) sections.Add(("冷轧拔", coldRollDraw.Value));
+        if (oilPipeCut.HasValue) sections.Add(("油管断", oilPipeCut.Value));
+        if (degrease.HasValue) sections.Add(("去油", degrease.Value));
+        if (solution.HasValue) sections.Add(("固溶", solution.Value));
+        if (straighten.HasValue) sections.Add(("矫直", straighten.Value));
+        if (cut.HasValue) sections.Add(("断切", cut.Value));
+        if (thicknessMeasure.HasValue) sections.Add(("测壁厚", thicknessMeasure.Value));
+        if (pickle.HasValue) sections.Add(("酸洗", pickle.Value));
+        if (outerPolish.HasValue) sections.Add(("外抛光", outerPolish.Value));
+        if (innerGrinding.HasValue) sections.Add(("内修磨", innerGrinding.Value));
+        if (outerSpotGrinding.HasValue) sections.Add(("外点磨", outerSpotGrinding.Value));
+        if (inspection.HasValue) sections.Add(("检验", inspection.Value));
+        if (weldingHead.HasValue) sections.Add(("打焊头", weldingHead.Value));
+        if (lubrication.HasValue) sections.Add(("润滑", lubrication.Value));
+        if (warehouse.HasValue) sections.Add(("入库", warehouse.Value));
+        return sections;
     }
 
     /// <summary>
-    /// 计算工艺周期（天）：通过工单信息匹配 StandardProcessCycle
+    /// 获取工段对应的天数（与 ProductionRecordService 保持一致）
     /// </summary>
-    private async Task<int> CalculateStandardCycleAsync(
-        WorkOrder workOrder,
-        string rawMaterialType,  // 中文文本
-        string rawSpec)
+    internal static double GetSectionDay(string sectionName, string? plantGrade)
     {
-        var deliveryStateText = GetDeliveryStateChineseText(workOrder.DeliveryState);
-
-        var days = await _context.StandardProcessCycles
-            .Where(c => c.PlantGrade == workOrder.PlantGrade
-                && c.ProductSpec == workOrder.Specification
-                && c.DeliveryState == deliveryStateText
-                && c.RawMaterialType == rawMaterialType
-                && c.RawSpec == rawSpec)
-            .Select(c => (int?)c.StandardCycleDays)
-            .FirstOrDefaultAsync();
-
-        return days ?? 0;
+        return sectionName switch
+        {
+            "冷轧拔" => 2,
+            "油管断" => 1,
+            "去油" => 1,
+            "固溶" => 1,
+            "矫直" => 0.5,
+            "断切" => 0.5,
+            "测壁厚" => 1,
+            "酸洗" => plantGrade?.StartsWith("3") == true ? 1 : 2,
+            "外抛光" => 0.5,
+            "内修磨" => 0.5,
+            "外点磨" => 0.5,
+            "检验" => 1,
+            "打焊头" => 0.5,
+            "润滑" => 1,
+            "入库" => 2,
+            _ => 0
+        };
     }
 
     #endregion
@@ -151,23 +177,81 @@ public class MaterialPlanService : IMaterialPlanService
             RequiredPieces = request.RequiredPieces,
             RequiredWeight = request.RequiredWeight,
             RequiredDate = request.RequiredDate,
-            ProcessPlan = request.ProcessPlan,
             Remark = request.Remark,
         };
-
-        // 计算工艺周期：荒管采购匹配 StandardProcessCycle
-        plan.StandardCycle = await CalculateStandardCycleAsync(
-            workOrder,
-            GetRawMaterialTypeChineseText(rt),
-            request.RawMaterialSpec);
-        if (plan.StandardCycle == 0)
-            throw new BusinessException($"未找到匹配的标准工艺生产周期，无法提交：工厂牌号={workOrder.PlantGrade}, 成品规格={workOrder.Specification}, 交货状态={GetDeliveryStateChineseText(workOrder.DeliveryState)}, 原料类型={GetRawMaterialTypeChineseText(rt)}, 原料规格={request.RawMaterialSpec}");
 
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
             _context.PurchaseSemiPlans.Add(plan);
             await _context.SaveChangesAsync();
+
+            // 保存工序组
+            if (request.ProcessGroups is { Count: > 0 })
+            {
+                int seq = 1;
+                foreach (var pg in request.ProcessGroups)
+                {
+                    _context.SemiPlanProcessGroups.Add(new SemiPlanProcessGroup
+                    {
+                        PurchaseSemiPlanId = plan.Id,
+                        SequenceNumber = seq++,
+                        ProcessName = pg.ProcessName,
+                        ManufacturingSpec = pg.ManufacturingSpec,
+                        OuterDiameterTolerance = pg.OuterDiameterTolerance,
+                        WallThicknessTolerance = pg.WallThicknessTolerance,
+                        ManufacturingLength = pg.ManufacturingLength,
+                        CuttingTreatment = pg.CuttingTreatment,
+                        ManufacturingMultiple = pg.ManufacturingMultiple,
+                        Remark = pg.Remark,
+                        ColdRollDraw = pg.ColdRollDraw,
+                        OilPipeCut = pg.OilPipeCut,
+                        Degrease = pg.Degrease,
+                        Solution = pg.Solution,
+                        Straighten = pg.Straighten,
+                        Cut = pg.Cut,
+                        ThicknessMeasure = pg.ThicknessMeasure,
+                        Pickle = pg.Pickle,
+                        OuterPolish = pg.OuterPolish,
+                        InnerGrinding = pg.InnerGrinding,
+                        OuterSpotGrinding = pg.OuterSpotGrinding,
+                        Inspection = pg.Inspection,
+                        WeldingHead = pg.WeldingHead,
+                        Lubrication = pg.Lubrication,
+                        Warehouse = pg.Warehouse
+                    });
+                }
+                await _context.SaveChangesAsync();
+            }
+
+            // 从工序组计算工艺周期
+            var semiGroups = await _context.SemiPlanProcessGroups
+                .Where(g => g.PurchaseSemiPlanId == plan.Id)
+                .ToListAsync();
+            var semiSections = new List<(string, int)>();
+            foreach (var pg in semiGroups)
+            {
+                semiSections.AddRange(ExtractSections(
+                    pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
+                    pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
+                    pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
+                    pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
+            }
+            plan.StandardCycle = CalculateStandardCycleFromSections(
+                semiSections, workOrder.DeliveryState, workOrder.PlantGrade);
+            if (plan.StandardCycle == 0)
+                throw new BusinessException("工艺周期计算失败：工序组工段数据不完整，无法计算工艺周期");
+            _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
+            await _context.SaveChangesAsync();
+
+            // 同步写入/更新 StandardProcessCycle 引用表
+            await UpsertStandardProcessCycleAsync(
+                plan.PlantGrade,
+                EnumHelper.GetDisplayName(plan.RawMaterialType),
+                plan.RawMaterialSpec,
+                workOrder.Specification,
+                EnumHelper.GetDisplayName(workOrder.DeliveryState),
+                plan.StandardCycle);
 
             // 刷新工单状态（与创建在同一事务中）
             await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
@@ -213,6 +297,122 @@ public class MaterialPlanService : IMaterialPlanService
         }
 
         _logger.LogInformation("删除原料采购计划成功: ID {Id}", id);
+    }
+
+    public async Task<PurchaseSemiPlanDto> UpdateSemiPlanAsync(int id, CreatePurchaseSemiPlanRequest request)
+    {
+        var plan = await _context.PurchaseSemiPlans.FindAsync(id)
+            ?? throw new BusinessException("原料采购计划不存在");
+
+        // 更新测算参数
+        plan.AdjustedWallThickness = request.AdjustedWallThickness;
+        plan.YieldRate = request.YieldRate;
+        plan.InputMultiple = request.InputMultiple;
+        plan.QualifiedRate = request.QualifiedRate;
+        plan.RawMaterialType = Enum.TryParse<RawMaterialType>(request.RawMaterialType, out var rt)
+            ? rt
+            : throw new BusinessException($"无效的原料类型: {request.RawMaterialType}");
+
+        // 更新原料信息
+        plan.PlantGrade = request.PlantGrade;
+        plan.RawMaterialSpec = request.RawMaterialSpec;
+        plan.RequiredUnitWeight = request.RequiredUnitWeight;
+        plan.RequiredPieces = request.RequiredPieces;
+        plan.RequiredWeight = request.RequiredWeight;
+        plan.RequiredDate = request.RequiredDate;
+        plan.Remark = request.Remark;
+
+        var workOrder = await _context.WorkOrders.FindAsync(plan.WorkOrderId)
+            ?? throw new BusinessException("关联工单不存在");
+
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            // 全量替换工序组
+            var existingGroups = await _context.SemiPlanProcessGroups
+                .Where(g => g.PurchaseSemiPlanId == id)
+                .ToListAsync();
+            _context.SemiPlanProcessGroups.RemoveRange(existingGroups);
+
+            if (request.ProcessGroups is { Count: > 0 })
+            {
+                int seq = 1;
+                foreach (var pg in request.ProcessGroups)
+                {
+                    _context.SemiPlanProcessGroups.Add(new SemiPlanProcessGroup
+                    {
+                        PurchaseSemiPlanId = id,
+                        SequenceNumber = seq++,
+                        ProcessName = pg.ProcessName,
+                        ManufacturingSpec = pg.ManufacturingSpec,
+                        OuterDiameterTolerance = pg.OuterDiameterTolerance,
+                        WallThicknessTolerance = pg.WallThicknessTolerance,
+                        ManufacturingLength = pg.ManufacturingLength,
+                        CuttingTreatment = pg.CuttingTreatment,
+                        ManufacturingMultiple = pg.ManufacturingMultiple,
+                        Remark = pg.Remark,
+                        ColdRollDraw = pg.ColdRollDraw,
+                        OilPipeCut = pg.OilPipeCut,
+                        Degrease = pg.Degrease,
+                        Solution = pg.Solution,
+                        Straighten = pg.Straighten,
+                        Cut = pg.Cut,
+                        ThicknessMeasure = pg.ThicknessMeasure,
+                        Pickle = pg.Pickle,
+                        OuterPolish = pg.OuterPolish,
+                        InnerGrinding = pg.InnerGrinding,
+                        OuterSpotGrinding = pg.OuterSpotGrinding,
+                        Inspection = pg.Inspection,
+                        WeldingHead = pg.WeldingHead,
+                        Lubrication = pg.Lubrication,
+                        Warehouse = pg.Warehouse
+                    });
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            // 从工序组重新计算工艺周期
+            var semiGroups = await _context.SemiPlanProcessGroups
+                .Where(g => g.PurchaseSemiPlanId == id)
+                .ToListAsync();
+            var semiSections = new List<(string, int)>();
+            foreach (var pg in semiGroups)
+            {
+                semiSections.AddRange(ExtractSections(
+                    pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
+                    pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
+                    pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
+                    pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
+            }
+            plan.StandardCycle = CalculateStandardCycleFromSections(
+                semiSections, workOrder.DeliveryState, workOrder.PlantGrade);
+            if (plan.StandardCycle == 0)
+                throw new BusinessException("工艺周期计算失败：工序组工段数据不完整，无法计算工艺周期");
+            _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
+            await _context.SaveChangesAsync();
+
+            // 同步写入/更新 StandardProcessCycle 引用表
+            await UpsertStandardProcessCycleAsync(
+                plan.PlantGrade,
+                EnumHelper.GetDisplayName(plan.RawMaterialType),
+                plan.RawMaterialSpec,
+                workOrder.Specification,
+                EnumHelper.GetDisplayName(workOrder.DeliveryState),
+                plan.StandardCycle);
+
+            await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
+            await transaction.CommitAsync();
+            await RefreshReadModelAsync(plan.WorkOrderId);
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+
+        _logger.LogInformation("更新原料采购计划成功: ID {Id}", id);
+        return plan.ToDto();
     }
 
     #endregion
@@ -368,6 +568,63 @@ public class MaterialPlanService : IMaterialPlanService
         return plans.Select(p => p.ToDto()).ToList();
     }
 
+    public async Task<PurchaseFinishedPlanDto> UpdateFinishedPlanAsync(int id, CreatePurchaseFinishedPlanRequest request)
+    {
+        var plan = await _context.PurchaseFinishedPlans.FindAsync(id);
+        if (plan == null)
+            throw new BusinessException("成品采购计划不存在");
+
+        var workOrder = await _context.WorkOrders.FindAsync(plan.WorkOrderId);
+        if (workOrder == null)
+            throw new BusinessException("关联工单不存在");
+
+        // 定尺：支数必须填写
+        if (workOrder.LengthStatus == LengthStatus.Fixed && (request.RequiredPiece == null || request.RequiredPiece <= 0))
+            throw new BusinessException("定尺模式下采购支数不能为空");
+
+        // 更新字段
+        plan.PlanDate = request.PlanDate;
+        plan.ProductType = Enum.TryParse<FinishedProductType>(request.ProductType, out var pt)
+            ? pt
+            : throw new BusinessException($"无效的成品类型: {request.ProductType}");
+        plan.RequiredPiece = request.RequiredPiece;
+        plan.RequiredWeight = request.RequiredWeight;
+        plan.InputMultiple = request.InputMultiple;
+        plan.RequiredDate = request.RequiredDate;
+        plan.Remark = request.Remark;
+        plan.PlantGrade = request.PlantGrade;
+        plan.Specification = request.Specification;
+        plan.OuterDiameterNegative = request.OuterDiameterNegative;
+        plan.OuterDiameterPositive = request.OuterDiameterPositive;
+        plan.WallThicknessNegative = request.WallThicknessNegative;
+        plan.WallThicknessPositive = request.WallThicknessPositive;
+        plan.LengthStatus = Enum.TryParse<LengthStatus>(request.LengthStatus, out var ls)
+            ? ls
+            : LengthStatus.Fixed;
+        plan.MinLength = request.MinLength;
+        plan.MaxLength = request.MaxLength;
+        plan.DeliveryState = Enum.TryParse<DeliveryState>(request.DeliveryState, out var ds)
+            ? ds
+            : DeliveryState.SolutionAnnealedAndPickled;
+
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+            await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
+            await transaction.CommitAsync();
+            await RefreshReadModelAsync(plan.WorkOrderId);
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+
+        _logger.LogInformation("更新成品采购计划成功: ID {Id}", id);
+        return plan.ToDto();
+    }
+
     public async Task DeleteFinishedPlanAsync(int id)
     {
         var plan = await _context.PurchaseFinishedPlans.FindAsync(id);
@@ -476,23 +733,10 @@ public class MaterialPlanService : IMaterialPlanService
             PlanStatus = InventoryPlanStatus.Planned,
             Remark = request.Remark,
             ReworkType = request.ReworkType != null ? Enum.Parse<ReworkType>(request.ReworkType) : null,
-            ProcessPlan = request.ProcessPlan
         };
 
-        // 计算工艺周期：库料改制匹配 StandardProcessCycle，库存使用默认3天
-        if (plan.ReworkType != null)
-        {
-            plan.StandardCycle = await CalculateStandardCycleAsync(
-                workOrder,
-                plan.MaterialType,
-                plan.Specification);
-            if (plan.StandardCycle == 0)
-                throw new BusinessException($"未找到匹配的标准工艺生产周期，无法提交：工厂牌号={workOrder.PlantGrade}, 成品规格={workOrder.Specification}, 交货状态={GetDeliveryStateChineseText(workOrder.DeliveryState)}, 原料类型={plan.MaterialType}, 原料规格={plan.Specification}");
-        }
-        else
-        {
-            plan.StandardCycle = 3;
-        }
+        // 工艺周期（改制计划在工序组设置后通过 ProcessGroup 管理接口重新计算）
+        plan.StandardCycle = 3;
 
         _context.InventoryPlans.Add(plan);
         using var transaction = await _context.Database.BeginTransactionAsync();
@@ -592,23 +836,10 @@ public class MaterialPlanService : IMaterialPlanService
                 PlanStatus = InventoryPlanStatus.Planned,
                 Remark = request.Remark,
                 ReworkType = request.ReworkType != null ? Enum.Parse<ReworkType>(request.ReworkType) : null,
-                ProcessPlan = request.ProcessPlan
             };
 
-            // 计算工艺周期：库料改制匹配 StandardProcessCycle，库存使用默认3天
-            if (plan.ReworkType != null)
-            {
-                plan.StandardCycle = await CalculateStandardCycleAsync(
-                    workOrder,
-                    batch.MaterialType,
-                    batch.Specification);
-                if (plan.StandardCycle == 0)
-                    throw new BusinessException($"未找到匹配的标准工艺生产周期，无法提交：工厂牌号={workOrder.PlantGrade}, 成品规格={workOrder.Specification}, 交货状态={GetDeliveryStateChineseText(workOrder.DeliveryState)}, 原料类型={batch.MaterialType}, 原料规格={batch.Specification}");
-            }
-            else
-            {
-                plan.StandardCycle = 3;
-            }
+            // 工艺周期（改制计划在工序组设置后通过 ProcessGroup 管理接口重新计算）
+            plan.StandardCycle = 3;
 
             plans.Add(plan);
         }
@@ -660,7 +891,7 @@ public class MaterialPlanService : IMaterialPlanService
         _logger.LogInformation("删除库存使用计划成功: ID {Id}", id);
     }
 
-    public async Task<List<AvailableInventoryBatchDto>> GetAvailableInventoryAsync(int workOrderId)
+    public async Task<List<AvailableInventoryBatchDto>> GetAvailableInventoryAsync(int workOrderId, int? excludePlanId = null)
     {
         var workOrder = await _context.WorkOrders.AsNoTracking()
             .FirstOrDefaultAsync(wo => wo.Id == workOrderId);
@@ -713,9 +944,16 @@ public class MaterialPlanService : IMaterialPlanService
         var wtMin = Math.Round((wt - workOrder.WallThicknessNegative) * 1.02m, 3);
         var wtMax = Math.Round((wt + workOrder.WallThicknessPositive) * 0.98m, 3);
 
-        // 获取已被其他未取消库存使用计划引用的批次号
-        var usedBatchNos = await _context.InventoryPlans
-            .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled)
+        // 获取已被其他未取消库存使用计划引用的批次号（排除当前编辑计划自身）
+        var usedBatchNosQuery = _context.InventoryPlans
+            .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled);
+
+        if (excludePlanId.HasValue)
+        {
+            usedBatchNosQuery = usedBatchNosQuery.Where(p => p.Id != excludePlanId.Value);
+        }
+
+        var usedBatchNos = await usedBatchNosQuery
             .Select(p => p.InventoryBatchNo)
             .Distinct()
             .ToListAsync();
@@ -804,7 +1042,7 @@ public class MaterialPlanService : IMaterialPlanService
         return available;
     }
 
-    public async Task<List<AvailableInventoryBatchDto>> GetAvailableReworkInventoryAsync(int workOrderId, ReworkType reworkType)
+    public async Task<List<AvailableInventoryBatchDto>> GetAvailableReworkInventoryAsync(int workOrderId, ReworkType reworkType, int? excludePlanId = null)
     {
         var workOrder = await _context.WorkOrders.AsNoTracking()
             .FirstOrDefaultAsync(wo => wo.Id == workOrderId);
@@ -859,9 +1097,16 @@ public class MaterialPlanService : IMaterialPlanService
             }
         }
 
-        // 已被其他未取消计划引用的批次号
-        var usedBatchNos = await _context.InventoryPlans
-            .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled)
+        // 已被其他未取消计划引用的批次号（排除当前编辑计划自身）
+        var usedBatchNosQuery = _context.InventoryPlans
+            .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled);
+
+        if (excludePlanId.HasValue)
+        {
+            usedBatchNosQuery = usedBatchNosQuery.Where(p => p.Id != excludePlanId.Value);
+        }
+
+        var usedBatchNos = await usedBatchNosQuery
             .Select(p => p.InventoryBatchNo)
             .Distinct()
             .ToListAsync();
@@ -963,6 +1208,79 @@ public class MaterialPlanService : IMaterialPlanService
         return available;
     }
 
+    public async Task<InventoryPlanDto> GetInventoryPlanByIdAsync(int id)
+    {
+        var plan = await _context.InventoryPlans.FindAsync(id);
+        if (plan == null)
+            throw new BusinessException("库存使用计划不存在");
+
+        return plan.ToDto();
+    }
+
+    public async Task<InventoryPlanDto> UpdateInventoryPlanAsync(int id, CreateInventoryPlanRequest request)
+    {
+        var plan = await _context.InventoryPlans.FindAsync(id);
+        if (plan == null)
+            throw new BusinessException("库存使用计划不存在");
+
+        var workOrder = await _context.WorkOrders.FindAsync(plan.WorkOrderId);
+        if (workOrder == null)
+            throw new BusinessException("关联工单不存在");
+
+        // 校验：批次未被其他工单的未取消库存使用计划引用（排除自身工单和自身计划）
+        var conflictBatchNo = await _context.InventoryPlans
+            .AnyAsync(p => p.Id != id
+                && p.WorkOrderId != plan.WorkOrderId
+                && p.InventoryBatchNo == plan.InventoryBatchNo
+                && p.PlanStatus != InventoryPlanStatus.Cancelled);
+        if (conflictBatchNo)
+            throw new BusinessException("该库存批次已被其他工单的库存使用计划引用");
+
+        // 校验用量
+        if (request.UsageMode == "All")
+        {
+            var batch = await _context.InventoryBatches
+                .FirstOrDefaultAsync(b => b.BatchNo == plan.InventoryBatchNo);
+            if (batch != null)
+            {
+                request.UsedQuantity = batch.RemainingQuantity;
+                request.UsedWeight = batch.RemainingWeight;
+            }
+        }
+        else
+        {
+            if (request.UsedQuantity == null || request.UsedQuantity <= 0)
+                throw new BusinessException("部分使用模式下出库支数必须大于0");
+            if (request.UsedWeight <= 0)
+                throw new BusinessException("出库重量必须大于0");
+        }
+
+        plan.PlanDate = request.PlanDate;
+        plan.InputMultiple = request.InputMultiple;
+        plan.UsageMode = request.UsageMode;
+        plan.UsedQuantity = request.UsedQuantity;
+        plan.UsedWeight = request.UsedWeight;
+        plan.RequiredDate = request.RequiredDate;
+        plan.Remark = request.Remark;
+
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+            await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
+            await transaction.CommitAsync();
+            await RefreshReadModelAsync(plan.WorkOrderId);
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+
+        _logger.LogInformation("更新库存使用计划成功: ID {Id}", id);
+        return plan.ToDto();
+    }
+
     #endregion
 
     #region 圆棒穿孔计划
@@ -1025,23 +1343,80 @@ public class MaterialPlanService : IMaterialPlanService
             RequiredPieces = request.RequiredPieces,
             RequiredWeight = request.RequiredWeight,
             RequiredDate = request.RequiredDate,
-            ProcessPlan = request.ProcessPlan,
             Remark = request.Remark,
         };
-
-        // 计算工艺周期：圆棒穿孔默认原料类型为"荒管"，穿孔规格匹配原料规格
-        plan.StandardCycle = await CalculateStandardCycleAsync(
-            workOrder,
-            "荒管",
-            request.PiercingSpec);
-        if (plan.StandardCycle == 0)
-            throw new BusinessException($"未找到匹配的标准工艺生产周期，无法提交：工厂牌号={workOrder.PlantGrade}, 成品规格={workOrder.Specification}, 交货状态={GetDeliveryStateChineseText(workOrder.DeliveryState)}, 原料类型=荒管, 穿孔规格={request.PiercingSpec}");
 
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
             _context.RoundBarPiercingPlans.Add(plan);
             await _context.SaveChangesAsync();
+
+            // 保存工序组
+            if (request.ProcessGroups is { Count: > 0 })
+            {
+                int seq = 1;
+                foreach (var pg in request.ProcessGroups)
+                {
+                    _context.PiercingPlanProcessGroups.Add(new PiercingPlanProcessGroup
+                    {
+                        RoundBarPiercingPlanId = plan.Id,
+                        SequenceNumber = seq++,
+                        ProcessName = pg.ProcessName,
+                        ManufacturingSpec = pg.ManufacturingSpec,
+                        OuterDiameterTolerance = pg.OuterDiameterTolerance,
+                        WallThicknessTolerance = pg.WallThicknessTolerance,
+                        ManufacturingLength = pg.ManufacturingLength,
+                        CuttingTreatment = pg.CuttingTreatment,
+                        ManufacturingMultiple = pg.ManufacturingMultiple,
+                        Remark = pg.Remark,
+                        ColdRollDraw = pg.ColdRollDraw,
+                        OilPipeCut = pg.OilPipeCut,
+                        Degrease = pg.Degrease,
+                        Solution = pg.Solution,
+                        Straighten = pg.Straighten,
+                        Cut = pg.Cut,
+                        ThicknessMeasure = pg.ThicknessMeasure,
+                        Pickle = pg.Pickle,
+                        OuterPolish = pg.OuterPolish,
+                        InnerGrinding = pg.InnerGrinding,
+                        OuterSpotGrinding = pg.OuterSpotGrinding,
+                        Inspection = pg.Inspection,
+                        WeldingHead = pg.WeldingHead,
+                        Lubrication = pg.Lubrication,
+                        Warehouse = pg.Warehouse
+                    });
+                }
+            }
+
+            // 从工序组计算工艺周期
+            var pierceGroups = await _context.PiercingPlanProcessGroups
+                .Where(g => g.RoundBarPiercingPlanId == plan.Id)
+                .ToListAsync();
+            var pierceSections = new List<(string, int)>();
+            foreach (var pg in pierceGroups)
+            {
+                pierceSections.AddRange(ExtractSections(
+                    pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
+                    pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
+                    pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
+                    pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
+            }
+            plan.StandardCycle = CalculateStandardCycleFromSections(
+                pierceSections, workOrder.DeliveryState, workOrder.PlantGrade);
+            if (plan.StandardCycle == 0)
+                throw new BusinessException("工艺周期计算失败：工序组工段数据不完整，无法计算工艺周期");
+            _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
+            await _context.SaveChangesAsync();
+
+            // 同步写入/更新 StandardProcessCycle 引用表
+            await UpsertStandardProcessCycleAsync(
+                plan.PlantGrade,
+                "荒管",
+                plan.PiercingSpec,
+                workOrder.Specification,
+                EnumHelper.GetDisplayName(workOrder.DeliveryState),
+                plan.StandardCycle);
 
             // 刷新工单状态（与创建在同一事务中）
             await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
@@ -1103,25 +1478,85 @@ public class MaterialPlanService : IMaterialPlanService
         plan.RequiredPieces = request.RequiredPieces;
         plan.RequiredWeight = request.RequiredWeight;
         plan.RequiredDate = request.RequiredDate;
-        plan.ProcessPlan = request.ProcessPlan;
         plan.Remark = request.Remark;
-
-        // 重新计算工艺周期
-        plan.StandardCycle = await CalculateStandardCycleAsync(
-            workOrder,
-            "荒管",
-            request.PiercingSpec);
-        if (plan.StandardCycle == 0)
-            throw new BusinessException($"未找到匹配的标准工艺生产周期，无法提交：工厂牌号={workOrder.PlantGrade}, 成品规格={workOrder.Specification}, 交货状态={GetDeliveryStateChineseText(workOrder.DeliveryState)}, 原料类型=荒管, 穿孔规格={request.PiercingSpec}");
 
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
+            // 全量替换工序组
+            var existingGroups = await _context.PiercingPlanProcessGroups
+                .Where(g => g.RoundBarPiercingPlanId == id)
+                .ToListAsync();
+            _context.PiercingPlanProcessGroups.RemoveRange(existingGroups);
+
+            if (request.ProcessGroups is { Count: > 0 })
+            {
+                int seq = 1;
+                foreach (var pg in request.ProcessGroups)
+                {
+                    _context.PiercingPlanProcessGroups.Add(new PiercingPlanProcessGroup
+                    {
+                        RoundBarPiercingPlanId = id,
+                        SequenceNumber = seq++,
+                        ProcessName = pg.ProcessName,
+                        ManufacturingSpec = pg.ManufacturingSpec,
+                        OuterDiameterTolerance = pg.OuterDiameterTolerance,
+                        WallThicknessTolerance = pg.WallThicknessTolerance,
+                        ManufacturingLength = pg.ManufacturingLength,
+                        CuttingTreatment = pg.CuttingTreatment,
+                        ManufacturingMultiple = pg.ManufacturingMultiple,
+                        Remark = pg.Remark,
+                        ColdRollDraw = pg.ColdRollDraw,
+                        OilPipeCut = pg.OilPipeCut,
+                        Degrease = pg.Degrease,
+                        Solution = pg.Solution,
+                        Straighten = pg.Straighten,
+                        Cut = pg.Cut,
+                        ThicknessMeasure = pg.ThicknessMeasure,
+                        Pickle = pg.Pickle,
+                        OuterPolish = pg.OuterPolish,
+                        InnerGrinding = pg.InnerGrinding,
+                        OuterSpotGrinding = pg.OuterSpotGrinding,
+                        Inspection = pg.Inspection,
+                        WeldingHead = pg.WeldingHead,
+                        Lubrication = pg.Lubrication,
+                        Warehouse = pg.Warehouse
+                    });
+                }
+            }
+
             await _context.SaveChangesAsync();
 
-            // 刷新工单状态（与更新在同一事务中）
-            await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
+            // 从工序组重新计算工艺周期
+            var pierceGroups = await _context.PiercingPlanProcessGroups
+                .Where(g => g.RoundBarPiercingPlanId == id)
+                .ToListAsync();
+            var pierceSections = new List<(string, int)>();
+            foreach (var pg in pierceGroups)
+            {
+                pierceSections.AddRange(ExtractSections(
+                    pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
+                    pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
+                    pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
+                    pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
+            }
+            plan.StandardCycle = CalculateStandardCycleFromSections(
+                pierceSections, workOrder.DeliveryState, workOrder.PlantGrade);
+            if (plan.StandardCycle == 0)
+                throw new BusinessException("工艺周期计算失败：工序组工段数据不完整，无法计算工艺周期");
+            _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
+            await _context.SaveChangesAsync();
 
+            // 同步写入/更新 StandardProcessCycle 引用表
+            await UpsertStandardProcessCycleAsync(
+                plan.PlantGrade,
+                "荒管",
+                plan.PiercingSpec,
+                workOrder.Specification,
+                EnumHelper.GetDisplayName(workOrder.DeliveryState),
+                plan.StandardCycle);
+
+            await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
             await transaction.CommitAsync();
             await RefreshReadModelAsync(plan.WorkOrderId);
         }
@@ -1189,7 +1624,7 @@ public class MaterialPlanService : IMaterialPlanService
     /// 内部测算逻辑
     /// </summary>
     private async Task<MaterialCalculateResult> CalculateInternalAsync(
-        WorkOrder workOrder, CreatePurchaseSemiPlanRequest request)
+        WoEntity workOrder, CreatePurchaseSemiPlanRequest request)
     {
         var result = new MaterialCalculateResult();
 
@@ -1449,7 +1884,7 @@ public class MaterialPlanService : IMaterialPlanService
     /// <summary>
     /// 计算单个计划的状态（工单级，含"理论满足"）
     /// </summary>
-    private MaterialPlanStatus CalculatePlanStatus(WorkOrder workOrder,
+    private MaterialPlanStatus CalculatePlanStatus(WoEntity workOrder,
         IReadOnlyCollection<BaseEntity> plans, bool isSemi, bool isPiercing = false)
     {
         var rate = CalculatePlanRate(workOrder, plans, isSemi, isPiercing);
@@ -1475,7 +1910,7 @@ public class MaterialPlanService : IMaterialPlanService
     /// <summary>
     /// 计算满足率
     /// </summary>
-    private decimal CalculatePlanRate(WorkOrder workOrder,
+    private decimal CalculatePlanRate(WoEntity workOrder,
         IReadOnlyCollection<BaseEntity> plans, bool isSemi, bool isPiercing = false)
     {
         if (workOrder.LengthStatus == LengthStatus.Fixed)
@@ -1536,7 +1971,7 @@ public class MaterialPlanService : IMaterialPlanService
     /// <summary>
     /// 计算库存使用计划满足率
     /// </summary>
-    private decimal CalculateInventoryPlanRate(WorkOrder workOrder,
+    private decimal CalculateInventoryPlanRate(WoEntity workOrder,
         IReadOnlyCollection<InventoryPlan> plans)
     {
         if (workOrder.LengthStatus == LengthStatus.Fixed)
@@ -1560,7 +1995,7 @@ public class MaterialPlanService : IMaterialPlanService
     /// <summary>
     /// 计算库存使用计划状态（工单级，含"理论满足"）
     /// </summary>
-    private MaterialPlanStatus CalculateInventoryPlanStatus(WorkOrder workOrder,
+    private MaterialPlanStatus CalculateInventoryPlanStatus(WoEntity workOrder,
         IReadOnlyCollection<InventoryPlan> plans, bool isRework = false)
     {
         var rate = CalculateInventoryPlanRate(workOrder, plans);
@@ -1584,7 +2019,7 @@ public class MaterialPlanService : IMaterialPlanService
     /// <summary>
     /// 基于总满足率计算整体状态
     /// </summary>
-    private static MaterialPlanStatus CalculateOverallStatus(WorkOrder workOrder, decimal totalRate)
+    private static MaterialPlanStatus CalculateOverallStatus(WoEntity workOrder, decimal totalRate)
     {
         if (totalRate <= 0) return MaterialPlanStatus.NotPlanned;
 
@@ -1702,11 +2137,11 @@ public class MaterialPlanService : IMaterialPlanService
             .ToDictionaryAsync(wo => wo.Id);
 
         // 按计划类型批量查询，固定最多 6 次数据库查询
-        var semiItems = new List<(PurchaseSemiPlan, WorkOrder)>();
-        var finishItems = new List<(PurchaseFinishedPlan, WorkOrder)>();
-        var inventoryItems = new List<(InventoryPlan, WorkOrder)>();
-        var reworkItems = new List<(InventoryPlan, WorkOrder)>();
-        var piercingItems = new List<(RoundBarPiercingPlan, WorkOrder)>();
+        var semiItems = new List<(PurchaseSemiPlan, WoEntity)>();
+        var finishItems = new List<(PurchaseFinishedPlan, WoEntity)>();
+        var inventoryItems = new List<(InventoryPlan, WoEntity)>();
+        var reworkItems = new List<(InventoryPlan, WoEntity)>();
+        var piercingItems = new List<(RoundBarPiercingPlan, WoEntity)>();
 
         if (request.IncludeSemi)
         {
@@ -1786,6 +2221,42 @@ public class MaterialPlanService : IMaterialPlanService
         return Document.Merge(documents).GeneratePdf();
     }
 
+    /// <summary>
+    /// 同步写入/更新 StandardProcessCycle 引用表。
+    /// 以 (PlantGrade, RawMaterialType, RawSpec, ProductSpec, DeliveryState) 为唯一键 upsert。
+    /// </summary>
+    private async Task UpsertStandardProcessCycleAsync(
+        string plantGrade, string rawMaterialType, string rawSpec,
+        string productSpec, string deliveryState, int cycle)
+    {
+        var existing = await _context.StandardProcessCycles
+            .FirstOrDefaultAsync(c =>
+                c.PlantGrade == plantGrade &&
+                c.RawMaterialType == rawMaterialType &&
+                c.RawSpec == rawSpec &&
+                c.ProductSpec == productSpec &&
+                c.DeliveryState == deliveryState);
+
+        if (existing != null)
+        {
+            existing.StandardCycleDays = cycle;
+        }
+        else
+        {
+            _context.StandardProcessCycles.Add(new StandardProcessCycle
+            {
+                PlantGrade = plantGrade,
+                RawMaterialType = rawMaterialType,
+                RawSpec = rawSpec,
+                ProductSpec = productSpec,
+                DeliveryState = deliveryState,
+                StandardCycleDays = cycle
+            });
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
     #endregion
 }
 
@@ -1814,7 +2285,6 @@ internal static class MaterialPlanMappingExtensions
             RequiredPieces = entity.RequiredPieces,
             RequiredWeight = entity.RequiredWeight,
             RequiredDate = entity.RequiredDate,
-            ProcessPlan = entity.ProcessPlan,
             Remark = entity.Remark,
             StandardCycle = entity.StandardCycle,
             CreatedTime = entity.CreatedTime,
@@ -1844,7 +2314,6 @@ internal static class MaterialPlanMappingExtensions
             RequiredPieces = entity.RequiredPieces,
             RequiredWeight = entity.RequiredWeight,
             RequiredDate = entity.RequiredDate,
-            ProcessPlan = entity.ProcessPlan,
             Remark = entity.Remark,
             StandardCycle = entity.StandardCycle,
             CreatedTime = entity.CreatedTime,
@@ -1917,7 +2386,6 @@ internal static class MaterialPlanMappingExtensions
                 ReworkType.ManualSelect => "人工选择改制",
                 _ => null
             },
-            ProcessPlan = entity.ProcessPlan,
             StandardCycle = entity.StandardCycle,
             CreatedTime = entity.CreatedTime,
             CreatedBy = entity.CreatedBy

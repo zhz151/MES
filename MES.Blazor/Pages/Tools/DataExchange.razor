@@ -360,10 +360,11 @@
         UpdateCanPreview();
     }
 
-    private async Task OnEntityChanged(string entity)
+    private Task OnEntityChanged(string entity)
     {
         selectedEntity = entity;
         UpdateCanPreview();
+        return Task.CompletedTask;
     }
 
     private async Task PreviewImport()

@@ -41,6 +41,9 @@ public class WorkOrderExecutionSummaryDto
     public decimal MainNoMaterialPlanRate { get; set; }
     public int MainNoMaterialPlanStatus { get; set; }
 
+    /// <summary>工艺周期（天）</summary>
+    public int ProcessCycle { get; set; }
+
     // ========== Group 5: 物料执行实时信息（从采购订单聚合） ==========
     /// <summary>待回荒管支数</summary>
     public int PendingRoughTubeQty { get; set; }
@@ -94,6 +97,7 @@ public class WorkOrderExecutionSummaryDto
     public int MainNoFlowStatus { get; set; }
     public int FlowTotalBatchCount { get; set; }
     public int FlowIncompleteBatchCount { get; set; }
+    public int FlowMaxRemainingWorkDays { get; set; }
 
     // ========== Group 8: 过程不合格 ==========
     public int DefectiveRawQty { get; set; }
@@ -161,6 +165,11 @@ public class WorkOrderExecutionSummaryDto
 
     // ========== G12: 关注状态 ==========
     public int ScheduleStage { get; set; }
+    public int? TotalRemainingWorkDays { get; set; }
+    public string? UrgencyLevel { get; set; }
+    public DateTime? EstimatedProcessCompletionDate { get; set; }
+    public int? DaysDiffFromDelivery { get; set; }
+    public string? RawMaterialLockRemark { get; set; }
 
     // ========== G11 状态文本 ==========
     public string WoWarehousingStatusText => WoWarehousingStatus switch

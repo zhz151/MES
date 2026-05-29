@@ -1,0 +1,126 @@
+@page "/sales-urgings"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using MES.Blazor.Helpers
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Components
+@using MES.Blazor.Models
+@using System.Text.Json
+@inject SalesUrgingService SalesUrgingService
+@inject WorkOrderExecutionService WorkOrderExecutionService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+@inject PageStateService PageState
+@attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <!-- 页面顶部工具栏 -->
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5" Class="font-weight-bold">
+            <MudIcon Icon="@Icons.Material.Filled.NotificationsActive" Class="mr-2" Color="Color.Primary" />
+            销售催单
+        </MudText>
+        <div class="d-flex align-center">
+            <MudText Typo="Typo.body2" Class="mr-4">
+                共 @_totalCount 条记录
+            </MudText>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Info"
+                       StartIcon="@Icons.Material.Filled.Sync"
+                       OnClick="RefreshAll"
+                       Loading="@isRefreshing"
+                       Disabled="@isRefreshing"
+                       Class="ml-2">
+                即时更新
+            </MudButton>
+        </div>
+    </div>
+
+    <MudCard>
+        <MudCardContent>
+            <!-- 筛选栏 -->
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  Label="工单号/订单号/业务员/客户/牌号/规格/主号"
+                                  Value="@_searchKeyword"
+                                  ValueChanged="@OnSearchChanged"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+            </MudGrid>
+
+            <!-- 数据表格 -->
+            <MudTable @ref="table"
+                      T="SalesUrgingDto"
+                      ServerData="@LoadDataFromServer"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-4 auto-table"
+                      Elevation="0"
+                      RowsPerPage="@_pageSize"
+                      RowsPerPageLabel="每页行数:">
+                <ToolBarContent>
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudText Typo="Typo.body2">
+                        共 @_totalCount 条记录
+                    </MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    @{
+                        int? _prevGk = null;
+                    }
+                    @foreach (var col in _visibleColumns)
+                    {
+                        var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
+                        _prevGk = col.GroupKey;
+                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
+                        <MudTh Class="@_headerClass" Style="@($"width: {col.Width ?? "120"}px")">
+                            <div class="col-header-cell">
+                                @if (_isGroupStart && col.GroupName != null)
+                                {
+                                    <span class="col-group-badge">@col.GroupName</span>
+                                }
+                                <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
+                                @if (col.FilterType != null)
+                                {
+                                    <ExcelFilter T="SalesUrgingDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))" />
+                                }
+                            </div>
+                        </MudTh>
+                    }
+                </HeaderContent>
+                <RowTemplate Context="item">
+                    @{
+                        int? _prevGk2 = null;
+                    }
+                    @foreach (var col in _visibleColumns)
+                    {
+                        var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
+                        _prevGk2 = col.GroupKey;
+                        var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
+                        <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
+                    }
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
+                </PagerContent>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>

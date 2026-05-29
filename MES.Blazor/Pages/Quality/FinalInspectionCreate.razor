@@ -214,7 +214,7 @@
         public string? Remark { get; set; }
     }
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         if (!_rows.Any())
         {

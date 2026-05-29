@@ -3,6 +3,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using MES.Data.Entities;
 using MES.Core.Enums;
+using WoEntity = MES.Data.Entities.WorkOrder;
 
 namespace MES.Services.Printing;
 
@@ -12,7 +13,7 @@ namespace MES.Services.Printing;
 /// </summary>
 public static class WorkOrderPrintHelper
 {
-    public static byte[] GeneratePdf(WorkOrder entity)
+    public static byte[] GeneratePdf(WoEntity entity)
     {
         return Document.Create(container =>
         {
@@ -32,7 +33,7 @@ public static class WorkOrderPrintHelper
     /// <summary>
     /// 按订单号批量打印所有工单（每页2个工单，自动分页）
     /// </summary>
-    public static byte[] GenerateBatchPdf(string salesOrderNo, List<WorkOrder> workOrders)
+    public static byte[] GenerateBatchPdf(string salesOrderNo, List<WoEntity> workOrders)
     {
         return Document.Create(container =>
         {
@@ -56,7 +57,7 @@ public static class WorkOrderPrintHelper
     /// <summary>
     /// 多订单批量打印（按订单分组，每页2个工单）
     /// </summary>
-    public static byte[] GenerateMultiBatchPdf(List<WorkOrder> workOrders)
+    public static byte[] GenerateMultiBatchPdf(List<WoEntity> workOrders)
     {
         return Document.Create(container =>
         {
@@ -87,7 +88,7 @@ public static class WorkOrderPrintHelper
 
     // ========== 页眉 ==========
 
-    private static void ComposeHeader(IContainer container, WorkOrder entity)
+    private static void ComposeHeader(IContainer container, WoEntity entity)
     {
         container.Column(col =>
         {
@@ -162,7 +163,7 @@ public static class WorkOrderPrintHelper
 
     // ========== 内容 ==========
 
-    private static void ComposeContent(IContainer container, WorkOrder entity)
+    private static void ComposeContent(IContainer container, WoEntity entity)
     {
         ComposeWorkOrderCard(container, entity);
     }
@@ -170,7 +171,7 @@ public static class WorkOrderPrintHelper
     /// <summary>
     /// 单个工单卡片内容（3组数据，不含页眉页脚）
     /// </summary>
-    private static void ComposeWorkOrderCard(IContainer container, WorkOrder entity)
+    private static void ComposeWorkOrderCard(IContainer container, WoEntity entity)
     {
         container.Column(col =>
         {
@@ -216,7 +217,7 @@ public static class WorkOrderPrintHelper
     /// <summary>
     /// 批量打印内容：遍历工单列表，逐个渲染卡片，工单间用分隔线
     /// </summary>
-    private static void ComposeBatchContent(IContainer container, List<WorkOrder> workOrders)
+    private static void ComposeBatchContent(IContainer container, List<WoEntity> workOrders)
     {
         container.Column(col =>
         {
@@ -276,7 +277,7 @@ public static class WorkOrderPrintHelper
 
     // ========== 数据分组 ==========
 
-    private static List<(string Label, string Value)> GetGroup1Fields(WorkOrder entity)
+    private static List<(string Label, string Value)> GetGroup1Fields(WoEntity entity)
     {
         return new List<(string, string)>
         {
@@ -295,7 +296,7 @@ public static class WorkOrderPrintHelper
         };
     }
 
-    private static List<(string Label, string Value)> GetGroup2Fields(WorkOrder entity)
+    private static List<(string Label, string Value)> GetGroup2Fields(WoEntity entity)
     {
         return new List<(string, string)>
         {
@@ -315,7 +316,7 @@ public static class WorkOrderPrintHelper
         };
     }
 
-    private static List<(string Label, string Value)> GetGroup3Fields(WorkOrder entity)
+    private static List<(string Label, string Value)> GetGroup3Fields(WoEntity entity)
     {
         return new List<(string, string)>
         {
@@ -405,7 +406,7 @@ public static class WorkOrderPrintHelper
         return $"{od}*{wt}";
     }
 
-    private static decimal? CalculateUnitWeight(WorkOrder entity)
+    private static decimal? CalculateUnitWeight(WoEntity entity)
     {
         if (string.IsNullOrEmpty(entity.Specification)) return null;
 

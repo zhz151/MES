@@ -15,6 +15,8 @@ using MES.Services.Printing;
 
 namespace MES.Services;
 
+using WoEntity = MES.Data.Entities.WorkOrder;
+
 /// <summary>
 /// 工单服务实现
 /// </summary>
@@ -554,7 +556,7 @@ public class WorkOrderService : IWorkOrderService
 
         // 构建 项次ID -> (原主号, 原次号) 映射，同时建立工单ID查询
         var itemToOriginalNo = new Dictionary<int, (string MainNo, string? SubNo)>();
-        var itemToWorkOrder = new Dictionary<int, WorkOrder>(); // 用于后续校验合并字段是否一致
+        var itemToWorkOrder = new Dictionary<int, WoEntity>(); // 用于后续校验合并字段是否一致
         foreach (var wo in existingWorkOrders)
         {
             var itemIds = wo.OrderItemIds.Split(',', StringSplitOptions.RemoveEmptyEntries)
@@ -888,7 +890,7 @@ public class WorkOrderService : IWorkOrderService
             // 清除缓存，确保查询最新数据
             _context.ChangeTracker.Clear();
 
-            var workOrdersToAdd = new List<WorkOrder>();
+            var workOrdersToAdd = new List<WoEntity>();
             var generatedWorkOrders = new List<GeneratedWorkOrderDto>();
 
             foreach (var workOrderGroup in request.WorkOrders)
@@ -912,7 +914,7 @@ public class WorkOrderService : IWorkOrderService
 
                 _logger.LogWarning($"生成工单号: {workOrderNo}");
 
-                var workOrder = new WorkOrder
+                var workOrder = new WoEntity
                 {
                     WorkOrderNo = workOrderNo,
                     SalesOrderNo = request.SalesOrderNo,
@@ -1066,7 +1068,7 @@ public class WorkOrderService : IWorkOrderService
             .Where(wo => wo.SalesOrderNo == request.SalesOrderNo)
             .ToListAsync();
 
-        var existingByKey = new Dictionary<(string mainNo, string? subNo), WorkOrder>();
+        var existingByKey = new Dictionary<(string mainNo, string? subNo), WoEntity>();
         foreach (var wo in existingWorkOrders)
         {
             var key = (wo.ProductionMainNo, wo.ProductionSubNo);
@@ -1081,7 +1083,7 @@ public class WorkOrderService : IWorkOrderService
         try
         {
             var result = new List<GeneratedWorkOrderDto>();
-            var workOrdersToAdd = new List<WorkOrder>();
+            var workOrdersToAdd = new List<WoEntity>();
             var matchedKeys = new HashSet<(string mainNo, string? subNo)>();
 
             // 7. 遍历提交的分组：匹配现有工单则更新，否则新建
@@ -1205,7 +1207,7 @@ public class WorkOrderService : IWorkOrderService
                     var subPart = string.IsNullOrEmpty(group.ProductionSubNo) ? "" : $"-{group.ProductionSubNo}";
                     var workOrderNo = $"{request.SalesOrderNo}-{group.ProductionMainNo}{subPart}";
 
-                    var workOrder = new WorkOrder
+                    var workOrder = new WoEntity
                     {
                         WorkOrderNo = workOrderNo,
                         SalesOrderNo = request.SalesOrderNo,
@@ -1951,7 +1953,7 @@ public class WorkOrderService : IWorkOrderService
     /// 计算主号级聚合（使用原始标准，不含"理论满足"）
     /// </summary>
     private (decimal rate, MaterialPlanStatus status) CalculateMainNoAggregation(
-        List<WorkOrder> workOrders,
+        List<WoEntity> workOrders,
         List<PurchaseSemiPlan> semiPlans,
         List<PurchaseFinishedPlan> finishPlans,
         List<InventoryPlan> inventoryPlans,
@@ -2176,7 +2178,12 @@ public class WorkOrderService : IWorkOrderService
     {
         var workOrder = await _context.WorkOrders.FindAsync(id);
         if (workOrder == null)
-            throw new BusinessException("工单不存在");
+        {
+            // 工单已被其他方式删除，清理读模型脏数据
+            await CleanupOrphanedReadModelsAsync(id);
+            _logger.LogWarning("工单 {Id} 不存在（可能已被删除），已清理读模型脏数据", id);
+            return;
+        }
 
         // 级联删除关联的用料计划（无FK约束，需手动清理）
         var semiPlans = await _context.PurchaseSemiPlans.Where(p => p.WorkOrderId == id).ToListAsync();
@@ -2217,6 +2224,23 @@ public class WorkOrderService : IWorkOrderService
             await _statusSummaryService.RefreshByWorkOrderAsync(workOrder.SalesOrderNo);
         if (_listSummaryService != null)
             await _listSummaryService.RefreshBySalesOrderAsync(workOrder.SalesOrderNo);
+    }
+
+    private async Task CleanupOrphanedReadModelsAsync(int workOrderId)
+    {
+        // 清理 WorkOrderListSummary 脏数据
+        var listSummary = await _context.Set<WorkOrderListSummary>()
+            .FirstOrDefaultAsync(s => s.WorkOrderId == workOrderId);
+        if (listSummary != null)
+            _context.Set<WorkOrderListSummary>().Remove(listSummary);
+
+        // 清理 WorkOrderExecutionSummary 脏数据
+        var execSummary = await _context.Set<WorkOrderExecutionSummary>()
+            .FirstOrDefaultAsync(s => s.WorkOrderId == workOrderId);
+        if (execSummary != null)
+            _context.Set<WorkOrderExecutionSummary>().Remove(execSummary);
+
+        await _context.SaveChangesAsync();
     }
 
     public async Task SoftDeleteAsync(int id)
@@ -2596,7 +2620,7 @@ result.WorkOrders.Add(new WorkOrderRelationDto
         };
     }
 
-    private IQueryable<WorkOrder> ApplyWorkOrderComputedFilters(IQueryable<WorkOrder> queryable, List<FilterDescriptor>? filters)
+    private IQueryable<WoEntity> ApplyWorkOrderComputedFilters(IQueryable<WoEntity> queryable, List<FilterDescriptor>? filters)
     {
         if (filters == null || filters.Count == 0)
             return queryable;

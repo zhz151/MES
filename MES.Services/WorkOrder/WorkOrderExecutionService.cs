@@ -7,6 +7,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Helpers;
+using WoEntity = MES.Data.Entities.WorkOrder;
 
 namespace MES.Services;
 
@@ -91,6 +92,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 MaterialPlanStatus = e.MaterialPlanStatus,
                 MainNoMaterialPlanRate = e.MainNoMaterialPlanRate,
                 MainNoMaterialPlanStatus = e.MainNoMaterialPlanStatus,
+                ProcessCycle = e.ProcessCycle,
 
                 // Group 5
                 PendingRoughTubeQty = e.PendingRoughTubeQty,
@@ -115,6 +117,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 MainNoFlowStatus = e.MainNoFlowStatus,
                 FlowTotalBatchCount = e.FlowTotalBatchCount,
                 FlowIncompleteBatchCount = e.FlowIncompleteBatchCount,
+                FlowMaxRemainingWorkDays = e.FlowMaxRemainingWorkDays,
 
                 // Group 8
                 DefectiveRawQty = e.DefectiveRawQty,
@@ -147,6 +150,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 MainNoWarehousingStatus = e.MainNoWarehousingStatus,
                 OrderWarehousingStatus = e.OrderWarehousingStatus,
                 ScheduleStage = e.ScheduleStage,
+                TotalRemainingWorkDays = e.TotalRemainingWorkDays,
+                UrgencyLevel = e.UrgencyLevel,
+                EstimatedProcessCompletionDate = e.EstimatedProcessCompletionDate,
+                DaysDiffFromDelivery = e.DaysDiffFromDelivery,
+                RawMaterialLockRemark = e.RawMaterialLockRemark,
 
                 // Group 3
                 InputStartDate = e.InputStartDate,
@@ -403,6 +411,18 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             summary.MaterialPlanRate = rate;
             summary.MaterialPlanStatus = status;
 
+            // ========== G2: 工艺周期（4种用料计划中 StandardCycle 的最大值） ==========
+            var allCycles = new List<int>();
+            if (semiByWo.TryGetValue(wo.Id, out var semiList))
+                allCycles.AddRange(semiList.Select(p => p.StandardCycle));
+            if (finishByWo.TryGetValue(wo.Id, out var finishList))
+                allCycles.AddRange(finishList.Select(p => p.StandardCycle));
+            if (inventoryByWo.TryGetValue(wo.Id, out var invList))
+                allCycles.AddRange(invList.Select(p => p.StandardCycle));
+            if (piercingByWo.TryGetValue(wo.Id, out var piercingList))
+                allCycles.AddRange(piercingList.Select(p => p.StandardCycle));
+            summary.ProcessCycle = allCycles.Count > 0 ? allCycles.Max() : 25; // 未计划默认25
+
             // ========== Group 11: 成品入库（从 InventoryBatch 聚合） ==========
             ibByWoNo.TryGetValue(wo.WorkOrderNo, out var woIbList);
             if (woIbList?.Count > 0)
@@ -457,6 +477,128 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.ScheduleStage = 3;          // 成品检验
         }
 
+        // ========== G12: 计算剩余总工量 & 工单计划性 ==========
+        var mainNoAgg = summaries
+            .GroupBy(s => new { s.SalesOrderNo, s.ProductionMainNo })
+            .ToDictionary(
+                g => g.Key,
+                g => new
+                {
+                    MaxProcessCycle = g.Max(s => s.ProcessCycle),
+                    MaxRemainingDays = g.Max(s => s.FlowMaxRemainingWorkDays)
+                });
+
+        foreach (var summary in summaries)
+        {
+            if (summary.ScheduleStage == 0)
+            {
+                summary.TotalRemainingWorkDays = null;
+                summary.UrgencyLevel = null;
+                continue;
+            }
+
+            // 查找主号级最大值
+            var key = new { summary.SalesOrderNo, summary.ProductionMainNo };
+            mainNoAgg.TryGetValue(key, out var agg);
+
+            // 剩余总工量
+            summary.TotalRemainingWorkDays = summary.ScheduleStage switch
+            {
+                1 => (agg?.MaxProcessCycle ?? 0) + 3,
+                2 => agg?.MaxRemainingDays ?? 0,
+                3 => 3,
+                _ => null
+            };
+
+            // 工单计划性：剩余总工量 + 今天天数 - 交货日期天数
+            var todayDays = DateOnly.FromDateTime(DateTime.Today).DayNumber;
+            var deliveryDays = DateOnly.FromDateTime(summary.DeliveryDate).DayNumber;
+            var diff = (summary.TotalRemainingWorkDays ?? 0) + todayDays - deliveryDays;
+
+            summary.UrgencyLevel = diff > 67 ? "A+急"
+                : diff > 60 ? "A急"
+                : diff > 53 ? "B顺"
+                : diff > 45 ? "C缓"
+                : "D缓";
+
+            // 工艺预计完成日 & 交期相差天数
+            if (summary.TotalRemainingWorkDays.HasValue)
+            {
+                summary.EstimatedProcessCompletionDate = DateTime.Today.AddDays(summary.TotalRemainingWorkDays.Value);
+                summary.DaysDiffFromDelivery = (summary.EstimatedProcessCompletionDate.Value.Date - summary.DeliveryDate.Date).Days;
+            }
+        }
+
+        // ========== G12: 原锁备注（仅 ScheduleStage=1 时计算） ==========
+        // Type B 需按主号聚合，先预计算
+        var stageOneSummaries = summaries.Where(s => s.ScheduleStage == 1).ToList();
+        var typeBLookup = new Dictionary<(string SalesOrderNo, string MainNo), bool>();
+        if (stageOneSummaries.Count > 0)
+        {
+            var mainNoGroups = stageOneSummaries
+                .GroupBy(s => new { s.SalesOrderNo, s.ProductionMainNo })
+                .ToList();
+
+            foreach (var group in mainNoGroups)
+            {
+                var key = (group.Key.SalesOrderNo, group.Key.ProductionMainNo);
+                var isFixed = group.First().LengthStatus == "Fixed";
+
+                var totalTheorFinishQty = group.Sum(s => s.TheoreticalFinishQty);
+                var totalTheorFinishWeight = group.Sum(s => s.TheoreticalFinishWeight);
+                var totalQty = group.Sum(s => s.TotalQuantity);
+                var totalWeight = group.Sum(s => s.TotalWeight);
+
+                decimal g5Ratio;
+                if (isFixed)
+                    g5Ratio = totalQty > 0 ? Math.Round(totalTheorFinishQty / totalQty * 100, 2) : 0;
+                else
+                    g5Ratio = totalWeight > 0 ? Math.Round(totalTheorFinishWeight / totalWeight * 100, 2) : 0;
+
+                // 主号流转比所有同组工单相同，取首个
+                var mainNoFlowRatio = group.First().MainNoFlowOutputRatio;
+                typeBLookup[key] = (g5Ratio + mainNoFlowRatio) >= 100m;
+            }
+        }
+
+        foreach (var summary in summaries)
+        {
+            if (summary.ScheduleStage != 1)
+            {
+                summary.RawMaterialLockRemark = null;
+                continue;
+            }
+
+            // Type A: 质量影响 — G3 原始主号状态=满足(2) AND G7 有效主号状态≠满足(≠2)
+            if (summary.MainNoInputStatus == 2 && summary.MainNoFlowStatus != 2)
+            {
+                summary.RawMaterialLockRemark = "A质量影响";
+                continue;
+            }
+
+            // Type B: 已购未回 — G5理论成品(主号聚合比值) + G7有效主号流转比 ≥ 100%
+            var bKey = (summary.SalesOrderNo, summary.ProductionMainNo);
+            if (typeBLookup.TryGetValue(bKey, out var isTypeB) && isTypeB)
+            {
+                summary.RawMaterialLockRemark = "B已购未回";
+                continue;
+            }
+
+            // Type C: 计划未执行 — G2 主号计划状态=满足(3)或超量(4)
+            if (summary.MainNoMaterialPlanStatus == 3 || summary.MainNoMaterialPlanStatus == 4)
+            {
+                summary.RawMaterialLockRemark = "C计划未执行";
+                continue;
+            }
+
+            // Type D: 未完善计划 — G2 主号计划状态=未计划(0)或部分(1)
+            if (summary.MainNoMaterialPlanStatus == 0 || summary.MainNoMaterialPlanStatus == 1)
+            {
+                summary.RawMaterialLockRemark = "D未完善计划";
+                continue;
+            }
+        }
+
         // 批量 Upsert
         var existingRecords = await _context.Set<WorkOrderExecutionSummary>().ToListAsync();
 
@@ -496,7 +638,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     }
 
     private static WorkOrderExecutionSummary ComputeSummary(
-        WorkOrder wo,
+        WoEntity wo,
         string customerName,
         string salesman,
         List<ProductionBatch> batches,
@@ -662,6 +804,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         var allTargetBatches = targetBatches.Concat(reworkBatches).ToList();
         summary.FlowTotalBatchCount = allTargetBatches.Count;
         summary.FlowIncompleteBatchCount = allTargetBatches.Count(b => b.Status != BatchStatus.Completed);
+        summary.FlowMaxRemainingWorkDays = allTargetBatches.Count > 0
+            ? allTargetBatches.Max(b => b.RemainingWorkDays)
+            : 0;
 
         // ========== Group 8: 过程不合格（G3 − G4，负值归零） ==========
         var defectiveRawQty = Math.Max(0, summary.InputQuantity - summary.ValidInputQuantity);
@@ -714,7 +859,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     }
 
     private static (decimal ratio, int status) ComputeInputRatioAndStatus(
-        WorkOrderExecutionSummary summary, WorkOrder wo)
+        WorkOrderExecutionSummary summary, WoEntity wo)
     {
         return ComputeInputRatioAndStatus(summary.LengthStatus, summary.TheoreticalOutputQty, summary.TheoreticalOutputWeight, wo.TotalQuantity, wo.TotalWeight);
     }
@@ -768,7 +913,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     }
 
     private static void ComputeMainNoInputAggregation(
-        List<WorkOrderExecutionSummary> summaries, List<WorkOrder> workOrders)
+        List<WorkOrderExecutionSummary> summaries, List<WoEntity> workOrders)
     {
         var woDict = workOrders.ToDictionary(wo => wo.Id);
         // 使用 summary 中已算好的满足率（来自计划数据实时计算）
@@ -925,7 +1070,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     /// 否则→入库部分
     /// </summary>
     private static void ComputeWarehousingAggregation(
-        List<WorkOrderExecutionSummary> summaries, List<WorkOrder> workOrders)
+        List<WorkOrderExecutionSummary> summaries, List<WoEntity> workOrders)
     {
         var woDict = workOrders.ToDictionary(wo => wo.Id);
 
@@ -1009,6 +1154,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         target.MaterialPlanStatus = source.MaterialPlanStatus;
         target.MainNoMaterialPlanRate = source.MainNoMaterialPlanRate;
         target.MainNoMaterialPlanStatus = source.MainNoMaterialPlanStatus;
+        target.ProcessCycle = source.ProcessCycle;
 
         // Group 5
         target.PendingRoughTubeQty = source.PendingRoughTubeQty;
@@ -1052,6 +1198,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         target.MainNoFlowStatus = source.MainNoFlowStatus;
         target.FlowTotalBatchCount = source.FlowTotalBatchCount;
         target.FlowIncompleteBatchCount = source.FlowIncompleteBatchCount;
+        target.FlowMaxRemainingWorkDays = source.FlowMaxRemainingWorkDays;
 
         // Group 8
         target.DefectiveRawQty = source.DefectiveRawQty;
@@ -1086,6 +1233,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
         // G12
         target.ScheduleStage = source.ScheduleStage;
+        target.TotalRemainingWorkDays = source.TotalRemainingWorkDays;
+        target.UrgencyLevel = source.UrgencyLevel;
+        target.EstimatedProcessCompletionDate = source.EstimatedProcessCompletionDate;
+        target.DaysDiffFromDelivery = source.DaysDiffFromDelivery;
+        target.RawMaterialLockRemark = source.RawMaterialLockRemark;
 
         // 刷新时间
         target.LastRefreshTime = source.LastRefreshTime;
@@ -1101,15 +1253,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 s.WorkOrderNo,
                 s.Salesman,
                 s.CustomerName,
-                s.SettlementMethod,
                 s.SalesOrderNo,
                 s.ProductionMainNo,
                 s.ProductionSubNo,
-                s.MaterialName,
-                s.DeliveryState,
                 s.PlantGrade,
                 s.Specification,
-                s.LengthStatus
             })
             .ToListAsync();
 
@@ -1118,15 +1266,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo).Distinct().OrderBy(x => x).ToList(),
             ["Salesman"] = all.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
             ["CustomerName"] = all.Select(x => x.CustomerName).Distinct().OrderBy(x => x).ToList(),
-            ["SettlementMethod"] = all.Select(x => x.SettlementMethod).Distinct().OrderBy(x => x).ToList(),
             ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo).Distinct().OrderBy(x => x).ToList(),
             ["ProductionMainNo"] = all.Select(x => x.ProductionMainNo).Distinct().OrderBy(x => x).ToList(),
             ["ProductionSubNo"] = all.Where(x => x.ProductionSubNo != null).Select(x => x.ProductionSubNo!).Distinct().OrderBy(x => x).ToList(),
-            ["MaterialName"] = all.Select(x => x.MaterialName).Distinct().OrderBy(x => x).ToList(),
-            ["DeliveryState"] = all.Select(x => x.DeliveryState).Distinct().OrderBy(x => x).ToList(),
             ["PlantGrade"] = all.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
             ["Specification"] = all.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
-            ["LengthStatus"] = all.Select(x => x.LengthStatus).Distinct().OrderBy(x => x).ToList(),
         };
     }
 
@@ -1198,6 +1342,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             ("materialplanstatus", true) => query.OrderByDescending(x => x.MaterialPlanStatus),
             ("mainnomaterialplanstatus", false) => query.OrderBy(x => x.MainNoMaterialPlanStatus),
             ("mainnomaterialplanstatus", true) => query.OrderByDescending(x => x.MainNoMaterialPlanStatus),
+            ("processcycle", false) => query.OrderBy(x => x.ProcessCycle),
+            ("processcycle", true) => query.OrderByDescending(x => x.ProcessCycle),
             ("pendingroughtubeqty", false) => query.OrderBy(x => x.PendingRoughTubeQty),
             ("pendingroughtubeqty", true) => query.OrderByDescending(x => x.PendingRoughTubeQty),
             ("pendingroughtubeweight", false) => query.OrderBy(x => x.PendingRoughTubeWeight),
@@ -1258,6 +1404,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             ("flowtotalbatchcount", true) => query.OrderByDescending(x => x.FlowTotalBatchCount),
             ("flowincompletebatchcount", false) => query.OrderBy(x => x.FlowIncompleteBatchCount),
             ("flowincompletebatchcount", true) => query.OrderByDescending(x => x.FlowIncompleteBatchCount),
+            ("flowmaxremainingworkdays", false) => query.OrderBy(x => x.FlowMaxRemainingWorkDays),
+            ("flowmaxremainingworkdays", true) => query.OrderByDescending(x => x.FlowMaxRemainingWorkDays),
             ("flowstatus", false) => query.OrderBy(x => x.FlowStatus),
             ("flowstatus", true) => query.OrderByDescending(x => x.FlowStatus),
             ("mainnoflowstatus", false) => query.OrderBy(x => x.MainNoFlowStatus),
@@ -1320,6 +1468,16 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             // G12
             ("schedulestage", false) => query.OrderBy(x => x.ScheduleStage),
             ("schedulestage", true) => query.OrderByDescending(x => x.ScheduleStage),
+            ("totalremainingworkdays", false) => query.OrderBy(x => x.TotalRemainingWorkDays),
+            ("totalremainingworkdays", true) => query.OrderByDescending(x => x.TotalRemainingWorkDays),
+            ("urgencylevel", false) => query.OrderBy(x => x.UrgencyLevel),
+            ("urgencylevel", true) => query.OrderByDescending(x => x.UrgencyLevel),
+            ("estimatedprocesscompletiondate", false) => query.OrderBy(x => x.EstimatedProcessCompletionDate),
+            ("estimatedprocesscompletiondate", true) => query.OrderByDescending(x => x.EstimatedProcessCompletionDate),
+            ("daysdifffromdelivery", false) => query.OrderBy(x => x.DaysDiffFromDelivery),
+            ("daysdifffromdelivery", true) => query.OrderByDescending(x => x.DaysDiffFromDelivery),
+            ("rawmateriallockremark", false) => query.OrderBy(x => x.RawMaterialLockRemark ?? ""),
+            ("rawmateriallockremark", true) => query.OrderByDescending(x => x.RawMaterialLockRemark ?? ""),
 
             _ => query.OrderByDescending(x => x.LastRefreshTime),
         };

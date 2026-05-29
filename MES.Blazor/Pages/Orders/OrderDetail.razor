@@ -603,11 +603,12 @@
         _isEditMode = true;
     }
 
-    private async Task CancelEdit()
+    private Task CancelEdit()
     {
         _isEditMode = false;
         ResetEditModels();
         StateHasChanged();
+        return Task.CompletedTask;
     }
 
     // ========== 项次操作 ==========

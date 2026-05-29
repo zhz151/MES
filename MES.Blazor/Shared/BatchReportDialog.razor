@@ -211,21 +211,21 @@
         }
     }
 
-    private async Task Submit()
+    private Task Submit()
     {
         // 验证：至少有一行填写了加工支数或重量
         var validRows = _editingRows.Where(r => r.Quantity.HasValue || r.Weight.HasValue).ToList();
         if (validRows.Count == 0)
         {
             Snackbar.Add("请至少填写一个工段的加工支数或重量", Severity.Warning);
-            return;
+            return Task.CompletedTask;
         }
 
         // 验证执行日期
         if (validRows.Any(r => string.IsNullOrEmpty(r.ExecDate)))
         {
             Snackbar.Add("请填写所有工段的执行日期", Severity.Warning);
-            return;
+            return Task.CompletedTask;
         }
 
         _submitting = true;
@@ -272,6 +272,7 @@
             _submitting = false;
             StateHasChanged();
         }
+        return Task.CompletedTask;
     }
 
     private void Cancel() => MudDialog.Cancel();

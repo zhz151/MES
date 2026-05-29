@@ -121,12 +121,13 @@
             </MudGrid>
 
             <!-- 数据表格 -->
+            <div id="process-card-print-list-table">
             <MudTable @ref="table"
                       T="ProductionBatchListDto"
                       ServerData="LoadDataFromServer"
                       Dense="true"
                       Hover="true"
-                      Class="mt-2 auto-table"
+                      Class="mt-2 auto-table compact-table"
                       Elevation="0"
                       RowsPerPage="10"
                       RowsPerPageLabel="每页行数:"
@@ -153,7 +154,7 @@
                     </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTh>
+                        <MudTh Style="width: col.Width">
                             <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer">
                                     @col.Label
@@ -198,6 +199,7 @@
                     <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
             </MudTable>
+            </div>
         </MudCardContent>
     </MudCard>
 </MudContainer>
@@ -228,7 +230,6 @@
         }
     }
     private int _currentPage = 1;
-    private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
 
     private string sortColumn = "batchno";
@@ -249,29 +250,29 @@
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "BatchNo",            Label = "生产编号", SortKey = "batchno", FilterType = "string" },
-        new() { Key = "TagNo",              Label = "挂牌号",   SortKey = "tagno", FilterType = "string" },
-        new() { Key = "CreatedTime",        Label = "创建时间", SortKey = "createdtime", FilterType = "date" },
-        new() { Key = "WorkOrderNo",        Label = "工单号",   SortKey = "workorderno", FilterType = "string" },
-        new() { Key = "SalesOrderNo",       Label = "订单号",   SortKey = "salesorderno", FilterType = "string" },
-        new() { Key = "ProductionMainNo",   Label = "主号",     SortKey = "productionmainno", FilterType = "string" },
-        new() { Key = "ProductionSubNo",    Label = "次号",     SortKey = "productionsubno", FilterType = "string" },
-        new() { Key = "ProductionType",     Label = "生产类型", SortKey = "productiontype", FilterType = "enum",
+        new() { Key = "BatchNo",            Label = "生产编号", SortKey = "batchno", FilterType = "string", Width = "120" },
+        new() { Key = "TagNo",              Label = "挂牌号",   SortKey = "tagno", FilterType = "string", Width = "120" },
+        new() { Key = "CreatedTime",        Label = "创建时间", SortKey = "createdtime", FilterType = "date", Width = "120" },
+        new() { Key = "WorkOrderNo",        Label = "工单号",   SortKey = "workorderno", FilterType = "string", Width = "120" },
+        new() { Key = "SalesOrderNo",       Label = "订单号",   SortKey = "salesorderno", FilterType = "string", Width = "120" },
+        new() { Key = "ProductionMainNo",   Label = "主号",     SortKey = "productionmainno", FilterType = "string", Width = "120" },
+        new() { Key = "ProductionSubNo",    Label = "次号",     SortKey = "productionsubno", FilterType = "string", Width = "120" },
+        new() { Key = "ProductionType",     Label = "生产类型", SortKey = "productiontype", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("RoughTube", "荒管生产"), new("InProcess", "在制生产"), new("Inventory", "库存"),
                 new("OutsourcedPurchased", "外购"), new("Rework", "返整"), new("Subcontract", "委外生产"), new("ExternalProcessing", "对外加工") } },
-        new() { Key = "ManufacturingItem",  Label = "制造物品", SortKey = "manufacturingitem", FilterType = "enum",
+        new() { Key = "ManufacturingItem",  Label = "制造物品", SortKey = "manufacturingitem", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("OrderFinishedProduct", "订单成品"), new("PreparedMaterial", "备料成品"),
                 new("SurplusStock", "余库料"), new("IntermediateProduct", "中间品"), new("SpecialDeliveryStatus", "特定交态成品") } },
-        new() { Key = "Status",             Label = "状态",     SortKey = "status", FilterType = "enum",
+        new() { Key = "Status",             Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("None", "无"), new("InProgress", "在产"), new("Completed", "完成"), new("Suspended", "暂停"), new("Cancelled", "取消") } },
-        new() { Key = "CurrentExecDate",    Label = "截止执行日", SortKey = "currentexecdate", FilterType = "date" },
-        new() { Key = "CurrentGroupName",   Label = "当前工序", SortKey = "currentgroupname", FilterType = "string" },
-        new() { Key = "CurrentSectionName", Label = "当前工段", SortKey = "currentsectionname", FilterType = "string" },
-        new() { Key = "CurrentEquipmentName", Label = "当前设备", SortKey = "currentequipmentname", FilterType = "string" },
-        new() { Key = "CurrentOutsource",   Label = "当前委外", SortKey = "currentoutsource", FilterType = "string" },
-        new() { Key = "CurrentSpec",        Label = "当前规格", SortKey = "currentspec", FilterType = "string" },
-        new() { Key = "NextSectionName",    Label = "下一工段", SortKey = "nextsectionname", FilterType = "string" },
-        new() { Key = "CorrespondingSpec",  Label = "对应规格", SortKey = "correspondingspec", FilterType = "string" },
+        new() { Key = "CurrentExecDate",    Label = "截止执行日", SortKey = "currentexecdate", FilterType = "date", Width = "120" },
+        new() { Key = "CurrentGroupName",   Label = "当前工序", SortKey = "currentgroupname", FilterType = "string", Width = "120" },
+        new() { Key = "CurrentSectionName", Label = "当前工段", SortKey = "currentsectionname", FilterType = "string", Width = "120" },
+        new() { Key = "CurrentEquipmentName", Label = "当前设备", SortKey = "currentequipmentname", FilterType = "string", Width = "120" },
+        new() { Key = "CurrentOutsource",   Label = "当前委外", SortKey = "currentoutsource", FilterType = "string", Width = "120" },
+        new() { Key = "CurrentSpec",        Label = "当前规格", SortKey = "currentspec", FilterType = "string", Width = "120" },
+        new() { Key = "NextSectionName",    Label = "下一工段", SortKey = "nextsectionname", FilterType = "string", Width = "120" },
+        new() { Key = "CorrespondingSpec",  Label = "对应规格", SortKey = "correspondingspec", FilterType = "string", Width = "120" },
     };
 
     // ========== 列选择操作 ==========

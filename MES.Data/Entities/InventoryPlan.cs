@@ -93,11 +93,6 @@ public class InventoryPlan : BaseEntity
     public ReworkType? ReworkType { get; set; }
 
     /// <summary>
-    /// 简化生产工艺（仅改制时使用，JSON数组格式：[{"step":1,"spec":"67*5"},...]）
-    /// </summary>
-    public string? ProcessPlan { get; set; }
-
-    /// <summary>
     /// 工艺周期（天）：库存使用默认为3天，库料改制根据标准工艺生产周期计算
     /// </summary>
     public int StandardCycle { get; set; }

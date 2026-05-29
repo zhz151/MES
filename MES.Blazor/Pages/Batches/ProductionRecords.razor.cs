@@ -43,7 +43,7 @@ public partial class ProductionRecords
     private int _restoredPageIndex;
     private int _currentPageIndex;
     private bool _isFirstLoad = true;
-    private int _pageSize = 10;
+
     private string _searchKeyword = string.Empty;
 
     // 排序
@@ -62,26 +62,26 @@ public partial class ProductionRecords
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "ExecDate",          Label = "执行日期",   SortKey = "execdate", FilterType = "date" },
-        new() { Key = "BatchNo",           Label = "批次号",     SortKey = "batchno",           FilterType = "string" },
-        new() { Key = "ProcessName",       Label = "工序名称",   SortKey = "processname",       FilterType = "string" },
-        new() { Key = "ManufacturingSpec", Label = "制造规格", SortKey = "manufacturingspec", FilterType = "string" },
-        new() { Key = "SectionName",       Label = "工段名称",   SortKey = "sectionname",       FilterType = "string" },
-        new() { Key = "SequenceNumber",    Label = "组内序号",   SortKey = "sequencenumber" },
-        new() { Key = "EquipmentName",     Label = "设备名称",   SortKey = "equipmentname",     FilterType = "string" },
-        new() { Key = "Operator",          Label = "操作人",     SortKey = "operator",          FilterType = "string" },
-        new() { Key = "Shift",             Label = "班次",       SortKey = "shift",             FilterType = "string" },
-        new() { Key = "Quantity",          Label = "加工支数",   SortKey = "quantity" },
-        new() { Key = "Weight",            Label = "加工重量",   SortKey = "weight" },
-        new() { Key = "IsFinished",        Label = "是否成品", SortKey = "isfinished",         FilterType = "boolean", BoolTrueLabel = "成品", BoolFalseLabel = "在制品" },
-        new() { Key = "CuttingMultiple",   Label = "断切倍数",   SortKey = "cuttingmultiple" },
-        new() { Key = "FinishedCutLength", Label = "成品长度",   SortKey = "finishedcutlength" },
-        new() { Key = "PostCutQuantity",   Label = "切后支数",   SortKey = "postcutquantity" },
-        new() { Key = "TagNo",             Label = "挂牌号",     SortKey = "tagno",             FilterType = "string" },
-        new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade",        FilterType = "string" },
-        new() { Key = "Remark",            Label = "备注",       SortKey = "remark",            FilterType = "string" },
-        new() { Key = "CreatedTime",       Label = "创建日期",   SortKey = "createdtime" },
-        new() { Key = "UpdatedTime",       Label = "更新日期",   SortKey = "updatedtime" },
+        new() { Key = "ExecDate",          Label = "执行日期",   SortKey = "execdate", FilterType = "date", Width = "120" },
+        new() { Key = "BatchNo",           Label = "批次号",     SortKey = "batchno",           FilterType = "string", Width = "120" },
+        new() { Key = "ProcessName",       Label = "工序名称",   SortKey = "processname",       FilterType = "string", Width = "120" },
+        new() { Key = "ManufacturingSpec", Label = "制造规格", SortKey = "manufacturingspec", FilterType = "string", Width = "120" },
+        new() { Key = "SectionName",       Label = "工段名称",   SortKey = "sectionname",       FilterType = "string", Width = "120" },
+        new() { Key = "SequenceNumber",    Label = "组内序号",   SortKey = "sequencenumber", Width = "45" },
+        new() { Key = "EquipmentName",     Label = "设备名称",   SortKey = "equipmentname",     FilterType = "string", Width = "120" },
+        new() { Key = "Operator",          Label = "操作人",     SortKey = "operator",          FilterType = "string", Width = "120" },
+        new() { Key = "Shift",             Label = "班次",       SortKey = "shift",             FilterType = "string", Width = "120" },
+        new() { Key = "Quantity",          Label = "加工支数",   SortKey = "quantity", Width = "80" },
+        new() { Key = "Weight",            Label = "加工重量",   SortKey = "weight", Width = "80" },
+        new() { Key = "IsFinished",        Label = "是否成品", SortKey = "isfinished",         FilterType = "boolean", BoolTrueLabel = "成品", BoolFalseLabel = "在制品", Width = "60" },
+        new() { Key = "CuttingMultiple",   Label = "断切倍数",   SortKey = "cuttingmultiple", Width = "80" },
+        new() { Key = "FinishedCutLength", Label = "成品长度",   SortKey = "finishedcutlength", Width = "80" },
+        new() { Key = "PostCutQuantity",   Label = "切后支数",   SortKey = "postcutquantity", Width = "80" },
+        new() { Key = "TagNo",             Label = "挂牌号",     SortKey = "tagno",             FilterType = "string", Width = "120" },
+        new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade",        FilterType = "string", Width = "120" },
+        new() { Key = "Remark",            Label = "备注",       SortKey = "remark",            FilterType = "string", Width = "120" },
+        new() { Key = "CreatedTime",       Label = "创建日期",   SortKey = "createdtime", Width = "120" },
+        new() { Key = "UpdatedTime",       Label = "更新日期",   SortKey = "updatedtime", Width = "120" },
     };
 
     // ========== 服务端数据加载 ==========

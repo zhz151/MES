@@ -59,8 +59,8 @@ public partial class Standards
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "StandardCode", Label = "标准编码", SortKey = "standardcode", FilterType = "string" },
-        new() { Key = "StandardName", Label = "标准名称", SortKey = "standardname", FilterType = "string" },
+        new() { Key = "StandardCode", Label = "标准编码", SortKey = "standardcode", FilterType = "string", IsRequired = true },
+        new() { Key = "StandardName", Label = "标准名称", SortKey = "standardname", FilterType = "string", IsRequired = true },
         new() { Key = "IsActive",     Label = "状态",     SortKey = "isactive", FilterType = "boolean", BoolTrueLabel = "启用", BoolFalseLabel = "停用" },
         new() { Key = "Remark",       Label = "备注", SortKey = "remark", FilterType = "string" },
     };

@@ -1,6 +1,7 @@
 using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Data.Entities;
+using WorkOrderEntity = MES.Data.Entities.WorkOrder;
 
 namespace MES.Services.Mapping;
 
@@ -56,7 +57,7 @@ public static class DtoMapper
         CreatedTime = entity.CreatedTime
     };
 
-    public static WorkOrderListDto ToListDto(this WorkOrder entity) => new()
+    public static WorkOrderListDto ToListDto(this WorkOrderEntity entity) => new()
     {
         Id = entity.Id,
         WorkOrderNo = entity.WorkOrderNo,
@@ -85,7 +86,7 @@ public static class DtoMapper
         CreatedTime = entity.CreatedTime
     };
 
-    public static WorkOrderDetailDto ToDetailDto(this WorkOrder entity) => new()
+    public static WorkOrderDetailDto ToDetailDto(this WorkOrderEntity entity) => new()
     {
         Id = entity.Id,
         WorkOrderNo = entity.WorkOrderNo,
@@ -128,7 +129,7 @@ public static class DtoMapper
         UnitWeight = CalculateUnitWeight(entity)
     };
 
-    private static decimal? CalculateUnitWeight(WorkOrder entity)
+    private static decimal? CalculateUnitWeight(WorkOrderEntity entity)
     {
         if (string.IsNullOrEmpty(entity.Specification)) return null;
 
@@ -356,4 +357,83 @@ public static class DtoMapper
         CreatedTime = entity.CreatedTime,
         CreatedBy = entity.CreatedBy
     };
+
+    // ========== 用料计划工序组（子实体共用MaterialPlanProcessGroupDto） ==========
+
+    private static MaterialPlanProcessGroupDto ToPlanGroupDto(
+        int parentPlanId, int sequenceNumber,
+        string processName, string? manufacturingSpec, string? outerDiameterTolerance,
+        string? wallThicknessTolerance, string? manufacturingLength, string? cuttingTreatment,
+        int manufacturingMultiple, string? remark,
+        int? coldRollDraw, int? oilPipeCut, int? degrease, int? solution,
+        int? straighten, int? cut, int? thicknessMeasure, int? pickle,
+        int? outerPolish, int? innerGrinding, int? outerSpotGrinding,
+        int? inspection, int? weldingHead, int? lubrication, int? warehouse,
+        int id, DateTimeOffset createdTime, string createdBy) => new()
+    {
+        Id = id,
+        ParentPlanId = parentPlanId,
+        SequenceNumber = sequenceNumber,
+        ProcessName = processName,
+        ManufacturingSpec = manufacturingSpec,
+        OuterDiameterTolerance = outerDiameterTolerance,
+        WallThicknessTolerance = wallThicknessTolerance,
+        ManufacturingLength = manufacturingLength,
+        CuttingTreatment = cuttingTreatment,
+        ManufacturingMultiple = manufacturingMultiple,
+        Remark = remark,
+        ColdRollDraw = coldRollDraw,
+        OilPipeCut = oilPipeCut,
+        Degrease = degrease,
+        Solution = solution,
+        Straighten = straighten,
+        Cut = cut,
+        ThicknessMeasure = thicknessMeasure,
+        Pickle = pickle,
+        OuterPolish = outerPolish,
+        InnerGrinding = innerGrinding,
+        OuterSpotGrinding = outerSpotGrinding,
+        Inspection = inspection,
+        WeldingHead = weldingHead,
+        Lubrication = lubrication,
+        Warehouse = warehouse,
+        CreatedTime = createdTime,
+        CreatedBy = createdBy
+    };
+
+    public static MaterialPlanProcessGroupDto ToDto(this SemiPlanProcessGroup entity) =>
+        ToPlanGroupDto(
+            entity.PurchaseSemiPlanId, entity.SequenceNumber,
+            entity.ProcessName, entity.ManufacturingSpec, entity.OuterDiameterTolerance,
+            entity.WallThicknessTolerance, entity.ManufacturingLength, entity.CuttingTreatment,
+            entity.ManufacturingMultiple, entity.Remark,
+            entity.ColdRollDraw, entity.OilPipeCut, entity.Degrease, entity.Solution,
+            entity.Straighten, entity.Cut, entity.ThicknessMeasure, entity.Pickle,
+            entity.OuterPolish, entity.InnerGrinding, entity.OuterSpotGrinding,
+            entity.Inspection, entity.WeldingHead, entity.Lubrication, entity.Warehouse,
+            entity.Id, entity.CreatedTime, entity.CreatedBy);
+
+    public static MaterialPlanProcessGroupDto ToDto(this InventoryPlanProcessGroup entity) =>
+        ToPlanGroupDto(
+            entity.InventoryPlanId, entity.SequenceNumber,
+            entity.ProcessName, entity.ManufacturingSpec, entity.OuterDiameterTolerance,
+            entity.WallThicknessTolerance, entity.ManufacturingLength, entity.CuttingTreatment,
+            entity.ManufacturingMultiple, entity.Remark,
+            entity.ColdRollDraw, entity.OilPipeCut, entity.Degrease, entity.Solution,
+            entity.Straighten, entity.Cut, entity.ThicknessMeasure, entity.Pickle,
+            entity.OuterPolish, entity.InnerGrinding, entity.OuterSpotGrinding,
+            entity.Inspection, entity.WeldingHead, entity.Lubrication, entity.Warehouse,
+            entity.Id, entity.CreatedTime, entity.CreatedBy);
+
+    public static MaterialPlanProcessGroupDto ToDto(this PiercingPlanProcessGroup entity) =>
+        ToPlanGroupDto(
+            entity.RoundBarPiercingPlanId, entity.SequenceNumber,
+            entity.ProcessName, entity.ManufacturingSpec, entity.OuterDiameterTolerance,
+            entity.WallThicknessTolerance, entity.ManufacturingLength, entity.CuttingTreatment,
+            entity.ManufacturingMultiple, entity.Remark,
+            entity.ColdRollDraw, entity.OilPipeCut, entity.Degrease, entity.Solution,
+            entity.Straighten, entity.Cut, entity.ThicknessMeasure, entity.Pickle,
+            entity.OuterPolish, entity.InnerGrinding, entity.OuterSpotGrinding,
+            entity.Inspection, entity.WeldingHead, entity.Lubrication, entity.Warehouse,
+            entity.Id, entity.CreatedTime, entity.CreatedBy);
 }

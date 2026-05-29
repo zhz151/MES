@@ -64,12 +64,12 @@ public partial class StandardProcessCycles
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "PlantGrade",     Label = "工厂牌号",   SortKey = "plantgrade",     FilterType = "string" },
-        new() { Key = "RawMaterialType",Label = "原料类型",   SortKey = "rawmaterialtype",FilterType = "string" },
-        new() { Key = "RawSpec",        Label = "原料规格",   SortKey = "rawspec",        FilterType = "string" },
-        new() { Key = "ProductSpec",    Label = "成品规格",   SortKey = "productspec",    FilterType = "string" },
-        new() { Key = "DeliveryState",  Label = "交货状态",   SortKey = "deliverystate",  FilterType = "string" },
-        new() { Key = "StandardCycleDays", Label = "周期(天)",SortKey = "standardcycledays", FilterType = null },
+        new() { Key = "PlantGrade",     Label = "工厂牌号",   SortKey = "plantgrade",     FilterType = "string", IsRequired = true },
+        new() { Key = "RawMaterialType",Label = "原料类型",   SortKey = "rawmaterialtype",FilterType = "string", IsRequired = true },
+        new() { Key = "RawSpec",        Label = "原料规格",   SortKey = "rawspec",        FilterType = "string", IsRequired = true },
+        new() { Key = "ProductSpec",    Label = "成品规格",   SortKey = "productspec",    FilterType = "string", IsRequired = true },
+        new() { Key = "DeliveryState",  Label = "交货状态",   SortKey = "deliverystate",  FilterType = "string", IsRequired = true },
+        new() { Key = "StandardCycleDays", Label = "周期(天)",SortKey = "standardcycledays", FilterType = null, IsRequired = true },
     };
 
     // ========== 服务端数据加载 ==========

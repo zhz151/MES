@@ -54,13 +54,13 @@
             </MudGrid>
 
             <!-- 数据表格 -->
-            <div id="workorder-execution-table">
+            <div id="workorder-execution-list-table">
             <MudTable @ref="table"
                       T="WorkOrderExecutionSummaryDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"
                       Hover="true"
-                      Class="mt-4 auto-table"
+                      Class="mt-4 auto-table compact-table"
                       Elevation="0"
                       RowsPerPage="@_pageSize"
                       RowsPerPageLabel="每页行数:">
@@ -86,7 +86,7 @@
                         var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
                         _prevGk = col.GroupKey;
                         var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
-                        <MudTh Class="@_headerClass">
+                        <MudTh Class="@_headerClass" Style="width: col.Width">
                             <div class="col-header-cell">
                                 @if (_isGroupStart && col.GroupName != null)
                                 {

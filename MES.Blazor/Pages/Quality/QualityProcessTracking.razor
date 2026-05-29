@@ -36,11 +36,11 @@
                 </MudItem>
             </MudGrid>
 
+            <div id="quality-process-tracking-list-table">
             <MudTable @ref="table" T="QualityProcessTrackingDto"
                       ServerData="@LoadDataFromServer"
-                      Dense="true" Hover="true" Class="mt-4 auto-table"
-                      Elevation="0" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:"
-                      id="quality-process-tracking-table">
+                      Dense="true" Hover="true" Class="mt-4 auto-table compact-table"
+                      Elevation="0" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
 
                 <ToolBarContent>
                     <ColumnDisplaySelect Columns="_allColumns"
@@ -61,7 +61,7 @@
                 <HeaderContent>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTh>
+                        <MudTh Style="width: col.Width">
                             <div class="col-header-cell">
                                 <span @onclick='() => ToggleSort(col.Key)'
                                       style="cursor:pointer" class="th-label">
@@ -92,6 +92,7 @@
                     <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
             </MudTable>
+            </div>
         </MudCardContent>
     </MudCard>
 </MudContainer>

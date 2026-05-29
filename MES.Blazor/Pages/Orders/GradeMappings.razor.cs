@@ -64,9 +64,9 @@ public partial class GradeMappings
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "StandardGrade",  Label = "标准牌号",   SortKey = "standardgrade",  FilterType = "string" },
-        new() { Key = "PlantGrade",     Label = "工厂牌号",   SortKey = "plantgrade",     FilterType = "string" },
-        new() { Key = "Density",        Label = "密度(g/cm³)",SortKey = "density",        FilterType = null },
+        new() { Key = "StandardGrade",  Label = "标准牌号",   SortKey = "standardgrade",  FilterType = "string", IsRequired = true },
+        new() { Key = "PlantGrade",     Label = "工厂牌号",   SortKey = "plantgrade",     FilterType = "string", IsRequired = true },
+        new() { Key = "Density",        Label = "密度(g/cm³)",SortKey = "density",        FilterType = null, IsRequired = true },
         new() { Key = "HeatTreatment",  Label = "热处理工艺", SortKey = "heattreatment",  FilterType = "string" },
         new() { Key = "SpecialMaterial",Label = "特殊材料",   SortKey = "specialmaterial",FilterType = "boolean", BoolTrueLabel = "特殊材料", BoolFalseLabel = "常规" },
         new() { Key = "SpecialNote",    Label = "特殊注意事项", SortKey = "specialnote",          FilterType = "string" },
