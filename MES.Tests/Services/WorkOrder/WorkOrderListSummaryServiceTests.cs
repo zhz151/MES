@@ -6,11 +6,11 @@ using MES.Core.Enums;
 using MES.Core.Interfaces;
 using MES.Data;
 using MES.Data.Entities;
-using MES.Services.Order;
+using MES.Services;
 using MES.Tests.Tests;
 using Moq;
 
-namespace MES.Tests.Services.Order;
+namespace MES.Tests.Services;
 
 /// <summary>
 /// 用料计划总览读模型刷新服务测试

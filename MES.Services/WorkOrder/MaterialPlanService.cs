@@ -8,7 +8,6 @@ using MES.Core.Helpers;
 using MES.Core.Interfaces;
 using MES.Data;
 using MES.Data.Entities;
-using MES.Services.Order;
 using MES.Services.Printing;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -1387,6 +1386,7 @@ public class MaterialPlanService : IMaterialPlanService
                         Warehouse = pg.Warehouse
                     });
                 }
+                await _context.SaveChangesAsync();
             }
 
             // 从工序组计算工艺周期

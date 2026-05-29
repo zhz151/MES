@@ -31,10 +31,11 @@
 
                 <!-- 工单模块 -->
                 <AuthorizeView Roles="WorkOrderStaff,WorkOrderDirector,Admin">
-                    <MudMenu Label="工单管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("workorders","material-plan-overview","standard-process-cycles")">
+                    <MudMenu Label="工单管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("workorders","material-plan-overview","standard-process-cycles","workorder-execution")">
                         <MudMenuItem Class="@GetMenuItemClass("/workorders")" OnClick='() => NavigateTo("/workorders")'>工单首页</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/material-plan-overview")" OnClick='() => NavigateTo("/material-plan-overview")'>用料计划总览</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/standard-process-cycles")" OnClick='() => NavigateTo("/standard-process-cycles")'>标准工艺生产周期</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/workorder-execution")" OnClick='() => NavigateTo("/workorder-execution")'>工单执行状况</MudMenuItem>
                     </MudMenu>
                 </AuthorizeView>
 
@@ -110,10 +111,9 @@
                     </MudMenu>
                 </AuthorizeView>
 
-                <!-- 现况查询 -->
+                <!-- 计划及执行 -->
                 <AuthorizeView>
-                    <MudMenu Label="现况查询" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("workorder-execution","sales-urgings","raw-material-lock-plan")">
-                        <MudMenuItem Class="@GetMenuItemClass("/workorder-execution")" OnClick='() => NavigateTo("/workorder-execution")'>工单执行状况</MudMenuItem>
+                    <MudMenu Label="计划及执行" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("sales-urgings","raw-material-lock-plan")">
                         <MudMenuItem Class="@GetMenuItemClass("/sales-urgings")" OnClick='() => NavigateTo("/sales-urgings")'>销售催单</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/raw-material-lock-plan")" OnClick='() => NavigateTo("/raw-material-lock-plan")'>原锁计划及执行</MudMenuItem>
                     </MudMenu>

@@ -11,7 +11,7 @@ using MES.Services.Order;
 using MES.Tests.Tests;
 using Moq;
 
-namespace MES.Tests.Services.Order;
+namespace MES.Tests.Services;
 
 /// <summary>
 /// 工单首页读模型刷新服务测试

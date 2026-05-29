@@ -4,7 +4,7 @@ using MES.Core.Enums;
 using MES.Data;
 using MES.Data.Entities;
 
-namespace MES.Services.Order;
+namespace MES.Services;
 
 /// <summary>
 /// 工单首页读模型刷新服务

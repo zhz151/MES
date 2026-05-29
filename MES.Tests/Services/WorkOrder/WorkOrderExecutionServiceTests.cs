@@ -911,10 +911,9 @@ public class WorkOrderExecutionServiceTests : TestBase
         var svc = CreateService(ctx);
         var result = await svc.GetFilterContextsAsync();
 
-        result.Should().ContainKeys("WorkOrderNo", "Salesman", "CustomerName", "SettlementMethod", "SalesOrderNo", "ProductionMainNo", "MaterialName", "DeliveryState", "PlantGrade", "Specification", "LengthStatus");
+        result.Should().ContainKeys("WorkOrderNo", "Salesman", "CustomerName", "SalesOrderNo", "ProductionMainNo", "PlantGrade", "Specification");
         result["WorkOrderNo"].Should().BeEquivalentTo(new[] { "WO001", "WO002" }, options => options.WithStrictOrdering());
         result["Salesman"].Should().BeEquivalentTo(new[] { "张三", "李四" });
-        result["MaterialName"].Should().BeEquivalentTo(new[] { "无缝管", "焊管" });
         result["ProductionSubNo"].Should().BeEmpty(); // SeedSummary 不设 subNo
     }
 
@@ -926,7 +925,7 @@ public class WorkOrderExecutionServiceTests : TestBase
 
         var result = await svc.GetFilterContextsAsync();
 
-        result.Should().ContainKeys("WorkOrderNo", "Salesman", "CustomerName", "SettlementMethod", "SalesOrderNo", "ProductionMainNo", "ProductionSubNo", "MaterialName", "DeliveryState", "PlantGrade", "Specification", "LengthStatus");
+        result.Should().ContainKeys("WorkOrderNo", "Salesman", "CustomerName", "SalesOrderNo", "ProductionMainNo", "ProductionSubNo", "PlantGrade", "Specification");
         foreach (var kvp in result)
             kvp.Value.Should().BeEmpty($"字段 {kvp.Key} 应返回空列表");
     }

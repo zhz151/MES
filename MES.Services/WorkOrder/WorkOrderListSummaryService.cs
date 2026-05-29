@@ -5,7 +5,7 @@ using MES.Data;
 using MES.Data.Entities;
 using WoEntity = MES.Data.Entities.WorkOrder;
 
-namespace MES.Services.Order;
+namespace MES.Services;
 
 /// <summary>
 /// 用料计划总览读模型刷新服务

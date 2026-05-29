@@ -1,7 +1,7 @@
 # MES 项目持久知识
 
 ## 当前规范版本
-- **04_开发规范.md V8.28**（2026-05-25）
+- **04_开发规范.md V8.30**（2026-05-28）
 - **mes-code-check SKILL.md** 已同步至 V8.28
 
 ## 页面状态持久化规范（2026-05-25 更新）
@@ -58,6 +58,21 @@
   - C计划未执行：MainNoMaterialPlanStatus=3或4
   - D未完善计划：MainNoMaterialPlanStatus=0或1
 - 迁移：20260529024024_AddRawMaterialLockRemarkToExecutionSummary
+
+## 上下文归属（2026-05-29 确认）
+- WorkOrderExecution（工单执行状况）完全归工单上下文
+  - 页面：Pages/WorkOrders/WorkOrderExecution.razor
+  - 服务：Services/WorkOrder/WorkOrderListSummaryService.cs + WorkOrderStatusSummaryService.cs
+  - 控制器：Controllers/WorkOrder/WorkOrderExecutionController.cs
+  - 测试：Tests/Services/WorkOrder/（namespace MES.Tests.Services）
+  - 读模型 WorkOrderExecutionSummary 实体在 Data/Entities/
+- 计划及执行上下文（Scheduling Context）仅含 2 页面
+  - SalesUrgings（销售催单）
+  - RawMaterialLockPlanAndExecution（原锁计划及执行）
+  - 基于 WorkOrderExecutionSummary 读模型做调度决策（非读模型拥有者）
+- 导航菜单：
+  - 工单管理：工单首页 / 用料计划总览 / 标准工艺生产周期 / 工单执行状况
+  - 计划及执行：销售催单 / 原锁计划及执行
 
 ## 待办任务
 - 工段产能表（后续排期，独立任务）
