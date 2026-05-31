@@ -51,6 +51,15 @@ public partial class Batches
     private string sortColumn = "batchno";
     private bool sortDescending = true;
 
+    // ========== 分页汇总 ==========
+    private Dictionary<string, string> _pageSums = new();
+
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        "CurrentValidQty", "CurrentValidWeight",
+        "TotalQuantity", "TotalMeters", "TotalWeight",
+    };
+
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -92,7 +101,7 @@ public partial class Batches
         new() { Key = "CorrespondingSpec",  Label = "对应规格", SortKey = "correspondingspec", FilterType = "string", Width = "120" },
         new() { Key = "CurrentValidQty",    Label = "现有效原料支数", SortKey = "currentvalidqty", Width = "80" },
         new() { Key = "CurrentValidWeight",  Label = "现有效原料重量", SortKey = "currentvalidweight", Width = "80" },
-        new() { Key = "ProductionRatio",    Label = "制几率",   SortKey = "productionratio", Width = "80" },
+        new() { Key = "ProductionRatio",    Label = "制成倍数", SortKey = "productionratio", Width = "80" },
         new() { Key = "SignDate",           Label = "签订日期", SortKey = "signdate", FilterType = "date", Width = "120" },
         new() { Key = "Salesman",           Label = "业务员",   SortKey = "salesman", FilterType = "string", Width = "120" },
         new() { Key = "EndCustomer",        Label = "最终用户", SortKey = "endcustomer", FilterType = "string", Width = "120" },
@@ -113,7 +122,7 @@ public partial class Batches
         new() { Key = "Specification",      Label = "规格",     SortKey = "specification", FilterType = "string", Width = "120" },
         new() { Key = "LengthStatus",       Label = "长度状态", SortKey = "lengthstatus", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("Fixed", "定尺"), new("Range", "范围尺"), new("NonFixed", "非定尺") } },
-        new() { Key = "TotalQuantity",      Label = "总数量",   SortKey = "totalquantity", Width = "80" },
+        new() { Key = "TotalQuantity",      Label = "总支数",   SortKey = "totalquantity", Width = "80" },
         new() { Key = "TotalMeters",        Label = "总米数",   SortKey = "totalmeters", Width = "80" },
         new() { Key = "TotalWeight",        Label = "总重量",   SortKey = "totalweight", Width = "80" },
         new() { Key = "TechnicalRequirements", Label = "技术要求", SortKey = "technicalrequirements", FilterType = "enum", Width = "120",
@@ -122,6 +131,59 @@ public partial class Batches
             EnumOptions = new() { new("True", "疑问"), new("False", "正常") } },
         new() { Key = "CreatedBy",          Label = "创建人",   SortKey = "createdby", FilterType = "string", Width = "120" },
     };
+
+    // ========== 分页汇总计算 ==========
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+
+        var props = typeof(ProductionBatchListDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+
+        foreach (var col in _visibleColumns.Where(c => _summableColumnKeys.Contains(c.Key)))
+        {
+            if (!props.TryGetValue(col.Key, out var prop)) continue;
+
+            var type = prop.PropertyType;
+            try
+            {
+                if (type == typeof(int))
+                {
+                    var sum = _pageItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal))
+                {
+                    var sum = _pageItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
+                    _pageSums[col.Key] = ((int)sum).ToString();
+                }
+                else if (type == typeof(int?))
+                {
+                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal?))
+                {
+                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    _pageSums[col.Key] = ((int)sum).ToString();
+                }
+            }
+            catch
+            {
+                // ignore individual column sum errors
+            }
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        if (_pageSums.TryGetValue(col.Key, out var sum))
+            return sum;
+        return "-";
+    }
 
     // ========== 服务端数据加载 ==========
 
@@ -162,6 +224,7 @@ public partial class Batches
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
                 _currentPageIndex = result.Data.PageIndex;
+                ComputePageSums();
             }
             else
             {
@@ -534,8 +597,8 @@ public partial class Batches
         "NextSectionName" => item.NextSectionName,
         "CorrespondingSpec" => item.CorrespondingSpec,
         "CurrentValidQty" => item.CurrentValidQty?.ToString("G29"),
-        "CurrentValidWeight" => item.CurrentValidWeight?.ToString("G29"),
-        "ProductionRatio" => item.ProductionRatio.ToString("G29"),
+        "CurrentValidWeight" => $"{(int)(item.CurrentValidWeight ?? 0)}",
+        "ProductionRatio" => $"{item.ProductionRatio:F1}%",
         "SignDate" => item.SignDate.ToString("yyyy-MM-dd"),
         "Salesman" => item.Salesman,
         "EndCustomer" => item.EndCustomer,
@@ -549,8 +612,8 @@ public partial class Batches
         "Specification" => item.Specification,
         "LengthStatus" => item.LengthStatus,
         "TotalQuantity" => item.TotalQuantity.ToString("G29"),
-        "TotalMeters" => item.TotalMeters.ToString("G29"),
-        "TotalWeight" => item.TotalWeight.ToString("G29"),
+        "TotalMeters" => ((int)item.TotalMeters).ToString(),
+        "TotalWeight" => ((int)item.TotalWeight).ToString(),
         "TechnicalRequirements" => item.TechnicalRequirements,
         "RemainingWorkDays" => item.RemainingWorkDays.ToString("G29"),
         "CreatedBy" => item.CreatedBy,
@@ -574,8 +637,8 @@ public partial class Batches
         "CorrespondingSpec" => item.CorrespondingSpec ?? "",
         "ManufacturingItem" => DisplayHelper.GetManufacturingItemText(item.ManufacturingItem),
         "CurrentValidQty" => item.CurrentValidQty?.ToString("G29") ?? "",
-        "CurrentValidWeight" => item.CurrentValidWeight?.ToString("G29") ?? "",
-        "ProductionRatio" => item.ProductionRatio.ToString("G29"),
+        "CurrentValidWeight" => $"{(int)(item.CurrentValidWeight ?? 0)}",
+        "ProductionRatio" => $"{item.ProductionRatio:F1}%",
         "SignDate" => item.SignDate.ToString("yyyy-MM-dd"),
         "Salesman" => item.Salesman,
         "EndCustomer" => item.EndCustomer ?? "",
@@ -589,8 +652,8 @@ public partial class Batches
         "Specification" => item.Specification,
         "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
         "TotalQuantity" => item.TotalQuantity.ToString("G29"),
-        "TotalMeters" => item.TotalMeters.ToString("G29"),
-        "TotalWeight" => item.TotalWeight.ToString("G29"),
+        "TotalMeters" => ((int)item.TotalMeters).ToString(),
+        "TotalWeight" => ((int)item.TotalWeight).ToString(),
         "TechnicalRequirements" => DisplayHelper.GetTechnicalRequirementsText(item.TechnicalRequirements),
         "ValidInputQuestion" => item.ValidInputQuestion.HasValue ? DisplayHelper.GetYesNoText(item.ValidInputQuestion.Value) : "",
         "CurrentSectionCompleted" => DisplayHelper.GetSectionCompletedText(item.CurrentSectionCompleted),

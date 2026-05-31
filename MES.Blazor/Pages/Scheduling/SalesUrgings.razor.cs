@@ -65,10 +65,10 @@ public partial class SalesUrgings
         {
             new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = new() { new("0","无需排产"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "TotalRemainingWorkDays",  Label = "剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
-            new() { Key = "UrgencyLevel",            Label = "工单计划性",    SortKey = "UrgencyLevel",            Width = "120",                              GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "UrgencyLevel",            Label = "工单计划性",    SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "EstimatedProcessCompletionDate",Label = "工艺预计完成日",SortKey = "EstimatedProcessCompletionDate", Width = "120",                  GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "DaysDiffFromDelivery",    Label = "交期相差天数",  SortKey = "DaysDiffFromDelivery",    Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
-            new() { Key = "RawMaterialLockRemark",   Label = "原锁备注",     SortKey = "RawMaterialLockRemark",   Width = "120",                             GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "RawMaterialLockRemark",   Label = "原锁备注",     SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                             GroupKey = 12, GroupName = "实时关注" },
         };
 
         // G13: 销售催单（手工编辑）
@@ -162,50 +162,37 @@ public partial class SalesUrgings
 
     // ========== 筛选上下文加载（ExcelFilter 下拉选项） ==========
 
-    private Task LoadFilterContextsAsync()
+    private async Task LoadFilterContextsAsync()
     {
-        if (_pageItems.Count > 0)
+        try
         {
-            BuildFilterContextOptions(_pageItems);
+            var result = await SalesUrgingService.GetFilterContextsAsync();
+            if (result.Success && result.Data != null)
+            {
+                BuildFilterContextOptions(result.Data);
+            }
         }
-        return Task.CompletedTask;
+        catch { }
     }
 
-    private void BuildFilterContextOptions(List<SalesUrgingDto> items)
+    private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
     {
         _filterContextOptions.Clear();
-
-        // 字符串列从数据提取 DISTINCT 值
-        void AddStringOptions(string key, Func<SalesUrgingDto, string?> selector)
+        foreach (var kvp in filterContexts)
         {
-            _filterContextOptions[key] = items
-                .Select(selector)
-                .Where(v => !string.IsNullOrEmpty(v))
-                .Distinct()
-                .OrderBy(v => v)
-                .Select(v => new ExcelFilterOption { Value = v!, Display = v!, Count = 0 })
-                .ToList();
+            _filterContextOptions[kvp.Key] = kvp.Value.Select(v => new ExcelFilterOption
+            {
+                Value = v,
+                Display = v,
+                Count = 0
+            }).ToList();
         }
 
-        AddStringOptions("WorkOrderNo", i => i.WorkOrderNo);
-        AddStringOptions("Salesman", i => i.Salesman);
-        AddStringOptions("CustomerName", i => i.CustomerName);
-        AddStringOptions("SalesOrderNo", i => i.SalesOrderNo);
-        AddStringOptions("ProductionMainNo", i => i.ProductionMainNo);
-        AddStringOptions("ProductionSubNo", i => i.ProductionSubNo);
-        AddStringOptions("PlantGrade", i => i.PlantGrade);
-        AddStringOptions("Specification", i => i.Specification);
-        AddStringOptions("UrgencyLevel", i => i.UrgencyLevel);
-        AddStringOptions("RawMaterialLockRemark", i => i.RawMaterialLockRemark);
-        AddStringOptions("UrgingRemark", i => i.UrgingRemark);
-
-        // DelayPenalty 列
+        // DelayPenalty 列显示中文
         if (_filterContextOptions.TryGetValue("DelayPenalty", out var delayOptions))
         {
             foreach (var opt in delayOptions)
-            {
                 opt.Display = opt.Value == "True" ? "是" : "否";
-            }
         }
 
         // 补充枚举列筛选选项（后端不返回枚举列 DISTINCT 值）
@@ -424,6 +411,9 @@ public partial class SalesUrgings
         // 状态恢复后重新加载表格数据
         if (savedState != null && table != null)
             await table.ReloadServerData();
+
+        // 加载筛选上下文
+        await LoadFilterContextsAsync();
     }
 
     // ========== 单元格渲染 ==========
@@ -481,7 +471,7 @@ public partial class SalesUrgings
                 builder.AddContent(0, item.TotalQuantity);
                 break;
             case "TotalWeight":
-                builder.AddContent(0, Math.Round(item.TotalWeight).ToString("F0"));
+                builder.AddContent(0, item.TotalWeight.ToString("G29"));
                 break;
             case "ScheduleStage":
                 builder.OpenComponent<MudChip>(0);
@@ -533,9 +523,8 @@ public partial class SalesUrgings
                 builder.AddAttribute(3, "Dense", true);
                 builder.AddAttribute(4, "Immediate", true);
                 builder.AddAttribute(5, "DebounceInterval", (double)800);
-                builder.AddAttribute(6, "Placeholder", "输入催单备注");
-                builder.AddAttribute(7, "Class", "inline-edit-textfield");
-                builder.AddAttribute(8, "Style", "min-width:120px;");
+                builder.AddAttribute(6, "Class", "inline-edit-textfield");
+                builder.AddAttribute(7, "Style", "min-width:120px;");
                 builder.CloseComponent();
                 break;
         }

@@ -6,6 +6,8 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.Scheduling;
 
+using MES.Services.Helpers;
+
 namespace MES.Services.Scheduling;
 
 /// <summary>
@@ -73,13 +75,24 @@ public class SalesUrgingService : ISalesUrgingService
                 x.SalesOrderNo.Contains(kw) ||
                 x.Salesman.Contains(kw) ||
                 x.CustomerName.Contains(kw) ||
+                (x.ProductionSubNo != null && x.ProductionSubNo.Contains(kw)) ||
                 x.PlantGrade.Contains(kw) ||
                 x.Specification.Contains(kw) ||
-                x.ProductionMainNo.Contains(kw));
+                x.ProductionMainNo.Contains(kw) ||
+                (x.SettlementMethod != null && x.SettlementMethod.Contains(kw)) ||
+                x.MaterialName.Contains(kw) ||
+                x.DeliveryState.Contains(kw) ||
+                x.LengthStatus.Contains(kw) ||
+                (x.UrgencyLevel != null && x.UrgencyLevel.Contains(kw)) ||
+                (x.RawMaterialLockRemark != null && x.RawMaterialLockRemark.Contains(kw)) ||
+                (x.UrgingRemark != null && x.UrgingRemark.Contains(kw)));
         }
 
         // 排除无需排产的数据
         q = q.Where(x => x.ScheduleStage != 0);
+
+        // 筛选
+        q = q.ApplyFilters(query.Filters);
 
         // 排序
         q = ApplySorting(q, query.SortBy, query.IsDescending);
@@ -124,37 +137,61 @@ public class SalesUrgingService : ISalesUrgingService
         return true;
     }
 
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var query = _context.Set<WorkOrderExecutionSummary>().AsNoTracking()
+            .Where(e => e.ScheduleStage != 0);
+
+        var all = await query
+            .Select(s => new
+            {
+                s.WorkOrderId,
+                s.WorkOrderNo,
+                s.Salesman,
+                s.CustomerName,
+                s.SalesOrderNo,
+                s.ProductionMainNo,
+                s.ProductionSubNo,
+                s.PlantGrade,
+                s.Specification,
+                s.UrgencyLevel,
+                s.RawMaterialLockRemark,
+            })
+            .ToListAsync();
+
+        // UrgingRemark 来自 SalesUrging 表（LEFT JOIN）
+        var workOrderIds = all.Select(x => x.WorkOrderId).Distinct().ToHashSet();
+        var urgingRemarks = workOrderIds.Count > 0
+            ? await _context.Set<SalesUrging>()
+                .Where(u => workOrderIds.Contains(u.WorkOrderId))
+                .Where(u => u.UrgingRemark != null)
+                .Select(u => u.UrgingRemark!)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToListAsync()
+            : new List<string>();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo).Distinct().OrderBy(x => x).ToList(),
+            ["Salesman"] = all.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
+            ["CustomerName"] = all.Select(x => x.CustomerName).Distinct().OrderBy(x => x).ToList(),
+            ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo).Distinct().OrderBy(x => x).ToList(),
+            ["ProductionMainNo"] = all.Select(x => x.ProductionMainNo).Distinct().OrderBy(x => x).ToList(),
+            ["ProductionSubNo"] = all.Where(x => x.ProductionSubNo != null).Select(x => x.ProductionSubNo!).Distinct().OrderBy(x => x).ToList(),
+            ["PlantGrade"] = all.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
+            ["Specification"] = all.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
+            ["UrgencyLevel"] = all.Where(x => x.UrgencyLevel != null).Select(x => x.UrgencyLevel!).Distinct().OrderBy(x => x).ToList(),
+            ["RawMaterialLockRemark"] = all.Where(x => x.RawMaterialLockRemark != null).Select(x => x.RawMaterialLockRemark!).Distinct().OrderBy(x => x).ToList(),
+            ["UrgingRemark"] = urgingRemarks,
+        };
+    }
+
     private static IQueryable<SalesUrgingDto> ApplySorting(
         IQueryable<SalesUrgingDto> query, string? sortBy, bool isDescending)
     {
-        var key = sortBy?.ToLower() ?? "workorderno";
-        return (key, isDescending) switch
-        {
-            ("workorderno", false) => query.OrderBy(x => x.WorkOrderNo),
-            ("workorderno", true) => query.OrderByDescending(x => x.WorkOrderNo),
-            ("salesman", false) => query.OrderBy(x => x.Salesman),
-            ("salesman", true) => query.OrderByDescending(x => x.Salesman),
-            ("customername", false) => query.OrderBy(x => x.CustomerName),
-            ("customername", true) => query.OrderByDescending(x => x.CustomerName),
-            ("signdate", false) => query.OrderBy(x => x.SignDate),
-            ("signdate", true) => query.OrderByDescending(x => x.SignDate),
-            ("deliverydate", false) => query.OrderBy(x => x.DeliveryDate),
-            ("deliverydate", true) => query.OrderByDescending(x => x.DeliveryDate),
-            ("salesorderno", false) => query.OrderBy(x => x.SalesOrderNo),
-            ("salesorderno", true) => query.OrderByDescending(x => x.SalesOrderNo),
-            ("productionmainno", false) => query.OrderBy(x => x.ProductionMainNo),
-            ("productionmainno", true) => query.OrderByDescending(x => x.ProductionMainNo),
-            ("plantgrade", false) => query.OrderBy(x => x.PlantGrade),
-            ("plantgrade", true) => query.OrderByDescending(x => x.PlantGrade),
-            ("specification", false) => query.OrderBy(x => x.Specification),
-            ("specification", true) => query.OrderByDescending(x => x.Specification),
-            ("schedulestage", false) => query.OrderBy(x => x.ScheduleStage),
-            ("schedulestage", true) => query.OrderByDescending(x => x.ScheduleStage),
-            ("issalesurging", false) => query.OrderBy(x => x.IsSalesUrging),
-            ("issalesurging", true) => query.OrderByDescending(x => x.IsSalesUrging),
-            ("deliverypenalty", false) => query.OrderBy(x => x.DelayPenalty),
-            ("deliverypenalty", true) => query.OrderByDescending(x => x.DelayPenalty),
-            _ => query.OrderByDescending(x => x.ScheduleStage),
-        };
+        return string.IsNullOrWhiteSpace(sortBy)
+            ? query.OrderByDescending(x => x.ScheduleStage)
+            : query.ApplySort(sortBy, isDescending);
     }
 }

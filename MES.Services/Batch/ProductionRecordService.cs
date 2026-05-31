@@ -1259,7 +1259,7 @@ public class ProductionRecordService : IProductionRecordService
         int? inputQty = batch.CurrentValidQty;
         int? inputWt = batch.CurrentValidWeight.HasValue ? (int?)batch.CurrentValidWeight.Value : null;
 
-        // 目标支数 = 投料支数 × 制几率
+        // 目标支数 = 投料支数 × 制成倍数
         int? targetQty = batch.ProductionRatio > 0 && inputQty.HasValue
             ? inputQty.Value * batch.ProductionRatio
             : null;

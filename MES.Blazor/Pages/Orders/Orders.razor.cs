@@ -18,6 +18,8 @@ public partial class Orders
 {
     private MudTable<SalesOrderListDto>? table;
     private List<SalesOrderListDto> _pageItems = new();
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new() { "TotalContractWeight", "ItemCount" };
     private int _totalCount;
     private HashSet<int> selectedOrderIds = new();
     private bool _isArrowNavSetup;
@@ -78,6 +80,52 @@ public partial class Orders
         new() { Key = "lastchangedate",Label = "变更日期", SortKey = "lastchangedate", FilterType = "date" },
     };
 
+    // ========== 分页汇总 ==========
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+        var props = typeof(SalesOrderListDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+        foreach (var col in _visibleColumns.Where(c => _summableColumnKeys.Contains(c.Key)))
+        {
+            if (!props.TryGetValue(col.Key, out var prop)) continue;
+            var type = prop.PropertyType;
+            try
+            {
+                if (type == typeof(int))
+                {
+                    var sum = _pageItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal))
+                {
+                    var sum = _pageItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
+                    _pageSums[col.Key] = ((int)sum).ToString();
+                }
+                else if (type == typeof(int?))
+                {
+                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal?))
+                {
+                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    _pageSums[col.Key] = ((int)sum).ToString();
+                }
+            }
+            catch { }
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        if (_pageSums.TryGetValue(col.Key, out var sum)) return sum;
+        return "";
+    }
+
     // ========== 服务端数据加载 ==========
 
     private async Task<TableData<SalesOrderListDto>> LoadDataFromServer(TableState state)
@@ -129,6 +177,8 @@ public partial class Orders
             _pageItems = new();
             _totalCount = 0;
         }
+
+        ComputePageSums();
 
         return new TableData<SalesOrderListDto>
         {
@@ -400,7 +450,7 @@ public partial class Orders
                 builder.AddContent(0, DisplayHelper.GetYesNoText(order.HasDelayPenalty));
                 break;
             case "totalcontractweight":
-                builder.AddContent(0, order.TotalContractWeight.ToString("G29"));
+                builder.AddContent(0, order.TotalContractWeight.ToString());
                 break;
             case "itemcount":
                 builder.AddContent(0, order.ItemCount);
@@ -457,7 +507,7 @@ public partial class Orders
         "deliverystart" => item.DeliveryStart?.ToString("yyyy-MM-dd"),
         "deliveryend" => item.DeliveryEnd?.ToString("yyyy-MM-dd"),
         "hasdelaypenalty" => item.HasDelayPenalty.ToString(),
-        "totalcontractweight" => item.TotalContractWeight.ToString("G29"),
+        "totalcontractweight" => item.TotalContractWeight.ToString(),
         "itemcount" => item.ItemCount.ToString(),
         "notech" => item.HasTechnicalRequirement.ToString(),
         "status" => item.Status.ToString(),

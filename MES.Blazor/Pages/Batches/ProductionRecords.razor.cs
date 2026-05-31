@@ -50,6 +50,14 @@ public partial class ProductionRecords
     private string sortColumn = "createdtime";
     private bool sortDescending = true;
 
+    // ========== 分页汇总 ==========
+    private Dictionary<string, string> _pageSums = new();
+
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        "Quantity", "Weight", "PostCutQuantity",
+    };
+
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -84,6 +92,59 @@ public partial class ProductionRecords
         new() { Key = "UpdatedTime",       Label = "更新日期",   SortKey = "updatedtime", Width = "120" },
     };
 
+    // ========== 分页汇总计算 ==========
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+
+        var props = typeof(ProductionRecordDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+
+        foreach (var col in _visibleColumns.Where(c => _summableColumnKeys.Contains(c.Key)))
+        {
+            if (!props.TryGetValue(col.Key, out var prop)) continue;
+
+            var type = prop.PropertyType;
+            try
+            {
+                if (type == typeof(int))
+                {
+                    var sum = _pageItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal))
+                {
+                    var sum = _pageItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
+                    _pageSums[col.Key] = ((int)sum).ToString();
+                }
+                else if (type == typeof(int?))
+                {
+                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal?))
+                {
+                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    _pageSums[col.Key] = ((int)sum).ToString();
+                }
+            }
+            catch
+            {
+                // ignore individual column sum errors
+            }
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        if (_pageSums.TryGetValue(col.Key, out var sum))
+            return sum;
+        return "-";
+    }
+
     // ========== 服务端数据加载 ==========
 
     private async Task<TableData<ProductionRecordDto>> LoadDataFromServer(TableState state)
@@ -117,6 +178,7 @@ public partial class ProductionRecords
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
                 _currentPageIndex = state.Page + 1;
+                ComputePageSums();
             }
             else
             {
@@ -633,7 +695,7 @@ public partial class ProductionRecords
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableDecimal(item.Weight));
+                    builder.AddContent(0, $"{(int)(item.Weight ?? 0)}");
                 }
                 break;
             case "IsFinished":

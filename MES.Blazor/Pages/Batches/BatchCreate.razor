@@ -397,7 +397,7 @@
                     </MudSelect>
                 </div>
                 <div class="d-flex align-center" style="gap:6px;">
-                    <span style="white-space:nowrap; font-weight:500;">制几率</span>
+                    <span style="white-space:nowrap; font-weight:500;">制成倍数</span>
                     <MudNumericField T="int" @bind-Value="request.ProductionRatio" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" Style="width:70px;" Min="0" />
                 </div>
                 <div class="d-flex align-center" style="gap:6px;">
@@ -840,7 +840,7 @@
                 request.ItemDetails = wo.ItemDetails;
                 request.TechnicalRequirements = wo.TechnicalRequirements.ToString();
 
-                // 计算制几率
+                // 计算制成倍数
                 RecalcProductionRatio();
 
                 Snackbar.Add($"已从工单 {request.WorkOrderNo} 填充工单字段", Severity.Success);
@@ -897,7 +897,7 @@
     }
 
     /// <summary>
-    /// 计算制几率：LengthStatus = "Fixed"(定尺)时 = floor(投料单重 / 工单单重)
+    /// 计算制成倍数：LengthStatus = "Fixed"(定尺)时 = floor(投料单重 / 工单单重)
     /// </summary>
     private void RecalcProductionRatio()
     {
@@ -1218,9 +1218,9 @@
             errors.Add("长度状态不能为空");
         if (request.TotalWeight == null || request.TotalWeight <= 0)
             errors.Add("总重量必须大于0");
-        // 制几率必须大于0
+        // 制成倍数必须大于0
         if (request.ProductionRatio <= 0)
-            errors.Add("制几率必须大于0");
+            errors.Add("制成倍数必须大于0");
         // 定尺时总支数必须大于0
         if (request.LengthStatus == "Fixed" && (request.TotalQuantity == null || request.TotalQuantity <= 0))
             errors.Add("总支数（定尺时必须大于0）");

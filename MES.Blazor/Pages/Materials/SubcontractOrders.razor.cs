@@ -49,6 +49,13 @@ public partial class SubcontractOrders
     private bool isSyncing;
     private string _searchKeyword = string.Empty;
 
+    // B33: 分页汇总
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        "OutQuantity", "OutWeight", "Returned",
+    };
+
     private string sortColumn = "OrderDate";
     private bool sortDescending = true;
 
@@ -112,6 +119,67 @@ public partial class SubcontractOrders
         await SaveColumnPrefs();
     }
 
+    // ========== 分页汇总 ==========
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+
+        var props = typeof(SubcontractOrderDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+
+        foreach (var col in _visibleColumns.Where(c => _summableColumnKeys.Contains(c.Key)))
+        {
+            // 特殊处理: "Returned" 列对应 InWeight
+            if (col.Key == "Returned")
+            {
+                var sum = _pageItems.Sum(item => item.InWeight ?? 0m);
+                _pageSums[col.Key] = ((int)sum).ToString();
+                continue;
+            }
+
+            if (!props.TryGetValue(col.Key, out var prop)) continue;
+
+            var type = prop.PropertyType;
+            try
+            {
+                if (type == typeof(int))
+                {
+                    var sum = _pageItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal))
+                {
+                    var sum = _pageItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
+                    _pageSums[col.Key] = ((int)sum).ToString();
+                }
+                else if (type == typeof(int?))
+                {
+                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal?))
+                {
+                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    _pageSums[col.Key] = ((int)sum).ToString();
+                }
+            }
+            catch
+            {
+                // ignore individual column sum errors
+            }
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        if (_pageSums.TryGetValue(col.Key, out var sum))
+            return sum;
+        return "-";
+    }
+
     // ========== 服务端数据加载 ==========
 
     private async Task<TableData<SubcontractOrderDto>> LoadDataFromServer(TableState state)
@@ -141,6 +209,7 @@ public partial class SubcontractOrders
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
                 _currentPage = state.Page + 1;
+                ComputePageSums();
             }
             else
             {
@@ -314,10 +383,10 @@ public partial class SubcontractOrders
                 builder.AddContent(0, item.OutSpecification);
                 break;
             case "OutQuantity":
-                builder.AddContent(0, item.OutQuantity.ToString("G29"));
+                builder.AddContent(0, item.OutQuantity.ToString());
                 break;
             case "OutWeight":
-                builder.AddContent(0, item.OutWeight.ToString("G29"));
+                builder.AddContent(0, ((int)item.OutWeight).ToString());
                 break;
             case "ReturnDeadline":
                 builder.AddContent(0, item.ReturnDeadline?.ToString("yyyy-MM-dd"));
@@ -333,7 +402,7 @@ public partial class SubcontractOrders
                 builder.CloseComponent();
                 break;
             case "Returned":
-                builder.AddContent(0, $"{item.InQuantity?.ToString("G29") ?? "0"}支/{item.InWeight?.ToString("G29") ?? "0"}kg");
+                builder.AddContent(0, $"{item.InQuantity?.ToString() ?? "0"}支/{((int)(item.InWeight ?? 0)).ToString()}kg");
                 break;
         }
     };

@@ -13,4 +13,7 @@ public interface ISalesUrgingService
 
     /// <summary>保存销售催单（upsert）</summary>
     Task<bool> SaveUrgingAsync(int workOrderId, bool isSalesUrging, string? urgingRemark);
+
+    /// <summary>获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项</summary>
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 }

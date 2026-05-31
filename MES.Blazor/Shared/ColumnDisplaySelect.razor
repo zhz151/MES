@@ -11,49 +11,91 @@
     {
         <MudOverlay Visible="true" OnClick="@(() => _menuOpen = false)" />
         <MudPaper Class="pa-4 column-selector-panel" Elevation="8"
-                  Style="position:fixed; z-index:2000; right:16px; top:120px; min-width:260px; max-height:calc(100vh - 160px); overflow-y:auto;">
+                  Style="position:fixed; z-index:2000; right:16px; top:120px; min-width:280px; max-height:calc(100vh - 160px); overflow-y:auto;">
             <MudText Typo="Typo.body2" Class="font-weight-bold mb-2" Color="Color.Primary">适用字段</MudText>
-            @foreach (var col in Columns.Where(c => c.IsApplicable))
-            {
-                <MudGrid Class="d-flex align-center" Style="flex-wrap:nowrap;">
-                    <MudItem>
-                        <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowUp"
-                                       Size="Size.Small"
-                                       Disabled="@(Columns.IndexOf(col) == 0)"
-                                       OnClick="@(() => MoveColumnUp(col))" />
-                    </MudItem>
-                    <MudItem>
-                        <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowDown"
-                                       Size="Size.Small"
-                                       Disabled="@(Columns.IndexOf(col) == Columns.Count - 1)"
-                                       OnClick="@(() => MoveColumnDown(col))" />
-                    </MudItem>
-                    <MudItem>
-                        <MudSwitch T="bool" Value="col.Visible"
-                                   ValueChanged="@((bool v) => OnColumnToggleChanged(col, v))"
-                                   Color="Color.Primary" Dense="true">
-                            @col.Label
-                        </MudSwitch>
-                    </MudItem>
-                </MudGrid>
+            @{
+                var grouped = _groupedApplicableColumns;
             }
-            <MudDivider Class="my-2" />
-            <MudText Typo="Typo.body2" Class="font-weight-bold mb-2" Color="Color.Error">不适用字段</MudText>
-            @foreach (var col in Columns.Where(c => !c.IsApplicable))
+            @foreach (var grp in grouped)
             {
-                <MudGrid Class="d-flex align-center" Style="flex-wrap:nowrap;opacity:0.5;">
-                    <MudItem>
-                        <MudIconButton Icon="@Icons.Material.Filled.Block"
+                var allVisible = grp.Columns.All(c => c.Visible);
+                var anyVisible = grp.Columns.Any(c => c.Visible);
+                bool? groupChecked = allVisible ? true : (anyVisible ? null : false);
+                var isExpanded = _groupExpanded.GetValueOrDefault(grp.Key);
+
+                <div class="mb-1">
+                    <!-- 组标题行 -->
+                    <div class="d-flex align-center group-header" style="cursor:pointer;"
+                         @onclick="() => ToggleGroupExpand(grp.Key)"
+                         @onclick:stopPropagation>
+                        <MudIconButton Icon="@(isExpanded ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ChevronRight)"
                                        Size="Size.Small"
-                                       Disabled="true"
-                                       Color="Color.Error" />
-                    </MudItem>
-                    <MudItem Style="pointer-events:none;">
-                        <MudSwitch T="bool" Value="false" Disabled="true" Color="Color.Error" Dense="true">
-                            @col.Label
-                        </MudSwitch>
-                    </MudItem>
-                </MudGrid>
+                                       Dense="true" />
+                        <MudCheckBox T="bool?"
+                                     ThreeState="true"
+                                     Value="groupChecked"
+                                     ValueChanged="@((bool? v) => ToggleGroup(grp.Key, v))"
+                                     Color="Color.Primary"
+                                     Dense="true"
+                                     @onclick:stopPropagation />
+                        <MudText Typo="Typo.body2" Class="font-weight-medium ml-1">@grp.GroupName</MudText>
+                        <MudText Typo="Typo.caption" Class="ml-2 text-medium-emphasis">(@grp.Columns.Count 列)</MudText>
+                    </div>
+                    <!-- 组下列 -->
+                    @if (isExpanded)
+                    {
+                        <div class="ml-6">
+                            @foreach (var col in grp.Columns)
+                            {
+                                <MudGrid Class="d-flex align-center" Style="flex-wrap:nowrap;">
+                                    <MudItem>
+                                        <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowUp"
+                                                       Size="Size.Small"
+                                                       Disabled="@(Columns.IndexOf(col) == 0)"
+                                                       OnClick="@(() => MoveColumnUp(col))" />
+                                    </MudItem>
+                                    <MudItem>
+                                        <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowDown"
+                                                       Size="Size.Small"
+                                                       Disabled="@(Columns.IndexOf(col) == Columns.Count - 1)"
+                                                       OnClick="@(() => MoveColumnDown(col))" />
+                                    </MudItem>
+                                    <MudItem>
+                                        <MudSwitch T="bool" Value="col.Visible"
+                                                   ValueChanged="@((bool v) => OnColumnToggleChanged(col, v))"
+                                                   Color="Color.Primary" Dense="true">
+                                            @col.Label
+                                        </MudSwitch>
+                                    </MudItem>
+                                </MudGrid>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+            @{
+                var inapplicable = Columns.Where(c => !c.IsApplicable).ToList();
+            }
+            @if (inapplicable.Count > 0)
+            {
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.body2" Class="font-weight-bold mb-2" Color="Color.Error">不适用字段</MudText>
+                @foreach (var col in inapplicable)
+                {
+                    <MudGrid Class="d-flex align-center" Style="flex-wrap:nowrap;opacity:0.5;">
+                        <MudItem>
+                            <MudIconButton Icon="@Icons.Material.Filled.Block"
+                                           Size="Size.Small"
+                                           Disabled="true"
+                                           Color="Color.Error" />
+                        </MudItem>
+                        <MudItem Style="pointer-events:none;">
+                            <MudSwitch T="bool" Value="false" Disabled="true" Color="Color.Error" Dense="true">
+                                @col.Label
+                            </MudSwitch>
+                        </MudItem>
+                    </MudGrid>
+                }
             }
             @if (ShowCommonFields)
             {
@@ -79,6 +121,7 @@
 
 @code {
     private bool _menuOpen;
+    private Dictionary<string, bool> _groupExpanded = new();
 
     [Parameter]
     public List<ColumnDef> Columns { get; set; } = new();
@@ -95,9 +138,55 @@
     [Parameter]
     public EventCallback<ColumnDef> OnMoveDown { get; set; }
 
+    private List<ColumnGroup> _groupedApplicableColumns
+    {
+        get
+        {
+            var applicable = Columns.Where(c => c.IsApplicable).ToList();
+            var groups = applicable
+                .GroupBy(c => new { Key = c.GroupKey?.ToString() ?? "_ungrouped", Name = c.GroupName ?? "未分组" })
+                .Select(g => new ColumnGroup
+                {
+                    Key = g.Key.Key,
+                    GroupName = g.Key.Name,
+                    Columns = g.ToList()
+                })
+                .OrderBy(g => g.Key == "_ungrouped" ? int.MaxValue : int.Parse(g.Key.Replace("_ungrouped", "0")))
+                .ToList();
+            return groups;
+        }
+    }
+
     private void ToggleMenu()
     {
         _menuOpen = !_menuOpen;
+        if (_menuOpen)
+        {
+            // 打开面板时默认展开所有组
+            _groupExpanded = _groupedApplicableColumns.ToDictionary(g => g.Key, g => true);
+        }
+    }
+
+    private void ToggleGroupExpand(string groupKey)
+    {
+        if (_groupExpanded.ContainsKey(groupKey))
+            _groupExpanded[groupKey] = !_groupExpanded[groupKey];
+        else
+            _groupExpanded[groupKey] = true;
+    }
+
+    private async Task ToggleGroup(string groupKey, bool? value)
+    {
+        // null (indeterminate) → 设为全部可见；false → 全部隐藏；true → 全部可见
+        var visible = value != false;
+        var groupCols = _groupedApplicableColumns.FirstOrDefault(g => g.Key == groupKey)?.Columns;
+        if (groupCols == null) return;
+
+        foreach (var col in groupCols)
+        {
+            col.Visible = visible;
+            await OnColumnToggle.InvokeAsync(col);
+        }
     }
 
     private async Task OnColumnToggleChanged(ColumnDef col, bool visible)
@@ -128,5 +217,12 @@
             if (OnMoveDown.HasDelegate)
                 await OnMoveDown.InvokeAsync(col);
         }
+    }
+
+    private class ColumnGroup
+    {
+        public string Key { get; set; } = "";
+        public string GroupName { get; set; } = "";
+        public List<ColumnDef> Columns { get; set; } = new();
     }
 }

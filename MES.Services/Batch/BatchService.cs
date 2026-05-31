@@ -379,9 +379,9 @@ public class BatchService : IBatchService
             throw new BusinessException("长度状态不能为空");
         if (request.TotalWeight == null || request.TotalWeight <= 0)
             throw new BusinessException("总重量必须大于0");
-        // 制几率必须大于0
+        // 制成倍数必须大于0
         if (request.ProductionRatio <= 0)
-            throw new BusinessException("制几率必须大于0");
+            throw new BusinessException("制成倍数必须大于0");
         // 定尺时总支数必须大于0
         if (request.LengthStatus == "Fixed" && (request.TotalQuantity == null || request.TotalQuantity <= 0))
             throw new BusinessException("总支数（定尺时必须大于0）");
@@ -794,9 +794,9 @@ public class BatchService : IBatchService
             throw new BusinessException("长度状态不能为空");
         if (effectiveTotalWeight <= 0)
             throw new BusinessException("总重量必须大于0");
-        // 制几率必须大于0
+        // 制成倍数必须大于0
         if (effectiveProductionRatio <= 0)
-            throw new BusinessException("制几率必须大于0");
+            throw new BusinessException("制成倍数必须大于0");
         // 定尺时总支数必须大于0
         if (effectiveLengthStatus == "Fixed" && effectiveTotalQuantity <= 0)
             throw new BusinessException("总支数（定尺时必须大于0）");

@@ -403,7 +403,7 @@
                         </MudSelect>
                     </div>
                     <div class="d-flex align-center" style="gap:6px;">
-                        <span style="white-space:nowrap; font-weight:500;">制几率</span>
+                        <span style="white-space:nowrap; font-weight:500;">制成倍数</span>
                         <MudNumericField T="int?" @bind-Value="request.ProductionRatio" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" Style="width:70px;" Min="0" />
                     </div>
                     <div class="d-flex align-center" style="gap:6px;">
@@ -1408,9 +1408,9 @@
             errors.Add("长度状态不能为空");
         if (effectiveTotalWeight <= 0)
             errors.Add("总重量必须大于0");
-        // 制几率必须大于0
+        // 制成倍数必须大于0
         if (effectiveProductionRatio <= 0)
-            errors.Add("制几率必须大于0");
+            errors.Add("制成倍数必须大于0");
         // 定尺时总支数必须大于0
         if (effectiveLengthStatus == "Fixed" && effectiveTotalQuantity <= 0)
             errors.Add("总支数（定尺时必须大于0）");

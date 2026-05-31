@@ -27,6 +27,13 @@ public partial class PurchaseOrders
     private int _currentPage = 1;
     private int _pageSize = 10;
 
+    // B33: 分页汇总
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        "WoTotalQuantity", "WoTotalWeight", "WoTotalItemCount",
+    };
+
     // 排序状态
     private string sortColumn = "orderdate";
     private bool sortDescending = true;
@@ -108,6 +115,59 @@ public partial class PurchaseOrders
         new() { Key = "Received",            Label = "已到货",       Width = "80" },
     };
 
+    // ========== 分页汇总 ==========
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+
+        var props = typeof(PurchaseOrderDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+
+        foreach (var col in _visibleColumns.Where(c => _summableColumnKeys.Contains(c.Key)))
+        {
+            if (!props.TryGetValue(col.Key, out var prop)) continue;
+
+            var type = prop.PropertyType;
+            try
+            {
+                if (type == typeof(int))
+                {
+                    var sum = _pageItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal))
+                {
+                    var sum = _pageItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
+                    _pageSums[col.Key] = ((int)sum).ToString();
+                }
+                else if (type == typeof(int?))
+                {
+                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal?))
+                {
+                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    _pageSums[col.Key] = ((int)sum).ToString();
+                }
+            }
+            catch
+            {
+                // ignore individual column sum errors
+            }
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        if (_pageSums.TryGetValue(col.Key, out var sum))
+            return sum;
+        return "-";
+    }
+
     // ========== 服务端数据加载 ==========
 
     private async Task<TableData<PurchaseOrderDto>> LoadDataFromServer(TableState state)
@@ -133,6 +193,7 @@ public partial class PurchaseOrders
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
                 _currentPage = state.Page + 1;
+                ComputePageSums();
             }
             else
             {
@@ -428,13 +489,13 @@ public partial class PurchaseOrders
                 builder.AddContent(0, item.UnitWeight?.ToString("G29") ?? "-");
                 break;
             case "Quantity":
-                builder.AddContent(0, item.Quantity?.ToString("G29") ?? "-");
+                builder.AddContent(0, item.Quantity?.ToString() ?? "-");
                 break;
             case "InputMultiple":
                 builder.AddContent(0, item.InputMultiple?.ToString() ?? "-");
                 break;
             case "Weight":
-                builder.AddContent(0, item.Weight.ToString("G29"));
+                builder.AddContent(0, ((int)item.Weight).ToString());
                 break;
             case "RequiredDate":
                 builder.AddContent(0, item.RequiredDate.ToString("yyyy-MM-dd"));
@@ -450,7 +511,7 @@ public partial class PurchaseOrders
                 builder.CloseComponent();
                 break;
             case "Received":
-                builder.AddContent(0, $"{item.ReceivedQuantity}支/{item.ReceivedWeight.ToString("G29")}kg");
+                builder.AddContent(0, $"{item.ReceivedQuantity}支/{((int)item.ReceivedWeight).ToString()}kg");
                 break;
         }
     };

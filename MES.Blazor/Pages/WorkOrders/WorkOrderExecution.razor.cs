@@ -189,10 +189,10 @@ public partial class WorkOrderExecution
         {
             new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = new() { new("0","无需排产"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "TotalRemainingWorkDays",  Label = "剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
-            new() { Key = "UrgencyLevel",            Label = "工单计划性",    SortKey = "UrgencyLevel",            Width = "120",                              GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "UrgencyLevel",            Label = "工单计划性",    SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "EstimatedProcessCompletionDate",Label = "工艺预计完成日",SortKey = "EstimatedProcessCompletionDate", Width = "120",                  GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "DaysDiffFromDelivery",    Label = "交期相差天数",  SortKey = "DaysDiffFromDelivery",    Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
-            new() { Key = "RawMaterialLockRemark",   Label = "原锁备注",     SortKey = "RawMaterialLockRemark",   Width = "120",                             GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "RawMaterialLockRemark",   Label = "原锁备注",     SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                             GroupKey = 12, GroupName = "实时关注" },
         };
 
         var all = new List<ColumnDef>();
@@ -209,6 +209,85 @@ public partial class WorkOrderExecution
         all.AddRange(g11);
         all.AddRange(g12);
         return all;
+    }
+
+    // ========== 分页汇总 ==========
+
+    /// <summary>当前页汇总值（列Key → 格式化后的汇总文本）</summary>
+    private Dictionary<string, string> _pageSums = new();
+
+    /// <summary>可汇总的数值列（支数/米数/重量）</summary>
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        // 支数 (int)
+        "TotalItemCount", "TotalQuantity",
+        "PendingRoughTubeQty", "PendingOutsourceFinishQty",
+        "TotalBatchCount", "InputQuantity",
+        "ValidBatchCount", "ValidInputQuantity",
+        "ReworkBatchCount", "ReworkInputQuantity",
+        "FlowTotalBatchCount", "FlowIncompleteBatchCount",
+        "DefectiveRawQty", "InspectionDefectQty",
+        "WarehousingTotalQty",
+        // 支数 (decimal in DTO)
+        "TheoreticalFinishQty", "TheoreticalOutputQty",
+        "ValidOutputQty", "ReworkTheoreticalOutputQty",
+        "DefectiveOutputQty",
+        // 米数
+        "TotalMeters",
+        // 重量
+        "TotalWeight",
+        "PendingRoughTubeWeight", "PendingOutsourceFinishWeight", "TheoreticalFinishWeight",
+        "InputWeight", "TheoreticalOutputWeight",
+        "ValidInputWeight", "ValidOutputWeight",
+        "ReworkInputWeight", "ReworkTheoreticalOutputWeight",
+        "DefectiveRawWeight", "DefectiveOutputWeight",
+        "InspectionDefectWeight",
+        "GeneralDefectWeight", "SeriousDefectWeight", "ScrapWeight",
+        "WarehousingTotalWeight",
+    };
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+
+        var props = typeof(WorkOrderExecutionSummaryDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+
+        foreach (var col in _visibleColumns.Where(c => _summableColumnKeys.Contains(c.Key)))
+        {
+            if (!props.TryGetValue(col.Key, out var prop)) continue;
+
+            var type = prop.PropertyType;
+            try
+            {
+                if (type == typeof(int))
+                {
+                    var sum = _pageItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal))
+                {
+                    var sum = _pageItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
+                    _pageSums[col.Key] = ((int)sum).ToString(); // §10.7: 列表页显示为整数
+                }
+                else if (type == typeof(int?))
+                {
+                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal?))
+                {
+                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    _pageSums[col.Key] = ((int)sum).ToString(); // §10.7: 列表页显示为整数
+                }
+            }
+            catch
+            {
+                // ignore individual column sum errors
+            }
+        }
     }
 
     // ========== 服务端数据加载 ==========
@@ -248,6 +327,7 @@ public partial class WorkOrderExecution
                 _totalCount = result.Data.TotalCount;
                 _currentPageIndex = state.Page + 1;
                 lastRefreshTime = _pageItems.Select(i => i.LastRefreshTime).DefaultIfEmpty().Max();
+                ComputePageSums();
                 await SavePageStateAsync();
             }
             else
@@ -530,6 +610,14 @@ public partial class WorkOrderExecution
 
     // ========== 单元格渲染 ==========
 
+    /// <summary>渲染页脚汇总值</summary>
+    private string RenderFooterCell(ColumnDef col)
+    {
+        if (_pageSums.TryGetValue(col.Key, out var sum))
+            return sum;
+        return "-";
+    }
+
     private RenderFragment RenderCell(WorkOrderExecutionSummaryDto item, ColumnDef col) => builder =>
     {
         switch (col.Key)
@@ -592,16 +680,16 @@ public partial class WorkOrderExecution
                 builder.AddContent(0, item.TotalQuantity);
                 break;
             case "TotalMeters":
-                builder.AddContent(0, item.TotalMeters.ToString("G29"));
+                builder.AddContent(0, ((int)item.TotalMeters).ToString()); // §10.7: 列表页整数
                 break;
             case "TotalWeight":
-                builder.AddContent(0, Math.Round(item.TotalWeight).ToString("F0"));
+                builder.AddContent(0, ((int)item.TotalWeight).ToString()); // §10.7: 列表页整数
                 break;
             case "LatestPlanDate":
                 builder.AddContent(0, item.LatestPlanDate?.ToString("yyyy-MM-dd") ?? "-");
                 break;
             case "MaterialPlanRate":
-                builder.AddContent(0, item.MaterialPlanRate > 0 ? $"{item.MaterialPlanRate}%" : "-");
+                builder.AddContent(0, item.MaterialPlanRate > 0 ? $"{item.MaterialPlanRate:F1}%" : "-");
                 break;
             case "MaterialPlanStatus":
                 builder.OpenComponent<MudChip>(0);
@@ -611,7 +699,7 @@ public partial class WorkOrderExecution
                 builder.CloseComponent();
                 break;
             case "MainNoMaterialPlanRate":
-                builder.AddContent(0, item.MainNoMaterialPlanRate > 0 ? $"{item.MainNoMaterialPlanRate}%" : "-");
+                builder.AddContent(0, item.MainNoMaterialPlanRate > 0 ? $"{item.MainNoMaterialPlanRate:F1}%" : "-");
                 break;
             case "MainNoMaterialPlanStatus":
                 builder.OpenComponent<MudChip>(0);
@@ -627,19 +715,19 @@ public partial class WorkOrderExecution
                 builder.AddContent(0, item.PendingRoughTubeQty > 0 ? item.PendingRoughTubeQty.ToString() : "-");
                 break;
             case "PendingRoughTubeWeight":
-                builder.AddContent(0, item.PendingRoughTubeWeight > 0 ? Math.Round(item.PendingRoughTubeWeight).ToString("F0") : "-");
+                builder.AddContent(0, item.PendingRoughTubeWeight > 0 ? ((int)item.PendingRoughTubeWeight).ToString() : "-"); // §10.7
                 break;
             case "PendingOutsourceFinishQty":
                 builder.AddContent(0, item.PendingOutsourceFinishQty > 0 ? item.PendingOutsourceFinishQty.ToString() : "-");
                 break;
             case "PendingOutsourceFinishWeight":
-                builder.AddContent(0, item.PendingOutsourceFinishWeight > 0 ? Math.Round(item.PendingOutsourceFinishWeight).ToString("F0") : "-");
+                builder.AddContent(0, item.PendingOutsourceFinishWeight > 0 ? ((int)item.PendingOutsourceFinishWeight).ToString() : "-"); // §10.7
                 break;
             case "TheoreticalFinishQty":
-                builder.AddContent(0, item.TheoreticalFinishQty > 0 ? item.TheoreticalFinishQty.ToString("G29") : "-");
+                builder.AddContent(0, item.TheoreticalFinishQty > 0 ? ((int)item.TheoreticalFinishQty).ToString() : "-"); // §10.7
                 break;
             case "TheoreticalFinishWeight":
-                builder.AddContent(0, item.TheoreticalFinishWeight > 0 ? Math.Round(item.TheoreticalFinishWeight).ToString("F0") : "-");
+                builder.AddContent(0, item.TheoreticalFinishWeight > 0 ? ((int)item.TheoreticalFinishWeight).ToString() : "-"); // §10.7
                 break;
             case "ReworkInputEndDate":
                 builder.AddContent(0, item.ReworkInputEndDate?.ToString("yyyy-MM-dd") ?? "-");
@@ -651,16 +739,16 @@ public partial class WorkOrderExecution
                 builder.AddContent(0, item.ReworkInputQuantity);
                 break;
             case "ReworkInputWeight":
-                builder.AddContent(0, Math.Round(item.ReworkInputWeight).ToString("F0"));
+                builder.AddContent(0, ((int)item.ReworkInputWeight).ToString()); // §10.7
                 break;
             case "ReworkTheoreticalOutputQty":
-                builder.AddContent(0, item.ReworkTheoreticalOutputQty.ToString("G29"));
+                builder.AddContent(0, ((int)item.ReworkTheoreticalOutputQty).ToString()); // §10.7
                 break;
             case "ReworkTheoreticalOutputWeight":
-                builder.AddContent(0, Math.Round(item.ReworkTheoreticalOutputWeight).ToString("F0"));
+                builder.AddContent(0, ((int)item.ReworkTheoreticalOutputWeight).ToString()); // §10.7
                 break;
             case "FlowOutputRatio":
-                builder.AddContent(0, item.FlowOutputRatio > 0 ? $"{item.FlowOutputRatio}%" : "-");
+                builder.AddContent(0, item.FlowOutputRatio > 0 ? $"{item.FlowOutputRatio:F1}%" : "-");
                 break;
             case "FlowStatus":
                 builder.OpenComponent<MudChip>(0);
@@ -670,7 +758,7 @@ public partial class WorkOrderExecution
                 builder.CloseComponent();
                 break;
             case "MainNoFlowRatio":
-                builder.AddContent(0, item.MainNoFlowOutputRatio > 0 ? $"{item.MainNoFlowOutputRatio}%" : "-");
+                builder.AddContent(0, item.MainNoFlowOutputRatio > 0 ? $"{item.MainNoFlowOutputRatio:F1}%" : "-");
                 break;
             case "MainNoFlowStatus":
                 builder.OpenComponent<MudChip>(0);
@@ -692,16 +780,16 @@ public partial class WorkOrderExecution
                 builder.AddContent(0, item.InputQuantity);
                 break;
             case "InputWeight":
-                builder.AddContent(0, Math.Round(item.InputWeight).ToString("F0"));
+                builder.AddContent(0, ((int)item.InputWeight).ToString()); // §10.7
                 break;
             case "TheoreticalOutputQty":
-                builder.AddContent(0, item.TheoreticalOutputQty.ToString("G29"));
+                builder.AddContent(0, ((int)item.TheoreticalOutputQty).ToString()); // §10.7
                 break;
             case "TheoreticalOutputWeight":
-                builder.AddContent(0, Math.Round(item.TheoreticalOutputWeight).ToString("F0"));
+                builder.AddContent(0, ((int)item.TheoreticalOutputWeight).ToString()); // §10.7
                 break;
             case "InputOutputRatio":
-                builder.AddContent(0, item.InputOutputRatio > 0 ? $"{item.InputOutputRatio}%" : "-");
+                builder.AddContent(0, item.InputOutputRatio > 0 ? $"{item.InputOutputRatio:F1}%" : "-");
                 break;
             case "InputStatus":
                 builder.OpenComponent<MudChip>(0);
@@ -711,7 +799,7 @@ public partial class WorkOrderExecution
                 builder.CloseComponent();
                 break;
             case "MainNoInputRatio":
-                builder.AddContent(0, item.MainNoInputOutputRatio > 0 ? $"{item.MainNoInputOutputRatio}%" : "-");
+                builder.AddContent(0, item.MainNoInputOutputRatio > 0 ? $"{item.MainNoInputOutputRatio:F1}%" : "-");
                 break;
             case "MainNoInputStatus":
                 builder.OpenComponent<MudChip>(0);
@@ -727,13 +815,13 @@ public partial class WorkOrderExecution
                 builder.AddContent(0, item.ValidInputQuantity);
                 break;
             case "ValidInputWeight":
-                builder.AddContent(0, Math.Round(item.ValidInputWeight).ToString("F0"));
+                builder.AddContent(0, ((int)item.ValidInputWeight).ToString()); // §10.7
                 break;
             case "ValidOutputQty":
-                builder.AddContent(0, item.ValidOutputQty.ToString("G29"));
+                builder.AddContent(0, ((int)item.ValidOutputQty).ToString()); // §10.7
                 break;
             case "ValidOutputWeight":
-                builder.AddContent(0, Math.Round(item.ValidOutputWeight).ToString("F0"));
+                builder.AddContent(0, ((int)item.ValidOutputWeight).ToString()); // §10.7
                 break;
 
             // ========== G8: 过程不合格 ==========
@@ -741,16 +829,16 @@ public partial class WorkOrderExecution
                 builder.AddContent(0, item.DefectiveRawQty > 0 ? item.DefectiveRawQty.ToString() : "-");
                 break;
             case "DefectiveRawWeight":
-                builder.AddContent(0, item.DefectiveRawWeight > 0 ? Math.Round(item.DefectiveRawWeight).ToString("F0") : "-");
+                builder.AddContent(0, item.DefectiveRawWeight > 0 ? ((int)item.DefectiveRawWeight).ToString() : "-"); // §10.7
                 break;
             case "DefectiveOutputQty":
-                builder.AddContent(0, item.DefectiveOutputQty > 0 ? item.DefectiveOutputQty.ToString("G29") : "-");
+                builder.AddContent(0, item.DefectiveOutputQty > 0 ? ((int)item.DefectiveOutputQty).ToString() : "-"); // §10.7
                 break;
             case "DefectiveOutputWeight":
-                builder.AddContent(0, item.DefectiveOutputWeight > 0 ? Math.Round(item.DefectiveOutputWeight).ToString("F0") : "-");
+                builder.AddContent(0, item.DefectiveOutputWeight > 0 ? ((int)item.DefectiveOutputWeight).ToString() : "-"); // §10.7
                 break;
             case "DefectiveRatio":
-                builder.AddContent(0, item.DefectiveRatio > 0 ? $"{item.DefectiveRatio}%" : "-");
+                builder.AddContent(0, item.DefectiveRatio > 0 ? $"{item.DefectiveRatio:F1}%" : "-");
                 break;
 
             // ========== G9: 成检不合格 ==========
@@ -764,30 +852,30 @@ public partial class WorkOrderExecution
                 builder.AddContent(0, item.InspectionDefectQty > 0 ? item.InspectionDefectQty.ToString() : "-");
                 break;
             case "InspectionDefectWeight":
-                builder.AddContent(0, item.InspectionDefectWeight > 0 ? Math.Round(item.InspectionDefectWeight).ToString("F0") : "-");
+                builder.AddContent(0, item.InspectionDefectWeight > 0 ? ((int)item.InspectionDefectWeight).ToString() : "-"); // §10.7
                 break;
             case "InspectionDefectRatio":
-                builder.AddContent(0, item.InspectionDefectRatio > 0 ? $"{item.InspectionDefectRatio}%" : "-");
+                builder.AddContent(0, item.InspectionDefectRatio > 0 ? $"{item.InspectionDefectRatio:F1}%" : "-");
                 break;
 
             // ========== G10: 汇总不合格 ==========
             case "GeneralDefectWeight":
-                builder.AddContent(0, item.GeneralDefectWeight > 0 ? Math.Round(item.GeneralDefectWeight).ToString("F0") : "-");
+                builder.AddContent(0, item.GeneralDefectWeight > 0 ? ((int)item.GeneralDefectWeight).ToString() : "-"); // §10.7
                 break;
             case "GeneralDefectRatio":
-                builder.AddContent(0, item.GeneralDefectRatio > 0 ? $"{item.GeneralDefectRatio}%" : "-");
+                builder.AddContent(0, item.GeneralDefectRatio > 0 ? $"{item.GeneralDefectRatio:F1}%" : "-");
                 break;
             case "SeriousDefectWeight":
-                builder.AddContent(0, item.SeriousDefectWeight > 0 ? Math.Round(item.SeriousDefectWeight).ToString("F0") : "-");
+                builder.AddContent(0, item.SeriousDefectWeight > 0 ? ((int)item.SeriousDefectWeight).ToString() : "-"); // §10.7
                 break;
             case "SeriousDefectRatio":
-                builder.AddContent(0, item.SeriousDefectRatio > 0 ? $"{item.SeriousDefectRatio}%" : "-");
+                builder.AddContent(0, item.SeriousDefectRatio > 0 ? $"{item.SeriousDefectRatio:F1}%" : "-");
                 break;
             case "ScrapWeight":
-                builder.AddContent(0, item.ScrapWeight > 0 ? Math.Round(item.ScrapWeight).ToString("F0") : "-");
+                builder.AddContent(0, item.ScrapWeight > 0 ? ((int)item.ScrapWeight).ToString() : "-"); // §10.7
                 break;
             case "ScrapRatio":
-                builder.AddContent(0, item.ScrapRatio > 0 ? $"{item.ScrapRatio}%" : "-");
+                builder.AddContent(0, item.ScrapRatio > 0 ? $"{item.ScrapRatio:F1}%" : "-");
                 break;
 
             // ========== G11: 成品入库 ==========
@@ -801,7 +889,7 @@ public partial class WorkOrderExecution
                 builder.AddContent(0, item.WarehousingTotalQty > 0 ? item.WarehousingTotalQty.ToString() : "-");
                 break;
             case "WarehousingTotalWeight":
-                builder.AddContent(0, item.WarehousingTotalWeight > 0 ? Math.Round(item.WarehousingTotalWeight).ToString("F0") : "-");
+                builder.AddContent(0, item.WarehousingTotalWeight > 0 ? ((int)item.WarehousingTotalWeight).ToString() : "-"); // §10.7
                 break;
             case "WoWarehousingStatus":
                 builder.OpenComponent<MudChip>(0);

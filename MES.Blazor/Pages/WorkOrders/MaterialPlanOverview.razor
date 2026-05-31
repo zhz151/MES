@@ -146,6 +146,14 @@
                                        Title="工单用料计划" />
                     </MudTd>
                 </RowTemplate>
+                <FooterContent>
+                    <MudTd Class="col-footer-cell"></MudTd>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd Class="col-footer-cell"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
+                    }
+                    <MudTd Class="col-footer-cell"></MudTd>
+                </FooterContent>
                 <NoRecordsContent>
                 </NoRecordsContent>
                 <PagerContent>

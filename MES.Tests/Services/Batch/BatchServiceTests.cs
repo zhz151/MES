@@ -260,7 +260,7 @@ public class BatchServiceTests : TestBase
     }
 
     [Fact]
-    public async Task CreateAsync_定尺状态_自动计算制几率()
+    public async Task CreateAsync_定尺状态_自动计算制成倍数()
     {
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
@@ -289,7 +289,7 @@ public class BatchServiceTests : TestBase
         result.Should().NotBeNull();
 
         // 投料单重 = 1200/100 = 12, 工单单重 = 1000/100 = 10
-        // 制几率 = floor(12/10) = 1
+        // 制成倍数 = floor(12/10) = 1
         var detail = await svc.GetByIdAsync(result.Id);
         detail.ProductionRatio.Should().Be(1);
     }

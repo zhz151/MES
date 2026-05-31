@@ -48,6 +48,16 @@ public partial class OutsourceRecoveries
     private string sortColumn = "recoverydate";
     private bool sortDescending = true;
 
+    // ========== 分页汇总 ==========
+    private Dictionary<string, string> _pageSums = new();
+
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        "SendQuantity", "SendWeight",
+        "RecoveryQuantity", "RecoveryWeight",
+        "UnprocessedQuantity", "UnprocessedWeight",
+    };
+
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -81,6 +91,59 @@ public partial class OutsourceRecoveries
         new() { Key = "CreatedTime",         Label = "创建时间",     SortKey = "createdtime",            FilterType = "date" },
     };
 
+    // ========== 分页汇总计算 ==========
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+
+        var props = typeof(OutsourceRecoveryDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+
+        foreach (var col in _visibleColumns.Where(c => _summableColumnKeys.Contains(c.Key)))
+        {
+            if (!props.TryGetValue(col.Key, out var prop)) continue;
+
+            var type = prop.PropertyType;
+            try
+            {
+                if (type == typeof(int))
+                {
+                    var sum = _pageItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal))
+                {
+                    var sum = _pageItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
+                    _pageSums[col.Key] = ((int)sum).ToString();
+                }
+                else if (type == typeof(int?))
+                {
+                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal?))
+                {
+                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    _pageSums[col.Key] = ((int)sum).ToString();
+                }
+            }
+            catch
+            {
+                // ignore individual column sum errors
+            }
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        if (_pageSums.TryGetValue(col.Key, out var sum))
+            return sum;
+        return "-";
+    }
+
     // ========== 服务端数据加载 ==========
 
     private async Task<TableData<OutsourceRecoveryDto>> LoadDataFromServer(TableState state)
@@ -111,6 +174,7 @@ public partial class OutsourceRecoveries
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
                 _currentPage = state.Page + 1;
+                ComputePageSums();
             }
             else
             {
@@ -367,7 +431,7 @@ public partial class OutsourceRecoveries
                 builder.AddContent(0, DisplayHelper.FormatNullableInt(item.SendQuantity));
                 break;
             case "SendWeight":
-                builder.AddContent(0, DisplayHelper.FormatNullableDecimal(item.SendWeight));
+                builder.AddContent(0, $"{(int)(item.SendWeight ?? 0)}");
                 break;
             case "TagNo":
                 builder.AddContent(0, item.TagNo ?? "");
@@ -382,13 +446,13 @@ public partial class OutsourceRecoveries
                 builder.AddContent(0, item.RecoveryQuantity ?? 0);
                 break;
             case "RecoveryWeight":
-                builder.AddContent(0, item.RecoveryWeight?.ToString("G29") ?? "0");
+                builder.AddContent(0, $"{(int)(item.RecoveryWeight ?? 0)}");
                 break;
             case "UnprocessedQuantity":
                 builder.AddContent(0, item.UnprocessedQuantity ?? 0);
                 break;
             case "UnprocessedWeight":
-                builder.AddContent(0, item.UnprocessedWeight?.ToString("G29") ?? "0");
+                builder.AddContent(0, $"{(int)(item.UnprocessedWeight ?? 0)}");
                 break;
             case "Remark":
                 builder.AddContent(0, item.Remark ?? "");
@@ -413,14 +477,14 @@ public partial class OutsourceRecoveries
         "ManufacturingSpec" => item.ManufacturingSpec,
         "OutsourceSpec" => item.OutsourceSpec,
         "SendQuantity" => item.SendQuantity?.ToString("G29"),
-        "SendWeight" => item.SendWeight?.ToString("G29"),
+        "SendWeight" => $"{(int)(item.SendWeight ?? 0)}",
         "TagNo" => item.TagNo,
         "PlantGrade" => item.PlantGrade,
         "RecoveryDate" => item.RecoveryDate.ToString("yyyy-MM-dd"),
         "RecoveryQuantity" => item.RecoveryQuantity?.ToString("G29"),
-        "RecoveryWeight" => item.RecoveryWeight?.ToString("G29"),
+        "RecoveryWeight" => $"{(int)(item.RecoveryWeight ?? 0)}",
         "UnprocessedQuantity" => item.UnprocessedQuantity?.ToString("G29"),
-        "UnprocessedWeight" => item.UnprocessedWeight?.ToString("G29"),
+        "UnprocessedWeight" => $"{(int)(item.UnprocessedWeight ?? 0)}",
         "Remark" => item.Remark,
         "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         _ => null

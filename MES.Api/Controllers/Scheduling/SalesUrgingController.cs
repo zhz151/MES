@@ -37,6 +37,13 @@ public class SalesUrgingController : ControllerBase
         var result = await _service.SaveUrgingAsync(request.WorkOrderId, request.IsSalesUrging, request.UrgingRemark);
         return Ok(ApiResponse<bool>.Ok(result));
     }
+
+    [HttpGet("filter-contexts")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
+    {
+        var result = await _service.GetFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
 }
 
 public class SaveUrgingRequest

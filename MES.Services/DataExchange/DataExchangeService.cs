@@ -290,7 +290,7 @@ public class DataExchangeService : IDataExchangeService
             new("挂牌号", "TagNo", typeof(string), isRequired: false),
             new("生产类型", "ProductionType", typeof(ProductionType), isEnum: true, isRequired: false),
             new("制造物品", "ManufacturingItem", typeof(ManufacturingItem), isEnum: true),
-            new("制几率", "ProductionRatio", typeof(int), isRequired: false),
+            new("制成倍数", "ProductionRatio", typeof(int), isRequired: false),
             new("强制完成", "IsForceCompleted", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("质量备注", "QualityRemark", typeof(string), isRequired: false),
             new("固溶参数", "SolutionParams", typeof(string), isRequired: false),

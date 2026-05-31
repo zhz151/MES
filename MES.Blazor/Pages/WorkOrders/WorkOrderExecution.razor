@@ -86,7 +86,7 @@
                         var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
                         _prevGk = col.GroupKey;
                         var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
-                        <MudTh Class="@_headerClass" Style="width: col.Width">
+                        <MudTh Class="@_headerClass" Style="@($"width: {col.Width}px")">
                             <div class="col-header-cell">
                                 @if (_isGroupStart && col.GroupName != null)
                                 {
@@ -119,6 +119,20 @@
                         <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
                     }
                 </RowTemplate>
+                <FooterContent>
+                    @{
+                        int? _prevGk3 = null;
+                    }
+                    @foreach (var col in _visibleColumns)
+                    {
+                        var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
+                        _prevGk3 = col.GroupKey;
+                        var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell";
+                        <MudTd Class="@_footerClass" Style="@($"width: {col.Width}px")">
+                            <span class="col-footer-sum">@RenderFooterCell(col)</span>
+                        </MudTd>
+                    }
+                </FooterContent>
                 <PagerContent>
                     <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>

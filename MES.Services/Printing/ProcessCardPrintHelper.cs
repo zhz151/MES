@@ -303,7 +303,7 @@ public static class ProcessCardPrintHelper
             ["Status"] = ("状态", () => GetStatusText(b.Status)),
             ["TagNo"] = ("挂牌号", () => b.TagNo ?? "-"),
             ["ProductionType"] = ("生产类型", () => GetProductionTypeText(b.ProductionType) ?? "-"),
-            ["ProductionRatio"] = ("制几率", () => b.ProductionRatio.ToString()),
+            ["ProductionRatio"] = ("制成倍数", () => b.ProductionRatio.ToString()),
             ["IsForceCompleted"] = ("强制完成", () => b.IsForceCompleted ? "是" : "否"),
             ["Remark"] = ("备注", () => b.Remark ?? "-"),
             ["CurrentExecDate"] = ("截止执行日", () => b.CurrentExecDate?.ToString("yyyy-MM-dd") ?? "-"),

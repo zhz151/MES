@@ -865,6 +865,18 @@ input[type="number"]::-webkit-outer-spin-button {
 .col-group-start { border-left: 2px solid #BDBDBD !important; }
 .col-group-start-cell { border-left: 2px solid #E0E0E0 !important; }
 
+/* 页脚汇总行样式 */
+.col-footer-cell {
+    border-top: 2px solid #BDBDBD !important;
+    font-weight: 600 !important;
+    background: #FAFAFA !important;
+}
+.col-footer-sum {
+    color: #1565C0;
+    white-space: nowrap;
+    font-size: 0.8125rem;
+}
+
 /* ============================================================
    批次新建页面 - 上下结构表单样式
    ============================================================ */

@@ -18,6 +18,8 @@ public partial class MaterialPlanOverview
 {
     private MudTable<WorkOrderListDto>? table;
     private List<WorkOrderListDto> _pageItems = new();
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new() { "TotalWeight", "TotalItemCount", "TotalQuantity" };
     private int _totalCount;
     private string errorMessage = string.Empty;
 
@@ -108,6 +110,52 @@ public partial class MaterialPlanOverview
         new() { Key = "MaxStandardCycle",       Label = "最大工艺周期",   SortKey = "MaxStandardCycle", Width = "80" },
     };
 
+    // ========== 分页汇总 ==========
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+        var props = typeof(WorkOrderListDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+        foreach (var col in _visibleColumns.Where(c => _summableColumnKeys.Contains(c.Key)))
+        {
+            if (!props.TryGetValue(col.Key, out var prop)) continue;
+            var type = prop.PropertyType;
+            try
+            {
+                if (type == typeof(int))
+                {
+                    var sum = _pageItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal))
+                {
+                    var sum = _pageItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
+                    _pageSums[col.Key] = ((int)sum).ToString();
+                }
+                else if (type == typeof(int?))
+                {
+                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal?))
+                {
+                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    _pageSums[col.Key] = ((int)sum).ToString();
+                }
+            }
+            catch { }
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        if (_pageSums.TryGetValue(col.Key, out var sum)) return sum;
+        return "";
+    }
+
     // ========== 服务端数据加载 ==========
 
     private async Task<TableData<WorkOrderListDto>> LoadDataFromServer(TableState state)
@@ -149,6 +197,8 @@ public partial class MaterialPlanOverview
             _pageItems = new();
             _totalCount = 0;
         }
+
+        ComputePageSums();
 
         return new TableData<WorkOrderListDto>
         {
@@ -452,12 +502,12 @@ public partial class MaterialPlanOverview
         "MaxLength" => item.MaxLength?.ToString("G29"),
         "MinLength" => item.MinLength?.ToString("G29"),
         "TotalQuantity" => item.TotalQuantity.ToString("G29"),
-        "TotalWeight" => item.TotalWeight.ToString("G29"),
+        "TotalWeight" => ((int)item.TotalWeight).ToString(),
         "DeliveryState" => item.DeliveryState.ToString(),
         "TotalItemCount" => item.TotalItemCount.ToString("G29"),
         "LatestPlanDate" => item.LatestPlanDate?.ToString("yyyy-MM-dd"),
         "MaterialPlanStatus" => item.MaterialPlanStatus.ToString(),
-        "MaterialPlanRate" => item.MaterialPlanRate.ToString("G29"),
+        "MaterialPlanRate" => $"{item.MaterialPlanRate:F1}%",
         "MainNoMaterialPlanStatus" => item.MainNoMaterialPlanStatus.ToString(),
         "OrderMaterialPlanStatus" => item.OrderMaterialPlanStatus.ToString(),
         _ => null
@@ -538,7 +588,7 @@ public partial class MaterialPlanOverview
                 builder.AddContent(0, wo.TotalQuantity);
                 break;
             case "TotalWeight":
-                builder.AddContent(0, wo.TotalWeight.ToString("G29"));
+                builder.AddContent(0, ((int)wo.TotalWeight).ToString());
                 break;
             case "DeliveryState":
                 builder.AddContent(0, DisplayHelper.GetDeliveryStateText(wo.DeliveryState));
@@ -561,7 +611,7 @@ public partial class MaterialPlanOverview
                 builder.CloseComponent();
                 break;
             case "MaterialPlanRate":
-                builder.AddContent(0, $"{(int)Math.Round(wo.MaterialPlanRate)}%");
+                builder.AddContent(0, $"{wo.MaterialPlanRate:F1}%");
                 break;
             case "PlanProportion":
                 if (!string.IsNullOrEmpty(wo.PlanProportionText))

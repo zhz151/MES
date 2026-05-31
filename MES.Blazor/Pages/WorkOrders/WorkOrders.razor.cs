@@ -19,6 +19,8 @@ public partial class WorkOrders
 {
     private MudTable<WorkOrderListDto>? table;
     private List<WorkOrderListDto> _pageItems = new();
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new() { "TotalQuantity", "TotalWeight", "TotalItemCount" };
     private int _totalCount;
     private List<CancelledOrderDto> cancelledOrders = new();
     private bool isSyncing = false;
@@ -87,7 +89,7 @@ public partial class WorkOrders
                EnumOptions = new List<EnumOption> { new("Fixed", "定尺"), new("Range", "范围尺"), new("Multiple", "倍尺"), new("Unlimited", "不限") } },
         new() { Key = "MinLength",         Label = "最小长度", SortKey = "MinLength", Width = "80" },
         new() { Key = "MaxLength",         Label = "最大长度", SortKey = "MaxLength", Width = "80" },
-        new() { Key = "TotalQuantity",     Label = "总数量",   SortKey = "TotalQuantity", Width = "80" },
+        new() { Key = "TotalQuantity",     Label = "总支数",   SortKey = "TotalQuantity", Width = "80" },
         new() { Key = "TotalWeight",       Label = "总重量",   SortKey = "TotalWeight", Width = "80" },
         new() { Key = "DeliveryState",     Label = "交货状态", SortKey = "DeliveryState",    FilterType = "string", Width = "120" },
         new() { Key = "TotalItemCount",    Label = "含项次数", SortKey = "TotalItemCount", Width = "80" },
@@ -97,6 +99,52 @@ public partial class WorkOrders
         new() { Key = "MaterialPlanRate",  Label = "满足率(%)", SortKey = "MaterialPlanRate", Width = "80" },
         new() { Key = "LatestPlanDate",    Label = "最新计划日期", SortKey = "LatestPlanDate", FilterType = "date", Width = "120" },
     };
+
+    // ========== 分页汇总 ==========
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+        var props = typeof(WorkOrderListDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+        foreach (var col in _visibleColumns.Where(c => _summableColumnKeys.Contains(c.Key)))
+        {
+            if (!props.TryGetValue(col.Key, out var prop)) continue;
+            var type = prop.PropertyType;
+            try
+            {
+                if (type == typeof(int))
+                {
+                    var sum = _pageItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal))
+                {
+                    var sum = _pageItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
+                    _pageSums[col.Key] = ((int)sum).ToString();
+                }
+                else if (type == typeof(int?))
+                {
+                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal?))
+                {
+                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    _pageSums[col.Key] = ((int)sum).ToString();
+                }
+            }
+            catch { }
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        if (_pageSums.TryGetValue(col.Key, out var sum)) return sum;
+        return "";
+    }
 
     // ========== 服务端数据加载 ==========
 
@@ -140,6 +188,8 @@ public partial class WorkOrders
             _pageItems = new();
             _totalCount = 0;
         }
+
+        ComputePageSums();
 
         return new TableData<WorkOrderListDto>
         {
@@ -414,7 +464,7 @@ public partial class WorkOrders
                 builder.AddContent(0, item.TotalQuantity);
                 break;
             case "TotalWeight":
-                builder.AddContent(0, Math.Round(item.TotalWeight).ToString("F0"));
+                builder.AddContent(0, ((int)item.TotalWeight).ToString());
                 break;
             case "DeliveryState":
                 builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
@@ -437,7 +487,7 @@ public partial class WorkOrders
                 builder.CloseComponent();
                 break;
             case "MaterialPlanRate":
-                builder.AddContent(0, item.MaterialPlanRate > 0 ? $"{item.MaterialPlanRate}%" : "-");
+                builder.AddContent(0, item.MaterialPlanRate > 0 ? $"{item.MaterialPlanRate:F1}%" : "-");
                 break;
             case "LatestPlanDate":
                 builder.AddContent(0, item.LatestPlanDate?.ToString("yyyy-MM-dd") ?? "-");

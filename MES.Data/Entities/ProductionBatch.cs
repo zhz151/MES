@@ -36,7 +36,7 @@ public class ProductionBatch : BaseEntity
     public string ManufacturingItem { get; set; } = null!;
 
     /// <summary>
-    /// 制几率（定尺时= floor(投料单重/工单单重)）
+    /// 制成倍数（定尺时= floor(投料单重/工单单重)）
     /// </summary>
     public int ProductionRatio { get; set; }
 

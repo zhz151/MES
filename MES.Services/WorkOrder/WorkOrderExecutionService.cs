@@ -45,7 +45,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 x.PlantGrade.Contains(kw) ||
                 x.Specification.Contains(kw) ||
                 x.ProductionMainNo.Contains(kw) ||
-                (x.ProductionSubNo != null && x.ProductionSubNo.Contains(kw)));
+                (x.ProductionSubNo != null && x.ProductionSubNo.Contains(kw)) ||
+                (x.UrgencyLevel != null && x.UrgencyLevel.Contains(kw)) ||
+                (x.RawMaterialLockRemark != null && x.RawMaterialLockRemark.Contains(kw)));
         }
 
         // 排序
@@ -715,7 +717,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var batchInputQty = batch.InputQuantity ?? 0;
             var batchInputWeight = batch.InputWeight ?? 0m;
 
-            // 理论成品支数 = 投料支数 × 制几率
+            // 理论成品支数 = 投料支数 × 制成倍数
             if (batch.ProductionRatio > 0)
                 theorQty += batchInputQty * batch.ProductionRatio;
 
@@ -1258,6 +1260,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 s.ProductionSubNo,
                 s.PlantGrade,
                 s.Specification,
+                s.UrgencyLevel,
+                s.RawMaterialLockRemark,
             })
             .ToListAsync();
 
@@ -1271,6 +1275,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             ["ProductionSubNo"] = all.Where(x => x.ProductionSubNo != null).Select(x => x.ProductionSubNo!).Distinct().OrderBy(x => x).ToList(),
             ["PlantGrade"] = all.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
             ["Specification"] = all.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
+            ["UrgencyLevel"] = all.Where(x => x.UrgencyLevel != null).Select(x => x.UrgencyLevel!).Distinct().OrderBy(x => x).ToList(),
+            ["RawMaterialLockRemark"] = all.Where(x => x.RawMaterialLockRemark != null).Select(x => x.RawMaterialLockRemark!).Distinct().OrderBy(x => x).ToList(),
         };
     }
 

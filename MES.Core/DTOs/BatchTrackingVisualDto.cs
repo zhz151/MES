@@ -29,7 +29,7 @@ public class BatchTrackingVisualDto
     public int? InputQuantity { get; set; }
     /// <summary>投料重量(kg) = 批次领料重量</summary>
     public int? InputWeight { get; set; }
-    /// <summary>目标支数 = 投料支数 × 制几率</summary>
+    /// <summary>目标支数 = 投料支数 × 制成倍数</summary>
     public int? TargetQuantity { get; set; }
     /// <summary>目标重量(kg) = 投料重量 × 工序组折扣系数</summary>
     public int? TargetWeight { get; set; }
