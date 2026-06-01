@@ -11,6 +11,11 @@ public class ProcessGroup : BaseEntity
     public int ProductionBatchId { get; set; }
 
     /// <summary>
+    /// 批次号（从 ProductionBatch 冗余，用于数据导入覆盖匹配）
+    /// </summary>
+    public string? BatchNo { get; set; }
+
+    /// <summary>
     /// 组内序号
     /// </summary>
     public int SequenceNumber { get; set; }

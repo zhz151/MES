@@ -25,7 +25,114 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
 
     public async Task<PagedResult<RawMaterialLockPlanAndExecutionDto>> GetPagedAsync(QueryParams query)
     {
-        var q = _context.Set<RawMaterialLockPlanAndExecution>().AsNoTracking();
+        var planQuery = _context.Set<RawMaterialLockPlanAndExecution>().AsNoTracking();
+        var urgingQuery = _context.Set<SalesUrging>().AsNoTracking();
+
+        // LEFT JOIN SalesUrging 获取 G15 字段
+        var q = from p in planQuery
+                join u in urgingQuery on p.WorkOrderId equals u.WorkOrderId into uj
+                from u in uj.DefaultIfEmpty()
+                select new RawMaterialLockPlanAndExecutionDto
+                {
+                    Id = p.Id,
+                    WorkOrderId = p.WorkOrderId,
+                    WorkOrderNo = p.WorkOrderNo,
+
+                    // G1
+                    Salesman = p.Salesman,
+                    CustomerName = p.CustomerName,
+                    SignDate = p.SignDate,
+                    DeliveryDate = p.DeliveryDate,
+                    DelayPenalty = p.DelayPenalty,
+                    SettlementMethod = p.SettlementMethod,
+                    SalesOrderNo = p.SalesOrderNo,
+                    ProductionMainNo = p.ProductionMainNo,
+                    ProductionSubNo = p.ProductionSubNo,
+                    MaterialName = p.MaterialName,
+                    DeliveryState = p.DeliveryState,
+                    PlantGrade = p.PlantGrade,
+                    Specification = p.Specification,
+                    LengthStatus = p.LengthStatus,
+                    MinLength = p.MinLength,
+                    MaxLength = p.MaxLength,
+                    TotalItemCount = p.TotalItemCount,
+                    TotalQuantity = p.TotalQuantity,
+                    TotalMeters = p.TotalMeters,
+                    TotalWeight = p.TotalWeight,
+
+                    // G2
+                    LatestPlanDate = p.LatestPlanDate,
+                    MaterialPlanRate = p.MaterialPlanRate,
+                    MaterialPlanStatus = p.MaterialPlanStatus,
+                    MainNoMaterialPlanRate = p.MainNoMaterialPlanRate,
+                    MainNoMaterialPlanStatus = p.MainNoMaterialPlanStatus,
+                    ProcessCycle = p.ProcessCycle,
+
+                    // G5
+                    PendingRoughTubeQty = p.PendingRoughTubeQty,
+                    PendingRoughTubeWeight = p.PendingRoughTubeWeight,
+                    PendingOutsourceFinishQty = p.PendingOutsourceFinishQty,
+                    PendingOutsourceFinishWeight = p.PendingOutsourceFinishWeight,
+                    TheoreticalFinishQty = p.TheoreticalFinishQty,
+                    TheoreticalFinishWeight = p.TheoreticalFinishWeight,
+
+                    // G3
+                    InputStartDate = p.InputStartDate,
+                    InputEndDate = p.InputEndDate,
+                    TotalBatchCount = p.TotalBatchCount,
+                    InputQuantity = p.InputQuantity,
+                    InputWeight = p.InputWeight,
+                    TheoreticalOutputQty = p.TheoreticalOutputQty,
+                    TheoreticalOutputWeight = p.TheoreticalOutputWeight,
+                    InputOutputRatio = p.InputOutputRatio,
+                    InputStatus = p.InputStatus,
+                    MainNoInputOutputRatio = p.MainNoInputOutputRatio,
+                    MainNoInputStatus = p.MainNoInputStatus,
+
+                    // G7
+                    FlowOutputRatio = p.FlowOutputRatio,
+                    FlowStatus = p.FlowStatus,
+                    MainNoFlowOutputRatio = p.MainNoFlowOutputRatio,
+                    MainNoFlowStatus = p.MainNoFlowStatus,
+                    FlowTotalBatchCount = p.FlowTotalBatchCount,
+                    FlowIncompleteBatchCount = p.FlowIncompleteBatchCount,
+                    FlowMaxRemainingWorkDays = p.FlowMaxRemainingWorkDays,
+
+                    // G10
+                    GeneralDefectWeight = p.GeneralDefectWeight,
+                    GeneralDefectRatio = p.GeneralDefectRatio,
+                    SeriousDefectWeight = p.SeriousDefectWeight,
+                    SeriousDefectRatio = p.SeriousDefectRatio,
+                    ScrapWeight = p.ScrapWeight,
+                    ScrapRatio = p.ScrapRatio,
+
+                    // G12
+                    ScheduleStage = p.ScheduleStage,
+                    TotalRemainingWorkDays = p.TotalRemainingWorkDays,
+                    UrgencyLevel = p.UrgencyLevel,
+                    EstimatedProcessCompletionDate = p.EstimatedProcessCompletionDate,
+                    DaysDiffFromDelivery = p.DaysDiffFromDelivery,
+                    RawMaterialLockRemark = p.RawMaterialLockRemark,
+
+                    // G13
+                    SalesUrging = p.SalesUrging,
+                    UrgingRemark = p.UrgingRemark,
+
+                    // G14
+                    CurrentScheduleStage = p.CurrentScheduleStage,
+                    CurrentRawMaterialLockRemark = p.CurrentRawMaterialLockRemark,
+                    IsExecuted = p.IsExecuted,
+
+                    // G15: 从 SalesUrging LEFT JOIN 读取
+                    EstimatedArrivalDate = u != null ? u.EstimatedArrivalDate : null,
+                    IsMainNoMaterialComplete = u != null && u.IsMainNoMaterialComplete,
+                    IsLockConfirmed = u != null && u.IsLockConfirmed,
+
+                    // 看板筛选 - 异常标记
+                    HasAbnormality = p.DaysDiffFromDelivery != null && p.DaysDiffFromDelivery < 0
+                        || (p.ScheduleStage == 1 && u != null && u.IsLockConfirmed && !u.IsMainNoMaterialComplete)
+                        || p.TotalRemainingWorkDays != null && p.TotalRemainingWorkDays < 0,
+                };
 
         // 关键词搜索
         if (!string.IsNullOrEmpty(query.Keyword))
@@ -60,97 +167,6 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
         var items = await q
             .Skip((query.PageIndex - 1) * query.PageSize)
             .Take(query.PageSize)
-            .Select(e => new RawMaterialLockPlanAndExecutionDto
-            {
-                Id = e.Id,
-                WorkOrderId = e.WorkOrderId,
-                WorkOrderNo = e.WorkOrderNo,
-
-                // G1
-                Salesman = e.Salesman,
-                CustomerName = e.CustomerName,
-                SignDate = e.SignDate,
-                DeliveryDate = e.DeliveryDate,
-                DelayPenalty = e.DelayPenalty,
-                SettlementMethod = e.SettlementMethod,
-                SalesOrderNo = e.SalesOrderNo,
-                ProductionMainNo = e.ProductionMainNo,
-                ProductionSubNo = e.ProductionSubNo,
-                MaterialName = e.MaterialName,
-                DeliveryState = e.DeliveryState,
-                PlantGrade = e.PlantGrade,
-                Specification = e.Specification,
-                LengthStatus = e.LengthStatus,
-                MinLength = e.MinLength,
-                MaxLength = e.MaxLength,
-                TotalItemCount = e.TotalItemCount,
-                TotalQuantity = e.TotalQuantity,
-                TotalMeters = e.TotalMeters,
-                TotalWeight = e.TotalWeight,
-
-                // G2
-                LatestPlanDate = e.LatestPlanDate,
-                MaterialPlanRate = e.MaterialPlanRate,
-                MaterialPlanStatus = e.MaterialPlanStatus,
-                MainNoMaterialPlanRate = e.MainNoMaterialPlanRate,
-                MainNoMaterialPlanStatus = e.MainNoMaterialPlanStatus,
-                ProcessCycle = e.ProcessCycle,
-
-                // G5
-                PendingRoughTubeQty = e.PendingRoughTubeQty,
-                PendingRoughTubeWeight = e.PendingRoughTubeWeight,
-                PendingOutsourceFinishQty = e.PendingOutsourceFinishQty,
-                PendingOutsourceFinishWeight = e.PendingOutsourceFinishWeight,
-                TheoreticalFinishQty = e.TheoreticalFinishQty,
-                TheoreticalFinishWeight = e.TheoreticalFinishWeight,
-
-                // G3
-                InputStartDate = e.InputStartDate,
-                InputEndDate = e.InputEndDate,
-                TotalBatchCount = e.TotalBatchCount,
-                InputQuantity = e.InputQuantity,
-                InputWeight = e.InputWeight,
-                TheoreticalOutputQty = e.TheoreticalOutputQty,
-                TheoreticalOutputWeight = e.TheoreticalOutputWeight,
-                InputOutputRatio = e.InputOutputRatio,
-                InputStatus = e.InputStatus,
-                MainNoInputOutputRatio = e.MainNoInputOutputRatio,
-                MainNoInputStatus = e.MainNoInputStatus,
-
-                // G7
-                FlowOutputRatio = e.FlowOutputRatio,
-                FlowStatus = e.FlowStatus,
-                MainNoFlowOutputRatio = e.MainNoFlowOutputRatio,
-                MainNoFlowStatus = e.MainNoFlowStatus,
-                FlowTotalBatchCount = e.FlowTotalBatchCount,
-                FlowIncompleteBatchCount = e.FlowIncompleteBatchCount,
-                FlowMaxRemainingWorkDays = e.FlowMaxRemainingWorkDays,
-
-                // G10
-                GeneralDefectWeight = e.GeneralDefectWeight,
-                GeneralDefectRatio = e.GeneralDefectRatio,
-                SeriousDefectWeight = e.SeriousDefectWeight,
-                SeriousDefectRatio = e.SeriousDefectRatio,
-                ScrapWeight = e.ScrapWeight,
-                ScrapRatio = e.ScrapRatio,
-
-                // G12
-                ScheduleStage = e.ScheduleStage,
-                TotalRemainingWorkDays = e.TotalRemainingWorkDays,
-                UrgencyLevel = e.UrgencyLevel,
-                EstimatedProcessCompletionDate = e.EstimatedProcessCompletionDate,
-                DaysDiffFromDelivery = e.DaysDiffFromDelivery,
-                RawMaterialLockRemark = e.RawMaterialLockRemark,
-
-                // G13
-                SalesUrging = e.SalesUrging,
-                UrgingRemark = e.UrgingRemark,
-
-                // G14
-                CurrentScheduleStage = e.CurrentScheduleStage,
-                CurrentRawMaterialLockRemark = e.CurrentRawMaterialLockRemark,
-                IsExecuted = e.IsExecuted,
-            })
             .ToListAsync();
 
         return new PagedResult<RawMaterialLockPlanAndExecutionDto>
@@ -278,6 +294,11 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                 CurrentScheduleStage = s.ScheduleStage,
                 CurrentRawMaterialLockRemark = s.RawMaterialLockRemark,
                 IsExecuted = null, // 初次安排时未知
+
+                // 看板筛选 - 异常标记
+                HasAbnormality = s.DaysDiffFromDelivery < 0
+                    || (s.ScheduleStage == 1 && (urging?.IsLockConfirmed ?? false) && !(urging?.IsMainNoMaterialComplete ?? false))
+                    || s.TotalRemainingWorkDays < 0,
             };
         }).ToList();
 
@@ -299,12 +320,19 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
             .ToDictionaryAsync(e => e.WorkOrderId);
 
         var existingRecords = await _context.Set<RawMaterialLockPlanAndExecution>().ToListAsync();
+        var existingWorkOrderIds = existingRecords.Select(r => r.WorkOrderId).ToHashSet();
+        var urgings = await _context.Set<SalesUrging>()
+            .AsNoTracking()
+            .Where(u => existingWorkOrderIds.Contains(u.WorkOrderId))
+            .ToDictionaryAsync(u => u.WorkOrderId);
         var updateCount = 0;
 
         foreach (var record in existingRecords)
         {
             if (latestSummaries.TryGetValue(record.WorkOrderId, out var latest))
             {
+                urgings.TryGetValue(record.WorkOrderId, out var urging);
+
                 // 仅更新 G14 快照字段
                 record.CurrentScheduleStage = latest.ScheduleStage;
                 record.CurrentRawMaterialLockRemark = latest.RawMaterialLockRemark;
@@ -312,6 +340,10 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                     record.CurrentRawMaterialLockRemark ?? "",
                     record.RawMaterialLockRemark ?? "",
                     StringComparison.Ordinal);
+
+                record.HasAbnormality = latest.DaysDiffFromDelivery < 0
+                    || (record.ScheduleStage == 1 && (urging?.IsLockConfirmed ?? false) && !(urging?.IsMainNoMaterialComplete ?? false))
+                    || latest.TotalRemainingWorkDays < 0;
 
                 _context.Entry(record).State = EntityState.Modified;
                 updateCount++;
@@ -361,8 +393,8 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
         };
     }
 
-    private static IQueryable<RawMaterialLockPlanAndExecution> ApplySorting(
-        IQueryable<RawMaterialLockPlanAndExecution> query, string? sortBy, bool isDescending)
+    private static IQueryable<RawMaterialLockPlanAndExecutionDto> ApplySorting(
+        IQueryable<RawMaterialLockPlanAndExecutionDto> query, string? sortBy, bool isDescending)
     {
         return string.IsNullOrWhiteSpace(sortBy)
             ? query.OrderByDescending(x => x.WorkOrderNo)

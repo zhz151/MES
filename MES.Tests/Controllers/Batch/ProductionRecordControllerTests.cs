@@ -18,7 +18,7 @@ public class ProductionRecordControllerTests : ControllerTestBase
     {
         _serviceMock = new Mock<IProductionRecordService>();
         _loggerMock = CreateLoggerMock<ProductionRecordController>();
-        _controller = new ProductionRecordController(_serviceMock.Object, _loggerMock.Object);
+        _controller = new ProductionRecordController(_serviceMock.Object, _loggerMock.Object, null!);
     }
 
     [Fact]

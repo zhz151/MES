@@ -52,6 +52,7 @@ public class BatchService : IBatchService
                 (b.CurrentSpec != null && b.CurrentSpec.Contains(kw)) ||
                 (b.NextSectionName != null && b.NextSectionName.Contains(kw)) ||
                 (b.CorrespondingSpec != null && b.CorrespondingSpec.Contains(kw)) ||
+                (b.NextProcess != null && b.NextProcess.Contains(kw)) ||
                 b.ManufacturingItem.Contains(kw) ||
                 (b.ProductionType != null && b.ProductionType.Contains(kw)) ||
                 b.Salesman.Contains(kw) ||
@@ -158,6 +159,7 @@ public class BatchService : IBatchService
                 CurrentSpec = b.CurrentSpec,
                 NextSectionName = b.NextSectionName,
                 CorrespondingSpec = b.CorrespondingSpec,
+                NextProcess = b.NextProcess,
                 CurrentSectionCompleted = b.CurrentSectionCompleted,
                 RemainingWorkDays = b.RemainingWorkDays,
                 TotalWorkDays = b.TotalWorkDays,
@@ -237,6 +239,7 @@ public class BatchService : IBatchService
                 CurrentSpec = b.CurrentSpec,
                 NextSectionName = b.NextSectionName,
                 CorrespondingSpec = b.CorrespondingSpec,
+                NextProcess = b.NextProcess,
                 CurrentSectionCompleted = b.CurrentSectionCompleted,
                 RemainingWorkDays = b.RemainingWorkDays,
                 TotalWorkDays = b.TotalWorkDays,
@@ -1312,7 +1315,8 @@ public class BatchService : IBatchService
             new() { Key = "CurrentOutsource", Label = "当前委外" },
             new() { Key = "CurrentSpec", Label = "当前规格" },
             new() { Key = "NextSectionName", Label = "下一工段" },
-            new() { Key = "CorrespondingSpec", Label = "对应规格" }
+            new() { Key = "CorrespondingSpec", Label = "对应规格" },
+            new() { Key = "NextProcess", Label = "下一工序" }
         };
 
         var items = new List<Dictionary<string, object>>
@@ -1335,7 +1339,8 @@ public class BatchService : IBatchService
                 ["CurrentOutsource"] = entity.CurrentOutsource ?? "",
                 ["CurrentSpec"] = entity.CurrentSpec ?? "",
                 ["NextSectionName"] = entity.NextSectionName ?? "",
-                ["CorrespondingSpec"] = entity.CorrespondingSpec ?? ""
+                ["CorrespondingSpec"] = entity.CorrespondingSpec ?? "",
+                ["NextProcess"] = entity.NextProcess ?? ""
             }
         };
 
@@ -1364,6 +1369,7 @@ public class BatchService : IBatchService
                 (b.CurrentSpec != null && b.CurrentSpec.Contains(kw)) ||
                 (b.NextSectionName != null && b.NextSectionName.Contains(kw)) ||
                 (b.CorrespondingSpec != null && b.CorrespondingSpec.Contains(kw)) ||
+                (b.NextProcess != null && b.NextProcess.Contains(kw)) ||
                 b.ManufacturingItem.Contains(kw) ||
                 (b.ProductionType != null && b.ProductionType.Contains(kw)) ||
                 (b.Remark != null && b.Remark.Contains(kw)) ||
@@ -1435,7 +1441,8 @@ public class BatchService : IBatchService
             new() { Key = "CurrentOutsource", Label = "当前委外" },
             new() { Key = "CurrentSpec", Label = "当前规格" },
             new() { Key = "NextSectionName", Label = "下一工段" },
-            new() { Key = "CorrespondingSpec", Label = "对应规格" }
+            new() { Key = "CorrespondingSpec", Label = "对应规格" },
+            new() { Key = "NextProcess", Label = "下一工序" }
         };
 
         return TablePrintHelper.GeneratePdf("生产批次列表", items, columns);
@@ -1491,7 +1498,8 @@ public class BatchService : IBatchService
             new() { Key = "CurrentOutsource", Label = "当前委外" },
             new() { Key = "CurrentSpec", Label = "当前规格" },
             new() { Key = "NextSectionName", Label = "下一工段" },
-            new() { Key = "CorrespondingSpec", Label = "对应规格" }
+            new() { Key = "CorrespondingSpec", Label = "对应规格" },
+            new() { Key = "NextProcess", Label = "下一工序" }
         };
 
         return TablePrintHelper.GeneratePdf("生产批次列表", items, columns);
@@ -1541,7 +1549,7 @@ public class BatchService : IBatchService
                 b.CurrentExecDate,
                 b.CurrentGroupName, b.CurrentSectionName, b.CurrentEquipmentName,
                 b.CurrentOutsource, b.CurrentSpec, b.NextSectionName,
-                b.CorrespondingSpec, b.SignDate, b.Salesman, b.EndCustomer,
+                b.CorrespondingSpec, b.NextProcess, b.SignDate, b.Salesman, b.EndCustomer,
                 b.DeliveryDate,
                 b.StandardCode, b.PlantGrade, b.Specification, b.CreatedBy
             })
@@ -1572,7 +1580,7 @@ public class BatchService : IBatchService
             return new { r.BatchNo, r.TagNo, r.WorkOrderNo, r.SalesOrderNo, r.ProductionMainNo,
                 r.ProductionSubNo, r.CurrentExecDate, r.CurrentGroupName, r.CurrentSectionName,
                 r.CurrentEquipmentName, r.CurrentOutsource, r.CurrentSpec, r.NextSectionName,
-                r.CorrespondingSpec, r.SignDate, Salesman = salesman, EndCustomer = endCustomer,
+                r.CorrespondingSpec, r.NextProcess, r.SignDate, Salesman = salesman, EndCustomer = endCustomer,
                 r.DeliveryDate, r.StandardCode, r.PlantGrade, r.Specification, r.CreatedBy };
         }).ToList();
 
@@ -1593,6 +1601,7 @@ public class BatchService : IBatchService
             ["CurrentSpec"] = patchedResults.Select(x => x.CurrentSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
             ["NextSectionName"] = patchedResults.Select(x => x.NextSectionName).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
             ["CorrespondingSpec"] = patchedResults.Select(x => x.CorrespondingSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["NextProcess"] = patchedResults.Select(x => x.NextProcess).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
             ["SignDate"] = patchedResults.Select(x => x.SignDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
             ["Salesman"] = patchedResults.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
             ["EndCustomer"] = patchedResults.Select(x => x.EndCustomer).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
@@ -1718,6 +1727,7 @@ public class BatchService : IBatchService
             CurrentSpec = entity.CurrentSpec,
             NextSectionName = entity.NextSectionName,
             CorrespondingSpec = entity.CorrespondingSpec,
+            NextProcess = entity.NextProcess,
             RemainingWorkDays = entity.RemainingWorkDays,
             TotalWorkDays = entity.TotalWorkDays,
             Remark = entity.Remark,

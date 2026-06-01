@@ -57,7 +57,7 @@ public class ProductionRecordServiceTests : TestBase
     }
 
     private async Task<ProcessGroup> SeedProcessGroupAsync(AppDbContext ctx, int batchId,
-        string processName = "冷轧", string mfgSpec = "219*8")
+        string processName = "60冷轧", string mfgSpec = "219*8")
     {
         var pg = new ProcessGroup
         {
@@ -98,7 +98,7 @@ public class ProductionRecordServiceTests : TestBase
         var result = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
         {
             BatchNo = "BATCH001",
-            ProcessName = "冷轧",
+            ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
             SectionName = "冷轧拔",
             ExecDate = DateTime.Today,
@@ -122,7 +122,7 @@ public class ProductionRecordServiceTests : TestBase
         var act = () => svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
         {
             BatchNo = "NONEXISTENT",
-            ProcessName = "冷轧",
+            ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
             SectionName = "冷轧拔",
             ExecDate = DateTime.Today
@@ -141,7 +141,7 @@ public class ProductionRecordServiceTests : TestBase
 
         var created = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
         {
-            BatchNo = "BATCH001", ProcessName = "冷轧",
+            BatchNo = "BATCH001", ProcessName = "60冷轧",
             ManufacturingSpec = "219*8", SectionName = "冷轧拔",
             ExecDate = DateTime.Today, Quantity = 10
         });
@@ -177,7 +177,7 @@ public class ProductionRecordServiceTests : TestBase
 
         var created = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
         {
-            BatchNo = "BATCH001", ProcessName = "冷轧",
+            BatchNo = "BATCH001", ProcessName = "60冷轧",
             ManufacturingSpec = "219*8", SectionName = "冷轧拔",
             ExecDate = DateTime.Today
         });
@@ -224,7 +224,7 @@ public class ProductionRecordServiceTests : TestBase
         var result = await svc.CreateSectionOutsourceAsync(new CreateSectionOutsourceRequest
         {
             BatchNo = "BATCH001",
-            ProcessName = "冷轧",
+            ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
             SectionName = "冷轧拔",
             OutsourceVendor = "委外厂A",
@@ -262,7 +262,7 @@ public class ProductionRecordServiceTests : TestBase
         var sectionOutsource = new SectionOutsource
         {
             ProductionBatchId = batch.Id,
-            ProcessName = "冷轧",
+            ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
             SectionName = "冷轧拔",
             SequenceNumber = 1,
@@ -296,7 +296,7 @@ public class ProductionRecordServiceTests : TestBase
 
         var sectionOutsource = new SectionOutsource
         {
-            ProductionBatchId = batch.Id, ProcessName = "冷轧",
+            ProductionBatchId = batch.Id, ProcessName = "60冷轧",
             ManufacturingSpec = "219*8", SectionName = "冷轧拔",
             SequenceNumber = 1, OutsourceVendor = "委外厂A",
             SendOutDate = DateTime.Today, Status = SectionOutsourceStatus.PendingRecovery
@@ -379,7 +379,7 @@ public class ProductionRecordServiceTests : TestBase
 
         await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
         {
-            BatchNo = "BATCH-REC-SPEC", ProcessName = "冷轧",
+            BatchNo = "BATCH-REC-SPEC", ProcessName = "60冷轧",
             ManufacturingSpec = "273*10", SectionName = "冷轧拔",
             ExecDate = DateTime.Today, Quantity = 10, Weight = 1000m
         });
@@ -401,7 +401,7 @@ public class ProductionRecordServiceTests : TestBase
 
         await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
         {
-            BatchNo = "BATCH-REC-REM", ProcessName = "冷轧",
+            BatchNo = "BATCH-REC-REM", ProcessName = "60冷轧",
             ManufacturingSpec = "219*8", SectionName = "冷轧拔",
             ExecDate = DateTime.Today, Quantity = 10, Weight = 1000m,
             Remark = "生产记录备注测试"
@@ -426,7 +426,7 @@ public class ProductionRecordServiceTests : TestBase
 
         await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
         {
-            BatchNo = "BATCH001", ProcessName = "冷轧", ManufacturingSpec = "219*8",
+            BatchNo = "BATCH001", ProcessName = "60冷轧", ManufacturingSpec = "219*8",
             SectionName = "冷轧拔", ExecDate = DateTime.Today, Quantity = 10
         });
         await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
@@ -445,7 +445,7 @@ public class ProductionRecordServiceTests : TestBase
         });
 
         result.Items.Should().HaveCount(1);
-        result.Items[0].ProcessName.Should().Be("冷轧");
+        result.Items[0].ProcessName.Should().Be("60冷轧");
     }
 
     [Fact]
@@ -458,7 +458,7 @@ public class ProductionRecordServiceTests : TestBase
 
         await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
         {
-            BatchNo = "BATCH001", ProcessName = "冷轧", ManufacturingSpec = "219*8",
+            BatchNo = "BATCH001", ProcessName = "60冷轧", ManufacturingSpec = "219*8",
             SectionName = "冷轧拔", ExecDate = DateTime.Today, Quantity = 10
         });
 
@@ -483,7 +483,7 @@ public class ProductionRecordServiceTests : TestBase
         var svc = CreateService(ctx);
         await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
         {
-            BatchNo = "BATCH001", ProcessName = "冷轧", ManufacturingSpec = "219*8",
+            BatchNo = "BATCH001", ProcessName = "60冷轧", ManufacturingSpec = "219*8",
             SectionName = "冷轧拔", ExecDate = DateTime.Today, Quantity = 10
         });
 
@@ -511,7 +511,7 @@ public class ProductionRecordServiceTests : TestBase
 
         await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
         {
-            BatchNo = "BATCH001", ProcessName = "冷轧", ManufacturingSpec = "219*8",
+            BatchNo = "BATCH001", ProcessName = "60冷轧", ManufacturingSpec = "219*8",
             SectionName = "冷轧拔", ExecDate = DateTime.Today, Quantity = 10
         });
 
@@ -520,7 +520,7 @@ public class ProductionRecordServiceTests : TestBase
         contexts.Should().ContainKey("BatchNo");
         contexts["BatchNo"].Should().Contain("BATCH001");
         contexts.Should().ContainKey("ProcessName");
-        contexts["ProcessName"].Should().Contain("冷轧");
+        contexts["ProcessName"].Should().Contain("60冷轧");
         contexts["SectionName"].Should().Contain("冷轧拔");
     }
 
@@ -548,7 +548,7 @@ public class ProductionRecordServiceTests : TestBase
         // 创建一条只有必要字段的记录，可选字段为null
         await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
         {
-            BatchNo = "BATCH001", ProcessName = "冷轧", ManufacturingSpec = "219*8",
+            BatchNo = "BATCH001", ProcessName = "60冷轧", ManufacturingSpec = "219*8",
             SectionName = "冷轧拔", ExecDate = DateTime.Today, Quantity = 10,
             EquipmentName = null, Operator = null, Shift = null
         });

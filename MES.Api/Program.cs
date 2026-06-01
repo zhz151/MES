@@ -179,6 +179,7 @@ builder.Services.AddScoped<IWorkOrderExecutionService, WorkOrderExecutionService
 // ========== Scheduling 上下文 ==========
 builder.Services.AddScoped<ISalesUrgingService, SalesUrgingService>();
 builder.Services.AddScoped<IRawMaterialLockPlanAndExecutionService, RawMaterialLockPlanAndExecutionService>();
+builder.Services.AddScoped<ProductionOverviewService>();
 
 // 质量过程跟踪
 builder.Services.AddScoped<IQualityProcessTrackingService, QualityProcessTrackingService>();

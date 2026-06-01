@@ -22,6 +22,7 @@ public class BatchTrackingVisualDto
     public string? CurrentOutsource { get; set; }
     public string? CurrentSpec { get; set; }
     public string? NextSectionName { get; set; }
+    public string? NextProcess { get; set; }
 
     // ===== 投料与目标统计 =====
 

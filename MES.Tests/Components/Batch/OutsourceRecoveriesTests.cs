@@ -54,7 +54,7 @@ public class OutsourceRecoveriesTests : TestBase
                     RecoveryQuantity = 80,
                     RecoveryWeight = 3000m,
                     OutsourceVendor = "测试供应商",
-                    ProcessName = "冷轧"
+                    ProcessName = "60冷轧"
                 }
             },
             TotalCount = 1,

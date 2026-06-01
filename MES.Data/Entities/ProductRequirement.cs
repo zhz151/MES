@@ -13,6 +13,16 @@ public class ProductRequirement : BaseEntity
     public int OrderItemId { get; set; }
 
     /// <summary>
+    /// 订单号（从 OrderItem 冗余，用于数据导入覆盖匹配）
+    /// </summary>
+    public string? OrderNo { get; set; }
+
+    /// <summary>
+    /// 项次号（从 OrderItem 冗余，用于数据导入覆盖匹配）
+    /// </summary>
+    public int? ItemSequence { get; set; }
+
+    /// <summary>
     /// 技术要求类型
     /// </summary>
     public RequirementType RequirementType { get; set; }

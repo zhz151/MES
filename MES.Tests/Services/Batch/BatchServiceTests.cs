@@ -240,7 +240,7 @@ public class BatchServiceTests : TestBase
                 },
                 new()
                 {
-                    ProcessName = "冷轧",
+                    ProcessName = "60冷轧",
                     ManufacturingSpec = "Φ50×5",
                     ColdRollDraw = 4,
                     Solution = 5
@@ -256,7 +256,7 @@ public class BatchServiceTests : TestBase
         groups[0].SequenceNumber.Should().Be(1);
         groups[0].ProcessName.Should().Be("矫切酸检");
         groups[1].SequenceNumber.Should().Be(2);
-        groups[1].ProcessName.Should().Be("冷轧");
+        groups[1].ProcessName.Should().Be("60冷轧");
     }
 
     [Fact]
@@ -968,7 +968,7 @@ public class BatchServiceTests : TestBase
             ProcessGroups = new List<CreateProcessGroupRequest>
             {
                 new() { ProcessName = "矫切酸检", ManufacturingSpec = "Φ50×5", ColdRollDraw = 1, Pickle = 2 },
-                new() { ProcessName = "冷轧", ManufacturingSpec = "Φ50×5", ColdRollDraw = 3 }
+                new() { ProcessName = "60冷轧", ManufacturingSpec = "Φ50×5", ColdRollDraw = 3 }
             }
         });
 
@@ -977,7 +977,7 @@ public class BatchServiceTests : TestBase
         groups.Should().NotBeEmpty();
         groups.Should().HaveCount(2);
         groups[0].ProcessName.Should().Be("矫切酸检");
-        groups[1].ProcessName.Should().Be("冷轧");
+        groups[1].ProcessName.Should().Be("60冷轧");
         groups[0].ColdRollDraw.Should().Be(1);
     }
 

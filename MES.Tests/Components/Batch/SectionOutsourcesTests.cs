@@ -56,7 +56,7 @@ public class SectionOutsourcesTests : TestBase
                     ProductionBatchId = 1,
                     ProcessGroupId = 1,
                     BatchNo = "BATCH001",
-                    ProcessName = "冷轧",
+                    ProcessName = "60冷轧",
                     SectionName = "冷轧拔",
                     SequenceNumber = 1,
                     OutsourceVendor = "测试供应商",

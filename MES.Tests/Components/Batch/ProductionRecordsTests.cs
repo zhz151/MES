@@ -52,7 +52,7 @@ public class ProductionRecordsTests : TestBase
                     Id = 1,
                     ProductionBatchId = 1,
                     ProcessGroupId = 1,
-                    ProcessName = "冷轧",
+                    ProcessName = "60冷轧",
                     SectionName = "冷轧车间",
                     SequenceNumber = 1,
                     ExecDate = DateTime.Today,

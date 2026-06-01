@@ -154,8 +154,12 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 ScheduleStage = e.ScheduleStage,
                 TotalRemainingWorkDays = e.TotalRemainingWorkDays,
                 UrgencyLevel = e.UrgencyLevel,
-                EstimatedProcessCompletionDate = e.EstimatedProcessCompletionDate,
-                DaysDiffFromDelivery = e.DaysDiffFromDelivery,
+                EstimatedProcessCompletionDate = e.TotalRemainingWorkDays.HasValue
+                    ? DateTime.Today.AddDays(e.TotalRemainingWorkDays.Value)
+                    : (DateTime?)null,
+                DaysDiffFromDelivery = e.TotalRemainingWorkDays.HasValue
+                    ? (int?)(DateTime.Today.AddDays(e.TotalRemainingWorkDays.Value).Date - e.DeliveryDate.Date).Days
+                    : null,
                 RawMaterialLockRemark = e.RawMaterialLockRemark,
 
                 // Group 3
@@ -517,10 +521,10 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var deliveryDays = DateOnly.FromDateTime(summary.DeliveryDate).DayNumber;
             var diff = (summary.TotalRemainingWorkDays ?? 0) + todayDays - deliveryDays;
 
-            summary.UrgencyLevel = diff > 67 ? "A+急"
-                : diff > 60 ? "A急"
-                : diff > 53 ? "B顺"
-                : diff > 45 ? "C缓"
+            summary.UrgencyLevel = diff > 7 ? "A+急"
+                : diff > -3 ? "A急"
+                : diff > -10 ? "B顺"
+                : diff > -17 ? "C缓"
                 : "D缓";
 
             // 工艺预计完成日 & 交期相差天数

@@ -64,7 +64,7 @@ public class ProcessInspectionServiceTests : TestBase
     }
 
     private async Task<ProcessGroup> SeedProcessGroupAsync(AppDbContext ctx, int batchId,
-        string processName = "冷轧", string mfgSpec = "219*8")
+        string processName = "60冷轧", string mfgSpec = "219*8")
     {
         var pg = new ProcessGroup
         {
@@ -80,7 +80,7 @@ public class ProcessInspectionServiceTests : TestBase
     }
 
     private async Task SeedInspectionAsync(AppDbContext ctx, string batchNo = "BATCH001",
-        string processName = "冷轧", string sectionName = "冷轧拔")
+        string processName = "60冷轧", string sectionName = "冷轧拔")
     {
         var batch = await ctx.ProductionBatches.FirstOrDefaultAsync(b => b.BatchNo == batchNo);
         if (batch == null) batch = await SeedBatchAsync(ctx, batchNo);
@@ -170,7 +170,7 @@ public class ProcessInspectionServiceTests : TestBase
             new()
             {
                 BatchNo = "BATCH001",
-                ProcessName = "冷轧",
+                ProcessName = "60冷轧",
                 ManufacturingSpec = "219*8",
                 SectionName = "冷轧拔",
                 InspectionDate = DateTime.Today,
@@ -205,7 +205,7 @@ public class ProcessInspectionServiceTests : TestBase
         {
             new()
             {
-                BatchNo = "NONEXISTENT", ProcessName = "冷轧",
+                BatchNo = "NONEXISTENT", ProcessName = "60冷轧",
                 ManufacturingSpec = "219*8", SectionName = "冷轧拔",
                 InspectionDate = DateTime.Today
             }
@@ -281,7 +281,7 @@ public class ProcessInspectionServiceTests : TestBase
         ctx.ProcessInspections.Add(new ProcessInspection
         {
             ProductionBatchId = batch.Id,
-            ProcessName = "冷轧",
+            ProcessName = "60冷轧",
             ManufacturingSpec = "273*10",
             SectionName = "冷轧拔",
             SequenceNumber = 1,
@@ -306,7 +306,7 @@ public class ProcessInspectionServiceTests : TestBase
         ctx.ProcessInspections.Add(new ProcessInspection
         {
             ProductionBatchId = batch.Id,
-            ProcessName = "冷轧",
+            ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
             SectionName = "冷轧拔",
             SequenceNumber = 1,
@@ -350,7 +350,7 @@ public class ProcessInspectionServiceTests : TestBase
     public async Task GetAllAsync_Filters_ProcessNameContains_返回匹配()
     {
         var ctx = CreateDbContext();
-        await SeedInspectionAsync(ctx, batchNo: "BATCH001", processName: "冷轧");
+        await SeedInspectionAsync(ctx, batchNo: "BATCH001", processName: "60冷轧");
         await SeedInspectionAsync(ctx, batchNo: "BATCH002", processName: "冷拔");
         var svc = CreateService(ctx);
 
@@ -391,7 +391,7 @@ public class ProcessInspectionServiceTests : TestBase
     public async Task GetFilterContextsAsync_返回正确选项()
     {
         var ctx = CreateDbContext();
-        await SeedInspectionAsync(ctx, batchNo: "BATCH001", processName: "冷轧", sectionName: "冷轧拔");
+        await SeedInspectionAsync(ctx, batchNo: "BATCH001", processName: "60冷轧", sectionName: "冷轧拔");
         await SeedInspectionAsync(ctx, batchNo: "BATCH002", processName: "冷拔", sectionName: "冷轧拔");
         var svc = CreateService(ctx);
 
@@ -400,7 +400,7 @@ public class ProcessInspectionServiceTests : TestBase
         contexts.Should().ContainKey("BatchNo");
         contexts["BatchNo"].Should().BeEquivalentTo(new[] { "BATCH001", "BATCH002" }, opts => opts.WithStrictOrdering());
         contexts.Should().ContainKey("ProcessName");
-        contexts["ProcessName"].Should().BeEquivalentTo(new[] { "冷拔", "冷轧" }, opts => opts.WithStrictOrdering());
+        contexts["ProcessName"].Should().BeEquivalentTo(new[] { "60冷轧", "冷拔" }, opts => opts.WithStrictOrdering());
     }
 
     [Fact]
@@ -423,7 +423,7 @@ public class ProcessInspectionServiceTests : TestBase
         var batch = await SeedBatchAsync(ctx, "BATCH001");
         ctx.ProcessInspections.Add(new ProcessInspection
         {
-            ProductionBatchId = batch.Id, ProcessName = "冷轧", SectionName = "冷轧拔",
+            ProductionBatchId = batch.Id, ProcessName = "60冷轧", SectionName = "冷轧拔",
             SequenceNumber = 1, InspectionDate = DateTime.Today, Quantity = 10,
             EquipmentName = null, Inspector = null, Remark = null
         });

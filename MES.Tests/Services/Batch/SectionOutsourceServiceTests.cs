@@ -69,7 +69,7 @@ public class SectionOutsourceServiceTests : TestBase
         var entity = new SectionOutsource
         {
             ProductionBatchId = batchId,
-            ProcessName = "冷轧",
+            ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
             SectionName = "冷轧拔",
             SequenceNumber = 1,
@@ -166,7 +166,7 @@ public class SectionOutsourceServiceTests : TestBase
         {
             ProductionBatchId = batch.Id,
             SequenceNumber = 1,
-            ProcessName = "冷轧",
+            ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
             ColdRollDraw = 1
         });
@@ -176,7 +176,7 @@ public class SectionOutsourceServiceTests : TestBase
         var result = await svc.CreateAsync(new CreateSectionOutsourceRequest
         {
             BatchNo = "BATCH001",
-            ProcessName = "冷轧",
+            ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
             SectionName = "冷轧拔",
             OutsourceVendor = "委外厂A",
@@ -198,7 +198,7 @@ public class SectionOutsourceServiceTests : TestBase
 
         var act = () => svc.CreateAsync(new CreateSectionOutsourceRequest
         {
-            BatchNo = "NONEXISTENT", ProcessName = "冷轧",
+            BatchNo = "NONEXISTENT", ProcessName = "60冷轧",
             ManufacturingSpec = "219*8", SectionName = "冷轧拔",
             OutsourceVendor = "委外厂A", SendOutDate = DateTime.Today
         });
@@ -218,7 +218,7 @@ public class SectionOutsourceServiceTests : TestBase
 
         var result = await svc.BatchCreateAsync(new List<CreateSectionOutsourceRequest>
         {
-            new() { BatchNo = "BATCH001", ProcessName = "冷轧", ManufacturingSpec = "219*8",
+            new() { BatchNo = "BATCH001", ProcessName = "60冷轧", ManufacturingSpec = "219*8",
                 SectionName = "冷轧拔", OutsourceVendor = "委外厂A", OutsourceSpec = "219*8", SendOutDate = DateTime.Today },
             new() { BatchNo = "BATCH002", ProcessName = "酸洗", ManufacturingSpec = "219*8",
                 SectionName = "酸洗", OutsourceVendor = "委外厂B", OutsourceSpec = "219*8", SendOutDate = DateTime.Today }
@@ -401,7 +401,7 @@ public class SectionOutsourceServiceTests : TestBase
         ctx.SectionOutsources.Add(new SectionOutsource
         {
             ProductionBatchId = batch.Id,
-            ProcessName = "冷轧",
+            ProcessName = "60冷轧",
             ManufacturingSpec = "273*10",
             PlantGrade = "304",
             OutsourceSpec = "273*10",
@@ -430,7 +430,7 @@ public class SectionOutsourceServiceTests : TestBase
         ctx.SectionOutsources.Add(new SectionOutsource
         {
             ProductionBatchId = batch.Id,
-            ProcessName = "冷轧",
+            ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
             SectionName = "冷轧拔",
             SequenceNumber = 1,
@@ -579,7 +579,7 @@ public class SectionOutsourceServiceTests : TestBase
         var contexts = await svc.GetFilterContextsAsync();
 
         contexts.Should().ContainKey("ProcessName");
-        contexts["ProcessName"].Should().Contain(new[] { "冷轧", "酸洗" });
+        contexts["ProcessName"].Should().Contain(new[] { "60冷轧", "酸洗" });
         contexts.Should().ContainKey("OutsourceVendor");
         contexts["OutsourceVendor"].Should().Contain(new[] { "委外厂A", "委外厂B" });
         contexts.Should().ContainKey("BatchNo");
@@ -607,7 +607,7 @@ public class SectionOutsourceServiceTests : TestBase
         ctx.SectionOutsources.Add(new SectionOutsource
         {
             ProductionBatchId = batch.Id,
-            ProcessName = "冷轧",
+            ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
             SectionName = "冷轧拔",
             SequenceNumber = 1,

@@ -74,5 +74,6 @@ builder.Services.AddScoped<ScanService>();
 // ========== Scheduling 上下文 ==========
 builder.Services.AddScoped<SalesUrgingService>();
 builder.Services.AddScoped<RawMaterialLockPlanAndExecutionService>();
+builder.Services.AddScoped<ProductionOverviewService>();
 
 await builder.Build().RunAsync();

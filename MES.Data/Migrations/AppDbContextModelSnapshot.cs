@@ -1834,6 +1834,10 @@ namespace MES.Data.Migrations
                     b.Property<decimal?>("MinLength")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("OrderNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<decimal>("OuterDiameter")
                         .HasColumnType("decimal(18,3)");
 
@@ -2299,6 +2303,10 @@ namespace MES.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("BatchNo")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<int?>("ColdRollDraw")
                         .HasColumnType("int");
 
@@ -2417,6 +2425,10 @@ namespace MES.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BatchNo")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("ConcessionRemark")
                         .HasColumnType("nvarchar(max)");
@@ -2557,6 +2569,9 @@ namespace MES.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<int?>("ItemSequence")
+                        .HasColumnType("int");
+
                     b.Property<string>("MechanicalProperty")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -2567,6 +2582,10 @@ namespace MES.Data.Migrations
 
                     b.Property<int>("OrderItemId")
                         .HasColumnType("int");
+
+                    b.Property<string>("OrderNo")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("OtherRequirement")
                         .HasMaxLength(1000)
@@ -2621,7 +2640,8 @@ namespace MES.Data.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("CorrespondingSpec")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
@@ -2725,6 +2745,10 @@ namespace MES.Data.Migrations
 
                     b.Property<decimal?>("MinLength")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("NextProcess")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("NextSectionName")
                         .HasMaxLength(50)
@@ -3846,6 +3870,9 @@ namespace MES.Data.Migrations
                         .HasColumnType("decimal(18,3)")
                         .HasDefaultValue(0m);
 
+                    b.Property<bool>("HasAbnormality")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime?>("InputEndDate")
                         .HasColumnType("datetime2");
 
@@ -4132,6 +4159,19 @@ namespace MES.Data.Migrations
 
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTime?>("EstimatedArrivalDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsLockConfirmed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsMainNoMaterialComplete")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<bool>("IsSalesUrging")
                         .ValueGeneratedOnAdd()
@@ -4659,6 +4699,10 @@ namespace MES.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("OrderNo")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("PlantGrade")
                         .HasMaxLength(50)

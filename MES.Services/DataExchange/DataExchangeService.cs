@@ -192,7 +192,7 @@ public class DataExchangeService : IDataExchangeService
         // === 第3批：依赖销售订单、产品标准、牌号对照 ===
         ["OrderItem"] = new EntityDef("订单项次", "订单项次", typeof(OrderItem), 3, null, new List<ColumnDef>
         {
-            new("订单号", null!) { IsFkColumn = true, FkEntityKey = "SalesOrder", FkLookupProperty = "OrderNumber", FkTargetProperty = "SalesOrderId" },
+            new("订单号", "OrderNumber") { IsFkColumn = true, FkEntityKey = "SalesOrder", FkLookupProperty = "OrderNumber", FkTargetProperty = "SalesOrderId" },
             new("项次号", "Sequence", typeof(int)),
             new("交货日期", "DeliveryDate", typeof(DateTime)),
             new("延期罚款", "DelayPenalty", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
@@ -218,13 +218,13 @@ public class DataExchangeService : IDataExchangeService
             new("合同重量(kg)", "ContractWeight", typeof(decimal)),
             new("理算重量(kg)", "TheoreticalWeight", typeof(decimal)),
             new("备注", "Remark", typeof(string), isRequired: false),
-        }),
+        }, compositeKeyColumns: new[] { "OrderNumber", "Sequence" }),
 
         // === 第4批：依赖订单项次 ===
         ["ProductRequirement"] = new EntityDef("技术要求", "技术要求", typeof(ProductRequirement), 4, null, new List<ColumnDef>
         {
-            new("订单号", null!) { IsFkColumn = true, FkEntityKey = "OrderItem", FkLookupProperty = "Id", FkTargetProperty = "OrderItemId", FkRequiresJoin = true },
-            new("项次号", null!) { IsFkColumn = true, FkEntityKey = "OrderItem", FkLookupProperty = "Sequence", FkTargetProperty = "OrderItemId", FkRequiresJoin = true },
+            new("订单号", "OrderNo") { IsFkColumn = true, FkEntityKey = "OrderItem", FkLookupProperty = "Id", FkTargetProperty = "OrderItemId", FkRequiresJoin = true },
+            new("项次号", "ItemSequence") { IsFkColumn = true, FkEntityKey = "OrderItem", FkLookupProperty = "Sequence", FkTargetProperty = "OrderItemId", FkRequiresJoin = true },
             new("技术要求类型", "RequirementType", typeof(RequirementType), isEnum: true),
             new("化学成分要求", "ChemicalComposition", typeof(string), isRequired: false),
             new("力学性能要求", "MechanicalProperty", typeof(string), isRequired: false),
@@ -232,7 +232,7 @@ public class DataExchangeService : IDataExchangeService
             new("表面质量要求", "SurfaceQuality", typeof(string), isRequired: false),
             new("无损检测要求", "NdtRequirement", typeof(string), isRequired: false),
             new("其他要求", "OtherRequirement", typeof(string), isRequired: false),
-        }),
+        }, compositeKeyColumns: new[] { "OrderNo", "ItemSequence" }),
 
         // === 第5批：工单（字符串引用订单，无FK约束） ===
         ["WorkOrder"] = new EntityDef("工单", "工单", typeof(Data.Entities.WorkOrder), 5, "WorkOrderNo", new List<ColumnDef>
@@ -302,6 +302,7 @@ public class DataExchangeService : IDataExchangeService
             new("当前规格", "CurrentSpec", typeof(string), isRequired: false),
             new("下一工段", "NextSectionName", typeof(string), isRequired: false),
             new("对应规格", "CorrespondingSpec", typeof(string), isRequired: false),
+            new("下一工序", "NextProcess", typeof(string), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
             // 工单冗余字段
             new("工单号", "WorkOrderNo"),
@@ -405,7 +406,7 @@ public class DataExchangeService : IDataExchangeService
 
         ["SubcontractReturnItem"] = new EntityDef("委外子项", "委外子项", typeof(SubcontractReturnItem), 7, null, new List<ColumnDef>
         {
-            new("委外单号", null!) { IsFkColumn = true, FkEntityKey = "SubcontractOrder", FkLookupProperty = "OrderNo", FkTargetProperty = "SubcontractOrderId" },
+            new("委外单号", "OrderNo") { IsFkColumn = true, FkEntityKey = "SubcontractOrder", FkLookupProperty = "OrderNo", FkTargetProperty = "SubcontractOrderId" },
             new("行号", "Sequence", typeof(int)),
             new("物料分类", "MaterialCategory"),
             new("工厂牌号", "PlantGrade", typeof(string), isRequired: false),
@@ -424,12 +425,12 @@ public class DataExchangeService : IDataExchangeService
             new("回收重量(kg)", "ReturnedWeight", typeof(decimal), isSystem: true),
             new("加工状态", "ProcessStatus", typeof(SubcontractProcessStatus), isEnum: true, isSystem: true),
             new("强制完成", "IsForceCompleted", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
-        }),
+        }, compositeKeyColumns: new[] { "OrderNo", "Sequence" }),
 
         // === 第8批：工序组（依赖生产批次）、仓库出入库 ===
         ["ProcessGroup"] = new EntityDef("工序组", "工序组", typeof(ProcessGroup), 8, null, new List<ColumnDef>
         {
-            new("所属批次号", null!) { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
+            new("所属批次号", "BatchNo") { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
             new("组内序号", "SequenceNumber", typeof(int)),
             new("工序名称", "ProcessName"),
             new("制造规格", "ManufacturingSpec", typeof(string), isRequired: false),
@@ -454,7 +455,7 @@ public class DataExchangeService : IDataExchangeService
             new("打焊头", "WeldingHead", typeof(int?), isRequired: false),
             new("润滑", "Lubrication", typeof(int?), isRequired: false),
             new("入库", "Warehouse", typeof(int?), isRequired: false),
-        }),
+        }, compositeKeyColumns: new[] { "BatchNo", "SequenceNumber" }),
 
         ["ProductionRecord"] = new EntityDef("生产记录", "生产记录", typeof(ProductionRecord), 8, null, new List<ColumnDef>
         {
@@ -514,9 +515,10 @@ public class DataExchangeService : IDataExchangeService
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
         }),
 
-        ["MaterialReceiveCheck"] = new EntityDef("检验到料", "检验到料", typeof(MaterialReceiveCheck), 8, null, new List<ColumnDef>
+        ["MaterialReceiveCheck"] = new EntityDef("检验到料", "检验到料", typeof(MaterialReceiveCheck), 8, null,
+            new List<ColumnDef>
         {
-            new("批次号", null!) { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
+            new("批次号", "BatchNo") { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
             new("到料日期", "ReceiveDate", typeof(DateTime)),
             // 批次冗余字段
             new("制造物品", "ManufacturingItem", typeof(string), isRequired: false),
@@ -533,11 +535,12 @@ public class DataExchangeService : IDataExchangeService
             new("确认人", "Checker", typeof(string), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
-        }),
+        }, compositeKeyColumns: new[] { "BatchNo" }),
 
-        ["ProcessInspection"] = new EntityDef("过程检验", "过程检验", typeof(ProcessInspection), 8, null, new List<ColumnDef>
+        ["ProcessInspection"] = new EntityDef("过程检验", "过程检验", typeof(ProcessInspection), 8, null,
+            new List<ColumnDef>
         {
-            new("批次号", null!) { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
+            new("批次号", "BatchNo") { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
             new("挂牌号", "TagNo", typeof(string), isRequired: false),
             new("组内序号", null!) { IsFkColumn = true, FkEntityKey = "ProcessGroup", FkLookupProperty = "SequenceNumber", FkTargetProperty = "ProcessGroupId", FkRequiresJoin = true },
             new("工序名称", "ProcessName"),
@@ -562,7 +565,7 @@ public class DataExchangeService : IDataExchangeService
             new("来料单位", "SourceUnit", typeof(string), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
-        }),
+        }, compositeKeyColumns: new[] { "BatchNo", "ProcessName", "ManufacturingSpec", "SectionName", "InspectionDate" }),
 
         ["FinalInspection"] = new EntityDef("成品检验", "成品检验", typeof(FinalInspection), 8, null, new List<ColumnDef>
         {
@@ -863,7 +866,7 @@ public class DataExchangeService : IDataExchangeService
             new("打焊头", "WeldingHead", typeof(int?), isRequired: false),
             new("润滑", "Lubrication", typeof(int?), isRequired: false),
             new("入库", "Warehouse", typeof(int?), isRequired: false),
-        }),
+        }, compositeKeyColumns: new[] { "PurchaseSemiPlanId", "SequenceNumber" }),
 
         ["InventoryPlanProcessGroup"] = new EntityDef("库存计划工序组", "库存计划工序组", typeof(InventoryPlanProcessGroup), 9, null, new List<ColumnDef>
         {
@@ -892,7 +895,7 @@ public class DataExchangeService : IDataExchangeService
             new("打焊头", "WeldingHead", typeof(int?), isRequired: false),
             new("润滑", "Lubrication", typeof(int?), isRequired: false),
             new("入库", "Warehouse", typeof(int?), isRequired: false),
-        }),
+        }, compositeKeyColumns: new[] { "InventoryPlanId", "SequenceNumber" }),
 
         ["PiercingPlanProcessGroup"] = new EntityDef("圆棒穿孔工序组", "圆棒穿孔工序组", typeof(PiercingPlanProcessGroup), 9, null, new List<ColumnDef>
         {
@@ -921,7 +924,7 @@ public class DataExchangeService : IDataExchangeService
             new("打焊头", "WeldingHead", typeof(int?), isRequired: false),
             new("润滑", "Lubrication", typeof(int?), isRequired: false),
             new("入库", "Warehouse", typeof(int?), isRequired: false),
-        }),
+        }, compositeKeyColumns: new[] { "RoundBarPiercingPlanId", "SequenceNumber" }),
     };
 
     public static readonly List<string> EntityOrder = new()
@@ -1405,6 +1408,8 @@ public class DataExchangeService : IDataExchangeService
                             }
                             _context.Set<OrderItem>().RemoveRange(existing);
                             await _context.SaveChangesAsync();
+                            // 清空缓存，避免 ImportRowAsync 使用已删除（Detached）的实体
+                            existingCache.Clear();
                             _logger.LogInformation("已清理 {Count} 个旧的订单项次记录", existing.Count);
                         }
                     }
@@ -1465,6 +1470,8 @@ public class DataExchangeService : IDataExchangeService
                         {
                             _context.Set<ProductRequirement>().RemoveRange(existing);
                             await _context.SaveChangesAsync();
+                            // 清空缓存，避免 ImportRowAsync 使用已删除（Detached）的实体
+                            existingCache.Clear();
                             _logger.LogInformation("已清理 {Count} 个旧的技术要求记录", existing.Count);
                         }
                     }
@@ -1516,6 +1523,8 @@ public class DataExchangeService : IDataExchangeService
                         {
                             _context.Set<SubcontractReturnItem>().RemoveRange(existing);
                             await _context.SaveChangesAsync();
+                            // 清空缓存，避免 ImportRowAsync 使用已删除（Detached）的实体
+                            existingCache.Clear();
                             _logger.LogInformation("已清理 {Count} 个旧的委外退货项记录", existing.Count);
                         }
                     }
@@ -1546,6 +1555,56 @@ public class DataExchangeService : IDataExchangeService
                         var skipped = beforeCount - rows.Count;
                         if (skipped > 0)
                             _logger.LogInformation("已跳过 {Count} 行已存在的委外退货项", skipped);
+                    }
+                }
+            }
+
+            // MaterialReceiveCheck 特殊处理：避免唯一键冲突 UK_MaterialReceiveCheck_BatchId（按 ProductionBatchId 去重，而非 BatchNo 字符串）
+            if (entityKey == "MaterialReceiveCheck")
+            {
+                var batchNoCol = def.Columns.FirstOrDefault(c => c.FkEntityKey == "ProductionBatch");
+                if (batchNoCol != null && fkCache.TryGetValue("ProductionBatch", out var mrcBatchLookup))
+                {
+                    var batchNos = rows
+                        .Select(r => r.Values.GetValueOrDefault(batchNoCol.Header, "")?.Trim())
+                        .Where(v => !string.IsNullOrWhiteSpace(v))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    var batchIds = batchNos
+                        .Select(bn => mrcBatchLookup.GetValueOrDefault(bn))
+                        .Where(id => id > 0)
+                        .ToList();
+
+                    if (overwrite)
+                    {
+                        // overwrite: 删除已有检验到料记录，再重新导入
+                        var existing = await _context.Set<MaterialReceiveCheck>()
+                            .Where(m => batchIds.Contains(m.ProductionBatchId))
+                            .ToListAsync();
+                        if (existing.Count > 0)
+                        {
+                            _context.Set<MaterialReceiveCheck>().RemoveRange(existing);
+                            await _context.SaveChangesAsync();
+                            // 清空缓存，避免 ImportRowAsync 使用已删除（Detached）的实体
+                            existingCache.Clear();
+                            _logger.LogInformation("已清理 {Count} 个旧的检验到料记录", existing.Count);
+                        }
+                    }
+                    else
+                    {
+                        // skip: 跳过已有检验到料的批次（按 ProductionBatchId 精确匹配）
+                        var existingSet = new HashSet<int>(batchIds);
+                        var beforeCount = rows.Count;
+                        rows.RemoveAll(r =>
+                        {
+                            var batchNo = r.Values.GetValueOrDefault(batchNoCol.Header, "")?.Trim();
+                            if (string.IsNullOrWhiteSpace(batchNo)) return false;
+                            if (!mrcBatchLookup.TryGetValue(batchNo, out var batchId)) return false;
+                            return existingSet.Contains(batchId);
+                        });
+                        var skipped = beforeCount - rows.Count;
+                        if (skipped > 0)
+                            _logger.LogInformation("已跳过 {Count} 行已存在的检验到料记录", skipped);
                     }
                 }
             }
@@ -1681,31 +1740,51 @@ public class DataExchangeService : IDataExchangeService
                 }
             }
 
-            // === 通用预过滤：跳过已存在的记录（基于 KeyColumn，包括批次内重复）===
-            if (!overwrite && def.KeyColumn != null)
+            // === 通用预过滤：跳过已存在的记录（基于 KeyColumn 或 CompositeKeyColumns，包括批次内重复）===
+            if (!overwrite)
             {
-                var keyCol = def.Columns.FirstOrDefault(c => c.Property == def.KeyColumn);
-                if (keyCol != null)
+                var beforeCount = rows.Count;
+                if (def.KeyColumn != null)
+                {
+                    var keyCol = def.Columns.FirstOrDefault(c => c.Property == def.KeyColumn);
+                    if (keyCol != null)
+                    {
+                        var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        rows.RemoveAll(r =>
+                        {
+                            var val = r.Values.GetValueOrDefault(keyCol.Header, "")?.Trim();
+                            if (string.IsNullOrWhiteSpace(val)) return false;
+
+                            // 跳过数据库中已存在的
+                            if (existingCache.ContainsKey(val)) return true;
+
+                            // 跳过批次内重复的
+                            if (!seenKeys.Add(val)) return true;
+
+                            return false;
+                        });
+                    }
+                }
+                else if (def.CompositeKeyColumns != null)
                 {
                     var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    var beforeCount = rows.Count;
                     rows.RemoveAll(r =>
                     {
-                        var val = r.Values.GetValueOrDefault(keyCol.Header, "")?.Trim();
-                        if (string.IsNullOrWhiteSpace(val)) return false;
+                        var rowKey = GetRowKey(def, r);
+                        if (rowKey == null) return false;
 
                         // 跳过数据库中已存在的
-                        if (existingCache.ContainsKey(val)) return true;
+                        if (existingCache.ContainsKey(rowKey)) return true;
 
                         // 跳过批次内重复的
-                        if (!seenKeys.Add(val)) return true;
+                        if (!seenKeys.Add(rowKey)) return true;
 
                         return false;
                     });
-                    var skipped = beforeCount - rows.Count;
-                    if (skipped > 0)
-                        _logger.LogInformation("已跳过 {Count} 行已存在的记录（键: {Key}）", skipped, def.KeyColumn);
                 }
+                var skipped = beforeCount - rows.Count;
+                if (skipped > 0)
+                    _logger.LogInformation("已跳过 {Count} 行已存在的记录（键: {Key}）", skipped, def.KeyColumn ?? string.Join(",", def.CompositeKeyColumns!));
             }
 
             foreach (var row in rows)
@@ -2407,6 +2486,11 @@ public class DataExchangeService : IDataExchangeService
                     codeProp.SetValue(entity, newCode);
                 }
             }
+            // 更新缓存，避免同批次内重复行再次创建新实体
+            if (existingEntity == null && rowKey != null)
+            {
+                existingCache[rowKey] = entity;
+            }
         }
 
         // 设置审计字段
@@ -2531,6 +2615,9 @@ public class DataExchangeService : IDataExchangeService
                     if (colDef.FkTargetProperty != null && propertyCache.TryGetValue(colDef.FkTargetProperty, out var oiProp))
                         oiProp.SetValue(entity, oiId);
                 }
+                // FK列同时有属性名时，将源文本值也写入实体属性（用于覆盖导入匹配）
+                if (colDef.Property != null && propertyCache.TryGetValue(colDef.Property, out var valProp))
+                    valProp.SetValue(entity, cellValue);
                 continue;
             }
 
@@ -2544,6 +2631,7 @@ public class DataExchangeService : IDataExchangeService
                     var processName = row.Values.GetValueOrDefault("工序名称", "");
                     var manufacturingSpec = row.Values.GetValueOrDefault("制造规格", "");
                     var sectionName = row.Values.GetValueOrDefault("工段名称", "");
+                    var resolved = false;
                     if (!string.IsNullOrWhiteSpace(batchNo) && !string.IsNullOrWhiteSpace(sectionName))
                     {
                         var compositeKey = $"{batchNo}|{processName}|{manufacturingSpec}|{sectionName}";
@@ -2555,6 +2643,20 @@ public class DataExchangeService : IDataExchangeService
                             if (propertyCache.TryGetValue("ProcessGroupId", out var pgProp))
                                 pgProp.SetValue(entity, pgId);
                             if (propertyCache.TryGetValue("SequenceNumber", out var seqProp))
+                                seqProp.SetValue(entity, seqNum);
+                            resolved = true;
+                        }
+                    }
+                    // 回退：按 BatchNo|SequenceNumber（组内序号）简单键查找
+                    // 当工序名称/制造规格在 Excel 与数据库不完全一致时，直接用批次号+组内序号定位
+                    if (!resolved && !string.IsNullOrWhiteSpace(batchNo) && !string.IsNullOrWhiteSpace(cellValue))
+                    {
+                        var simpleKey = $"{batchNo}|{cellValue}";
+                        if (fkCache.TryGetValue("ProcessGroup", out var pgCache) && pgCache.TryGetValue(simpleKey, out var pgId))
+                        {
+                            if (colDef.FkTargetProperty != null && propertyCache.TryGetValue(colDef.FkTargetProperty, out var pgProp))
+                                pgProp.SetValue(entity, pgId);
+                            if (int.TryParse(cellValue, out var seqNum) && propertyCache.TryGetValue("SequenceNumber", out var seqProp))
                                 seqProp.SetValue(entity, seqNum);
                         }
                     }

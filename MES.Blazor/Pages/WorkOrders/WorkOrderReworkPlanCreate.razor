@@ -109,7 +109,11 @@
                                            Dense="true" Variant="Variant.Outlined" Size="Size.Small">
                                     <MudSelectItem Value="@("荒管处理")" />
                                     <MudSelectItem Value="@("在制修检")" />
-                                    <MudSelectItem Value="@("冷轧")" />
+                                    <MudSelectItem Value="@("60冷轧")" />
+                                    <MudSelectItem Value="@("50冷轧")" />
+                                    <MudSelectItem Value="@("30冷轧")" />
+                                    <MudSelectItem Value="@("20冷轧")" />
+                                    <MudSelectItem Value="@("三辊冷轧")" />
                                     <MudSelectItem Value="@("冷拔")" />
                                 </MudSelect>
                             </MudTd>
@@ -631,7 +635,11 @@
                 pg.Pickle = 1;
                 pg.Inspection = 1;
                 break;
-            case "冷轧":
+            case "60冷轧":
+            case "50冷轧":
+            case "30冷轧":
+            case "20冷轧":
+            case "三辊冷轧":
                 pg.ColdRollDraw = 1;
                 pg.OilPipeCut = 1;
                 pg.Degrease = 1;

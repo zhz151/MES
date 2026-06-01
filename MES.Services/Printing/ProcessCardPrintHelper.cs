@@ -313,6 +313,8 @@ public static class ProcessCardPrintHelper
             ["CurrentEquipmentName"] = ("当前设备", () => b.CurrentEquipmentName ?? "-"),
             ["CurrentOutsource"] = ("当前委外", () => b.CurrentOutsource ?? "-"),
             ["NextSectionName"] = ("下一工段", () => b.NextSectionName ?? "-"),
+            ["CorrespondingSpec"] = ("对应规格", () => b.CorrespondingSpec ?? "-"),
+            ["NextProcess"] = ("下一工序", () => b.NextProcess ?? "-"),
             ["CreatedBy"] = ("创建人", () => b.CreatedBy ?? "-"),
             ["CreatedTime"] = ("创建时间", () => b.CreatedTime.ToString("yyyy-MM-dd HH:mm")),
         };

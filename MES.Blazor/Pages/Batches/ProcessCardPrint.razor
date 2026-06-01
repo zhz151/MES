@@ -273,6 +273,7 @@
         new() { Key = "CurrentSpec",        Label = "当前规格", SortKey = "currentspec", FilterType = "string", Width = "120" },
         new() { Key = "NextSectionName",    Label = "下一工段", SortKey = "nextsectionname", FilterType = "string", Width = "120" },
         new() { Key = "CorrespondingSpec",  Label = "对应规格", SortKey = "correspondingspec", FilterType = "string", Width = "120" },
+        new() { Key = "NextProcess",        Label = "下一工序", SortKey = "nextprocess", FilterType = "string", Width = "120" },
     };
 
     // ========== 列选择操作 ==========
@@ -326,6 +327,7 @@
         new() { BlockKey = "BatchInfo", Key = "CurrentSpec", Label = "当前规格", Visible = false },
         new() { BlockKey = "BatchInfo", Key = "NextSectionName", Label = "下一工段", Visible = true },
         new() { BlockKey = "BatchInfo", Key = "CorrespondingSpec", Label = "对应规格", Visible = false },
+        new() { BlockKey = "BatchInfo", Key = "NextProcess", Label = "下一工序", Visible = false },
         new() { BlockKey = "BatchInfo", Key = "CreatedBy", Label = "创建人", Visible = false },
         new() { BlockKey = "BatchInfo", Key = "CreatedTime", Label = "创建时间", Visible = false },
 

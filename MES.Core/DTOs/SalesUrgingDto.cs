@@ -46,6 +46,16 @@ public class SalesUrgingDto
     /// <summary>催单备注（手工填写）</summary>
     public string? UrgingRemark { get; set; }
 
+    // ========== 原料锁定字段（手工填写，存 SalesUrging 表） ==========
+    /// <summary>预计到料日期</summary>
+    public DateTime? EstimatedArrivalDate { get; set; }
+
+    /// <summary>主号原锁齐全</summary>
+    public bool IsMainNoMaterialComplete { get; set; }
+
+    /// <summary>确认锁定</summary>
+    public bool IsLockConfirmed { get; set; }
+
     // ========== 显示文本 ==========
     public string DelayPenaltyText => DelayPenalty ? "是" : "否";
     public string ScheduleStageText => ScheduleStage switch

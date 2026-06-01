@@ -51,7 +51,7 @@ public class ProcessInspectionsTests : TestBase
                     ProductionBatchId = 1,
                     ProcessGroupId = 1,
                     BatchNo = "BATCH-PI-001",
-                    ProcessName = "冷轧",
+                    ProcessName = "60冷轧",
                     SectionName = "冷轧车间",
                     InspectionDate = DateTime.Today,
                     Inspector = "张三",

@@ -110,6 +110,7 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">当前规格</MudText><MudText Typo="Typo.body2">@(batch.CurrentSpec ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">下一工段</MudText><MudText Typo="Typo.body2">@(batch.NextSectionName ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">对应规格</MudText><MudText Typo="Typo.body2">@(batch.CorrespondingSpec ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">下一工序</MudText><MudText Typo="Typo.body2">@(batch.NextProcess ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">强制完成</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetYesNoText(batch.IsForceCompleted))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">剩余工量</MudText><MudText Typo="Typo.body2">@(batch.RemainingWorkDays == 0 ? "0" : $"{batch.RemainingWorkDays}天")</MudText></div>
                 <div class="d-flex align-center" Style="gap:6px; width:100%; flex-wrap:wrap;">
@@ -216,6 +217,10 @@
                     @if (!string.IsNullOrEmpty(_trackingVisual.NextSectionName))
                     {
                         <MudText Typo="Typo.body2" Class="detail-next-section">⏭ 下一工段：@_trackingVisual.NextSectionName</MudText>
+                    }
+                    @if (!string.IsNullOrEmpty(_trackingVisual.NextProcess))
+                    {
+                        <MudText Typo="Typo.body2" Class="detail-next-section">下一工序：@_trackingVisual.NextProcess</MudText>
                     }
                 </div>
 

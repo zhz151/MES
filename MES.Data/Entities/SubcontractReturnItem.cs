@@ -13,6 +13,11 @@ public class SubcontractReturnItem : BaseEntity
     public int SubcontractOrderId { get; set; }
 
     /// <summary>
+    /// 委外单号（从 SubcontractOrder 冗余，用于数据导入覆盖匹配）
+    /// </summary>
+    public string? OrderNo { get; set; }
+
+    /// <summary>
     /// 行号（从1开始）
     /// </summary>
     public int Sequence { get; set; }

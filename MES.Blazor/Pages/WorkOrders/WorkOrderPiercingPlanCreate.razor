@@ -282,7 +282,11 @@
                                            Dense="true" Variant="Variant.Outlined" Size="Size.Small">
                                     <MudSelectItem Value="@("荒管处理")" />
                                     <MudSelectItem Value="@("在制修检")" />
-                                    <MudSelectItem Value="@("冷轧")" />
+                                    <MudSelectItem Value="@("60冷轧")" />
+                                    <MudSelectItem Value="@("50冷轧")" />
+                                    <MudSelectItem Value="@("30冷轧")" />
+                                    <MudSelectItem Value="@("20冷轧")" />
+                                    <MudSelectItem Value="@("三辊冷轧")" />
                                     <MudSelectItem Value="@("冷拔")" />
                                 </MudSelect>
                             </MudTd>
@@ -561,7 +565,7 @@
                 if (string.IsNullOrWhiteSpace(pg.ManufacturingSpec))
                     errors.Add($"工序组第{rowNum}行：制造规格不能为空");
 
-                if (pg.ProcessName == "冷轧" || pg.ProcessName == "冷拔")
+                if (pg.ProcessName.Contains("冷轧") || pg.ProcessName == "冷拔")
                 {
                     if (pg.ColdRollDraw == null)
                         errors.Add($"工序组第{rowNum}行：工序\"{pg.ProcessName}\"的冷轧拔不能为空");
@@ -682,7 +686,11 @@
                 pg.Pickle = 1;
                 pg.Inspection = 1;
                 break;
-            case "冷轧":
+            case "60冷轧":
+            case "50冷轧":
+            case "30冷轧":
+            case "20冷轧":
+            case "三辊冷轧":
                 pg.ColdRollDraw = 1;
                 pg.OilPipeCut = 1;
                 pg.Degrease = 1;

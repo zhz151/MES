@@ -96,6 +96,11 @@ public class ProductionBatch : BaseEntity
     public string? CorrespondingSpec { get; set; }
 
     /// <summary>
+    /// 下一工序（下个工段所在工序组的工序名称）
+    /// </summary>
+    public string? NextProcess { get; set; }
+
+    /// <summary>
     /// 有效投料疑问（正常/疑问），基于最近过程检验与投料量比值计算，由 UpdateBatchTrackingFromRecords 刷新
     /// </summary>
     public bool? ValidInputQuestion { get; set; }

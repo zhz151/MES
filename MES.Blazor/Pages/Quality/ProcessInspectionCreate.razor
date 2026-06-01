@@ -418,6 +418,24 @@
         StateHasChanged();
     }
 
+    // 批次号+工序名称 → 自动填充制造规格
+    private async Task OnAutoFillByProcessNameAsync(EditRow row)
+    {
+        if (string.IsNullOrWhiteSpace(row.BatchNo) || string.IsNullOrWhiteSpace(row.ProcessName))
+            return;
+
+        var result = await BatchService.GetByBatchNoAsync(row.BatchNo);
+        if (!result.Success || result.Data == null)
+            return;
+
+        var batch = result.Data;
+        var pg = batch.ProcessGroups?.FirstOrDefault(p => p.ProcessName == row.ProcessName);
+        if (pg != null)
+            row.ManufacturingSpec = pg.ManufacturingSpec;
+
+        StateHasChanged();
+    }
+
     // ========== 单元格渲染 ==========
 
     private RenderFragment RenderCell(EditRow r, ColumnDef col) => builder =>
@@ -444,12 +462,39 @@
                 builder.CloseComponent();
                 break;
             case "ProcessName":
-                builder.OpenComponent<MudTextField<string>>(0);
+                builder.OpenComponent<MudSelect<string>>(0);
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(5, "Value",r.ProcessName);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.ProcessName = v ?? ""));
+                builder.AddAttribute(5, "Value", r.ProcessName);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await OnAutoFillByProcessNameAsync(r); }));
+                builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
+                {
+                    b.OpenComponent<MudSelectItem<string>>(0);
+                    b.AddAttribute(1, "Value", "荒管处理");
+                    b.CloseComponent();
+                    b.OpenComponent<MudSelectItem<string>>(0);
+                    b.AddAttribute(1, "Value", "在制修检");
+                    b.CloseComponent();
+                    b.OpenComponent<MudSelectItem<string>>(0);
+                    b.AddAttribute(1, "Value", "60冷轧");
+                    b.CloseComponent();
+                    b.OpenComponent<MudSelectItem<string>>(0);
+                    b.AddAttribute(1, "Value", "50冷轧");
+                    b.CloseComponent();
+                    b.OpenComponent<MudSelectItem<string>>(0);
+                    b.AddAttribute(1, "Value", "30冷轧");
+                    b.CloseComponent();
+                    b.OpenComponent<MudSelectItem<string>>(0);
+                    b.AddAttribute(1, "Value", "20冷轧");
+                    b.CloseComponent();
+                    b.OpenComponent<MudSelectItem<string>>(0);
+                    b.AddAttribute(1, "Value", "三辊冷轧");
+                    b.CloseComponent();
+                    b.OpenComponent<MudSelectItem<string>>(0);
+                    b.AddAttribute(1, "Value", "冷拔");
+                    b.CloseComponent();
+                }));
                 builder.CloseComponent();
                 break;
             case "ManufacturingSpec":

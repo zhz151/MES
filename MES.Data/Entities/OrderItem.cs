@@ -15,6 +15,11 @@ public class OrderItem : BaseEntity
     public int SalesOrderId { get; set; }
 
     /// <summary>
+    /// 订单号（从 SalesOrder 冗余，用于数据导入覆盖匹配）
+    /// </summary>
+    public string? OrderNumber { get; set; }
+
+    /// <summary>
     /// 项次号（订单内唯一）
     /// </summary>
     public int Sequence { get; set; }

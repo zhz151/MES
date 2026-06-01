@@ -264,6 +264,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.ToTable("OrderItem");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Sequence).IsRequired();
+            entity.Property(e => e.OrderNumber).HasMaxLength(50);
             entity.Property(e => e.DeliveryDate).IsRequired().HasColumnType("datetime2");
             entity.Property(e => e.DelayPenalty).IsRequired().HasDefaultValue(false);
             entity.Property(e => e.SettlementMethod).IsRequired().HasConversion<string>().HasMaxLength(20);
@@ -343,6 +344,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.ToTable("ProductRequirement");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.OrderItemId).IsRequired();
+            entity.Property(e => e.OrderNo).HasMaxLength(50);
+            entity.Property(e => e.ItemSequence);
             entity.Property(e => e.RequirementType).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(RequirementType.Normal);
             entity.Property(e => e.ChemicalComposition).HasMaxLength(1000);
             entity.Property(e => e.MechanicalProperty).HasMaxLength(500);
@@ -881,6 +884,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.ToTable("SubcontractReturnItem");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.SubcontractOrderId).IsRequired();
+            entity.Property(e => e.OrderNo).HasMaxLength(50);
             entity.Property(e => e.Sequence).IsRequired();
             entity.Property(e => e.MaterialCategory).IsRequired().HasMaxLength(30);
             entity.Property(e => e.PlantGrade).HasMaxLength(50);
@@ -930,6 +934,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.CurrentEquipmentName).HasMaxLength(100);
             entity.Property(e => e.CurrentOutsource).HasMaxLength(200);
             entity.Property(e => e.NextSectionName).HasMaxLength(50);
+            entity.Property(e => e.CorrespondingSpec).HasMaxLength(100);
+            entity.Property(e => e.NextProcess).HasMaxLength(50);
             entity.Property(e => e.Remark).HasMaxLength(500);
             entity.Property(e => e.RowVersion).IsRequired().IsRowVersion();
 
@@ -1005,6 +1011,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.ManufacturingLength).HasMaxLength(100);
             entity.Property(e => e.CuttingTreatment).HasMaxLength(200);
             entity.Property(e => e.ManufacturingMultiple).IsRequired();
+            entity.Property(e => e.BatchNo).HasMaxLength(50);
             entity.Property(e => e.Remark).HasMaxLength(500);
 
             // 15个工段字段（int?，无默认值）
@@ -1499,6 +1506,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.DefectDescription).HasMaxLength(500);
             entity.Property(e => e.SourceUnit).HasMaxLength(200);
             entity.Property(e => e.TagNo).HasMaxLength(50);
+            entity.Property(e => e.BatchNo).HasMaxLength(50);
             entity.Property(e => e.PlantGrade).HasMaxLength(50);
             entity.Property(e => e.Remark).HasMaxLength(500);
 
@@ -2034,6 +2042,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.WorkOrderId).IsRequired();
             entity.Property(e => e.IsSalesUrging).IsRequired().HasDefaultValue(false);
             entity.Property(e => e.UrgingRemark).HasMaxLength(500);
+            entity.Property(e => e.EstimatedArrivalDate);
+            entity.Property(e => e.IsMainNoMaterialComplete).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.IsLockConfirmed).IsRequired().HasDefaultValue(false);
             entity.HasIndex(e => e.WorkOrderId).IsUnique().HasDatabaseName("UK_SU_WorkOrderId");
         });
     }

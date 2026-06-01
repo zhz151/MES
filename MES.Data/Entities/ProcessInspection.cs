@@ -131,6 +131,11 @@ public class ProcessInspection : BaseEntity
     public string? TagNo { get; set; }
 
     /// <summary>
+    /// 批次号（从 ProductionBatch 冗余，用于数据导入覆盖匹配）
+    /// </summary>
+    public string? BatchNo { get; set; }
+
+    /// <summary>
     /// 工厂牌号
     /// </summary>
     public string? PlantGrade { get; set; }

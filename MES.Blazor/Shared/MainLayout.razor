@@ -113,7 +113,8 @@
 
                 <!-- 计划及执行 -->
                 <AuthorizeView>
-                    <MudMenu Label="计划及执行" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("sales-urgings","raw-material-lock-plan")">
+                    <MudMenu Label="计划及执行" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("order-overview","sales-urgings","raw-material-lock-plan")">
+                        <MudMenuItem Class="@GetMenuItemClass("/order-overview")" OnClick='() => NavigateTo("/order-overview")'>订单总况</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/sales-urgings")" OnClick='() => NavigateTo("/sales-urgings")'>销售催单</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/raw-material-lock-plan")" OnClick='() => NavigateTo("/raw-material-lock-plan")'>原锁计划及执行</MudMenuItem>
                     </MudMenu>

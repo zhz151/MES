@@ -94,6 +94,19 @@ public class RawMaterialLockPlanAndExecutionDto
     public string? CurrentRawMaterialLockRemark { get; set; }
     public bool? IsExecuted { get; set; }
 
+    // ========== G15: 原料锁定操作（从 SalesUrging LEFT JOIN） ==========
+    /// <summary>预计到料日期</summary>
+    public DateTime? EstimatedArrivalDate { get; set; }
+
+    /// <summary>主号原锁齐全</summary>
+    public bool IsMainNoMaterialComplete { get; set; }
+
+    /// <summary>确认锁定</summary>
+    public bool IsLockConfirmed { get; set; }
+
+    /// <summary>是否存在异常（逾期、锁定未齐全等）</summary>
+    public bool HasAbnormality { get; set; }
+
     // ========== 显示文本 ==========
     public string DelayPenaltyText => DelayPenalty ? "是" : "否";
     public string ScheduleStageText => ScheduleStage switch
