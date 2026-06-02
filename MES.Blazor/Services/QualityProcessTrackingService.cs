@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using MES.Core.DTOs;
+using MES.Shared.Constants;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
@@ -8,7 +9,7 @@ namespace MES.Blazor.Services;
 public class QualityProcessTrackingService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/quality-process-tracking";
+    private const string BaseUrl = ApiEndpoints.QualityProcessTracking;
 
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {

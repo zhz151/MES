@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MES.Core.DTOs;
+using MES.Shared.Constants;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
@@ -7,7 +8,7 @@ namespace MES.Blazor.Services;
 public class SupplierService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/supplier";
+    private const string BaseUrl = ApiEndpoints.Supplier;
 
     public SupplierService(AuthHttpClient http) => _http = http;
 
@@ -26,7 +27,7 @@ public class SupplierService
         try
         {
             var isDescending = query.IsDescending ? "true" : "false";
-            var encodedSortBy = Uri.EscapeDataString(query.SortBy ?? "CreatedTime");
+            var encodedSortBy = Uri.EscapeDataString(query.SortBy ?? ApiEndpoints.DefaultSortBy);
             var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={encodedSortBy}&isDescending={isDescending}";
             if (!string.IsNullOrEmpty(query.Keyword)) url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
             if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";

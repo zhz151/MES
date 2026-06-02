@@ -1,4 +1,5 @@
 using MES.Core.DTOs;
+using MES.Shared.Constants;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
@@ -9,7 +10,7 @@ namespace MES.Blazor.Services;
 public class ScanService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/scan";
+    private const string BaseUrl = ApiEndpoints.Scan;
 
     public ScanService(AuthHttpClient http) => _http = http;
 
@@ -48,7 +49,7 @@ public class ScanService
     {
         try
         {
-            return await _http.PostAsJsonAsync<CreateProductionRecordRequest, ApiResponse<ProductionRecordDto>>("api/production-record/record", request)
+            return await _http.PostAsJsonAsync<CreateProductionRecordRequest, ApiResponse<ProductionRecordDto>>($"{ApiEndpoints.ProductionRecord}/record", request)
                    ?? ApiResponse<ProductionRecordDto>.Fail("提交失败");
         }
         catch (Exception ex) { return ApiResponse<ProductionRecordDto>.Fail($"网络错误: {ex.Message}"); }
@@ -62,7 +63,7 @@ public class ScanService
         try
         {
             return await _http.PostAsJsonAsync<List<CreateProcessInspectionRequest>, ApiResponse<List<ProcessInspectionDto>>>(
-                "api/process-inspection/batch", new List<CreateProcessInspectionRequest> { request })
+                $"{ApiEndpoints.ProcessInspection}/batch", new List<CreateProcessInspectionRequest> { request })
                    ?? ApiResponse<List<ProcessInspectionDto>>.Fail("提交失败");
         }
         catch (Exception ex) { return ApiResponse<List<ProcessInspectionDto>>.Fail($"网络错误: {ex.Message}"); }

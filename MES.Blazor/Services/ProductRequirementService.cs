@@ -1,6 +1,7 @@
 // 文件路径: MES.Blazor/Services/ProductRequirementService.cs
 using MES.Core.DTOs;
 using MES.Core.Models;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Services;
 
@@ -21,7 +22,7 @@ public class ProductRequirementService
         try
         {
             var response = await _http.GetFromJsonAsync<ApiResponse<ProductRequirementDto>>(
-                $"api/order/{orderId}/items/{itemId}/requirement");
+                $"{ApiEndpoints.Order}/{orderId}/items/{itemId}/requirement");
             return response ?? ApiResponse<ProductRequirementDto>.Fail("获取产品要求失败");
         }
         catch (Exception ex)
@@ -41,7 +42,7 @@ public class ProductRequirementService
         try
         {
             var response = await _http.PostAsJsonAsync<CreateProductRequirementRequest, ApiResponse<ProductRequirementDto>>(
-                $"api/order/{orderId}/items/{itemId}/requirement", request);
+                $"{ApiEndpoints.Order}/{orderId}/items/{itemId}/requirement", request);
             return response ?? ApiResponse<ProductRequirementDto>.Fail("保存产品要求失败");
         }
         catch (Exception ex)
@@ -58,7 +59,7 @@ public class ProductRequirementService
         try
         {
             var response = await _http.DeleteFromJsonAsync<ApiResponse<object>>(
-                $"api/order/{orderId}/items/{itemId}/requirement");
+                $"{ApiEndpoints.Order}/{orderId}/items/{itemId}/requirement");
             return response ?? ApiResponse<object>.Fail("删除产品要求失败");
         }
         catch (Exception ex)
@@ -75,7 +76,7 @@ public class ProductRequirementService
         try
         {
             var response = await _http.GetFromJsonAsync<ApiResponse<List<ProductRequirementDto>>>(
-                $"api/order/{orderId}/requirements");
+                $"{ApiEndpoints.Order}/{orderId}/requirements");
             
             if (response != null && response.Success && response.Data == null)
             {

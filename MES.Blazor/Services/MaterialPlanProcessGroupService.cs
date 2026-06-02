@@ -1,5 +1,6 @@
 using MES.Core.DTOs;
 using MES.Core.Models;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Services;
 
@@ -20,7 +21,7 @@ public class MaterialPlanProcessGroupService
         try
         {
             var response = await _http.GetFromJsonAsync<ApiResponse<List<MaterialPlanProcessGroupDto>>>(
-                $"api/material-plan/{planType}/process-groups/{planId}");
+                $"{ApiEndpoints.MaterialPlan}/{planType}/process-groups/{planId}");
             return response ?? ApiResponse<List<MaterialPlanProcessGroupDto>>.Fail("获取数据失败");
         }
         catch (Exception ex)
@@ -37,7 +38,7 @@ public class MaterialPlanProcessGroupService
         try
         {
             var response = await _http.PostAsJsonAsync<List<SavePlanProcessGroupItem>, ApiResponse<object>>(
-                $"api/material-plan/{planType}/process-groups/{planId}/save", items);
+                $"{ApiEndpoints.MaterialPlan}/{planType}/process-groups/{planId}/save", items);
             return response ?? ApiResponse<object>.Fail("保存失败");
         }
         catch (Exception ex)

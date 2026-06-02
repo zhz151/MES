@@ -1,4 +1,5 @@
 using MES.Core.DTOs;
+using MES.Shared.Constants;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
@@ -9,7 +10,7 @@ namespace MES.Blazor.Services;
 public class ProductionOverviewService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/production-overview";
+    private const string BaseUrl = ApiEndpoints.ProductionOverview;
 
     public ProductionOverviewService(AuthHttpClient http)
     {

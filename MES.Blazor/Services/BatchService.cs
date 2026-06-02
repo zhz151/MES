@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MES.Core.DTOs;
+using MES.Shared.Constants;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
@@ -7,7 +8,7 @@ namespace MES.Blazor.Services;
 public class BatchService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/batch";
+    private const string BaseUrl = ApiEndpoints.Batch;
 
     public BatchService(AuthHttpClient http) => _http = http;
 
@@ -16,7 +17,7 @@ public class BatchService
         try
         {
             var isDescending = query.IsDescending ? "true" : "false";
-            var encodedSortBy = Uri.EscapeDataString(query.SortBy ?? "CreatedTime");
+            var encodedSortBy = Uri.EscapeDataString(query.SortBy ?? ApiEndpoints.DefaultSortBy);
             var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={encodedSortBy}&isDescending={isDescending}";
             if (!string.IsNullOrEmpty(query.Keyword)) url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
             if (!string.IsNullOrEmpty(query.WorkOrderNo)) url += $"&workOrderNo={Uri.EscapeDataString(query.WorkOrderNo)}";
@@ -279,7 +280,7 @@ public class BatchService
     {
         try
         {
-            var url = $"{BaseUrl}/list?pageIndex={pageIndex}&pageSize={pageSize}&sortBy={Uri.EscapeDataString(sortBy ?? "CreatedTime")}&isDescending={isDescending.ToString().ToLower()}";
+            var url = $"{BaseUrl}/list?pageIndex={pageIndex}&pageSize={pageSize}&sortBy={Uri.EscapeDataString(sortBy ?? ApiEndpoints.DefaultSortBy)}&isDescending={isDescending.ToString().ToLower()}";
             if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
             if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
             if (!string.IsNullOrEmpty(validInputQuestion)) url += $"&validInputQuestion={Uri.EscapeDataString(validInputQuestion)}";

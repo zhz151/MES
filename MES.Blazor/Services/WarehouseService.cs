@@ -1,4 +1,5 @@
 using MES.Core.DTOs;
+using MES.Shared.Constants;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
@@ -6,7 +7,7 @@ namespace MES.Blazor.Services;
 public class WarehouseService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/warehouse";
+    private const string BaseUrl = ApiEndpoints.Warehouse;
 
     public WarehouseService(AuthHttpClient http)
     {

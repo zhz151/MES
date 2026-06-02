@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MES.Core.DTOs;
+using MES.Shared.Constants;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
@@ -10,7 +11,7 @@ namespace MES.Blazor.Services;
 public class WorkOrderExecutionService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/workorder-execution";
+    private const string BaseUrl = ApiEndpoints.WorkOrderExecution;
 
     public WorkOrderExecutionService(AuthHttpClient http)
     {

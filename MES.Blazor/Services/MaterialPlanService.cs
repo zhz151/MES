@@ -1,4 +1,5 @@
 using MES.Core.DTOs;
+using MES.Shared.Constants;
 using MES.Core.Enums;
 using MES.Core.Models;
 
@@ -10,7 +11,7 @@ namespace MES.Blazor.Services;
 public class MaterialPlanService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/material-plan";
+    private const string BaseUrl = ApiEndpoints.MaterialPlan;
 
     public MaterialPlanService(AuthHttpClient http)
     {

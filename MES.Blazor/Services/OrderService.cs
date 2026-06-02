@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MES.Core.DTOs;
+using MES.Shared.Constants;
 using MES.Core.Models;
 using MES.Core.Enums;
 
@@ -8,7 +9,7 @@ namespace MES.Blazor.Services;
 public class OrderService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/order";
+    private const string BaseUrl = ApiEndpoints.Order;
 
     public OrderService(AuthHttpClient http)
     {

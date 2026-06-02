@@ -1,6 +1,7 @@
 // 文件路径: MES.Blazor/Services/CustomerService.cs
 using System.Text.Json;
 using MES.Core.DTOs;
+using MES.Shared.Constants;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
@@ -8,7 +9,7 @@ namespace MES.Blazor.Services;
 public class CustomerService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/customer";
+    private const string BaseUrl = ApiEndpoints.Customer;
 
     public CustomerService(AuthHttpClient http)
     {
@@ -24,7 +25,7 @@ public class CustomerService
         {
             // 使用小写的 true/false
             var isDescending = query.IsDescending ? "true" : "false";
-            var encodedSortBy = Uri.EscapeDataString(query.SortBy ?? "CreatedTime");
+            var encodedSortBy = Uri.EscapeDataString(query.SortBy ?? ApiEndpoints.DefaultSortBy);
 
             var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={encodedSortBy}&isDescending={isDescending}";
             if (!string.IsNullOrEmpty(query.Keyword))
@@ -68,7 +69,7 @@ public class CustomerService
     {
         try
         {
-            var url = $"{BaseUrl}/list?pageIndex={pageIndex}&pageSize={pageSize}&sortBy={Uri.EscapeDataString(sortBy ?? "CreatedTime")}&isDescending={isDescending.ToString().ToLower()}";
+            var url = $"{BaseUrl}/list?pageIndex={pageIndex}&pageSize={pageSize}&sortBy={Uri.EscapeDataString(sortBy ?? ApiEndpoints.DefaultSortBy)}&isDescending={isDescending.ToString().ToLower()}";
             if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
             if (filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(filters))}";
 

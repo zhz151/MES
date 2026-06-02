@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MES.Core.DTOs;
+using MES.Shared.Constants;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
@@ -7,7 +8,7 @@ namespace MES.Blazor.Services;
 public class PurchaseOrderService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/purchase-order";
+    private const string BaseUrl = ApiEndpoints.PurchaseOrder;
 
     public PurchaseOrderService(AuthHttpClient http) => _http = http;
 

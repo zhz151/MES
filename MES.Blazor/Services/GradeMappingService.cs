@@ -1,6 +1,7 @@
 // 文件路径: MES.Blazor/Services/GradeMappingService.cs
 using System.Text.Json;
 using MES.Core.DTOs;
+using MES.Shared.Constants;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
@@ -8,7 +9,7 @@ namespace MES.Blazor.Services;
 public class GradeMappingService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/grade-mapping";
+    private const string BaseUrl = ApiEndpoints.GradeMapping;
 
     public GradeMappingService(AuthHttpClient http)
     {

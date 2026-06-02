@@ -1,4 +1,5 @@
 using MES.Core.DTOs;
+using MES.Shared.Constants;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
@@ -6,7 +7,7 @@ namespace MES.Blazor.Services;
 public class ProductionRecordService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/production-record";
+    private const string BaseUrl = ApiEndpoints.ProductionRecord;
 
     public ProductionRecordService(AuthHttpClient http) => _http = http;
 
@@ -344,7 +345,7 @@ public class ProductionRecordService
     {
         try
         {
-            return await _http.GetFromJsonAsync<ApiResponse<BatchTrackingVisualDto>>($"api/batch/{batchId}/tracking")
+            return await _http.GetFromJsonAsync<ApiResponse<BatchTrackingVisualDto>>($"{ApiEndpoints.Batch}/{batchId}/tracking")
                    ?? ApiResponse<BatchTrackingVisualDto>.Fail("获取跟踪数据失败");
         }
         catch (Exception ex) { return ApiResponse<BatchTrackingVisualDto>.Fail($"网络错误: {ex.Message}"); }

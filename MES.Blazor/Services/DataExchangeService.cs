@@ -1,4 +1,5 @@
 using MES.Core.Models;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Services;
 
@@ -8,7 +9,7 @@ namespace MES.Blazor.Services;
 public class DataExchangeService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/data-exchange";
+    private const string BaseUrl = ApiEndpoints.DataExchange;
 
     public DataExchangeService(AuthHttpClient http)
     {

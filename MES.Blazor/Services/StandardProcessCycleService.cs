@@ -1,6 +1,7 @@
 // 文件路径: MES.Blazor/Services/StandardProcessCycleService.cs
 using System.Text.Json;
 using MES.Core.DTOs;
+using MES.Shared.Constants;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
@@ -8,7 +9,7 @@ namespace MES.Blazor.Services;
 public class StandardProcessCycleService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/standard-process-cycle";
+    private const string BaseUrl = ApiEndpoints.StandardProcessCycle;
 
     public StandardProcessCycleService(AuthHttpClient http)
     {

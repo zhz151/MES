@@ -6,6 +6,7 @@ using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components;
 using MES.Core.Models;
 using MES.Core.DTOs.Auth;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Services;
 
@@ -56,7 +57,7 @@ public class AuthHttpClient
 
         try
         {
-            var response = await _http.PostAsJsonAsync("api/auth/refresh-token", new { refreshToken });
+            var response = await _http.PostAsJsonAsync(ApiEndpoints.AuthRefreshToken, new { refreshToken });
             if (!response.IsSuccessStatusCode)
                 return false;
 

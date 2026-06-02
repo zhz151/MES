@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MES.Core.DTOs;
+using MES.Shared.Constants;
 using MES.Core.Models;
 
 namespace MES.Blazor.Services;
@@ -7,7 +8,7 @@ namespace MES.Blazor.Services;
 public class EquipmentService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/equipment";
+    private const string BaseUrl = ApiEndpoints.Equipment;
 
     public EquipmentService(AuthHttpClient http) => _http = http;
 
@@ -16,7 +17,7 @@ public class EquipmentService
         try
         {
             var isDescending = query.IsDescending ? "true" : "false";
-            var encodedSortBy = Uri.EscapeDataString(query.SortBy ?? "CreatedTime");
+            var encodedSortBy = Uri.EscapeDataString(query.SortBy ?? ApiEndpoints.DefaultSortBy);
             var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={encodedSortBy}&isDescending={isDescending}";
             if (!string.IsNullOrEmpty(query.Keyword)) url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
             if (!string.IsNullOrEmpty(query.LifecycleStatus)) url += $"&lifecycleStatus={Uri.EscapeDataString(query.LifecycleStatus)}";
