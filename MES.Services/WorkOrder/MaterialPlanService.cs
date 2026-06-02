@@ -77,21 +77,21 @@ public class MaterialPlanService : IMaterialPlanService
         int? inspection, int? weldingHead, int? lubrication, int? warehouse)
     {
         var sections = new List<(string, int)>();
-        if (coldRollDraw.HasValue) sections.Add(("冷轧拔", coldRollDraw.Value));
-        if (oilPipeCut.HasValue) sections.Add(("油管断", oilPipeCut.Value));
-        if (degrease.HasValue) sections.Add(("去油", degrease.Value));
-        if (solution.HasValue) sections.Add(("固溶", solution.Value));
-        if (straighten.HasValue) sections.Add(("矫直", straighten.Value));
-        if (cut.HasValue) sections.Add(("断切", cut.Value));
-        if (thicknessMeasure.HasValue) sections.Add(("测壁厚", thicknessMeasure.Value));
-        if (pickle.HasValue) sections.Add(("酸洗", pickle.Value));
-        if (outerPolish.HasValue) sections.Add(("外抛光", outerPolish.Value));
-        if (innerGrinding.HasValue) sections.Add(("内修磨", innerGrinding.Value));
-        if (outerSpotGrinding.HasValue) sections.Add(("外点磨", outerSpotGrinding.Value));
-        if (inspection.HasValue) sections.Add(("检验", inspection.Value));
-        if (weldingHead.HasValue) sections.Add(("打焊头", weldingHead.Value));
-        if (lubrication.HasValue) sections.Add(("润滑", lubrication.Value));
-        if (warehouse.HasValue) sections.Add(("入库", warehouse.Value));
+        if (coldRollDraw.HasValue) sections.Add((SectionDefs.ColdRollDraw, coldRollDraw.Value));
+        if (oilPipeCut.HasValue) sections.Add((SectionDefs.OilPipeCut, oilPipeCut.Value));
+        if (degrease.HasValue) sections.Add((SectionDefs.Degrease, degrease.Value));
+        if (solution.HasValue) sections.Add((SectionDefs.Solution, solution.Value));
+        if (straighten.HasValue) sections.Add((SectionDefs.Straighten, straighten.Value));
+        if (cut.HasValue) sections.Add((SectionDefs.Cut, cut.Value));
+        if (thicknessMeasure.HasValue) sections.Add((SectionDefs.ThicknessMeasure, thicknessMeasure.Value));
+        if (pickle.HasValue) sections.Add((SectionDefs.Pickle, pickle.Value));
+        if (outerPolish.HasValue) sections.Add((SectionDefs.OuterPolish, outerPolish.Value));
+        if (innerGrinding.HasValue) sections.Add((SectionDefs.InnerGrinding, innerGrinding.Value));
+        if (outerSpotGrinding.HasValue) sections.Add((SectionDefs.OuterSpotGrinding, outerSpotGrinding.Value));
+        if (inspection.HasValue) sections.Add((SectionDefs.Inspection, inspection.Value));
+        if (weldingHead.HasValue) sections.Add((SectionDefs.WeldingHead, weldingHead.Value));
+        if (lubrication.HasValue) sections.Add((SectionDefs.Lubrication, lubrication.Value));
+        if (warehouse.HasValue) sections.Add((SectionDefs.Warehouse, warehouse.Value));
         return sections;
     }
 
@@ -99,27 +99,7 @@ public class MaterialPlanService : IMaterialPlanService
     /// 获取工段对应的天数（与 ProductionRecordService 保持一致）
     /// </summary>
     internal static double GetSectionDay(string sectionName, string? plantGrade)
-    {
-        return sectionName switch
-        {
-            "冷轧拔" => 2,
-            "油管断" => 1,
-            "去油" => 1,
-            "固溶" => 1,
-            "矫直" => 0.5,
-            "断切" => 0.5,
-            "测壁厚" => 1,
-            "酸洗" => plantGrade?.StartsWith("3") == true ? 1 : 2,
-            "外抛光" => 0.5,
-            "内修磨" => 0.5,
-            "外点磨" => 0.5,
-            "检验" => 1,
-            "打焊头" => 0.5,
-            "润滑" => 1,
-            "入库" => 2,
-            _ => 0
-        };
-    }
+        => SectionDefs.GetStandardDays(sectionName, plantGrade);
 
     #endregion
 

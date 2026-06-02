@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs;
 using MES.Core.Enums;
+using MES.Core.Constants;
 using MES.Data;
 using MES.Data.Entities;
 
@@ -185,7 +186,7 @@ public class ProductionOverviewService
                     bool isNotReached = sectionName == "荒管抛光"
                         ? IsNotReachedBySection(
                             batch.CurrentGroupName, batch.CurrentSectionName,
-                            pgs, pg, "外抛光")
+                            pgs, pg, SectionDefs.OuterPolish)
                         : IsNotReached(
                             batch.CurrentGroupName, batch.CurrentSectionName,
                             batch.CurrentSectionCompleted, pgs, pg);
@@ -252,21 +253,21 @@ public class ProductionOverviewService
         /// <summary>获取指定工段名称在此工序组中的执行序号，null 表示此工序组不含该工段</summary>
         public int? GetSectionSequence(string sectionName) => sectionName switch
         {
-            "冷轧拔" => ColdRollDraw,
-            "油管断" => OilPipeCut,
-            "去油" => Degrease,
-            "固溶" => Solution,
-            "矫直" => Straighten,
-            "断切" => Cut,
-            "测壁厚" => ThicknessMeasure,
-            "酸洗" => Pickle,
-            "外抛光" => OuterPolish,
-            "内修磨" => InnerGrinding,
-            "外点磨" => OuterSpotGrinding,
-            "检验" => Inspection,
-            "打焊头" => WeldingHead,
-            "润滑" => Lubrication,
-            "入库" => Warehouse,
+            SectionDefs.ColdRollDraw => ColdRollDraw,
+            SectionDefs.OilPipeCut => OilPipeCut,
+            SectionDefs.Degrease => Degrease,
+            SectionDefs.Solution => Solution,
+            SectionDefs.Straighten => Straighten,
+            SectionDefs.Cut => Cut,
+            SectionDefs.ThicknessMeasure => ThicknessMeasure,
+            SectionDefs.Pickle => Pickle,
+            SectionDefs.OuterPolish => OuterPolish,
+            SectionDefs.InnerGrinding => InnerGrinding,
+            SectionDefs.OuterSpotGrinding => OuterSpotGrinding,
+            SectionDefs.Inspection => Inspection,
+            SectionDefs.WeldingHead => WeldingHead,
+            SectionDefs.Lubrication => Lubrication,
+            SectionDefs.Warehouse => Warehouse,
             _ => null
         };
     }
@@ -299,20 +300,20 @@ public class ProductionOverviewService
     {
         // 荒管抛光
         if (sectionName == "荒管抛光")
-            return pg.ProcessName == "荒管处理" && pg.OuterPolish.HasValue;
+            return pg.ProcessName == ProcessNames.RoughTubeProcessing && pg.OuterPolish.HasValue;
 
         // 拉机
         if (sectionName == "拉机")
-            return pg.ProcessName == "冷拔" && pg.ColdRollDraw.HasValue;
+            return pg.ProcessName == ProcessNames.ColdDraw && pg.ColdRollDraw.HasValue;
 
         // 以下仅适用于冷轧
-        if (!pg.ProcessName.Contains("冷轧")) return false;
+        if (!ProcessNames.IsColdRoll(pg.ProcessName)) return false;
 
         return sectionName switch
         {
-            "50,60轧机" => pg.ProcessName is "50冷轧" or "60冷轧",
-            "20,30轧机" => pg.ProcessName is "20冷轧" or "30冷轧",
-            "三辊轧机" => pg.ProcessName == "三辊冷轧",
+            "50,60轧机" => pg.ProcessName is ProcessNames.ColdRoll50 or ProcessNames.ColdRoll60,
+            "20,30轧机" => pg.ProcessName is ProcessNames.ColdRoll20 or ProcessNames.ColdRoll30,
+            "三辊轧机" => pg.ProcessName == ProcessNames.ThreeRollColdRoll,
             _ => false
         };
     }

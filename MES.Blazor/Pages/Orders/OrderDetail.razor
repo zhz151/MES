@@ -78,7 +78,7 @@
                     }
                     else
                     {
-                        <AuthorizeView Roles="OrderDirector,Admin">
+                        <AuthorizeView Roles="@Roles.Policies.OrderWrite">
                             <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑</MudButton>
                         </AuthorizeView>
                     }

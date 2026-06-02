@@ -9,7 +9,7 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
-@attribute [Authorize(Roles = "QualityStaff,QualityDirector,Admin")]
+@attribute [Authorize(Roles = Roles.Policies.QualityRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <style>

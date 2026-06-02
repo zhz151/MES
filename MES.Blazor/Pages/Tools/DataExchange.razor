@@ -290,7 +290,7 @@
         var user = authState.User;
         // 兼容 JWT 短名 "role" 和 ClaimTypes.Role 两种方式
         isAdmin = user.Claims.Any(c => c.Type == "role" && c.Value == "Admin")
-               || user.IsInRole("Admin");
+               || user.IsInRole(Roles.Admin);
         StateHasChanged();
     }
 

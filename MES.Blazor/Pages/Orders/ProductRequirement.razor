@@ -10,7 +10,7 @@
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
-@attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
+@attribute [Authorize(Roles = Roles.Policies.OrderRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     @if (_isLoading)
@@ -69,7 +69,7 @@
                     {
                         @if (_orderStatus != SalesOrderStatus.Cancelled)
                         {
-                            <AuthorizeView Roles="OrderDirector,Admin">
+                            <AuthorizeView Roles="@Roles.Policies.OrderWrite">
                                 <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑技术要求</MudButton>
                             </AuthorizeView>
                         }

@@ -3,6 +3,7 @@ using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Interfaces;
+using MES.Core.Constants;
 using MES.Data;
 
 namespace MES.Services;
@@ -15,36 +16,14 @@ public class ScanService : IScanService
     private readonly AppDbContext _context;
 
     /// <summary>
-    /// ProcessGroup 属性名 → 工段中文名映射
+    /// ProcessGroup 属性名 → 工段中文名映射（从 SectionDefs 引用）
     /// </summary>
-    private static readonly Dictionary<string, string> SectionNameMap = new()
-    {
-        ["ColdRollDraw"] = "冷轧拔",
-        ["OilPipeCut"] = "油管断",
-        ["Degrease"] = "去油",
-        ["Solution"] = "固溶",
-        ["Straighten"] = "矫直",
-        ["Cut"] = "断切",
-        ["ThicknessMeasure"] = "侧壁",
-        ["Pickle"] = "酸洗",
-        ["OuterPolish"] = "外抛光",
-        ["InnerGrinding"] = "内修磨",
-        ["OuterSpotGrinding"] = "外点磨",
-        ["Inspection"] = "检验",
-        ["WeldingHead"] = "打焊头",
-        ["Lubrication"] = "润滑",
-        ["Warehouse"] = "入库",
-    };
+    private static readonly Dictionary<string, string> SectionNameMap = SectionDefs.PropertyToName;
 
     /// <summary>
-    /// ProcessGroup 中涉及的字段列表（对应15个工段）
+    /// ProcessGroup 中涉及的属性名字段列表（从 SectionDefs 引用）
     /// </summary>
-    private static readonly string[] SectionFields =
-    [
-        "ColdRollDraw", "OilPipeCut", "Degrease", "Solution", "Straighten",
-        "Cut", "ThicknessMeasure", "Pickle", "OuterPolish", "InnerGrinding",
-        "OuterSpotGrinding", "Inspection", "WeldingHead", "Lubrication", "Warehouse"
-    ];
+    private static readonly string[] SectionFields = SectionDefs.PropertyNames;
 
     public ScanService(AppDbContext context)
     {
@@ -137,21 +116,21 @@ public class ScanService : IScanService
     {
         return fieldName switch
         {
-            "ColdRollDraw" => group.ColdRollDraw,
-            "OilPipeCut" => group.OilPipeCut,
-            "Degrease" => group.Degrease,
-            "Solution" => group.Solution,
-            "Straighten" => group.Straighten,
-            "Cut" => group.Cut,
-            "ThicknessMeasure" => group.ThicknessMeasure,
-            "Pickle" => group.Pickle,
-            "OuterPolish" => group.OuterPolish,
-            "InnerGrinding" => group.InnerGrinding,
-            "OuterSpotGrinding" => group.OuterSpotGrinding,
-            "Inspection" => group.Inspection,
-            "WeldingHead" => group.WeldingHead,
-            "Lubrication" => group.Lubrication,
-            "Warehouse" => group.Warehouse,
+            nameof(Data.Entities.ProcessGroup.ColdRollDraw) => group.ColdRollDraw,
+            nameof(Data.Entities.ProcessGroup.OilPipeCut) => group.OilPipeCut,
+            nameof(Data.Entities.ProcessGroup.Degrease) => group.Degrease,
+            nameof(Data.Entities.ProcessGroup.Solution) => group.Solution,
+            nameof(Data.Entities.ProcessGroup.Straighten) => group.Straighten,
+            nameof(Data.Entities.ProcessGroup.Cut) => group.Cut,
+            nameof(Data.Entities.ProcessGroup.ThicknessMeasure) => group.ThicknessMeasure,
+            nameof(Data.Entities.ProcessGroup.Pickle) => group.Pickle,
+            nameof(Data.Entities.ProcessGroup.OuterPolish) => group.OuterPolish,
+            nameof(Data.Entities.ProcessGroup.InnerGrinding) => group.InnerGrinding,
+            nameof(Data.Entities.ProcessGroup.OuterSpotGrinding) => group.OuterSpotGrinding,
+            nameof(Data.Entities.ProcessGroup.Inspection) => group.Inspection,
+            nameof(Data.Entities.ProcessGroup.WeldingHead) => group.WeldingHead,
+            nameof(Data.Entities.ProcessGroup.Lubrication) => group.Lubrication,
+            nameof(Data.Entities.ProcessGroup.Warehouse) => group.Warehouse,
             _ => null
         };
     }

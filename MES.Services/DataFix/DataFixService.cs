@@ -4,6 +4,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -94,7 +95,7 @@ public class DataFixService : IDataFixService
                 bool changed = false;
 
                 // 修正 SequenceNumber
-                var newSeq = GetSectionSequenceNumber(pg, rec.SectionName);
+                var newSeq = pg.GetSectionSequence( rec.SectionName);
                 if (newSeq.HasValue && rec.SequenceNumber != newSeq.Value)
                 {
                     rec.SequenceNumber = newSeq.Value;
@@ -123,7 +124,7 @@ public class DataFixService : IDataFixService
             {
                 bool changed = false;
 
-                var newSeq = GetSectionSequenceNumber(pg, insp.SectionName);
+                var newSeq = pg.GetSectionSequence( insp.SectionName);
                 if (newSeq.HasValue && insp.SequenceNumber != newSeq.Value)
                 {
                     insp.SequenceNumber = newSeq.Value;
@@ -151,7 +152,7 @@ public class DataFixService : IDataFixService
             {
                 bool changed = false;
 
-                var newSeq = GetSectionSequenceNumber(pg, os.SectionName);
+                var newSeq = pg.GetSectionSequence( os.SectionName);
                 if (newSeq.HasValue && os.SequenceNumber != newSeq.Value)
                 {
                     os.SequenceNumber = newSeq.Value;
@@ -421,33 +422,4 @@ public class DataFixService : IDataFixService
 
     // ==================== 工具方法 ====================
 
-    private static int? GetSectionSequenceNumber(ProcessGroup pg, string sectionName)
-    {
-        return sectionName switch
-        {
-            "冷轧拔" => pg.ColdRollDraw,
-            "油管断" => pg.OilPipeCut,
-            "切管" => pg.OilPipeCut,
-            "去油" => pg.Degrease,
-            "脱脂" => pg.Degrease,
-            "固溶" => pg.Solution,
-            "矫直" => pg.Straighten,
-            "断切" => pg.Cut,
-            "测壁厚" => pg.ThicknessMeasure,
-            "测厚" => pg.ThicknessMeasure,
-            "酸洗" => pg.Pickle,
-            "外抛光" => pg.OuterPolish,
-            "外抛" => pg.OuterPolish,
-            "内修磨" => pg.InnerGrinding,
-            "内磨" => pg.InnerGrinding,
-            "外点磨" => pg.OuterSpotGrinding,
-            "探伤" => pg.Inspection,
-            "检验" => pg.Inspection,
-            "打焊头" => pg.WeldingHead,
-            "焊头" => pg.WeldingHead,
-            "润滑" => pg.Lubrication,
-            "入库" => pg.Warehouse,
-            _ => null
-        };
     }
-}

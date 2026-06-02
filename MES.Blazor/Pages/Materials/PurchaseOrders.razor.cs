@@ -8,6 +8,7 @@ using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Core.DTOs;
+using MES.Shared.Constants;
 using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Blazor.Shared;
@@ -523,7 +524,7 @@ public partial class PurchaseOrders
         var authState = await AuthProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         _isAdmin = user.Claims.Any(c => c.Type == "role" && c.Value == "Admin")
-                || user.IsInRole("Admin");
+                || user.IsInRole(Roles.Admin);
 
         await LoadProcurementStatus();
 

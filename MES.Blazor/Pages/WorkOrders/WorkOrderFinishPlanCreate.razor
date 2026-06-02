@@ -10,7 +10,7 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
-@attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
+@attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
 
 <style>
     .finish-create-table table {

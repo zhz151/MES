@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using MES.Core.Constants;
 using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
@@ -108,7 +109,7 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
 
             // G3: 检验汇总
             ProductionCutQuantity = _context.ProductionRecords
-                .Where(pr => pr.ProductionBatchId == x.pb.Id && pr.SectionName == "断切" && pr.IsFinished)
+                .Where(pr => pr.ProductionBatchId == x.pb.Id && pr.SectionName == SectionDefs.Cut && pr.IsFinished)
                 .Sum(pr => (int?)(pr.PostCutQuantity ?? 0)) ?? 0,
             InspectionCount = _context.FinalInspections
                 .Where(fi => fi.ProductionBatchId == x.pb.Id)

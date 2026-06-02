@@ -14,7 +14,7 @@
 @inject IJSRuntime JS
 @inject PageStateService PageState
 @inject ColumnPrefsService ColumnPrefs
-@attribute [Authorize(Roles = "QualityStaff,QualityDirector,Admin")]
+@attribute [Authorize(Roles = Roles.Policies.QualityRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <div class="d-flex justify-space-between align-center mb-4">

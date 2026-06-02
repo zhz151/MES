@@ -7,6 +7,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
@@ -261,13 +262,13 @@ public class SectionOutsourceService : ISectionOutsourceService
                 .FirstOrDefaultAsync();
             processGroupId = pg?.Id ?? 0;
             if (pg != null && sequenceNumber == 0)
-                sequenceNumber = ResolveSequenceNumber(pg, request.SectionName);
+                sequenceNumber = pg.GetSectionSequence(request.SectionName) ?? 0;
         }
         else if (sequenceNumber == 0)
         {
             var pg = await _context.ProcessGroups.FindAsync(processGroupId.Value);
             if (pg != null)
-                sequenceNumber = ResolveSequenceNumber(pg, request.SectionName);
+                sequenceNumber = pg.GetSectionSequence(request.SectionName) ?? 0;
         }
 
         if (sequenceNumber == 0)
@@ -360,7 +361,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             if (pgId > 0)
             {
                 var pg = processGroups.FirstOrDefault(pg => pg.Id == pgId.Value);
-                if (pg != null && ResolveSequenceNumber(pg, request.SectionName) == 0)
+                if (pg != null && pg.GetSectionSequence(request.SectionName).GetValueOrDefault() == 0)
                     requestErrors.Add($"第{i + 1}行：工段「{request.SectionName}」不存在于工序组「{pg.ProcessName}」中，无法提交");
             }
         }
@@ -426,7 +427,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             {
                 var pg = processGroups.FirstOrDefault(pg => pg.Id == processGroupId.Value);
                 if (pg != null)
-                    sequenceNumber = ResolveSequenceNumber(pg, request.SectionName);
+                    sequenceNumber = pg.GetSectionSequence(request.SectionName) ?? 0;
             }
 
             entities.Add(new SectionOutsource
@@ -1279,29 +1280,4 @@ public class SectionOutsourceService : ISectionOutsourceService
         }
     }
 
-    /// <summary>
-    /// 根据工段名称从工序组中解析对应的执行序号
-    /// </summary>
-    private static int ResolveSequenceNumber(ProcessGroup pg, string sectionName)
-    {
-        return sectionName switch
-        {
-            "冷轧拔" => pg.ColdRollDraw ?? 0,
-            "油管断" => pg.OilPipeCut ?? 0,
-            "去油" => pg.Degrease ?? 0,
-            "固溶" => pg.Solution ?? 0,
-            "矫直" => pg.Straighten ?? 0,
-            "断切" => pg.Cut ?? 0,
-            "测壁厚" => pg.ThicknessMeasure ?? 0,
-            "酸洗" => pg.Pickle ?? 0,
-            "外抛光" => pg.OuterPolish ?? 0,
-            "内修磨" => pg.InnerGrinding ?? 0,
-            "外点磨" => pg.OuterSpotGrinding ?? 0,
-            "检验" => pg.Inspection ?? 0,
-            "打焊头" => pg.WeldingHead ?? 0,
-            "润滑" => pg.Lubrication ?? 0,
-            "入库" => pg.Warehouse ?? 0,
-            _ => 0
-        };
     }
-}

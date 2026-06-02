@@ -135,7 +135,7 @@
                     <MudTd>
                         @if (order.Status == SalesOrderStatus.Pending)
                         {
-                            <AuthorizeView Roles="OrderDirector,Admin">
+                            <AuthorizeView Roles="@Roles.Policies.OrderWrite">
                                 <MudIconButton Icon="@Icons.Material.Filled.CheckCircle"
                                                Color="Color.Success"
                                                Size="Size.Small"
@@ -149,7 +149,7 @@
                                        Size="Size.Small"
                                        OnClick="() => EditOrder(order.Id)" />
 
-                        <AuthorizeView Roles="OrderDirector,Admin">
+                        <AuthorizeView Roles="@Roles.Policies.OrderWrite">
                             <MudIconButton Icon="@Icons.Material.Filled.Cancel"
                                            Color="Color.Error"
                                            Size="Size.Small"

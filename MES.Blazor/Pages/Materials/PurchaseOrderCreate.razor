@@ -12,7 +12,7 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject IJSRuntime JS
-@attribute [Authorize(Roles = "MaterialStaff,MaterialDirector,Admin")]
+@attribute [Authorize(Roles = Roles.Policies.MaterialRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <MudCard>

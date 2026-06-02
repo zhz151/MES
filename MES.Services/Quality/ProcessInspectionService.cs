@@ -6,6 +6,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Extensions;
 using MES.Services.Helpers;
 
 namespace MES.Services;
@@ -264,26 +265,7 @@ public class ProcessInspectionService : IProcessInspectionService
                 var pg = pgByBatch.GetValueOrDefault(batchId)?.FirstOrDefault(p => p.Id == pgId);
                 if (pg != null)
                 {
-                    seqNum = request.SectionName switch
-                    {
-                        "冷轧拔" => pg.ColdRollDraw ?? 0,
-                        "切管" => pg.OilPipeCut ?? 0,
-                        "脱脂" => pg.Degrease ?? 0,
-                        "固溶" => pg.Solution ?? 0,
-                        "矫直" => pg.Straighten ?? 0,
-                        "断切" => pg.Cut ?? 0,
-                        "测厚" => pg.ThicknessMeasure ?? 0,
-                        "酸洗" => pg.Pickle ?? 0,
-                        "外抛" => pg.OuterPolish ?? 0,
-                        "内磨" => pg.InnerGrinding ?? 0,
-                        "外点磨" => pg.OuterSpotGrinding ?? 0,
-                        "探伤" => pg.Inspection ?? 0,
-                        "检验" => pg.Inspection ?? 0,
-                        "焊头" => pg.WeldingHead ?? 0,
-                        "润滑" => pg.Lubrication ?? 0,
-                        "入库" => pg.Warehouse ?? 0,
-                        _ => 0
-                    };
+                    seqNum = pg.GetSectionSequence(request.SectionName) ?? 0;
                 }
             }
 

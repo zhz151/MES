@@ -14,7 +14,7 @@
 @inject IDialogService DialogService
 @inject IJSRuntime JS
 @inject PageStateService PageState
-@attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
+@attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <!-- 页面顶部工具栏 -->

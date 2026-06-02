@@ -13,7 +13,7 @@
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
 @inject PageStateService PageState
-@attribute [Authorize(Roles = "OrderStaff,OrderDirector,Admin")]
+@attribute [Authorize(Roles = Roles.Policies.OrderRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>

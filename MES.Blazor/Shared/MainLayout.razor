@@ -20,7 +20,7 @@
                 <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("")" OnClick='() => NavigateTo("/")'>仪表板</MudButton>
 
                 <!-- 订单模块 -->
-                <AuthorizeView Roles="OrderStaff,OrderDirector,Admin">
+                <AuthorizeView Roles="@Roles.Policies.OrderRead">
                     <MudMenu Label="订单管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("orders","customers","standards","grade-mappings")">
                         <MudMenuItem Class="@GetMenuItemClass("/orders")" OnClick='() => NavigateTo("/orders")'>订单列表</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/customers")" OnClick='() => NavigateTo("/customers")'>客户管理</MudMenuItem>
@@ -30,7 +30,7 @@
                 </AuthorizeView>
 
                 <!-- 工单模块 -->
-                <AuthorizeView Roles="WorkOrderStaff,WorkOrderDirector,Admin">
+                <AuthorizeView Roles="@Roles.Policies.WorkOrderRead">
                     <MudMenu Label="工单管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("workorders","material-plan-overview","standard-process-cycles","workorder-execution")">
                         <MudMenuItem Class="@GetMenuItemClass("/workorders")" OnClick='() => NavigateTo("/workorders")'>工单首页</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/material-plan-overview")" OnClick='() => NavigateTo("/material-plan-overview")'>用料计划总览</MudMenuItem>
@@ -40,7 +40,7 @@
                 </AuthorizeView>
 
                 <!-- 批次模块 -->
-                <AuthorizeView Roles="BatchStaff,BatchDirector,Admin">
+                <AuthorizeView Roles="@Roles.Policies.BatchRead">
                     <MudMenu Label="批次管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("batches","production-records","section-outsources")">
                         <MudMenuItem Class="@GetMenuItemClass("/batches")" OnClick='() => NavigateTo("/batches")'>批次首页</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/production-records")" OnClick='() => NavigateTo("/production-records")'>生产记录</MudMenuItem>
@@ -51,7 +51,7 @@
                 </AuthorizeView>
 
                 <!-- 质量模块 -->
-                <AuthorizeView Roles="QualityStaff,QualityDirector,Admin">
+                <AuthorizeView Roles="@Roles.Policies.QualityRead">
                     <MudMenu Label="质量管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("quality/furnace","quality/process-inspection","material-checks","quality/chemical-composition","quality/chemical-validate","quality/final-inspection","quality/lab-testing","quality/certificate","quality-process-tracking")">
                         <MudMenuItem Class="@GetMenuItemClass("/quality/furnace")">
                             <span @onmouseenter="ShowFurnaceSub" @onmouseleave="StartFurnaceHideTimer"
@@ -82,7 +82,7 @@
                 </AuthorizeView>
 
                 <!-- 设备模块 -->
-                <AuthorizeView Roles="EquipmentStaff,EquipmentDirector,Admin">
+                <AuthorizeView Roles="@Roles.Policies.EquipmentRead">
                     <MudMenu Label="设备管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("equipment","repair-orders","maintenance-orders","inspection-records")">
                         <MudMenuItem Class="@GetMenuItemClass("/equipment")" OnClick='() => NavigateTo("/equipment")'>设备台账</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/repair-orders")" OnClick='() => NavigateTo("/repair-orders")'>维修工单</MudMenuItem>
@@ -92,7 +92,7 @@
                 </AuthorizeView>
 
                 <!-- 物料模块 -->
-                <AuthorizeView Roles="MaterialStaff,MaterialDirector,Admin">
+                <AuthorizeView Roles="@Roles.Policies.MaterialRead">
                     <MudMenu Label="物料管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("purchase-orders","subcontract-orders","suppliers","materials")">
                         <MudMenuItem Class="@GetMenuItemClass("/purchase-orders")" OnClick='() => NavigateTo("/purchase-orders")'>采购订单</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/subcontract-orders")" OnClick='() => NavigateTo("/subcontract-orders")'>圆棒穿孔</MudMenuItem>
@@ -102,7 +102,7 @@
                 </AuthorizeView>
 
                 <!-- 仓库模块 -->
-                <AuthorizeView Roles="WarehouseStaff,WarehouseDirector,Admin">
+                <AuthorizeView Roles="@Roles.Policies.WarehouseRead">
                     <MudMenu Label="仓库管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("warehouse/raw","warehouse/fg","warehouse/defect","warehouse/wip")">
                         <MudMenuItem Class="@GetMenuItemClass("/warehouse/raw")" OnClick='() => NavigateTo("/warehouse/raw")'>原料库</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/warehouse/fg")" OnClick='() => NavigateTo("/warehouse/fg")'>成品库</MudMenuItem>
@@ -124,7 +124,7 @@
                 <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("data-exchange")" OnClick='() => NavigateTo("/data-exchange")'>数据工具</MudButton>
 
                 <!-- 用户管理 -->
-                <AuthorizeView Roles="Admin">
+                <AuthorizeView Roles="@Roles.Policies.AdminOnly">
                     <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("admin/users")" OnClick='() => NavigateTo("/admin/users")'>用户管理</MudButton>
                 </AuthorizeView>
             </div>

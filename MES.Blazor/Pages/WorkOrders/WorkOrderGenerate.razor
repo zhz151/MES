@@ -9,7 +9,7 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject IJSRuntime JS
-@attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
+@attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4" id="workorder-generate-table">
     @if (isLoading)

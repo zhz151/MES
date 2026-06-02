@@ -4,6 +4,7 @@
 @using MES.Core.DTOs
 @using MES.Core.Enums
 @using MES.Blazor.Shared
+@using MES.Core.Constants
 @using MES.Blazor.Helpers
 @using MES.Blazor.Models
 @using Microsoft.AspNetCore.Authorization
@@ -13,7 +14,7 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
-@attribute [Authorize(Roles = "WorkOrderStaff,WorkOrderDirector,Admin")]
+@attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <MudCard>
@@ -271,14 +272,10 @@
                                 <MudSelect T="string" Value="@pg.ProcessName"
                                            ValueChanged="@((string v) => { pg.ProcessName = v; ApplyProcessGroupDefaults(pg); })"
                                            Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                    <MudSelectItem Value="@("荒管处理")" />
-                                    <MudSelectItem Value="@("在制修检")" />
-                                    <MudSelectItem Value="@("60冷轧")" />
-                                    <MudSelectItem Value="@("50冷轧")" />
-                                    <MudSelectItem Value="@("30冷轧")" />
-                                    <MudSelectItem Value="@("20冷轧")" />
-                                    <MudSelectItem Value="@("三辊冷轧")" />
-                                    <MudSelectItem Value="@("冷拔")" />
+                                    @foreach (var pn in ProcessNames.All)
+                                    {
+                                        <MudSelectItem Value="@pn" />
+                                    }
                                 </MudSelect>
                             </MudTd>
                             @if (GetPgCol("ManufacturingSpec").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.ManufacturingSpec" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }

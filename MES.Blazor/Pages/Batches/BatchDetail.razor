@@ -13,7 +13,7 @@
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
 @inject IDialogService DialogService
-@attribute [Authorize(Roles = "BatchStaff,BatchDirector,Admin")]
+@attribute [Authorize(Roles = Roles.Policies.BatchRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     @if (isLoading)
@@ -505,8 +505,8 @@
     private string? _prevBatchNo;
     private string? _nextBatchNo;
 
-    private bool CanEdit => IsInRole("BatchDirector,Admin");
-    private bool CanDelete => IsInRole("Admin");
+    private bool CanEdit => IsInRole(Roles.Policies.BatchWrite);
+    private bool CanDelete => IsInRole(Roles.Admin);
 
     private static bool IsInRole(string roles)
     {

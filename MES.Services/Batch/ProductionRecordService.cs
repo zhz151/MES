@@ -7,6 +7,8 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Core.Constants;
+using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
@@ -277,7 +279,7 @@ public class ProductionRecordService : IProductionRecordService
 
             // 查工序组名称
             var pg = processGroups.FirstOrDefault(p => p.Id == pgId.Value);
-            if (pg == null || (!pg.ProcessName.Contains("冷轧") && pg.ProcessName != "冷拔"))
+            if (pg == null || !ProcessNames.IsColdRollOrDraw(pg.ProcessName))
                 continue;
 
             // 该工序组中是否有冷轧拔记录（已有 + 本次提交）
@@ -331,7 +333,12 @@ public class ProductionRecordService : IProductionRecordService
             .GroupBy(r => new { r.ProductionBatchId, r.ProcessGroupId })
             .ToDictionary(g => (g.Key.ProductionBatchId, g.Key.ProcessGroupId), g => g.Sum(r => r.Weight.Value));
 
-        var simpleDuplicateSections = new HashSet<string> { "油管断", "去油", "固溶", "矫直", "测壁厚", "酸洗", "外抛光", "内修磨", "外点磨", "打焊头", "润滑" };
+        var simpleDuplicateSections = new HashSet<string>
+        {
+            SectionDefs.OilPipeCut, SectionDefs.Degrease, SectionDefs.Solution, SectionDefs.Straighten,
+            SectionDefs.ThicknessMeasure, SectionDefs.Pickle, SectionDefs.OuterPolish,
+            SectionDefs.InnerGrinding, SectionDefs.OuterSpotGrinding, SectionDefs.WeldingHead, SectionDefs.Lubrication
+        };
 
         // 5) 重复记录校验
         for (int i = 0; i < requests.Count; i++)
@@ -379,12 +386,12 @@ public class ProductionRecordService : IProductionRecordService
                 if (totalWeight > (batch.CurrentValidWeight ?? batch.InputWeight))
                     requestErrors.Add($"第{i + 1}行：冷轧拔总加工重量({totalWeight})不能大于有效原料重量({batch.CurrentValidWeight ?? batch.InputWeight})");
             }
-            else if (request.SectionName == "断切")
+            else if (request.SectionName == SectionDefs.Cut)
             {
                 // 规则(3)：同批次+同工序组+同工段+同成品长度 → 重复
                 var dup = batchRecords.Any(r =>
                     r.ProcessGroupId == pgId.Value &&
-                    r.SectionName == "断切" &&
+                    r.SectionName == SectionDefs.Cut &&
                     r.FinishedCutLength == request.FinishedCutLength);
                 if (dup)
                     requestErrors.Add($"第{i + 1}行：断切在该批次该工序组中已存在相同成品长度的记录，不能重复创建");
@@ -2425,7 +2432,7 @@ public class ProductionRecordService : IProductionRecordService
                 Specification = m.Specification,
                 ProductionType = m.ProductionType,
                 ProductionCutQuantity = _context.ProductionRecords
-                    .Where(pr => pr.ProductionBatchId == m.ProductionBatchId && pr.SectionName == "断切" && pr.IsFinished)
+                    .Where(pr => pr.ProductionBatchId == m.ProductionBatchId && pr.SectionName == SectionDefs.Cut && pr.IsFinished)
                     .Sum(pr => (int?)(pr.PostCutQuantity ?? 0)) ?? 0,
                 IsForceCompleted = m.IsForceCompleted,
                 CreatedTime = m.CreatedTime,
@@ -2643,7 +2650,7 @@ public class ProductionRecordService : IProductionRecordService
                 Specification = m.Specification,
                 ProductionType = m.ProductionType,
                 ProductionCutQuantity = _context.ProductionRecords
-                    .Where(pr => pr.ProductionBatchId == m.ProductionBatchId && pr.SectionName == "断切" && pr.IsFinished)
+                    .Where(pr => pr.ProductionBatchId == m.ProductionBatchId && pr.SectionName == SectionDefs.Cut && pr.IsFinished)
                     .Sum(pr => (int?)(pr.PostCutQuantity ?? 0)) ?? 0,
                 IsForceCompleted = m.IsForceCompleted,
                 CreatedTime = m.CreatedTime,
@@ -2754,27 +2761,7 @@ public class ProductionRecordService : IProductionRecordService
     /// 从工序组中提取所有非空工段及其顺序值
     /// </summary>
     private static List<(string SectionName, int Sequence)> GetSectionsFromProcessGroup(ProcessGroup pg)
-    {
-        var sections = new List<(string SectionName, int Sequence)>();
-
-        if (pg.ColdRollDraw.HasValue) sections.Add(("冷轧拔", pg.ColdRollDraw.Value));
-        if (pg.OilPipeCut.HasValue) sections.Add(("油管断", pg.OilPipeCut.Value));
-        if (pg.Degrease.HasValue) sections.Add(("去油", pg.Degrease.Value));
-        if (pg.Solution.HasValue) sections.Add(("固溶", pg.Solution.Value));
-        if (pg.Straighten.HasValue) sections.Add(("矫直", pg.Straighten.Value));
-        if (pg.Cut.HasValue) sections.Add(("断切", pg.Cut.Value));
-        if (pg.ThicknessMeasure.HasValue) sections.Add(("测壁厚", pg.ThicknessMeasure.Value));
-        if (pg.Pickle.HasValue) sections.Add(("酸洗", pg.Pickle.Value));
-        if (pg.OuterPolish.HasValue) sections.Add(("外抛光", pg.OuterPolish.Value));
-        if (pg.InnerGrinding.HasValue) sections.Add(("内修磨", pg.InnerGrinding.Value));
-        if (pg.OuterSpotGrinding.HasValue) sections.Add(("外点磨", pg.OuterSpotGrinding.Value));
-        if (pg.Inspection.HasValue) sections.Add(("检验", pg.Inspection.Value));
-        if (pg.WeldingHead.HasValue) sections.Add(("打焊头", pg.WeldingHead.Value));
-        if (pg.Lubrication.HasValue) sections.Add(("润滑", pg.Lubrication.Value));
-        if (pg.Warehouse.HasValue) sections.Add(("入库", pg.Warehouse.Value));
-
-        return sections;
-    }
+        => pg.GetNonEmptySections();
 
     // ========== 剩余工量计算 ==========
 
@@ -2862,29 +2849,6 @@ public class ProductionRecordService : IProductionRecordService
         return (int)Math.Round(totalDays, MidpointRounding.AwayFromZero);
     }
 
-    /// <summary>
-    /// 获取工段对应的天数
-    /// </summary>
     private static double GetSectionDay(string sectionName, string? plantGrade)
-    {
-        return sectionName switch
-        {
-            "冷轧拔" => 2,
-            "油管断" => 1,
-            "去油" => 1,
-            "固溶" => 1,
-            "矫直" => 0.5,
-            "断切" => 0.5,
-            "测壁厚" => 1,
-            "酸洗" => plantGrade?.StartsWith("3") == true ? 1 : 2,
-            "外抛光" => 0.5,
-            "内修磨" => 0.5,
-            "外点磨" => 0.5,
-            "检验" => 1,
-            "打焊头" => 0.5,
-            "润滑" => 1,
-            "入库" => 2,
-            _ => 0
-        };
-    }
+        => SectionDefs.GetStandardDays(sectionName, plantGrade);
 }

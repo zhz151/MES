@@ -3,13 +3,14 @@
 @using MES.Blazor.Services
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
+@using MES.Core.Constants
 @inject ProcessInspectionService ProcessInspectionService
 @inject BatchService BatchService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
-@attribute [Authorize(Roles = "QualityStaff,QualityDirector,Admin")]
+@attribute [Authorize(Roles = Roles.Policies.QualityRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <style>
@@ -470,30 +471,12 @@
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await OnAutoFillByProcessNameAsync(r); }));
                 builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
                 {
-                    b.OpenComponent<MudSelectItem<string>>(0);
-                    b.AddAttribute(1, "Value", "荒管处理");
-                    b.CloseComponent();
-                    b.OpenComponent<MudSelectItem<string>>(0);
-                    b.AddAttribute(1, "Value", "在制修检");
-                    b.CloseComponent();
-                    b.OpenComponent<MudSelectItem<string>>(0);
-                    b.AddAttribute(1, "Value", "60冷轧");
-                    b.CloseComponent();
-                    b.OpenComponent<MudSelectItem<string>>(0);
-                    b.AddAttribute(1, "Value", "50冷轧");
-                    b.CloseComponent();
-                    b.OpenComponent<MudSelectItem<string>>(0);
-                    b.AddAttribute(1, "Value", "30冷轧");
-                    b.CloseComponent();
-                    b.OpenComponent<MudSelectItem<string>>(0);
-                    b.AddAttribute(1, "Value", "20冷轧");
-                    b.CloseComponent();
-                    b.OpenComponent<MudSelectItem<string>>(0);
-                    b.AddAttribute(1, "Value", "三辊冷轧");
-                    b.CloseComponent();
-                    b.OpenComponent<MudSelectItem<string>>(0);
-                    b.AddAttribute(1, "Value", "冷拔");
-                    b.CloseComponent();
+                    foreach (var pn in ProcessNames.All)
+                    {
+                        b.OpenComponent<MudSelectItem<string>>(0);
+                        b.AddAttribute(1, "Value", pn);
+                        b.CloseComponent();
+                    }
                 }));
                 builder.CloseComponent();
                 break;

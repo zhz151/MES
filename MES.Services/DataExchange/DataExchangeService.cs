@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using OfficeOpenXml;
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Helpers;
@@ -14,6 +15,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Shared.Constants;
 
@@ -440,21 +442,21 @@ public class DataExchangeService : IDataExchangeService
             new("断切处理", "CuttingTreatment", typeof(string), isRequired: false),
             new("制成倍数", "ManufacturingMultiple", typeof(int)),
             new("备注", "Remark", typeof(string), isRequired: false),
-            new("冷轧拔", "ColdRollDraw", typeof(int?), isRequired: false),
-            new("油管断", "OilPipeCut", typeof(int?), isRequired: false),
-            new("去油", "Degrease", typeof(int?), isRequired: false),
-            new("固溶", "Solution", typeof(int?), isRequired: false),
-            new("矫直", "Straighten", typeof(int?), isRequired: false),
-            new("断切", "Cut", typeof(int?), isRequired: false),
-            new("测壁厚", "ThicknessMeasure", typeof(int?), isRequired: false),
-            new("酸洗", "Pickle", typeof(int?), isRequired: false),
-            new("外抛光", "OuterPolish", typeof(int?), isRequired: false),
-            new("内修磨", "InnerGrinding", typeof(int?), isRequired: false),
-            new("外点磨", "OuterSpotGrinding", typeof(int?), isRequired: false),
-            new("检验", "Inspection", typeof(int?), isRequired: false),
-            new("打焊头", "WeldingHead", typeof(int?), isRequired: false),
-            new("润滑", "Lubrication", typeof(int?), isRequired: false),
-            new("入库", "Warehouse", typeof(int?), isRequired: false),
+            new(SectionDefs.ColdRollDraw, "ColdRollDraw", typeof(int?), isRequired: false),
+            new(SectionDefs.OilPipeCut, "OilPipeCut", typeof(int?), isRequired: false),
+            new(SectionDefs.Degrease, "Degrease", typeof(int?), isRequired: false),
+            new(SectionDefs.Solution, "Solution", typeof(int?), isRequired: false),
+            new(SectionDefs.Straighten, "Straighten", typeof(int?), isRequired: false),
+            new(SectionDefs.Cut, "Cut", typeof(int?), isRequired: false),
+            new(SectionDefs.ThicknessMeasure, "ThicknessMeasure", typeof(int?), isRequired: false),
+            new(SectionDefs.Pickle, "Pickle", typeof(int?), isRequired: false),
+            new(SectionDefs.OuterPolish, "OuterPolish", typeof(int?), isRequired: false),
+            new(SectionDefs.InnerGrinding, "InnerGrinding", typeof(int?), isRequired: false),
+            new(SectionDefs.OuterSpotGrinding, "OuterSpotGrinding", typeof(int?), isRequired: false),
+            new(SectionDefs.Inspection, "Inspection", typeof(int?), isRequired: false),
+            new(SectionDefs.WeldingHead, "WeldingHead", typeof(int?), isRequired: false),
+            new(SectionDefs.Lubrication, "Lubrication", typeof(int?), isRequired: false),
+            new(SectionDefs.Warehouse, "Warehouse", typeof(int?), isRequired: false),
         }, compositeKeyColumns: new[] { "BatchNo", "SequenceNumber" }),
 
         ["ProductionRecord"] = new EntityDef("生产记录", "生产记录", typeof(ProductionRecord), 8, null, new List<ColumnDef>
@@ -851,21 +853,21 @@ public class DataExchangeService : IDataExchangeService
             new("断切处理", "CuttingTreatment", typeof(string), isRequired: false),
             new("制成倍数", "ManufacturingMultiple", typeof(int)),
             new("备注", "Remark", typeof(string), isRequired: false),
-            new("冷轧拔", "ColdRollDraw", typeof(int?), isRequired: false),
-            new("油管断", "OilPipeCut", typeof(int?), isRequired: false),
-            new("去油", "Degrease", typeof(int?), isRequired: false),
-            new("固溶", "Solution", typeof(int?), isRequired: false),
-            new("矫直", "Straighten", typeof(int?), isRequired: false),
-            new("断切", "Cut", typeof(int?), isRequired: false),
-            new("测壁厚", "ThicknessMeasure", typeof(int?), isRequired: false),
-            new("酸洗", "Pickle", typeof(int?), isRequired: false),
-            new("外抛光", "OuterPolish", typeof(int?), isRequired: false),
-            new("内修磨", "InnerGrinding", typeof(int?), isRequired: false),
-            new("外点磨", "OuterSpotGrinding", typeof(int?), isRequired: false),
-            new("检验", "Inspection", typeof(int?), isRequired: false),
-            new("打焊头", "WeldingHead", typeof(int?), isRequired: false),
-            new("润滑", "Lubrication", typeof(int?), isRequired: false),
-            new("入库", "Warehouse", typeof(int?), isRequired: false),
+            new(SectionDefs.ColdRollDraw, "ColdRollDraw", typeof(int?), isRequired: false),
+            new(SectionDefs.OilPipeCut, "OilPipeCut", typeof(int?), isRequired: false),
+            new(SectionDefs.Degrease, "Degrease", typeof(int?), isRequired: false),
+            new(SectionDefs.Solution, "Solution", typeof(int?), isRequired: false),
+            new(SectionDefs.Straighten, "Straighten", typeof(int?), isRequired: false),
+            new(SectionDefs.Cut, "Cut", typeof(int?), isRequired: false),
+            new(SectionDefs.ThicknessMeasure, "ThicknessMeasure", typeof(int?), isRequired: false),
+            new(SectionDefs.Pickle, "Pickle", typeof(int?), isRequired: false),
+            new(SectionDefs.OuterPolish, "OuterPolish", typeof(int?), isRequired: false),
+            new(SectionDefs.InnerGrinding, "InnerGrinding", typeof(int?), isRequired: false),
+            new(SectionDefs.OuterSpotGrinding, "OuterSpotGrinding", typeof(int?), isRequired: false),
+            new(SectionDefs.Inspection, "Inspection", typeof(int?), isRequired: false),
+            new(SectionDefs.WeldingHead, "WeldingHead", typeof(int?), isRequired: false),
+            new(SectionDefs.Lubrication, "Lubrication", typeof(int?), isRequired: false),
+            new(SectionDefs.Warehouse, "Warehouse", typeof(int?), isRequired: false),
         }, compositeKeyColumns: new[] { "PurchaseSemiPlanId", "SequenceNumber" }),
 
         ["InventoryPlanProcessGroup"] = new EntityDef("库存计划工序组", "库存计划工序组", typeof(InventoryPlanProcessGroup), 9, null, new List<ColumnDef>
@@ -880,21 +882,21 @@ public class DataExchangeService : IDataExchangeService
             new("断切处理", "CuttingTreatment", typeof(string), isRequired: false),
             new("制成倍数", "ManufacturingMultiple", typeof(int)),
             new("备注", "Remark", typeof(string), isRequired: false),
-            new("冷轧拔", "ColdRollDraw", typeof(int?), isRequired: false),
-            new("油管断", "OilPipeCut", typeof(int?), isRequired: false),
-            new("去油", "Degrease", typeof(int?), isRequired: false),
-            new("固溶", "Solution", typeof(int?), isRequired: false),
-            new("矫直", "Straighten", typeof(int?), isRequired: false),
-            new("断切", "Cut", typeof(int?), isRequired: false),
-            new("测壁厚", "ThicknessMeasure", typeof(int?), isRequired: false),
-            new("酸洗", "Pickle", typeof(int?), isRequired: false),
-            new("外抛光", "OuterPolish", typeof(int?), isRequired: false),
-            new("内修磨", "InnerGrinding", typeof(int?), isRequired: false),
-            new("外点磨", "OuterSpotGrinding", typeof(int?), isRequired: false),
-            new("检验", "Inspection", typeof(int?), isRequired: false),
-            new("打焊头", "WeldingHead", typeof(int?), isRequired: false),
-            new("润滑", "Lubrication", typeof(int?), isRequired: false),
-            new("入库", "Warehouse", typeof(int?), isRequired: false),
+            new(SectionDefs.ColdRollDraw, "ColdRollDraw", typeof(int?), isRequired: false),
+            new(SectionDefs.OilPipeCut, "OilPipeCut", typeof(int?), isRequired: false),
+            new(SectionDefs.Degrease, "Degrease", typeof(int?), isRequired: false),
+            new(SectionDefs.Solution, "Solution", typeof(int?), isRequired: false),
+            new(SectionDefs.Straighten, "Straighten", typeof(int?), isRequired: false),
+            new(SectionDefs.Cut, "Cut", typeof(int?), isRequired: false),
+            new(SectionDefs.ThicknessMeasure, "ThicknessMeasure", typeof(int?), isRequired: false),
+            new(SectionDefs.Pickle, "Pickle", typeof(int?), isRequired: false),
+            new(SectionDefs.OuterPolish, "OuterPolish", typeof(int?), isRequired: false),
+            new(SectionDefs.InnerGrinding, "InnerGrinding", typeof(int?), isRequired: false),
+            new(SectionDefs.OuterSpotGrinding, "OuterSpotGrinding", typeof(int?), isRequired: false),
+            new(SectionDefs.Inspection, "Inspection", typeof(int?), isRequired: false),
+            new(SectionDefs.WeldingHead, "WeldingHead", typeof(int?), isRequired: false),
+            new(SectionDefs.Lubrication, "Lubrication", typeof(int?), isRequired: false),
+            new(SectionDefs.Warehouse, "Warehouse", typeof(int?), isRequired: false),
         }, compositeKeyColumns: new[] { "InventoryPlanId", "SequenceNumber" }),
 
         ["PiercingPlanProcessGroup"] = new EntityDef("圆棒穿孔工序组", "圆棒穿孔工序组", typeof(PiercingPlanProcessGroup), 9, null, new List<ColumnDef>
@@ -909,21 +911,21 @@ public class DataExchangeService : IDataExchangeService
             new("断切处理", "CuttingTreatment", typeof(string), isRequired: false),
             new("制成倍数", "ManufacturingMultiple", typeof(int)),
             new("备注", "Remark", typeof(string), isRequired: false),
-            new("冷轧拔", "ColdRollDraw", typeof(int?), isRequired: false),
-            new("油管断", "OilPipeCut", typeof(int?), isRequired: false),
-            new("去油", "Degrease", typeof(int?), isRequired: false),
-            new("固溶", "Solution", typeof(int?), isRequired: false),
-            new("矫直", "Straighten", typeof(int?), isRequired: false),
-            new("断切", "Cut", typeof(int?), isRequired: false),
-            new("测壁厚", "ThicknessMeasure", typeof(int?), isRequired: false),
-            new("酸洗", "Pickle", typeof(int?), isRequired: false),
-            new("外抛光", "OuterPolish", typeof(int?), isRequired: false),
-            new("内修磨", "InnerGrinding", typeof(int?), isRequired: false),
-            new("外点磨", "OuterSpotGrinding", typeof(int?), isRequired: false),
-            new("检验", "Inspection", typeof(int?), isRequired: false),
-            new("打焊头", "WeldingHead", typeof(int?), isRequired: false),
-            new("润滑", "Lubrication", typeof(int?), isRequired: false),
-            new("入库", "Warehouse", typeof(int?), isRequired: false),
+            new(SectionDefs.ColdRollDraw, "ColdRollDraw", typeof(int?), isRequired: false),
+            new(SectionDefs.OilPipeCut, "OilPipeCut", typeof(int?), isRequired: false),
+            new(SectionDefs.Degrease, "Degrease", typeof(int?), isRequired: false),
+            new(SectionDefs.Solution, "Solution", typeof(int?), isRequired: false),
+            new(SectionDefs.Straighten, "Straighten", typeof(int?), isRequired: false),
+            new(SectionDefs.Cut, "Cut", typeof(int?), isRequired: false),
+            new(SectionDefs.ThicknessMeasure, "ThicknessMeasure", typeof(int?), isRequired: false),
+            new(SectionDefs.Pickle, "Pickle", typeof(int?), isRequired: false),
+            new(SectionDefs.OuterPolish, "OuterPolish", typeof(int?), isRequired: false),
+            new(SectionDefs.InnerGrinding, "InnerGrinding", typeof(int?), isRequired: false),
+            new(SectionDefs.OuterSpotGrinding, "OuterSpotGrinding", typeof(int?), isRequired: false),
+            new(SectionDefs.Inspection, "Inspection", typeof(int?), isRequired: false),
+            new(SectionDefs.WeldingHead, "WeldingHead", typeof(int?), isRequired: false),
+            new(SectionDefs.Lubrication, "Lubrication", typeof(int?), isRequired: false),
+            new(SectionDefs.Warehouse, "Warehouse", typeof(int?), isRequired: false),
         }, compositeKeyColumns: new[] { "RoundBarPiercingPlanId", "SequenceNumber" }),
     };
 
@@ -2025,21 +2027,21 @@ public class DataExchangeService : IDataExchangeService
                 var bn = pg.ProductionBatch.BatchNo;
                 var pn = pg.ProcessName;
                 var ms = pg.ManufacturingSpec ?? "";
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "冷轧拔", pg.ColdRollDraw, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "油管断", pg.OilPipeCut, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "去油", pg.Degrease, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "固溶", pg.Solution, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "矫直", pg.Straighten, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "断切", pg.Cut, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "测壁厚", pg.ThicknessMeasure, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "酸洗", pg.Pickle, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "外抛光", pg.OuterPolish, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "内修磨", pg.InnerGrinding, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "外点磨", pg.OuterSpotGrinding, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "检验", pg.Inspection, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "打焊头", pg.WeldingHead, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "润滑", pg.Lubrication, pg.Id);
-                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, "入库", pg.Warehouse, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, SectionDefs.ColdRollDraw, pg.ColdRollDraw, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, SectionDefs.OilPipeCut, pg.OilPipeCut, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, SectionDefs.Degrease, pg.Degrease, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, SectionDefs.Solution, pg.Solution, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, SectionDefs.Straighten, pg.Straighten, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, SectionDefs.Cut, pg.Cut, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, SectionDefs.ThicknessMeasure, pg.ThicknessMeasure, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, SectionDefs.Pickle, pg.Pickle, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, SectionDefs.OuterPolish, pg.OuterPolish, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, SectionDefs.InnerGrinding, pg.InnerGrinding, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, SectionDefs.OuterSpotGrinding, pg.OuterSpotGrinding, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, SectionDefs.Inspection, pg.Inspection, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, SectionDefs.WeldingHead, pg.WeldingHead, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, SectionDefs.Lubrication, pg.Lubrication, pg.Id);
+                AddSectionLk(pgIdBySectionLk, pgSeqBySectionLk, bn, pn, ms, SectionDefs.Warehouse, pg.Warehouse, pg.Id);
             }
             cache["ProcessGroupIdBySection"] = pgIdBySectionLk;
             cache["ProcessGroupSeqBySection"] = pgSeqBySectionLk;
@@ -2789,36 +2791,11 @@ public class DataExchangeService : IDataExchangeService
     }
 
     /// <summary>
-    /// 根据工段名称从工序组中取对应的顺序值
+    /// 根据工段名称从工序组中取对应的顺序值（委托给扩展方法，支持别名）
     /// </summary>
     private static int? GetSectionSequenceNumber(ProcessGroup pg, string sectionName)
     {
-        return sectionName switch
-        {
-            "冷轧拔" => pg.ColdRollDraw,
-            "油管断" => pg.OilPipeCut,
-            "切管" => pg.OilPipeCut,
-            "去油" => pg.Degrease,
-            "脱脂" => pg.Degrease,
-            "固溶" => pg.Solution,
-            "矫直" => pg.Straighten,
-            "断切" => pg.Cut,
-            "测壁厚" => pg.ThicknessMeasure,
-            "测厚" => pg.ThicknessMeasure,
-            "酸洗" => pg.Pickle,
-            "外抛光" => pg.OuterPolish,
-            "外抛" => pg.OuterPolish,
-            "内修磨" => pg.InnerGrinding,
-            "内磨" => pg.InnerGrinding,
-            "外点磨" => pg.OuterSpotGrinding,
-            "探伤" => pg.Inspection,
-            "检验" => pg.Inspection,
-            "打焊头" => pg.WeldingHead,
-            "焊头" => pg.WeldingHead,
-            "润滑" => pg.Lubrication,
-            "入库" => pg.Warehouse,
-            _ => null
-        };
+        return pg.GetSectionSequence(sectionName);
     }
 
     private object ConvertValue(string value, Type targetType, ColumnDef colDef)

@@ -11,7 +11,7 @@
 @inject ColumnPrefsService ColumnPrefs
 @inject IJSRuntime JS
 @inject PageStateService PageState
-@attribute [Authorize(Roles = "BatchStaff,BatchDirector,Admin")]
+@attribute [Authorize(Roles = Roles.Policies.BatchRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <!-- 页眉 -->

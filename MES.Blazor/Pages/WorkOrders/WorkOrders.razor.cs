@@ -11,6 +11,7 @@ using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Blazor.Shared;
+using MES.Shared.Constants;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.WorkOrders;
@@ -549,7 +550,7 @@ public partial class WorkOrders
         // 检查管理员权限
         var authState = await AuthProvider.GetAuthenticationStateAsync();
         var user = authState.User;
-        _isAdmin = user.IsInRole("Admin");
+        _isAdmin = user.IsInRole(Roles.Admin);
 
         // 状态恢复后重新加载表格数据（首次渲染时 ServerData 可能已用默认值加载）
         if (savedState != null && table != null)
