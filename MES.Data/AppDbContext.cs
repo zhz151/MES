@@ -106,6 +106,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
     // ========== Configuration 上下文 ==========
     public DbSet<StandardWorkDay> StandardWorkDays { get; set; } = null!;
+    public DbSet<StandardWorkDayDeliveryState> StandardWorkDayDeliveryStates { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -188,6 +189,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
         // ========== Configuration 上下文 ==========
         ConfigureStandardWorkDay(builder);
+        ConfigureStandardWorkDayDeliveryState(builder);
 
         // 为所有继承 BaseEntity 的实体统一配置审计字段长度
         foreach (var entityType in builder.Model.GetEntityTypes())
@@ -2172,6 +2174,22 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => new { e.SectionName, e.PlantGradePrefix })
                 .IsUnique()
                 .HasDatabaseName("UK_SWD_SectionName_PlantGradePrefix");
+        });
+    }
+
+    private static void ConfigureStandardWorkDayDeliveryState(ModelBuilder builder)
+    {
+        builder.Entity<StandardWorkDayDeliveryState>(entity =>
+        {
+            entity.ToTable("StandardWorkDayDeliveryStates");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.DeliveryState).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ExtraDays).IsRequired().HasColumnType("float");
+            entity.Property(e => e.PlantGradePrefix).HasMaxLength(50);
+            entity.Property(e => e.Remark).HasMaxLength(200);
+            entity.HasIndex(e => new { e.DeliveryState, e.PlantGradePrefix })
+                .IsUnique()
+                .HasDatabaseName("UK_SWDDS_DeliveryState_PlantGradePrefix");
         });
     }
 }

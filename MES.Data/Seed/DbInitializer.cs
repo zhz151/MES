@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.Configuration;
 using MES.Shared.Constants;
 using Microsoft.Extensions.DependencyInjection;
 using MES.Core.Enums;
@@ -670,6 +671,61 @@ public static class DbInitializer
             };
 
             await context.StandardProcessCycles.AddRangeAsync(cycles);
+            await context.SaveChangesAsync();
+        }
+
+        // ========== 8. Initialize Standard Work Days ==========
+        if (!context.StandardWorkDays.Any())
+        {
+            var workDays = new List<StandardWorkDay>
+            {
+                // 通用配置（PlantGradePrefix = null）
+                new() { SectionName = "冷轧拔", PlantGradePrefix = null, StandardDays = 2,   Remark = "冷轧/冷拔" },
+                new() { SectionName = "油管断", PlantGradePrefix = null, StandardDays = 1,   Remark = null },
+                new() { SectionName = "去油",   PlantGradePrefix = null, StandardDays = 1,   Remark = null },
+                new() { SectionName = "固溶",   PlantGradePrefix = null, StandardDays = 1,   Remark = null },
+                new() { SectionName = "矫直",   PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = "断切",   PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = "测壁厚", PlantGradePrefix = null, StandardDays = 1,   Remark = null },
+                new() { SectionName = "酸洗",   PlantGradePrefix = null, StandardDays = 2,   Remark = "非3系牌号" },
+                new() { SectionName = "外抛光", PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = "内修磨", PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = "外点磨", PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = "检验",   PlantGradePrefix = null, StandardDays = 1,   Remark = null },
+                new() { SectionName = "打焊头", PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = "润滑",   PlantGradePrefix = null, StandardDays = 1,   Remark = null },
+                new() { SectionName = "入库",   PlantGradePrefix = null, StandardDays = 2,   Remark = null },
+                // 牌号前缀覆盖：3系牌号酸洗只需1天
+                new() { SectionName = "酸洗",   PlantGradePrefix = "3",  StandardDays = 1,   Remark = "3系牌号（304/316/321等）" },
+            };
+
+            await context.StandardWorkDays.AddRangeAsync(workDays);
+            await context.SaveChangesAsync();
+        }
+
+        // ========== 9. Initialize Standard Work Day Delivery States ==========
+        if (!context.StandardWorkDayDeliveryStates.Any())
+        {
+            var deliveryStates = new List<StandardWorkDayDeliveryState>
+            {
+                // 默认：非固溶酸洗/非硬态 +4 天
+                new() { DeliveryState = "",                  ExtraDays = 4, Remark = "默认附加天数（非固溶酸洗/非硬态）" },
+                // 固溶酸洗及其变体 → +0 天（不额外加）
+                new() { DeliveryState = "SolutionAnnealedAndPickled",                   ExtraDays = 0, Remark = "固溶酸洗" },
+                new() { DeliveryState = "SolutionAnnealedAndPickledUTube",              ExtraDays = 0, Remark = "固溶酸洗-U型管" },
+                new() { DeliveryState = "SolutionAnnealedAndPickledExternalPolished",   ExtraDays = 0, Remark = "固溶酸洗-外抛光" },
+                new() { DeliveryState = "SolutionAnnealedAndPickledInternalPolished",   ExtraDays = 0, Remark = "固溶酸洗-内抛光" },
+                new() { DeliveryState = "SolutionAnnealedAndPickledBothPolished",       ExtraDays = 0, Remark = "固溶酸洗-内外抛光" },
+                new() { DeliveryState = "SolutionAnnealedAndPickledCoiled",             ExtraDays = 0, Remark = "固溶酸洗-盘管" },
+                // 光亮及其变体 → +4 天
+                new() { DeliveryState = "Bright",             ExtraDays = 4, Remark = "光亮" },
+                new() { DeliveryState = "BrightUTube",        ExtraDays = 4, Remark = "光亮-U型管" },
+                new() { DeliveryState = "BrightCoiled",       ExtraDays = 4, Remark = "光亮-盘管" },
+                // 硬态 → +0 天（不额外加）
+                new() { DeliveryState = "Hard",               ExtraDays = 0, Remark = "硬态" },
+            };
+
+            await context.StandardWorkDayDeliveryStates.AddRangeAsync(deliveryStates);
             await context.SaveChangesAsync();
         }
     }

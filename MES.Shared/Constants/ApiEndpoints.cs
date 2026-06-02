@@ -60,6 +60,7 @@ public static class ApiEndpoints
 
     // ===== Configuration 配置 =====
     public const string StandardWorkDay = "api/standard-work-day";
+    public const string StandardWorkDayDeliveryState = "api/standard-work-day-delivery-state";
 
     // ===== 通用默认排序字段 =====
     public const string DefaultSortBy = "CreatedTime";

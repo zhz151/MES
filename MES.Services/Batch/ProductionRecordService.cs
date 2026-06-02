@@ -22,15 +22,18 @@ public class ProductionRecordService : IProductionRecordService
     private readonly AppDbContext _context;
     private readonly ILogger<ProductionRecordService> _logger;
     private readonly IStandardWorkDayService _standardWorkDayService;
+    private readonly IStandardWorkDayDeliveryStateService _deliveryStateService;
 
     public ProductionRecordService(
         AppDbContext context,
         ILogger<ProductionRecordService> logger,
-        IStandardWorkDayService standardWorkDayService)
+        IStandardWorkDayService standardWorkDayService,
+        IStandardWorkDayDeliveryStateService deliveryStateService)
     {
         _context = context;
         _logger = logger;
         _standardWorkDayService = standardWorkDayService;
+        _deliveryStateService = deliveryStateService;
     }
 
     // ========== 内部生产记录 ==========
@@ -1641,12 +1644,14 @@ public class ProductionRecordService : IProductionRecordService
             // ====== 9. 剩余工量计算 ======
             var sectionTuples = allSections.Select(s => (s.SectionName, s.Sequence)).ToList();
             var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(batch.PlantGrade);
+            var dsExtraDaysMap = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
             batch.RemainingWorkDays = CalculateRemainingWorkDays(
                 batch.Status,
                 batch.CurrentSectionCompleted,
                 overallMaxSeq,
                 sectionTuples,
                 dayMap,
+                dsExtraDaysMap,
                 batch.DeliveryState);
 
             // ====== 10. 全工量计算 ======
@@ -1654,6 +1659,7 @@ public class ProductionRecordService : IProductionRecordService
                 batch.Status,
                 sectionTuples,
                 dayMap,
+                dsExtraDaysMap,
                 batch.DeliveryState);
 
         _context.ProductionBatches.Update(batch);
@@ -1698,6 +1704,7 @@ public class ProductionRecordService : IProductionRecordService
         if (activeBatchIds.Count == 0)
         {
             // 只有强制完成批次，仅计算全工量
+            var dsExtraMap2 = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
             foreach (var b in batchDict.Values)
             {
                 var allSections = b.ProcessGroups
@@ -1709,6 +1716,7 @@ public class ProductionRecordService : IProductionRecordService
                     b.Status,
                     allSections,
                     dayMap,
+                    dsExtraMap2,
                     b.DeliveryState);
             }
             _context.ProductionBatches.UpdateRange(batchDict.Values);
@@ -1763,6 +1771,7 @@ public class ProductionRecordService : IProductionRecordService
             .ToDictionary(r => r.BatchId, r => r.MaxDate);
 
         // 7. 逐批次计算跟踪字段
+        var dsExtraDaysMap = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
         foreach (var batchId in activeBatchIds)
         {
             var batch = batchDict[batchId];
@@ -1992,6 +2001,7 @@ public class ProductionRecordService : IProductionRecordService
                 overallMaxSeq,
                 batchSectionTuples,
                 dayMap,
+                dsExtraDaysMap,
                 batch.DeliveryState);
 
             // ====== 全工量计算 ======
@@ -1999,6 +2009,7 @@ public class ProductionRecordService : IProductionRecordService
                 batch.Status,
                 batchSectionTuples,
                 dayMap,
+                dsExtraDaysMap,
                 batch.DeliveryState);
         }
 
@@ -2782,6 +2793,7 @@ public class ProductionRecordService : IProductionRecordService
         int overallMaxSeq,
         List<(string SectionName, int Sequence)> allSections,
         Dictionary<string, double> dayMap,
+        Dictionary<string, double> deliveryStateExtraDays,
         string? deliveryState)
     {
         // 完成/作废 → 0
@@ -2815,12 +2827,11 @@ public class ProductionRecordService : IProductionRecordService
             totalDays += dayMap.GetValueOrDefault(section.SectionName, 0);
         }
 
-        // 交货状态调整：非固溶/非硬态 +4 天
-        if (deliveryState != nameof(DeliveryState.SolutionAnnealedAndPickled)
-            && deliveryState != nameof(DeliveryState.Hard))
-        {
-            totalDays += 4;
-        }
+        // 交货状态调整：从配置表读取附加天数
+        if (deliveryStateExtraDays.TryGetValue(deliveryState ?? "", out var dsExtra))
+            totalDays += dsExtra;
+        else if (deliveryStateExtraDays.TryGetValue("", out var defaultExtra))
+            totalDays += defaultExtra;
 
         return (int)Math.Round(totalDays, MidpointRounding.AwayFromZero);
     }
@@ -2832,6 +2843,7 @@ public class ProductionRecordService : IProductionRecordService
         BatchStatus status,
         List<(string SectionName, int Sequence)> allSections,
         Dictionary<string, double> dayMap,
+        Dictionary<string, double> deliveryStateExtraDays,
         string? deliveryState)
     {
         // 全工量始终计算，不受批次状态影响
@@ -2847,12 +2859,11 @@ public class ProductionRecordService : IProductionRecordService
             totalDays += dayMap.GetValueOrDefault(section.SectionName, 0);
         }
 
-        // 交货状态调整：非固溶/非硬态 +4 天
-        if (deliveryState != nameof(DeliveryState.SolutionAnnealedAndPickled)
-            && deliveryState != nameof(DeliveryState.Hard))
-        {
-            totalDays += 4;
-        }
+        // 交货状态调整：从配置表读取附加天数
+        if (deliveryStateExtraDays.TryGetValue(deliveryState ?? "", out var dsExtra))
+            totalDays += dsExtra;
+        else if (deliveryStateExtraDays.TryGetValue("", out var defaultExtra))
+            totalDays += defaultExtra;
 
         return (int)Math.Round(totalDays, MidpointRounding.AwayFromZero);
     }

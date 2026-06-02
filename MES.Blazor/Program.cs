@@ -76,4 +76,8 @@ builder.Services.AddScoped<SalesUrgingService>();
 builder.Services.AddScoped<RawMaterialLockPlanAndExecutionService>();
 builder.Services.AddScoped<ProductionOverviewService>();
 
+// ========== Configuration 上下文 ==========
+builder.Services.AddScoped<StandardWorkDayService>();
+builder.Services.AddScoped<StandardWorkDayDeliveryStateService>();
+
 await builder.Build().RunAsync();
