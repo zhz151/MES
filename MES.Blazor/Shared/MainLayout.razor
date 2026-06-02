@@ -31,10 +31,11 @@
 
                 <!-- 工单模块 -->
                 <AuthorizeView Roles="@Roles.Policies.WorkOrderRead">
-                    <MudMenu Label="工单管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("workorders","material-plan-overview","standard-process-cycles","workorder-execution")">
+                    <MudMenu Label="工单管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("workorders","material-plan-overview","standard-process-cycles","standard-work-days","workorder-execution")">
                         <MudMenuItem Class="@GetMenuItemClass("/workorders")" OnClick='() => NavigateTo("/workorders")'>工单首页</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/material-plan-overview")" OnClick='() => NavigateTo("/material-plan-overview")'>用料计划总览</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/standard-process-cycles")" OnClick='() => NavigateTo("/standard-process-cycles")'>标准工艺生产周期</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/standard-work-days")" OnClick='() => NavigateTo("/standard-work-days")'>标准工量天数</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/workorder-execution")" OnClick='() => NavigateTo("/workorder-execution")'>工单执行状况</MudMenuItem>
                     </MudMenu>
                 </AuthorizeView>

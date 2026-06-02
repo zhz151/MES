@@ -20,6 +20,7 @@ using MES.Services;
 using MES.Services.DataExchange;
 using MES.Services.DataFix;
 using MES.Services.Order;
+using MES.Services.Configuration;
 using MES.Services.Scheduling;
 using QuestPDF.Infrastructure;
 using MES.Shared.Settings;
@@ -134,6 +135,7 @@ builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IProductionStandardService, ProductionStandardService>();
 builder.Services.AddScoped<IGradeMappingService, GradeMappingService>();
 builder.Services.AddScoped<IStandardProcessCycleService, StandardProcessCycleService>();
+builder.Services.AddScoped<IStandardWorkDayService, StandardWorkDayService>();
 builder.Services.AddScoped<IMaterialPlanProcessGroupService, MaterialPlanProcessGroupService>();
 builder.Services.AddScoped<IProductRequirementService, ProductRequirementService>();
 

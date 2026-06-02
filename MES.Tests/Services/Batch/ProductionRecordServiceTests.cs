@@ -6,8 +6,10 @@ using MES.Core.Exceptions;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Core.Interfaces;
 using MES.Services;
 using MES.Tests.Tests;
+using Moq;
 
 namespace MES.Tests.Services;
 
@@ -17,7 +19,14 @@ namespace MES.Tests.Services;
 public class ProductionRecordServiceTests : TestBase
 {
     private ProductionRecordService CreateService(AppDbContext ctx)
-        => new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<ProductionRecordService>.Instance);
+    {
+        var mockDaySvc = new Mock<IStandardWorkDayService>();
+        mockDaySvc.Setup(s => s.GetStandardDaysMapAsync(It.IsAny<string?>()))
+            .ReturnsAsync(new Dictionary<string, double>());
+        return new(ctx,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ProductionRecordService>.Instance,
+            mockDaySvc.Object);
+    }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")
     {

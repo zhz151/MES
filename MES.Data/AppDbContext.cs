@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 using MES.Data.Entities;
 using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Configuration;
 using MES.Core.Enums;
 
 namespace MES.Data;
@@ -103,6 +104,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<SalesUrging> SalesUrgings { get; set; } = null!;
     public DbSet<RawMaterialLockPlanAndExecution> RawMaterialLockPlanAndExecutions { get; set; } = null!;
 
+    // ========== Configuration 上下文 ==========
+    public DbSet<StandardWorkDay> StandardWorkDays { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -181,6 +185,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
         // ========== Scheduling 上下文 ==========
         ConfigureSalesUrging(builder);
         ConfigureRawMaterialLockPlanAndExecution(builder);
+
+        // ========== Configuration 上下文 ==========
+        ConfigureStandardWorkDay(builder);
 
         // 为所有继承 BaseEntity 的实体统一配置审计字段长度
         foreach (var entityType in builder.Model.GetEntityTypes())
@@ -2147,6 +2154,24 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => e.WorkOrderId).IsUnique().HasDatabaseName("UK_RMLPAE_WorkOrderId");
             entity.HasIndex(e => e.WorkOrderNo).HasDatabaseName("IX_RMLPAE_WorkOrderNo");
             entity.HasIndex(e => e.ScheduleStage).HasDatabaseName("IX_RMLPAE_ScheduleStage");
+        });
+    }
+
+    // ========== Configuration 上下文 ==========
+
+    private static void ConfigureStandardWorkDay(ModelBuilder builder)
+    {
+        builder.Entity<StandardWorkDay>(entity =>
+        {
+            entity.ToTable("StandardWorkDays");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SectionName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.PlantGradePrefix).HasMaxLength(50);
+            entity.Property(e => e.StandardDays).IsRequired().HasColumnType("float");
+            entity.Property(e => e.Remark).HasMaxLength(200);
+            entity.HasIndex(e => new { e.SectionName, e.PlantGradePrefix })
+                .IsUnique()
+                .HasDatabaseName("UK_SWD_SectionName_PlantGradePrefix");
         });
     }
 }

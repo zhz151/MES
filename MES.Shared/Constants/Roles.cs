@@ -52,6 +52,9 @@ public static class Roles
         public const string WarehouseRead = "WarehouseStaff,WarehouseDirector,Admin";
 
         public const string AdminOnly = "Admin";
+
+        public const string ConfigurationRead = "Admin";
+        public const string ConfigurationWrite = "Admin";
     }
 
     public static string[] GetAllRoles()

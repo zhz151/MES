@@ -21,11 +21,16 @@ public class ProductionRecordService : IProductionRecordService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<ProductionRecordService> _logger;
+    private readonly IStandardWorkDayService _standardWorkDayService;
 
-    public ProductionRecordService(AppDbContext context, ILogger<ProductionRecordService> logger)
+    public ProductionRecordService(
+        AppDbContext context,
+        ILogger<ProductionRecordService> logger,
+        IStandardWorkDayService standardWorkDayService)
     {
         _context = context;
         _logger = logger;
+        _standardWorkDayService = standardWorkDayService;
     }
 
     // ========== 内部生产记录 ==========
@@ -1635,19 +1640,20 @@ public class ProductionRecordService : IProductionRecordService
 
             // ====== 9. 剩余工量计算 ======
             var sectionTuples = allSections.Select(s => (s.SectionName, s.Sequence)).ToList();
+            var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(batch.PlantGrade);
             batch.RemainingWorkDays = CalculateRemainingWorkDays(
                 batch.Status,
                 batch.CurrentSectionCompleted,
                 overallMaxSeq,
                 sectionTuples,
-                batch.PlantGrade,
+                dayMap,
                 batch.DeliveryState);
 
             // ====== 10. 全工量计算 ======
             batch.TotalWorkDays = CalculateTotalWorkDays(
                 batch.Status,
                 sectionTuples,
-                batch.PlantGrade,
+                dayMap,
                 batch.DeliveryState);
 
         _context.ProductionBatches.Update(batch);
@@ -1698,10 +1704,11 @@ public class ProductionRecordService : IProductionRecordService
                     .SelectMany(pg => GetSectionsFromProcessGroup(pg)
                         .Select(s => (s.SectionName, s.Sequence)))
                     .ToList();
+                var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(b.PlantGrade);
                 b.TotalWorkDays = CalculateTotalWorkDays(
                     b.Status,
                     allSections,
-                    b.PlantGrade,
+                    dayMap,
                     b.DeliveryState);
             }
             _context.ProductionBatches.UpdateRange(batchDict.Values);
@@ -1978,19 +1985,20 @@ public class ProductionRecordService : IProductionRecordService
 
             // ====== 剩余工量计算 ======
             var batchSectionTuples = allSections.Select(s => (s.SectionName, s.Sequence)).ToList();
+            var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(batch.PlantGrade);
             batch.RemainingWorkDays = CalculateRemainingWorkDays(
                 batch.Status,
                 batch.CurrentSectionCompleted,
                 overallMaxSeq,
                 batchSectionTuples,
-                batch.PlantGrade,
+                dayMap,
                 batch.DeliveryState);
 
             // ====== 全工量计算 ======
             batch.TotalWorkDays = CalculateTotalWorkDays(
                 batch.Status,
                 batchSectionTuples,
-                batch.PlantGrade,
+                dayMap,
                 batch.DeliveryState);
         }
 
@@ -2773,7 +2781,7 @@ public class ProductionRecordService : IProductionRecordService
         bool? currentSectionCompleted,
         int overallMaxSeq,
         List<(string SectionName, int Sequence)> allSections,
-        string? plantGrade,
+        Dictionary<string, double> dayMap,
         string? deliveryState)
     {
         // 完成/作废 → 0
@@ -2804,7 +2812,7 @@ public class ProductionRecordService : IProductionRecordService
         double totalDays = 0;
         foreach (var section in allSections.Where(s => s.Sequence >= startSeq))
         {
-            totalDays += GetSectionDay(section.SectionName, plantGrade);
+            totalDays += dayMap.GetValueOrDefault(section.SectionName, 0);
         }
 
         // 交货状态调整：非固溶/非硬态 +4 天
@@ -2823,7 +2831,7 @@ public class ProductionRecordService : IProductionRecordService
     private static int CalculateTotalWorkDays(
         BatchStatus status,
         List<(string SectionName, int Sequence)> allSections,
-        string? plantGrade,
+        Dictionary<string, double> dayMap,
         string? deliveryState)
     {
         // 全工量始终计算，不受批次状态影响
@@ -2836,7 +2844,7 @@ public class ProductionRecordService : IProductionRecordService
         double totalDays = 0;
         foreach (var section in allSections.Where(s => s.Sequence >= startSeq))
         {
-            totalDays += GetSectionDay(section.SectionName, plantGrade);
+            totalDays += dayMap.GetValueOrDefault(section.SectionName, 0);
         }
 
         // 交货状态调整：非固溶/非硬态 +4 天
@@ -2848,7 +2856,4 @@ public class ProductionRecordService : IProductionRecordService
 
         return (int)Math.Round(totalDays, MidpointRounding.AwayFromZero);
     }
-
-    private static double GetSectionDay(string sectionName, string? plantGrade)
-        => SectionDefs.GetStandardDays(sectionName, plantGrade);
 }

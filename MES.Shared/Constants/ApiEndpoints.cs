@@ -58,6 +58,9 @@ public static class ApiEndpoints
     public const string SalesUrging = "api/sales-urging";
     public const string Scan = "api/scan";
 
+    // ===== Configuration 配置 =====
+    public const string StandardWorkDay = "api/standard-work-day";
+
     // ===== 通用默认排序字段 =====
     public const string DefaultSortBy = "CreatedTime";
 }
