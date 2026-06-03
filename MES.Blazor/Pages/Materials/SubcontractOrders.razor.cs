@@ -185,6 +185,7 @@ public partial class SubcontractOrders
 
     private async Task<TableData<SubcontractOrderDto>> LoadDataFromServer(TableState state)
     {
+        _pageSize = state.PageSize;
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "OrderDate";

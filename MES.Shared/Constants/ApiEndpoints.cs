@@ -58,9 +58,15 @@ public static class ApiEndpoints
     public const string SalesUrging = "api/sales-urging";
     public const string Scan = "api/scan";
 
+    // ===== Scheduling 排程 =====
+    public const string SectionProductionStatus = "api/section-production-status";
+    public const string SectionFlowAnalysis = "api/section-flow-analysis";
+    public const string WorkOrderSchedule = "api/workorder-schedule";
+
     // ===== Configuration 配置 =====
     public const string StandardWorkDay = "api/standard-work-day";
     public const string StandardWorkDayDeliveryState = "api/standard-work-day-delivery-state";
+    public const string ConfigParameter = "api/config-parameter";
 
     // ===== 通用默认排序字段 =====
     public const string DefaultSortBy = "CreatedTime";

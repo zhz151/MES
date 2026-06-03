@@ -73,6 +73,7 @@ public partial class MaintenanceOrders
 
     private async Task<TableData<MaintenanceOrderListDto>> LoadDataFromServer(TableState state)
     {
+        _pageSize = state.PageSize;
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "id";

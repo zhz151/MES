@@ -92,15 +92,79 @@
                     <MudTh Style="width: 90px;">操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
+                    @{
+                        var rowEditing = _editingIds.Contains(item.Id);
+                        var rowCache = rowEditing && _editCache.TryGetValue(item.Id, out var rc) ? rc : null;
+                    }
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>@RenderCell(item, col)</MudTd>
+                        <MudTd>
+                        @if (col.Key == "DeliveryState")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudSelect T="string"
+                                           Dense="true"
+                                           Variant="Variant.Outlined"
+                                           Value="@rowCache.DeliveryState"
+                                           ValueChanged="@(v => rowCache.DeliveryState = v)"
+                                           Class="compact-input"
+                                           Label="交货状态">
+                                    @foreach (var opt in DeliveryStateOptions)
+                                    {
+                                        <MudSelectItem Value="@opt.Value">@opt.Display</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            }
+                            else
+                            {
+                                @GetDeliveryStateDisplay(item.DeliveryState)
+                            }
+                        }
+                        else if (col.Key == "ExtraDays")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudNumericField T="double"
+                                                 Dense="true"
+                                                 Variant="Variant.Outlined"
+                                                 HideSpinButtons="true"
+                                                 Value="@rowCache.ExtraDays"
+                                                 ValueChanged="@(v => rowCache.ExtraDays = v)"
+                                                 Class="compact-input"
+                                                 Min="0"
+                                                 Max="365"
+                                                 Format="G29" />
+                            }
+                            else
+                            {
+                                @item.ExtraDays.ToString("G29")
+                            }
+                        }
+                        else if (col.Key == "Remark")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudTextField T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Value="@rowCache.Remark"
+                                              ValueChanged="@(v => rowCache.Remark = v)"
+                                              Class="compact-input" />
+                            }
+                            else
+                            {
+                                @item.Remark
+                            }
+                        }
+                        else
+                        {
+                            @("")
+                        }
+                        </MudTd>
                     }
                     <MudTd Style="white-space: nowrap; width: 90px;">
-                        @{
-                            var isEditing = _editingIds.Contains(item.Id);
-                        }
-                        @if (isEditing)
+                        @if (rowEditing)
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small" OnClick="() => SaveEdit(item)" Disabled="@_isSaving" />
                             <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Default" Size="Size.Small" OnClick="() => CancelEdit(item)" />

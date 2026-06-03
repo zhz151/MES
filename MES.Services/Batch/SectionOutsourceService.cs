@@ -18,13 +18,26 @@ public class SectionOutsourceService : ISectionOutsourceService
     private readonly AppDbContext _context;
     private readonly ILogger<SectionOutsourceService> _logger;
     private readonly IProductionRecordService _productionRecordService;
+    private readonly IConfigParameterService _configService;
+    private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
     public SectionOutsourceService(AppDbContext context, ILogger<SectionOutsourceService> logger,
-        IProductionRecordService productionRecordService)
+        IProductionRecordService productionRecordService, IConfigParameterService configService)
     {
         _context = context;
         _logger = logger;
         _productionRecordService = productionRecordService;
+        _configService = configService;
+    }
+
+    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
+    {
+        if (!_configMaps.TryGetValue(category, out var map))
+        {
+            map = await _configService.GetConfigMapAsync(category);
+            _configMaps[category] = map;
+        }
+        return map.GetValueOrDefault(key, defaultValue);
     }
 
     // ========== 工段委外 ==========
@@ -1217,12 +1230,13 @@ public class SectionOutsourceService : ISectionOutsourceService
             })
             .ToDictionaryAsync(g => g.SectionOutsourceId, g => g.TotalWeight);
 
+        var outsourceRecoveryRatio = await GetConfigAsync("WarehouseThreshold", "OutsourceRecoveryRatio", 0.99m);
         var anyChange = false;
         foreach (var outsource in outsources)
         {
             var totalRecoveredWeight = totalsDict.GetValueOrDefault(outsource.Id, 0m);
             var threshold = outsource.SendWeight.HasValue && outsource.SendWeight.Value > 0
-                ? outsource.SendWeight.Value * 0.99m
+                ? outsource.SendWeight.Value * outsourceRecoveryRatio
                 : 0m;
 
             var isCompleted = outsource.SendWeight.HasValue && totalRecoveredWeight >= threshold;
@@ -1258,9 +1272,10 @@ public class SectionOutsourceService : ISectionOutsourceService
             })
             .FirstOrDefaultAsync();
 
+        var outsourceRecoveryRatio = await GetConfigAsync("WarehouseThreshold", "OutsourceRecoveryRatio", 0.99m);
         var totalRecoveredWeight = totals?.TotalWeight ?? 0m;
         var threshold = outsource.SendWeight.HasValue && outsource.SendWeight.Value > 0
-            ? outsource.SendWeight.Value * 0.99m
+            ? outsource.SendWeight.Value * outsourceRecoveryRatio
             : 0m;
 
         var isCompleted = outsource.SendWeight.HasValue && totalRecoveredWeight >= threshold;

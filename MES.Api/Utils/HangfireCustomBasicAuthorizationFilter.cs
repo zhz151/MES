@@ -32,8 +32,12 @@ public class HangfireCustomBasicAuthorizationFilter : IDashboardAuthorizationFil
             var password = parts.Length > 1 ? parts[1] : string.Empty;
 
             var config = httpContext.RequestServices.GetRequiredService<IConfiguration>();
-            var expectedUsername = config["Hangfire:Username"] ?? "admin";
-            var expectedPassword = config["Hangfire:Password"] ?? "hangfire123";
+            var expectedUsername = config["Hangfire:Username"];
+            var expectedPassword = config["Hangfire:Password"];
+
+            // 未配置 Hangfire 凭据时拒绝访问（fail closed）
+            if (string.IsNullOrEmpty(expectedUsername) || string.IsNullOrEmpty(expectedPassword))
+                return false;
 
             return username == expectedUsername && password == expectedPassword;
         }

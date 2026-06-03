@@ -76,6 +76,7 @@ public partial class StandardProcessCycles
 
     private async Task<TableData<StandardProcessCycleDto>> LoadDataFromServer(TableState state)
     {
+        _pageSize = state.PageSize;
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "plantgrade";

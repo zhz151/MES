@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MES.Core.Enums;
+using MES.Core.Interfaces;
 using MES.Data;
 using MES.Data.Entities;
 using WoEntity = MES.Data.Entities.WorkOrder;
@@ -14,11 +15,24 @@ public class WorkOrderListSummaryService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<WorkOrderListSummaryService> _logger;
+    private readonly IConfigParameterService _configService;
+    private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
-    public WorkOrderListSummaryService(AppDbContext context, ILogger<WorkOrderListSummaryService> logger)
+    public WorkOrderListSummaryService(AppDbContext context, ILogger<WorkOrderListSummaryService> logger, IConfigParameterService configService)
     {
         _context = context;
         _logger = logger;
+        _configService = configService;
+    }
+
+    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
+    {
+        if (!_configMaps.TryGetValue(category, out var map))
+        {
+            map = await _configService.GetConfigMapAsync(category);
+            _configMaps[category] = map;
+        }
+        return map.GetValueOrDefault(key, defaultValue);
     }
 
     /// <summary>全量刷新所有用料计划总览读模型</summary>
@@ -47,13 +61,26 @@ public class WorkOrderListSummaryService
         // 加载客户数据（从 CustomerProfile 取最新业务员/最终客户）
         var customerByOrderNo = await LoadCustomerByOrderNoAsync(orderNos);
 
+        var fixedFinishRatio = await GetConfigAsync("MaterialPlanRatio", "FixedFinishRatio", 1.02m);
+        var fixedInventoryRatio = await GetConfigAsync("MaterialPlanRatio", "FixedInventoryRatio", 1.02m);
+        var nonFixedFinishRatio = await GetConfigAsync("MaterialPlanRatio", "NonFixedFinishRatio", 1.05m);
+        var nonFixedInventoryRatio = await GetConfigAsync("MaterialPlanRatio", "NonFixedInventoryRatio", 1.05m);
+        var fixedPartial = await GetConfigAsync("MaterialPlanStatus", "FixedPartial", 102m);
+        var fixedSatisfied = await GetConfigAsync("MaterialPlanStatus", "FixedSatisfied", 110m);
+        var nonFixedPartial = await GetConfigAsync("MaterialPlanStatus", "NonFixedPartial", 105m);
+        var nonFixedSatisfied = await GetConfigAsync("MaterialPlanStatus", "NonFixedSatisfied", 120m);
+        var smallBatchMaxQty = await GetConfigAsync("MaterialPlanStatus", "SmallBatchMaxQty", 20m);
+        var smallBatchSatisfiedRate = await GetConfigAsync("MaterialPlanStatus", "SmallBatchSatisfiedRate", 100m);
+
         var summaries = new List<WorkOrderListSummary>();
         var failCount = 0;
         foreach (var wo in workOrders)
         {
             try
             {
-                var summary = BuildSummary(wo, planData, allWorkOrdersInOrders, customerByOrderNo);
+                var summary = BuildSummary(wo, planData, allWorkOrdersInOrders, customerByOrderNo,
+                    fixedFinishRatio, fixedInventoryRatio, nonFixedFinishRatio, nonFixedInventoryRatio,
+                    smallBatchMaxQty, smallBatchSatisfiedRate, fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
                 summaries.Add(summary);
             }
             catch (Exception ex)
@@ -303,7 +330,14 @@ public class WorkOrderListSummaryService
         WoEntity wo,
         PlanData planData,
         List<WoEntity> allWorkOrdersInOrder,
-        Dictionary<string, (string salesman, string? endCustomer)> customerByOrderNo)
+        Dictionary<string, (string salesman, string? endCustomer)> customerByOrderNo,
+        decimal fixedFinishRatio = 1.02m,
+        decimal fixedInventoryRatio = 1.02m,
+        decimal nonFixedFinishRatio = 1.05m,
+        decimal nonFixedInventoryRatio = 1.05m,
+        decimal smallBatchMaxQty = 20m, decimal smallBatchSatisfiedRate = 100m,
+        decimal fixedPartial = 102m, decimal fixedSatisfied = 110m,
+        decimal nonFixedPartial = 105m, decimal nonFixedSatisfied = 120m)
     {
         var woId = wo.Id;
 
@@ -331,7 +365,8 @@ public class WorkOrderListSummaryService
         var finish = planData.FinishByWo.TryGetValue(woId, out var f) ? f : new List<PurchaseFinishedPlan>();
         var inv = planData.InventoryByWo.TryGetValue(woId, out var iv) ? iv : new List<InventoryPlan>();
         var pierce = planData.PiercingByWo.TryGetValue(woId, out var p) ? p : new List<RoundBarPiercingPlan>();
-        var (rate, status) = PlanRateCalculator.ComputeWorkOrderRate(wo, semi, finish, inv, pierce);
+        var (rate, status) = PlanRateCalculator.ComputeWorkOrderRate(wo, semi, finish, inv, pierce,
+            fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
 
         // 主号级聚合
         var mainNoWorkOrders = allWorkOrdersInOrder
@@ -344,10 +379,13 @@ public class WorkOrderListSummaryService
             planData.FinishPlans.Where(p => mainNoIds.Contains(p.WorkOrderId)).ToList(),
             planData.InventoryPlans.Where(p => mainNoIds.Contains(p.WorkOrderId) && p.ReworkType == null).ToList(),
             planData.InventoryPlans.Where(p => mainNoIds.Contains(p.WorkOrderId) && p.ReworkType != null).ToList(),
-            planData.PiercingPlans.Where(p => mainNoIds.Contains(p.WorkOrderId)).ToList());
+            planData.PiercingPlans.Where(p => mainNoIds.Contains(p.WorkOrderId)).ToList(),
+            fixedFinishRatio, fixedInventoryRatio, nonFixedFinishRatio, nonFixedInventoryRatio,
+            smallBatchMaxQty, smallBatchSatisfiedRate, fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
 
         // 订单级聚合
-        var orderMaterialPlanStatus = CalculateOrderMaterialPlanStatus(allWorkOrdersInOrder, planData, wo.SalesOrderNo);
+        var orderMaterialPlanStatus = CalculateOrderMaterialPlanStatus(allWorkOrdersInOrder, planData, wo.SalesOrderNo,
+            fixedFinishRatio, fixedInventoryRatio, nonFixedFinishRatio, nonFixedInventoryRatio);
 
         return new WorkOrderListSummary
         {
@@ -411,7 +449,14 @@ public class WorkOrderListSummaryService
         List<PurchaseFinishedPlan> finishPlans,
         List<InventoryPlan> inventoryPlans,
         List<InventoryPlan> reworkPlans,
-        List<RoundBarPiercingPlan> piercingPlans)
+        List<RoundBarPiercingPlan> piercingPlans,
+        decimal fixedFinishRatio = 1.02m,
+        decimal fixedInventoryRatio = 1.02m,
+        decimal nonFixedFinishRatio = 1.05m,
+        decimal nonFixedInventoryRatio = 1.05m,
+        decimal smallBatchMaxQty = 20m, decimal smallBatchSatisfiedRate = 100m,
+        decimal fixedPartial = 102m, decimal fixedSatisfied = 110m,
+        decimal nonFixedPartial = 105m, decimal nonFixedSatisfied = 120m)
     {
         var fixedOrders = workOrders.Where(wo => wo.LengthStatus == LengthStatus.Fixed).ToList();
         var nonFixedOrders = workOrders.Where(wo => wo.LengthStatus != LengthStatus.Fixed).ToList();
@@ -432,8 +477,8 @@ public class WorkOrderListSummaryService
 
             totalEffective += (int)fixedSemi.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple);
             totalEffective += (int)fixedPiercing.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple);
-            totalEffective += fixedFinish.Sum(p => p.RequiredPiece ?? 0) * 1.02m;
-            totalEffective += (int)(fixedInventory.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple) * 1.02m);
+            totalEffective += fixedFinish.Sum(p => p.RequiredPiece ?? 0) * fixedFinishRatio;
+            totalEffective += (int)(fixedInventory.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple) * fixedInventoryRatio);
             totalEffective += (int)fixedRework.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple);
         }
 
@@ -449,8 +494,8 @@ public class WorkOrderListSummaryService
             var nonFixedPiercing = piercingPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
 
             totalEffective += nonFixedSemi.Sum(p => p.RequiredWeight);
-            totalEffective += nonFixedFinish.Sum(p => p.RequiredWeight) * 1.05m;
-            totalEffective += nonFixedInventory.Sum(p => p.UsedWeight) * 1.05m;
+            totalEffective += nonFixedFinish.Sum(p => p.RequiredWeight) * nonFixedFinishRatio;
+            totalEffective += nonFixedInventory.Sum(p => p.UsedWeight) * nonFixedInventoryRatio;
             totalEffective += nonFixedRework.Sum(p => p.UsedWeight);
             totalEffective += nonFixedPiercing.Sum(p => p.RequiredWeight);
         }
@@ -462,30 +507,32 @@ public class WorkOrderListSummaryService
         if (rate <= 0) return (0, MaterialPlanStatus.NotPlanned);
 
         var fixedTotalQuantity = fixedOrders.Sum(wo => wo.TotalQuantity);
-        if (fixedTotalQuantity > 0 && fixedTotalQuantity <= 20)
+        if (fixedTotalQuantity > 0 && fixedTotalQuantity <= smallBatchMaxQty)
         {
-            var batchStatus = rate >= 100m ? MaterialPlanStatus.Satisfied : MaterialPlanStatus.Partial;
+            var batchStatus = rate >= smallBatchSatisfiedRate ? MaterialPlanStatus.Satisfied : MaterialPlanStatus.Partial;
             return (rate, batchStatus);
         }
 
-        var status = CalculateMainNoStatus(rate, fixedOrders.Any());
+        var status = CalculateMainNoStatus(rate, fixedOrders.Any(), fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
         return (rate, status);
     }
 
-    private static MaterialPlanStatus CalculateMainNoStatus(decimal rate, bool isFixed)
+    private static MaterialPlanStatus CalculateMainNoStatus(decimal rate, bool isFixed,
+        decimal fixedPartial = 102m, decimal fixedSatisfied = 110m,
+        decimal nonFixedPartial = 105m, decimal nonFixedSatisfied = 120m)
     {
         if (rate <= 0) return MaterialPlanStatus.NotPlanned;
 
         if (isFixed)
         {
-            if (rate < 102m) return MaterialPlanStatus.Partial;
-            if (rate <= 110m) return MaterialPlanStatus.Satisfied;
+            if (rate < fixedPartial) return MaterialPlanStatus.Partial;
+            if (rate <= fixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
         else
         {
-            if (rate < 105m) return MaterialPlanStatus.Partial;
-            if (rate <= 120m) return MaterialPlanStatus.Satisfied;
+            if (rate < nonFixedPartial) return MaterialPlanStatus.Partial;
+            if (rate <= nonFixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
     }
@@ -493,7 +540,11 @@ public class WorkOrderListSummaryService
     private static int CalculateOrderMaterialPlanStatus(
         List<WoEntity> allWorkOrdersInOrder,
         PlanData planData,
-        string salesOrderNo)
+        string salesOrderNo,
+        decimal fixedFinishRatio = 1.02m,
+        decimal fixedInventoryRatio = 1.02m,
+        decimal nonFixedFinishRatio = 1.05m,
+        decimal nonFixedInventoryRatio = 1.05m)
     {
         var orderWorkOrders = allWorkOrdersInOrder
             .Where(wo => wo.SalesOrderNo == salesOrderNo)
@@ -514,7 +565,8 @@ public class WorkOrderListSummaryService
                 planData.FinishPlans.Where(p => groupIds.Contains(p.WorkOrderId)).ToList(),
                 planData.InventoryPlans.Where(p => groupIds.Contains(p.WorkOrderId) && p.ReworkType == null).ToList(),
                 planData.InventoryPlans.Where(p => groupIds.Contains(p.WorkOrderId) && p.ReworkType != null).ToList(),
-                planData.PiercingPlans.Where(p => groupIds.Contains(p.WorkOrderId)).ToList());
+                planData.PiercingPlans.Where(p => groupIds.Contains(p.WorkOrderId)).ToList(),
+                fixedFinishRatio, fixedInventoryRatio, nonFixedFinishRatio, nonFixedInventoryRatio);
             mainNoStatuses.Add(mainNoStatus);
         }
 

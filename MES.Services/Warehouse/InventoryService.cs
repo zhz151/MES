@@ -19,12 +19,25 @@ public class InventoryService : IInventoryService
 {
     private readonly AppDbContext _context;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IConfigParameterService _configService;
+    private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
     private static readonly SemaphoreSlim _batchNoLock = new(1, 1);
 
-    public InventoryService(AppDbContext context, IHttpContextAccessor httpContextAccessor)
+    public InventoryService(AppDbContext context, IHttpContextAccessor httpContextAccessor, IConfigParameterService configService)
     {
         _context = context;
         _httpContextAccessor = httpContextAccessor;
+        _configService = configService;
+    }
+
+    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
+    {
+        if (!_configMaps.TryGetValue(category, out var map))
+        {
+            map = await _configService.GetConfigMapAsync(category);
+            _configMaps[category] = map;
+        }
+        return map.GetValueOrDefault(key, defaultValue);
     }
 
     private string GetCurrentUser()
@@ -1410,6 +1423,7 @@ public class InventoryService : IInventoryService
             .ToListAsync();
         if (subcontractOrders.Count > 0)
         {
+            var subcontractCompleteRatio = await GetConfigAsync("WarehouseThreshold", "SubcontractCompleteRatio", 0.95m);
             var allBatchData = await _context.InventoryBatches
                 .AsNoTracking()
                 .Where(b => b.SourceOrderNo != null && sourceOrderNos.Contains(b.SourceOrderNo))
@@ -1433,7 +1447,7 @@ public class InventoryService : IInventoryService
                 {
                     if (order.InWeight == null || order.InWeight == 0)
                         order.Status = SubcontractOrderStatus.Sent;
-                    else if (order.InWeight >= order.OutWeight * 0.95m)
+                    else if (order.InWeight >= order.OutWeight * subcontractCompleteRatio)
                         order.Status = SubcontractOrderStatus.Completed;
                     else
                         order.Status = SubcontractOrderStatus.PartialReturned;

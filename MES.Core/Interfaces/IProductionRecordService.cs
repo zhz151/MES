@@ -109,6 +109,11 @@ public interface IProductionRecordService
     Task BatchUpdateBatchTrackingAsync(ICollection<int> batchIds);
 
     /// <summary>
+    /// 刷新全部未强制完成批次的跟踪字段，返回刷新的批次数量
+    /// </summary>
+    Task<int> RefreshAllBatchTrackingAsync();
+
+    /// <summary>
     /// 获取批次跟踪可视化数据（前端进度图展示用）
     /// </summary>
     Task<BatchTrackingVisualDto> GetTrackingVisualAsync(int batchId);

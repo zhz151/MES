@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Constants;
 using MES.Core.Interfaces;
 using MES.Data;
 using MES.Data.Entities;
@@ -22,7 +23,17 @@ public class MaterialPlanServiceTests : TestBase
     private MaterialPlanService CreateService(AppDbContext ctx)
     {
         var loggerMock = new Mock<ILogger<MaterialPlanService>>();
-        return new MaterialPlanService(ctx, loggerMock.Object);
+        var mockDaySvc = new Mock<IStandardWorkDayService>();
+        mockDaySvc.Setup(s => s.GetStandardDaysMapAsync(It.IsAny<string?>()))
+            .ReturnsAsync(() => SectionDefs.All.ToDictionary(s => s, s => 3.0));
+        var mockDsSvc = new Mock<IStandardWorkDayDeliveryStateService>();
+        mockDsSvc.Setup(s => s.GetDeliveryStateExtraDaysMapAsync())
+            .ReturnsAsync(() => new Dictionary<string, double>());
+        var mockConfigSvc = new Mock<IConfigParameterService>();
+        mockConfigSvc.Setup(s => s.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(() => new Dictionary<string, decimal>());
+        return new MaterialPlanService(ctx, loggerMock.Object,
+            mockDaySvc.Object, mockDsSvc.Object, mockConfigSvc.Object);
     }
 
     /// <summary>
@@ -37,7 +48,10 @@ public class MaterialPlanServiceTests : TestBase
         var gm = await SeedGradeMappingAsync(ctx);
 
         var notifMock = new Mock<INotificationService>();
-        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, null!);
+        var orderConfigMock = new Mock<IConfigParameterService>();
+        orderConfigMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
+        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object);
 
         var order = await orderSvc.CreateAsync(new CreateSalesOrderRequest
         {
@@ -82,7 +96,8 @@ public class MaterialPlanServiceTests : TestBase
         var itemIds = items.Select(i => i.Sequence).ToList();
 
         var woLoggerMock = new Mock<ILogger<WorkOrderService>>();
-        var woSvc = new WorkOrderService(ctx, woLoggerMock.Object);
+        var configMock = new Mock<IConfigParameterService>();
+        var woSvc = new WorkOrderService(ctx, woLoggerMock.Object, configMock.Object);
         var result = await woSvc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
         {
             SalesOrderNo = order.OrderNumber,

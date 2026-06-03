@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MES.Core.DTOs;
 using MES.Core.Enums;
+using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
@@ -20,7 +21,10 @@ public class WorkOrderExecutionServiceTests : TestBase
     private WorkOrderExecutionService CreateService(AppDbContext ctx)
     {
         var loggerMock = new Mock<ILogger<WorkOrderExecutionService>>();
-        return new WorkOrderExecutionService(ctx, loggerMock.Object);
+        var configMock = new Mock<IConfigParameterService>();
+        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
+        return new WorkOrderExecutionService(ctx, loggerMock.Object, configMock.Object);
     }
 
     // ==================== GetPagedAsync 测试 ====================

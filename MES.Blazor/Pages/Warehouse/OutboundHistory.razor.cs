@@ -138,6 +138,7 @@ public partial class OutboundHistory
     {
         try
         {
+            _pageSize = state.PageSize;
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "outbounddate";
             var filtersJson = SerializeFilters();
 

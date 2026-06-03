@@ -80,7 +80,7 @@ public static class DtoMapper
         TotalWeight = entity.TotalWeight,
         DeliveryState = entity.DeliveryState,
         TotalItemCount = entity.TotalItemCount,
-        Status = (int)entity.Status,
+        Status = entity.Status,
         MaterialPlanStatus = (int)entity.MaterialPlanStatus,
         MaterialPlanRate = entity.MaterialPlanRate,
         CreatedTime = entity.CreatedTime
@@ -94,7 +94,7 @@ public static class DtoMapper
         ProductionMainNo = entity.ProductionMainNo,
         ProductionSubNo = entity.ProductionSubNo,
         OrderItemIds = entity.OrderItemIds,
-        Status = (int)entity.Status,
+        Status = entity.Status,
         SignDate = entity.SignDate,
         Salesman = entity.Salesman,
         EndCustomer = entity.EndCustomer,

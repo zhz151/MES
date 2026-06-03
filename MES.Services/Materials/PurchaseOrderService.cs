@@ -15,10 +15,23 @@ namespace MES.Services;
 public class PurchaseOrderService : IPurchaseOrderService
 {
     private readonly AppDbContext _context;
+    private readonly IConfigParameterService _configService;
+    private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
-    public PurchaseOrderService(AppDbContext context)
+    public PurchaseOrderService(AppDbContext context, IConfigParameterService configService)
     {
         _context = context;
+        _configService = configService;
+    }
+
+    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
+    {
+        if (!_configMaps.TryGetValue(category, out var map))
+        {
+            map = await _configService.GetConfigMapAsync(category);
+            _configMaps[category] = map;
+        }
+        return map.GetValueOrDefault(key, defaultValue);
     }
 
     public async Task<PagedResult<PurchaseOrderDto>> GetPagedAsync(PurchaseOrderQueryParams query)
@@ -565,7 +578,11 @@ public class PurchaseOrderService : IPurchaseOrderService
 
             // 非强制完成时自动计算状态
             if (!entity.IsForceCompleted)
-                RecalcPurchaseStatus(entity);
+            {
+                var ratio = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteRatio", 0.965m);
+                var deviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
+                RecalcPurchaseStatus(entity, ratio, deviation);
+            }
         }
 
         await _context.SaveChangesAsync();
@@ -619,7 +636,11 @@ public class PurchaseOrderService : IPurchaseOrderService
             order.LastArrivalDate = orderBatches.Max(b => b.InboundDate);
 
             if (!order.IsForceCompleted)
-                RecalcPurchaseStatus(order);
+            {
+                var ratio = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteRatio", 0.965m);
+                var deviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
+                RecalcPurchaseStatus(order, ratio, deviation);
+            }
         }
 
         await _context.SaveChangesAsync();
@@ -641,7 +662,11 @@ public class PurchaseOrderService : IPurchaseOrderService
         order.LastArrivalDate = batches.Count > 0 ? batches.Max(b => b.InboundDate) : null;
 
         if (!order.IsForceCompleted)
-            RecalcPurchaseStatus(order);
+        {
+            var ratio = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteRatio", 0.965m);
+            var deviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
+            RecalcPurchaseStatus(order, ratio, deviation);
+        }
 
         await _context.SaveChangesAsync();
     }
@@ -657,7 +682,11 @@ public class PurchaseOrderService : IPurchaseOrderService
         if (entity.IsForceCompleted)
             entity.Status = PurchaseOrderStatus.Completed;
         else
-            RecalcPurchaseStatus(entity);
+        {
+            var ratio = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteRatio", 0.965m);
+            var deviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
+            RecalcPurchaseStatus(entity, ratio, deviation);
+        }
 
         await _context.SaveChangesAsync();
     }
@@ -678,11 +707,11 @@ public class PurchaseOrderService : IPurchaseOrderService
         await _context.SaveChangesAsync();
     }
 
-    private static void RecalcPurchaseStatus(PurchaseOrder order)
+    private static void RecalcPurchaseStatus(PurchaseOrder order, decimal purchaseCompleteRatio, decimal purchaseCompleteDeviation)
     {
         if (order.ReceivedWeight == 0)
             order.Status = PurchaseOrderStatus.Open;
-        else if (IsThresholdMet(order.ReceivedWeight, order.Weight))
+        else if (IsThresholdMet(order.ReceivedWeight, order.Weight, purchaseCompleteRatio, purchaseCompleteDeviation))
             order.Status = PurchaseOrderStatus.Completed;
         else
             order.Status = PurchaseOrderStatus.Partial;
@@ -757,6 +786,9 @@ public class PurchaseOrderService : IPurchaseOrderService
 
     public async Task<List<ProcurementStatusDto>> GetProcurementStatusAsync()
     {
+        var purchaseCompleteRatio = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteRatio", 0.965m);
+        var purchaseCompleteDeviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
+
         // 1. 分别查询两个表的 WorkOrderId（避免 Union 不同 DbSet 导致 EF Core 翻译失败）
         var semiWorkOrderIds = await _context.PurchaseSemiPlans
             .AsNoTracking()
@@ -855,7 +887,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                     SubcontractWeight = subcontractW,
                     TotalWeight = total,
                     StatusText = total == 0 ? "未采购"
-                        : IsThresholdMet(total, x.PlanWeight) ? "已采购"
+                        : IsThresholdMet(total, x.PlanWeight, purchaseCompleteRatio, purchaseCompleteDeviation) ? "已采购"
                         : "部分采购"
                 };
             })
@@ -869,6 +901,9 @@ public class PurchaseOrderService : IPurchaseOrderService
 
     public async Task<List<ProcurementStatusDto>> GetPiercingProcurementStatusAsync()
     {
+        var purchaseCompleteRatio = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteRatio", 0.965m);
+        var purchaseCompleteDeviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
+
         // 1. 查询圆棒穿孔计划的工单ID
         var piercingWorkOrderIds = await _context.RoundBarPiercingPlans
             .AsNoTracking()
@@ -929,7 +964,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                     SubcontractWeight = subW,
                     TotalWeight = subW,
                     StatusText = subW == 0 ? "未穿孔"
-                        : IsThresholdMet(subW, x.PlanWeight) ? "已穿孔"
+                        : IsThresholdMet(subW, x.PlanWeight, purchaseCompleteRatio, purchaseCompleteDeviation) ? "已穿孔"
                         : "部分穿孔"
                 };
             })
@@ -1182,11 +1217,11 @@ public class PurchaseOrderService : IPurchaseOrderService
 
     /// <summary>
     /// 判断执行量是否达到完成阈值：
-    /// total >= planWeight * 0.965（完成率≥96.5%）
-    /// 且 total >= planWeight - 200（绝对偏差≤200kg）
+    /// total >= planWeight * purchaseCompleteRatio（完成率≥阈值）
+    /// 且 total >= planWeight - purchaseCompleteDeviation（绝对偏差≤阈值kg）
     /// </summary>
-    internal static bool IsThresholdMet(decimal total, decimal planWeight)
+    internal static bool IsThresholdMet(decimal total, decimal planWeight, decimal purchaseCompleteRatio, decimal purchaseCompleteDeviation)
     {
-        return total >= planWeight * 0.965m && total >= planWeight - 200m;
+        return total >= planWeight * purchaseCompleteRatio && total >= planWeight - purchaseCompleteDeviation;
     }
 }

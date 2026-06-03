@@ -30,7 +30,10 @@ public class BatchServiceTests : TestBase
     {
         var loggerMock = new Mock<ILogger<BatchService>>();
         var prodRecordMock = new Mock<IProductionRecordService>();
-        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object);
+        var configMock = new Mock<IConfigParameterService>();
+        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
+        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, configMock.Object);
     }
 
     // ========== 种子数据辅助方法 ==========
@@ -45,7 +48,10 @@ public class BatchServiceTests : TestBase
         var gm = await SeedGradeMappingAsync(ctx);
 
         var notifMock = new Mock<INotificationService>();
-        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, null!);
+        var orderConfigMock = new Mock<IConfigParameterService>();
+        orderConfigMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
+        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object);
 
         var order = await orderSvc.CreateAsync(new CreateSalesOrderRequest
         {
@@ -88,7 +94,8 @@ public class BatchServiceTests : TestBase
         var items = await ctx.OrderItems.Where(oi => oi.SalesOrderId == order.Id).ToListAsync();
         var itemIds = items.Select(i => i.Sequence).ToList();
 
-        var woSvc = new WorkOrderService(ctx, new Mock<ILogger<WorkOrderService>>().Object);
+        var configMock = new Mock<IConfigParameterService>();
+        var woSvc = new WorkOrderService(ctx, new Mock<ILogger<WorkOrderService>>().Object, configMock.Object);
         var generated = await woSvc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
         {
             SalesOrderNo = order.OrderNumber,

@@ -32,7 +32,10 @@ public class WorkOrderStatusSummaryServiceTests : TestBase
         var gm = await SeedGradeMappingAsync(ctx);
 
         var notifMock = new Mock<INotificationService>();
-        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, null!);
+        var orderConfigMock = new Mock<IConfigParameterService>();
+        orderConfigMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
+        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object);
 
         var order = await orderSvc.CreateAsync(new CreateSalesOrderRequest
         {
@@ -85,7 +88,10 @@ public class WorkOrderStatusSummaryServiceTests : TestBase
         var itemIds = items.Select(i => i.Sequence).ToList();
 
         var woLoggerMock = new Mock<ILogger<WorkOrderService>>();
-        var woSvc = new WorkOrderService(ctx, woLoggerMock.Object);
+        var configMock = new Mock<IConfigParameterService>();
+        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
+        var woSvc = new WorkOrderService(ctx, woLoggerMock.Object, configMock.Object);
         var generated = await woSvc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
         {
             SalesOrderNo = orderNo,

@@ -28,9 +28,43 @@ public class WorkOrderController : ControllerBase
     [HttpGet("order-status")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<PagedResult<OrderWorkOrderStatusDto>>>> GetOrderWorkOrderStatus(
-        [FromQuery] WorkOrderQueryParams query,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? keyword = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool isDescending = true,
+        [FromQuery] string? salesOrderNo = null,
+        [FromQuery] string? productionMainNo = null,
+        [FromQuery] string? productionSubNo = null,
+        [FromQuery] int? status = null,
+        [FromQuery] string? workOrderStatus = null,
+        [FromQuery] string? materialName = null,
+        [FromQuery] string? specification = null,
+        [FromQuery] DateTime? deliveryDateStart = null,
+        [FromQuery] DateTime? deliveryDateEnd = null,
+        [FromQuery] string? salesman = null,
+        [FromQuery] string? endCustomer = null,
+        [FromQuery] string? plantGrade = null,
+        [FromQuery] bool includeCancelled = false,
+        [FromQuery] int? materialPlanStatus = null,
+        [FromQuery] int? mainNoMaterialPlanStatus = null,
+        [FromQuery] int? orderMaterialPlanStatus = null,
+        [FromQuery] string? planTypeFilter = null,
         [FromQuery] string? filters = null)
     {
+        if (pageSize > 5000) pageSize = 5000;
+        WorkOrderQueryParams query = new()
+        {
+            PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending,
+            SalesOrderNo = salesOrderNo, ProductionMainNo = productionMainNo, ProductionSubNo = productionSubNo,
+            Status = status, WorkOrderStatus = workOrderStatus, MaterialName = materialName,
+            Specification = specification, DeliveryDateStart = deliveryDateStart, DeliveryDateEnd = deliveryDateEnd,
+            Salesman = salesman, EndCustomer = endCustomer, PlantGrade = plantGrade,
+            IncludeCancelled = includeCancelled, MaterialPlanStatus = materialPlanStatus,
+            MainNoMaterialPlanStatus = mainNoMaterialPlanStatus, OrderMaterialPlanStatus = orderMaterialPlanStatus,
+            PlanTypeFilter = planTypeFilter
+        };
         if (!string.IsNullOrEmpty(filters))
             try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
             catch { }
@@ -89,9 +123,43 @@ public class WorkOrderController : ControllerBase
     [HttpGet("list")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<PagedResult<WorkOrderListDto>>>> GetList(
-        [FromQuery] WorkOrderQueryParams query,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? keyword = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool isDescending = true,
+        [FromQuery] string? salesOrderNo = null,
+        [FromQuery] string? productionMainNo = null,
+        [FromQuery] string? productionSubNo = null,
+        [FromQuery] int? status = null,
+        [FromQuery] string? workOrderStatus = null,
+        [FromQuery] string? materialName = null,
+        [FromQuery] string? specification = null,
+        [FromQuery] DateTime? deliveryDateStart = null,
+        [FromQuery] DateTime? deliveryDateEnd = null,
+        [FromQuery] string? salesman = null,
+        [FromQuery] string? endCustomer = null,
+        [FromQuery] string? plantGrade = null,
+        [FromQuery] bool includeCancelled = false,
+        [FromQuery] int? materialPlanStatus = null,
+        [FromQuery] int? mainNoMaterialPlanStatus = null,
+        [FromQuery] int? orderMaterialPlanStatus = null,
+        [FromQuery] string? planTypeFilter = null,
         [FromQuery] string? filters = null)
     {
+        if (pageSize > 5000) pageSize = 5000;
+        WorkOrderQueryParams query = new()
+        {
+            PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending,
+            SalesOrderNo = salesOrderNo, ProductionMainNo = productionMainNo, ProductionSubNo = productionSubNo,
+            Status = status, WorkOrderStatus = workOrderStatus, MaterialName = materialName,
+            Specification = specification, DeliveryDateStart = deliveryDateStart, DeliveryDateEnd = deliveryDateEnd,
+            Salesman = salesman, EndCustomer = endCustomer, PlantGrade = plantGrade,
+            IncludeCancelled = includeCancelled, MaterialPlanStatus = materialPlanStatus,
+            MainNoMaterialPlanStatus = mainNoMaterialPlanStatus, OrderMaterialPlanStatus = orderMaterialPlanStatus,
+            PlanTypeFilter = planTypeFilter
+        };
         if (!string.IsNullOrEmpty(filters))
         {
             try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }

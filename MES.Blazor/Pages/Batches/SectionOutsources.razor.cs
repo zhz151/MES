@@ -155,6 +155,7 @@ public partial class SectionOutsources
 
     private async Task<TableData<SectionOutsourceDto>> LoadDataFromServer(TableState state)
     {
+        _pageSize = state.PageSize;
         try
         {
             // 首次加载覆盖页码（MudTable 初始化时始终传 page=0）

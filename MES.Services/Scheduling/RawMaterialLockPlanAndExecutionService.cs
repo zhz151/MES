@@ -123,9 +123,12 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                     CurrentRawMaterialLockRemark = p.CurrentRawMaterialLockRemark,
                     IsExecuted = p.IsExecuted,
 
-                    // G15: 从 SalesUrging LEFT JOIN 读取
+                    // G15: 预执行（页面操作标记）
+                    IsPreInput = p.IsPreInput,
+                    IsMainNoMaterialComplete = p.IsMainNoMaterialComplete,
+
+                    // 从 SalesUrging LEFT JOIN 读取
                     EstimatedArrivalDate = u != null ? u.EstimatedArrivalDate : null,
-                    IsMainNoMaterialComplete = u != null && u.IsMainNoMaterialComplete,
                     IsLockConfirmed = u != null && u.IsLockConfirmed,
 
                     // 看板筛选 - 异常标记
@@ -295,6 +298,10 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                 CurrentRawMaterialLockRemark = s.RawMaterialLockRemark,
                 IsExecuted = null, // 初次安排时未知
 
+                // G15: 预执行（计划安排重置）
+                IsPreInput = false,
+                IsMainNoMaterialComplete = false,
+
                 // 看板筛选 - 异常标记
                 HasAbnormality = s.DaysDiffFromDelivery < 0
                     || (s.ScheduleStage == 1 && (urging?.IsLockConfirmed ?? false) && !(urging?.IsMainNoMaterialComplete ?? false))
@@ -352,6 +359,24 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
 
         await _context.SaveChangesAsync();
         return updateCount;
+    }
+
+    public async Task<int> SetPreExecuteFlagsAsync(List<int> workOrderIds, bool? isPreInput, bool? isMainNoMaterialComplete)
+    {
+        var records = await _context.Set<RawMaterialLockPlanAndExecution>()
+            .Where(r => workOrderIds.Contains(r.WorkOrderId))
+            .ToListAsync();
+
+        foreach (var record in records)
+        {
+            if (isPreInput.HasValue)
+                record.IsPreInput = isPreInput.Value;
+            if (isMainNoMaterialComplete.HasValue)
+                record.IsMainNoMaterialComplete = isMainNoMaterialComplete.Value;
+            _context.Entry(record).State = EntityState.Modified;
+        }
+
+        return await _context.SaveChangesAsync();
     }
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()

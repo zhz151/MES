@@ -59,6 +59,7 @@ public partial class StandardWorkDayDeliveryStates
 
     private async Task<TableData<StandardWorkDayDeliveryStateDto>> LoadDataFromServer(TableState state)
     {
+        _pageSize = state.PageSize;
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "deliverystate";
@@ -201,7 +202,7 @@ public partial class StandardWorkDayDeliveryStates
 
     // ========== 新增 ==========
 
-    private async void AddNew()
+    private async Task AddNew()
     {
         var newId = -DateTime.Now.Ticks.GetHashCode();
         var newItem = new StandardWorkDayDeliveryStateDto
@@ -215,7 +216,7 @@ public partial class StandardWorkDayDeliveryStates
         {
             _pageItems.Insert(0, newItem);
             StartEdit(newItem);
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
         }
         else
         {
@@ -361,81 +362,6 @@ public partial class StandardWorkDayDeliveryStates
         if (string.IsNullOrEmpty(state)) return "【默认】";
         return DisplayHelper.GetDeliveryStateText(state);
     }
-
-    private RenderFragment RenderCell(StandardWorkDayDeliveryStateDto item, ColumnDef col) => builder =>
-    {
-        var isEditing = _editingIds.Contains(item.Id);
-        var cache = isEditing && _editCache.TryGetValue(item.Id, out var c) ? c : null;
-
-        switch (col.Key)
-        {
-            case "DeliveryState":
-                if (isEditing && cache != null)
-                {
-                    builder.OpenComponent<MudSelect<string>>(0);
-                    builder.AddAttribute(1, "Dense", true);
-                    builder.AddAttribute(2, "Variant", Variant.Outlined);
-                    builder.AddAttribute(3, "Value", cache.DeliveryState);
-                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.DeliveryState = v));
-                    builder.AddAttribute(5, "Class", "compact-input");
-                    builder.AddAttribute(6, "Label", "交货状态");
-                    foreach (var opt in DeliveryStateOptions)
-                    {
-                        builder.OpenRegion(opt.Value.GetHashCode());
-                        builder.OpenComponent<MudSelectItem<string>>(0);
-                        builder.AddAttribute(1, "Value", opt.Value);
-                        builder.AddAttribute(2, "ChildContent", (RenderFragment)((b) => b.AddContent(0, opt.Display)));
-                        builder.CloseComponent();
-                        builder.CloseRegion();
-                    }
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.AddContent(0, GetDeliveryStateDisplay(item.DeliveryState));
-                }
-                break;
-            case "ExtraDays":
-                if (isEditing && cache != null)
-                {
-                    builder.OpenComponent<MudNumericField<double>>(0);
-                    builder.AddAttribute(1, "Dense", true);
-                    builder.AddAttribute(2, "Variant", Variant.Outlined);
-                    builder.AddAttribute(3, "HideSpinButtons", true);
-                    builder.AddAttribute(4, "Value", cache.ExtraDays);
-                    builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<double>(this, v => cache.ExtraDays = v));
-                    builder.AddAttribute(6, "Class", "compact-input");
-                    builder.AddAttribute(7, "Min", 0);
-                    builder.AddAttribute(8, "Max", 365);
-                    builder.AddAttribute(9, "Format", "G29");
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.AddContent(0, item.ExtraDays.ToString("G29"));
-                }
-                break;
-            case "Remark":
-                if (isEditing && cache != null)
-                {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Dense", true);
-                    builder.AddAttribute(2, "Variant", Variant.Outlined);
-                    builder.AddAttribute(3, "Value", cache.Remark);
-                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.Remark = v));
-                    builder.AddAttribute(5, "Class", "compact-input");
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.AddContent(0, item.Remark);
-                }
-                break;
-            default:
-                builder.AddContent(0, "");
-                break;
-        }
-    };
 
     // ========== 持久化 ==========
 

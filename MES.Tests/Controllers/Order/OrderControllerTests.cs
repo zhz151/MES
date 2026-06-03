@@ -35,7 +35,7 @@ public class OrderControllerTests : ControllerTestBase
             .ReturnsAsync(pagedResult);
 
         // Act
-        var result = await _controller.GetPaged(new QueryParams());
+        var result = await _controller.GetPaged(pageIndex: 1, pageSize: 20);
 
         // Assert
         var (_, response) = AssertOk<ApiResponse<PagedResult<SalesOrderListDto>>>(result);
@@ -329,8 +329,8 @@ public class OrderControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>()))
             .ReturnsAsync(new PagedResult<SalesOrderListDto> { Items = new List<SalesOrderListDto>() });
-        var result = await _controller.GetPaged(new QueryParams { PageSize = 9999 });
-        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.PageSize == 9999), It.IsAny<string?>(), It.IsAny<string?>()), Times.Once);
+        var result = await _controller.GetPaged(pageSize: 9999);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.PageSize == 5000), It.IsAny<string?>(), It.IsAny<string?>()), Times.Once);
     }
 
     [Fact]
@@ -338,7 +338,7 @@ public class OrderControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>()))
             .ReturnsAsync(new PagedResult<SalesOrderListDto> { Items = new List<SalesOrderListDto>() });
-        await _controller.GetPaged(new QueryParams { Keyword = "测试" });
+        await _controller.GetPaged(keyword: "测试");
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Keyword == "测试"), It.IsAny<string?>(), It.IsAny<string?>()), Times.Once);
     }
 
@@ -347,7 +347,7 @@ public class OrderControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>()))
             .ReturnsAsync(new PagedResult<SalesOrderListDto> { Items = new List<SalesOrderListDto>() });
-        await _controller.GetPaged(new QueryParams { SortBy = "OrderNumber" });
+        await _controller.GetPaged(sortBy: "OrderNumber");
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "OrderNumber"), It.IsAny<string?>(), It.IsAny<string?>()), Times.Once);
     }
 
@@ -357,7 +357,7 @@ public class OrderControllerTests : ControllerTestBase
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>()))
             .ReturnsAsync(new PagedResult<SalesOrderListDto> { Items = new List<SalesOrderListDto>() });
         var filtersJson = "[{\"Field\":\"Status\",\"Operator\":\"equals\",\"Value\":\"Open\"}]";
-        await _controller.GetPaged(new QueryParams(), filters: filtersJson);
+        await _controller.GetPaged(filters: filtersJson);
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Filters != null && q.Filters.Count > 0), It.IsAny<string?>(), It.IsAny<string?>()), Times.Once);
     }
 
@@ -366,7 +366,7 @@ public class OrderControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>()))
             .ReturnsAsync(new PagedResult<SalesOrderListDto> { Items = new List<SalesOrderListDto>() });
-        await _controller.GetPaged(new QueryParams(), technicalStatus: "已完成");
+        await _controller.GetPaged(technicalStatus: "已完成");
         _serviceMock.Verify(x => x.GetPagedAsync(It.IsAny<QueryParams>(), "已完成", It.IsAny<string?>()), Times.Once);
     }
 
@@ -375,7 +375,7 @@ public class OrderControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>()))
             .ReturnsAsync(new PagedResult<SalesOrderListDto> { Items = new List<SalesOrderListDto>() });
-        await _controller.GetPaged(new QueryParams(), orderStatus: "已确认");
+        await _controller.GetPaged(orderStatus: "已确认");
         _serviceMock.Verify(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), "已确认"), Times.Once);
     }
 }

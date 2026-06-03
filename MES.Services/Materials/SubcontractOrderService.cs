@@ -16,11 +16,24 @@ public class SubcontractOrderService : ISubcontractOrderService
 {
     private readonly AppDbContext _context;
     private readonly IPurchaseOrderService _purchaseService;
+    private readonly IConfigParameterService _configService;
+    private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
-    public SubcontractOrderService(AppDbContext context, IPurchaseOrderService purchaseService)
+    public SubcontractOrderService(AppDbContext context, IPurchaseOrderService purchaseService, IConfigParameterService configService)
     {
         _context = context;
         _purchaseService = purchaseService;
+        _configService = configService;
+    }
+
+    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
+    {
+        if (!_configMaps.TryGetValue(category, out var map))
+        {
+            map = await _configService.GetConfigMapAsync(category);
+            _configMaps[category] = map;
+        }
+        return map.GetValueOrDefault(key, defaultValue);
     }
 
     public async Task<PagedResult<SubcontractOrderDto>> GetPagedAsync(SubcontractQueryParams query)
@@ -458,7 +471,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             if (order.IsForceCompleted)
                 ForceCompleteAllReturnItems(order);
             else
-                RecalcSubcontractStatus(order);
+                await RecalcSubcontractStatus(order);
         }
 
         await _context.SaveChangesAsync();
@@ -489,7 +502,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         if (order.IsForceCompleted)
             ForceCompleteAllReturnItems(order);
         else if (!order.IsForceCompleted)
-            RecalcSubcontractStatus(order);
+            await RecalcSubcontractStatus(order);
 
         await _context.SaveChangesAsync();
     }
@@ -546,7 +559,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         }
         else
         {
-            RecalcSubcontractStatus(entity);
+            await RecalcSubcontractStatus(entity);
             // 取消级联：每个子表按实际回收数据重新计算
             foreach (var item in entity.ReturnItems)
             {
@@ -776,11 +789,14 @@ public class SubcontractOrderService : ISubcontractOrderService
 
     // ========== 私有方法 ==========
 
-    private static void RecalcSubcontractStatus(SubcontractOrder order)
+    private async Task RecalcSubcontractStatus(SubcontractOrder order)
     {
+        var ratio = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteRatio", 0.965m);
+        var deviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
+
         if (order.InWeight == null || order.InWeight == 0)
             order.Status = SubcontractOrderStatus.Sent;
-        else if (PurchaseOrderService.IsThresholdMet(order.InWeight.Value, order.OutWeight))
+        else if (PurchaseOrderService.IsThresholdMet(order.InWeight.Value, order.OutWeight, ratio, deviation))
             order.Status = SubcontractOrderStatus.Completed;
         else
             order.Status = SubcontractOrderStatus.PartialReturned;

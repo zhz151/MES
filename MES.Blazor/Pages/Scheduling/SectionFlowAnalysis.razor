@@ -1,0 +1,157 @@
+@page "/section-flow-analysis"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using MES.Blazor.Helpers
+@using MES.Blazor.Models
+@using Microsoft.AspNetCore.Authorization
+@using System.Text.Json
+@attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
+@inject SectionFlowAnalysisService Service
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject PageStateService PageState
+@inject ColumnPrefsService ColumnPrefs
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <!-- 搜索栏 -->
+    <MudGrid>
+        <MudItem xs="12" md="12">
+            <MudTextField T="string" Label="模糊搜索 - 段落类别"
+                          Value="@_searchKeyword" ValueChanged="@OnSearchChanged"
+                          Immediate="true" DebounceInterval="500"
+                          Dense="true" Variant="Variant.Outlined" Class="mb-4" />
+        </MudItem>
+    </MudGrid>
+
+    <!-- 页面顶部工具栏 -->
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5" Class="font-weight-bold">
+            <MudIcon Icon="@Icons.Material.Filled.Analytics" Class="mr-2" Color="Color.Primary" />
+            生产段流转量分析
+        </MudText>
+        <div class="d-flex align-center">
+            <MudText Typo="Typo.body2" Class="mr-4">
+                共 @_filteredItems.Count 条记录
+            </MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       Disabled="@_isLoading"
+                       OnClick="RefreshDataAsync">
+                <MudIcon Icon="@Icons.Material.Filled.Refresh" Class="mr-1" />
+                刷新
+            </MudButton>
+        </div>
+    </div>
+
+    <!-- 数据表格 -->
+    <MudTable @ref="table" T="SectionFlowAnalysisDto"
+              Items="@_filteredItems"
+              Dense="true" Hover="true" Elevation="0" Class="auto-table"
+              RowsPerPage="25" RowsPerPageLabel="每页行数:">
+        <ToolBarContent>
+            <ColumnDisplaySelect Columns="_allColumns"
+                                 OnColumnToggle="OnColumnToggle"
+                                 OnMoveUp="MoveColumnUp"
+                                 OnMoveDown="MoveColumnDown" />
+            <MudButton Variant="Variant.Text" Size="Size.Small"
+                       Color="Color.Default"
+                       StartIcon="@Icons.Material.Filled.RestartAlt"
+                       OnClick="ResetColumnDisplay" Class="ml-2">
+                重置
+            </MudButton>
+            <MudSpacer />
+            <MudText Typo="Typo.body2" Class="ml-auto">
+                共 @_filteredItems.Count 条记录
+            </MudText>
+        </ToolBarContent>
+        <HeaderContent>
+            @foreach (var col in _visibleColumns)
+            {
+                var colClass = col.Key switch
+                {
+                    "PendingTotal" or "SustainableDays" => "mud-table-cell--right",
+                    "StatusJudgment" => "mud-table-cell--center",
+                    _ => ""
+                };
+                <MudTh Class="@colClass">
+                    <div style="display:inline-flex; align-items:center; gap:4px;">
+                        <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">
+                            @col.Label
+                            @if (sortColumn == col.Key)
+                            {
+                                @(sortDescending ? " ▼" : " ▲")
+                            }
+                        </span>
+                    </div>
+                </MudTh>
+            }
+        </HeaderContent>
+        <RowTemplate Context="item">
+            @foreach (var col in _visibleColumns)
+            {
+                var cellClass = col.Key switch
+                {
+                    "PendingTotal" or "SustainableDays" => "mud-table-cell--right",
+                    "StatusJudgment" => "mud-table-cell--center",
+                    _ => ""
+                };
+                <MudTd Class="@cellClass">
+                    @if (col.Key == "Category")
+                    {
+                        <span class="font-weight-bold">@item.CategoryCode</span>
+                        <text> </text>@item.CategoryName
+                    }
+                    else if (col.Key == "PendingTotal")
+                    {
+                        @RenderInt(item.PendingTotal)
+                    }
+                    else if (col.Key == "SustainableDays")
+                    {
+                        @RenderDecimal(item.SustainableDays)
+                    }
+                    else if (col.Key == "StatusJudgment")
+                    {
+                        <MudChip Size="Size.Small"
+                                 Color="@GetStatusColor(item.StatusJudgment)">
+                            @(item.StatusJudgment ?? "-")
+                        </MudChip>
+                    }
+                    else
+                    {
+                        @("")
+                    }
+                </MudTd>
+            }
+        </RowTemplate>
+        <FooterContent>
+            @foreach (var col in _visibleColumns)
+            {
+                <td class="col-footer-cell @(col.Key == "PendingTotal" || col.Key == "SustainableDays" ? "col-footer-sum" : "")">
+                    @if (col.Key == "PendingTotal")
+                    {
+                        <text>合计: @RenderInt(_filteredItems.Sum(x => x.PendingTotal))</text>
+                    }
+                    else if (col.Key == "SustainableDays" && _filteredItems.Any(x => x.SustainableDays.HasValue))
+                    {
+                        <text>均值: @RenderDecimal(_filteredItems.Where(x => x.SustainableDays.HasValue).Average(x => x.SustainableDays!.Value))</text>
+                    }
+                    else
+                    {
+                        <text>&nbsp;</text>
+                    }
+                </td>
+            }
+        </FooterContent>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[]{10,25,50,100}" />
+        </PagerContent>
+    </MudTable>
+
+    <!-- 加载遮罩 -->
+    <MudOverlay Visible="@_isLoading">
+        <div class="d-flex justify-center align-center" style="height: 100%;">
+            <MudProgressCircular Indeterminate="true" Size="Size.Large" />
+        </div>
+    </MudOverlay>
+</MudContainer>

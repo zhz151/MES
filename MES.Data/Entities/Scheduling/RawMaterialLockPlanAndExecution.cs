@@ -105,6 +105,13 @@ public class RawMaterialLockPlanAndExecution : BaseEntity
     /// <summary>是否执行：CurrentRawMaterialLockRemark <> RawMaterialLockRemark 时为 true</summary>
     public bool? IsExecuted { get; set; }
 
+    // ========== G15: 预执行（页面操作标记）==========
+    /// <summary>执行：用户手动标注"近几日会投料"的工单</summary>
+    public bool IsPreInput { get; set; }
+
+    /// <summary>主号齐全：用户手动标注"近几日投料满足主号用量"</summary>
+    public bool IsMainNoMaterialComplete { get; set; }
+
     // ========== 看板筛选 - 异常标记 ==========
     /// <summary>是否存在异常（交期逾期/锁定未齐全/负工量等）</summary>
     public bool HasAbnormality { get; set; }

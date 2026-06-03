@@ -160,6 +160,7 @@ public partial class MaterialPlanOverview
 
     private async Task<TableData<WorkOrderListDto>> LoadDataFromServer(TableState state)
     {
+        _pageSize = state.PageSize;
         try
         {
             errorMessage = string.Empty;

@@ -1,7 +1,7 @@
 namespace MES.Core.DTOs;
 
 /// <summary>
-/// 原锁计划及执行 DTO（G1+G2+G5+G3+G7+G10+G12+G13+G14）
+/// 原锁计划及执行 DTO（G1+G2+G5+G3+G7+G10+G12+G13+G14+G15）
 /// </summary>
 public class RawMaterialLockPlanAndExecutionDto
 {
@@ -94,12 +94,16 @@ public class RawMaterialLockPlanAndExecutionDto
     public string? CurrentRawMaterialLockRemark { get; set; }
     public bool? IsExecuted { get; set; }
 
-    // ========== G15: 原料锁定操作（从 SalesUrging LEFT JOIN） ==========
+    // ========== G15: 预执行（页面操作标记）==========
+    /// <summary>执行：近几日会投料</summary>
+    public bool IsPreInput { get; set; }
+
+    /// <summary>主号齐全：近几日投料满足主号用量</summary>
+    public bool IsMainNoMaterialComplete { get; set; }
+
+    // ========== 从 SalesUrging LEFT JOIN 读取 ==========
     /// <summary>预计到料日期</summary>
     public DateTime? EstimatedArrivalDate { get; set; }
-
-    /// <summary>主号原锁齐全</summary>
-    public bool IsMainNoMaterialComplete { get; set; }
 
     /// <summary>确认锁定</summary>
     public bool IsLockConfirmed { get; set; }
@@ -119,4 +123,6 @@ public class RawMaterialLockPlanAndExecutionDto
     };
     public string SalesUrgingText => SalesUrging ? "是" : "否";
     public string IsExecutedText => IsExecuted == true ? "是" : "否";
+    public string IsPreInputText => IsPreInput ? "是" : "否";
+    public string IsMainNoMaterialCompleteText => IsMainNoMaterialComplete ? "是" : "否";
 }

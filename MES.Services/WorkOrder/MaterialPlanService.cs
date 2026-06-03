@@ -25,6 +25,11 @@ public class MaterialPlanService : IMaterialPlanService
     private readonly AppDbContext _context;
     private readonly ILogger<MaterialPlanService> _logger;
     private readonly WorkOrderListSummaryService? _listSummaryService;
+    private readonly IStandardWorkDayService _standardWorkDayService;
+    private readonly IStandardWorkDayDeliveryStateService _deliveryStateService;
+    private readonly IConfigParameterService _configService;
+
+    private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
     /// <summary>
     /// 工厂牌号替代映射（高级可替低级）：key=低级, value=高级
@@ -32,37 +37,57 @@ public class MaterialPlanService : IMaterialPlanService
     private static readonly Dictionary<string, string> GradeSubstitutes = Core.Constants.GradeSubstitutes.Mapping;
 
     public MaterialPlanService(AppDbContext context, ILogger<MaterialPlanService> logger,
+        IStandardWorkDayService standardWorkDayService,
+        IStandardWorkDayDeliveryStateService deliveryStateService,
+        IConfigParameterService configService,
         WorkOrderListSummaryService? listSummaryService = null)
     {
         _context = context;
         _logger = logger;
+        _standardWorkDayService = standardWorkDayService;
+        _deliveryStateService = deliveryStateService;
+        _configService = configService;
         _listSummaryService = listSummaryService;
     }
+
+    #region Config cache
+
+    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
+    {
+        if (!_configMaps.TryGetValue(category, out var map))
+        {
+            map = await _configService.GetConfigMapAsync(category);
+            _configMaps[category] = map;
+        }
+        return map.GetValueOrDefault(key, defaultValue);
+    }
+
+    #endregion
 
     #region 工艺周期计算（基于工序组）
 
     /// <summary>
-    /// 从工序组工段列表计算工艺周期（天）：累计所有工段天数 + 交货状态调整
+    /// 从工序组工段列表计算工艺周期（天）：累计所有工段天数 + 交货状态附加天数
     /// </summary>
     internal static int CalculateStandardCycleFromSections(
         List<(string SectionName, int Sequence)> sections,
-        DeliveryState deliveryState,
-        string? plantGrade)
+        Dictionary<string, double> dayMap,
+        Dictionary<string, double> deliveryStateExtraDays,
+        string? deliveryState)
     {
         if (sections.Count == 0) return 0;
 
         double totalDays = 0;
         foreach (var section in sections)
         {
-            totalDays += GetSectionDay(section.SectionName, plantGrade);
+            totalDays += dayMap.GetValueOrDefault(section.SectionName, 0);
         }
 
-        // 交货状态调整：非固溶酸洗/非硬态 +4 天
-        if (deliveryState != DeliveryState.SolutionAnnealedAndPickled
-            && deliveryState != DeliveryState.Hard)
-        {
-            totalDays += 4;
-        }
+        // 交货状态调整：从配置表读取附加天数
+        if (deliveryStateExtraDays.TryGetValue(deliveryState ?? "", out var dsExtra))
+            totalDays += dsExtra;
+        else if (deliveryStateExtraDays.TryGetValue("", out var defaultExtra))
+            totalDays += defaultExtra;
 
         return (int)Math.Round(totalDays, MidpointRounding.AwayFromZero);
     }
@@ -94,12 +119,6 @@ public class MaterialPlanService : IMaterialPlanService
         if (warehouse.HasValue) sections.Add((SectionDefs.Warehouse, warehouse.Value));
         return sections;
     }
-
-    /// <summary>
-    /// 获取工段对应的天数（与 ProductionRecordService 保持一致）
-    /// </summary>
-    internal static double GetSectionDay(string sectionName, string? plantGrade)
-        => SectionDefs.GetStandardDays(sectionName, plantGrade);
 
     #endregion
 
@@ -216,8 +235,11 @@ public class MaterialPlanService : IMaterialPlanService
                     pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
                     pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
             }
+            var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
+            var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
             plan.StandardCycle = CalculateStandardCycleFromSections(
-                semiSections, workOrder.DeliveryState, workOrder.PlantGrade);
+                semiSections, dayMap, deliveryStateExtraDays,
+                workOrder.DeliveryState.ToString());
             if (plan.StandardCycle == 0)
                 throw new BusinessException("工艺周期计算失败：工序组工段数据不完整，无法计算工艺周期");
             _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
@@ -364,8 +386,11 @@ public class MaterialPlanService : IMaterialPlanService
                     pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
                     pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
             }
+            var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
+            var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
             plan.StandardCycle = CalculateStandardCycleFromSections(
-                semiSections, workOrder.DeliveryState, workOrder.PlantGrade);
+                semiSections, dayMap, deliveryStateExtraDays,
+                workOrder.DeliveryState.ToString());
             if (plan.StandardCycle == 0)
                 throw new BusinessException("工艺周期计算失败：工序组工段数据不完整，无法计算工艺周期");
             _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
@@ -426,6 +451,7 @@ public class MaterialPlanService : IMaterialPlanService
         if (workOrder.LengthStatus == LengthStatus.Fixed && (request.RequiredPiece == null || request.RequiredPiece <= 0))
             throw new BusinessException("定尺模式下采购支数不能为空");
 
+        var defaultStandardCycle = (int)await GetConfigAsync("DefaultValue", "StandardCycle", 3m);
         var plan = new PurchaseFinishedPlan
         {
             WorkOrderId = request.WorkOrderId,
@@ -452,7 +478,7 @@ public class MaterialPlanService : IMaterialPlanService
             DeliveryState = Enum.TryParse<DeliveryState>(request.DeliveryState, out var ds)
                 ? ds
                 : DeliveryState.SolutionAnnealedAndPickled,
-            StandardCycle = 3 // 成品采购默认3天
+            StandardCycle = defaultStandardCycle // 成品采购默认天数
         };
 
         using var transaction = await _context.Database.BeginTransactionAsync();
@@ -495,6 +521,7 @@ public class MaterialPlanService : IMaterialPlanService
             throw new BusinessException("工单不存在");
 
         var plans = new List<PurchaseFinishedPlan>();
+        var defaultStandardCycle = (int)await GetConfigAsync("DefaultValue", "StandardCycle", 3m);
         foreach (var request in requests)
         {
             if (workOrder.LengthStatus == LengthStatus.Fixed && (request.RequiredPiece == null || request.RequiredPiece <= 0))
@@ -524,7 +551,7 @@ public class MaterialPlanService : IMaterialPlanService
                 MaxLength = request.MaxLength,
                 DeliveryState = Enum.TryParse<DeliveryState>(request.DeliveryState, out var ds)
                     ? ds : DeliveryState.SolutionAnnealedAndPickled,
-                StandardCycle = 3 // 成品采购默认3天
+                StandardCycle = defaultStandardCycle // 成品采购默认天数
             });
         }
 
@@ -714,8 +741,9 @@ public class MaterialPlanService : IMaterialPlanService
             ReworkType = request.ReworkType != null ? Enum.Parse<ReworkType>(request.ReworkType) : null,
         };
 
+        var defaultStandardCycle = (int)await GetConfigAsync("DefaultValue", "StandardCycle", 3m);
         // 工艺周期（改制计划在工序组设置后通过 ProcessGroup 管理接口重新计算）
-        plan.StandardCycle = 3;
+        plan.StandardCycle = defaultStandardCycle;
 
         _context.InventoryPlans.Add(plan);
         using var transaction = await _context.Database.BeginTransactionAsync();
@@ -773,6 +801,7 @@ public class MaterialPlanService : IMaterialPlanService
             throw new BusinessException($"库存批次 {conflictBatchNo} 已被其他工单的库存使用计划引用");
 
         var plans = new List<InventoryPlan>();
+        var defaultStandardCycle = (int)await GetConfigAsync("DefaultValue", "StandardCycle", 3m);
         foreach (var request in requests)
         {
             if (!batches.TryGetValue(request.InventoryBatchNo, out var batch))
@@ -818,7 +847,7 @@ public class MaterialPlanService : IMaterialPlanService
             };
 
             // 工艺周期（改制计划在工序组设置后通过 ProcessGroup 管理接口重新计算）
-            plan.StandardCycle = 3;
+            plan.StandardCycle = defaultStandardCycle;
 
             plans.Add(plan);
         }
@@ -898,6 +927,14 @@ public class MaterialPlanService : IMaterialPlanService
             .FirstOrDefaultAsync();
         if (density == 0) density = 7.93m; // 默认密度
 
+        // 从配置表读取尺寸公差系数和默认长度
+        var odLowerRatio = await GetConfigAsync("DimensionTolerance", "OdLower", 1.002m);
+        var odUpperRatio = await GetConfigAsync("DimensionTolerance", "OdUpper", 0.998m);
+        var wtLowerRatio = await GetConfigAsync("DimensionTolerance", "WtLower", 1.02m);
+        var wtUpperRatio = await GetConfigAsync("DimensionTolerance", "WtUpper", 0.98m);
+        var unitWeightLength = await GetConfigAsync("LengthDefault", "UnitWeightLength", 4500m);
+        var pipeLength = await GetConfigAsync("LengthDefault", "PipeLength", 6000m);
+
         // 单米重量 = π × 密度 × WT_实际 × (OD_实际 - WT_实际) / 1000
         var unitWeightPerMeter = Math.Round(
             (decimal)Math.PI * density * wtActual * (odActual - wtActual) / 1000m, 6);
@@ -905,23 +942,23 @@ public class MaterialPlanService : IMaterialPlanService
         decimal requiredUnitWeight;
         if (workOrder.LengthStatus == LengthStatus.NonFixed)
         {
-            // 非定尺：默认长度4500mm
-            requiredUnitWeight = Math.Round(unitWeightPerMeter * 4500m / 1000m, 3);
+            // 非定尺：默认长度（从配置表读取）
+            requiredUnitWeight = Math.Round(unitWeightPerMeter * unitWeightLength / 1000m, 3);
         }
         else
         {
             // 定尺/范围尺：取MaxLength
-            var lengthMm = workOrder.MaxLength ?? 6000;
+            var lengthMm = workOrder.MaxLength ?? (int)pipeLength;
             requiredUnitWeight = Math.Round(unitWeightPerMeter * lengthMm / 1000m, 3);
         }
 
         // 外径边界
-        var odMin = Math.Round((od - workOrder.OuterDiameterNegative) * 1.002m, 3);
-        var odMax = Math.Round((od + workOrder.OuterDiameterPositive) * 0.998m, 3);
+        var odMin = Math.Round((od - workOrder.OuterDiameterNegative) * odLowerRatio, 3);
+        var odMax = Math.Round((od + workOrder.OuterDiameterPositive) * odUpperRatio, 3);
 
         // 壁厚边界
-        var wtMin = Math.Round((wt - workOrder.WallThicknessNegative) * 1.02m, 3);
-        var wtMax = Math.Round((wt + workOrder.WallThicknessPositive) * 0.98m, 3);
+        var wtMin = Math.Round((wt - workOrder.WallThicknessNegative) * wtLowerRatio, 3);
+        var wtMax = Math.Round((wt + workOrder.WallThicknessPositive) * wtUpperRatio, 3);
 
         // 获取已被其他未取消库存使用计划引用的批次号（排除当前编辑计划自身）
         var usedBatchNosQuery = _context.InventoryPlans
@@ -1052,14 +1089,26 @@ public class MaterialPlanService : IMaterialPlanService
         var unitWeightPerMeter = Math.Round(
             (decimal)Math.PI * density * calculatedWt * (calculatedOd - calculatedWt) / 1000m, 6);
 
+        // 从配置表读取默认长度和改制系数
+        var unitWeightLength = await GetConfigAsync("LengthDefault", "UnitWeightLength", 4500m);
+        var pipeLength = await GetConfigAsync("LengthDefault", "PipeLength", 6000m);
+        var emptyDrawingOdLower = await GetConfigAsync("ReworkRatio", "EmptyDrawingOdLower", 1.05m);
+        var fewerPassOdLower = await GetConfigAsync("ReworkRatio", "FewerPassOdLower", 1.1m);
+        var odUpper = await GetConfigAsync("ReworkRatio", "OdUpper", 2.0m);
+        var emptyDrawingWtLower = await GetConfigAsync("ReworkRatio", "EmptyDrawingWtLower", 0.95m);
+        var fewerPassWtLower = await GetConfigAsync("ReworkRatio", "FewerPassWtLower", 1.05m);
+        var emptyDrawingWtUpper = await GetConfigAsync("ReworkRatio", "EmptyDrawingWtUpper", 1.05m);
+        var fewerPassWtUpper = await GetConfigAsync("ReworkRatio", "FewerPassWtUpper", 2.0m);
+        var minUnitWeightRatio = await GetConfigAsync("ReworkRatio", "MinUnitWeightRatio", 1.05m);
+
         decimal requiredUnitWeight;
         if (workOrder.LengthStatus == LengthStatus.NonFixed)
         {
-            requiredUnitWeight = Math.Round(unitWeightPerMeter * 4500m / 1000m, 3);
+            requiredUnitWeight = Math.Round(unitWeightPerMeter * unitWeightLength / 1000m, 3);
         }
         else
         {
-            var lengthMm = workOrder.MaxLength ?? 6000;
+            var lengthMm = workOrder.MaxLength ?? (int)pipeLength;
             requiredUnitWeight = Math.Round(unitWeightPerMeter * lengthMm / 1000m, 3);
         }
 
@@ -1115,27 +1164,27 @@ public class MaterialPlanService : IMaterialPlanService
         // 计算各类型边界条件
         var odMin = reworkType switch
         {
-            ReworkType.EmptyDrawing => Math.Round(calculatedOd * 1.05m, 3),
-            ReworkType.FewerPass => Math.Round(calculatedOd * 1.1m, 3),
+            ReworkType.EmptyDrawing => Math.Round(calculatedOd * emptyDrawingOdLower, 3),
+            ReworkType.FewerPass => Math.Round(calculatedOd * fewerPassOdLower, 3),
             _ => 0m // ManualSelect: 不限外径
         };
-        var odMax = Math.Round(calculatedOd * 2m, 3);
+        var odMax = Math.Round(calculatedOd * odUpper, 3);
 
         var wtMin = reworkType switch
         {
-            ReworkType.EmptyDrawing => Math.Round(calculatedWt * 0.95m, 3),
-            ReworkType.FewerPass => Math.Round(calculatedWt * 1.05m, 3),
+            ReworkType.EmptyDrawing => Math.Round(calculatedWt * emptyDrawingWtLower, 3),
+            ReworkType.FewerPass => Math.Round(calculatedWt * fewerPassWtLower, 3),
             ReworkType.ManualSelect => Math.Round(calculatedWt, 3),
             _ => 0m
         };
         var wtMax = reworkType switch
         {
-            ReworkType.EmptyDrawing => Math.Round(calculatedWt * 1.05m, 3),
-            ReworkType.FewerPass => Math.Round(calculatedWt * 2m, 3),
+            ReworkType.EmptyDrawing => Math.Round(calculatedWt * emptyDrawingWtUpper, 3),
+            ReworkType.FewerPass => Math.Round(calculatedWt * fewerPassWtUpper, 3),
             _ => decimal.MaxValue // ManualSelect: 不限壁厚上限
         };
 
-        var minUnitWeight = Math.Round(requiredUnitWeight * 1.05m, 3);
+        var minUnitWeight = Math.Round(requiredUnitWeight * minUnitWeightRatio, 3);
 
         var available = batches
             .Where(b =>
@@ -1382,8 +1431,11 @@ public class MaterialPlanService : IMaterialPlanService
                     pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
                     pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
             }
+            var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
+            var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
             plan.StandardCycle = CalculateStandardCycleFromSections(
-                pierceSections, workOrder.DeliveryState, workOrder.PlantGrade);
+                pierceSections, dayMap, deliveryStateExtraDays,
+                workOrder.DeliveryState.ToString());
             if (plan.StandardCycle == 0)
                 throw new BusinessException("工艺周期计算失败：工序组工段数据不完整，无法计算工艺周期");
             _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
@@ -1520,8 +1572,11 @@ public class MaterialPlanService : IMaterialPlanService
                     pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
                     pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
             }
+            var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
+            var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
             plan.StandardCycle = CalculateStandardCycleFromSections(
-                pierceSections, workOrder.DeliveryState, workOrder.PlantGrade);
+                pierceSections, dayMap, deliveryStateExtraDays,
+                workOrder.DeliveryState.ToString());
             if (plan.StandardCycle == 0)
                 throw new BusinessException("工艺周期计算失败：工序组工段数据不完整，无法计算工艺周期");
             _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
@@ -1614,6 +1669,9 @@ public class MaterialPlanService : IMaterialPlanService
             .FirstOrDefaultAsync(g => g.PlantGrade == workOrder.PlantGrade);
         result.Density = gradeMapping?.Density ?? 7.93m; // 默认密度
 
+        // 从配置表读取默认长度
+        var pipeLength = await GetConfigAsync("LengthDefault", "PipeLength", 6000m);
+
         // 2. 解析外径
         var odOrNull = SpecificationParser.ParseOuterDiameter(workOrder.Specification);
 
@@ -1632,7 +1690,7 @@ public class MaterialPlanService : IMaterialPlanService
         }
 
         // 5. 成品单重(kg/支) = 单米重量 × 最大长度(m) / 1000
-        var maxLengthM = (workOrder.MaxLength ?? 6000) / 1000m;
+        var maxLengthM = (workOrder.MaxLength ?? (int)pipeLength) / 1000m;
         result.UnitWeight = Math.Round(result.UnitWeightPerMeter * maxLengthM, 3);
 
         // 6. 原料单重(kg/支) = 成品单重 ÷ (成材率/100) × 每支产出
@@ -1674,6 +1732,11 @@ public class MaterialPlanService : IMaterialPlanService
         if (workOrder == null)
             throw new BusinessException("工单不存在");
 
+        var fixedPartial = await GetConfigAsync("MaterialPlanStatus", "FixedPartial", 102m);
+        var fixedSatisfied = await GetConfigAsync("MaterialPlanStatus", "FixedSatisfied", 110m);
+        var nonFixedPartial = await GetConfigAsync("MaterialPlanStatus", "NonFixedPartial", 105m);
+        var nonFixedSatisfied = await GetConfigAsync("MaterialPlanStatus", "NonFixedSatisfied", 120m);
+
         var dto = new WorkOrderMaterialPlanDto
         {
             WorkOrderId = workOrder.Id,
@@ -1689,7 +1752,9 @@ public class MaterialPlanService : IMaterialPlanService
             .ToListAsync();
         if (semiPlans.Any())
         {
-            var status = CalculatePlanStatus(workOrder, semiPlans, isSemi: true);
+            var status = CalculatePlanStatus(workOrder, semiPlans, isSemi: true,
+                fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
+                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "Semi",
@@ -1707,7 +1772,9 @@ public class MaterialPlanService : IMaterialPlanService
             .ToListAsync();
         if (finishPlans.Any())
         {
-            var status = CalculatePlanStatus(workOrder, finishPlans, isSemi: false);
+            var status = CalculatePlanStatus(workOrder, finishPlans, isSemi: false,
+                fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
+                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "Finished",
@@ -1729,7 +1796,9 @@ public class MaterialPlanService : IMaterialPlanService
 
         if (regularInventory.Any())
         {
-            var status = CalculateInventoryPlanStatus(workOrder, regularInventory);
+            var status = CalculateInventoryPlanStatus(workOrder, regularInventory, isRework: false,
+                fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
+                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "Inventory",
@@ -1743,7 +1812,9 @@ public class MaterialPlanService : IMaterialPlanService
 
         if (reworkPlans.Any())
         {
-            var status = CalculateInventoryPlanStatus(workOrder, reworkPlans, isRework: true);
+            var status = CalculateInventoryPlanStatus(workOrder, reworkPlans, isRework: true,
+                fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
+                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "Rework",
@@ -1761,7 +1832,9 @@ public class MaterialPlanService : IMaterialPlanService
             .ToListAsync();
         if (piercingPlans.Any())
         {
-            var status = CalculatePlanStatus(workOrder, piercingPlans.Cast<BaseEntity>().ToList(), isSemi: false, isPiercing: true);
+            var status = CalculatePlanStatus(workOrder, piercingPlans.Cast<BaseEntity>().ToList(), isSemi: false, isPiercing: true,
+                fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
+                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "Piercing",
@@ -1781,6 +1854,11 @@ public class MaterialPlanService : IMaterialPlanService
         var workOrder = await _context.WorkOrders.FindAsync(workOrderId);
         if (workOrder == null)
             return;
+
+        var fixedPartial = await GetConfigAsync("MaterialPlanStatus", "FixedPartial", 102m);
+        var fixedSatisfied = await GetConfigAsync("MaterialPlanStatus", "FixedSatisfied", 110m);
+        var nonFixedPartial = await GetConfigAsync("MaterialPlanStatus", "NonFixedPartial", 105m);
+        var nonFixedSatisfied = await GetConfigAsync("MaterialPlanStatus", "NonFixedSatisfied", 120m);
 
         var semiPlans = await _context.PurchaseSemiPlans
             .Where(p => p.WorkOrderId == workOrderId)
@@ -1819,35 +1897,45 @@ public class MaterialPlanService : IMaterialPlanService
 
             if (hasSemi)
             {
-                var s = CalculatePlanStatus(workOrder, semiPlans, isSemi: true);
+                var s = CalculatePlanStatus(workOrder, semiPlans, isSemi: true,
+                    fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
+                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
                 statuses.Add(s);
                 rates.Add(CalculatePlanRate(workOrder, semiPlans, isSemi: true));
             }
 
             if (hasFinish)
             {
-                var s = CalculatePlanStatus(workOrder, finishPlans, isSemi: false);
+                var s = CalculatePlanStatus(workOrder, finishPlans, isSemi: false,
+                    fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
+                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
                 statuses.Add(s);
                 rates.Add(CalculatePlanRate(workOrder, finishPlans, isSemi: false));
             }
 
             if (hasInventory)
             {
-                var s = CalculateInventoryPlanStatus(workOrder, regularInventory);
+                var s = CalculateInventoryPlanStatus(workOrder, regularInventory, isRework: false,
+                    fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
+                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
                 statuses.Add(s);
                 rates.Add(CalculateInventoryPlanRate(workOrder, regularInventory));
             }
 
             if (hasRework)
             {
-                var s = CalculateInventoryPlanStatus(workOrder, reworkPlans, isRework: true);
+                var s = CalculateInventoryPlanStatus(workOrder, reworkPlans, isRework: true,
+                    fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
+                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
                 statuses.Add(s);
                 rates.Add(CalculateInventoryPlanRate(workOrder, reworkPlans));
             }
 
             if (hasPiercing)
             {
-                var s = CalculatePlanStatus(workOrder, piercingPlans.Cast<BaseEntity>().ToList(), isSemi: false, isPiercing: true);
+                var s = CalculatePlanStatus(workOrder, piercingPlans.Cast<BaseEntity>().ToList(), isSemi: false, isPiercing: true,
+                    fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
+                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
                 statuses.Add(s);
                 rates.Add(CalculatePlanRate(workOrder, piercingPlans.Cast<BaseEntity>().ToList(), isSemi: false, isPiercing: true));
             }
@@ -1855,7 +1943,9 @@ public class MaterialPlanService : IMaterialPlanService
             // 工单满足率 = 5种用料相加（总覆盖率）
             var totalRate = Math.Min(rates.Sum(), 999m);
             workOrder.MaterialPlanRate = totalRate;
-            workOrder.MaterialPlanStatus = CalculateOverallStatus(workOrder, totalRate);
+            workOrder.MaterialPlanStatus = CalculateOverallStatus(workOrder, totalRate,
+                fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
+                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
         }
 
         await _context.SaveChangesAsync();
@@ -1865,7 +1955,9 @@ public class MaterialPlanService : IMaterialPlanService
     /// 计算单个计划的状态（工单级，含"理论满足"）
     /// </summary>
     private MaterialPlanStatus CalculatePlanStatus(WoEntity workOrder,
-        IReadOnlyCollection<BaseEntity> plans, bool isSemi, bool isPiercing = false)
+        IReadOnlyCollection<BaseEntity> plans, bool isSemi, bool isPiercing = false,
+        decimal fixedPartial = 102m, decimal fixedSatisfied = 110m,
+        decimal nonFixedPartial = 105m, decimal nonFixedSatisfied = 120m)
     {
         var rate = CalculatePlanRate(workOrder, plans, isSemi, isPiercing);
 
@@ -1873,16 +1965,16 @@ public class MaterialPlanService : IMaterialPlanService
         {
             // 定尺：支数模式
             if (rate < 100m) return MaterialPlanStatus.Partial;
-            if (rate < 102m) return MaterialPlanStatus.TheoreticalSatisfied;
-            if (rate <= 110m) return MaterialPlanStatus.Satisfied;
+            if (rate < fixedPartial) return MaterialPlanStatus.TheoreticalSatisfied;
+            if (rate <= fixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
         else
         {
             // 范围尺/非定尺：重量模式
             if (rate < 100m) return MaterialPlanStatus.Partial;
-            if (rate < 105m) return MaterialPlanStatus.TheoreticalSatisfied;
-            if (rate <= 120m) return MaterialPlanStatus.Satisfied;
+            if (rate < nonFixedPartial) return MaterialPlanStatus.TheoreticalSatisfied;
+            if (rate <= nonFixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
     }
@@ -1976,22 +2068,24 @@ public class MaterialPlanService : IMaterialPlanService
     /// 计算库存使用计划状态（工单级，含"理论满足"）
     /// </summary>
     private MaterialPlanStatus CalculateInventoryPlanStatus(WoEntity workOrder,
-        IReadOnlyCollection<InventoryPlan> plans, bool isRework = false)
+        IReadOnlyCollection<InventoryPlan> plans, bool isRework = false,
+        decimal fixedPartial = 102m, decimal fixedSatisfied = 110m,
+        decimal nonFixedPartial = 105m, decimal nonFixedSatisfied = 120m)
     {
         var rate = CalculateInventoryPlanRate(workOrder, plans);
 
         if (workOrder.LengthStatus == LengthStatus.Fixed)
         {
             if (rate < 100m) return MaterialPlanStatus.Partial;
-            if (rate < 102m) return MaterialPlanStatus.TheoreticalSatisfied;
-            if (rate <= 110m) return MaterialPlanStatus.Satisfied;
+            if (rate < fixedPartial) return MaterialPlanStatus.TheoreticalSatisfied;
+            if (rate <= fixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
         else
         {
             if (rate < 100m) return MaterialPlanStatus.Partial;
-            if (rate < 105m) return MaterialPlanStatus.TheoreticalSatisfied;
-            if (rate <= 120m) return MaterialPlanStatus.Satisfied;
+            if (rate < nonFixedPartial) return MaterialPlanStatus.TheoreticalSatisfied;
+            if (rate <= nonFixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
     }
@@ -1999,22 +2093,24 @@ public class MaterialPlanService : IMaterialPlanService
     /// <summary>
     /// 基于总满足率计算整体状态
     /// </summary>
-    private static MaterialPlanStatus CalculateOverallStatus(WoEntity workOrder, decimal totalRate)
+    private static MaterialPlanStatus CalculateOverallStatus(WoEntity workOrder, decimal totalRate,
+        decimal fixedPartial = 102m, decimal fixedSatisfied = 110m,
+        decimal nonFixedPartial = 105m, decimal nonFixedSatisfied = 120m)
     {
         if (totalRate <= 0) return MaterialPlanStatus.NotPlanned;
 
         if (workOrder.LengthStatus == LengthStatus.Fixed)
         {
             if (totalRate < 100m) return MaterialPlanStatus.Partial;
-            if (totalRate < 102m) return MaterialPlanStatus.TheoreticalSatisfied;
-            if (totalRate <= 110m) return MaterialPlanStatus.Satisfied;
+            if (totalRate < fixedPartial) return MaterialPlanStatus.TheoreticalSatisfied;
+            if (totalRate <= fixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
         else
         {
             if (totalRate < 100m) return MaterialPlanStatus.Partial;
-            if (totalRate < 105m) return MaterialPlanStatus.TheoreticalSatisfied;
-            if (totalRate <= 120m) return MaterialPlanStatus.Satisfied;
+            if (totalRate < nonFixedPartial) return MaterialPlanStatus.TheoreticalSatisfied;
+            if (totalRate <= nonFixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
     }

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Services;
 using MES.Tests.Tests;
@@ -22,7 +23,10 @@ public class InventoryServiceTests : TestBase
     {
         var httpMock = new Mock<IHttpContextAccessor>();
         httpMock.Setup(x => x.HttpContext).Returns((HttpContext?)null);
-        return new InventoryService(ctx, httpMock.Object);
+        var configMock = new Mock<IConfigParameterService>();
+        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
+        return new InventoryService(ctx, httpMock.Object, configMock.Object);
     }
 
     // ========== 入库 ==========

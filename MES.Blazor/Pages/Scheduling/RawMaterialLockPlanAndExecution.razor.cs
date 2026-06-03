@@ -30,13 +30,8 @@ public partial class RawMaterialLockPlanAndExecution
         "PendingRoughTubeQty", "PendingRoughTubeWeight", "PendingOutsourceFinishQty", "PendingOutsourceFinishWeight",
         "TheoreticalFinishQty", "TheoreticalFinishWeight",
         "InputQuantity", "InputWeight", "TheoreticalOutputQty", "TheoreticalOutputWeight",
-        "ValidBatchCount", "ValidInputQuantity", "ValidInputWeight", "ValidOutputQty", "ValidOutputWeight",
-        "ReworkBatchCount", "ReworkInputQuantity", "ReworkInputWeight", "ReworkTheoreticalOutputQty", "ReworkTheoreticalOutputWeight",
         "FlowTotalBatchCount", "FlowIncompleteBatchCount",
-        "DefectiveRawQty", "DefectiveRawWeight", "DefectiveOutputQty", "DefectiveOutputWeight",
-        "InspectionDefectQty", "InspectionDefectWeight",
-        "GeneralDefectWeight", "ScrapWeight",
-        "WarehousingTotalQty", "WarehousingTotalWeight",
+        "GeneralDefectWeight", "SeriousDefectWeight", "ScrapWeight",
     };
 
     private bool _isUpdating;
@@ -75,7 +70,11 @@ public partial class RawMaterialLockPlanAndExecution
             new() { Key = "PlantGrade",              Label = "工厂牌号",        SortKey = "PlantGrade",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "Specification",           Label = "规格",            SortKey = "Specification",           FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "LengthStatus",            Label = "长度状态",        SortKey = "LengthStatus",            FilterType = "enum", Width = "120", EnumOptions = new() { new("Fixed","定尺"), new("Range","范围尺"), new("NonFixed","非定尺") }, Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "MinLength",               Label = "最小长度",        SortKey = "MinLength",               Width = "80", Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "MaxLength",               Label = "最大长度",        SortKey = "MaxLength",               Width = "80", Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "TotalItemCount",          Label = "总项数",          SortKey = "TotalItemCount",          Width = "80", Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "TotalQuantity",           Label = "总支数",          SortKey = "TotalQuantity",           Width = "80", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "TotalMeters",             Label = "总米数",          SortKey = "TotalMeters",             Width = "80", Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "TotalWeight",             Label = "总重量",          SortKey = "TotalWeight",             Width = "80", GroupKey = 1, GroupName = "基础数据" },
         };
 
@@ -85,6 +84,8 @@ public partial class RawMaterialLockPlanAndExecution
             new() { Key = "LatestPlanDate",          Label = "计划截止日",      SortKey = "LatestPlanDate",          Width = "120", GroupKey = 2, GroupName = "用料计划" },
             new() { Key = "MaterialPlanRate",        Label = "满足率(%)",      SortKey = "MaterialPlanRate",        Width = "80",                              GroupKey = 2, GroupName = "用料计划" },
             new() { Key = "MaterialPlanStatus",      Label = "用料计划状态",    SortKey = "MaterialPlanStatus",      FilterType = "enum", Width = "120", EnumOptions = new() { new("0","未计划"), new("1","部分"), new("2","理论满足"), new("3","满足"), new("4","超量") }, GroupKey = 2, GroupName = "用料计划" },
+            new() { Key = "MainNoMaterialPlanRate",  Label = "主号满足率(%)",  SortKey = "MainNoMaterialPlanRate",  Width = "80", Visible = false, GroupKey = 2, GroupName = "用料计划" },
+            new() { Key = "MainNoMaterialPlanStatus",Label = "主号用料计划状态",SortKey = "MainNoMaterialPlanStatus",FilterType = "enum", Width = "120", EnumOptions = new() { new("0","未计划"), new("1","部分"), new("2","理论满足"), new("3","满足"), new("4","超量") }, Visible = false, GroupKey = 2, GroupName = "用料计划" },
             new() { Key = "ProcessCycle",            Label = "工艺周期(天)",    SortKey = "ProcessCycle",            Width = "80",                               GroupKey = 2, GroupName = "用料计划" },
         };
 
@@ -105,8 +106,14 @@ public partial class RawMaterialLockPlanAndExecution
             new() { Key = "InputStartDate",          Label = "原始投料起始日",  SortKey = "InputStartDate",          Width = "120", GroupKey = 3, GroupName = "投料数据" },
             new() { Key = "InputEndDate",            Label = "原始投料截止日",  SortKey = "InputEndDate",            Width = "120", GroupKey = 3, GroupName = "投料数据" },
             new() { Key = "TotalBatchCount",         Label = "原始批次数",     SortKey = "TotalBatchCount",         Width = "80",                              GroupKey = 3, GroupName = "投料数据" },
+            new() { Key = "InputQuantity",           Label = "原始投料支数",    SortKey = "InputQuantity",           Width = "80", Visible = false, GroupKey = 3, GroupName = "投料数据" },
+            new() { Key = "InputWeight",             Label = "原始投料重量",    SortKey = "InputWeight",             Width = "80", Visible = false, GroupKey = 3, GroupName = "投料数据" },
+            new() { Key = "TheoreticalOutputQty",    Label = "理论产出支数",    SortKey = "TheoreticalOutputQty",    Width = "80", Visible = false, GroupKey = 3, GroupName = "投料数据" },
+            new() { Key = "TheoreticalOutputWeight", Label = "理论产出重量",    SortKey = "TheoreticalOutputWeight", Width = "80", Visible = false, GroupKey = 3, GroupName = "投料数据" },
             new() { Key = "InputOutputRatio",        Label = "原始成品比",     SortKey = "InputOutputRatio",        Width = "80",                             GroupKey = 3, GroupName = "投料数据" },
             new() { Key = "InputStatus",             Label = "原始投料状态",    SortKey = "InputStatus",             FilterType = "enum", Width = "120", EnumOptions = new() { new("0","未投料"), new("1","部分"), new("2","满足") }, GroupKey = 3, GroupName = "投料数据" },
+            new() { Key = "MainNoInputOutputRatio",  Label = "主号成品比",     SortKey = "MainNoInputOutputRatio",  Width = "80", Visible = false, GroupKey = 3, GroupName = "投料数据" },
+            new() { Key = "MainNoInputStatus",       Label = "主号投料状态",    SortKey = "MainNoInputStatus",       FilterType = "enum", Width = "120", EnumOptions = new() { new("0","未投料"), new("1","部分"), new("2","满足") }, Visible = false, GroupKey = 3, GroupName = "投料数据" },
         };
 
         // G7: 有效流转
@@ -117,6 +124,8 @@ public partial class RawMaterialLockPlanAndExecution
             new() { Key = "MainNoFlowOutputRatio",  Label = "有效主号流转比", SortKey = "MainNoFlowOutputRatio",   Width = "80", Visible = false,       GroupKey = 7, GroupName = "有效流转" },
             new() { Key = "MainNoFlowStatus",       Label = "有效主号状态",   SortKey = "MainNoFlowStatus",       FilterType = "enum", Width = "120", EnumOptions = new() { new("0","未计划"), new("1","部分"), new("2","满足") }, Visible = false, GroupKey = 7, GroupName = "有效流转" },
             new() { Key = "FlowMaxRemainingWorkDays", Label = "最大剩余工量(天)",SortKey = "FlowMaxRemainingWorkDays", Width = "80",                         GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "FlowTotalBatchCount",        Label = "流转总批次数",   SortKey = "FlowTotalBatchCount",        Width = "80", Visible = false, GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "FlowIncompleteBatchCount",   Label = "流转未完成批次数",SortKey = "FlowIncompleteBatchCount",   Width = "80", Visible = false, GroupKey = 7, GroupName = "有效流转" },
         };
 
         // G10: 汇总不合格
@@ -124,6 +133,8 @@ public partial class RawMaterialLockPlanAndExecution
         {
             new() { Key = "GeneralDefectWeight",     Label = "一般问题重",     SortKey = "GeneralDefectWeight",     Width = "80",                          GroupKey = 10, GroupName = "汇总不合格" },
             new() { Key = "GeneralDefectRatio",      Label = "一般问题占比",   SortKey = "GeneralDefectRatio",      Width = "80",                          GroupKey = 10, GroupName = "汇总不合格" },
+            new() { Key = "SeriousDefectWeight",     Label = "严重问题重",     SortKey = "SeriousDefectWeight",     Width = "80", Visible = false,         GroupKey = 10, GroupName = "汇总不合格" },
+            new() { Key = "SeriousDefectRatio",      Label = "严重问题占比",   SortKey = "SeriousDefectRatio",      Width = "80", Visible = false,         GroupKey = 10, GroupName = "汇总不合格" },
             new() { Key = "ScrapWeight",             Label = "成检报废重量",   SortKey = "ScrapWeight",            Width = "80",                          GroupKey = 10, GroupName = "汇总不合格" },
             new() { Key = "ScrapRatio",              Label = "成检报废占比",   SortKey = "ScrapRatio",              Width = "80",                          GroupKey = 10, GroupName = "汇总不合格" },
         };
@@ -154,6 +165,13 @@ public partial class RawMaterialLockPlanAndExecution
             new() { Key = "IsExecuted",                   Label = "已执行",        SortKey = "IsExecuted",                    FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 14, GroupName = "执行情况" },
         };
 
+        // G15: 预执行（页面操作标记）
+        var g15 = new List<ColumnDef>
+        {
+            new() { Key = "IsPreInput",                  Label = "执行",          SortKey = "IsPreInput",                    FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 15, GroupName = "预执行" },
+            new() { Key = "IsMainNoMaterialComplete",    Label = "主号齐全",      SortKey = "IsMainNoMaterialComplete",      FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 15, GroupName = "预执行" },
+        };
+
         var all = new List<ColumnDef>();
         all.AddRange(g1);
         all.AddRange(g2);
@@ -164,6 +182,7 @@ public partial class RawMaterialLockPlanAndExecution
         all.AddRange(g12);
         all.AddRange(g13);
         all.AddRange(g14);
+        all.AddRange(g15);
         return all;
     }
 
@@ -224,6 +243,9 @@ public partial class RawMaterialLockPlanAndExecution
 
     private async Task<TableData<RawMaterialLockPlanAndExecutionDto>> LoadDataFromServer(TableState state)
     {
+        // 保持 RowsPerPage 与用户选择同步，避免排序/筛选后复位
+        _pageSize = state.PageSize;
+
         if (_isFirstLoad)
         {
             state.Page = _restoredPageIndex;
@@ -461,6 +483,28 @@ public partial class RawMaterialLockPlanAndExecution
         if (table != null) await table.ReloadServerData();
     }
 
+    // ========== 预执行内联操作 ==========
+
+    private async Task TogglePreInput(RawMaterialLockPlanAndExecutionDto item, bool newValue)
+    {
+        var ids = new List<int> { item.WorkOrderId };
+        var result = await RawMaterialLockPlanService.SetPreExecuteFlagsAsync(ids, newValue, null);
+        if (result.Success)
+            item.IsPreInput = newValue;
+        else
+            Snackbar.Add(result.Message ?? "操作失败", Severity.Error);
+    }
+
+    private async Task ToggleMainNoComplete(RawMaterialLockPlanAndExecutionDto item, bool newValue)
+    {
+        var ids = new List<int> { item.WorkOrderId };
+        var result = await RawMaterialLockPlanService.SetPreExecuteFlagsAsync(ids, null, newValue);
+        if (result.Success)
+            item.IsMainNoMaterialComplete = newValue;
+        else
+            Snackbar.Add(result.Message ?? "操作失败", Severity.Error);
+    }
+
     // ========== 分组 CSS ==========
 
     private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
@@ -476,6 +520,7 @@ public partial class RawMaterialLockPlanAndExecution
             12 => "col-g12",
             13 => "col-g13",
             14 => "col-g14",
+            15 => "col-g15",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start";
@@ -495,6 +540,7 @@ public partial class RawMaterialLockPlanAndExecution
             12 => "col-g12-cell",
             13 => "col-g13-cell",
             14 => "col-g14-cell",
+            15 => "col-g15-cell",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
@@ -601,8 +647,20 @@ public partial class RawMaterialLockPlanAndExecution
             case "LengthStatus":
                 builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
                 break;
+            case "MinLength":
+                builder.AddContent(0, item.MinLength?.ToString("G29") ?? "-");
+                break;
+            case "MaxLength":
+                builder.AddContent(0, item.MaxLength?.ToString("G29") ?? "-");
+                break;
             case "TotalQuantity":
                 builder.AddContent(0, item.TotalQuantity);
+                break;
+            case "TotalItemCount":
+                builder.AddContent(0, item.TotalItemCount);
+                break;
+            case "TotalMeters":
+                builder.AddContent(0, ((int)item.TotalMeters).ToString());
                 break;
             case "TotalWeight":
                 builder.AddContent(0, ((int)item.TotalWeight).ToString());
@@ -624,6 +682,16 @@ public partial class RawMaterialLockPlanAndExecution
                 break;
             case "ProcessCycle":
                 builder.AddContent(0, item.ProcessCycle > 0 ? $"{item.ProcessCycle}天" : "-");
+                break;
+            case "MainNoMaterialPlanRate":
+                builder.AddContent(0, item.MainNoMaterialPlanRate > 0 ? $"{item.MainNoMaterialPlanRate:F1}%" : "-");
+                break;
+            case "MainNoMaterialPlanStatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetPlanStatusColor(item.MainNoMaterialPlanStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetMaterialPlanStatusText(item.MainNoMaterialPlanStatus))));
+                builder.CloseComponent();
                 break;
 
             // G5
@@ -666,6 +734,28 @@ public partial class RawMaterialLockPlanAndExecution
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetInputStatusText(item.InputStatus))));
                 builder.CloseComponent();
                 break;
+            case "InputQuantity":
+                builder.AddContent(0, item.InputQuantity > 0 ? item.InputQuantity.ToString() : "-");
+                break;
+            case "InputWeight":
+                builder.AddContent(0, item.InputWeight > 0 ? ((int)item.InputWeight).ToString() : "-");
+                break;
+            case "TheoreticalOutputQty":
+                builder.AddContent(0, item.TheoreticalOutputQty > 0 ? ((int)item.TheoreticalOutputQty).ToString() : "-");
+                break;
+            case "TheoreticalOutputWeight":
+                builder.AddContent(0, item.TheoreticalOutputWeight > 0 ? ((int)item.TheoreticalOutputWeight).ToString() : "-");
+                break;
+            case "MainNoInputOutputRatio":
+                builder.AddContent(0, item.MainNoInputOutputRatio > 0 ? $"{item.MainNoInputOutputRatio:F1}%" : "-");
+                break;
+            case "MainNoInputStatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetInputStatusColor(item.MainNoInputStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetInputStatusText(item.MainNoInputStatus))));
+                builder.CloseComponent();
+                break;
 
             // G7
             case "FlowOutputRatio":
@@ -691,6 +781,12 @@ public partial class RawMaterialLockPlanAndExecution
             case "FlowMaxRemainingWorkDays":
                 builder.AddContent(0, item.FlowMaxRemainingWorkDays > 0 ? $"{item.FlowMaxRemainingWorkDays}天" : "-");
                 break;
+            case "FlowTotalBatchCount":
+                builder.AddContent(0, item.FlowTotalBatchCount > 0 ? item.FlowTotalBatchCount.ToString() : "-");
+                break;
+            case "FlowIncompleteBatchCount":
+                builder.AddContent(0, item.FlowIncompleteBatchCount > 0 ? item.FlowIncompleteBatchCount.ToString() : "-");
+                break;
 
             // G10
             case "GeneralDefectWeight":
@@ -698,6 +794,12 @@ public partial class RawMaterialLockPlanAndExecution
                 break;
             case "GeneralDefectRatio":
                 builder.AddContent(0, item.GeneralDefectRatio > 0 ? $"{item.GeneralDefectRatio:F1}%" : "-");
+                break;
+            case "SeriousDefectWeight":
+                builder.AddContent(0, item.SeriousDefectWeight > 0 ? ((int)item.SeriousDefectWeight).ToString() : "-");
+                break;
+            case "SeriousDefectRatio":
+                builder.AddContent(0, item.SeriousDefectRatio > 0 ? $"{item.SeriousDefectRatio:F1}%" : "-");
                 break;
             case "ScrapWeight":
                 builder.AddContent(0, item.ScrapWeight > 0 ? ((int)item.ScrapWeight).ToString() : "-");
@@ -747,6 +849,38 @@ public partial class RawMaterialLockPlanAndExecution
                 break;
             case "IsExecuted":
                 builder.AddContent(0, item.IsExecutedText);
+                break;
+
+            // G15: 预执行
+            case "IsPreInput":
+                builder.OpenElement(0, "div");
+                builder.AddAttribute(1, "style", "display:flex; align-items:center; gap:4px;");
+                builder.OpenComponent<MudSwitch<bool>>(2);
+                builder.AddAttribute(3, "Value", item.IsPreInput);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, async v =>
+                {
+                    await TogglePreInput(item, v);
+                }));
+                builder.AddAttribute(5, "Color", Color.Primary);
+                builder.AddAttribute(6, "Dense", true);
+                builder.CloseComponent();
+                builder.AddContent(7, item.IsPreInput ? "是" : "否");
+                builder.CloseElement();
+                break;
+            case "IsMainNoMaterialComplete":
+                builder.OpenElement(0, "div");
+                builder.AddAttribute(1, "style", "display:flex; align-items:center; gap:4px;");
+                builder.OpenComponent<MudSwitch<bool>>(2);
+                builder.AddAttribute(3, "Value", item.IsMainNoMaterialComplete);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, async v =>
+                {
+                    await ToggleMainNoComplete(item, v);
+                }));
+                builder.AddAttribute(5, "Color", Color.Primary);
+                builder.AddAttribute(6, "Dense", true);
+                builder.CloseComponent();
+                builder.AddContent(7, item.IsMainNoMaterialComplete ? "是" : "否");
+                builder.CloseElement();
                 break;
         }
     };

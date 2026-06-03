@@ -103,10 +103,14 @@ public class AppDbContext : IdentityDbContext<AppUser>
     // ========== Scheduling 上下文 ==========
     public DbSet<SalesUrging> SalesUrgings { get; set; } = null!;
     public DbSet<RawMaterialLockPlanAndExecution> RawMaterialLockPlanAndExecutions { get; set; } = null!;
+    public DbSet<SectionFlowCategorySetting> SectionFlowCategorySettings { get; set; } = null!;
+    public DbSet<SectionFlowCategoryItem> SectionFlowCategoryItems { get; set; } = null!;
+    public DbSet<WorkOrderSchedule> WorkOrderSchedules { get; set; } = null!;
 
     // ========== Configuration 上下文 ==========
     public DbSet<StandardWorkDay> StandardWorkDays { get; set; } = null!;
     public DbSet<StandardWorkDayDeliveryState> StandardWorkDayDeliveryStates { get; set; } = null!;
+    public DbSet<ConfigParameter> ConfigParameters { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -186,10 +190,14 @@ public class AppDbContext : IdentityDbContext<AppUser>
         // ========== Scheduling 上下文 ==========
         ConfigureSalesUrging(builder);
         ConfigureRawMaterialLockPlanAndExecution(builder);
+        ConfigureSectionFlowCategorySetting(builder);
+        ConfigureSectionFlowCategoryItem(builder);
+        ConfigureWorkOrderSchedule(builder);
 
         // ========== Configuration 上下文 ==========
         ConfigureStandardWorkDay(builder);
         ConfigureStandardWorkDayDeliveryState(builder);
+        ConfigureConfigParameter(builder);
 
         // 为所有继承 BaseEntity 的实体统一配置审计字段长度
         foreach (var entityType in builder.Model.GetEntityTypes())
@@ -2152,6 +2160,10 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.CurrentRawMaterialLockRemark).HasMaxLength(20);
             entity.Property(e => e.IsExecuted).HasColumnType("bit");
 
+            // G15: 预执行（页面操作标记）
+            entity.Property(e => e.IsPreInput).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.IsMainNoMaterialComplete).IsRequired().HasDefaultValue(false);
+
             // 索引
             entity.HasIndex(e => e.WorkOrderId).IsUnique().HasDatabaseName("UK_RMLPAE_WorkOrderId");
             entity.HasIndex(e => e.WorkOrderNo).HasDatabaseName("IX_RMLPAE_WorkOrderNo");
@@ -2190,6 +2202,102 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => new { e.DeliveryState, e.PlantGradePrefix })
                 .IsUnique()
                 .HasDatabaseName("UK_SWDDS_DeliveryState_PlantGradePrefix");
+        });
+    }
+
+    private static void ConfigureConfigParameter(ModelBuilder builder)
+    {
+        builder.Entity<ConfigParameter>(entity =>
+        {
+            entity.ToTable("ConfigParameters");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Category).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ParamKey).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ParamValue).IsRequired().HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Remark).HasMaxLength(200);
+            entity.HasIndex(e => new { e.Category, e.ParamKey })
+                .IsUnique()
+                .HasDatabaseName("UK_CP_Category_ParamKey");
+        });
+    }
+
+    private static void ConfigureSectionFlowCategorySetting(ModelBuilder builder)
+    {
+        builder.Entity<SectionFlowCategorySetting>(entity =>
+        {
+            entity.ToTable("SectionFlowCategorySettings");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CategoryCode).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.CategoryName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DailyProductionTarget).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.LowerLimitDays).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.UpperLimitDays).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Remark).HasMaxLength(200);
+            entity.HasIndex(e => e.CategoryCode)
+                .IsUnique()
+                .HasDatabaseName("UK_SFCS_CategoryCode");
+        });
+    }
+
+    private static void ConfigureSectionFlowCategoryItem(ModelBuilder builder)
+    {
+        builder.Entity<SectionFlowCategoryItem>(entity =>
+        {
+            entity.ToTable("SectionFlowCategoryItems");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ProcessGroupName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SectionName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Coefficient).IsRequired().HasColumnType("decimal(18,4)");
+            entity.HasOne(e => e.Setting)
+                .WithMany(s => s.Items)
+                .HasForeignKey(e => e.SettingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => new { e.SettingId, e.ProcessGroupName, e.SectionName })
+                .IsUnique()
+                .HasDatabaseName("UK_SFCI_SettingId_ProcessGroupName_SectionName");
+        });
+    }
+
+    private static void ConfigureWorkOrderSchedule(ModelBuilder builder)
+    {
+        builder.Entity<WorkOrderSchedule>(entity =>
+        {
+            entity.ToTable("WorkOrderSchedules");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.WorkOrderNo).IsRequired().HasMaxLength(50);
+
+            // G1
+            entity.Property(e => e.Salesman).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.CustomerName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.SettlementMethod).HasMaxLength(50);
+            entity.Property(e => e.SalesOrderNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ProductionMainNo).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.ProductionSubNo).HasMaxLength(20);
+            entity.Property(e => e.MaterialName).HasMaxLength(50);
+            entity.Property(e => e.DeliveryState).HasMaxLength(100);
+            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.LengthStatus).HasMaxLength(20);
+            entity.Property(e => e.MinLength).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.MaxLength).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.TotalMeters).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.TotalWeight).HasColumnType("decimal(18,2)");
+
+            // G7
+            entity.Property(e => e.FlowOutputRatio).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.MainNoFlowOutputRatio).HasColumnType("decimal(18,2)");
+
+            // G12
+            entity.Property(e => e.UrgencyLevel).HasMaxLength(20);
+            entity.Property(e => e.RawMaterialLockRemark).HasMaxLength(200);
+
+            // G13
+            entity.Property(e => e.UrgingRemark).HasMaxLength(500);
+
+            // 唯一约束：一个工单一条记录
+            entity.HasIndex(e => e.WorkOrderId)
+                .IsUnique()
+                .HasDatabaseName("UK_WOS_WorkOrderId");
         });
     }
 }

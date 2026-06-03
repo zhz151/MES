@@ -28,7 +28,7 @@
                 <div class="d-flex align-center flex-wrap" Style="gap:4px;">
                     <MudIcon Icon="@Icons.Material.Filled.Assignment" Color="Color.Primary" Size="Size.Small" />
                     <MudText Typo="Typo.subtitle1" Class="font-weight-bold mr-1">工单详情</MudText>
-                    <MudChip Size="Size.Small" Color="@GetStatusColor(workOrder.Status)">@workOrder.StatusText</MudChip>
+                    <MudChip Size="Size.Small" Color="@DisplayHelper.GetWorkOrderStatusColor(workOrder.Status)">@DisplayHelper.GetWorkOrderStatusText(workOrder.Status)</MudChip>
                     <MudText Typo="Typo.body2" Color="Color.Primary" Class="font-weight-bold ml-2">@workOrder.WorkOrderNo</MudText>
                 </div>
                 <div class="d-flex align-center flex-wrap" Style="gap:4px;">

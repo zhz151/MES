@@ -26,10 +26,14 @@ public class ProductionRecordServiceTests : TestBase
         var mockDsSvc = new Mock<IStandardWorkDayDeliveryStateService>();
         mockDsSvc.Setup(s => s.GetDeliveryStateExtraDaysMapAsync())
             .ReturnsAsync(new Dictionary<string, double>());
+        var configMock = new Mock<IConfigParameterService>();
+        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
         return new(ctx,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<ProductionRecordService>.Instance,
             mockDaySvc.Object,
-            mockDsSvc.Object);
+            mockDsSvc.Object,
+            configMock.Object);
     }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")

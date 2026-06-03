@@ -31,7 +31,7 @@ public class WarehouseControllerTests : ControllerTestBase
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<bool?>())).ReturnsAsync(pagedResult);
 
         // Act
-        var result = await _controller.GetPaged(new QueryParams());
+        var result = await _controller.GetPaged(pageIndex: 1, pageSize: 20);
 
         // Assert
         var (_, response) = AssertOk<ApiResponse<PagedResult<WarehouseDto>>>(result);
@@ -171,7 +171,7 @@ public class WarehouseControllerTests : ControllerTestBase
             .ReturnsAsync(new PagedResult<WarehouseDto> { Items = new List<WarehouseDto>() });
 
         // Act
-        await _controller.GetPaged(new QueryParams { Keyword = "测试搜索" });
+        await _controller.GetPaged(keyword: "测试搜索");
 
         // Assert
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Keyword == "测试搜索"), It.IsAny<bool?>()), Times.Once);
@@ -185,7 +185,7 @@ public class WarehouseControllerTests : ControllerTestBase
             .ReturnsAsync(new PagedResult<WarehouseDto> { Items = new List<WarehouseDto>() });
 
         // Act
-        await _controller.GetPaged(new QueryParams { SortBy = "Name", IsDescending = false });
+        await _controller.GetPaged(sortBy: "Name", isDescending: false);
 
         // Assert
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "Name" && q.IsDescending == false), It.IsAny<bool?>()), Times.Once);
@@ -199,7 +199,7 @@ public class WarehouseControllerTests : ControllerTestBase
             .ReturnsAsync(new PagedResult<WarehouseDto> { Items = new List<WarehouseDto>() });
 
         // Act
-        await _controller.GetPaged(new QueryParams());
+        await _controller.GetPaged(pageIndex: 1, pageSize: 20);
 
         // Assert
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "CreatedTime"), It.IsAny<bool?>()), Times.Once);
@@ -215,7 +215,7 @@ public class WarehouseControllerTests : ControllerTestBase
         var filtersJson = "[{\"Field\":\"Name\",\"Operator\":\"contains\",\"Value\":\"test\"}]";
 
         // Act
-        await _controller.GetPaged(new QueryParams(), filters: filtersJson);
+        await _controller.GetPaged(filters: filtersJson);
 
         // Assert
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q =>

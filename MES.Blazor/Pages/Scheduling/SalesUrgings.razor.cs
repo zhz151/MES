@@ -89,6 +89,9 @@ public partial class SalesUrgings
 
     private async Task<TableData<SalesUrgingDto>> LoadDataFromServer(TableState state)
     {
+        // 保持 RowsPerPage 与用户选择同步，避免排序/筛选后复位
+        _pageSize = state.PageSize;
+
         // 恢复持久化的页码（MudTable 初始化时始终传 page=0）
         if (_isFirstLoad)
         {

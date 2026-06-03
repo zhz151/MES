@@ -1,0 +1,106 @@
+@page "/section-production-status"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using MES.Blazor.Helpers
+@using MES.Blazor.Models
+@using MES.Blazor.Components
+@using Microsoft.AspNetCore.Authorization
+@using System.Text.Json
+@attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
+@inject SectionProductionStatusService Service
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+@inject PageStateService PageState
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <!-- 搜索栏 -->
+    <MudGrid>
+        <MudItem xs="12" md="12">
+            <MudTextField T="string" Label="模糊搜索 - 工序组、工段"
+                          Value="@_searchKeyword" ValueChanged="@OnSearchChanged"
+                          Immediate="true" DebounceInterval="500"
+                          Dense="true" Variant="Variant.Outlined" Class="mb-4" />
+        </MudItem>
+    </MudGrid>
+
+    <!-- 页面顶部工具栏 -->
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5" Class="font-weight-bold">
+            <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" Color="Color.Primary" />
+            生产工段待产量现况
+        </MudText>
+        <div class="d-flex align-center">
+            <MudText Typo="Typo.body2" Class="mr-4">
+                共 @_filteredItems.Count 条记录
+            </MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       Disabled="@_isLoading"
+                       OnClick="RefreshDataAsync">
+                <MudIcon Icon="@Icons.Material.Filled.Refresh" Class="mr-1" />
+                刷新
+            </MudButton>
+        </div>
+    </div>
+
+    <!-- 数据表格 -->
+    <MudTable @ref="table" T="SectionProductionStatusDto"
+              Items="@_filteredItems"
+              Dense="true" Hover="true" Elevation="0" Class="auto-table"
+              RowsPerPage="25" RowsPerPageLabel="每页行数:">
+        <HeaderContent>
+            @foreach (var col in _visibleColumns)
+            {
+                <MudTh>
+                    <div class="col-header-cell">
+                        <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">
+                            @col.Label
+                            @if (sortColumn == col.Key)
+                            {
+                                @(sortDescending ? " ▼" : " ▲")
+                            }
+                        </span>
+                        @if (col.FilterType != null)
+                        {
+                            <ExcelFilter T="SectionProductionStatusDto"
+                                         Label="@col.Label"
+                                         FieldKey="@col.Key"
+                                         FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"
+                                         ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                         FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))" />
+                        }
+                    </div>
+                </MudTh>
+            }
+        </HeaderContent>
+        <RowTemplate>
+            @{ var item = context; }
+            @foreach (var col in _visibleColumns)
+            {
+                <MudTd Class="@(col.Key != "ProcessGroupName" && col.Key != "SectionName" ? "mud-table-cell--right" : "")">
+                    @RenderCell(item, col)
+                </MudTd>
+            }
+        </RowTemplate>
+        <FooterContent>
+            @foreach (var col in _visibleColumns)
+            {
+                <MudTd Class="col-footer-cell">
+                    <span class="col-footer-sum">@RenderFooterCell(col)</span>
+                </MudTd>
+            }
+        </FooterContent>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[]{10,25,50,100}" />
+        </PagerContent>
+    </MudTable>
+
+    <!-- 加载遮罩 -->
+    <MudOverlay Visible="@_isLoading">
+        <div class="d-flex justify-center align-center" style="height: 100%;">
+            <MudProgressCircular Indeterminate="true" Size="Size.Large" />
+        </div>
+    </MudOverlay>
+</MudContainer>

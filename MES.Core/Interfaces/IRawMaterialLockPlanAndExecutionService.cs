@@ -19,4 +19,10 @@ public interface IRawMaterialLockPlanAndExecutionService
 
     /// <summary>获取筛选上下文</summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
+
+    /// <summary>批量设置预执行标记（执行/主号齐全）</summary>
+    /// <param name="workOrderIds">工单ID列表</param>
+    /// <param name="isPreInput">设置执行标记（null=不修改）</param>
+    /// <param name="isMainNoMaterialComplete">设置主号齐全标记（null=不修改）</param>
+    Task<int> SetPreExecuteFlagsAsync(List<int> workOrderIds, bool? isPreInput, bool? isMainNoMaterialComplete);
 }

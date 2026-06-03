@@ -31,7 +31,7 @@ public class GradeMappingControllerTests : ControllerTestBase
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>())).ReturnsAsync(pagedResult);
 
         // Act
-        var result = await _controller.GetPaged(new QueryParams());
+        var result = await _controller.GetPaged(pageIndex: 1, pageSize: 20);
 
         // Assert
         var (_, response) = AssertOk<ApiResponse<PagedResult<StandardGradeMappingDto>>>(result);
@@ -242,7 +242,7 @@ public class GradeMappingControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
             .ReturnsAsync(new PagedResult<StandardGradeMappingDto> { Items = new List<StandardGradeMappingDto>() });
-        await _controller.GetPaged(new QueryParams { Keyword = "测试" });
+        await _controller.GetPaged(keyword: "测试");
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Keyword == "测试")), Times.Once);
     }
 
@@ -251,7 +251,7 @@ public class GradeMappingControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
             .ReturnsAsync(new PagedResult<StandardGradeMappingDto> { Items = new List<StandardGradeMappingDto>() });
-        await _controller.GetPaged(new QueryParams { SortBy = "Code", IsDescending = false });
+        await _controller.GetPaged(sortBy: "Code", isDescending: false);
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "Code" && q.IsDescending == false)), Times.Once);
     }
 
@@ -260,7 +260,7 @@ public class GradeMappingControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
             .ReturnsAsync(new PagedResult<StandardGradeMappingDto> { Items = new List<StandardGradeMappingDto>() });
-        await _controller.GetPaged(new QueryParams());
+        await _controller.GetPaged(pageIndex: 1, pageSize: 20);
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "CreatedTime")), Times.Once);
     }
 
@@ -270,7 +270,7 @@ public class GradeMappingControllerTests : ControllerTestBase
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
             .ReturnsAsync(new PagedResult<StandardGradeMappingDto> { Items = new List<StandardGradeMappingDto>() });
         var filtersJson = "[{\"Field\":\"Code\",\"Operator\":\"contains\",\"Value\":\"T\"}]";
-        await _controller.GetPaged(new QueryParams(), filters: filtersJson);
+        await _controller.GetPaged(filters: filtersJson);
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q =>
             q.Filters != null && q.Filters.Count == 1 && q.Filters[0].Field == "Code")), Times.Once);
     }

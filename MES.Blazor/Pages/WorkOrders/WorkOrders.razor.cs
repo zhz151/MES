@@ -151,6 +151,7 @@ public partial class WorkOrders
 
     private async Task<TableData<WorkOrderListDto>> LoadDataFromServer(TableState state)
     {
+        _pageSize = state.PageSize;
         try
         {
             // 首次加载覆盖页码（MudTable 初始化时始终传 page=0）
@@ -476,8 +477,8 @@ public partial class WorkOrders
             case "Status":
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", GetStatusColor(item.Status));
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.StatusText)));
+                builder.AddAttribute(2, "Color", DisplayHelper.GetWorkOrderStatusColor(item.Status));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetWorkOrderStatusText(item.Status))));
                 builder.CloseComponent();
                 break;
             case "MaterialPlanStatus":

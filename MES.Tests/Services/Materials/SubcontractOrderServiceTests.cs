@@ -18,7 +18,13 @@ namespace MES.Tests.Services;
 /// </summary>
 public class SubcontractOrderServiceTests : TestBase
 {
-    private SubcontractOrderService CreateService(AppDbContext ctx) => new(ctx, new Mock<IPurchaseOrderService>().Object);
+    private SubcontractOrderService CreateService(AppDbContext ctx)
+    {
+        var configMock = new Mock<IConfigParameterService>();
+        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
+        return new SubcontractOrderService(ctx, new Mock<IPurchaseOrderService>().Object, configMock.Object);
+    }
 
     private async Task<int> SeedSupplierAsync(AppDbContext ctx, string name = "委外供应商")
     {

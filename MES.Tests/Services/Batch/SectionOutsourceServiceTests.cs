@@ -23,7 +23,10 @@ public class SectionOutsourceServiceTests : TestBase
     {
         var loggerMock = new Mock<ILogger<SectionOutsourceService>>();
         var prodRecSvcMock = new Mock<IProductionRecordService>();
-        return new SectionOutsourceService(ctx, loggerMock.Object, prodRecSvcMock.Object);
+        var configMock = new Mock<IConfigParameterService>();
+        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
+        return new SectionOutsourceService(ctx, loggerMock.Object, prodRecSvcMock.Object, configMock.Object);
     }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")

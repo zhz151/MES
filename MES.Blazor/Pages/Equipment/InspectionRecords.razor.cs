@@ -75,6 +75,7 @@ public partial class InspectionRecords
 
     private async Task<TableData<InspectionRecordListDto>> LoadDataFromServer(TableState state)
     {
+        _pageSize = state.PageSize;
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "id";

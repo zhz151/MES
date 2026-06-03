@@ -1,0 +1,195 @@
+@page "/section-flow-category-settings"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using MES.Blazor.Shared
+@using Microsoft.AspNetCore.Authorization
+@inject SectionFlowAnalysisService Service
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = Roles.Policies.AdminOnly)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Tune" Class="mr-2" Color="Color.Primary" />
+                    段落分类及变异量系数设置
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudText Typo="Typo.body2" Class="mr-4">
+                    共 @_items.Count 个类别
+                </MudText>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Disabled="@_isLoading"
+                           OnClick="LoadDataAsync">
+                    <MudIcon Icon="@Icons.Material.Filled.Refresh" Class="mr-1" />
+                    刷新
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <MudTable @ref="table"
+                      T="SectionFlowCategorySettingDto"
+                      Items="@_items"
+                      Dense="true" Hover="true" Elevation="0" Class="auto-table"
+                      RowsPerPage="25" RowsPerPageLabel="每页行数:">
+                <HeaderContent>
+                    <MudTh Style="width: 36px;"></MudTh>
+                    <MudTh><span class="th-label">编码</span></MudTh>
+                    <MudTh><span class="th-label">类别名称</span></MudTh>
+                    <MudTh Class="mud-table-cell--right"><span class="th-label">变异量预算日产</span></MudTh>
+                    <MudTh Class="mud-table-cell--right"><span class="th-label">偏少天数值</span></MudTh>
+                    <MudTh Class="mud-table-cell--right"><span class="th-label">过多天数值</span></MudTh>
+                    <MudTh><span class="th-label">备注</span></MudTh>
+                    <MudTh Style="width: 90px;">操作</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="item">
+                    @{
+                        var rowEditing = _editingIds.Contains(item.Id);
+                        var rowCache = rowEditing && _editCache.TryGetValue(item.Id, out var rc) ? rc : null;
+                        var isExpanded = _expandedIds.Contains(item.Id);
+                    }
+                    <MudTd Style="width: 36px;">
+                        <MudIconButton Icon="@(isExpanded ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ChevronRight)"
+                                       Size="Size.Small"
+                                       Color="Color.Default"
+                                       OnClick="@(() => ToggleExpand(item))"
+                                       Title="点击展开/折叠明细" />
+                    </MudTd>
+                    <MudTd>
+                        @if (rowEditing && rowCache != null)
+                        {
+                            <MudTextField T="string" Dense="true" Variant="Variant.Outlined"
+                                          Value="@rowCache.CategoryCode"
+                                          ValueChanged="@(v => rowCache.CategoryCode = v)"
+                                          Class="compact-input" Style="max-width:60px;" />
+                        }
+                        else
+                        {
+                            <span class="font-weight-bold">@item.CategoryCode</span>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        @if (rowEditing && rowCache != null)
+                        {
+                            <MudTextField T="string" Dense="true" Variant="Variant.Outlined"
+                                          Value="@rowCache.CategoryName"
+                                          ValueChanged="@(v => rowCache.CategoryName = v)"
+                                          Class="compact-input" />
+                        }
+                        else
+                        {
+                            @item.CategoryName
+                        }
+                    </MudTd>
+                    <MudTd Class="mud-table-cell--right">
+                        @if (rowEditing && rowCache != null)
+                        {
+                            <MudNumericField T="decimal?" Dense="true" Variant="Variant.Outlined"
+                                             HideSpinButtons="true" Format="G29"
+                                             Value="@rowCache.DailyProductionTarget"
+                                             ValueChanged="@(v => rowCache.DailyProductionTarget = v)"
+                                             Class="compact-input" />
+                        }
+                        else
+                        {
+                            @(item.DailyProductionTarget?.ToString("G29") ?? "-")
+                        }
+                    </MudTd>
+                    <MudTd Class="mud-table-cell--right">
+                        @if (rowEditing && rowCache != null)
+                        {
+                            <MudNumericField T="decimal?" Dense="true" Variant="Variant.Outlined"
+                                             HideSpinButtons="true" Format="G29"
+                                             Value="@rowCache.LowerLimitDays"
+                                             ValueChanged="@(v => rowCache.LowerLimitDays = v)"
+                                             Class="compact-input" />
+                        }
+                        else
+                        {
+                            @(item.LowerLimitDays?.ToString("G29") ?? "-")
+                        }
+                    </MudTd>
+                    <MudTd Class="mud-table-cell--right">
+                        @if (rowEditing && rowCache != null)
+                        {
+                            <MudNumericField T="decimal?" Dense="true" Variant="Variant.Outlined"
+                                             HideSpinButtons="true" Format="G29"
+                                             Value="@rowCache.UpperLimitDays"
+                                             ValueChanged="@(v => rowCache.UpperLimitDays = v)"
+                                             Class="compact-input" />
+                        }
+                        else
+                        {
+                            @(item.UpperLimitDays?.ToString("G29") ?? "-")
+                        }
+                    </MudTd>
+                    <MudTd>
+                        @if (rowEditing && rowCache != null)
+                        {
+                            <MudTextField T="string" Dense="true" Variant="Variant.Outlined"
+                                          Value="@rowCache.Remark"
+                                          ValueChanged="@(v => rowCache.Remark = v)"
+                                          Class="compact-input" />
+                        }
+                        else
+                        {
+                            @item.Remark
+                        }
+                    </MudTd>
+                    <MudTd Style="white-space: nowrap; width: 90px;" @onclick:stopPropagation>
+                        @if (rowEditing)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small" OnClick="() => SaveEdit(item)" Disabled="@_isSaving" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Default" Size="Size.Small" OnClick="() => CancelEdit(item)" />
+                        }
+                        else
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => StartEdit(item)" />
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[]{10,25,50,100}" />
+                </PagerContent>
+            </MudTable>
+
+            <!-- 展开明细区域：渲染在表格外部，使用与表格相同的样式 -->
+            @foreach (var setting in _items.Where(s => _expandedIds.Contains(s.Id)))
+            {
+                <div class="expand-detail-section">
+                    <div class="expand-detail-inner">
+                        @RenderChildTable(setting)
+                    </div>
+                </div>
+            }
+        </MudCardContent>
+    </MudCard>
+
+    <!-- 加载遮罩 -->
+    <MudOverlay Visible="@_isLoading">
+        <div class="d-flex justify-center align-center" style="height: 100%;">
+            <MudProgressCircular Indeterminate="true" Size="Size.Large" />
+        </div>
+    </MudOverlay>
+</MudContainer>
+
+<style>
+    .expand-detail-section {
+        border-left: 3px solid #1565C0;
+        margin: 0 0 2px 36px;
+        background: #f8f9fe;
+        border-radius: 0 4px 4px 0;
+    }
+    .expand-detail-inner {
+        padding: 8px 12px;
+    }
+    .expand-detail-inner .child-table {
+        font-size: 0.85rem;
+    }
+</style>

@@ -96,6 +96,7 @@ public partial class ChemicalValidationRules
     {
         try
         {
+            _pageSize = state.PageSize;
             // 首次加载覆盖页码（MudTable 初始化时始终传 page=0）
             if (_isFirstLoad)
             {

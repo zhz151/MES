@@ -30,7 +30,10 @@ public class WorkOrderServiceTests : TestBase
     private WorkOrderService CreateService(AppDbContext ctx)
     {
         var loggerMock = new Mock<ILogger<WorkOrderService>>();
-        return new WorkOrderService(ctx, loggerMock.Object);
+        var configMock = new Mock<IConfigParameterService>();
+        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
+        return new WorkOrderService(ctx, loggerMock.Object, configMock.Object);
     }
 
     private async Task<(int OrderId, string OrderNo)> SeedConfirmedOrderAsync(AppDbContext ctx)
@@ -40,7 +43,10 @@ public class WorkOrderServiceTests : TestBase
         var gm = await SeedGradeMappingAsync(ctx);
 
         var notifMock = new Mock<INotificationService>();
-        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, null!);
+        var orderConfigMock = new Mock<IConfigParameterService>();
+        orderConfigMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
+        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object);
 
         var order = await orderSvc.CreateAsync(new CreateSalesOrderRequest
         {
@@ -208,7 +214,7 @@ public class WorkOrderServiceTests : TestBase
         result[0].SalesOrderNo.Should().Be(orderNo);
         result[0].ProductionMainNo.Should().Be("D01");
         result[0].ProductionSubNo.Should().Be("C01");
-        result[0].Status.Should().Be((int)WorkOrderStatus.Confirmed);
+        result[0].Status.Should().Be(WorkOrderStatus.Confirmed);
     }
 
     [Fact]
@@ -274,15 +280,15 @@ public class WorkOrderServiceTests : TestBase
 
         var wo = generated[0];
         var dto = await svc.GetByIdAsync(wo.Id);
-        dto.Status.Should().Be((int)WorkOrderStatus.Confirmed);
+        dto.Status.Should().Be(WorkOrderStatus.Confirmed);
 
         // Confirmed -> Pending
         var updated = await svc.UpdateStatusAsync(wo.Id, new UpdateWorkOrderStatusRequest
         {
-            Status = (int)WorkOrderStatus.Pending,
+            Status = WorkOrderStatus.Pending,
             RowVersion = dto.RowVersion
         });
-        updated.Status.Should().Be((int)WorkOrderStatus.Pending);
+        updated.Status.Should().Be(WorkOrderStatus.Pending);
     }
 
     [Fact]
@@ -311,13 +317,13 @@ public class WorkOrderServiceTests : TestBase
         // Confirmed -> Pending -> Cancelled （合法）
         await svc.UpdateStatusAsync(wo.Id, new UpdateWorkOrderStatusRequest
         {
-            Status = (int)WorkOrderStatus.Pending,
+            Status = WorkOrderStatus.Pending,
             RowVersion = dto.RowVersion
         });
         var dto2 = await svc.GetByIdAsync(wo.Id);
         await svc.UpdateStatusAsync(wo.Id, new UpdateWorkOrderStatusRequest
         {
-            Status = (int)WorkOrderStatus.Cancelled,
+            Status = WorkOrderStatus.Cancelled,
             RowVersion = dto2.RowVersion
         });
 
@@ -325,7 +331,7 @@ public class WorkOrderServiceTests : TestBase
         var dto3 = await svc.GetByIdAsync(wo.Id);
         var act = () => svc.UpdateStatusAsync(wo.Id, new UpdateWorkOrderStatusRequest
         {
-            Status = (int)WorkOrderStatus.Confirmed,
+            Status = WorkOrderStatus.Confirmed,
             RowVersion = dto3.RowVersion
         });
 

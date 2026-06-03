@@ -16,15 +16,32 @@ namespace MES.Services;
 
 public class BatchService : IBatchService
 {
+    /// <summary>无对应工单时的工单号占位符</summary>
+    private const string NotWorkOrder = "非工单";
+
     private readonly AppDbContext _context;
     private readonly ILogger<BatchService> _logger;
     private readonly IProductionRecordService _productionRecordService;
+    private readonly IConfigParameterService _configService;
 
-    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService)
+    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IConfigParameterService configService)
     {
         _context = context;
         _logger = logger;
         _productionRecordService = productionRecordService;
+        _configService = configService;
+    }
+
+    private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
+
+    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
+    {
+        if (!_configMaps.TryGetValue(category, out var map))
+        {
+            map = await _configService.GetConfigMapAsync(category);
+            _configMaps[category] = map;
+        }
+        return map.GetValueOrDefault(key, defaultValue);
     }
 
     public async Task<PagedResult<ProductionBatchListDto>> GetPagedAsync(BatchQueryParams query)
@@ -347,12 +364,12 @@ public class BatchService : IBatchService
         // 生成生产编号
         var batchNo = await GenerateBatchNoAsync();
 
-        // 工单号验证：非空；"非工单"跳过；其他值必须在工单表中存在
+        // 工单号验证：非空；NotWorkOrder跳过；其他值必须在工单表中存在
         if (string.IsNullOrWhiteSpace(request.WorkOrderNo))
             throw new BusinessException("工单号不能为空（无对应工单请填写「非工单」）");
 
         WoEntity? workOrder = null;
-        if (request.WorkOrderNo != "非工单")
+        if (request.WorkOrderNo != NotWorkOrder)
         {
             workOrder = await _context.WorkOrders
                 .FirstOrDefaultAsync(w => w.WorkOrderNo == request.WorkOrderNo);
@@ -386,7 +403,7 @@ public class BatchService : IBatchService
         if (request.ProductionRatio <= 0)
             throw new BusinessException("制成倍数必须大于0");
         // 定尺时总支数必须大于0
-        if (request.LengthStatus == "Fixed" && (request.TotalQuantity == null || request.TotalQuantity <= 0))
+        if (request.LengthStatus == LengthStatus.Fixed.ToString() && (request.TotalQuantity == null || request.TotalQuantity <= 0))
             throw new BusinessException("总支数（定尺时必须大于0）");
 
         // 仓库来源必填
@@ -406,7 +423,7 @@ public class BatchService : IBatchService
             throw new BusinessException("仓库工厂牌号与工单工厂牌号不一致，且不可替代（仅允许高代低）");
 
         // ========== 有工单路径额外验证 ==========
-        if (request.WorkOrderNo != "非工单")
+        if (request.WorkOrderNo != NotWorkOrder)
         {
             if (string.IsNullOrWhiteSpace(request.SettlementMethod))
                 throw new BusinessException("结算方式不能为空");
@@ -801,7 +818,7 @@ public class BatchService : IBatchService
         if (effectiveProductionRatio <= 0)
             throw new BusinessException("制成倍数必须大于0");
         // 定尺时总支数必须大于0
-        if (effectiveLengthStatus == "Fixed" && effectiveTotalQuantity <= 0)
+        if (effectiveLengthStatus == LengthStatus.Fixed.ToString() && effectiveTotalQuantity <= 0)
             throw new BusinessException("总支数（定尺时必须大于0）");
         if (string.IsNullOrWhiteSpace(effectiveSourceGrade))
             throw new BusinessException("仓库工厂牌号不能为空");
@@ -816,7 +833,7 @@ public class BatchService : IBatchService
 
         // ========== 有工单路径额外验证 ==========
         var effectiveWorkOrderNo = request.WorkOrderNo ?? entity.WorkOrderNo;
-        if (effectiveWorkOrderNo != "非工单")
+        if (effectiveWorkOrderNo != NotWorkOrder)
         {
             var effectiveSettlementMethod = request.SettlementMethod ?? entity.SettlementMethod;
             var effectiveStandardCode = request.StandardCode ?? entity.StandardCode;
@@ -830,13 +847,13 @@ public class BatchService : IBatchService
                 throw new BusinessException("技术要求不能为空");
         }
 
-        // 工单号验证：非空；"非工单"跳过；其他值必须在工单表中存在
+        // 工单号验证：非空；NotWorkOrder跳过；其他值必须在工单表中存在
         if (request.WorkOrderNo != null)
         {
             if (string.IsNullOrWhiteSpace(request.WorkOrderNo))
                 throw new BusinessException("工单号不能为空（无对应工单请填写「非工单」）");
 
-            if (request.WorkOrderNo != "非工单" && request.WorkOrderNo != entity.WorkOrderNo)
+            if (request.WorkOrderNo != NotWorkOrder && request.WorkOrderNo != entity.WorkOrderNo)
             {
                 var workOrderExists = await _context.WorkOrders.AnyAsync(w => w.WorkOrderNo == request.WorkOrderNo);
                 if (!workOrderExists)
@@ -1619,7 +1636,7 @@ public class BatchService : IBatchService
     {
         // 仅在定尺(Fixed)状态下计算
         var lengthStatus = request.LengthStatus ?? workOrder?.LengthStatus.ToString() ?? "";
-        if (lengthStatus != "Fixed")
+        if (lengthStatus != LengthStatus.Fixed.ToString())
             return request.ProductionRatio;
 
         // 投料单重
@@ -1645,6 +1662,7 @@ public class BatchService : IBatchService
     {
         var now = DateTime.Now;
         var prefix = now.ToString("yyMM");
+        var batchMaxSequence = (int)await GetConfigAsync("DefaultValue", "BatchMaxSequence", 9999m);
 
         // 查找当月最大序号
         var maxNo = await _context.ProductionBatches
@@ -1661,18 +1679,18 @@ public class BatchService : IBatchService
                 nextSeq = lastSeq + 1;
         }
 
-        if (nextSeq > 9999)
-            throw new BusinessException("当月生产编号已用尽");
+        if (nextSeq > batchMaxSequence)
+            throw new BusinessException($"当月生产编号已用尽（最大序号 {batchMaxSequence}）");
 
         return $"{prefix}-{nextSeq:D4}";
     }
 
     public async Task<List<BatchWorkOrderMismatchDto>> VerifyWorkOrderNosAsync()
     {
-        // 获取所有生产批次中非空的工单号（排除"非工单"标记）
+        // 获取所有生产批次中非空的工单号（排除NotWorkOrder标记）
         var batchWorkOrderNos = await _context.ProductionBatches
             .AsNoTracking()
-            .Where(b => !string.IsNullOrEmpty(b.WorkOrderNo) && b.WorkOrderNo != "非工单")
+            .Where(b => !string.IsNullOrEmpty(b.WorkOrderNo) && b.WorkOrderNo != NotWorkOrder)
             .Select(b => new { b.Id, b.BatchNo, b.WorkOrderNo })
             .ToListAsync();
 

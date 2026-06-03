@@ -140,8 +140,8 @@ public class RepairOrderService : IRepairOrderService
                 FaultType = x.Order.FaultType,
                 Priority = x.Order.Priority,
                 RepairStatus = x.Order.RepairStartTime != null
-                    ? (x.Order.RepairEndTime != null ? "Completed" : "InProgress")
-                    : "Pending",
+                    ? (x.Order.RepairEndTime != null ? nameof(RepairOrderStatus.Completed) : nameof(RepairOrderStatus.InProgress))
+                    : nameof(RepairOrderStatus.Pending),
                 ReportPerson = x.Order.ReportPerson,
                 ReportTime = x.Order.ReportTime,
                 RepairPerson = x.Order.RepairPerson,
@@ -178,8 +178,8 @@ public class RepairOrderService : IRepairOrderService
                             FaultType = r.FaultType,
                             Priority = r.Priority,
                             RepairStatus = r.RepairStartTime != null
-                                ? (r.RepairEndTime != null ? "Completed" : "InProgress")
-                                : "Pending",
+                                ? (r.RepairEndTime != null ? nameof(RepairOrderStatus.Completed) : nameof(RepairOrderStatus.InProgress))
+                                : nameof(RepairOrderStatus.Pending),
                             ReportPerson = r.ReportPerson,
                             ReportTime = r.ReportTime,
                             RepairPerson = r.RepairPerson,

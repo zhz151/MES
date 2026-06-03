@@ -33,19 +33,21 @@ public class QualityProcessTrackingController : ControllerBase
     [HttpGet("list")]
     [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<PagedResult<QualityProcessTrackingDto>>>> GetPaged(
-        [FromQuery] QueryParams query,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? keyword = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool isDescending = true,
         [FromQuery] string? filters = null)
     {
+        if (pageSize > 5000) pageSize = 5000;
+        QueryParams query = new() { PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword, SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending };
         if (!string.IsNullOrEmpty(filters))
         {
             var f = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, _jsonOptions);
             if (f != null && f.Count > 0)
                 query.Filters = f;
         }
-
-        // 限制 pageSize 防止攻击
-        if (query.PageSize > 5000)
-            query.PageSize = 5000;
 
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<PagedResult<QualityProcessTrackingDto>>.Fail("参数无效"));

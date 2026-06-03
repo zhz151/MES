@@ -23,17 +23,31 @@ public class ProductionRecordService : IProductionRecordService
     private readonly ILogger<ProductionRecordService> _logger;
     private readonly IStandardWorkDayService _standardWorkDayService;
     private readonly IStandardWorkDayDeliveryStateService _deliveryStateService;
+    private readonly IConfigParameterService _configService;
+    private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
     public ProductionRecordService(
         AppDbContext context,
         ILogger<ProductionRecordService> logger,
         IStandardWorkDayService standardWorkDayService,
-        IStandardWorkDayDeliveryStateService deliveryStateService)
+        IStandardWorkDayDeliveryStateService deliveryStateService,
+        IConfigParameterService configService)
     {
         _context = context;
         _logger = logger;
         _standardWorkDayService = standardWorkDayService;
         _deliveryStateService = deliveryStateService;
+        _configService = configService;
+    }
+
+    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
+    {
+        if (!_configMaps.TryGetValue(category, out var map))
+        {
+            map = await _configService.GetConfigMapAsync(category);
+            _configMaps[category] = map;
+        }
+        return map.GetValueOrDefault(key, defaultValue);
     }
 
     // ========== 内部生产记录 ==========
@@ -177,6 +191,8 @@ public class ProductionRecordService : IProductionRecordService
         if (requests.Count == 0)
             return new List<ProductionRecordDto>();
 
+        var sequenceMaxJump = await GetConfigAsync("SequenceJump", "MaxJump", 7);
+
         // 预加载所有涉及的批次
         var batchNos = requests.Select(r => r.BatchNo).Distinct().ToList();
         var batchLookup = await _context.ProductionBatches
@@ -238,7 +254,7 @@ public class ProductionRecordService : IProductionRecordService
                     .Where(r => r.ExecDate.Date < request.ExecDate.Date)
                     .Select(r => (int?)r.SequenceNumber)
                     .Max() ?? 0;
-                var maxAllowed = prevMax + 7;
+                var maxAllowed = prevMax + sequenceMaxJump;
                 if (request.SequenceNumber > maxAllowed)
                     requestErrors.Add($"第{i + 1}行：执行序号({request.SequenceNumber})超过该日期前已执行最大值({prevMax})+7={maxAllowed}");
             }
@@ -324,7 +340,7 @@ public class ProductionRecordService : IProductionRecordService
             if (pg != null)
             {
                 // 过程检验已独立为单独模块，生产记录中不允许使用"检验"工段
-                if (request.SectionName == "检验")
+                if (request.SectionName == SectionDefs.Inspection)
                 {
                     requestErrors.Add($"第{i + 1}行：工段「检验」已由过程检验模块管理，不允许在生产记录中使用");
                     continue;
@@ -774,6 +790,8 @@ public class ProductionRecordService : IProductionRecordService
 
     private async Task UpdateOutsourceStatus(SectionOutsource outsource)
     {
+        var outsourceRecoveryRatio = await GetConfigAsync("WarehouseThreshold", "OutsourceRecoveryRatio", 0.99m);
+
         var totals = await _context.OutsourceRecoveries
             .Where(r => r.SectionOutsourceId == outsource.Id)
             .GroupBy(r => r.SectionOutsourceId)
@@ -785,7 +803,7 @@ public class ProductionRecordService : IProductionRecordService
 
         var totalRecoveredWeight = totals?.TotalWeight ?? 0m;
         var threshold = outsource.SendWeight.HasValue && outsource.SendWeight.Value > 0
-            ? outsource.SendWeight.Value * 0.99m
+            ? outsource.SendWeight.Value * outsourceRecoveryRatio
             : 0m;
 
         var isCompleted = outsource.SendWeight.HasValue && totalRecoveredWeight >= threshold;
@@ -1104,10 +1122,22 @@ public class ProductionRecordService : IProductionRecordService
         await BatchUpdateTrackingFromRecordsAsync(batchIds);
     }
 
+    public async Task<int> RefreshAllBatchTrackingAsync()
+    {
+        var batchIds = await _context.ProductionBatches
+            .Where(b => !b.IsForceCompleted)
+            .Select(b => b.Id)
+            .ToListAsync();
+        await BatchUpdateTrackingFromRecordsAsync(batchIds);
+        return batchIds.Count;
+    }
+
     // ========== 批次跟踪可视化 ==========
 
     public async Task<BatchTrackingVisualDto> GetTrackingVisualAsync(int batchId)
     {
+        var groupDiscountRate = await GetConfigAsync("ProcessingDiscount", "GroupDiscountRate", 0.025m);
+
         // 1. 加载批次 + ProcessGroups
         var batch = await _context.ProductionBatches
             .Include(b => b.ProcessGroups.OrderBy(pg => pg.SequenceNumber))
@@ -1205,29 +1235,29 @@ public class ProductionRecordService : IProductionRecordService
                 var hasOutsource = outsourceByKey.TryGetValue(key, out var outsource);
 
                 // 确定状态
-                string status;
+                SectionStatus sectionStatus;
                 if (hasRecord)
-                    status = "Completed";
+                    sectionStatus = SectionStatus.Completed;
                 else if (hasOutsource && outsource.Status == SectionOutsourceStatus.Recovered)
-                    status = "Completed";
+                    sectionStatus = SectionStatus.Completed;
                 else if (hasOutsource)
-                    status = "Outsource";
+                    sectionStatus = SectionStatus.Outsource;
                 else if (seq == currentMaxSeq + 1)
-                    status = "Next";
+                    sectionStatus = SectionStatus.Next;
                 else if (seq <= currentMaxSeq)
-                    status = "Completed"; // 跨工序组时，之前组的未记录工段视作已完成
+                    sectionStatus = SectionStatus.Completed; // 跨工序组时，之前组的未记录工段视作已完成
                 else
-                    status = "Pending";
+                    sectionStatus = SectionStatus.Pending;
 
                 // 当前正在进行的工段
-                if (seq == currentMaxSeq && status != "Completed" && status != "Outsource")
-                    status = "InProgress";
+                if (seq == currentMaxSeq && sectionStatus != SectionStatus.Completed && sectionStatus != SectionStatus.Outsource)
+                    sectionStatus = SectionStatus.InProgress;
 
                 // 修正：如果有记录则为 Completed
                 if (hasRecord)
-                    status = "Completed";
+                    sectionStatus = SectionStatus.Completed;
 
-                if (status == "Completed" && sectionName != "入库") groupCompleted++;
+                if (sectionStatus == SectionStatus.Completed && sectionName != SectionDefs.Warehouse) groupCompleted++;
 
                 // 委外进度
                 decimal? outsourceProgress = null;
@@ -1241,11 +1271,11 @@ public class ProductionRecordService : IProductionRecordService
                     SectionName = sectionName,
                     SequenceNumber = seq,
                     ProcessGroupId = pg.Id,
-                    Status = status,
+                    Status = sectionStatus.ToString(),
                     ExecDate = record?.ExecDate
                         ?? (inspectionByKey.TryGetValue(key, out var insp) ? insp.InspectionDate : (DateTime?)null)
                         ?? (hasOutsource ? outsource.SendOutDate : (DateTime?)null)
-                        ?? (sectionName == "检验" && materialCheckPg != null && pg.Id == materialCheckPg.Id
+                        ?? (sectionName == SectionDefs.Inspection && materialCheckPg != null && pg.Id == materialCheckPg.Id
                             ? materialReceiveCheck?.ReceiveDate : (DateTime?)null),
                     EquipmentName = record?.EquipmentName,
                     Quantity = record?.Quantity,
@@ -1263,7 +1293,7 @@ public class ProductionRecordService : IProductionRecordService
                 allSectionDtos.Add(sectionDto);
             }
 
-            var warehouseInGroup = sections.Count(s => s.SectionName == "入库");
+            var warehouseInGroup = sections.Count(s => s.SectionName == SectionDefs.Warehouse);
             processGroupDtos.Add(new ProcessGroupVisualDto
             {
                 Id = pg.Id,
@@ -1299,7 +1329,7 @@ public class ProductionRecordService : IProductionRecordService
         // 目标重量 = 投料重量 × (1 - 有效工序组数 × 0.025)
         var effectiveGroupCount = batch.ProcessGroups
             .Count(pg => GetSectionsFromProcessGroup(pg).Count > 0);
-        var discount = 1.0m - effectiveGroupCount * 0.025m;
+        var discount = 1.0m - effectiveGroupCount * groupDiscountRate;
         if (discount < 0) discount = 0;
         int? targetWt = inputWt.HasValue
             ? (int?)(inputWt.Value * discount)
@@ -1307,34 +1337,41 @@ public class ProductionRecordService : IProductionRecordService
 
         // 7. 组装返回
         var maxBySeq = allSectionDtos
-            .Where(s => s.Status == "InProgress" || s.Status == "Outsource" || s.Status == "Completed")
+            .Where(s => s.Status == SectionStatus.InProgress.ToString() || s.Status == SectionStatus.Outsource.ToString() || s.Status == SectionStatus.Completed.ToString())
             .OrderByDescending(s => s.SequenceNumber)
             .FirstOrDefault();
 
         var nextBySeq = allSectionDtos
-            .Where(s => s.Status == "Next")
+            .Where(s => s.Status == SectionStatus.Next.ToString())
             .OrderBy(s => s.SequenceNumber)
             .FirstOrDefault();
 
-        // 下一工序：工序级别（基于当前工序找下一道工序，与工段无关）
+        // 当前工序：取最后执行的工序名称（用作回退）
         var currentPgName = maxBySeq != null
             ? batch.ProcessGroups
                 .Where(pg => pg.Id == maxBySeq.ProcessGroupId)
                 .Select(pg => pg.ProcessName)
                 .FirstOrDefault()
             : null;
-        var nextProcessName = currentPgName != null
+        // 下一工序：基于下一工段所在工序组的工序名称（与工段关联）
+        var nextProcessName = nextBySeq != null
             ? batch.ProcessGroups
-                .OrderBy(pg => pg.SequenceNumber)
-                .SkipWhile(pg => pg.ProcessName != currentPgName)
-                .Skip(1)
+                .Where(pg => pg.Id == nextBySeq.ProcessGroupId)
                 .Select(pg => pg.ProcessName)
                 .FirstOrDefault()
-            // 未开始生产 → 首个工序
-            : batch.ProcessGroups
-                .OrderBy(pg => pg.SequenceNumber)
-                .Select(pg => pg.ProcessName)
-                .FirstOrDefault();
+            // 无下一工段时回退为当前工序的下一个工序
+            : currentPgName != null
+                ? batch.ProcessGroups
+                    .OrderBy(pg => pg.SequenceNumber)
+                    .SkipWhile(pg => pg.ProcessName != currentPgName)
+                    .Skip(1)
+                    .Select(pg => pg.ProcessName)
+                    .FirstOrDefault()
+                // 未开始生产 → 首个工序
+                : batch.ProcessGroups
+                    .OrderBy(pg => pg.SequenceNumber)
+                    .Select(pg => pg.ProcessName)
+                    .FirstOrDefault();
 
         return new BatchTrackingVisualDto
         {
@@ -1367,6 +1404,10 @@ public class ProductionRecordService : IProductionRecordService
 
     private async Task UpdateBatchTrackingFromRecords(int batchId)
     {
+        var coldRollCompleteRatio = await GetConfigAsync("ProductionThreshold", "ColdRollCompleteRatio", 0.95m);
+        var inspectionInputUpper = await GetConfigAsync("ProductionThreshold", "InspectionInputUpper", 1.02m);
+        var inspectionInputLower = await GetConfigAsync("ProductionThreshold", "InspectionInputLower", 0.98m);
+
         var batch = await _context.ProductionBatches
             .Include(b => b.ProcessGroups)
             .FirstOrDefaultAsync(b => b.Id == batchId);
@@ -1526,7 +1567,7 @@ public class ProductionRecordService : IProductionRecordService
                 .FirstOrDefault(pg => pg.ManufacturingSpec == materialCheck.Specification
                     && pg.Inspection.HasValue);
             batch.CurrentGroupName = matchingPg?.ProcessName;
-            batch.CurrentSectionName = "检验";
+            batch.CurrentSectionName = SectionDefs.Inspection;
             batch.CurrentEquipmentName = null;
             batch.CurrentSpec = matchingPg != null
                 ? pgSpecLookup.GetValueOrDefault(matchingPg.Id)
@@ -1556,7 +1597,7 @@ public class ProductionRecordService : IProductionRecordService
             var totalWeight = productionRecords
                 .Where(r => r.ProcessGroupId == pgId && r.SectionName == "冷轧拔" && r.Weight.HasValue)
                 .Sum(r => r.Weight.Value);
-            var threshold = (batch.CurrentValidWeight ?? batch.InputWeight ?? 0) * 0.95m;
+            var threshold = (batch.CurrentValidWeight ?? batch.InputWeight ?? 0) * coldRollCompleteRatio;
             batch.CurrentSectionCompleted = totalWeight >= threshold;
         }
         else if (overallMaxSeq == maxOutsourceSeq)
@@ -1594,6 +1635,8 @@ public class ProductionRecordService : IProductionRecordService
                 batch.NextSectionName = null;
                 batch.CorrespondingSpec = null;
             }
+            // 下一工序：未开始生产 → 第一工序组的工序名称
+            batch.NextProcess = firstPg?.ProcessName;
         }
         else
         {
@@ -1603,20 +1646,14 @@ public class ProductionRecordService : IProductionRecordService
             batch.CorrespondingSpec = nextSection != null
                 ? pgSpecLookup.GetValueOrDefault(nextSection.pgId)
                 : null;
-        }
-        batch.NextProcess = !hasRecords && overallMaxSeq < 0
-            ? batch.ProcessGroups
-                .OrderBy(pg => pg.SequenceNumber)
-                .Select(pg => pg.ProcessName)
-                .FirstOrDefault()
-            : !string.IsNullOrEmpty(batch.CurrentGroupName)
+            // 下一工序：已开始生产 → 下一工段所在工序组的工序名称
+            batch.NextProcess = nextSection != null
                 ? batch.ProcessGroups
-                    .OrderBy(pg => pg.SequenceNumber)
-                    .SkipWhile(pg => pg.ProcessName != batch.CurrentGroupName)
-                    .Skip(1)
+                    .Where(pg => pg.Id == nextSection.pgId)
                     .Select(pg => pg.ProcessName)
                     .FirstOrDefault()
                 : null;
+        }
 
         // ====== 8. 有效投料疑问 ======
         batch.ValidInputQuestion = false;
@@ -1636,7 +1673,7 @@ public class ProductionRecordService : IProductionRecordService
                 if (inputProductionQty > 0)
                 {
                     var ratio = (decimal)inspectionTheoryQty / inputProductionQty;
-                    batch.ValidInputQuestion = (ratio > 1.02m || ratio < 0.98m);
+                    batch.ValidInputQuestion = (ratio > inspectionInputUpper || ratio < inspectionInputLower);
                 }
             }
         }
@@ -1679,6 +1716,10 @@ public class ProductionRecordService : IProductionRecordService
     private async Task BatchUpdateTrackingFromRecordsAsync(ICollection<int> batchIds)
     {
         if (batchIds.Count == 0) return;
+
+        var coldRollCompleteRatio = await GetConfigAsync("ProductionThreshold", "ColdRollCompleteRatio", 0.95m);
+        var validInputUpper = await GetConfigAsync("ProductionThreshold", "ValidInputUpper", 1.05m);
+        var validInputLower = await GetConfigAsync("ProductionThreshold", "ValidInputLower", 0.95m);
 
         // 1. 加载所有批次 + ProcessGroups
         var batchDict = await _context.ProductionBatches
@@ -1886,7 +1927,7 @@ public class ProductionRecordService : IProductionRecordService
                     if (pg != null) { matchingPg = pg; break; }
                 }
                 batch.CurrentGroupName = matchingPg?.ProcessName;
-                batch.CurrentSectionName = "检验";
+                batch.CurrentSectionName = SectionDefs.Inspection;
                 batch.CurrentEquipmentName = null;
                 batch.CurrentSpec = matchingPg != null
                     ? pgSpecLookup.GetValueOrDefault(matchingPg.Id)
@@ -1915,7 +1956,7 @@ public class ProductionRecordService : IProductionRecordService
                 var totalWeight = productionRecords
                     .Where(r => r.ProcessGroupId == pgId && r.SectionName == "冷轧拔" && r.Weight.HasValue)
                     .Sum(r => r.Weight.Value);
-                var threshold = (batch.CurrentValidWeight ?? batch.InputWeight ?? 0) * 0.95m;
+                var threshold = (batch.CurrentValidWeight ?? batch.InputWeight ?? 0) * coldRollCompleteRatio;
                 batch.CurrentSectionCompleted = totalWeight >= threshold;
             }
             else if (overallMaxSeq == maxOutsourceSeq)
@@ -1951,6 +1992,8 @@ public class ProductionRecordService : IProductionRecordService
                     batch.NextSectionName = null;
                     batch.CorrespondingSpec = null;
                 }
+                // 下一工序：未开始生产 → 第一工序组的工序名称
+                batch.NextProcess = firstPg?.ProcessName;
             }
             else
             {
@@ -1960,24 +2003,10 @@ public class ProductionRecordService : IProductionRecordService
                 batch.CorrespondingSpec = nextSection != null
                     ? pgSpecLookup.GetValueOrDefault(nextSection.pgId)
                     : null;
-            }
-
-            // 下一工序：工序级别，基于当前工序找下一道工序（与工段无关）
-            // 未开始生产时，下一工序为首个工序
-            if (!hasRecords && overallMaxSeq < 0)
-            {
-                batch.NextProcess = batch.ProcessGroups
-                    .OrderBy(pg => pg.SequenceNumber)
-                    .Select(pg => pg.ProcessName)
-                    .FirstOrDefault();
-            }
-            else
-            {
-                batch.NextProcess = !string.IsNullOrEmpty(batch.CurrentGroupName)
+                // 下一工序：已开始生产 → 下一工段所在工序组的工序名称
+                batch.NextProcess = nextSection != null
                     ? batch.ProcessGroups
-                        .OrderBy(pg => pg.SequenceNumber)
-                        .SkipWhile(pg => pg.ProcessName != batch.CurrentGroupName)
-                        .Skip(1)
+                        .Where(pg => pg.Id == nextSection.pgId)
                         .Select(pg => pg.ProcessName)
                         .FirstOrDefault()
                     : null;
@@ -1989,7 +2018,7 @@ public class ProductionRecordService : IProductionRecordService
             if (batch.InputQuantity.HasValue && batch.InputQuantity > 0 && batch.CurrentValidQty.HasValue)
             {
                 var ratio = (decimal)batch.CurrentValidQty.Value / batch.InputQuantity.Value;
-                batch.ValidInputQuestion = ratio is < 0.95m or > 1.05m;
+                batch.ValidInputQuestion = ratio < validInputLower || ratio > validInputUpper;
             }
 
             // ====== 剩余工量计算 ======

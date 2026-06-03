@@ -138,7 +138,7 @@ public class DtoMapperTests
 
         var dto = entity.ToListDto();
 
-        dto.Status.Should().Be((int)WorkOrderStatus.Confirmed);
+        dto.Status.Should().Be(WorkOrderStatus.Confirmed);
         dto.MaterialPlanStatus.Should().Be((int)MaterialPlanStatus.Partial);
         dto.MaterialPlanRate.Should().Be(85);
     }

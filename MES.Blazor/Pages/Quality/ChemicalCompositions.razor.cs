@@ -16,6 +16,7 @@ public partial class ChemicalCompositions
     private MudTable<ChemicalCompositionDto>? table;
     private List<ChemicalCompositionDto> _pageItems = new();
     private int _totalCount;
+    private int _pageSize = 10;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
     private bool _allSelected;
@@ -85,6 +86,8 @@ public partial class ChemicalCompositions
 
     private async Task<TableData<ChemicalCompositionDto>> LoadDataFromServer(TableState state)
     {
+        _pageSize = state.PageSize;
+
         try
         {
             // 首次加载覆盖页码（MudTable 初始化时始终传 page=0）

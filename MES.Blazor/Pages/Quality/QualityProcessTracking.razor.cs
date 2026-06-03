@@ -90,6 +90,7 @@ public partial class QualityProcessTracking
     {
         try
         {
+            _pageSize = state.PageSize;
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "receivedate";
             var filtersJson = SerializeFilters();
 

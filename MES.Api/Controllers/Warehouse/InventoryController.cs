@@ -26,9 +26,46 @@ public class InventoryController : ControllerBase
     [HttpGet("list")]
     [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<PagedResult<InventoryBatchDto>>>> GetPaged(
-        [FromQuery] InventoryQueryParams query,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? keyword = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool isDescending = true,
+        [FromQuery] int? warehouseId = null,
+        [FromQuery] string? materialType = null,
+        [FromQuery] string? plantGrade = null,
+        [FromQuery] bool onlyWithStock = true,
+        [FromQuery] string? workOrderNo = null,
+        [FromQuery] string? batchNo = null,
+        [FromQuery] string? inboundSource = null,
+        [FromQuery] string? sourceName = null,
+        [FromQuery] DateTime? inboundDateFrom = null,
+        [FromQuery] DateTime? inboundDateTo = null,
+        [FromQuery] string? heatNo = null,
+        [FromQuery] string? specification = null,
+        [FromQuery] string? lengthStatus = null,
+        [FromQuery] string? surfaceCondition = null,
+        [FromQuery] string? defectReason = null,
+        [FromQuery] string? liabilityType = null,
+        [FromQuery] string? productionBatchNo = null,
+        [FromQuery] string? actualSpecification = null,
+        [FromQuery] string? originalSupplier = null,
         [FromQuery] string? filters = null)
     {
+        if (pageSize > 5000) pageSize = 5000;
+        InventoryQueryParams query = new()
+        {
+            PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending,
+            WarehouseId = warehouseId, MaterialType = materialType, PlantGrade = plantGrade,
+            OnlyWithStock = onlyWithStock, WorkOrderNo = workOrderNo, BatchNo = batchNo,
+            InboundSource = inboundSource, SourceName = sourceName,
+            InboundDateFrom = inboundDateFrom, InboundDateTo = inboundDateTo,
+            HeatNo = heatNo, Specification = specification, LengthStatus = lengthStatus,
+            SurfaceCondition = surfaceCondition, DefectReason = defectReason,
+            LiabilityType = liabilityType, ProductionBatchNo = productionBatchNo,
+            ActualSpecification = actualSpecification, OriginalSupplier = originalSupplier
+        };
         if (!string.IsNullOrEmpty(filters))
             try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
             catch { }
@@ -42,9 +79,46 @@ public class InventoryController : ControllerBase
     [HttpGet("all")]
     [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<InventoryBatchDto>>>> GetAll(
-        [FromQuery] InventoryQueryParams query,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? keyword = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool isDescending = true,
+        [FromQuery] int? warehouseId = null,
+        [FromQuery] string? materialType = null,
+        [FromQuery] string? plantGrade = null,
+        [FromQuery] bool onlyWithStock = true,
+        [FromQuery] string? workOrderNo = null,
+        [FromQuery] string? batchNo = null,
+        [FromQuery] string? inboundSource = null,
+        [FromQuery] string? sourceName = null,
+        [FromQuery] DateTime? inboundDateFrom = null,
+        [FromQuery] DateTime? inboundDateTo = null,
+        [FromQuery] string? heatNo = null,
+        [FromQuery] string? specification = null,
+        [FromQuery] string? lengthStatus = null,
+        [FromQuery] string? surfaceCondition = null,
+        [FromQuery] string? defectReason = null,
+        [FromQuery] string? liabilityType = null,
+        [FromQuery] string? productionBatchNo = null,
+        [FromQuery] string? actualSpecification = null,
+        [FromQuery] string? originalSupplier = null,
         [FromQuery] string? filters = null)
     {
+        if (pageSize > 5000) pageSize = 5000;
+        InventoryQueryParams query = new()
+        {
+            PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending,
+            WarehouseId = warehouseId, MaterialType = materialType, PlantGrade = plantGrade,
+            OnlyWithStock = onlyWithStock, WorkOrderNo = workOrderNo, BatchNo = batchNo,
+            InboundSource = inboundSource, SourceName = sourceName,
+            InboundDateFrom = inboundDateFrom, InboundDateTo = inboundDateTo,
+            HeatNo = heatNo, Specification = specification, LengthStatus = lengthStatus,
+            SurfaceCondition = surfaceCondition, DefectReason = defectReason,
+            LiabilityType = liabilityType, ProductionBatchNo = productionBatchNo,
+            ActualSpecification = actualSpecification, OriginalSupplier = originalSupplier
+        };
         if (!string.IsNullOrEmpty(filters))
             try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
             catch { }
@@ -125,9 +199,26 @@ public class InventoryController : ControllerBase
     [HttpGet("outbound-records")]
     [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<PagedResult<OutboundRecordDto>>>> GetOutboundRecords(
-        [FromQuery] OutboundQueryParams query,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? keyword = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool isDescending = true,
+        [FromQuery] int? inventoryBatchId = null,
+        [FromQuery] int? warehouseId = null,
+        [FromQuery] string? outboundType = null,
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null,
         [FromQuery] string? filters = null)
     {
+        if (pageSize > 5000) pageSize = 5000;
+        OutboundQueryParams query = new()
+        {
+            PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending,
+            InventoryBatchId = inventoryBatchId, WarehouseId = warehouseId,
+            OutboundType = outboundType, StartDate = startDate, EndDate = endDate
+        };
         if (!string.IsNullOrEmpty(filters))
             try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
             catch { }

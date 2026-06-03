@@ -18,11 +18,25 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<WorkOrderExecutionService> _logger;
+    private readonly IConfigParameterService _configService;
+    private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
-    public WorkOrderExecutionService(AppDbContext context, ILogger<WorkOrderExecutionService> logger)
+    public WorkOrderExecutionService(AppDbContext context, ILogger<WorkOrderExecutionService> logger,
+        IConfigParameterService configService)
     {
         _context = context;
         _logger = logger;
+        _configService = configService;
+    }
+
+    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
+    {
+        if (!_configMaps.TryGetValue(category, out var map))
+        {
+            map = await _configService.GetConfigMapAsync(category);
+            _configMaps[category] = map;
+        }
+        return map.GetValueOrDefault(key, defaultValue);
     }
 
     public async Task<PagedResult<WorkOrderExecutionSummaryDto>> GetPagedAsync(QueryParams query)
@@ -196,6 +210,31 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     public async Task<WorkOrderExecutionRefreshResultDto> RefreshAllAsync()
     {
         _logger.LogInformation("开始全量刷新工单执行状况汇总");
+
+        // ===== 加载配置参数（替换硬编码常量） =====
+        var warehouseConfig = await _configService.GetConfigMapAsync("WarehouseThreshold");
+        var workOrderDaysConfig = await _configService.GetConfigMapAsync("WorkOrderDays");
+        var urgencyConfig = await _configService.GetConfigMapAsync("UrgencyThreshold");
+        var processingDiscountConfig = await _configService.GetConfigMapAsync("ProcessingDiscount");
+        var materialPlanStatusConfig = await _configService.GetConfigMapAsync("MaterialPlanStatus");
+
+        var completeRatio = warehouseConfig.GetValueOrDefault("CompleteRatio", 0.95m);
+        var completeDeviation = warehouseConfig.GetValueOrDefault("CompleteDeviation", 100m);
+        var bufferDays = workOrderDaysConfig.GetValueOrDefault("BufferDays", 3m);
+        var inspectionFixedDays = workOrderDaysConfig.GetValueOrDefault("InspectionFixedDays", 3m);
+        var urgencyAPlus = urgencyConfig.GetValueOrDefault("APlus", 7m);
+        var urgencyA = urgencyConfig.GetValueOrDefault("A", -3m);
+        var urgencyB = urgencyConfig.GetValueOrDefault("B", -10m);
+        var urgencyC = urgencyConfig.GetValueOrDefault("C", -17m);
+        var groupDiscountRate = processingDiscountConfig.GetValueOrDefault("GroupDiscountRate", 0.025m);
+        var supplySatisfiedRate = materialPlanStatusConfig.GetValueOrDefault("SupplySatisfiedRate", 100m);
+        var fixedPartial = materialPlanStatusConfig.GetValueOrDefault("FixedPartial", 102m);
+        var fixedSatisfied = materialPlanStatusConfig.GetValueOrDefault("FixedSatisfied", 110m);
+        var nonFixedPartial = materialPlanStatusConfig.GetValueOrDefault("NonFixedPartial", 105m);
+        var nonFixedSatisfied = materialPlanStatusConfig.GetValueOrDefault("NonFixedSatisfied", 120m);
+        var defaultValueConfig = await _configService.GetConfigMapAsync("DefaultValue");
+        var roughTubeFinishRatio = defaultValueConfig.GetValueOrDefault("RoughTubeFinishRatio", 0.92m);
+        var defaultProcessCycle = (int)defaultValueConfig.GetValueOrDefault("ProcessCycle", 25m);
 
         var workOrders = await _context.WorkOrders
             .AsNoTracking()
@@ -403,9 +442,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                         return pendingQty * (ri.InputMultiple ?? 1);
                     });
 
-                // 理论成品重：待回荒管重量 × 0.92 + 待回外购成重
+                // 理论成品重：待回荒管重量 × 荒管转成品系数 + 待回外购成重
                 summary.TheoreticalFinishWeight = Math.Round(
-                    summary.PendingRoughTubeWeight * 0.92m + summary.PendingOutsourceFinishWeight, 2);
+                    summary.PendingRoughTubeWeight * roughTubeFinishRatio + summary.PendingOutsourceFinishWeight, 2);
             }
 
             // 从用料计划数据实时计算满足率（不依赖 WorkOrder 预计算字段）
@@ -413,7 +452,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var woFinish = finishByWo.TryGetValue(wo.Id, out var f) ? f : new List<PurchaseFinishedPlan>();
             var woInventory = inventoryByWo.TryGetValue(wo.Id, out var iv) ? iv : new List<InventoryPlan>();
             var woPiercing = piercingByWo.TryGetValue(wo.Id, out var pc) ? pc : new List<RoundBarPiercingPlan>();
-            var (rate, status) = PlanRateCalculator.ComputeWorkOrderRate(wo, woSemi, woFinish, woInventory, woPiercing);
+            var (rate, status) = PlanRateCalculator.ComputeWorkOrderRate(wo, woSemi, woFinish, woInventory, woPiercing,
+                fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
             summary.MaterialPlanRate = rate;
             summary.MaterialPlanStatus = status;
 
@@ -427,7 +467,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 allCycles.AddRange(invList.Select(p => p.StandardCycle));
             if (piercingByWo.TryGetValue(wo.Id, out var piercingList))
                 allCycles.AddRange(piercingList.Select(p => p.StandardCycle));
-            summary.ProcessCycle = allCycles.Count > 0 ? allCycles.Max() : 25; // 未计划默认25
+            summary.ProcessCycle = allCycles.Count > 0 ? allCycles.Max() : defaultProcessCycle; // 未计划默认值
 
             // ========== Group 11: 成品入库（从 InventoryBatch 聚合） ==========
             ibByWoNo.TryGetValue(wo.WorkOrderNo, out var woIbList);
@@ -439,13 +479,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.WarehousingTotalWeight = woIbList.Sum(ib => ib.InitialWeight);
 
                 // 工单入库状态
-                var isFixed = summary.LengthStatus == "Fixed";
+                var isFixed = summary.LengthStatus == LengthStatus.Fixed.ToString();
                 bool isComplete;
                 if (isFixed)
                     isComplete = summary.WarehousingTotalQty >= wo.TotalQuantity;
                 else
-                    isComplete = summary.WarehousingTotalWeight >= wo.TotalWeight * 0.95m
-                              && summary.WarehousingTotalWeight >= wo.TotalWeight - 100m;
+                    isComplete = summary.WarehousingTotalWeight >= wo.TotalWeight * completeRatio
+                              && summary.WarehousingTotalWeight >= wo.TotalWeight - completeDeviation;
 
                 summary.WoWarehousingStatus = (summary.WarehousingTotalQty == 0 && summary.WarehousingTotalWeight == 0)
                     ? 0  // 无入库
@@ -465,7 +505,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         }
 
         // 计算主号级投料聚合
-        ComputeMainNoInputAggregation(summaries, workOrders);
+        ComputeMainNoInputAggregation(summaries, workOrders, supplySatisfiedRate,
+            fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
 
         // 计算主号/订单级入库状态聚合
         ComputeWarehousingAggregation(summaries, workOrders);
@@ -510,9 +551,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             // 剩余总工量
             summary.TotalRemainingWorkDays = summary.ScheduleStage switch
             {
-                1 => (agg?.MaxProcessCycle ?? 0) + 3,
+                1 => (agg?.MaxProcessCycle ?? 0) + (int)bufferDays,
                 2 => agg?.MaxRemainingDays ?? 0,
-                3 => 3,
+                3 => (int)inspectionFixedDays,
                 _ => null
             };
 
@@ -521,10 +562,10 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var deliveryDays = DateOnly.FromDateTime(summary.DeliveryDate).DayNumber;
             var diff = (summary.TotalRemainingWorkDays ?? 0) + todayDays - deliveryDays;
 
-            summary.UrgencyLevel = diff > 7 ? "A+急"
-                : diff > -3 ? "A急"
-                : diff > -10 ? "B顺"
-                : diff > -17 ? "C缓"
+            summary.UrgencyLevel = diff > urgencyAPlus ? "A+急"
+                : diff > urgencyA ? "A急"
+                : diff > urgencyB ? "B顺"
+                : diff > urgencyC ? "C缓"
                 : "D缓";
 
             // 工艺预计完成日 & 交期相差天数
@@ -548,7 +589,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             foreach (var group in mainNoGroups)
             {
                 var key = (group.Key.SalesOrderNo, group.Key.ProductionMainNo);
-                var isFixed = group.First().LengthStatus == "Fixed";
+                var isFixed = group.First().LengthStatus == LengthStatus.Fixed.ToString();
 
                 var totalTheorFinishQty = group.Sum(s => s.TheoreticalFinishQty);
                 var totalTheorFinishWeight = group.Sum(s => s.TheoreticalFinishWeight);
@@ -563,7 +604,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
                 // 主号流转比所有同组工单相同，取首个
                 var mainNoFlowRatio = group.First().MainNoFlowOutputRatio;
-                typeBLookup[key] = (g5Ratio + mainNoFlowRatio) >= 100m;
+                typeBLookup[key] = (g5Ratio + mainNoFlowRatio) >= supplySatisfiedRate;
             }
         }
 
@@ -656,7 +697,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         int totalQualifiedQty = 0,
         int totalScrapQty = 0,
         DateTime? inspectionStartDate = null,
-        DateTime? inspectionEndDate = null)
+        DateTime? inspectionEndDate = null,
+        decimal completeRatio = 0.95m,
+        decimal completeDeviation = 100m,
+        decimal groupDiscountRate = 0.025m,
+        decimal supplySatisfiedRate = 100m)
     {
         // Group 1: 直接从工单复制（Salesman 从 CustomerProfile 取最新值，已由调用方传入）
         var summary = new WorkOrderExecutionSummary
@@ -728,7 +773,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             // 理论成品重量 = 投料重量 × (1 - 有效工序组数 × 2.5%)
             var effectiveGroupCount = batch.ProcessGroups?
                 .Count(pg => HasAnySection(pg)) ?? 0;
-            var discount = 1.0m - effectiveGroupCount * 0.025m;
+            var discount = 1.0m - effectiveGroupCount * groupDiscountRate;
             if (discount < 0) discount = 0;
             theorWeight += Math.Round(batchInputWeight * discount, 3);
         }
@@ -736,7 +781,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         summary.TheoreticalOutputWeight = Math.Round(theorWeight, 3);
 
         // 投料成品比 + 状态
-        var (ratio, status) = ComputeInputRatioAndStatus(summary, wo);
+        var (ratio, status) = ComputeInputRatioAndStatus(summary, wo, supplySatisfiedRate);
         summary.InputOutputRatio = ratio;
         summary.InputStatus = status;
 
@@ -760,7 +805,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
             var effectiveGroupCount = batch.ProcessGroups?
                 .Count(pg => HasAnySection(pg)) ?? 0;
-            var discount = 1.0m - effectiveGroupCount * 0.025m;
+            var discount = 1.0m - effectiveGroupCount * groupDiscountRate;
             if (discount < 0) discount = 0;
             validTheorWeight += Math.Round(batchInputWeight * discount, 3);
         }
@@ -791,7 +836,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
             var effectiveGroupCount = batch.ProcessGroups?
                 .Count(pg => HasAnySection(pg)) ?? 0;
-            var discount = 1.0m - effectiveGroupCount * 0.025m;
+            var discount = 1.0m - effectiveGroupCount * groupDiscountRate;
             if (discount < 0) discount = 0;
             reworkTheorWeight += Math.Round(batchInputWeight * discount, 3);
         }
@@ -802,7 +847,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         var combinedFlowQty = summary.ValidOutputQty + summary.ReworkTheoreticalOutputQty;
         var combinedFlowWeight = summary.ValidOutputWeight + summary.ReworkTheoreticalOutputWeight;
         var (flowRatio, flowStatus) = ComputeInputRatioAndStatus(
-            summary.LengthStatus, combinedFlowQty, combinedFlowWeight, wo.TotalQuantity, wo.TotalWeight);
+            summary.LengthStatus, combinedFlowQty, combinedFlowWeight, wo.TotalQuantity, wo.TotalWeight, supplySatisfiedRate);
         summary.FlowOutputRatio = flowRatio;
         summary.FlowStatus = flowStatus;
 
@@ -865,15 +910,15 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     }
 
     private static (decimal ratio, int status) ComputeInputRatioAndStatus(
-        WorkOrderExecutionSummary summary, WoEntity wo)
+        WorkOrderExecutionSummary summary, WoEntity wo, decimal satisfiedRate)
     {
-        return ComputeInputRatioAndStatus(summary.LengthStatus, summary.TheoreticalOutputQty, summary.TheoreticalOutputWeight, wo.TotalQuantity, wo.TotalWeight);
+        return ComputeInputRatioAndStatus(summary.LengthStatus, summary.TheoreticalOutputQty, summary.TheoreticalOutputWeight, wo.TotalQuantity, wo.TotalWeight, satisfiedRate);
     }
 
     private static (decimal ratio, int status) ComputeInputRatioAndStatus(
-        string lengthStatus, decimal outputQty, decimal outputWeight, int totalQty, decimal totalWeight)
+        string lengthStatus, decimal outputQty, decimal outputWeight, int totalQty, decimal totalWeight, decimal satisfiedRate)
     {
-        var isFixed = lengthStatus == "Fixed";
+        var isFixed = lengthStatus == LengthStatus.Fixed.ToString();
         decimal ratio;
 
         if (isFixed)
@@ -889,12 +934,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 : 0;
         }
 
-        var status = ratio switch
-        {
-            <= 0 => 0,      // 未投料
-            >= 100 => 2,    // 满足
-            _ => 1          // 部分
-        };
+        int status;
+        if (ratio <= 0)
+            status = 0;      // 未投料
+        else if (ratio >= satisfiedRate)
+            status = 2;      // 满足
+        else
+            status = 1;      // 部分
 
         return (ratio, status);
     }
@@ -919,7 +965,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     }
 
     private static void ComputeMainNoInputAggregation(
-        List<WorkOrderExecutionSummary> summaries, List<WoEntity> workOrders)
+        List<WorkOrderExecutionSummary> summaries, List<WoEntity> workOrders, decimal supplySatisfiedRate,
+        decimal fixedPartial = 102m, decimal fixedSatisfied = 110m,
+        decimal nonFixedPartial = 105m, decimal nonFixedSatisfied = 120m)
     {
         var woDict = workOrders.ToDictionary(wo => wo.Id);
         // 使用 summary 中已算好的满足率（来自计划数据实时计算）
@@ -927,13 +975,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
         // 按 (SalesOrderNo, ProductionMainNo) 分组
         var mainNoGroups = summaries
-            .Select(s => new
-            {
-                Summary = s,
-                WorkOrder = woDict.TryGetValue(s.WorkOrderId, out var wo) ? wo : null
-            })
-            .Where(x => x.WorkOrder != null)
-            .GroupBy(x => new { x.WorkOrder!.SalesOrderNo, MainNo = x.Summary.ProductionMainNo })
+            .Where(s => woDict.ContainsKey(s.WorkOrderId))
+            .Select(s => new { Summary = s, WorkOrder = woDict[s.WorkOrderId] })
+            .GroupBy(x => new { x.WorkOrder.SalesOrderNo, MainNo = x.Summary.ProductionMainNo })
             .ToList();
 
         // 先计算 Group 2 的 MainNo 级用料计划
@@ -941,13 +985,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
         foreach (var group in mainNoGroups)
         {
-            var groupWorkOrders = group.Select(g => g.WorkOrder!).ToList();
+            var groupWorkOrders = group.Select(g => g.WorkOrder).ToList();
             var groupSummaries = group.Select(g => g.Summary).ToList();
 
             // Group 2: MainNo 级用料计划 — 率取加权平均，状态从率重新计算
             if (groupWorkOrders.Count > 0)
             {
-                var isFixed = groupSummaries.First().LengthStatus == "Fixed";
+                var isFixed = groupSummaries.First().LengthStatus == LengthStatus.Fixed.ToString();
                 decimal avgRate;
                 if (isFixed)
                 {
@@ -965,7 +1009,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                         ? Math.Round(groupWorkOrders.Sum(wo => summaryRateByWoId.GetValueOrDefault(wo.Id, 0) * wo.TotalWeight) / nonFixedTotalWeight, 2)
                         : 0;
                 }
-                var mainStatus = CalculateMainNoStatusFromRate(avgRate, isFixed);
+                var mainStatus = CalculateMainNoStatusFromRate(avgRate, isFixed,
+                    fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
                 foreach (var s in groupSummaries)
                 {
                     s.MainNoMaterialPlanRate = avgRate;
@@ -982,7 +1027,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 var totalTheorQty = groupSummaries.Sum(s => s.TheoreticalOutputQty);
                 var totalTheorWeight = groupSummaries.Sum(s => s.TheoreticalOutputWeight);
 
-                var isFixed = groupSummaries.First().LengthStatus == "Fixed";
+                var isFixed = groupSummaries.First().LengthStatus == LengthStatus.Fixed.ToString();
                 decimal mainRatio;
                 if (isFixed)
                 {
@@ -997,12 +1042,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                         : 0;
                 }
 
-                var mainStatus = mainRatio switch
-                {
-                    <= 0 => 0,
-                    >= 100 => 2,
-                    _ => 1
-                };
+                int mainStatus;
+                if (mainRatio <= 0)
+                    mainStatus = 0;
+                else if (mainRatio >= supplySatisfiedRate)
+                    mainStatus = 2;
+                else
+                    mainStatus = 1;
 
                 foreach (var s in groupSummaries)
                 {
@@ -1017,7 +1063,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
             if (totalQty > 0 || totalWeight > 0)
             {
-                var isFixed = groupSummaries.First().LengthStatus == "Fixed";
+                var isFixed = groupSummaries.First().LengthStatus == LengthStatus.Fixed.ToString();
                 decimal mainFlowRatio;
                 if (isFixed)
                 {
@@ -1032,12 +1078,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                         : 0;
                 }
 
-                var mainFlowStatus = mainFlowRatio switch
-                {
-                    <= 0 => 0,
-                    >= 100 => 2,
-                    _ => 1
-                };
+                int mainFlowStatus;
+                if (mainFlowRatio <= 0)
+                    mainFlowStatus = 0;
+                else if (mainFlowRatio >= supplySatisfiedRate)
+                    mainFlowStatus = 2;
+                else
+                    mainFlowStatus = 1;
 
                 foreach (var s in groupSummaries)
                 {
@@ -1051,20 +1098,22 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     /// <summary>
     /// 从聚合率计算主号级用料计划状态（与 WorkOrderService.CalculateMainNoStatus 阈值一致）
     /// </summary>
-    private static MaterialPlanStatus CalculateMainNoStatusFromRate(decimal rate, bool isFixed)
+    private static MaterialPlanStatus CalculateMainNoStatusFromRate(decimal rate, bool isFixed,
+        decimal fixedPartial = 102m, decimal fixedSatisfied = 110m,
+        decimal nonFixedPartial = 105m, decimal nonFixedSatisfied = 120m)
     {
         if (rate <= 0) return MaterialPlanStatus.NotPlanned;
 
         if (isFixed)
         {
-            if (rate < 102m) return MaterialPlanStatus.Partial;
-            if (rate <= 110m) return MaterialPlanStatus.Satisfied;
+            if (rate < fixedPartial) return MaterialPlanStatus.Partial;
+            if (rate <= fixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
         else
         {
-            if (rate < 105m) return MaterialPlanStatus.Partial;
-            if (rate <= 120m) return MaterialPlanStatus.Satisfied;
+            if (rate < nonFixedPartial) return MaterialPlanStatus.Partial;
+            if (rate <= nonFixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
     }
@@ -1082,9 +1131,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
         // 按 (SalesOrderNo, ProductionMainNo) 分组 → 主号级
         var mainNoGroups = summaries
-            .Select(s => new { Summary = s, WorkOrder = woDict.TryGetValue(s.WorkOrderId, out var wo) ? wo : null })
-            .Where(x => x.WorkOrder != null)
-            .GroupBy(x => new { x.WorkOrder!.SalesOrderNo, MainNo = x.Summary.ProductionMainNo })
+            .Where(s => woDict.ContainsKey(s.WorkOrderId))
+            .Select(s => new { Summary = s, WorkOrder = woDict[s.WorkOrderId] })
+            .GroupBy(x => new { x.WorkOrder.SalesOrderNo, MainNo = x.Summary.ProductionMainNo })
             .ToList();
 
         foreach (var group in mainNoGroups)
@@ -1106,9 +1155,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
         // 按 SalesOrderNo 分组 → 订单级
         var orderGroups = summaries
-            .Select(s => new { Summary = s, WorkOrder = woDict.TryGetValue(s.WorkOrderId, out var wo) ? wo : null })
-            .Where(x => x.WorkOrder != null)
-            .GroupBy(x => x.WorkOrder!.SalesOrderNo)
+            .Where(s => woDict.ContainsKey(s.WorkOrderId))
+            .Select(s => new { Summary = s, WorkOrder = woDict[s.WorkOrderId] })
+            .GroupBy(x => x.WorkOrder.SalesOrderNo)
             .ToList();
 
         foreach (var group in orderGroups)

@@ -43,8 +43,8 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
 
         if (string.IsNullOrEmpty(connectionString))
         {
-            // 回退到本地开发连接字符串
-            connectionString = "Server=localhost;Database=MES;Trusted_Connection=true;TrustServerCertificate=true;MultipleActiveResultSets=true";
+            throw new InvalidOperationException(
+                "未配置数据库连接字符串。请通过环境变量 MES_CONNECTION_STRING 或在 appsettings.json 的 ConnectionStrings:Default 中配置。");
         }
 
         optionsBuilder.UseSqlServer(connectionString);

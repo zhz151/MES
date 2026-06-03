@@ -22,9 +22,12 @@ public class OrderServiceTests : TestBase
     {
         var loggerMock = new Mock<ILogger<OrderService>>();
         notificationMock ??= Mock.Of<INotificationService>();
+        var configMock = new Mock<IConfigParameterService>();
+        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
         var summaryLoggerMock = new Mock<ILogger<OrderListSummaryService>>();
         var summaryService = new OrderListSummaryService(ctx, summaryLoggerMock.Object);
-        return new OrderService(ctx, loggerMock.Object, notificationMock, summaryService);
+        return new OrderService(ctx, loggerMock.Object, notificationMock, configMock.Object, summaryService);
     }
 
     // ========== 创建订单 ==========

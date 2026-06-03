@@ -31,7 +31,7 @@ public class WorkOrderExecutionControllerTests : ControllerTestBase
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>())).ReturnsAsync(pagedResult);
 
         // Act
-        var result = await _controller.GetPaged(new QueryParams());
+        var result = await _controller.GetPaged(pageIndex: 1, pageSize: 20);
 
         // Assert
         var (_, response) = AssertOk<ApiResponse<PagedResult<WorkOrderExecutionSummaryDto>>>(result);
@@ -83,8 +83,8 @@ public class WorkOrderExecutionControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
             .ReturnsAsync(new PagedResult<WorkOrderExecutionSummaryDto> { Items = new List<WorkOrderExecutionSummaryDto>() });
-        var result = await _controller.GetPaged(new QueryParams { PageSize = 9999 });
-        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.PageSize == 9999)), Times.Once);
+        var result = await _controller.GetPaged(pageSize: 9999);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.PageSize == 5000)), Times.Once);
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public class WorkOrderExecutionControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
             .ReturnsAsync(new PagedResult<WorkOrderExecutionSummaryDto> { Items = new List<WorkOrderExecutionSummaryDto>() });
-        await _controller.GetPaged(new QueryParams { Keyword = "测试" });
+        await _controller.GetPaged(keyword: "测试");
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Keyword == "测试")), Times.Once);
     }
 
@@ -101,7 +101,7 @@ public class WorkOrderExecutionControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
             .ReturnsAsync(new PagedResult<WorkOrderExecutionSummaryDto> { Items = new List<WorkOrderExecutionSummaryDto>() });
-        await _controller.GetPaged(new QueryParams { SortBy = "WorkOrderNo" });
+        await _controller.GetPaged(sortBy: "WorkOrderNo");
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "WorkOrderNo")), Times.Once);
     }
 
@@ -111,7 +111,7 @@ public class WorkOrderExecutionControllerTests : ControllerTestBase
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
             .ReturnsAsync(new PagedResult<WorkOrderExecutionSummaryDto> { Items = new List<WorkOrderExecutionSummaryDto>() });
         var filtersJson = "[{\"Field\":\"Status\",\"Operator\":\"equals\",\"Value\":\"Completed\"}]";
-        await _controller.GetPaged(new QueryParams(), filters: filtersJson);
+        await _controller.GetPaged(filters: filtersJson);
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Filters != null && q.Filters.Count > 0)), Times.Once);
     }
 }

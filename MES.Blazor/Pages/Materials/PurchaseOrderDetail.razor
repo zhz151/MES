@@ -360,7 +360,7 @@
             if (result.Success)
             {
                 // 如果强制完成状态已改变，额外调用状态更新
-                if (_editIsForceCompleted != _order!.IsForceCompleted)
+                if (_order != null && _editIsForceCompleted != _order.IsForceCompleted)
                 {
                     await PurchaseService.UpdateStatusAsync(Id, new UpdateOrderStatusRequest { IsForceCompleted = _editIsForceCompleted });
                 }

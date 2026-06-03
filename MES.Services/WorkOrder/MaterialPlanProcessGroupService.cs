@@ -12,10 +12,16 @@ namespace MES.Services;
 public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
 {
     private readonly AppDbContext _context;
+    private readonly IStandardWorkDayService _standardWorkDayService;
+    private readonly IStandardWorkDayDeliveryStateService _deliveryStateService;
 
-    public MaterialPlanProcessGroupService(AppDbContext context)
+    public MaterialPlanProcessGroupService(AppDbContext context,
+        IStandardWorkDayService standardWorkDayService,
+        IStandardWorkDayDeliveryStateService deliveryStateService)
     {
         _context = context;
+        _standardWorkDayService = standardWorkDayService;
+        _deliveryStateService = deliveryStateService;
     }
 
     public async Task<List<MaterialPlanProcessGroupDto>> GetByPlanAsync(int planType, int planId)
@@ -214,8 +220,11 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
                 item.Inspection, item.WeldingHead, item.Lubrication, item.Warehouse));
         }
 
+        var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
+        var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
         var cycle = MaterialPlanService.CalculateStandardCycleFromSections(
-            allSections, workOrder.DeliveryState, workOrder.PlantGrade);
+            allSections, dayMap, deliveryStateExtraDays,
+            workOrder.DeliveryState.ToString());
 
         return cycle > 0 ? cycle : 3;
     }

@@ -24,7 +24,10 @@ public class DataFixServiceTests : TestBase
         purchaseMock ??= new Mock<IPurchaseOrderService>().Object;
         subcontractMock ??= new Mock<ISubcontractOrderService>().Object;
         var loggerMock = new Mock<ILogger<DataFixService>>().Object;
-        return new DataFixService(ctx, prodRecordMock, purchaseMock, subcontractMock, loggerMock);
+        var configMock = new Mock<IConfigParameterService>();
+        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
+        return new DataFixService(ctx, prodRecordMock, purchaseMock, subcontractMock, loggerMock, configMock.Object);
     }
 
     /// <summary>

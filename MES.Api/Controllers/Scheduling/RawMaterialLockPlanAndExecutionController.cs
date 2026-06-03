@@ -20,9 +20,15 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
 
     [HttpGet("list")]
     public async Task<ActionResult<ApiResponse<PagedResult<Core.DTOs.RawMaterialLockPlanAndExecutionDto>>>> GetPaged(
-        [FromQuery] QueryParams query,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? keyword = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool isDescending = true,
         [FromQuery] string? filters = null)
     {
+        if (pageSize > 5000) pageSize = 5000;
+        QueryParams query = new() { PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword, SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending };
         if (!string.IsNullOrEmpty(filters))
             query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -50,4 +56,24 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
         var result = await _service.GetFilterContextsAsync();
         return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
     }
+
+    [HttpPost("set-pre-execute-flags")]
+    public async Task<ActionResult<ApiResponse<int>>> SetPreExecuteFlags([FromBody] SetPreExecuteFlagsRequest request)
+    {
+        var count = await _service.SetPreExecuteFlagsAsync(request.WorkOrderIds, request.IsPreInput, request.IsMainNoMaterialComplete);
+        var parts = new List<string>();
+        if (request.IsPreInput.HasValue)
+            parts.Add(request.IsPreInput.Value ? "执行" : "取消执行");
+        if (request.IsMainNoMaterialComplete.HasValue)
+            parts.Add(request.IsMainNoMaterialComplete.Value ? "主号齐全" : "取消主号");
+        var msg = $"标记完成（{string.Join(",", parts)}），共{count}条";
+        return Ok(ApiResponse<int>.Ok(count, msg));
+    }
+}
+
+public class SetPreExecuteFlagsRequest
+{
+    public List<int> WorkOrderIds { get; set; } = new();
+    public bool? IsPreInput { get; set; }
+    public bool? IsMainNoMaterialComplete { get; set; }
 }

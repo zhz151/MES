@@ -27,12 +27,18 @@ using MES.Shared.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ========== 数据库连接字符串（优先环境变量，回退配置文件） ==========
+var connectionString = Environment.GetEnvironmentVariable("MES_CONNECTION_STRING")
+    ?? builder.Configuration.GetConnectionString("Default")
+    ?? throw new InvalidOperationException(
+        "未配置数据库连接字符串。请通过环境变量 MES_CONNECTION_STRING 或在 appsettings.json 的 ConnectionStrings:Default 中配置。");
+
 // ========== Hangfire 配置 ==========
 builder.Services.AddHangfire(configuration => configuration
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
-    .UseSqlServerStorage(builder.Configuration.GetConnectionString("Default"), new SqlServerStorageOptions
+    .UseSqlServerStorage(connectionString, new SqlServerStorageOptions
     {
         CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
         SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
@@ -54,7 +60,7 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSet
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+    options.UseSqlServer(connectionString));
 
 builder.Services.AddIdentity<AppUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
@@ -137,6 +143,7 @@ builder.Services.AddScoped<IGradeMappingService, GradeMappingService>();
 builder.Services.AddScoped<IStandardProcessCycleService, StandardProcessCycleService>();
 builder.Services.AddScoped<IStandardWorkDayService, StandardWorkDayService>();
 builder.Services.AddScoped<IStandardWorkDayDeliveryStateService, StandardWorkDayDeliveryStateService>();
+builder.Services.AddScoped<IConfigParameterService, ConfigParameterService>();
 builder.Services.AddScoped<IMaterialPlanProcessGroupService, MaterialPlanProcessGroupService>();
 builder.Services.AddScoped<IProductRequirementService, ProductRequirementService>();
 
@@ -183,6 +190,9 @@ builder.Services.AddScoped<IWorkOrderExecutionService, WorkOrderExecutionService
 builder.Services.AddScoped<ISalesUrgingService, SalesUrgingService>();
 builder.Services.AddScoped<IRawMaterialLockPlanAndExecutionService, RawMaterialLockPlanAndExecutionService>();
 builder.Services.AddScoped<ProductionOverviewService>();
+builder.Services.AddScoped<ISectionProductionStatusService, SectionProductionStatusService>();
+builder.Services.AddScoped<ISectionFlowAnalysisService, SectionFlowAnalysisService>();
+builder.Services.AddScoped<IWorkOrderScheduleService, WorkOrderScheduleService>();
 
 // 质量过程跟踪
 builder.Services.AddScoped<IQualityProcessTrackingService, QualityProcessTrackingService>();

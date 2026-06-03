@@ -104,7 +104,7 @@ public class PurchaseOrderController : ControllerBase
     {
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<PurchaseOrderDto>.Fail("请求参数无效"));
-        var isAdmin = User.IsInRole("Admin");
+        var isAdmin = User.IsInRole(Roles.Admin);
         var result = await _service.UpdateAsync(id, request, isAdmin);
         return Ok(ApiResponse<PurchaseOrderDto>.Ok(result, "更新成功"));
     }
@@ -139,7 +139,7 @@ public class PurchaseOrderController : ControllerBase
     [Authorize(Roles = $"{Roles.Directors.Material},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
-        var isAdmin = User.IsInRole("Admin");
+        var isAdmin = User.IsInRole(Roles.Admin);
         await _service.DeleteAsync(id, isAdmin);
         return Ok(ApiResponse.Ok("删除成功"));
     }

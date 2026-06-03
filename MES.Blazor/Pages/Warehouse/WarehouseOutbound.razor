@@ -223,7 +223,7 @@
         var errors = new List<string>();
 
         // 解析日期
-        DateTime? parsedDate = null;
+        DateTime parsedDate = default;
         if (string.IsNullOrWhiteSpace(_dateText))
             errors.Add("出库日期不能为空");
         else if (!DateTime.TryParse(_dateText, out var tmpDate))
@@ -264,7 +264,7 @@
                 OutboundType = first.OutboundType,
                 SourceOrderNo = string.IsNullOrEmpty(first.SourceOrderNo) ? null : first.SourceOrderNo,
                 TargetCompany = string.IsNullOrEmpty(first.TargetCompany) ? null : first.TargetCompany,
-                OutboundDate = parsedDate!.Value,
+                OutboundDate = parsedDate,
                 Remark = string.IsNullOrEmpty(first.Remark) ? null : first.Remark,
                 Items = _items.Select(i => new OutboundItemRequest
                 {

@@ -18,6 +18,7 @@ public partial class ProductionRecords
     private MudTable<ProductionRecordDto>? table;
     private List<ProductionRecordDto> _pageItems = new();
     private int _totalCount;
+    private int _pageSize = 10;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
     private bool _allSelected;
@@ -149,6 +150,8 @@ public partial class ProductionRecords
 
     private async Task<TableData<ProductionRecordDto>> LoadDataFromServer(TableState state)
     {
+        _pageSize = state.PageSize;
+
         // 恢复持久化的页码（MudTable 初始化时始终传 page=0）
         if (_isFirstLoad)
         {

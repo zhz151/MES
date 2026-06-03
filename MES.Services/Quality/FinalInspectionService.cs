@@ -253,7 +253,7 @@ public class FinalInspectionService : IFinalInspectionService
                 request.Specification ??= batch.Specification;
                 if (string.IsNullOrEmpty(request.FixedLength))
                 {
-                    request.FixedLength = batch.LengthStatus == "Fixed" && batch.MinLength.HasValue
+                    request.FixedLength = batch.LengthStatus == LengthStatus.Fixed.ToString() && batch.MinLength.HasValue
                         ? $"{batch.MinLength.Value:G29}mm"
                         : null;
                 }
@@ -456,7 +456,7 @@ public class FinalInspectionService : IFinalInspectionService
             var batchId = batch.Id;
 
             var materialName = request.MaterialName ?? batch.MaterialName;
-            var fixedLength = request.FixedLength ?? (batch.LengthStatus == "Fixed" && batch.MinLength.HasValue ? $"{batch.MinLength.Value:G29}mm" : null);
+            var fixedLength = request.FixedLength ?? (batch.LengthStatus == LengthStatus.Fixed.ToString() && batch.MinLength.HasValue ? $"{batch.MinLength.Value:G29}mm" : null);
             var operatorName = request.Operator;
 
             var existing = existingByBatch.GetValueOrDefault(batchId, new List<FinalInspection>());
@@ -515,7 +515,7 @@ public class FinalInspectionService : IFinalInspectionService
                 PlantGrade = r.PlantGrade ?? batch.PlantGrade,
                 Specification = r.Specification ?? batch.Specification,
                 ProductionType = r.ProductionType ?? batch.ProductionType,
-                FixedLength = r.FixedLength ?? (batch.LengthStatus == "Fixed" && batch.MinLength.HasValue ? $"{batch.MinLength.Value:G29}mm" : null),
+                FixedLength = r.FixedLength ?? (batch.LengthStatus == LengthStatus.Fixed.ToString() && batch.MinLength.HasValue ? $"{batch.MinLength.Value:G29}mm" : null),
                 EquipmentName = r.EquipmentName,
                 Shift = r.Shift,
                 Operator = r.Operator,
@@ -660,7 +660,7 @@ public class FinalInspectionService : IFinalInspectionService
                 PlantGrade = b.PlantGrade,
                 Specification = b.Specification,
                 ProductionType = b.ProductionType,
-                FixedLength = b.LengthStatus == "Fixed" && b.MinLength.HasValue
+                FixedLength = b.LengthStatus == LengthStatus.Fixed.ToString() && b.MinLength.HasValue
                     ? b.MinLength.Value.ToString("G29") + "mm"
                     : null
             })

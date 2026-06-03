@@ -19,15 +19,29 @@ public class ProcessInspectionService : IProcessInspectionService
     private readonly AppDbContext _context;
     private readonly ILogger<ProcessInspectionService> _logger;
     private readonly IProductionRecordService _productionRecordService;
+    private readonly IConfigParameterService _configService;
+    private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
     public ProcessInspectionService(
         AppDbContext context,
         ILogger<ProcessInspectionService> logger,
-        IProductionRecordService productionRecordService)
+        IProductionRecordService productionRecordService,
+        IConfigParameterService configService)
     {
         _context = context;
         _logger = logger;
         _productionRecordService = productionRecordService;
+        _configService = configService;
+    }
+
+    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
+    {
+        if (!_configMaps.TryGetValue(category, out var map))
+        {
+            map = await _configService.GetConfigMapAsync(category);
+            _configMaps[category] = map;
+        }
+        return map.GetValueOrDefault(key, defaultValue);
     }
 
     public async Task<PagedResult<ProcessInspectionDto>> GetAllAsync(QueryParams query)
@@ -243,6 +257,8 @@ public class ProcessInspectionService : IProcessInspectionService
             .GroupBy(r => r.ProductionBatchId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
+        var sequenceMaxJump = (int)await GetConfigAsync("SequenceJump", "MaxJump", 7m);
+
         for (int i = 0; i < requests.Count; i++)
         {
             var request = requests[i];
@@ -277,9 +293,9 @@ public class ProcessInspectionService : IProcessInspectionService
                     .Where(r => r.InspectionDate.Date < request.InspectionDate.Date)
                     .Select(r => (int?)r.SequenceNumber)
                     .Max() ?? 0;
-                var maxAllowed = prevMax + 7;
+                var maxAllowed = prevMax + sequenceMaxJump;
                 if (seqNum > maxAllowed)
-                    errors.Add($"第{i + 1}行：执行序号({seqNum})超过该日期前已执行最大值({prevMax})+7={maxAllowed}");
+                    errors.Add($"第{i + 1}行：执行序号({seqNum})超过该日期前已执行最大值({prevMax})+{sequenceMaxJump}={maxAllowed}");
             }
 
             // 重复校验：同批次+同工序组+同工段 → 重复

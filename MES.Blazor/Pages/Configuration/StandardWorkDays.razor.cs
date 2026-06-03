@@ -45,6 +45,7 @@ public partial class StandardWorkDays
 
     private async Task<TableData<StandardWorkDayDto>> LoadDataFromServer(TableState state)
     {
+        _pageSize = state.PageSize;
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "sectionname";
@@ -199,7 +200,7 @@ public partial class StandardWorkDays
 
     // ========== 新增 ==========
 
-    private async void AddNew()
+    private async Task AddNew()
     {
         // 使用一个临时负 ID 作为新增行标识
         var newId = -DateTime.Now.Ticks.GetHashCode();
@@ -215,7 +216,7 @@ public partial class StandardWorkDays
         {
             _pageItems.Insert(0, newItem);
             StartEdit(newItem);
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
         }
         else
         {
@@ -358,100 +359,6 @@ public partial class StandardWorkDays
             }
         }
     }
-
-    // ========== 单元格渲染 ==========
-
-    private RenderFragment RenderCell(StandardWorkDayDto item, ColumnDef col) => builder =>
-    {
-        var isEditing = _editingIds.Contains(item.Id);
-        var cache = isEditing && _editCache.TryGetValue(item.Id, out var c) ? c : null;
-
-        switch (col.Key)
-        {
-            case "SectionName":
-                if (isEditing && cache != null)
-                {
-                    builder.OpenComponent<MudSelect<string>>(0);
-                    builder.AddAttribute(1, "Dense", true);
-                    builder.AddAttribute(2, "Variant", Variant.Outlined);
-                    builder.AddAttribute(3, "Value", cache.SectionName);
-                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.SectionName = v));
-                    builder.AddAttribute(5, "Class", "compact-input");
-                    builder.AddAttribute(6, "Required", true);
-                    builder.AddAttribute(7, "Label", "工段名称");
-                    foreach (var sn in SectionDefs.All)
-                    {
-                        builder.OpenRegion(sn.GetHashCode());
-                        builder.OpenComponent<MudSelectItem<string>>(0);
-                        builder.AddAttribute(1, "Value", sn);
-                        builder.AddAttribute(2, "ChildContent", (RenderFragment)((b) => b.AddContent(0, sn)));
-                        builder.CloseComponent();
-                        builder.CloseRegion();
-                    }
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.AddContent(0, item.SectionName);
-                }
-                break;
-            case "PlantGradePrefix":
-                if (isEditing && cache != null)
-                {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Dense", true);
-                    builder.AddAttribute(2, "Variant", Variant.Outlined);
-                    builder.AddAttribute(3, "Value", cache.PlantGradePrefix);
-                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.PlantGradePrefix = v));
-                    builder.AddAttribute(5, "Class", "compact-input");
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.AddContent(0, item.PlantGradePrefix);
-                }
-                break;
-            case "StandardDays":
-                if (isEditing && cache != null)
-                {
-                    builder.OpenComponent<MudNumericField<double>>(0);
-                    builder.AddAttribute(1, "Dense", true);
-                    builder.AddAttribute(2, "Variant", Variant.Outlined);
-                    builder.AddAttribute(3, "HideSpinButtons", true);
-                    builder.AddAttribute(4, "Value", cache.StandardDays);
-                    builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<double>(this, v => cache.StandardDays = v));
-                    builder.AddAttribute(6, "Class", "compact-input");
-                    builder.AddAttribute(7, "Min", 0.1);
-                    builder.AddAttribute(8, "Max", 365);
-                    builder.AddAttribute(9, "Format", "G29");
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.AddContent(0, item.StandardDays.ToString("G29"));
-                }
-                break;
-            case "Remark":
-                if (isEditing && cache != null)
-                {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Dense", true);
-                    builder.AddAttribute(2, "Variant", Variant.Outlined);
-                    builder.AddAttribute(3, "Value", cache.Remark);
-                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.Remark = v));
-                    builder.AddAttribute(5, "Class", "compact-input");
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.AddContent(0, item.Remark);
-                }
-                break;
-            default:
-                builder.AddContent(0, "");
-                break;
-        }
-    };
 
     // ========== 持久化 ==========
 

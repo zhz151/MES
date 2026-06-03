@@ -19,13 +19,26 @@ public class OrderService : IOrderService
     private readonly ILogger<OrderService> _logger;
     private readonly INotificationService _notificationService;
     private readonly OrderListSummaryService? _orderListSummaryService;
+    private readonly IConfigParameterService _configService;
+    private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
-    public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService, OrderListSummaryService? orderListSummaryService = null)
+    public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService, IConfigParameterService configService, OrderListSummaryService? orderListSummaryService = null)
     {
         _context = context;
         _logger = logger;
         _notificationService = notificationService;
+        _configService = configService;
         _orderListSummaryService = orderListSummaryService;
+    }
+
+    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
+    {
+        if (!_configMaps.TryGetValue(category, out var map))
+        {
+            map = await _configService.GetConfigMapAsync(category);
+            _configMaps[category] = map;
+        }
+        return map.GetValueOrDefault(key, defaultValue);
     }
 
     #region 订单管理
@@ -808,7 +821,11 @@ public async Task DeleteAsync(int id)
                     normalizedOdNeg, normalizedOdPos, normalizedWtNeg, normalizedWtPos, metersValue);
 
                 if (updateReq.LengthStatus == LengthStatus.Fixed && theoreticalWeight > 0)
-                    ValidateContractWeightAgainstTheoreticalWeight(normalizedCw, theoreticalWeight);
+                {
+                    var lowerBound = await GetConfigAsync("ContractWeight", "LowerBound", 0.94m);
+                    var upperBound = await GetConfigAsync("ContractWeight", "UpperBound", 1.06m);
+                    ValidateContractWeightAgainstTheoreticalWeight(normalizedCw, theoreticalWeight, lowerBound, upperBound);
+                }
 
                 SetOrderItemFields(orderItem,
                     deliveryDate: updateReq.DeliveryDate, delayPenalty: updateReq.DelayPenalty,
@@ -855,7 +872,11 @@ public async Task DeleteAsync(int id)
                     normalizedOdNeg, normalizedOdPos, normalizedWtNeg, normalizedWtPos, metersValue);
 
                 if (newReq.LengthStatus == LengthStatus.Fixed && theoreticalWeight > 0)
-                    ValidateContractWeightAgainstTheoreticalWeight(normalizedCw, theoreticalWeight);
+                {
+                    var lowerBound = await GetConfigAsync("ContractWeight", "LowerBound", 0.94m);
+                    var upperBound = await GetConfigAsync("ContractWeight", "UpperBound", 1.06m);
+                    ValidateContractWeightAgainstTheoreticalWeight(normalizedCw, theoreticalWeight, lowerBound, upperBound);
+                }
 
                 SetOrderItemFields(orderItem,
                     deliveryDate: newReq.DeliveryDate, delayPenalty: newReq.DelayPenalty,
@@ -989,6 +1010,9 @@ public async Task DeleteAsync(int id)
 
     private async Task<OrderItem> CreateOrderItemFromCreateRequestAsync(CreateOrderItemRequest request, int salesOrderId, int sequence)
     {
+        var lowerBound = await GetConfigAsync("ContractWeight", "LowerBound", 0.94m);
+        var upperBound = await GetConfigAsync("ContractWeight", "UpperBound", 1.06m);
+
         var productionStandard = await _context.ProductionStandards
             .FirstOrDefaultAsync(ps => ps.Id == request.ProductionStandardId);
         if (productionStandard == null)
@@ -1022,7 +1046,7 @@ public async Task DeleteAsync(int id)
         // 验证合同重量与理算重量的关系
         if (request.LengthStatus == LengthStatus.Fixed && theoreticalWeight > 0)
         {
-            ValidateContractWeightAgainstTheoreticalWeight(normalizedContractWeight, theoreticalWeight);
+            ValidateContractWeightAgainstTheoreticalWeight(normalizedContractWeight, theoreticalWeight, lowerBound, upperBound);
         }
 
         var item = new OrderItem { SalesOrderId = salesOrderId, Sequence = sequence };
@@ -1056,6 +1080,9 @@ public async Task DeleteAsync(int id)
 
     private async Task<OrderItem> CreateOrderItemFromAddRequestAsync(AddOrderItemRequest request, int salesOrderId, int sequence)
     {
+        var lowerBound = await GetConfigAsync("ContractWeight", "LowerBound", 0.94m);
+        var upperBound = await GetConfigAsync("ContractWeight", "UpperBound", 1.06m);
+
         var productionStandard = await _context.ProductionStandards
             .FirstOrDefaultAsync(ps => ps.Id == request.ProductionStandardId);
         if (productionStandard == null)
@@ -1089,7 +1116,7 @@ public async Task DeleteAsync(int id)
         // 验证合同重量与理算重量的关系
         if (request.LengthStatus == LengthStatus.Fixed && theoreticalWeight > 0)
         {
-            ValidateContractWeightAgainstTheoreticalWeight(normalizedContractWeight, theoreticalWeight);
+            ValidateContractWeightAgainstTheoreticalWeight(normalizedContractWeight, theoreticalWeight, lowerBound, upperBound);
         }
 
         var item = new OrderItem { SalesOrderId = salesOrderId, Sequence = sequence };
@@ -1152,22 +1179,20 @@ public async Task DeleteAsync(int id)
     /// <summary>
     /// 验证合同重量与理算重量的关系
     /// </summary>
-    private static void ValidateContractWeightAgainstTheoreticalWeight(decimal contractWeight, decimal theoreticalWeight)
+    private static void ValidateContractWeightAgainstTheoreticalWeight(decimal contractWeight, decimal theoreticalWeight, decimal lowerBound, decimal upperBound)
     {
         if (theoreticalWeight <= 0) return;
-        
+
         var ratio = contractWeight / theoreticalWeight;
-        var lowerBound = 0.94m;   // 94%
-        var upperBound = 1.06m;   // 106%
-        
+
         if (ratio < lowerBound)
         {
-            throw new BusinessException($"合同重量 {contractWeight:G29} kg 低于理算重量 {theoreticalWeight:G29} kg 的94%，可能亏损");
+            throw new BusinessException($"合同重量 {contractWeight:G29} kg 低于理算重量 {theoreticalWeight:G29} kg 的{lowerBound * 100:F0}%，可能亏损");
         }
-        
+
         if (ratio > upperBound)
         {
-            throw new BusinessException($"合同重量 {contractWeight:G29} kg 高于理算重量 {theoreticalWeight:G29} kg 的106%");
+            throw new BusinessException($"合同重量 {contractWeight:G29} kg 高于理算重量 {theoreticalWeight:G29} kg 的{upperBound * 100:F0}%");
         }
     }
 

@@ -83,7 +83,7 @@ public class WorkOrdersTests : TestBase
                     TotalQuantity = 100,
                     TotalWeight = 1000m,
                     TotalItemCount = 1,
-                    Status = (int)status,
+                    Status = (WorkOrderStatus)status,
                     MaterialPlanStatus = 0,
                     MaterialPlanRate = 0,
                     MainNoMaterialPlanStatus = 0,

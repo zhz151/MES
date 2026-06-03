@@ -100,6 +100,7 @@ public partial class RepairOrders
 
     private async Task<TableData<RepairOrderListDto>> LoadDataFromServer(TableState state)
     {
+        _pageSize = state.PageSize;
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "reporttime";

@@ -21,9 +21,13 @@ public class ProcessInspectionServiceTests : TestBase
     private ProcessInspectionService CreateService(AppDbContext ctx)
     {
         var mockProductionRecordService = new Mock<IProductionRecordService>();
+        var configMock = new Mock<IConfigParameterService>();
+        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
         return new ProcessInspectionService(ctx,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<ProcessInspectionService>.Instance,
-            mockProductionRecordService.Object);
+            mockProductionRecordService.Object,
+            configMock.Object);
     }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")

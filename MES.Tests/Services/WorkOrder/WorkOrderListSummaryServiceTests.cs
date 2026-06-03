@@ -20,7 +20,10 @@ public class WorkOrderListSummaryServiceTests : TestBase
     private WorkOrderListSummaryService CreateService(AppDbContext ctx)
     {
         var loggerMock = new Mock<ILogger<WorkOrderListSummaryService>>();
-        return new WorkOrderListSummaryService(ctx, loggerMock.Object);
+        var configMock = new Mock<IConfigParameterService>();
+        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
+        return new WorkOrderListSummaryService(ctx, loggerMock.Object, configMock.Object);
     }
 
     /// <summary>种子一个工单并返回其 ID 和订单号</summary>

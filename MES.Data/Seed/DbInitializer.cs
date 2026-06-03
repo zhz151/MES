@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.Configuration;
+using MES.Data.Entities.Scheduling;
 using MES.Shared.Constants;
 using Microsoft.Extensions.DependencyInjection;
 using MES.Core.Enums;
@@ -726,6 +727,235 @@ public static class DbInitializer
             };
 
             await context.StandardWorkDayDeliveryStates.AddRangeAsync(deliveryStates);
+            await context.SaveChangesAsync();
+        }
+
+        // ========== 10. Initialize Config Parameters ==========
+        if (!context.ConfigParameters.Any())
+        {
+            var configParams = new List<ConfigParameter>
+            {
+                // ===== WarehouseThreshold 仓库完工阈值 =====
+                new() { Category = "WarehouseThreshold", ParamKey = "CompleteRatio", ParamValue = 0.95m, Remark = "入库完工比率阈值" },
+                new() { Category = "WarehouseThreshold", ParamKey = "CompleteDeviation", ParamValue = 100m, Remark = "入库完工绝对偏差(kg)" },
+                new() { Category = "WarehouseThreshold", ParamKey = "SubcontractCompleteRatio", ParamValue = 0.95m, Remark = "委外完工比率阈值" },
+                new() { Category = "WarehouseThreshold", ParamKey = "PurchaseCompleteRatio", ParamValue = 0.965m, Remark = "采购完工比率阈值" },
+                new() { Category = "WarehouseThreshold", ParamKey = "PurchaseCompleteDeviation", ParamValue = 200m, Remark = "采购完工绝对偏差(kg)" },
+                new() { Category = "WarehouseThreshold", ParamKey = "OutsourceRecoveryRatio", ParamValue = 0.99m, Remark = "委外回收比率阈值" },
+
+                // ===== ProductionThreshold 生产阈值 =====
+                new() { Category = "ProductionThreshold", ParamKey = "ColdRollCompleteRatio", ParamValue = 0.95m, Remark = "冷轧拔完工比率" },
+                new() { Category = "ProductionThreshold", ParamKey = "ValidInputUpper", ParamValue = 1.05m, Remark = "有效投料比率上限" },
+                new() { Category = "ProductionThreshold", ParamKey = "ValidInputLower", ParamValue = 0.95m, Remark = "有效投料比率下限" },
+                new() { Category = "ProductionThreshold", ParamKey = "InspectionInputUpper", ParamValue = 1.02m, Remark = "检验投料比率上限" },
+                new() { Category = "ProductionThreshold", ParamKey = "InspectionInputLower", ParamValue = 0.98m, Remark = "检验投料比率下限" },
+
+                // ===== MaterialPlanRatio 物料计划系数 =====
+                new() { Category = "MaterialPlanRatio", ParamKey = "FixedFinishRatio", ParamValue = 1.02m, Remark = "定尺成品采购系数" },
+                new() { Category = "MaterialPlanRatio", ParamKey = "FixedInventoryRatio", ParamValue = 1.02m, Remark = "定尺库存使用系数" },
+                new() { Category = "MaterialPlanRatio", ParamKey = "NonFixedFinishRatio", ParamValue = 1.05m, Remark = "非定尺成品采购系数" },
+                new() { Category = "MaterialPlanRatio", ParamKey = "NonFixedInventoryRatio", ParamValue = 1.05m, Remark = "非定尺库存使用系数" },
+
+                // ===== DimensionTolerance 尺寸公差系数 =====
+                new() { Category = "DimensionTolerance", ParamKey = "OdLower", ParamValue = 1.002m, Remark = "外径下限系数" },
+                new() { Category = "DimensionTolerance", ParamKey = "OdUpper", ParamValue = 0.998m, Remark = "外径上限系数" },
+                new() { Category = "DimensionTolerance", ParamKey = "WtLower", ParamValue = 1.02m, Remark = "壁厚下限系数" },
+                new() { Category = "DimensionTolerance", ParamKey = "WtUpper", ParamValue = 0.98m, Remark = "壁厚上限系数" },
+
+                // ===== ReworkRatio 改制系数 =====
+                new() { Category = "ReworkRatio", ParamKey = "EmptyDrawingOdLower", ParamValue = 1.05m, Remark = "空拔外径下限" },
+                new() { Category = "ReworkRatio", ParamKey = "FewerPassOdLower", ParamValue = 1.1m, Remark = "少道次外径下限" },
+                new() { Category = "ReworkRatio", ParamKey = "OdUpper", ParamValue = 2.0m, Remark = "改制外径上限" },
+                new() { Category = "ReworkRatio", ParamKey = "EmptyDrawingWtLower", ParamValue = 0.95m, Remark = "空拔壁厚下限" },
+                new() { Category = "ReworkRatio", ParamKey = "FewerPassWtLower", ParamValue = 1.05m, Remark = "少道次壁厚下限" },
+                new() { Category = "ReworkRatio", ParamKey = "EmptyDrawingWtUpper", ParamValue = 1.05m, Remark = "空拔壁厚上限" },
+                new() { Category = "ReworkRatio", ParamKey = "FewerPassWtUpper", ParamValue = 2.0m, Remark = "少道次壁厚上限" },
+                new() { Category = "ReworkRatio", ParamKey = "MinUnitWeightRatio", ParamValue = 1.05m, Remark = "改制最小单重系数" },
+
+                // ===== MaterialPlanStatus 物料计划状态阈值 =====
+                new() { Category = "MaterialPlanStatus", ParamKey = "FixedPartial", ParamValue = 102m, Remark = "定尺部分阈值(%)" },
+                new() { Category = "MaterialPlanStatus", ParamKey = "FixedSatisfied", ParamValue = 110m, Remark = "定尺满足阈值(%)" },
+                new() { Category = "MaterialPlanStatus", ParamKey = "NonFixedPartial", ParamValue = 105m, Remark = "非定尺部分阈值(%)" },
+                new() { Category = "MaterialPlanStatus", ParamKey = "NonFixedSatisfied", ParamValue = 120m, Remark = "非定尺满足阈值(%)" },
+                new() { Category = "MaterialPlanStatus", ParamKey = "SmallBatchMaxQty", ParamValue = 20m, Remark = "小批量最大支数" },
+                new() { Category = "MaterialPlanStatus", ParamKey = "SmallBatchSatisfiedRate", ParamValue = 100m, Remark = "小批量满足率(%)" },
+                new() { Category = "MaterialPlanStatus", ParamKey = "SupplySatisfiedRate", ParamValue = 100m, Remark = "投料满足率(%)" },
+
+                // ===== ProcessingDiscount 加工折扣率 =====
+                new() { Category = "ProcessingDiscount", ParamKey = "GroupDiscountRate", ParamValue = 0.025m, Remark = "每工序组损耗折扣率" },
+                new() { Category = "ProcessingDiscount", ParamKey = "RawMaterialRatio", ParamValue = 1.1m, Remark = "原料换算系数" },
+
+                // ===== WorkOrderDays 工单天数 =====
+                new() { Category = "WorkOrderDays", ParamKey = "BufferDays", ParamValue = 3m, Remark = "缓冲天数" },
+                new() { Category = "WorkOrderDays", ParamKey = "InspectionFixedDays", ParamValue = 3m, Remark = "检验固定天数" },
+
+                // ===== UrgencyThreshold 紧急程度阈值 =====
+                new() { Category = "UrgencyThreshold", ParamKey = "APlus", ParamValue = 7m, Remark = "A+急阈值(天)" },
+                new() { Category = "UrgencyThreshold", ParamKey = "A", ParamValue = -3m, Remark = "A急阈值(天)" },
+                new() { Category = "UrgencyThreshold", ParamKey = "B", ParamValue = -10m, Remark = "B顺阈值(天)" },
+                new() { Category = "UrgencyThreshold", ParamKey = "C", ParamValue = -17m, Remark = "C缓阈值(天)" },
+
+                // ===== DateBucket 日期桶边界 =====
+                new() { Category = "DateBucket", ParamKey = "Bucket1", ParamValue = 15m, Remark = "日期桶1(天)" },
+                new() { Category = "DateBucket", ParamKey = "Bucket2", ParamValue = 30m, Remark = "日期桶2(天)" },
+                new() { Category = "DateBucket", ParamKey = "Bucket3", ParamValue = 45m, Remark = "日期桶3(天)" },
+                new() { Category = "DateBucket", ParamKey = "Bucket4", ParamValue = 60m, Remark = "日期桶4(天)" },
+                new() { Category = "DateBucket", ParamKey = "Bucket5", ParamValue = 90m, Remark = "日期桶5(天)" },
+
+                // ===== ProductionCapacity 产能负荷 =====
+                new() { Category = "ProductionCapacity", ParamKey = "Polish", ParamValue = 12m, Remark = "荒管抛光日产能(吨)" },
+                new() { Category = "ProductionCapacity", ParamKey = "Mill50_60", ParamValue = 11m, Remark = "50/60轧机日产能(吨)" },
+                new() { Category = "ProductionCapacity", ParamKey = "Mill20_30", ParamValue = 9m, Remark = "20/30轧机日产能(吨)" },
+                new() { Category = "ProductionCapacity", ParamKey = "ThreeRoll", ParamValue = 0.5m, Remark = "三辊轧机日产能(吨)" },
+                new() { Category = "ProductionCapacity", ParamKey = "DrawBench", ParamValue = 3m, Remark = "拉机日产能(吨)" },
+
+                // ===== SequenceJump 序号跳跃 =====
+                new() { Category = "SequenceJump", ParamKey = "MaxJump", ParamValue = 7m, Remark = "最大序号跳跃值" },
+
+                // ===== ContractWeight 合同重量验证 =====
+                new() { Category = "ContractWeight", ParamKey = "LowerBound", ParamValue = 0.94m, Remark = "合同重量验证下限" },
+                new() { Category = "ContractWeight", ParamKey = "UpperBound", ParamValue = 1.06m, Remark = "合同重量验证上限" },
+
+                // ===== DefaultValue 默认值 =====
+                new() { Category = "DefaultValue", ParamKey = "ProcessCycle", ParamValue = 25m, Remark = "默认工序周期(天)" },
+                new() { Category = "DefaultValue", ParamKey = "StandardCycle", ParamValue = 3m, Remark = "默认标准周期(天)" },
+                new() { Category = "DefaultValue", ParamKey = "PipeLength", ParamValue = 6000m, Remark = "默认管长(mm)" },
+                new() { Category = "DefaultValue", ParamKey = "UnitWeightLength", ParamValue = 4500m, Remark = "默认单重计算长度(mm)" },
+                new() { Category = "DefaultValue", ParamKey = "BatchMaxSequence", ParamValue = 9999m, Remark = "批次号最大序号" },
+                new() { Category = "DefaultValue", ParamKey = "RoughTubeFinishRatio", ParamValue = 0.92m, Remark = "荒管转成品系数" },
+            };
+
+            await context.ConfigParameters.AddRangeAsync(configParams);
+            await context.SaveChangesAsync();
+        }
+
+        // ========== 11. Initialize Section Flow Analysis Category Settings ==========
+        if (!context.SectionFlowCategorySettings.Any())
+        {
+            var settings = new List<SectionFlowCategorySetting>
+            {
+                new() { CategoryCode = "A", CategoryName = "荒管处理" },
+                new() { CategoryCode = "B", CategoryName = "固溶" },
+                new() { CategoryCode = "C", CategoryName = "矫直" },
+                new() { CategoryCode = "D", CategoryName = "切割" },
+                new() { CategoryCode = "E", CategoryName = "去油" },
+                new() { CategoryCode = "F", CategoryName = "酸洗" },
+                new() { CategoryCode = "G", CategoryName = "大轧" },
+                new() { CategoryCode = "H", CategoryName = "小轧" },
+                new() { CategoryCode = "J", CategoryName = "冷拔" },
+                new() { CategoryCode = "K", CategoryName = "过程检" },
+                new() { CategoryCode = "L", CategoryName = "成品待检" },
+            };
+
+            context.SectionFlowCategorySettings.AddRange(settings);
+            await context.SaveChangesAsync();
+
+            var settingMap = await context.SectionFlowCategorySettings
+                .OrderBy(s => s.CategoryCode)
+                .ToDictionaryAsync(s => s.CategoryCode);
+
+            var items = new List<SectionFlowCategoryItem>();
+
+            void AddItem(SectionFlowCategorySetting s, string pg, string sn, decimal coeff, int order)
+            {
+                items.Add(new SectionFlowCategoryItem
+                {
+                    SettingId = s.Id,
+                    ProcessGroupName = pg,
+                    SectionName = sn,
+                    Coefficient = coeff,
+                    DisplayOrder = order,
+                });
+            }
+
+            // A 荒管处理
+            AddItem(settingMap["A"], "荒管处理", "外点磨", 1m, 1);
+            AddItem(settingMap["A"], "荒管处理", "外抛光", 1m, 2);
+
+            // B 固溶
+            AddItem(settingMap["B"], "20冷轧",   "固溶", 1m, 1);
+            AddItem(settingMap["B"], "30冷轧",   "固溶", 1m, 2);
+            AddItem(settingMap["B"], "50冷轧",   "固溶", 1m, 3);
+            AddItem(settingMap["B"], "60冷轧",   "固溶", 1m, 4);
+            AddItem(settingMap["B"], "冷拔",     "固溶", 1m, 5);
+            AddItem(settingMap["B"], "三辊冷轧", "固溶", 1m, 6);
+            AddItem(settingMap["B"], "在制修检", "固溶", 1m, 7);
+
+            // C 矫直
+            AddItem(settingMap["C"], "20冷轧",   "矫直", 1m,    1);
+            AddItem(settingMap["C"], "30冷轧",   "矫直", 1m,    2);
+            AddItem(settingMap["C"], "50冷轧",   "矫直", 0.5m,  3);
+            AddItem(settingMap["C"], "60冷轧",   "矫直", 0.5m,  4);
+            AddItem(settingMap["C"], "荒管处理", "矫直", 0.25m, 5);
+            AddItem(settingMap["C"], "冷拔",     "矫直", 1m,    6);
+            AddItem(settingMap["C"], "三辊冷轧", "矫直", 1m,    7);
+            AddItem(settingMap["C"], "在制修检", "矫直", 1m,    8);
+
+            // D 切割
+            AddItem(settingMap["D"], "20冷轧",   "断切",   1m,    1);
+            AddItem(settingMap["D"], "30冷轧",   "断切",   1m,    2);
+            AddItem(settingMap["D"], "50冷轧",   "断切",   0.5m,  3);
+            AddItem(settingMap["D"], "60冷轧",   "断切",   0.5m,  4);
+            AddItem(settingMap["D"], "荒管处理", "断切",   0.25m, 5);
+            AddItem(settingMap["D"], "冷拔",     "断切",   1m,    6);
+            AddItem(settingMap["D"], "三辊冷轧", "断切",   1m,    7);
+            AddItem(settingMap["D"], "在制修检", "断切",   0.25m, 8);
+            AddItem(settingMap["D"], "20冷轧",   "油管断", 0.75m, 9);
+            AddItem(settingMap["D"], "30冷轧",   "油管断", 0.75m, 10);
+            AddItem(settingMap["D"], "50冷轧",   "油管断", 0.5m,  11);
+            AddItem(settingMap["D"], "60冷轧",   "油管断", 0.5m,  12);
+            AddItem(settingMap["D"], "三辊冷轧", "油管断", 0.75m, 13);
+
+            // E 去油
+            AddItem(settingMap["E"], "20冷轧",   "去油", 1m,   1);
+            AddItem(settingMap["E"], "30冷轧",   "去油", 1m,   2);
+            AddItem(settingMap["E"], "50冷轧",   "去油", 0.5m, 3);
+            AddItem(settingMap["E"], "60冷轧",   "去油", 0.5m, 4);
+            AddItem(settingMap["E"], "三辊冷轧", "去油", 1m,   5);
+
+            // F 酸洗
+            AddItem(settingMap["F"], "20冷轧",   "酸洗", 1m,    1);
+            AddItem(settingMap["F"], "30冷轧",   "酸洗", 1m,    2);
+            AddItem(settingMap["F"], "50冷轧",   "酸洗", 0.5m,  3);
+            AddItem(settingMap["F"], "60冷轧",   "酸洗", 0.5m,  4);
+            AddItem(settingMap["F"], "荒管处理", "酸洗", 0.25m, 5);
+            AddItem(settingMap["F"], "冷拔",     "酸洗", 1m,    6);
+            AddItem(settingMap["F"], "三辊冷轧", "酸洗", 1m,    7);
+            AddItem(settingMap["F"], "在制修检", "酸洗", 0.25m, 8);
+
+            // G 大轧
+            AddItem(settingMap["G"], "50冷轧", "冷轧拔", 1m, 1);
+            AddItem(settingMap["G"], "60冷轧", "冷轧拔", 1m, 2);
+
+            // H 小轧
+            AddItem(settingMap["H"], "20冷轧",   "冷轧拔", 1m, 1);
+            AddItem(settingMap["H"], "30冷轧",   "冷轧拔", 1m, 2);
+            AddItem(settingMap["H"], "三辊冷轧", "冷轧拔", 1m, 3);
+
+            // J 冷拔
+            AddItem(settingMap["J"], "冷拔", "冷轧拔", 1m, 1);
+
+            // K 过程检
+            AddItem(settingMap["K"], "20冷轧",   "检验", 1m,    1);
+            AddItem(settingMap["K"], "30冷轧",   "检验", 1m,    2);
+            AddItem(settingMap["K"], "冷拔",     "检验", 1m,    3);
+            AddItem(settingMap["K"], "三辊冷轧", "检验", 1m,    4);
+            AddItem(settingMap["K"], "荒管处理", "检验", 0.75m, 5);
+            AddItem(settingMap["K"], "在制修检", "检验", 0.75m, 6);
+            AddItem(settingMap["K"], "50冷轧",   "检验", 0.5m,  7);
+            AddItem(settingMap["K"], "60冷轧",   "检验", 0.5m,  8);
+
+            // L 成品待检
+            AddItem(settingMap["L"], "20冷轧",   "检验", 1m,    1);
+            AddItem(settingMap["L"], "30冷轧",   "检验", 1m,    2);
+            AddItem(settingMap["L"], "50冷轧",   "检验", 0.5m,  3);
+            AddItem(settingMap["L"], "60冷轧",   "检验", 0.5m,  4);
+            AddItem(settingMap["L"], "荒管处理", "检验", 0.75m, 5);
+            AddItem(settingMap["L"], "冷拔",     "检验", 1m,    6);
+            AddItem(settingMap["L"], "三辊冷轧", "检验", 1m,    7);
+            AddItem(settingMap["L"], "在制修检", "检验", 0.75m, 8);
+
+            await context.SectionFlowCategoryItems.AddRangeAsync(items);
             await context.SaveChangesAsync();
         }
     }

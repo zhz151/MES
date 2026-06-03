@@ -20,9 +20,15 @@ public class SalesUrgingController : ControllerBase
 
     [HttpGet("list")]
     public async Task<ActionResult<ApiResponse<PagedResult<Core.DTOs.SalesUrgingDto>>>> GetPaged(
-        [FromQuery] QueryParams query,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? keyword = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool isDescending = true,
         [FromQuery] string? filters = null)
     {
+        if (pageSize > 5000) pageSize = 5000;
+        QueryParams query = new() { PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword, SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending };
         if (!string.IsNullOrEmpty(filters))
             query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });

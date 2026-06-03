@@ -76,4 +76,18 @@ public class RawMaterialLockPlanAndExecutionService
             return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}");
         }
     }
+
+    public async Task<ApiResponse<int>> SetPreExecuteFlagsAsync(List<int> workOrderIds, bool? isPreInput, bool? isMainNoMaterialComplete)
+    {
+        try
+        {
+            var request = new { WorkOrderIds = workOrderIds, IsPreInput = isPreInput, IsMainNoMaterialComplete = isMainNoMaterialComplete };
+            var response = await _http.PostAsJsonAsync<object, ApiResponse<int>>($"{BaseUrl}/set-pre-execute-flags", request);
+            return response ?? ApiResponse<int>.Fail("设置预执行标记失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<int>.Fail($"网络错误: {ex.Message}");
+        }
+    }
 }

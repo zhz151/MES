@@ -1,5 +1,5 @@
-using System;
 using System.Collections.Generic;
+using MES.Core.Enums;
 
 namespace MES.Core.DTOs;
 
@@ -70,9 +70,9 @@ public class WorkOrderRelationDto
     public string? ProductionSubNo { get; set; }
 
     /// <summary>
-    /// 工单状态（0=未编制，1=已确定，2=待修正，3=已取消）
+    /// 工单状态
     /// </summary>
-    public int Status { get; set; }
+    public WorkOrderStatus Status { get; set; }
 
     /// <summary>
     /// 工单状态文本

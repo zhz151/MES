@@ -25,16 +25,30 @@ public class WorkOrderService : IWorkOrderService
     private readonly ILogger<WorkOrderService> _logger;
     private readonly WorkOrderStatusSummaryService? _statusSummaryService;
     private readonly WorkOrderListSummaryService? _listSummaryService;
+    private readonly IConfigParameterService _configService;
+    private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
     private static readonly SemaphoreSlim _workOrderNoSemaphore = new SemaphoreSlim(1, 1);
 
     public WorkOrderService(AppDbContext context, ILogger<WorkOrderService> logger,
+        IConfigParameterService configService,
         WorkOrderStatusSummaryService? statusSummaryService = null,
         WorkOrderListSummaryService? listSummaryService = null)
     {
         _context = context;
         _logger = logger;
+        _configService = configService;
         _statusSummaryService = statusSummaryService;
         _listSummaryService = listSummaryService;
+    }
+
+    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
+    {
+        if (!_configMaps.TryGetValue(category, out var map))
+        {
+            map = await _configService.GetConfigMapAsync(category);
+            _configMaps[category] = map;
+        }
+        return map.GetValueOrDefault(key, defaultValue);
     }
 
     #region 工单首页（订单状态监控）
@@ -470,11 +484,11 @@ public class WorkOrderService : IWorkOrderService
             WorkOrderStatus workOrderStatus;
             int? workOrderId = null;
 
-            if (!hasWorkOrder)
+            if (woInfo == null || woInfo.WorkOrderCount == 0)
             {
                 workOrderStatus = WorkOrderStatus.NotGenerated;
             }
-            else if (woInfo!.HasPending)
+            else if (woInfo.HasPending)
             {
                 workOrderStatus = WorkOrderStatus.Pending;
                 workOrderId = woInfo.FirstWorkOrderId;
@@ -837,13 +851,13 @@ public class WorkOrderService : IWorkOrderService
                 throw new BusinessException($"工单分组 {workOrderGroup.ProductionMainNo} 没有有效的项次");
             if (groupItems.Count <= 1) continue;
 
-            var firstItem = groupItems.First()!;
+            var firstItem = groupItems.First();
             foreach (var item in groupItems.Skip(1))
             {
-                var (isValid, errors) = ValidateMergeFields(firstItem, item!);
+                var (isValid, errors) = ValidateMergeFields(firstItem, item);
                 if (!isValid)
                 {
-                    mergeFieldErrors.Add($"主号 {workOrderGroup.ProductionMainNo} 下的项次 {item!.Sequence} 与项次 {firstItem!.Sequence} 合并字段不一致:\n  {string.Join("\n  ", errors)}");
+                    mergeFieldErrors.Add($"主号 {workOrderGroup.ProductionMainNo} 下的项次 {item.Sequence} 与项次 {firstItem.Sequence} 合并字段不一致:\n  {string.Join("\n  ", errors)}");
                 }
             }
         }
@@ -956,7 +970,7 @@ public class WorkOrderService : IWorkOrderService
                     SalesOrderNo = request.SalesOrderNo,
                     ProductionMainNo = workOrderGroup.ProductionMainNo,
                     ProductionSubNo = workOrderGroup.ProductionSubNo,
-                    Status = (int)WorkOrderStatus.Confirmed,
+                    Status = WorkOrderStatus.Confirmed,
                     TotalQuantity = totalQuantity,
                     TotalWeight = totalWeight
                 });
@@ -1049,13 +1063,13 @@ public class WorkOrderService : IWorkOrderService
             if (!groupItems.Any()) continue;
             if (groupItems.Count <= 1) continue;
 
-            var firstItem = groupItems.First()!;
+            var firstItem = groupItems.First();
             foreach (var item in groupItems.Skip(1))
             {
-                var (isValid, errors) = ValidateMergeFields(firstItem, item!);
+                var (isValid, errors) = ValidateMergeFields(firstItem, item);
                 if (!isValid)
                 {
-                    mergeFieldErrors.Add($"主号 {workOrderGroup.ProductionMainNo} 下的项次 {item!.Sequence} 与项次 {firstItem!.Sequence} 合并字段不一致:\n  {string.Join("\n  ", errors)}");
+                    mergeFieldErrors.Add($"主号 {workOrderGroup.ProductionMainNo} 下的项次 {item.Sequence} 与项次 {firstItem.Sequence} 合并字段不一致:\n  {string.Join("\n  ", errors)}");
                 }
             }
         }
@@ -1188,7 +1202,7 @@ public class WorkOrderService : IWorkOrderService
                         SalesOrderNo = request.SalesOrderNo,
                         ProductionMainNo = group.ProductionMainNo,
                         ProductionSubNo = group.ProductionSubNo,
-                        Status = (int)WorkOrderStatus.Confirmed,
+                        Status = WorkOrderStatus.Confirmed,
                         TotalQuantity = groupItems.Sum(i => i.LengthStatus == LengthStatus.Fixed ? (i.Quantity ?? 0) : 0),
                         TotalWeight = groupItems.Sum(i => i.LengthStatus == LengthStatus.Fixed ? i.TheoreticalWeight : i.ContractWeight),
                         IsModified = changed
@@ -1290,7 +1304,7 @@ public class WorkOrderService : IWorkOrderService
                     SalesOrderNo = request.SalesOrderNo,
                     ProductionMainNo = workOrdersToAdd[i].ProductionMainNo,
                     ProductionSubNo = workOrdersToAdd[i].ProductionSubNo,
-                    Status = (int)WorkOrderStatus.Confirmed,
+                    Status = WorkOrderStatus.Confirmed,
                     TotalQuantity = workOrdersToAdd[i].TotalQuantity,
                     TotalWeight = workOrdersToAdd[i].TotalWeight,
                     IsModified = true
@@ -1403,7 +1417,7 @@ public class WorkOrderService : IWorkOrderService
                 TotalWeight = s.TotalWeight,
                 DeliveryState = Enum.Parse<DeliveryState>(s.DeliveryState),
                 TotalItemCount = s.TotalItemCount,
-                Status = s.Status,
+                Status = (WorkOrderStatus)s.Status,
                 CreatedTime = s.CreatedTime,
                 MaterialPlanStatus = s.MaterialPlanStatus,
                 MaterialPlanRate = s.MaterialPlanRate,
@@ -1679,7 +1693,7 @@ public class WorkOrderService : IWorkOrderService
             TotalWeight = s.TotalWeight,
             DeliveryState = Enum.Parse<DeliveryState>(s.DeliveryState),
             TotalItemCount = s.TotalItemCount,
-            Status = s.Status,
+            Status = (WorkOrderStatus)s.Status,
             CreatedTime = s.CreatedTime,
             MaterialPlanStatus = s.MaterialPlanStatus,
             MaterialPlanRate = s.MaterialPlanRate,
@@ -1883,6 +1897,18 @@ public class WorkOrderService : IWorkOrderService
         var piercingByWo = allPiercingPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
         var woById = allWorkOrdersInOrders.ToDictionary(wo => wo.Id);
 
+        // 读取物料计划状态阈值配置（用在工单级和主号级计算）
+        var fixedFinishRatio = await GetConfigAsync("MaterialPlanRatio", "FixedFinishRatio", 1.02m);
+        var fixedInventoryRatio = await GetConfigAsync("MaterialPlanRatio", "FixedInventoryRatio", 1.02m);
+        var nonFixedFinishRatio = await GetConfigAsync("MaterialPlanRatio", "NonFixedFinishRatio", 1.05m);
+        var nonFixedInventoryRatio = await GetConfigAsync("MaterialPlanRatio", "NonFixedInventoryRatio", 1.05m);
+        var fixedPartial = await GetConfigAsync("MaterialPlanStatus", "FixedPartial", 102m);
+        var fixedSatisfied = await GetConfigAsync("MaterialPlanStatus", "FixedSatisfied", 110m);
+        var nonFixedPartial = await GetConfigAsync("MaterialPlanStatus", "NonFixedPartial", 105m);
+        var nonFixedSatisfied = await GetConfigAsync("MaterialPlanStatus", "NonFixedSatisfied", 120m);
+        var smallBatchMaxQty = await GetConfigAsync("MaterialPlanStatus", "SmallBatchMaxQty", 20m);
+        var smallBatchSatisfiedRate = await GetConfigAsync("MaterialPlanStatus", "SmallBatchSatisfiedRate", 100m);
+
         foreach (var item in items)
         {
             if (!woById.TryGetValue(item.Id, out var wo)) continue;
@@ -1890,12 +1916,14 @@ public class WorkOrderService : IWorkOrderService
             var finish = finishByWo.TryGetValue(item.Id, out var f) ? f : new List<PurchaseFinishedPlan>();
             var inv = inventoryByWo.TryGetValue(item.Id, out var iv) ? iv : new List<InventoryPlan>();
             var pierce = piercingByWo.TryGetValue(item.Id, out var p) ? p : new List<RoundBarPiercingPlan>();
-            var (rate, status) = PlanRateCalculator.ComputeWorkOrderRate(wo, semi, finish, inv, pierce);
+            var (rate, status) = PlanRateCalculator.ComputeWorkOrderRate(wo, semi, finish, inv, pierce,
+                fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
             item.MaterialPlanRate = rate;
             item.MaterialPlanStatus = status;
         }
 
         // 2. 主号级聚合
+
         var mainNoKeys = items
             .Select(i => new { i.SalesOrderNo, MainNo = i.ProductionMainNo })
             .Distinct()
@@ -1915,7 +1943,9 @@ public class WorkOrderService : IWorkOrderService
             var groupReworkPlans = groupInventoryAll.Where(p => p.ReworkType != null).ToList();
             var groupPiercingPlans = allPiercingPlans.Where(p => groupIds.Contains(p.WorkOrderId)).ToList();
 
-            var (rate, status) = CalculateMainNoAggregation(groupWorkOrders, groupSemiPlans, groupFinishPlans, groupInventoryPlans, groupReworkPlans, groupPiercingPlans);
+            var (rate, status) = CalculateMainNoAggregation(groupWorkOrders, groupSemiPlans, groupFinishPlans, groupInventoryPlans, groupReworkPlans, groupPiercingPlans,
+                fixedFinishRatio, fixedInventoryRatio, nonFixedFinishRatio, nonFixedInventoryRatio,
+                smallBatchMaxQty, smallBatchSatisfiedRate, fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
 
             foreach (var item in items.Where(i =>
                 i.SalesOrderNo == key.SalesOrderNo && i.ProductionMainNo == key.MainNo))
@@ -1957,7 +1987,12 @@ public class WorkOrderService : IWorkOrderService
         List<PurchaseFinishedPlan> finishPlans,
         List<InventoryPlan> inventoryPlans,
         List<InventoryPlan> reworkPlans,
-        List<RoundBarPiercingPlan> piercingPlans)
+        List<RoundBarPiercingPlan> piercingPlans,
+        decimal fixedFinishRatio, decimal fixedInventoryRatio,
+        decimal nonFixedFinishRatio, decimal nonFixedInventoryRatio,
+        decimal smallBatchMaxQty, decimal smallBatchSatisfiedRate,
+        decimal fixedPartial, decimal fixedSatisfied,
+        decimal nonFixedPartial, decimal nonFixedSatisfied)
     {
         var fixedOrders = workOrders.Where(wo => wo.LengthStatus == LengthStatus.Fixed).ToList();
         var nonFixedOrders = workOrders.Where(wo => wo.LengthStatus != LengthStatus.Fixed).ToList();
@@ -1981,10 +2016,10 @@ public class WorkOrderService : IWorkOrderService
             totalEffective += (int)fixedSemi.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple);
             // 圆棒穿孔：原料支数 × 投料倍率，不乘系数（同原料采购）
             totalEffective += (int)fixedPiercing.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple);
-            // 成品采购：×1.02
-            totalEffective += fixedFinish.Sum(p => p.RequiredPiece ?? 0) * 1.02m;
-            // 库存使用：×1.02
-            totalEffective += (int)(fixedInventory.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple) * 1.02m);
+            // 成品采购：× fixedFinishRatio
+            totalEffective += fixedFinish.Sum(p => p.RequiredPiece ?? 0) * fixedFinishRatio;
+            // 库存使用：× fixedInventoryRatio
+            totalEffective += (int)(fixedInventory.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple) * fixedInventoryRatio);
             // 库料改制：不乘系数
             totalEffective += (int)fixedRework.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple);
         }
@@ -2002,10 +2037,10 @@ public class WorkOrderService : IWorkOrderService
             var nonFixedPiercing = piercingPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
 
             totalEffective += nonFixedSemi.Sum(p => p.RequiredWeight);
-            // 成品采购：×1.05
-            totalEffective += nonFixedFinish.Sum(p => p.RequiredWeight) * 1.05m;
-            // 库存使用：×1.05
-            totalEffective += nonFixedInventory.Sum(p => p.UsedWeight) * 1.05m;
+            // 成品采购：× nonFixedFinishRatio
+            totalEffective += nonFixedFinish.Sum(p => p.RequiredWeight) * nonFixedFinishRatio;
+            // 库存使用：× nonFixedInventoryRatio
+            totalEffective += nonFixedInventory.Sum(p => p.UsedWeight) * nonFixedInventoryRatio;
             // 库料改制：不乘系数
             totalEffective += nonFixedRework.Sum(p => p.UsedWeight);
             // 圆棒穿孔：不乘系数（同原料采购）
@@ -2019,36 +2054,38 @@ public class WorkOrderService : IWorkOrderService
         // 无任何投料 → 未计划
         if (rate <= 0) return (0, MaterialPlanStatus.NotPlanned);
 
-        // 小批量特殊处理：定尺总支数 ≤ 20 时，≥100% 即视为满足
+        // 小批量特殊处理：定尺总支数 ≤ smallBatchMaxQty 时，≥ smallBatchSatisfiedRate 即视为满足
         var fixedTotalQuantity = fixedOrders.Sum(wo => wo.TotalQuantity);
-        if (fixedTotalQuantity > 0 && fixedTotalQuantity <= 20)
+        if (fixedTotalQuantity > 0 && fixedTotalQuantity <= smallBatchMaxQty)
         {
-            var batchStatus = rate >= 100m ? MaterialPlanStatus.Satisfied : MaterialPlanStatus.Partial;
+            var batchStatus = rate >= smallBatchSatisfiedRate ? MaterialPlanStatus.Satisfied : MaterialPlanStatus.Partial;
             return (rate, batchStatus);
         }
 
         // 使用原始标准（不含理论满足）
-        var status = CalculateMainNoStatus(rate, fixedOrders.Any());
+        var status = CalculateMainNoStatus(rate, fixedOrders.Any(), fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
         return (rate, status);
     }
 
     /// <summary>
     /// 主号级状态判定（原标准，无"理论满足"）
     /// </summary>
-    private static MaterialPlanStatus CalculateMainNoStatus(decimal rate, bool isFixed)
+    private static MaterialPlanStatus CalculateMainNoStatus(decimal rate, bool isFixed,
+        decimal fixedPartial, decimal fixedSatisfied,
+        decimal nonFixedPartial, decimal nonFixedSatisfied)
     {
         if (rate <= 0) return MaterialPlanStatus.NotPlanned;
 
         if (isFixed)
         {
-            if (rate < 102m) return MaterialPlanStatus.Partial;
-            if (rate <= 110m) return MaterialPlanStatus.Satisfied;
+            if (rate < fixedPartial) return MaterialPlanStatus.Partial;
+            if (rate <= fixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
         else
         {
-            if (rate < 105m) return MaterialPlanStatus.Partial;
-            if (rate <= 120m) return MaterialPlanStatus.Satisfied;
+            if (rate < nonFixedPartial) return MaterialPlanStatus.Partial;
+            if (rate <= nonFixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
     }
@@ -2146,10 +2183,10 @@ public class WorkOrderService : IWorkOrderService
             .FirstOrDefaultAsync(wo => wo.Id == id);
         if (workOrder == null)
             throw new BusinessException("工单不存在");
-        if (!CanTransitionTo(workOrder.Status, (WorkOrderStatus)request.Status))
-            throw new BusinessException($"不允许从 {GetStatusText(workOrder.Status)} 变更为 {GetStatusText((WorkOrderStatus)request.Status)}");
+        if (!CanTransitionTo(workOrder.Status, request.Status))
+            throw new BusinessException($"不允许从 {GetStatusText(workOrder.Status)} 变更为 {GetStatusText(request.Status)}");
 
-        workOrder.Status = (WorkOrderStatus)request.Status;
+        workOrder.Status = request.Status;
         _context.Entry(workOrder).Property(x => x.RowVersion).OriginalValue = request.RowVersion;
 
         try
@@ -2170,7 +2207,7 @@ public class WorkOrderService : IWorkOrderService
         if (_listSummaryService != null)
             await _listSummaryService.RefreshBySalesOrderAsync(workOrder.SalesOrderNo);
 
-        return new UpdateWorkOrderStatusResponseDto { Id = workOrder.Id, Status = (int)workOrder.Status };
+        return new UpdateWorkOrderStatusResponseDto { Id = workOrder.Id, Status = workOrder.Status };
     }
 
     public async Task DeleteAsync(int id)
@@ -2438,7 +2475,7 @@ result.WorkOrders.Add(new WorkOrderRelationDto
     WorkOrderNo = wo.WorkOrderNo,
     ProductionMainNo = wo.ProductionMainNo,
     ProductionSubNo = wo.ProductionSubNo,
-    Status = (int)wo.Status,
+    Status = wo.Status,
     StatusText = GetStatusText(wo.Status),
     MaterialName = wo.MaterialName.ToString(),
     StandardGrade = workOrderItems.FirstOrDefault()?.StandardGrade ?? "",

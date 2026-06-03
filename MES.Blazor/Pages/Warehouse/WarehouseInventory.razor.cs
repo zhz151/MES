@@ -319,6 +319,7 @@ public partial class WarehouseInventory
     {
         try
         {
+            _pageSize = state.PageSize;
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "InboundDate";
             var filtersJson = SerializeFilters();
 

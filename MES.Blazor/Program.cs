@@ -75,9 +75,13 @@ builder.Services.AddScoped<ScanService>();
 builder.Services.AddScoped<SalesUrgingService>();
 builder.Services.AddScoped<RawMaterialLockPlanAndExecutionService>();
 builder.Services.AddScoped<ProductionOverviewService>();
+builder.Services.AddScoped<SectionProductionStatusService>();
+builder.Services.AddScoped<MES.Blazor.Services.SectionFlowAnalysisService>();
+builder.Services.AddScoped<WorkOrderScheduleService>();
 
 // ========== Configuration 上下文 ==========
 builder.Services.AddScoped<StandardWorkDayService>();
 builder.Services.AddScoped<StandardWorkDayDeliveryStateService>();
+builder.Services.AddScoped<ConfigParameterService>();
 
 await builder.Build().RunAsync();

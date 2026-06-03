@@ -73,6 +73,7 @@ public partial class Suppliers
 
     private async Task<TableData<SupplierProfileDto>> LoadDataFromServer(TableState state)
     {
+        _pageSize = state.PageSize;
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "suppliercode";

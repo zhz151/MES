@@ -69,6 +69,7 @@ public partial class Standards
 
     private async Task<TableData<ProductionStandardDto>> LoadDataFromServer(TableState state)
     {
+        _pageSize = state.PageSize;
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "standardcode";

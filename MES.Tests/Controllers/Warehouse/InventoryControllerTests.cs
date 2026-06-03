@@ -31,7 +31,7 @@ public class InventoryControllerTests : ControllerTestBase
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<InventoryQueryParams>())).ReturnsAsync(pagedResult);
 
         // Act
-        var result = await _controller.GetPaged(new InventoryQueryParams());
+        var result = await _controller.GetPaged(pageIndex: 1, pageSize: 20);
 
         // Assert
         var (_, response) = AssertOk<ApiResponse<PagedResult<InventoryBatchDto>>>(result);
@@ -126,7 +126,7 @@ public class InventoryControllerTests : ControllerTestBase
         _serviceMock.Setup(x => x.GetOutboundRecordsAsync(It.IsAny<OutboundQueryParams>())).ReturnsAsync(pagedResult);
 
         // Act
-        var result = await _controller.GetOutboundRecords(new OutboundQueryParams());
+        var result = await _controller.GetOutboundRecords(pageIndex: 1, pageSize: 20);
 
         // Assert
         var (_, response) = AssertOk<ApiResponse<PagedResult<OutboundRecordDto>>>(result);
@@ -367,7 +367,7 @@ public class InventoryControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<InventoryQueryParams>()))
             .ReturnsAsync(new PagedResult<InventoryBatchDto> { Items = new List<InventoryBatchDto>() });
-        await _controller.GetPaged(new InventoryQueryParams { Keyword = "测试" });
+        await _controller.GetPaged(keyword: "测试");
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<InventoryQueryParams>(q => q.Keyword == "测试")), Times.Once);
     }
 
@@ -376,7 +376,7 @@ public class InventoryControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<InventoryQueryParams>()))
             .ReturnsAsync(new PagedResult<InventoryBatchDto> { Items = new List<InventoryBatchDto>() });
-        await _controller.GetPaged(new InventoryQueryParams { SortBy = "Code", IsDescending = false });
+        await _controller.GetPaged(sortBy: "Code", isDescending: false);
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<InventoryQueryParams>(q => q.SortBy == "Code" && q.IsDescending == false)), Times.Once);
     }
 
@@ -385,7 +385,7 @@ public class InventoryControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<InventoryQueryParams>()))
             .ReturnsAsync(new PagedResult<InventoryBatchDto> { Items = new List<InventoryBatchDto>() });
-        await _controller.GetPaged(new InventoryQueryParams());
+        await _controller.GetPaged(pageIndex: 1, pageSize: 20);
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<InventoryQueryParams>(q => q.SortBy == "CreatedTime")), Times.Once);
     }
 
@@ -395,7 +395,7 @@ public class InventoryControllerTests : ControllerTestBase
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<InventoryQueryParams>()))
             .ReturnsAsync(new PagedResult<InventoryBatchDto> { Items = new List<InventoryBatchDto>() });
         var filtersJson = "[{\"Field\":\"Code\",\"Operator\":\"contains\",\"Value\":\"T\"}]";
-        await _controller.GetPaged(new InventoryQueryParams(), filters: filtersJson);
+        await _controller.GetPaged(filters: filtersJson);
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<InventoryQueryParams>(q =>
             q.Filters != null && q.Filters.Count == 1 && q.Filters[0].Field == "Code")), Times.Once);
     }
@@ -405,7 +405,7 @@ public class InventoryControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetOutboundRecordsAsync(It.IsAny<OutboundQueryParams>()))
             .ReturnsAsync(new PagedResult<OutboundRecordDto> { Items = new List<OutboundRecordDto>() });
-        await _controller.GetOutboundRecords(new OutboundQueryParams { Keyword = "测试" });
+        await _controller.GetOutboundRecords(keyword: "测试");
         _serviceMock.Verify(x => x.GetOutboundRecordsAsync(It.Is<OutboundQueryParams>(q => q.Keyword == "测试")), Times.Once);
     }
 
@@ -414,7 +414,7 @@ public class InventoryControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetOutboundRecordsAsync(It.IsAny<OutboundQueryParams>()))
             .ReturnsAsync(new PagedResult<OutboundRecordDto> { Items = new List<OutboundRecordDto>() });
-        await _controller.GetOutboundRecords(new OutboundQueryParams { SortBy = "Code", IsDescending = false });
+        await _controller.GetOutboundRecords(sortBy: "Code", isDescending: false);
         _serviceMock.Verify(x => x.GetOutboundRecordsAsync(It.Is<OutboundQueryParams>(q => q.SortBy == "Code" && q.IsDescending == false)), Times.Once);
     }
 
@@ -423,7 +423,7 @@ public class InventoryControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetOutboundRecordsAsync(It.IsAny<OutboundQueryParams>()))
             .ReturnsAsync(new PagedResult<OutboundRecordDto> { Items = new List<OutboundRecordDto>() });
-        await _controller.GetOutboundRecords(new OutboundQueryParams());
+        await _controller.GetOutboundRecords(pageIndex: 1, pageSize: 20);
         _serviceMock.Verify(x => x.GetOutboundRecordsAsync(It.Is<OutboundQueryParams>(q => q.SortBy == "CreatedTime")), Times.Once);
     }
 
@@ -433,7 +433,7 @@ public class InventoryControllerTests : ControllerTestBase
         _serviceMock.Setup(x => x.GetOutboundRecordsAsync(It.IsAny<OutboundQueryParams>()))
             .ReturnsAsync(new PagedResult<OutboundRecordDto> { Items = new List<OutboundRecordDto>() });
         var filtersJson = "[{\"Field\":\"Code\",\"Operator\":\"contains\",\"Value\":\"T\"}]";
-        await _controller.GetOutboundRecords(new OutboundQueryParams(), filters: filtersJson);
+        await _controller.GetOutboundRecords(filters: filtersJson);
         _serviceMock.Verify(x => x.GetOutboundRecordsAsync(It.Is<OutboundQueryParams>(q =>
             q.Filters != null && q.Filters.Count == 1 && q.Filters[0].Field == "Code")), Times.Once);
     }

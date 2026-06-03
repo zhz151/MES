@@ -16,7 +16,9 @@ internal static class PlanRateCalculator
         List<PurchaseSemiPlan> semiPlans,
         List<PurchaseFinishedPlan> finishPlans,
         List<InventoryPlan> inventoryPlans,
-        List<RoundBarPiercingPlan> piercingPlans)
+        List<RoundBarPiercingPlan> piercingPlans,
+        decimal fixedTheoretical = 102m, decimal fixedSatisfied = 110m,
+        decimal nonFixedTheoretical = 105m, decimal nonFixedSatisfied = 120m)
     {
         var rates = new List<decimal>();
 
@@ -41,7 +43,8 @@ internal static class PlanRateCalculator
             return (0, 0);
 
         var totalRate = Math.Min(rates.Sum(), 999m);
-        var status = CalculateOverallStatus(wo.LengthStatus.ToString(), totalRate);
+        var status = CalculateOverallStatus(wo.LengthStatus, totalRate,
+            fixedTheoretical, fixedSatisfied, nonFixedTheoretical, nonFixedSatisfied);
         return (totalRate, (int)status);
     }
 
@@ -111,22 +114,25 @@ internal static class PlanRateCalculator
         }
     }
 
-    private static MaterialPlanStatus CalculateOverallStatus(string lengthStatus, decimal totalRate)
+    private static MaterialPlanStatus CalculateOverallStatus(
+        LengthStatus lengthStatus, decimal totalRate,
+        decimal fixedTheoretical, decimal fixedSatisfied,
+        decimal nonFixedTheoretical, decimal nonFixedSatisfied)
     {
         if (totalRate <= 0) return MaterialPlanStatus.NotPlanned;
 
-        if (lengthStatus == "Fixed")
+        if (lengthStatus == LengthStatus.Fixed)
         {
             if (totalRate < 100m) return MaterialPlanStatus.Partial;
-            if (totalRate < 102m) return MaterialPlanStatus.TheoreticalSatisfied;
-            if (totalRate <= 110m) return MaterialPlanStatus.Satisfied;
+            if (totalRate < fixedTheoretical) return MaterialPlanStatus.TheoreticalSatisfied;
+            if (totalRate <= fixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
         else
         {
             if (totalRate < 100m) return MaterialPlanStatus.Partial;
-            if (totalRate < 105m) return MaterialPlanStatus.TheoreticalSatisfied;
-            if (totalRate <= 120m) return MaterialPlanStatus.Satisfied;
+            if (totalRate < nonFixedTheoretical) return MaterialPlanStatus.TheoreticalSatisfied;
+            if (totalRate <= nonFixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
     }

@@ -281,6 +281,38 @@ public static class DisplayHelper
         };
     }
 
+    /// <summary>
+    /// 获取批次状态对应的颜色（枚举版本）
+    /// </summary>
+    public static Color GetBatchStatusColor(BatchStatus status)
+    {
+        return status switch
+        {
+            BatchStatus.None => Color.Default,
+            BatchStatus.InProgress => Color.Info,
+            BatchStatus.Completed => Color.Success,
+            BatchStatus.Suspended => Color.Warning,
+            BatchStatus.Cancelled => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
+    /// 获取批次状态中文文本（枚举版本）
+    /// </summary>
+    public static string GetBatchStatusText(BatchStatus status)
+    {
+        return status switch
+        {
+            BatchStatus.None => "未产",
+            BatchStatus.InProgress => "在产",
+            BatchStatus.Completed => "完成",
+            BatchStatus.Suspended => "挂起",
+            BatchStatus.Cancelled => "作废",
+            _ => status.ToString()
+        };
+    }
+
     // ========== 工段委外状态 ==========
 
     /// <summary>
@@ -311,6 +343,34 @@ public static class DisplayHelper
         };
     }
 
+    /// <summary>
+    /// 获取工段委外状态颜色（枚举版本）
+    /// </summary>
+    public static Color GetSectionOutsourceStatusColor(SectionOutsourceStatus status)
+    {
+        return status switch
+        {
+            SectionOutsourceStatus.PendingRecovery => Color.Warning,
+            SectionOutsourceStatus.Recovered => Color.Success,
+            SectionOutsourceStatus.InProgress => Color.Info,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
+    /// 获取工段委外状态中文文本（枚举版本）
+    /// </summary>
+    public static string GetSectionOutsourceStatusText(SectionOutsourceStatus status)
+    {
+        return status switch
+        {
+            SectionOutsourceStatus.PendingRecovery => "待回收",
+            SectionOutsourceStatus.Recovered => "已回收",
+            SectionOutsourceStatus.InProgress => "在轧",
+            _ => status.ToString()
+        };
+    }
+
     // ========== 生产类型 ==========
 
     /// <summary>
@@ -328,6 +388,24 @@ public static class DisplayHelper
             "Subcontract" => "委外生产",
             "ExternalProcessing" => "对外加工",
             _ => productionType ?? ""
+        };
+    }
+
+    /// <summary>
+    /// 获取生产类型中文文本（枚举版本）
+    /// </summary>
+    public static string GetProductionTypeText(ProductionType productionType)
+    {
+        return productionType switch
+        {
+            ProductionType.RoughTube => "荒管生产",
+            ProductionType.InProcess => "在制生产",
+            ProductionType.Inventory => "库存",
+            ProductionType.OutsourcedPurchased => "外购",
+            ProductionType.Rework => "返整",
+            ProductionType.Subcontract => "委外生产",
+            ProductionType.ExternalProcessing => "对外加工",
+            _ => productionType.ToString()
         };
     }
 
@@ -366,6 +444,22 @@ public static class DisplayHelper
             "IntermediateProduct" => "中间品",
             "SpecialDeliveryStatus" => "特定交态成品",
             _ => item ?? ""
+        };
+    }
+
+    /// <summary>
+    /// 获取制造物品中文文本（枚举版本）
+    /// </summary>
+    public static string GetManufacturingItemText(ManufacturingItem item)
+    {
+        return item switch
+        {
+            ManufacturingItem.OrderFinishedProduct => "订单成品",
+            ManufacturingItem.PreparedMaterial => "备料成品",
+            ManufacturingItem.SurplusStock => "余库料",
+            ManufacturingItem.IntermediateProduct => "中间品",
+            ManufacturingItem.SpecialDeliveryStatus => "特定交态成品",
+            _ => item.ToString()
         };
     }
 
@@ -439,6 +533,20 @@ public static class DisplayHelper
     }
 
     /// <summary>
+    /// 获取设备生命周期状态中文文本（枚举版本）
+    /// </summary>
+    public static string GetLifecycleStatusText(LifecycleStatus status)
+    {
+        return status switch
+        {
+            LifecycleStatus.Active => "在用",
+            LifecycleStatus.Standby => "备用",
+            LifecycleStatus.Scrapped => "报废",
+            _ => status.ToString()
+        };
+    }
+
+    /// <summary>
     /// 获取设备生命周期状态颜色
     /// </summary>
     public static Color GetLifecycleStatusColor(string? status)
@@ -448,6 +556,20 @@ public static class DisplayHelper
             "Active" => Color.Success,
             "Standby" => Color.Warning,
             "Scrapped" => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
+    /// 获取设备生命周期状态颜色（枚举版本）
+    /// </summary>
+    public static Color GetLifecycleStatusColor(LifecycleStatus status)
+    {
+        return status switch
+        {
+            LifecycleStatus.Active => Color.Success,
+            LifecycleStatus.Standby => Color.Warning,
+            LifecycleStatus.Scrapped => Color.Error,
             _ => Color.Default
         };
     }
@@ -467,6 +589,20 @@ public static class DisplayHelper
     }
 
     /// <summary>
+    /// 获取设备作用类型中文文本（枚举版本）
+    /// </summary>
+    public static string GetUsageTypeText(UsageType usageType)
+    {
+        return usageType switch
+        {
+            UsageType.Primary => "主生产",
+            UsageType.Secondary => "辅生产",
+            UsageType.Other => "其它",
+            _ => usageType.ToString()
+        };
+    }
+
+    /// <summary>
     /// 获取设备运行状态中文文本
     /// </summary>
     public static string GetRunningStatusText(string? status)
@@ -481,6 +617,20 @@ public static class DisplayHelper
     }
 
     /// <summary>
+    /// 获取设备运行状态中文文本（枚举版本）
+    /// </summary>
+    public static string GetRunningStatusText(RunningStatus status)
+    {
+        return status switch
+        {
+            RunningStatus.Normal => "正常",
+            RunningStatus.Pending => "待维修",
+            RunningStatus.InProgress => "维修中",
+            _ => status.ToString()
+        };
+    }
+
+    /// <summary>
     /// 获取设备运行状态颜色
     /// </summary>
     public static Color GetRunningStatusColor(string? status)
@@ -490,6 +640,20 @@ public static class DisplayHelper
             "Normal" => Color.Success,
             "Pending" => Color.Warning,
             "InProgress" => Color.Info,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
+    /// 获取设备运行状态颜色（枚举版本）
+    /// </summary>
+    public static Color GetRunningStatusColor(RunningStatus status)
+    {
+        return status switch
+        {
+            RunningStatus.Normal => Color.Success,
+            RunningStatus.Pending => Color.Warning,
+            RunningStatus.InProgress => Color.Info,
             _ => Color.Default
         };
     }
@@ -525,6 +689,36 @@ public static class DisplayHelper
     }
 
     /// <summary>
+    /// 获取设备任务状态中文文本（枚举版本）
+    /// </summary>
+    public static string GetEquipmentTaskStatusText(EquipmentTaskStatus status)
+    {
+        return status switch
+        {
+            EquipmentTaskStatus.NotApplicable => "不适用",
+            EquipmentTaskStatus.Pending => "待执行",
+            EquipmentTaskStatus.Normal => "正常",
+            EquipmentTaskStatus.Overdue => "逾期",
+            _ => status.ToString()
+        };
+    }
+
+    /// <summary>
+    /// 获取设备任务状态颜色（枚举版本）
+    /// </summary>
+    public static Color GetEquipmentTaskStatusColor(EquipmentTaskStatus status)
+    {
+        return status switch
+        {
+            EquipmentTaskStatus.NotApplicable => Color.Default,
+            EquipmentTaskStatus.Pending => Color.Warning,
+            EquipmentTaskStatus.Normal => Color.Success,
+            EquipmentTaskStatus.Overdue => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
     /// 获取维修工单状态中文文本
     /// </summary>
     public static string GetRepairOrderStatusText(string? status)
@@ -548,6 +742,34 @@ public static class DisplayHelper
             "Pending" => Color.Warning,
             "InProgress" => Color.Info,
             "Completed" => Color.Success,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
+    /// 获取维修工单状态中文文本（枚举版本）
+    /// </summary>
+    public static string GetRepairOrderStatusText(RepairOrderStatus status)
+    {
+        return status switch
+        {
+            RepairOrderStatus.Pending => "待维修",
+            RepairOrderStatus.InProgress => "维修中",
+            RepairOrderStatus.Completed => "完成",
+            _ => status.ToString()
+        };
+    }
+
+    /// <summary>
+    /// 获取维修工单状态颜色（枚举版本）
+    /// </summary>
+    public static Color GetRepairOrderStatusColor(RepairOrderStatus status)
+    {
+        return status switch
+        {
+            RepairOrderStatus.Pending => Color.Warning,
+            RepairOrderStatus.InProgress => Color.Info,
+            RepairOrderStatus.Completed => Color.Success,
             _ => Color.Default
         };
     }
@@ -581,6 +803,34 @@ public static class DisplayHelper
     }
 
     /// <summary>
+    /// 获取优先级别中文文本（枚举版本）
+    /// </summary>
+    public static string GetPriorityText(RepairPriority priority)
+    {
+        return priority switch
+        {
+            RepairPriority.Normal => "普通",
+            RepairPriority.Urgent => "紧急",
+            RepairPriority.Emergency => "特急",
+            _ => priority.ToString()
+        };
+    }
+
+    /// <summary>
+    /// 获取优先级别颜色（枚举版本）
+    /// </summary>
+    public static Color GetPriorityColor(RepairPriority priority)
+    {
+        return priority switch
+        {
+            RepairPriority.Emergency => Color.Error,
+            RepairPriority.Urgent => Color.Warning,
+            RepairPriority.Normal => Color.Default,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
     /// 获取保养/点检任务状态中文文本
     /// </summary>
     public static string GetTaskOrderStatusText(string? status)
@@ -591,6 +841,20 @@ public static class DisplayHelper
             "Completed" => "已完成",
             "Overdue" => "已逾期",
             _ => status ?? ""
+        };
+    }
+
+    /// <summary>
+    /// 获取保养/点检任务状态中文文本（枚举版本）
+    /// </summary>
+    public static string GetTaskOrderStatusText(TaskOrderStatus status)
+    {
+        return status switch
+        {
+            TaskOrderStatus.Pending => "待执行",
+            TaskOrderStatus.Completed => "已完成",
+            TaskOrderStatus.Overdue => "已逾期",
+            _ => status.ToString()
         };
     }
 
@@ -779,6 +1043,20 @@ public static class DisplayHelper
             "Pending" => Color.Warning,
             "Completed" => Color.Success,
             "Overdue" => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
+    /// 获取保养/点检任务状态颜色（枚举版本）
+    /// </summary>
+    public static Color GetTaskOrderStatusColor(TaskOrderStatus status)
+    {
+        return status switch
+        {
+            TaskOrderStatus.Pending => Color.Warning,
+            TaskOrderStatus.Completed => Color.Success,
+            TaskOrderStatus.Overdue => Color.Error,
             _ => Color.Default
         };
     }

@@ -20,19 +20,33 @@ public class DataFixService : IDataFixService
     private readonly IPurchaseOrderService _purchaseOrderService;
     private readonly ISubcontractOrderService _subcontractOrderService;
     private readonly ILogger<DataFixService> _logger;
+    private readonly IConfigParameterService _configService;
+    private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
     public DataFixService(
         AppDbContext context,
         IProductionRecordService productionRecordService,
         IPurchaseOrderService purchaseOrderService,
         ISubcontractOrderService subcontractOrderService,
-        ILogger<DataFixService> logger)
+        ILogger<DataFixService> logger,
+        IConfigParameterService configService)
     {
         _context = context;
         _productionRecordService = productionRecordService;
         _purchaseOrderService = purchaseOrderService;
         _subcontractOrderService = subcontractOrderService;
         _logger = logger;
+        _configService = configService;
+    }
+
+    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
+    {
+        if (!_configMaps.TryGetValue(category, out var map))
+        {
+            map = await _configService.GetConfigMapAsync(category);
+            _configMaps[category] = map;
+        }
+        return map.GetValueOrDefault(key, defaultValue);
     }
 
     public async Task<DataFixReport> FixAllAsync()
@@ -190,6 +204,7 @@ public class DataFixService : IDataFixService
 
         var recoveryLookup = recoveryStats.ToDictionary(x => x.SectionOutsourceId, x => x.TotalRecoveredWeight);
 
+        var outsourceRecoveryRatio = await GetConfigAsync("WarehouseThreshold", "OutsourceRecoveryRatio", 0.99m);
         var allOutsources = await _context.Set<SectionOutsource>().ToListAsync();
         int fixedCount = 0;
 
@@ -197,7 +212,7 @@ public class DataFixService : IDataFixService
         {
             var totalRecovered = recoveryLookup.GetValueOrDefault(os.Id, 0m);
             var correctStatus = (os.SendWeight.HasValue && os.SendWeight.Value > 0
-                                 && totalRecovered >= os.SendWeight.Value * 0.99m)
+                                 && totalRecovered >= os.SendWeight.Value * outsourceRecoveryRatio)
                 ? SectionOutsourceStatus.Recovered
                 : SectionOutsourceStatus.PendingRecovery;
 
@@ -356,9 +371,10 @@ public class DataFixService : IDataFixService
 
         // ---- 7c. 成品采购 ----
         var finishedPlans = await _context.PurchaseFinishedPlans.ToListAsync();
+        var defaultStandardCycle = (int)await GetConfigAsync("DefaultValue", "StandardCycle", 3m);
         foreach (var plan in finishedPlans)
         {
-            plan.StandardCycle = 3;
+            plan.StandardCycle = defaultStandardCycle;
             totalFixed++;
         }
 
@@ -379,7 +395,7 @@ public class DataFixService : IDataFixService
             }
             else
             {
-                plan.StandardCycle = 3;
+                plan.StandardCycle = defaultStandardCycle;
             }
             totalFixed++;
         }

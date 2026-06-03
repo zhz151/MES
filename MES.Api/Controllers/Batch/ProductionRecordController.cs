@@ -4,9 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
 using MES.Core.Interfaces;
 using MES.Core.Models;
-using MES.Data;
 using MES.Shared.Constants;
-using Microsoft.EntityFrameworkCore;
 
 namespace MES.Api.Controllers;
 
@@ -20,13 +18,11 @@ public class ProductionRecordController : ControllerBase
 {
     private readonly IProductionRecordService _service;
     private readonly ILogger<ProductionRecordController> _logger;
-    private readonly AppDbContext _context;
 
-    public ProductionRecordController(IProductionRecordService service, ILogger<ProductionRecordController> logger, AppDbContext context)
+    public ProductionRecordController(IProductionRecordService service, ILogger<ProductionRecordController> logger)
     {
         _service = service;
         _logger = logger;
-        _context = context;
     }
 
     // ========== 内部生产记录 ==========
@@ -237,12 +233,8 @@ public class ProductionRecordController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse>> RefreshAllBatchTracking()
     {
-        var batchIds = await _context.ProductionBatches
-            .Where(b => !b.IsForceCompleted)
-            .Select(b => b.Id)
-            .ToListAsync();
-        await _service.BatchUpdateBatchTrackingAsync(batchIds);
-        return Ok(ApiResponse.Ok($"已刷新 {batchIds.Count} 个批次跟踪字段"));
+        var count = await _service.RefreshAllBatchTrackingAsync();
+        return Ok(ApiResponse.Ok($"已刷新 {count} 个批次跟踪字段"));
     }
 
     // ========== 跨批次查询（用于独立页面） ==========

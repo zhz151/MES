@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using MES.Core.Enums;
 
 namespace MES.Core.DTOs;
 
@@ -105,27 +106,9 @@ public class GeneratedWorkOrderDto
     public string? ProductionSubNo { get; set; }
 
     /// <summary>
-    /// 工单状态值
+    /// 工单状态
     /// </summary>
-    public int Status { get; set; }
-
-    /// <summary>
-    /// 工单状态文本
-    /// </summary>
-    public string StatusText
-    {
-        get
-        {
-            return Status switch
-            {
-                0 => "未编制",
-                1 => "已确定",
-                2 => "待修正",
-                3 => "已取消",
-                _ => "未知"
-            };
-        }
-    }
+    public WorkOrderStatus Status { get; set; }
 
     /// <summary>
     /// 总数量

@@ -294,6 +294,7 @@ public partial class WorkOrderExecution
 
     private async Task<TableData<WorkOrderExecutionSummaryDto>> LoadDataFromServer(TableState state)
     {
+        _pageSize = state.PageSize;
         // 恢复持久化的页码（MudTable 初始化时始终传 page=0）
         if (_isFirstLoad)
         {

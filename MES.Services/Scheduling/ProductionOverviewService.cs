@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Constants;
+using MES.Core.Interfaces;
 using MES.Data;
 using MES.Data.Entities;
 
@@ -13,16 +14,34 @@ namespace MES.Services.Scheduling;
 public class ProductionOverviewService
 {
     private readonly AppDbContext _context;
+    private readonly IConfigParameterService _configService;
+    private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
-    public ProductionOverviewService(AppDbContext context)
+    public ProductionOverviewService(AppDbContext context, IConfigParameterService configService)
     {
         _context = context;
+        _configService = configService;
+    }
+
+    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
+    {
+        if (!_configMaps.TryGetValue(category, out var map))
+        {
+            map = await _configService.GetConfigMapAsync(category);
+            _configMaps[category] = map;
+        }
+        return map.GetValueOrDefault(key, defaultValue);
     }
 
     public async Task<ProductionOverviewDto> GetOverviewAsync()
     {
         var now = DateTime.Today;
-        var buckets = GenerateDateBuckets(now);
+        var bucket1 = (int)await GetConfigAsync("DateBucket", "Bucket1", 15m);
+        var bucket2 = (int)await GetConfigAsync("DateBucket", "Bucket2", 30m);
+        var bucket3 = (int)await GetConfigAsync("DateBucket", "Bucket3", 45m);
+        var bucket4 = (int)await GetConfigAsync("DateBucket", "Bucket4", 60m);
+        var bucket5 = (int)await GetConfigAsync("DateBucket", "Bucket5", 90m);
+        var buckets = GenerateDateBuckets(now, bucket1, bucket2, bucket3, bucket4, bucket5);
         var rows = new List<OverviewRowDto>();
 
         // ========== 查询基础数据 ==========
@@ -106,8 +125,8 @@ public class ProductionOverviewService
         });
 
         // ========== 行 1: 待投料[含在购荒管] ==========
-        // 成品重量 → 原料重量按 1.1 倍换算（TotalWeight/PendingOutsourceFinishWeight 为成品重）
-        const decimal rawRatio = 1.1m;
+        // 成品重量 → 原料重量按配置倍率换算（TotalWeight/PendingOutsourceFinishWeight 为成品重）
+        var rawRatio = await GetConfigAsync("ProcessingDiscount", "RawMaterialRatio", 1.1m);
         var row1Remaining = stage1TotalWeight * rawRatio - stage1OutsourceFinishWeight * rawRatio - stage1InputWeight;
         var row1BucketTons = new List<decimal>();
         foreach (var bucket in buckets)
@@ -155,13 +174,18 @@ public class ProductionOverviewService
         });
 
         // ========== 行 3-7: 各生产工段 ==========
+        var dailyPolish = await GetConfigAsync("ProductionCapacity", "Polish", 12m);
+        var dailyMill50_60 = await GetConfigAsync("ProductionCapacity", "Mill50_60", 11m);
+        var dailyMill20_30 = await GetConfigAsync("ProductionCapacity", "Mill20_30", 9m);
+        var dailyThreeRoll = await GetConfigAsync("ProductionCapacity", "ThreeRoll", 0.5m);
+        var dailyDrawBench = await GetConfigAsync("ProductionCapacity", "DrawBench", 3m);
         var sections = new[]
         {
-            (Seq: 3, Section: "荒管抛光", DailyCapacity: 12m),
-            (Seq: 4, Section: "50,60轧机", DailyCapacity: 11m),
-            (Seq: 5, Section: "20,30轧机", DailyCapacity: 9m),
-            (Seq: 6, Section: "三辊轧机", DailyCapacity: 0.5m),
-            (Seq: 7, Section: "拉机", DailyCapacity: 3m),
+            (Seq: 3, Section: "荒管抛光", DailyCapacity: dailyPolish),
+            (Seq: 4, Section: "50,60轧机", DailyCapacity: dailyMill50_60),
+            (Seq: 5, Section: "20,30轧机", DailyCapacity: dailyMill20_30),
+            (Seq: 6, Section: "三辊轧机", DailyCapacity: dailyThreeRoll),
+            (Seq: 7, Section: "拉机", DailyCapacity: dailyDrawBench),
         };
 
         foreach (var (seq, sectionName, dailyCapacity) in sections)
@@ -272,17 +296,17 @@ public class ProductionOverviewService
         };
     }
 
-    private static List<(DateTime Start, DateTime End, string Label)> GenerateDateBuckets(DateTime today)
+    private static List<(DateTime Start, DateTime End, string Label)> GenerateDateBuckets(DateTime today, int bucket1 = 15, int bucket2 = 30, int bucket3 = 45, int bucket4 = 60, int bucket5 = 90)
     {
         return new List<(DateTime, DateTime, string)>
         {
             (DateTime.MinValue, today, today.ToString("M/d")),
-            (today.AddDays(1), today.AddDays(15), today.AddDays(15).ToString("M/d")),
-            (today.AddDays(16), today.AddDays(30), today.AddDays(30).ToString("M/d")),
-            (today.AddDays(31), today.AddDays(45), today.AddDays(45).ToString("M/d")),
-            (today.AddDays(46), today.AddDays(60), today.AddDays(60).ToString("yy/M/d")),
-            (today.AddDays(61), today.AddDays(90), today.AddDays(90).ToString("yy/M/d")),
-            (today.AddDays(91), DateTime.MaxValue, "远日"),
+            (today.AddDays(1), today.AddDays(bucket1), today.AddDays(bucket1).ToString("M/d")),
+            (today.AddDays(bucket1 + 1), today.AddDays(bucket2), today.AddDays(bucket2).ToString("M/d")),
+            (today.AddDays(bucket2 + 1), today.AddDays(bucket3), today.AddDays(bucket3).ToString("M/d")),
+            (today.AddDays(bucket3 + 1), today.AddDays(bucket4), today.AddDays(bucket4).ToString("yy/M/d")),
+            (today.AddDays(bucket4 + 1), today.AddDays(bucket5), today.AddDays(bucket5).ToString("yy/M/d")),
+            (today.AddDays(bucket5 + 1), DateTime.MaxValue, "远日"),
         };
     }
 
