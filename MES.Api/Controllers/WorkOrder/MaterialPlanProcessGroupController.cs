@@ -40,13 +40,13 @@ public class MaterialPlanProcessGroupController : ControllerBase
     /// </summary>
     [HttpPost("{planId}/save")]
     [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<object>>> Save(
+    public async Task<ActionResult<ApiResponse<bool>>> Save(
         int planType, int planId, [FromBody] List<SavePlanProcessGroupItem> items)
     {
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<object>.Fail("请求参数无效"));
 
         await _service.SaveAsync(planType, planId, items);
-        return Ok(ApiResponse<object>.Ok(new object(), "保存成功"));
+        return Ok(ApiResponse<bool>.Ok(true, "保存成功"));
     }
 }

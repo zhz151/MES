@@ -58,15 +58,13 @@ public class SalesUrgingService : ISalesUrgingService
                     TotalWeight = e.TotalWeight,
                     ScheduleStage = e.ScheduleStage,
                     TotalRemainingWorkDays = e.TotalRemainingWorkDays,
+                    CapacityWorkDays = e.CapacityWorkDays,
                     UrgencyLevel = e.UrgencyLevel,
                     EstimatedProcessCompletionDate = e.EstimatedProcessCompletionDate,
                     DaysDiffFromDelivery = e.DaysDiffFromDelivery,
                     RawMaterialLockRemark = e.RawMaterialLockRemark,
                     IsSalesUrging = u != null && u.IsSalesUrging,
                     UrgingRemark = u != null ? u.UrgingRemark : null,
-                    EstimatedArrivalDate = u != null ? u.EstimatedArrivalDate : null,
-                    IsMainNoMaterialComplete = u != null && u.IsMainNoMaterialComplete,
-                    IsLockConfirmed = u != null && u.IsLockConfirmed,
                 };
 
         // 关键词搜索
@@ -133,75 +131,7 @@ public class SalesUrgingService : ISalesUrgingService
                 WorkOrderId = workOrderId,
                 IsSalesUrging = isSalesUrging,
                 UrgingRemark = urgingRemark,
-                IsLockConfirmed = false,
-                IsMainNoMaterialComplete = false,
             });
-        }
-
-        await _context.SaveChangesAsync();
-        return true;
-    }
-
-    public async Task<bool> SaveLockConfirmationAsync(int workOrderId, DateTime? estimatedArrivalDate, bool isMainNoMaterialComplete)
-    {
-        var existing = await _context.Set<SalesUrging>()
-            .FirstOrDefaultAsync(u => u.WorkOrderId == workOrderId);
-
-        if (existing != null)
-        {
-            existing.EstimatedArrivalDate = estimatedArrivalDate;
-            existing.IsMainNoMaterialComplete = isMainNoMaterialComplete;
-            existing.IsLockConfirmed = true;
-            _context.Entry(existing).State = EntityState.Modified;
-        }
-        else
-        {
-            _context.Set<SalesUrging>().Add(new SalesUrging
-            {
-                WorkOrderId = workOrderId,
-                EstimatedArrivalDate = estimatedArrivalDate,
-                IsMainNoMaterialComplete = isMainNoMaterialComplete,
-                IsLockConfirmed = true,
-            });
-        }
-
-        // 判断是否推进到生产执行：原料齐全 或 已催单
-        var summary = await _context.Set<WorkOrderExecutionSummary>()
-            .FirstOrDefaultAsync(e => e.WorkOrderId == workOrderId);
-
-        if (summary != null)
-        {
-            var isSalesUrging = existing?.IsSalesUrging ?? false;
-            if (isMainNoMaterialComplete || isSalesUrging)
-            {
-                summary.ScheduleStage = 2;
-                _context.Entry(summary).State = EntityState.Modified;
-            }
-        }
-
-        await _context.SaveChangesAsync();
-        return true;
-    }
-
-    public async Task<bool> UnlockAsync(int workOrderId)
-    {
-        var existing = await _context.Set<SalesUrging>()
-            .FirstOrDefaultAsync(u => u.WorkOrderId == workOrderId);
-
-        if (existing != null)
-        {
-            existing.IsLockConfirmed = false;
-            _context.Entry(existing).State = EntityState.Modified;
-        }
-
-        // 回退到原料锁定状态
-        var summary = await _context.Set<WorkOrderExecutionSummary>()
-            .FirstOrDefaultAsync(e => e.WorkOrderId == workOrderId);
-
-        if (summary != null && summary.ScheduleStage == 2)
-        {
-            summary.ScheduleStage = 1;
-            _context.Entry(summary).State = EntityState.Modified;
         }
 
         await _context.SaveChangesAsync();

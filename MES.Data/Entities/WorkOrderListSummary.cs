@@ -150,6 +150,15 @@ public class WorkOrderListSummary : BaseEntity
     /// <summary>最大工艺周期（天）：4种用料计划中 StandardCycle 的最大值</summary>
     public int MaxStandardCycle { get; set; }
 
+    /// <summary>用料占比：有做计划的料态种数(0-4)</summary>
+    public int MaterialPlanCoveredCount { get; set; }
+
+    /// <summary>用料占比文本：如"穿105% 荒160% 成20% 库40% 改30%"</summary>
+    public string? MaterialPlanProportion { get; set; }
+
+    /// <summary>最新要求到货日：各计划中 RequiredDate/PlanDate 的最晚值</summary>
+    public DateTime? LatestRequiredDate { get; set; }
+
     // ========== Group C: 预计算主号/订单聚合 ==========
 
     /// <summary>关联主号满足率(%)</summary>

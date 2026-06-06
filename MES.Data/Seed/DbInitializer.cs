@@ -958,5 +958,20 @@ public static class DbInitializer
             await context.SectionFlowCategoryItems.AddRangeAsync(items);
             await context.SaveChangesAsync();
         }
+
+        // ========== 12. Initialize Daily Output Estimates ==========
+        if (!context.DailyOutputEstimates.Any())
+        {
+            var estimates = new List<DailyOutputEstimate>
+            {
+                new() { MinOuterDiameter = 38, DailyOutputTons = 3.5m, Remark = "外径>=38mm" },
+                new() { MinOuterDiameter = 18, DailyOutputTons = 3.0m, Remark = "外径>=18mm" },
+                new() { MinOuterDiameter = 14, DailyOutputTons = 1.0m, Remark = "外径>=14mm" },
+                new() { MinOuterDiameter = 12, DailyOutputTons = 0.5m, Remark = "外径>=12mm" },
+                new() { MinOuterDiameter = 6,  DailyOutputTons = 0.1m, Remark = "外径>=6mm" },
+            };
+            context.DailyOutputEstimates.AddRange(estimates);
+            await context.SaveChangesAsync();
+        }
     }
 }

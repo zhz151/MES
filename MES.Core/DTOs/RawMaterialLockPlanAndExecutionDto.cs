@@ -1,7 +1,7 @@
 namespace MES.Core.DTOs;
 
 /// <summary>
-/// 原锁计划及执行 DTO（G1+G2+G5+G3+G7+G10+G12+G13+G14+G15）
+/// 原锁计划及执行 DTO（G1+G2+G5+G3+G7+G10+G12+G13+G15）
 /// </summary>
 public class RawMaterialLockPlanAndExecutionDto
 {
@@ -38,6 +38,15 @@ public class RawMaterialLockPlanAndExecutionDto
     public decimal MainNoMaterialPlanRate { get; set; }
     public int MainNoMaterialPlanStatus { get; set; }
     public int ProcessCycle { get; set; }
+
+    /// <summary>用料占比：4种料态中有做计划的种数(0-4)</summary>
+    public int MaterialPlanCoveredCount { get; set; }
+
+    /// <summary>用料占比文本：如"穿105% 荒160% 成20% 库40%"</summary>
+    public string? MaterialPlanProportion { get; set; }
+
+    /// <summary>要求到货日（最晚）</summary>
+    public DateTime? LatestRequiredDate { get; set; }
 
     // ========== G5: 物料执行实时信息 ==========
     public int PendingRoughTubeQty { get; set; }
@@ -80,6 +89,7 @@ public class RawMaterialLockPlanAndExecutionDto
     // ========== G12: 实时关注 ==========
     public int ScheduleStage { get; set; }
     public int? TotalRemainingWorkDays { get; set; }
+    public int? CapacityWorkDays { get; set; }
     public string? UrgencyLevel { get; set; }
     public DateTime? EstimatedProcessCompletionDate { get; set; }
     public int? DaysDiffFromDelivery { get; set; }
@@ -89,24 +99,18 @@ public class RawMaterialLockPlanAndExecutionDto
     public bool SalesUrging { get; set; }
     public string? UrgingRemark { get; set; }
 
-    // ========== G14: 执行快照 ==========
-    public int? CurrentScheduleStage { get; set; }
-    public string? CurrentRawMaterialLockRemark { get; set; }
-    public bool? IsExecuted { get; set; }
-
     // ========== G15: 预执行（页面操作标记）==========
     /// <summary>执行：近几日会投料</summary>
     public bool IsPreInput { get; set; }
 
-    /// <summary>主号齐全：近几日投料满足主号用量</summary>
+    /// <summary>预算投料日</summary>
+    public DateTime? BudgetInputDate { get; set; }
+
+    /// <summary>执行错误：已执行且（日期为空 或 日期早于今天）</summary>
+    public bool ExecutionError => IsPreInput && (!BudgetInputDate.HasValue || BudgetInputDate.Value.Date < DateTime.Today);
+
+    /// <summary>主号齐全：系统计算</summary>
     public bool IsMainNoMaterialComplete { get; set; }
-
-    // ========== 从 SalesUrging LEFT JOIN 读取 ==========
-    /// <summary>预计到料日期</summary>
-    public DateTime? EstimatedArrivalDate { get; set; }
-
-    /// <summary>确认锁定</summary>
-    public bool IsLockConfirmed { get; set; }
 
     /// <summary>是否存在异常（逾期、锁定未齐全等）</summary>
     public bool HasAbnormality { get; set; }
@@ -117,12 +121,9 @@ public class RawMaterialLockPlanAndExecutionDto
     {
         0 => "无需排产", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => "未知"
     };
-    public string? CurrentScheduleStageText => CurrentScheduleStage switch
-    {
-        0 => "无需排产", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => null
-    };
     public string SalesUrgingText => SalesUrging ? "是" : "否";
-    public string IsExecutedText => IsExecuted == true ? "是" : "否";
     public string IsPreInputText => IsPreInput ? "是" : "否";
+    public string BudgetInputDateText => BudgetInputDate?.ToString("yyyy-MM-dd") ?? "-";
+    public string ExecutionErrorText => ExecutionError ? "是" : "否";
     public string IsMainNoMaterialCompleteText => IsMainNoMaterialComplete ? "是" : "否";
 }

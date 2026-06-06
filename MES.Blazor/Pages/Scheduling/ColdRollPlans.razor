@@ -1,0 +1,174 @@
+@page "/cold-roll-plans"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <!-- 页面顶部工具栏 -->
+    <div class="d-flex flex-column mb-4">
+        <MudText Typo="Typo.h5" Class="font-weight-bold mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" Color="Color.Primary" />
+            冷轧看板
+        </MudText>
+
+        <!-- 工段筛选 Tab -->
+        <div class="d-flex flex-wrap align-center gap-2 mb-2 crp-print-hide" style="gap: 4px;">
+            @foreach (var sec in _sectionTabs)
+            {
+                var isActive = (sec == "全部" && _selectedSection == null)
+                    || (sec != "全部" && _selectedSection == sec);
+                <MudButton Variant="@(isActive ? Variant.Filled : Variant.Outlined)"
+                           Color="@(isActive ? Color.Primary : Color.Default)"
+                           Size="Size.Small"
+                           Class="ma-0"
+                           OnClick="@(() => OnSectionTabChanged(sec == "全部" ? null : sec))">
+                    @sec
+                </MudButton>
+            }
+        </div>
+
+        <!-- 明细/简化视图切换 -->
+        <div class="d-flex align-center mb-2 crp-print-hide" style="gap: 12px;">
+            <MudSwitch T="bool"
+                       Value="@_isSimplifiedView"
+                       ValueChanged="@OnSimplifiedViewChanged"
+                       Label="简化视图"
+                       Color="Color.Primary"
+                       Size="Size.Small" />
+        </div>
+
+        <!-- 搜索栏 -->
+        <MudTextField T="string"
+                      Variant="Variant.Outlined"
+                      Label="搜索规格/类型..."
+                      Size="Size.Small"
+                      ValueChanged="@OnSearchChanged"
+                      Class="mb-2"
+                      Style="max-width: 300px;"
+                      Immediate="true">
+            <Adornment>
+                <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Small" />
+            </Adornment>
+            <ClearButton AdornmentButton="true" />
+        </MudTextField>
+
+        <!-- Tab 汇总 -->
+        <div class="d-flex flex-wrap align-center mb-2 crp-print-hide" style="gap: 12px; font-size: 0.85rem;">
+            <MudText Typo="Typo.body2">
+                <b>规格数：</b>@_tabSpecCount
+            </MudText>
+            <MudText Typo="Typo.body2">
+                <b>总重量(kg)：</b>@(((int)_tabTotalWeight).ToString())
+            </MudText>
+            <MudText Typo="Typo.body2" Class="text-error">
+                <b>重点批次：</b>@_tabKeyBatchCount
+            </MudText>
+            <MudText Typo="Typo.body2" Class="text-error">
+                <b>重点批次重量(kg)：</b>@(((int)_tabKeyBatchWeight).ToString())
+            </MudText>
+            <MudIconButton Icon="@Icons.Material.Filled.Print"
+                           Size="Size.Small"
+                           Color="Color.Primary"
+                           Title="打印"
+                           OnClick="@OnPrint" />
+        </div>
+    </div>
+
+    <MudCard>
+        <MudCardContent>
+            @{
+                var _groupHeaders = GetGroupHeaders();
+                var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100);
+            }
+
+            @* 分组标题栏 *@
+            <div class="col-group-header-scroll" id="crp-group-header-scroll">
+                <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                    @foreach (var gh in _groupHeaders)
+                    {
+                        <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                            <span class="col-group-badge">@gh.GroupName</span>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <MudTable @ref="table"
+                      T="ColdRollPlanRowDto"
+                      ServerData="@LoadDataFromServer"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-0 auto-table compact-table"
+                      Elevation="0"
+                      RowsPerPage="10000"
+                      RowsPerPageLabel="每页行数:">
+                <HeaderContent>
+                    @{
+                        int? _prevGk = null;
+                    }
+                    @foreach (var col in _visibleColumns)
+                    {
+                        var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
+                        _prevGk = col.GroupKey;
+                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
+                        <MudTh Class="@_headerClass" Style="@($"width: {col.Width}px")">
+                            <div class="col-header-cell sortable-header" @onclick="@(() => ToggleSort(col.Key))" style="cursor: pointer; user-select: none;">
+                                <span class="th-label">@col.Label</span>
+                                <span class="sort-indicator" style="font-size: 0.7rem; color: #666;">@GetSortIcon(col.Key)</span>
+                            </div>
+                        </MudTh>
+                    }
+                </HeaderContent>
+                <RowTemplate Context="item">
+                    @{
+                        int? _prevGk2 = null;
+                    }
+                    @foreach (var col in _visibleColumns)
+                    {
+                        var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
+                        _prevGk2 = col.GroupKey;
+                        var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2) + " " + GetCellExtraClass(col);
+                        <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
+                    }
+                </RowTemplate>
+                <FooterContent>
+                    @{
+                        int? _prevGk3 = null;
+                    }
+                    @foreach (var col in _visibleColumns)
+                    {
+                        var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
+                        _prevGk3 = col.GroupKey;
+                        var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell";
+                        <MudTd Class="@_footerClass" Style="@($"width: {col.Width}px")">
+                            <span class="col-footer-sum">@RenderFooterCell(col)</span>
+                        </MudTd>
+                    }
+                </FooterContent>
+                <NoRecordsContent>
+                    <MudText>暂无数据</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+<style>
+    @@media print {
+        @@page { size: landscape; margin: 10mm; }
+        .crp-print-hide { display: none !important; }
+        .col-group-header-scroll { overflow: visible !important; }
+        .mud-card { box-shadow: none !important; border: none !important; }
+        .auto-table { width: 100% !important; font-size: 0.75rem !important; }
+    }
+    .urgent-cell {
+        background-color: #fff0f0 !important;
+        font-weight: 600;
+        color: #c62828;
+    }
+    .urgent-cell .col-footer-sum {
+        color: #c62828 !important;
+    }
+</style>

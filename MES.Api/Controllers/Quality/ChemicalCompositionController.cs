@@ -61,10 +61,10 @@ public class ChemicalCompositionController : ControllerBase
     /// </summary>
     [HttpGet("all-list")]
     [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
-    public async Task<ApiResponse<List<ChemicalCompositionDto>>> GetAllList()
+    public async Task<ActionResult<ApiResponse<List<ChemicalCompositionDto>>>> GetAllList()
     {
         var result = await _service.GetAllListAsync();
-        return ApiResponse<List<ChemicalCompositionDto>>.Ok(result);
+        return Ok(ApiResponse<List<ChemicalCompositionDto>>.Ok(result));
     }
 
     /// <summary>
@@ -126,16 +126,8 @@ public class ChemicalCompositionController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
     public async Task<IActionResult> DownloadTemplate()
     {
-        try
-        {
-            var data = await _service.GenerateTemplateAsync();
-            return File(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "牌号化学成分_模板.xlsx");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "生成模板失败");
-            return StatusCode(500, ApiResponse<byte[]>.Fail($"生成模板失败: {ex.Message}"));
-        }
+        var data = await _service.GenerateTemplateAsync();
+        return File(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "牌号化学成分_模板.xlsx");
     }
 
     /// <summary>

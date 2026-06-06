@@ -38,32 +38,6 @@ public class RawMaterialLockPlanAndExecutionService
         }
     }
 
-    public async Task<ApiResponse<int>> PlanArrangementAsync()
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<object?, ApiResponse<int>>($"{BaseUrl}/plan-arrangement", null);
-            return response ?? ApiResponse<int>.Fail("计划安排失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<int>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    public async Task<ApiResponse<int>> ExecuteDataUpdateAsync()
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<object?, ApiResponse<int>>($"{BaseUrl}/execute-data-update", null);
-            return response ?? ApiResponse<int>.Fail("执行数据更新失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<int>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
     public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
     {
         try
@@ -77,17 +51,17 @@ public class RawMaterialLockPlanAndExecutionService
         }
     }
 
-    public async Task<ApiResponse<int>> SetPreExecuteFlagsAsync(List<int> workOrderIds, bool? isPreInput, bool? isMainNoMaterialComplete)
+    public async Task<ApiResponse<SetPreExecuteFlagsResult>> SetPreExecuteFlagsAsync(List<int> workOrderIds, bool? isPreInput, bool? isMainNoMaterialComplete, DateTime? budgetInputDate = null)
     {
         try
         {
-            var request = new { WorkOrderIds = workOrderIds, IsPreInput = isPreInput, IsMainNoMaterialComplete = isMainNoMaterialComplete };
-            var response = await _http.PostAsJsonAsync<object, ApiResponse<int>>($"{BaseUrl}/set-pre-execute-flags", request);
-            return response ?? ApiResponse<int>.Fail("设置预执行标记失败");
+            var request = new { WorkOrderIds = workOrderIds, IsPreInput = isPreInput, IsMainNoMaterialComplete = isMainNoMaterialComplete, BudgetInputDate = budgetInputDate };
+            var response = await _http.PostAsJsonAsync<object, ApiResponse<SetPreExecuteFlagsResult>>($"{BaseUrl}/set-pre-execute-flags", request);
+            return response ?? ApiResponse<SetPreExecuteFlagsResult>.Fail("设置预执行标记失败");
         }
         catch (Exception ex)
         {
-            return ApiResponse<int>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<SetPreExecuteFlagsResult>.Fail($"网络错误: {ex.Message}");
         }
     }
 }

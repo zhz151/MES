@@ -20,7 +20,6 @@ public partial class RawMaterialLockPlanAndExecution
     private int _currentPageIndex = 1;
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
-    private bool _isPlanning;
 
     // B33: 分页汇总
     private Dictionary<string, string> _pageSums = new();
@@ -34,7 +33,6 @@ public partial class RawMaterialLockPlanAndExecution
         "GeneralDefectWeight", "SeriousDefectWeight", "ScrapWeight",
     };
 
-    private bool _isUpdating;
     private string _searchKeyword = string.Empty;
 
     // 排序状态
@@ -87,6 +85,8 @@ public partial class RawMaterialLockPlanAndExecution
             new() { Key = "MainNoMaterialPlanRate",  Label = "主号满足率(%)",  SortKey = "MainNoMaterialPlanRate",  Width = "80", Visible = false, GroupKey = 2, GroupName = "用料计划" },
             new() { Key = "MainNoMaterialPlanStatus",Label = "主号用料计划状态",SortKey = "MainNoMaterialPlanStatus",FilterType = "enum", Width = "120", EnumOptions = new() { new("0","未计划"), new("1","部分"), new("2","理论满足"), new("3","满足"), new("4","超量") }, Visible = false, GroupKey = 2, GroupName = "用料计划" },
             new() { Key = "ProcessCycle",            Label = "工艺周期(天)",    SortKey = "ProcessCycle",            Width = "80",                               GroupKey = 2, GroupName = "用料计划" },
+            new() { Key = "MaterialPlanProportion",   Label = "用料占比",       SortKey = "MaterialPlanProportion",   Width = "120",                             GroupKey = 2, GroupName = "用料计划" },
+            new() { Key = "LatestRequiredDate",       Label = "要求到货日",      SortKey = "LatestRequiredDate",      Width = "120",                             GroupKey = 2, GroupName = "用料计划" },
         };
 
         // G5: 物料执行实时信息
@@ -144,6 +144,7 @@ public partial class RawMaterialLockPlanAndExecution
         {
             new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = new() { new("0","无需排产"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "TotalRemainingWorkDays",  Label = "剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "CapacityWorkDays",         Label = "产能工量(天)",  SortKey = "CapacityWorkDays",         Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "UrgencyLevel",            Label = "工单计划性",    SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "EstimatedProcessCompletionDate",Label = "工艺预计完成日",SortKey = "EstimatedProcessCompletionDate", Width = "120",                  GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "DaysDiffFromDelivery",    Label = "交期相差天数",  SortKey = "DaysDiffFromDelivery",    Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
@@ -157,18 +158,12 @@ public partial class RawMaterialLockPlanAndExecution
             new() { Key = "UrgingRemark",            Label = "催单备注",      SortKey = "UrgingRemark",            FilterType = "string", Width = "200", GroupKey = 13, GroupName = "销售催单" },
         };
 
-        // G14: 执行情况
-        var g14 = new List<ColumnDef>
-        {
-            new() { Key = "CurrentScheduleStage",        Label = "现关注状态",     SortKey = "CurrentScheduleStage",        FilterType = "enum", Width = "120", EnumOptions = new() { new("0","无需排产"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, Visible = false, GroupKey = 14, GroupName = "执行情况" },
-            new() { Key = "CurrentRawMaterialLockRemark", Label = "现原锁备注",    SortKey = "CurrentRawMaterialLockRemark", FilterType = "string", Width = "120", Visible = false, GroupKey = 14, GroupName = "执行情况" },
-            new() { Key = "IsExecuted",                   Label = "已执行",        SortKey = "IsExecuted",                    FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 14, GroupName = "执行情况" },
-        };
-
         // G15: 预执行（页面操作标记）
         var g15 = new List<ColumnDef>
         {
             new() { Key = "IsPreInput",                  Label = "执行",          SortKey = "IsPreInput",                    FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 15, GroupName = "预执行" },
+            new() { Key = "BudgetInputDate",             Label = "预算投料日",    SortKey = "BudgetInputDate",               Width = "130", GroupKey = 15, GroupName = "预执行" },
+            new() { Key = "ExecutionError",              Label = "执行错误",      SortKey = "ExecutionError",                FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 15, GroupName = "预执行" },
             new() { Key = "IsMainNoMaterialComplete",    Label = "主号齐全",      SortKey = "IsMainNoMaterialComplete",      FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 15, GroupName = "预执行" },
         };
 
@@ -181,7 +176,6 @@ public partial class RawMaterialLockPlanAndExecution
         all.AddRange(g10);
         all.AddRange(g12);
         all.AddRange(g13);
-        all.AddRange(g14);
         all.AddRange(g15);
         return all;
     }
@@ -429,60 +423,6 @@ public partial class RawMaterialLockPlanAndExecution
         if (table != null) await table.ReloadServerData();
     }
 
-    // ========== 操作按钮 ==========
-
-    private async Task PlanArrangement()
-    {
-        _isPlanning = true;
-        try
-        {
-            var result = await RawMaterialLockPlanService.PlanArrangementAsync();
-            if (result.Success)
-            {
-                Snackbar.Add($"计划安排完成，共{result.Data}条", Severity.Success);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "计划安排失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"计划安排失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _isPlanning = false;
-        }
-        if (table != null) await table.ReloadServerData();
-    }
-
-    private async Task ExecuteDataUpdate()
-    {
-        _isUpdating = true;
-        try
-        {
-            var result = await RawMaterialLockPlanService.ExecuteDataUpdateAsync();
-            if (result.Success)
-            {
-                Snackbar.Add($"执行数据更新完成，共更新{result.Data}条", Severity.Success);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "执行数据更新失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"执行数据更新失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _isUpdating = false;
-        }
-        if (table != null) await table.ReloadServerData();
-    }
-
     // ========== 预执行内联操作 ==========
 
     private async Task TogglePreInput(RawMaterialLockPlanAndExecutionDto item, bool newValue)
@@ -490,19 +430,30 @@ public partial class RawMaterialLockPlanAndExecution
         var ids = new List<int> { item.WorkOrderId };
         var result = await RawMaterialLockPlanService.SetPreExecuteFlagsAsync(ids, newValue, null);
         if (result.Success)
+        {
             item.IsPreInput = newValue;
+            // 重新加载数据以反映系统重新计算的主号齐全状态
+            if (table != null) await table.ReloadServerData();
+        }
         else
+        {
             Snackbar.Add(result.Message ?? "操作失败", Severity.Error);
+        }
     }
 
-    private async Task ToggleMainNoComplete(RawMaterialLockPlanAndExecutionDto item, bool newValue)
+    private async Task OnBudgetInputDateChanged(RawMaterialLockPlanAndExecutionDto item, DateTime newDate)
     {
         var ids = new List<int> { item.WorkOrderId };
-        var result = await RawMaterialLockPlanService.SetPreExecuteFlagsAsync(ids, null, newValue);
+        var result = await RawMaterialLockPlanService.SetPreExecuteFlagsAsync(ids, null, null, newDate);
         if (result.Success)
-            item.IsMainNoMaterialComplete = newValue;
+        {
+            item.BudgetInputDate = newDate;
+            await table.ReloadServerData();
+        }
         else
-            Snackbar.Add(result.Message ?? "操作失败", Severity.Error);
+        {
+            Snackbar.Add(result.Message ?? "保存预算投料日失败", Severity.Error);
+        }
     }
 
     // ========== 分组 CSS ==========
@@ -519,7 +470,6 @@ public partial class RawMaterialLockPlanAndExecution
             10 => "col-g10",
             12 => "col-g12",
             13 => "col-g13",
-            14 => "col-g14",
             15 => "col-g15",
             _ => ""
         };
@@ -539,7 +489,6 @@ public partial class RawMaterialLockPlanAndExecution
             10 => "col-g10-cell",
             12 => "col-g12-cell",
             13 => "col-g13-cell",
-            14 => "col-g14-cell",
             15 => "col-g15-cell",
             _ => ""
         };
@@ -683,6 +632,12 @@ public partial class RawMaterialLockPlanAndExecution
             case "ProcessCycle":
                 builder.AddContent(0, item.ProcessCycle > 0 ? $"{item.ProcessCycle}天" : "-");
                 break;
+            case "MaterialPlanProportion":
+                builder.AddContent(0, item.MaterialPlanProportion ?? "-");
+                break;
+            case "LatestRequiredDate":
+                builder.AddContent(0, item.LatestRequiredDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
             case "MainNoMaterialPlanRate":
                 builder.AddContent(0, item.MainNoMaterialPlanRate > 0 ? $"{item.MainNoMaterialPlanRate:F1}%" : "-");
                 break;
@@ -819,6 +774,9 @@ public partial class RawMaterialLockPlanAndExecution
             case "TotalRemainingWorkDays":
                 builder.AddContent(0, item.TotalRemainingWorkDays.HasValue ? $"{item.TotalRemainingWorkDays}天" : "-");
                 break;
+            case "CapacityWorkDays":
+                builder.AddContent(0, item.CapacityWorkDays.HasValue ? $"{item.CapacityWorkDays}天" : "-");
+                break;
             case "UrgencyLevel":
                 builder.AddContent(0, item.UrgencyLevel ?? "-");
                 break;
@@ -840,17 +798,6 @@ public partial class RawMaterialLockPlanAndExecution
                 builder.AddContent(0, item.UrgingRemark ?? "-");
                 break;
 
-            // G14
-            case "CurrentScheduleStage":
-                builder.AddContent(0, item.CurrentScheduleStageText ?? "-");
-                break;
-            case "CurrentRawMaterialLockRemark":
-                builder.AddContent(0, item.CurrentRawMaterialLockRemark ?? "-");
-                break;
-            case "IsExecuted":
-                builder.AddContent(0, item.IsExecutedText);
-                break;
-
             // G15: 预执行
             case "IsPreInput":
                 builder.OpenElement(0, "div");
@@ -867,19 +814,46 @@ public partial class RawMaterialLockPlanAndExecution
                 builder.AddContent(7, item.IsPreInput ? "是" : "否");
                 builder.CloseElement();
                 break;
-            case "IsMainNoMaterialComplete":
-                builder.OpenElement(0, "div");
-                builder.AddAttribute(1, "style", "display:flex; align-items:center; gap:4px;");
-                builder.OpenComponent<MudSwitch<bool>>(2);
-                builder.AddAttribute(3, "Value", item.IsMainNoMaterialComplete);
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, async v =>
+            case "BudgetInputDate":
+                if (item.IsPreInput)
                 {
-                    await ToggleMainNoComplete(item, v);
-                }));
-                builder.AddAttribute(5, "Color", Color.Primary);
-                builder.AddAttribute(6, "Dense", true);
-                builder.CloseComponent();
-                builder.AddContent(7, item.IsMainNoMaterialComplete ? "是" : "否");
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", item.BudgetInputDate?.ToString("yyyy-MM-dd") ?? "");
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
+                    {
+                        if (DateTime.TryParseExact(v, "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out var date))
+                            await OnBudgetInputDateChanged(item, date);
+                    }));
+                    builder.AddAttribute(3, "Placeholder", "yyyy-MM-dd");
+                    builder.AddAttribute(4, "Dense", true);
+                    builder.AddAttribute(5, "Class", "compact-input");
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, "-");
+                }
+                break;
+            case "ExecutionError":
+                if (item.ExecutionError)
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", Color.Error);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "是")));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, "-");
+                }
+                break;
+            case "IsMainNoMaterialComplete":
+                builder.OpenElement(0, "span");
+                var completeColor = item.IsMainNoMaterialComplete ? "color:#1565C0;font-weight:bold" : "color:#999";
+                builder.AddAttribute(1, "style", completeColor);
+                builder.AddAttribute(2, "class", "pl-2");
+                builder.AddContent(3, item.IsMainNoMaterialCompleteText);
                 builder.CloseElement();
                 break;
         }

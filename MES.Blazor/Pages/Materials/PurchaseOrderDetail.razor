@@ -465,10 +465,10 @@
                 {
                     builder.OpenComponent<MudSwitch<bool>>(0);
                     builder.AddAttribute(1, "Value", _editIsForceCompleted);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<bool>(this, v =>
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<bool>(this, async v =>
                     {
                         _editIsForceCompleted = v;
-                        _ = OnForceCompletedChanged(v);
+                        await OnForceCompletedChanged(v);
                     }));
                     builder.AddAttribute(3, "Label", "强制完成");
                     builder.AddAttribute(4, "Color", Color.Success);

@@ -748,7 +748,7 @@ public class SectionOutsourceService : ISectionOutsourceService
         await _context.SaveChangesAsync();
 
         // 按重量 99% 阈值更新委外状态
-        await UpdateOutsourceStatusByWeight(outsource);
+        await UpdateOutsourceStatusByWeightAsync(outsource);
 
         await _productionRecordService.RefreshBatchTrackingFieldsAsync(outsource.ProductionBatchId);
 
@@ -895,7 +895,7 @@ public class SectionOutsourceService : ISectionOutsourceService
         var outsource = await _context.SectionOutsources.FindAsync(entity.SectionOutsourceId);
         if (outsource != null)
         {
-            await UpdateOutsourceStatusByWeight(outsource);
+            await UpdateOutsourceStatusByWeightAsync(outsource);
             await _productionRecordService.RefreshBatchTrackingFieldsAsync(outsource.ProductionBatchId);
         }
 
@@ -926,7 +926,7 @@ public class SectionOutsourceService : ISectionOutsourceService
         var outsource = await _context.SectionOutsources.FindAsync(outsourceId);
         if (outsource != null)
         {
-            await UpdateOutsourceStatusByWeight(outsource);
+            await UpdateOutsourceStatusByWeightAsync(outsource);
             await _productionRecordService.RefreshBatchTrackingFieldsAsync(outsource.ProductionBatchId);
         }
 
@@ -1261,7 +1261,7 @@ public class SectionOutsourceService : ISectionOutsourceService
     /// <summary>
     /// 按重量判定：正常回收重量 + 非正常回收重量 >= 发出重量 × 0.99 时标记为"已回收"
     /// </summary>
-    private async Task UpdateOutsourceStatusByWeight(SectionOutsource outsource)
+    private async Task UpdateOutsourceStatusByWeightAsync(SectionOutsource outsource)
     {
         var totals = await _context.OutsourceRecoveries
             .Where(r => r.SectionOutsourceId == outsource.Id)

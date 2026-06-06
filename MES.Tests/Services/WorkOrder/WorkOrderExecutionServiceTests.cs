@@ -24,7 +24,10 @@ public class WorkOrderExecutionServiceTests : TestBase
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        return new WorkOrderExecutionService(ctx, loggerMock.Object, configMock.Object);
+        var dailyOutputMock = new Mock<IDailyOutputEstimateService>();
+        dailyOutputMock.Setup(x => x.GetAllAsync())
+            .ReturnsAsync(new List<DailyOutputEstimateDto>());
+        return new WorkOrderExecutionService(ctx, loggerMock.Object, configMock.Object, dailyOutputMock.Object);
     }
 
     // ==================== GetPagedAsync 测试 ====================
@@ -604,6 +607,36 @@ public class WorkOrderExecutionServiceTests : TestBase
         });
         await ctx.SaveChangesAsync();
 
+        // Seed WorkOrderListSummary 读模型（RefreshAllAsync 从此读取 G2 字段）
+        ctx.Set<WorkOrderListSummary>().Add(new WorkOrderListSummary
+        {
+            WorkOrderId = wo.Id,
+            WorkOrderNo = wo.WorkOrderNo,
+            SalesOrderNo = wo.SalesOrderNo,
+            ProductionMainNo = wo.ProductionMainNo,
+            SignDate = wo.SignDate,
+            Salesman = wo.Salesman ?? "",
+            DeliveryDate = wo.DeliveryDate,
+            SettlementMethod = wo.SettlementMethod.ToString(),
+            MaterialName = wo.MaterialName.ToString(),
+            DeliveryState = wo.DeliveryState.ToString(),
+            PlantGrade = wo.PlantGrade,
+            Specification = wo.Specification,
+            LengthStatus = wo.LengthStatus.ToString(),
+            TotalQuantity = wo.TotalQuantity,
+            TotalMeters = wo.TotalMeters,
+            TotalWeight = wo.TotalWeight,
+            TotalItemCount = wo.TotalItemCount,
+            TechnicalRequirements = wo.TechnicalRequirements.ToString(),
+            Status = (int)wo.Status,
+            CreatedTime = wo.CreatedTime,
+            LatestPlanDate = new DateTime(2026, 7, 20),
+            MaterialPlanRate = 80m,
+            MaterialPlanStatus = 1,
+            RowVersion = new byte[8]
+        });
+        await ctx.SaveChangesAsync();
+
         var svc = CreateService(ctx);
         await svc.RefreshAllAsync();
 
@@ -795,6 +828,40 @@ public class WorkOrderExecutionServiceTests : TestBase
                 {
                     new() { ProcessName = "60冷轧", SequenceNumber = 1, ColdRollDraw = 1, Solution = 2 }
                 }
+            });
+        }
+        await ctx.SaveChangesAsync();
+
+        // Seed WorkOrderListSummary 读模型（RefreshAllAsync 从此读取 G2 字段）
+        foreach (var (w, rate) in new[] { (wo1, 80m), (wo2, 90m) })
+        {
+            ctx.Set<WorkOrderListSummary>().Add(new WorkOrderListSummary
+            {
+                WorkOrderId = w.Id,
+                WorkOrderNo = w.WorkOrderNo,
+                SalesOrderNo = w.SalesOrderNo,
+                ProductionMainNo = w.ProductionMainNo,
+                ProductionSubNo = w.ProductionSubNo,
+                SignDate = w.SignDate,
+                Salesman = w.Salesman ?? "",
+                DeliveryDate = w.DeliveryDate,
+                SettlementMethod = w.SettlementMethod.ToString(),
+                MaterialName = w.MaterialName.ToString(),
+                DeliveryState = w.DeliveryState.ToString(),
+                PlantGrade = w.PlantGrade,
+                Specification = w.Specification,
+                LengthStatus = w.LengthStatus.ToString(),
+                TotalQuantity = w.TotalQuantity,
+                TotalMeters = w.TotalMeters,
+                TotalWeight = w.TotalWeight,
+                TotalItemCount = w.TotalItemCount,
+                TechnicalRequirements = w.TechnicalRequirements.ToString(),
+                Status = (int)w.Status,
+                CreatedTime = w.CreatedTime,
+                LatestPlanDate = DateTime.Today,
+                MaterialPlanRate = rate,
+                MaterialPlanStatus = rate >= 100 ? 3 : 1,
+                RowVersion = new byte[8]
             });
         }
         await ctx.SaveChangesAsync();

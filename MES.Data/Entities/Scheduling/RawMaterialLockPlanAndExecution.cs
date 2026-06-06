@@ -42,6 +42,15 @@ public class RawMaterialLockPlanAndExecution : BaseEntity
     public int MainNoMaterialPlanStatus { get; set; }
     public int ProcessCycle { get; set; }
 
+    /// <summary>用料占比：4种料态中有做计划的种数(0-4)</summary>
+    public int MaterialPlanCoveredCount { get; set; }
+
+    /// <summary>用料占比文本：如"穿105% 荒160% 成20% 库40%"</summary>
+    public string? MaterialPlanProportion { get; set; }
+
+    /// <summary>要求到货日（最晚）：采购类取RequiredDate，库存/库料改制取PlanDate</summary>
+    public DateTime? LatestRequiredDate { get; set; }
+
     // ========== G5: 物料执行实时信息 ==========
     public int PendingRoughTubeQty { get; set; }
     public decimal PendingRoughTubeWeight { get; set; }
@@ -83,6 +92,7 @@ public class RawMaterialLockPlanAndExecution : BaseEntity
     // ========== G12: 实时关注 ==========
     public int ScheduleStage { get; set; }
     public int? TotalRemainingWorkDays { get; set; }
+    public int? CapacityWorkDays { get; set; }
     public string? UrgencyLevel { get; set; }
     public DateTime? EstimatedProcessCompletionDate { get; set; }
     public int? DaysDiffFromDelivery { get; set; }
@@ -95,21 +105,11 @@ public class RawMaterialLockPlanAndExecution : BaseEntity
     /// <summary>催单备注</summary>
     public string? UrgingRemark { get; set; }
 
-    // ========== G14: 执行快照 ==========
-    /// <summary>现关注：最新的关注状态（执行数据更新时刷新）</summary>
-    public int? CurrentScheduleStage { get; set; }
-
-    /// <summary>现原锁关注：最新的原锁备注（执行数据更新时刷新）</summary>
-    public string? CurrentRawMaterialLockRemark { get; set; }
-
-    /// <summary>是否执行：CurrentRawMaterialLockRemark <> RawMaterialLockRemark 时为 true</summary>
-    public bool? IsExecuted { get; set; }
-
     // ========== G15: 预执行（页面操作标记）==========
     /// <summary>执行：用户手动标注"近几日会投料"的工单</summary>
     public bool IsPreInput { get; set; }
 
-    /// <summary>主号齐全：用户手动标注"近几日投料满足主号用量"</summary>
+    /// <summary>主号齐全：系统计算，不再手动切换</summary>
     public bool IsMainNoMaterialComplete { get; set; }
 
     // ========== 看板筛选 - 异常标记 ==========

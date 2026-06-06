@@ -11,7 +11,7 @@ namespace MES.Services;
 /// <summary>
 /// 用料计划总览读模型刷新服务
 /// </summary>
-public class WorkOrderListSummaryService
+public class WorkOrderListSummaryService : IWorkOrderListSummaryService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<WorkOrderListSummaryService> _logger;
@@ -368,6 +368,68 @@ public class WorkOrderListSummaryService
         var (rate, status) = PlanRateCalculator.ComputeWorkOrderRate(wo, semi, finish, inv, pierce,
             fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
 
+        // 用料占比（coveredCount + proportionText）
+        var coveredCount = 0;
+        var proportionParts = new List<string>();
+        var reqDates = new List<DateTime>();
+        var isFixedLength = wo.LengthStatus == LengthStatus.Fixed;
+        var totalQty = wo.TotalQuantity;
+        var totalWt = wo.TotalWeight;
+
+        if (semi.Count > 0)
+        {
+            coveredCount++;
+            reqDates.Add(semi.Max(p => p.RequiredDate));
+            if (isFixedLength && totalQty > 0)
+                proportionParts.Add($"荒{semi.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple) / (decimal)totalQty * 100:F0}%");
+            else if (!isFixedLength && totalWt > 0)
+                proportionParts.Add($"荒{semi.Sum(p => p.RequiredWeight) / totalWt * 100:F0}%");
+        }
+        if (finish.Count > 0)
+        {
+            coveredCount++;
+            var d = finish.Max(p => p.RequiredDate);
+            if (d.HasValue) reqDates.Add(d.Value);
+            if (isFixedLength && totalQty > 0)
+                proportionParts.Add($"成{finish.Sum(p => p.RequiredPiece ?? 0) / (decimal)totalQty * 100:F0}%");
+            else if (!isFixedLength && totalWt > 0)
+                proportionParts.Add($"成{finish.Sum(p => p.RequiredWeight) / totalWt * 100:F0}%");
+        }
+        if (inv.Count > 0)
+        {
+            coveredCount++;
+            var invRegular = inv.Where(p => p.ReworkType == null).ToList();
+            var invRework = inv.Where(p => p.ReworkType != null).ToList();
+            if (invRegular.Count > 0)
+            {
+                reqDates.Add(invRegular.Max(p => p.PlanDate));
+                if (isFixedLength && totalQty > 0)
+                    proportionParts.Add($"库{invRegular.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple) / (decimal)totalQty * 100:F0}%");
+                else if (!isFixedLength && totalWt > 0)
+                    proportionParts.Add($"库{invRegular.Sum(p => p.UsedWeight) / totalWt * 100:F0}%");
+            }
+            if (invRework.Count > 0)
+            {
+                reqDates.Add(invRework.Max(p => p.PlanDate));
+                if (isFixedLength && totalQty > 0)
+                    proportionParts.Add($"改{invRework.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple) / (decimal)totalQty * 100:F0}%");
+                else if (!isFixedLength && totalWt > 0)
+                    proportionParts.Add($"改{invRework.Sum(p => p.UsedWeight) / totalWt * 100:F0}%");
+            }
+        }
+        if (pierce.Count > 0)
+        {
+            coveredCount++;
+            reqDates.Add(pierce.Max(p => p.RequiredDate));
+            if (isFixedLength && totalQty > 0)
+                proportionParts.Add($"穿{pierce.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple) / (decimal)totalQty * 100:F0}%");
+            else if (!isFixedLength && totalWt > 0)
+                proportionParts.Add($"穿{pierce.Sum(p => p.RequiredWeight) / totalWt * 100:F0}%");
+        }
+
+        var proportionText = proportionParts.Count > 0 ? string.Join(" ", proportionParts) : null;
+        var latestRequiredDate = reqDates.Count > 0 ? reqDates.Max() : (DateTime?)null;
+
         // 主号级聚合
         var mainNoWorkOrders = allWorkOrdersInOrder
             .Where(w => w.SalesOrderNo == wo.SalesOrderNo && w.ProductionMainNo == wo.ProductionMainNo)
@@ -439,6 +501,9 @@ public class WorkOrderListSummaryService
             OrderMaterialPlanStatus = (int)orderMaterialPlanStatus,
             RowVersion = null,
             MaxStandardCycle = maxCycle,
+            MaterialPlanCoveredCount = coveredCount,
+            MaterialPlanProportion = proportionText,
+            LatestRequiredDate = latestRequiredDate,
             LastRefreshTime = DateTime.Now
         };
     }
@@ -642,6 +707,9 @@ public class WorkOrderListSummaryService
                 existing.MainNoMaterialPlanStatus = summary.MainNoMaterialPlanStatus;
                 existing.OrderMaterialPlanStatus = summary.OrderMaterialPlanStatus;
                 existing.MaxStandardCycle = summary.MaxStandardCycle;
+                existing.MaterialPlanCoveredCount = summary.MaterialPlanCoveredCount;
+                existing.MaterialPlanProportion = summary.MaterialPlanProportion;
+                existing.LatestRequiredDate = summary.LatestRequiredDate;
                 existing.LastRefreshTime = summary.LastRefreshTime;
             }
             else

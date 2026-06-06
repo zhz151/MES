@@ -156,10 +156,10 @@ public class ProductionStandardController : ControllerBase
     /// </summary>
     [HttpDelete("{id}")]
     [Authorize(Roles = Roles.Admin)]
-    public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
+    public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
     {
         await _service.DeleteAsync(id);
-        return Ok(ApiResponse<object>.Ok(new object(), "删除成功"));
+        return Ok(ApiResponse<bool>.Ok(true, "删除成功"));
     }
 
     // ========== 筛选上下文 ==========

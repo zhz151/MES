@@ -54,6 +54,15 @@ public class WorkOrderExecutionSummary : BaseEntity
     /// <summary>工艺周期（天）：4种用料计划中 StandardCycle 的最大值，未计划时默认25</summary>
     public int ProcessCycle { get; set; }
 
+    /// <summary>用料占比：4种料态中有做计划的种数(0-4)</summary>
+    public int MaterialPlanCoveredCount { get; set; }
+
+    /// <summary>用料占比文本：如"穿105% 荒160% 成20% 库40%"</summary>
+    public string? MaterialPlanProportion { get; set; }
+
+    /// <summary>要求到货日（最晚）：采购类取RequiredDate，库存/库料改制取PlanDate</summary>
+    public DateTime? LatestRequiredDate { get; set; }
+
     // ========== Group 5: 物料执行实时信息（从采购订单聚合） ==========
     /// <summary>待回荒管支数</summary>
     public int PendingRoughTubeQty { get; set; }
@@ -243,6 +252,9 @@ public class WorkOrderExecutionSummary : BaseEntity
 
     /// <summary>剩余总工量（天）：根据关注状态取关联主号的工艺周期/剩余工量</summary>
     public int? TotalRemainingWorkDays { get; set; }
+
+    /// <summary>产能工量（天）：主号汇总总量(吨) / 日产估算(吨/天)</summary>
+    public int? CapacityWorkDays { get; set; }
 
     /// <summary>工单计划性（A+急/A急/B顺/C缓/D缓）</summary>
     public string? UrgencyLevel { get; set; }

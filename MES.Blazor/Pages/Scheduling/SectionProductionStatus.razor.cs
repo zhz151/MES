@@ -335,12 +335,4 @@ public partial class SectionProductionStatus
         return sum.HasValue ? ((int)sum.Value).ToString() : "-";
     }
 
-    // ========== 操作 ==========
-
-    private async Task RefreshDataAsync()
-    {
-        await LoadDataAsync();
-        if (table != null)
-            await table.ReloadServerData();
-    }
 }

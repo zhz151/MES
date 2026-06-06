@@ -22,29 +22,9 @@
             <MudIcon Icon="@Icons.Material.Filled.Lock" Class="mr-2" Color="Color.Warning" />
             原锁计划及执行
         </MudText>
-        <div class="d-flex align-center">
-            <MudText Typo="Typo.body2" Class="mr-4">
-                共 @_totalCount 条记录
-            </MudText>
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       StartIcon="@Icons.Material.Filled.PlaylistAdd"
-                       OnClick="PlanArrangement"
-                       Loading="@_isPlanning"
-                       Disabled="@_isPlanning"
-                       Class="ml-2">
-                计划安排
-            </MudButton>
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Info"
-                       StartIcon="@Icons.Material.Filled.Sync"
-                       OnClick="ExecuteDataUpdate"
-                       Loading="@_isUpdating"
-                       Disabled="@_isUpdating"
-                       Class="ml-2">
-                执行数据更新
-            </MudButton>
-        </div>
+        <MudText Typo="Typo.body2">
+            共 @_totalCount 条记录
+        </MudText>
     </div>
 
     <MudCard>

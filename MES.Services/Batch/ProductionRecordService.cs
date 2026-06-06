@@ -158,7 +158,7 @@ public class ProductionRecordService : IProductionRecordService
         _context.ProductionRecords.Add(entity);
         await _context.SaveChangesAsync();
 
-        await UpdateBatchTrackingFromRecords(batchId);
+        await UpdateBatchTrackingFromRecordsAsync(batchId);
 
         return new ProductionRecordDto
         {
@@ -532,7 +532,7 @@ public class ProductionRecordService : IProductionRecordService
         _context.ProductionRecords.Update(entity);
         await _context.SaveChangesAsync();
 
-        await UpdateBatchTrackingFromRecords(entity.ProductionBatchId);
+        await UpdateBatchTrackingFromRecordsAsync(entity.ProductionBatchId);
 
         return new ProductionRecordDto
         {
@@ -570,7 +570,7 @@ public class ProductionRecordService : IProductionRecordService
         _context.ProductionRecords.Remove(entity);
         await _context.SaveChangesAsync();
 
-        await UpdateBatchTrackingFromRecords(batchId);
+        await UpdateBatchTrackingFromRecordsAsync(batchId);
     }
 
     // ========== 工段委外 ==========
@@ -660,7 +660,7 @@ public class ProductionRecordService : IProductionRecordService
         _context.SectionOutsources.Add(entity);
         await _context.SaveChangesAsync();
 
-        await UpdateBatchTrackingFromRecords(batch.Id);
+        await UpdateBatchTrackingFromRecordsAsync(batch.Id);
 
         return ToSectionOutsourceDto(entity, batch.BatchNo);
     }
@@ -707,7 +707,7 @@ public class ProductionRecordService : IProductionRecordService
         _context.SectionOutsources.Remove(entity);
         await _context.SaveChangesAsync();
 
-        await UpdateBatchTrackingFromRecords(batchId);
+        await UpdateBatchTrackingFromRecordsAsync(batchId);
     }
 
     // ========== 委外回收 ==========
@@ -752,9 +752,9 @@ public class ProductionRecordService : IProductionRecordService
         await _context.SaveChangesAsync();
 
         // 更新委外状态
-        await UpdateOutsourceStatus(outsource);
+        await UpdateOutsourceStatusAsync(outsource);
 
-        await UpdateBatchTrackingFromRecords(outsource.ProductionBatchId);
+        await UpdateBatchTrackingFromRecordsAsync(outsource.ProductionBatchId);
 
         return new OutsourceRecoveryDto
         {
@@ -782,13 +782,13 @@ public class ProductionRecordService : IProductionRecordService
 
         if (outsource != null)
         {
-            await UpdateOutsourceStatus(outsource);
+            await UpdateOutsourceStatusAsync(outsource);
             if (batchId.HasValue)
-                await UpdateBatchTrackingFromRecords(batchId.Value);
+                await UpdateBatchTrackingFromRecordsAsync(batchId.Value);
         }
     }
 
-    private async Task UpdateOutsourceStatus(SectionOutsource outsource)
+    private async Task UpdateOutsourceStatusAsync(SectionOutsource outsource)
     {
         var outsourceRecoveryRatio = await GetConfigAsync("WarehouseThreshold", "OutsourceRecoveryRatio", 0.99m);
 
@@ -1114,7 +1114,7 @@ public class ProductionRecordService : IProductionRecordService
 
     public async Task RefreshBatchTrackingFieldsAsync(int batchId)
     {
-        await UpdateBatchTrackingFromRecords(batchId);
+        await UpdateBatchTrackingFromRecordsAsync(batchId);
     }
 
     public async Task BatchUpdateBatchTrackingAsync(ICollection<int> batchIds)
@@ -1402,7 +1402,7 @@ public class ProductionRecordService : IProductionRecordService
         };
     }
 
-    private async Task UpdateBatchTrackingFromRecords(int batchId)
+    private async Task UpdateBatchTrackingFromRecordsAsync(int batchId)
     {
         var coldRollCompleteRatio = await GetConfigAsync("ProductionThreshold", "ColdRollCompleteRatio", 0.95m);
         var inspectionInputUpper = await GetConfigAsync("ProductionThreshold", "InspectionInputUpper", 1.02m);

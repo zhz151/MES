@@ -7,6 +7,8 @@ namespace MES.Shared.Constants;
 public static class ApiEndpoints
 {
     // ===== Auth =====
+    public const string AuthBase = "api/auth";
+    public const string AuthLogin = "api/auth/login";
     public const string AuthRefreshToken = "api/auth/refresh-token";
 
     // ===== Batch 批次 =====
@@ -67,6 +69,7 @@ public static class ApiEndpoints
     public const string StandardWorkDay = "api/standard-work-day";
     public const string StandardWorkDayDeliveryState = "api/standard-work-day-delivery-state";
     public const string ConfigParameter = "api/config-parameter";
+    public const string DailyOutputEstimate = "api/daily-output-estimate";
 
     // ===== 通用默认排序字段 =====
     public const string DefaultSortBy = "CreatedTime";

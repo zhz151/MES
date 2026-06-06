@@ -245,10 +245,10 @@ public class InventoryController : ControllerBase
     /// </summary>
     [HttpDelete("{id}")]
     [Authorize(Roles = $"{Roles.Directors.Warehouse},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<object>>> HardDeleteInventoryBatch(int id)
+    public async Task<ActionResult<ApiResponse<bool>>> HardDeleteInventoryBatch(int id)
     {
         await _service.HardDeleteInventoryBatchAsync(id);
-        return Ok(ApiResponse<object>.Ok(null!, "删除成功"));
+        return Ok(ApiResponse<bool>.Ok(true, "删除成功"));
     }
 
     /// <summary>
@@ -270,10 +270,10 @@ public class InventoryController : ControllerBase
     /// </summary>
     [HttpDelete("outbound-records/{id:long}")]
     [Authorize(Roles = $"{Roles.Directors.Warehouse},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<object>>> HardDeleteOutboundRecord(long id)
+    public async Task<ActionResult<ApiResponse<bool>>> HardDeleteOutboundRecord(long id)
     {
         await _service.HardDeleteOutboundRecordAsync(id);
-        return Ok(ApiResponse<object>.Ok(null!, "删除成功"));
+        return Ok(ApiResponse<bool>.Ok(true, "删除成功"));
     }
 
     /// <summary>

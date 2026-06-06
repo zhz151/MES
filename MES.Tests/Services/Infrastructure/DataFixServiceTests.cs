@@ -18,16 +18,21 @@ public class DataFixServiceTests : TestBase
     private DataFixService CreateService(AppDbContext ctx,
         IProductionRecordService? prodRecordMock = null,
         IPurchaseOrderService? purchaseMock = null,
-        ISubcontractOrderService? subcontractMock = null)
+        ISubcontractOrderService? subcontractMock = null,
+        IWorkOrderListSummaryService? workOrderListSummaryMock = null,
+        IWorkOrderExecutionService? workOrderExecutionMock = null)
     {
         prodRecordMock ??= new Mock<IProductionRecordService>().Object;
         purchaseMock ??= new Mock<IPurchaseOrderService>().Object;
         subcontractMock ??= new Mock<ISubcontractOrderService>().Object;
+        workOrderListSummaryMock ??= new Mock<IWorkOrderListSummaryService>().Object;
+        workOrderExecutionMock ??= new Mock<IWorkOrderExecutionService>().Object;
         var loggerMock = new Mock<ILogger<DataFixService>>().Object;
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        return new DataFixService(ctx, prodRecordMock, purchaseMock, subcontractMock, loggerMock, configMock.Object);
+        return new DataFixService(ctx, prodRecordMock, purchaseMock, subcontractMock, loggerMock, configMock.Object,
+            workOrderListSummaryMock, workOrderExecutionMock);
     }
 
     /// <summary>

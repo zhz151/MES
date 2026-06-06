@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MES.Core.DTOs;
 using MES.Core.Interfaces;
 using MES.Core.Models;
 using System.Text.Json;
@@ -36,20 +37,6 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
         return Ok(ApiResponse<PagedResult<Core.DTOs.RawMaterialLockPlanAndExecutionDto>>.Ok(result));
     }
 
-    [HttpPost("plan-arrangement")]
-    public async Task<ActionResult<ApiResponse<int>>> PlanArrangement()
-    {
-        var count = await _service.PlanArrangementAsync();
-        return Ok(ApiResponse<int>.Ok(count, $"计划安排完成，共{count}条"));
-    }
-
-    [HttpPost("execute-data-update")]
-    public async Task<ActionResult<ApiResponse<int>>> ExecuteDataUpdate()
-    {
-        var count = await _service.ExecuteDataUpdateAsync();
-        return Ok(ApiResponse<int>.Ok(count, $"执行数据更新完成，共更新{count}条"));
-    }
-
     [HttpGet("filter-contexts")]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
@@ -58,16 +45,10 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
     }
 
     [HttpPost("set-pre-execute-flags")]
-    public async Task<ActionResult<ApiResponse<int>>> SetPreExecuteFlags([FromBody] SetPreExecuteFlagsRequest request)
+    public async Task<ActionResult<ApiResponse<SetPreExecuteFlagsResult>>> SetPreExecuteFlags([FromBody] SetPreExecuteFlagsRequest request)
     {
-        var count = await _service.SetPreExecuteFlagsAsync(request.WorkOrderIds, request.IsPreInput, request.IsMainNoMaterialComplete);
-        var parts = new List<string>();
-        if (request.IsPreInput.HasValue)
-            parts.Add(request.IsPreInput.Value ? "执行" : "取消执行");
-        if (request.IsMainNoMaterialComplete.HasValue)
-            parts.Add(request.IsMainNoMaterialComplete.Value ? "主号齐全" : "取消主号");
-        var msg = $"标记完成（{string.Join(",", parts)}），共{count}条";
-        return Ok(ApiResponse<int>.Ok(count, msg));
+        var result = await _service.SetPreExecuteFlagsAsync(request.WorkOrderIds, request.IsPreInput, request.IsMainNoMaterialComplete, request.BudgetInputDate);
+        return Ok(ApiResponse<SetPreExecuteFlagsResult>.Ok(result, result.Message));
     }
 }
 
@@ -76,4 +57,5 @@ public class SetPreExecuteFlagsRequest
     public List<int> WorkOrderIds { get; set; } = new();
     public bool? IsPreInput { get; set; }
     public bool? IsMainNoMaterialComplete { get; set; }
+    public DateTime? BudgetInputDate { get; set; }
 }

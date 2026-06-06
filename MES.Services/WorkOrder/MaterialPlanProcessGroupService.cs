@@ -5,6 +5,7 @@ using MES.Core.Helpers;
 using MES.Core.Interfaces;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Core.Exceptions;
 using MES.Services.Mapping;
 
 namespace MES.Services;
@@ -49,7 +50,7 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
                 .Select(e => e.ToDto())
                 .ToListAsync(),
 
-            _ => throw new ArgumentException($"无效的用料计划类型: {planType}")
+            _ => throw new BusinessException($"无效的用料计划类型: {planType}")
         };
     }
 
@@ -138,7 +139,7 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
             }
             else
             {
-                throw new ArgumentException($"暂不支持该计划类型的工序组保存: {planType}");
+                throw new BusinessException($"暂不支持该计划类型的工序组保存: {planType}");
             }
 
             // 在插入工序组数据之后、SaveChanges 之前计算 StandardCycle，

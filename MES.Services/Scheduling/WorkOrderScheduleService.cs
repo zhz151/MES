@@ -66,6 +66,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                 // G12
                 ScheduleStage = p.ScheduleStage,
                 TotalRemainingWorkDays = p.TotalRemainingWorkDays,
+                CapacityWorkDays = p.CapacityWorkDays,
                 UrgencyLevel = p.UrgencyLevel,
                 EstimatedProcessCompletionDate = p.EstimatedProcessCompletionDate,
                 DaysDiffFromDelivery = p.DaysDiffFromDelivery,
@@ -211,6 +212,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                 // G12
                 ScheduleStage = s.ScheduleStage,
                 TotalRemainingWorkDays = s.TotalRemainingWorkDays,
+                CapacityWorkDays = s.CapacityWorkDays,
                 UrgencyLevel = s.UrgencyLevel,
                 EstimatedProcessCompletionDate = s.EstimatedProcessCompletionDate,
                 DaysDiffFromDelivery = s.DaysDiffFromDelivery,
@@ -257,6 +259,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                 // 更新 G12 实时关注字段
                 record.ScheduleStage = latest.ScheduleStage;
                 record.TotalRemainingWorkDays = latest.TotalRemainingWorkDays;
+                record.CapacityWorkDays = latest.CapacityWorkDays;
                 record.UrgencyLevel = latest.UrgencyLevel;
                 record.EstimatedProcessCompletionDate = latest.EstimatedProcessCompletionDate;
                 record.DaysDiffFromDelivery = latest.DaysDiffFromDelivery;

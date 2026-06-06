@@ -4,6 +4,7 @@
 @using MudBlazor
 @using MES.Core.Models
 @using MES.Core.DTOs.Auth
+@using MES.Shared.Constants
 @inject HttpClient Http
 @inject ILocalStorageService LocalStorage
 @inject AuthenticationStateProvider AuthProvider
@@ -74,7 +75,7 @@
 
         try
         {
-            var response = await Http.PostAsJsonAsync("api/auth/login", model);
+            var response = await Http.PostAsJsonAsync(ApiEndpoints.AuthLogin, model);
 
             if (response.IsSuccessStatusCode)
             {

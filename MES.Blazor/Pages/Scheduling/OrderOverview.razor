@@ -7,15 +7,6 @@
 <MudContainer MaxWidth="MaxWidth.False">
     <div class="d-flex align-center mt-4 mb-4">
         <MudText Typo="Typo.h5">订单总况</MudText>
-        <MudSpacer />
-        <MudText Typo="Typo.body2" Class="mr-4">
-            数据时间: @(_lastRefresh.ToString("yyyy-MM-dd"))
-        </MudText>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                   OnClick="LoadDataAsync" Disabled="_loading"
-                   StartIcon="@Icons.Material.Filled.Refresh">
-            刷新
-        </MudButton>
     </div>
 
     @if (_loading)

@@ -44,19 +44,11 @@ public class DataExchangeController : ControllerBase
     [Authorize(Roles = Roles.Admin)]
     public async Task<IActionResult> Export(string entityKey)
     {
-        try
-        {
-            var data = await _service.ExportAsync(entityKey);
-            var displayName = _service.GetEntityDisplayName(entityKey);
-            var fileName = $"{displayName}_{DateTime.Today:yyyyMMdd}.xlsx";
+        var data = await _service.ExportAsync(entityKey);
+        var displayName = _service.GetEntityDisplayName(entityKey);
+        var fileName = $"{displayName}_{DateTime.Today:yyyyMMdd}.xlsx";
 
-            return File(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "导出 {Entity} 失败", entityKey);
-            return StatusCode(500, new { message = $"导出失败: {ex.Message}" });
-        }
+        return File(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 
     /// <summary>
@@ -66,19 +58,11 @@ public class DataExchangeController : ControllerBase
     [Authorize(Roles = Roles.Admin)]
     public async Task<IActionResult> Template(string entityKey)
     {
-        try
-        {
-            var data = await _service.GenerateTemplateAsync(entityKey);
-            var displayName = _service.GetEntityDisplayName(entityKey);
-            var fileName = $"{displayName}_模板.xlsx";
+        var data = await _service.GenerateTemplateAsync(entityKey);
+        var displayName = _service.GetEntityDisplayName(entityKey);
+        var fileName = $"{displayName}_模板.xlsx";
 
-            return File(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "生成模板 {Entity} 失败", entityKey);
-            return StatusCode(500, new { message = $"生成模板失败: {ex.Message}" });
-        }
+        return File(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 
     /// <summary>
@@ -130,17 +114,9 @@ public class DataExchangeController : ControllerBase
     [Authorize(Roles = Roles.Admin)]
     public async Task<ActionResult<ApiResponse<int>>> FixSequenceNumbers()
     {
-        try
-        {
-            var fixedCount = await _service.FixSequenceNumbersAsync();
-            _logger.LogInformation("SequenceNumber 数据修复完成，共修复 {Count} 条", fixedCount);
-            return Ok(ApiResponse<int>.Ok(fixedCount, $"修复完成，共修正 {fixedCount} 条记录"));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "SequenceNumber 数据修复失败");
-            return StatusCode(500, ApiResponse<int>.Fail($"修复失败: {ex.Message}"));
-        }
+        var fixedCount = await _service.FixSequenceNumbersAsync();
+        _logger.LogInformation("SequenceNumber 数据修复完成，共修复 {Count} 条", fixedCount);
+        return Ok(ApiResponse<int>.Ok(fixedCount, $"修复完成，共修正 {fixedCount} 条记录"));
     }
 
     /// <summary>
@@ -150,17 +126,9 @@ public class DataExchangeController : ControllerBase
     [Authorize(Roles = Roles.Admin)]
     public async Task<ActionResult<ApiResponse<DataFixReport>>> FixAllSystemFields()
     {
-        try
-        {
-            var report = await _fixService.FixAllAsync();
-            _logger.LogInformation("全字段修复完成，总计 {Total} 条", report.Total);
-            return Ok(ApiResponse<DataFixReport>.Ok(report,
-                $"修复完成：组内序号 {report.SequenceNumbersFixed} 条，工段委外状态 {report.OutsourceStatusFixed} 条，批次跟踪 {report.BatchTrackingFixed} 条，设备日期 {report.EquipmentFixed} 条"));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "全字段修复失败");
-            return StatusCode(500, ApiResponse<DataFixReport>.Fail($"修复失败: {ex.Message}"));
-        }
+        var report = await _fixService.FixAllAsync();
+        _logger.LogInformation("全字段修复完成，总计 {Total} 条", report.Total);
+        return Ok(ApiResponse<DataFixReport>.Ok(report,
+            $"修复完成：组内序号 {report.SequenceNumbersFixed} 条，工段委外状态 {report.OutsourceStatusFixed} 条，批次跟踪 {report.BatchTrackingFixed} 条，设备日期 {report.EquipmentFixed} 条"));
     }
 }

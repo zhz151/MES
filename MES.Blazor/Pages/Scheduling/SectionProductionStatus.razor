@@ -36,12 +36,6 @@
             <MudText Typo="Typo.body2" Class="mr-4">
                 共 @_filteredItems.Count 条记录
             </MudText>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                       Disabled="@_isLoading"
-                       OnClick="RefreshDataAsync">
-                <MudIcon Icon="@Icons.Material.Filled.Refresh" Class="mr-1" />
-                刷新
-            </MudButton>
         </div>
     </div>
 

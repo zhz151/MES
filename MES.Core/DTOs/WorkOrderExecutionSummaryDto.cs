@@ -44,6 +44,15 @@ public class WorkOrderExecutionSummaryDto
     /// <summary>工艺周期（天）</summary>
     public int ProcessCycle { get; set; }
 
+    /// <summary>用料占比：4种料态中有做计划的种数(0-4)</summary>
+    public int MaterialPlanCoveredCount { get; set; }
+
+    /// <summary>用料占比文本：如"穿105% 荒160% 成20% 库40%"</summary>
+    public string? MaterialPlanProportion { get; set; }
+
+    /// <summary>要求到货日（最晚）</summary>
+    public DateTime? LatestRequiredDate { get; set; }
+
     // ========== Group 5: 物料执行实时信息（从采购订单聚合） ==========
     /// <summary>待回荒管支数</summary>
     public int PendingRoughTubeQty { get; set; }
@@ -166,6 +175,7 @@ public class WorkOrderExecutionSummaryDto
     // ========== G12: 关注状态 ==========
     public int ScheduleStage { get; set; }
     public int? TotalRemainingWorkDays { get; set; }
+    public int? CapacityWorkDays { get; set; }
     public string? UrgencyLevel { get; set; }
     public DateTime? EstimatedProcessCompletionDate { get; set; }
     public int? DaysDiffFromDelivery { get; set; }

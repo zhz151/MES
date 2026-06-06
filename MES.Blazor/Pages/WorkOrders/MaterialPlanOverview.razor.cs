@@ -84,19 +84,19 @@ public partial class MaterialPlanOverview
         new() { Key = "DelayPenalty",       Label = "延期罚款",   SortKey = "delaypenalty", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("True", "是"), new("False", "否") } },
         new() { Key = "SettlementMethod",   Label = "结算方式",   SortKey = "settlementmethod", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("MonthlyStatement", "月结"), new("PerOrder", "单结"), new("Deposit", "定金"), new("FullPayment", "全款") } },
+            EnumOptions = new() { new("Weighing", "过磅"), new("WeighingNegative", "过磅-负"), new("Theoretical", "理算") } },
         new() { Key = "PlantGrade",         Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string", Width = "120" },
         new() { Key = "Specification",      Label = "规格",       SortKey = "specification", FilterType = "string", Width = "120" },
         new() { Key = "MaterialName",       Label = "物料名称",   SortKey = "materialname", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("Tube", "管材"), new("Pipe", "管道"), new("Bar", "棒材"), new("Fitting", "管件"), new("Wire", "线材"), new("Strip", "带材"), new("Sheet", "板材"), new("Profile", "型材"), new("Other", "其他") } },
+            EnumOptions = new() { new("SeamlessPipe", "无缝管"), new("WeldedPipe", "焊管") } },
         new() { Key = "LengthStatus",       Label = "长度状态",   SortKey = "lengthstatus", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("FixedLength", "定尺"), new("RandomLength", "不定尺"), new("MultipleLength", "倍尺") } },
+            EnumOptions = new() { new("Fixed", "定尺"), new("Range", "范围尺"), new("NonFixed", "非定尺") } },
         new() { Key = "MaxLength",          Label = "最大长度",   SortKey = "maxlength", Width = "80" },
         new() { Key = "MinLength",          Label = "最小长度",   SortKey = "minlength", Width = "80" },
         new() { Key = "TotalQuantity",      Label = "总支数",     SortKey = "totalquantity", Width = "80" },
         new() { Key = "TotalWeight",        Label = "总重量",     SortKey = "totalweight", Width = "80" },
         new() { Key = "DeliveryState",      Label = "交货状态",   SortKey = "deliverystate", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("Raw", "原料"), new("SemiFinished", "半成品"), new("Finished", "成品") } },
+            EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"), new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"), new("Hard", "硬态") } },
         new() { Key = "TotalItemCount",     Label = "含项次数",   SortKey = "totalitemcount", Width = "80" },
         new() { Key = "LatestPlanDate",          Label = "计划日期",       SortKey = "LatestPlanDate", FilterType = "date", Width = "120" },
         new() { Key = "MaterialPlanStatus",      Label = "工单用料计划",   SortKey = "MaterialPlanStatus", FilterType = "enum", Width = "120",
@@ -108,6 +108,8 @@ public partial class MaterialPlanOverview
         new() { Key = "OrderMaterialPlanStatus", Label = "关联订单用料",   SortKey = "OrderMaterialPlanStatus", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("0", "未计划"), new("1", "部分"), new("3", "全部满足") } },
         new() { Key = "MaxStandardCycle",       Label = "最大工艺周期",   SortKey = "MaxStandardCycle", Width = "80" },
+        new() { Key = "MaterialPlanCoveredCount",Label = "料态种数",      SortKey = "MaterialPlanCoveredCount", Width = "60" },
+        new() { Key = "LatestRequiredDate",      Label = "要求到货日",    SortKey = "LatestRequiredDate", FilterType = "date", Width = "120" },
     };
 
     // ========== 分页汇总 ==========
@@ -511,6 +513,8 @@ public partial class MaterialPlanOverview
         "MaterialPlanRate" => $"{item.MaterialPlanRate:F1}%",
         "MainNoMaterialPlanStatus" => item.MainNoMaterialPlanStatus.ToString(),
         "OrderMaterialPlanStatus" => item.OrderMaterialPlanStatus.ToString(),
+        "MaterialPlanCoveredCount" => item.MaterialPlanCoveredCount.ToString(),
+        "LatestRequiredDate" => item.LatestRequiredDate?.ToString("yyyy-MM-dd"),
         _ => null
     };
 
@@ -649,6 +653,23 @@ public partial class MaterialPlanOverview
                 break;
             case "MaxStandardCycle":
                 builder.AddContent(0, wo.MaxStandardCycle > 0 ? $"{wo.MaxStandardCycle}天" : "-");
+                break;
+            case "MaterialPlanCoveredCount":
+                builder.AddContent(0, wo.MaterialPlanCoveredCount > 0 ? $"{wo.MaterialPlanCoveredCount}/4" : "-");
+                break;
+            case "LatestRequiredDate":
+                if (wo.LatestRequiredDate.HasValue)
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", Color.Warning);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, wo.LatestRequiredDate.Value.ToString("yyyy-MM-dd"))));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, "-");
+                }
                 break;
         }
     };

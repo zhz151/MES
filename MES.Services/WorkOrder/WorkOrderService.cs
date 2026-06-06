@@ -1435,7 +1435,10 @@ public class WorkOrderService : IWorkOrderService
                 ReworkPlanTotalPieces = s.ReworkPlanTotalPieces,
                 PiercingPlanTotalWeight = s.PiercingPlanTotalWeight,
                 PiercingPlanTotalPieces = s.PiercingPlanTotalPieces,
-                MaxStandardCycle = s.MaxStandardCycle
+                MaxStandardCycle = s.MaxStandardCycle,
+                MaterialPlanCoveredCount = s.MaterialPlanCoveredCount,
+                MaterialPlanProportion = s.MaterialPlanProportion,
+                LatestRequiredDate = s.LatestRequiredDate
             })
             .ToListAsync();
 
@@ -1654,6 +1657,21 @@ public class WorkOrderService : IWorkOrderService
                 case "latestplandate":
                     queryable = query.IsDescending ? queryable.OrderByDescending(s => s.LatestPlanDate) : queryable.OrderBy(s => s.LatestPlanDate);
                     break;
+                case "mainnomaterialplanstatus":
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.MainNoMaterialPlanStatus) : queryable.OrderBy(s => s.MainNoMaterialPlanStatus);
+                    break;
+                case "ordermaterialplanstatus":
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.OrderMaterialPlanStatus) : queryable.OrderBy(s => s.OrderMaterialPlanStatus);
+                    break;
+                case "maxstandardcycle":
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.MaxStandardCycle) : queryable.OrderBy(s => s.MaxStandardCycle);
+                    break;
+                case "materialplancoveredcount":
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.MaterialPlanCoveredCount) : queryable.OrderBy(s => s.MaterialPlanCoveredCount);
+                    break;
+                case "latestrequireddate":
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.LatestRequiredDate) : queryable.OrderBy(s => s.LatestRequiredDate);
+                    break;
                 default:
                     queryable = query.IsDescending ? queryable.OrderByDescending(s => s.CreatedTime) : queryable.OrderBy(s => s.CreatedTime);
                     break;
@@ -1711,7 +1729,10 @@ public class WorkOrderService : IWorkOrderService
             ReworkPlanTotalPieces = s.ReworkPlanTotalPieces,
             PiercingPlanTotalWeight = s.PiercingPlanTotalWeight,
             PiercingPlanTotalPieces = s.PiercingPlanTotalPieces,
-            MaxStandardCycle = s.MaxStandardCycle
+            MaxStandardCycle = s.MaxStandardCycle,
+            MaterialPlanCoveredCount = s.MaterialPlanCoveredCount,
+            MaterialPlanProportion = s.MaterialPlanProportion,
+            LatestRequiredDate = s.LatestRequiredDate
         }).ToList();
 
         return new PagedResult<WorkOrderListDto>
@@ -2165,7 +2186,7 @@ public class WorkOrderService : IWorkOrderService
             .Where(so => orderNos.Contains(so.OrderNumber))
             .ToListAsync();
 
-        var customerByOrderNo = salesOrders.ToDictionary(so => so.OrderNumber, so => so.Customer);
+        var customerByOrderNo = salesOrders.ToDictionary(so => so.OrderNumber, so => so.Customer, StringComparer.OrdinalIgnoreCase);
 
         foreach (var item in items)
         {

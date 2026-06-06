@@ -53,6 +53,9 @@ public class WorkOrderSchedule : BaseEntity
     /// <summary>剩余总工量（天）</summary>
     public int? TotalRemainingWorkDays { get; set; }
 
+    /// <summary>产能工量（天）</summary>
+    public int? CapacityWorkDays { get; set; }
+
     /// <summary>工单计划性（A+急/A急/B顺/C缓/D缓）</summary>
     public string? UrgencyLevel { get; set; }
 

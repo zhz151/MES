@@ -21,6 +21,8 @@ public class DataFixService : IDataFixService
     private readonly ISubcontractOrderService _subcontractOrderService;
     private readonly ILogger<DataFixService> _logger;
     private readonly IConfigParameterService _configService;
+    private readonly IWorkOrderListSummaryService _workOrderListSummaryService;
+    private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
     public DataFixService(
@@ -29,7 +31,9 @@ public class DataFixService : IDataFixService
         IPurchaseOrderService purchaseOrderService,
         ISubcontractOrderService subcontractOrderService,
         ILogger<DataFixService> logger,
-        IConfigParameterService configService)
+        IConfigParameterService configService,
+        IWorkOrderListSummaryService workOrderListSummaryService,
+        IWorkOrderExecutionService workOrderExecutionService)
     {
         _context = context;
         _productionRecordService = productionRecordService;
@@ -37,6 +41,8 @@ public class DataFixService : IDataFixService
         _subcontractOrderService = subcontractOrderService;
         _logger = logger;
         _configService = configService;
+        _workOrderListSummaryService = workOrderListSummaryService;
+        _workOrderExecutionService = workOrderExecutionService;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -65,6 +71,7 @@ public class DataFixService : IDataFixService
             await FixSubcontractOrdersAsync();
             report.EquipmentFixed = await FixEquipmentTrackingAsync();
             report.StandardCycleFixed = await FixStandardCycleAsync();
+            await FixWorkOrderSummariesAsync();
 
             await transaction.CommitAsync();
             _logger.LogInformation("全字段修复完成，总计 {Total} 条", report.Total);
@@ -438,4 +445,16 @@ public class DataFixService : IDataFixService
 
     // ==================== 工具方法 ====================
 
+    // ==================== 8. 刷新工单汇总读模型（用料计划字段） ====================
+
+    private async Task FixWorkOrderSummariesAsync()
+    {
+        _logger.LogInformation("开始刷新工单汇总读模型");
+
+        await _workOrderListSummaryService.RefreshAllAsync();
+        _logger.LogInformation("用料计划总览读模型刷新完成");
+
+        await _workOrderExecutionService.RefreshAllAsync();
+        _logger.LogInformation("工单执行状况汇总刷新完成");
     }
+}

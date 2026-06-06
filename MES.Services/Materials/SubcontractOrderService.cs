@@ -471,7 +471,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             if (order.IsForceCompleted)
                 ForceCompleteAllReturnItems(order);
             else
-                await RecalcSubcontractStatus(order);
+                await RecalcSubcontractStatusAsync(order);
         }
 
         await _context.SaveChangesAsync();
@@ -502,7 +502,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         if (order.IsForceCompleted)
             ForceCompleteAllReturnItems(order);
         else if (!order.IsForceCompleted)
-            await RecalcSubcontractStatus(order);
+            await RecalcSubcontractStatusAsync(order);
 
         await _context.SaveChangesAsync();
     }
@@ -559,7 +559,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         }
         else
         {
-            await RecalcSubcontractStatus(entity);
+            await RecalcSubcontractStatusAsync(entity);
             // 取消级联：每个子表按实际回收数据重新计算
             foreach (var item in entity.ReturnItems)
             {
@@ -789,7 +789,7 @@ public class SubcontractOrderService : ISubcontractOrderService
 
     // ========== 私有方法 ==========
 
-    private async Task RecalcSubcontractStatus(SubcontractOrder order)
+    private async Task RecalcSubcontractStatusAsync(SubcontractOrder order)
     {
         var ratio = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteRatio", 0.965m);
         var deviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);

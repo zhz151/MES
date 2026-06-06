@@ -51,34 +51,6 @@ public class SalesUrgingService
         }
     }
 
-    public async Task<ApiResponse<bool>> SaveLockConfirmationAsync(int workOrderId, DateTime? estimatedArrivalDate, bool isMainNoMaterialComplete)
-    {
-        try
-        {
-            var payload = new { WorkOrderId = workOrderId, EstimatedArrivalDate = estimatedArrivalDate, IsMainNoMaterialComplete = isMainNoMaterialComplete };
-            var response = await _http.PostAsJsonAsync<object, ApiResponse<bool>>($"{BaseUrl}/save-lock-confirmation", payload);
-            return response ?? ApiResponse<bool>.Fail("保存失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<bool>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    public async Task<ApiResponse<bool>> UnlockAsync(int workOrderId)
-    {
-        try
-        {
-            var payload = new { WorkOrderId = workOrderId };
-            var response = await _http.PostAsJsonAsync<object, ApiResponse<bool>>($"{BaseUrl}/unlock", payload);
-            return response ?? ApiResponse<bool>.Fail("解锁失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<bool>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
     /// <summary>
     /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>

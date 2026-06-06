@@ -20,7 +20,6 @@ public partial class SalesUrgings
     private int _currentPageIndex = 1;
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
-    private bool isRefreshing;
     private string _searchKeyword = string.Empty;
 
     // 排序状态
@@ -65,6 +64,7 @@ public partial class SalesUrgings
         {
             new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = new() { new("0","无需排产"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "TotalRemainingWorkDays",  Label = "剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "CapacityWorkDays",        Label = "产能工量(天)", SortKey = "CapacityWorkDays",        Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "UrgencyLevel",            Label = "工单计划性",    SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "EstimatedProcessCompletionDate",Label = "工艺预计完成日",SortKey = "EstimatedProcessCompletionDate", Width = "120",                  GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "DaysDiffFromDelivery",    Label = "交期相差天数",  SortKey = "DaysDiffFromDelivery",    Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
@@ -309,34 +309,6 @@ public partial class SalesUrgings
         }
     }
 
-    // ========== 即时更新 ==========
-
-    private async Task RefreshAll()
-    {
-        isRefreshing = true;
-        try
-        {
-            var result = await WorkOrderExecutionService.RefreshAllAsync();
-            if (result.Success)
-            {
-                Snackbar.Add($"刷新完成，共{result.Data?.RefreshedCount ?? 0}条", Severity.Success);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "刷新失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"刷新失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            isRefreshing = false;
-        }
-        if (table != null) await table.ReloadServerData();
-    }
-
     // ========== 分组 CSS ==========
 
     private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
@@ -486,6 +458,9 @@ public partial class SalesUrgings
             case "TotalRemainingWorkDays":
                 builder.AddContent(0, item.TotalRemainingWorkDays.HasValue ? $"{item.TotalRemainingWorkDays}天" : "-");
                 break;
+            case "CapacityWorkDays":
+                builder.AddContent(0, item.CapacityWorkDays.HasValue ? $"{item.CapacityWorkDays}天" : "-");
+                break;
             case "UrgencyLevel":
                 builder.AddContent(0, item.UrgencyLevel ?? "-");
                 break;
@@ -504,10 +479,10 @@ public partial class SalesUrgings
                 builder.AddAttribute(1, "style", "display:flex; align-items:center; gap:4px;");
                 builder.OpenComponent<MudSwitch<bool>>(2);
                 builder.AddAttribute(3, "Value", item.IsSalesUrging);
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, v =>
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, async v =>
                 {
                     item.IsSalesUrging = v;
-                    _ = SaveUrgingAsync(item);
+                    await SaveUrgingAsync(item);
                 }));
                 builder.AddAttribute(5, "Color", Color.Primary);
                 builder.AddAttribute(6, "Dense", true);

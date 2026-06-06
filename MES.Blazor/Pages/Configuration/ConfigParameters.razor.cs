@@ -203,7 +203,8 @@ public partial class ConfigParameters
     private async Task AddNew()
     {
         // 使用一个临时负 ID 作为新增行标识
-        var newId = -DateTime.Now.Ticks.GetHashCode();
+        var hash = DateTime.Now.Ticks.GetHashCode();
+        var newId = hash < 0 ? hash : -hash - 1;
         var newItem = new ConfigParameterDto
         {
             Id = newId,

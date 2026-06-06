@@ -204,7 +204,8 @@ public partial class StandardWorkDayDeliveryStates
 
     private async Task AddNew()
     {
-        var newId = -DateTime.Now.Ticks.GetHashCode();
+        var hash = DateTime.Now.Ticks.GetHashCode();
+        var newId = hash < 0 ? hash : -hash - 1;
         var newItem = new StandardWorkDayDeliveryStateDto
         {
             Id = newId,

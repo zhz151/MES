@@ -113,11 +113,6 @@ public partial class SectionFlowAnalysis
         ApplyFiltersAndSort();
     }
 
-    private async Task RefreshDataAsync()
-    {
-        await LoadDataAsync();
-    }
-
     // ========== 搜索 ==========
 
     private async Task OnSearchChanged(string value)

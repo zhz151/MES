@@ -134,7 +134,7 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<OrderListSummaryService>();
 builder.Services.AddScoped<WorkOrderStatusSummaryService>();
-builder.Services.AddScoped<WorkOrderListSummaryService>();
+builder.Services.AddScoped<IWorkOrderListSummaryService, WorkOrderListSummaryService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 // Register auxiliary services
 builder.Services.AddScoped<ICustomerService, CustomerService>();
@@ -144,6 +144,7 @@ builder.Services.AddScoped<IStandardProcessCycleService, StandardProcessCycleSer
 builder.Services.AddScoped<IStandardWorkDayService, StandardWorkDayService>();
 builder.Services.AddScoped<IStandardWorkDayDeliveryStateService, StandardWorkDayDeliveryStateService>();
 builder.Services.AddScoped<IConfigParameterService, ConfigParameterService>();
+builder.Services.AddScoped<IDailyOutputEstimateService, DailyOutputEstimateService>();
 builder.Services.AddScoped<IMaterialPlanProcessGroupService, MaterialPlanProcessGroupService>();
 builder.Services.AddScoped<IProductRequirementService, ProductRequirementService>();
 
@@ -246,7 +247,7 @@ using (var scope = app.Services.CreateScope())
     }
 
     // 初始化用料计划总览读模型
-    var workOrderListSummaryService = scope.ServiceProvider.GetRequiredService<WorkOrderListSummaryService>();
+    var workOrderListSummaryService = scope.ServiceProvider.GetRequiredService<IWorkOrderListSummaryService>();
     try
     {
         await workOrderListSummaryService.RefreshAllAsync();

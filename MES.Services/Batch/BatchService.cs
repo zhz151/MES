@@ -1877,7 +1877,7 @@ public class BatchService : IBatchService
             .Where(so => orderNos.Contains(so.OrderNumber))
             .ToListAsync();
 
-        var customerByOrderNo = salesOrders.ToDictionary(so => so.OrderNumber, so => so.Customer);
+        var customerByOrderNo = salesOrders.ToDictionary(so => so.OrderNumber, so => so.Customer, StringComparer.OrdinalIgnoreCase);
 
         foreach (var item in items)
         {

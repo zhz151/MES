@@ -118,7 +118,7 @@ public partial class InboundHistory
         new() { Key = "PlantGrade",          Label = "工厂牌号", SortKey = "PlantGrade",      IsRequired = true, FilterType = "string", Width = "120" },
         new() { Key = "Specification",       Label = "名义规格", SortKey = "Specification",   IsRequired = true, FilterType = "string", Width = "120" },
         new() { Key = "LengthStatus",        Label = "长度状态", SortKey = "LengthStatus", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("Fixed", "定尺"), new("Range", "范围尺") } },
+            EnumOptions = new() { new("Fixed", "定尺"), new("Range", "范围尺"), new("NonFixed", "非定尺") } },
         new() { Key = "MinLength",           Label = "最小长度", SortKey = "MinLength", FilterType = null, Width = "80" },
         new() { Key = "MaxLength",           Label = "最大长度", SortKey = "MaxLength", FilterType = null, Width = "80" },
         new() { Key = "InitialQuantity",     Label = "支数",     SortKey = "InitialQuantity", IsRequired = true, FilterType = null, Width = "80" },

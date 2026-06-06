@@ -457,6 +457,45 @@ namespace MES.Data.Migrations
                     b.ToTable("ConfigParameters", (string)null);
                 });
 
+            modelBuilder.Entity("MES.Data.Entities.Configuration.DailyOutputEstimate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("DailyOutputTons")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("MinOuterDiameter")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DailyOutputEstimates", (string)null);
+                });
+
             modelBuilder.Entity("MES.Data.Entities.Configuration.StandardWorkDay", b =>
                 {
                     b.Property<int>("Id")
@@ -3938,13 +3977,16 @@ namespace MES.Data.Migrations
                     b.ToTable("SalesOrder", (string)null);
                 });
 
-            modelBuilder.Entity("MES.Data.Entities.Scheduling.RawMaterialLockPlanAndExecution", b =>
+            modelBuilder.Entity("MES.Data.Entities.Scheduling.RawMaterialLockPreExecution", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("BudgetInputDate")
+                        .HasColumnType("date");
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
@@ -3953,104 +3995,6 @@ namespace MES.Data.Migrations
 
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CurrentRawMaterialLockRemark")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<int?>("CurrentScheduleStage")
-                        .HasColumnType("int");
-
-                    b.Property<string>("CustomerName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<int?>("DaysDiffFromDelivery")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("DelayPenalty")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<DateTime>("DeliveryDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("DeliveryState")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime?>("EstimatedProcessCompletionDate")
-                        .HasColumnType("date");
-
-                    b.Property<int>("FlowIncompleteBatchCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<int>("FlowMaxRemainingWorkDays")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<decimal>("FlowOutputRatio")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(8,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<int>("FlowStatus")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<int>("FlowTotalBatchCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<decimal>("GeneralDefectRatio")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(8,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("GeneralDefectWeight")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<bool>("HasAbnormality")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("InputEndDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("InputOutputRatio")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(8,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<int>("InputQuantity")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<DateTime?>("InputStartDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("InputStatus")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<decimal>("InputWeight")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<bool?>("IsExecuted")
-                        .HasColumnType("bit");
 
                     b.Property<bool>("IsMainNoMaterialComplete")
                         .ValueGeneratedOnAdd()
@@ -4062,209 +4006,6 @@ namespace MES.Data.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
-                    b.Property<DateTime?>("LatestPlanDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("LengthStatus")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<decimal>("MainNoFlowOutputRatio")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(8,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<int>("MainNoFlowStatus")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<decimal>("MainNoInputOutputRatio")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(8,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<int>("MainNoInputStatus")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<decimal>("MainNoMaterialPlanRate")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(8,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<int>("MainNoMaterialPlanStatus")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<string>("MaterialName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<decimal>("MaterialPlanRate")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(8,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<int>("MaterialPlanStatus")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<decimal?>("MaxLength")
-                        .HasColumnType("decimal(18,3)");
-
-                    b.Property<decimal?>("MinLength")
-                        .HasColumnType("decimal(18,3)");
-
-                    b.Property<int>("PendingOutsourceFinishQty")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<decimal>("PendingOutsourceFinishWeight")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<int>("PendingRoughTubeQty")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<decimal>("PendingRoughTubeWeight")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<string>("PlantGrade")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int>("ProcessCycle")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<string>("ProductionMainNo")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("ProductionSubNo")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("RawMaterialLockRemark")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("SalesOrderNo")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<bool>("SalesUrging")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<string>("Salesman")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int>("ScheduleStage")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<decimal>("ScrapRatio")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(8,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("ScrapWeight")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("SeriousDefectRatio")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(8,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("SeriousDefectWeight")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<string>("SettlementMethod")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<DateTime>("SignDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Specification")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<decimal>("TheoreticalFinishQty")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("TheoreticalFinishWeight")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("TheoreticalOutputQty")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("TheoreticalOutputWeight")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<int>("TotalBatchCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<int>("TotalItemCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<decimal>("TotalMeters")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<int>("TotalQuantity")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<int?>("TotalRemainingWorkDays")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("TotalWeight")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -4273,35 +4014,16 @@ namespace MES.Data.Migrations
                     b.Property<DateTimeOffset>("UpdatedTime")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<string>("UrgencyLevel")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("UrgingRemark")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
                     b.Property<int>("WorkOrderId")
                         .HasColumnType("int");
 
-                    b.Property<string>("WorkOrderNo")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("ScheduleStage")
-                        .HasDatabaseName("IX_RMLPAE_ScheduleStage");
 
                     b.HasIndex("WorkOrderId")
                         .IsUnique()
-                        .HasDatabaseName("UK_RMLPAE_WorkOrderId");
+                        .HasDatabaseName("UK_RMLPE_WorkOrderId");
 
-                    b.HasIndex("WorkOrderNo")
-                        .HasDatabaseName("IX_RMLPAE_WorkOrderNo");
-
-                    b.ToTable("RawMaterialLockPlanAndExecution", (string)null);
+                    b.ToTable("RawMaterialLockPreExecution", (string)null);
                 });
 
             modelBuilder.Entity("MES.Data.Entities.Scheduling.SalesUrging", b =>
@@ -4319,19 +4041,6 @@ namespace MES.Data.Migrations
 
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTime?>("EstimatedArrivalDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsLockConfirmed")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<bool>("IsMainNoMaterialComplete")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
 
                     b.Property<bool>("IsSalesUrging")
                         .ValueGeneratedOnAdd()
@@ -4477,6 +4186,9 @@ namespace MES.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("CapacityWorkDays")
+                        .HasColumnType("int");
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
@@ -5567,6 +5279,9 @@ namespace MES.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("CapacityWorkDays")
+                        .HasColumnType("int");
+
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -5712,6 +5427,9 @@ namespace MES.Data.Migrations
                     b.Property<DateTime?>("LatestPlanDate")
                         .HasColumnType("date");
 
+                    b.Property<DateTime?>("LatestRequiredDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("LengthStatus")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -5756,6 +5474,12 @@ namespace MES.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("MaterialPlanCoveredCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MaterialPlanProportion")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("MaterialPlanRate")
                         .ValueGeneratedOnAdd()
@@ -6086,6 +5810,9 @@ namespace MES.Data.Migrations
                     b.Property<DateTime?>("LatestPlanDate")
                         .HasColumnType("date");
 
+                    b.Property<DateTime?>("LatestRequiredDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("LengthStatus")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -6105,6 +5832,12 @@ namespace MES.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("MaterialPlanCoveredCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MaterialPlanProportion")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("MaterialPlanRate")
                         .ValueGeneratedOnAdd()

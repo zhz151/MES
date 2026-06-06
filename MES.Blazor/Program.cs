@@ -83,5 +83,6 @@ builder.Services.AddScoped<WorkOrderScheduleService>();
 builder.Services.AddScoped<StandardWorkDayService>();
 builder.Services.AddScoped<StandardWorkDayDeliveryStateService>();
 builder.Services.AddScoped<ConfigParameterService>();
+builder.Services.AddScoped<DailyOutputEstimateService>();
 
 await builder.Build().RunAsync();

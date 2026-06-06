@@ -216,6 +216,21 @@ public class WorkOrderListDto
     public int MaxStandardCycle { get; set; }
 
     /// <summary>
+    /// 用料占比：有做计划的料态种数(0-4)
+    /// </summary>
+    public int MaterialPlanCoveredCount { get; set; }
+
+    /// <summary>
+    /// 用料占比文本（如 "穿105% 荒160% 成20% 库40% 改30%"）
+    /// </summary>
+    public string? MaterialPlanProportion { get; set; }
+
+    /// <summary>
+    /// 最新要求到货日
+    /// </summary>
+    public DateTime? LatestRequiredDate { get; set; }
+
+    /// <summary>
     /// 获取各类占比文本（如 "原30% 成20% 库40% 改10% 穿5%"）
     /// 定尺按支数，非定尺/范围尺按重量
     /// </summary>

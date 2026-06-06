@@ -34,6 +34,7 @@ public class SalesUrgingDto
     // ========== G12: 实时关注 ==========
     public int ScheduleStage { get; set; }
     public int? TotalRemainingWorkDays { get; set; }
+    public int? CapacityWorkDays { get; set; }
     public string? UrgencyLevel { get; set; }
     public DateTime? EstimatedProcessCompletionDate { get; set; }
     public int? DaysDiffFromDelivery { get; set; }
@@ -45,16 +46,6 @@ public class SalesUrgingDto
 
     /// <summary>催单备注（手工填写）</summary>
     public string? UrgingRemark { get; set; }
-
-    // ========== 原料锁定字段（手工填写，存 SalesUrging 表） ==========
-    /// <summary>预计到料日期</summary>
-    public DateTime? EstimatedArrivalDate { get; set; }
-
-    /// <summary>主号原锁齐全</summary>
-    public bool IsMainNoMaterialComplete { get; set; }
-
-    /// <summary>确认锁定</summary>
-    public bool IsLockConfirmed { get; set; }
 
     // ========== 显示文本 ==========
     public string DelayPenaltyText => DelayPenalty ? "是" : "否";

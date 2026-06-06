@@ -43,6 +43,7 @@ public class WorkOrderScheduleDto
     // ========== G12: 实时关注 ==========
     public int ScheduleStage { get; set; }
     public int? TotalRemainingWorkDays { get; set; }
+    public int? CapacityWorkDays { get; set; }
     public string? UrgencyLevel { get; set; }
     public DateTime? EstimatedProcessCompletionDate { get; set; }
     public int? DaysDiffFromDelivery { get; set; }
