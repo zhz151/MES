@@ -540,9 +540,9 @@ public partial class FinalInspections
         "Shift" => item.Shift,
         "Operator" => item.Operator,
         "Quantity" => item.Quantity?.ToString(),
-        "Weight" => item.Weight?.ToString("G29"),
+        "Weight" => DisplayHelper.FormatNullableDecimalAsInt(item.Weight),
         "QualifiedQuantity" => item.QualifiedQuantity?.ToString(),
-        "QualifiedWeight" => item.QualifiedWeight?.ToString("G29"),
+        "QualifiedWeight" => DisplayHelper.FormatNullableDecimalAsInt(item.QualifiedWeight),
         "QualifiedConcessionQuantity" => item.QualifiedConcessionQuantity?.ToString(),
         "ConcessionRemark" => item.ConcessionRemark,
         "DefectReworkQuantity" => item.DefectReworkQuantity?.ToString(),
@@ -684,9 +684,9 @@ public partial class FinalInspections
         "Shift" => item.Shift ?? "",
         "Operator" => item.Operator ?? "",
         "Quantity" => DisplayHelper.FormatNullableInt(item.Quantity),
-        "Weight" => DisplayHelper.FormatNullableDecimal(item.Weight),
+        "Weight" => DisplayHelper.FormatNullableDecimalAsInt(item.Weight),
         "QualifiedQuantity" => DisplayHelper.FormatNullableInt(item.QualifiedQuantity),
-        "QualifiedWeight" => DisplayHelper.FormatNullableDecimal(item.QualifiedWeight),
+        "QualifiedWeight" => DisplayHelper.FormatNullableDecimalAsInt(item.QualifiedWeight),
         "QualifiedConcessionQuantity" => DisplayHelper.FormatNullableInt(item.QualifiedConcessionQuantity),
         "ConcessionRemark" => item.ConcessionRemark ?? "",
         "DefectReworkQuantity" => DisplayHelper.FormatNullableInt(item.DefectReworkQuantity),
@@ -768,7 +768,7 @@ public partial class FinalInspections
                 builder.AddContent(0, item.PlantGrade);
                 break;
             case "ProductionType":
-                builder.AddContent(0, item.ProductionType);
+                builder.AddContent(0, DisplayHelper.GetProductionTypeText(item.ProductionType));
                 break;
             case "Specification":
                 builder.AddContent(0, item.Specification);
@@ -846,7 +846,7 @@ public partial class FinalInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableDecimal(item.Weight));
+                    builder.AddContent(0, DisplayHelper.FormatNullableDecimalAsInt(item.Weight));
                 }
                 break;
             case "QualifiedQuantity":
@@ -877,7 +877,7 @@ public partial class FinalInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableDecimal(item.QualifiedWeight));
+                    builder.AddContent(0, DisplayHelper.FormatNullableDecimalAsInt(item.QualifiedWeight));
                 }
                 break;
             case "QualifiedConcessionQuantity":

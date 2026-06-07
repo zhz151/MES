@@ -29,6 +29,10 @@ public partial class FurnaceRegistrations
     private string sortColumn = "furnacenumber";
     private bool sortDescending = false;
 
+    // B33: 分页汇总
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new() { "Quantity", "Weight" };
+
     // ========== ExcelFilter 状态 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -101,11 +105,13 @@ public partial class FurnaceRegistrations
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
                 _currentPage = state.Page + 1;
+                ComputePageSums();
             }
             else
             {
                 _pageItems = new();
                 _totalCount = 0;
+                _pageSums.Clear();
             }
         }
         catch (Exception ex)
@@ -634,7 +640,7 @@ public partial class FurnaceRegistrations
         return sb.ToString();
     }
 
-    private string GetCellPrintValue(FurnaceRegistrationDto item, ColumnDef col) => col.Key switch
+    private string? GetCellPrintValue(FurnaceRegistrationDto item, ColumnDef col) => col.Key switch
     {
         "IncomingDate" => item.IncomingDate.ToString("yyyy-MM-dd"),
         "RawMaterialUnit" => item.RawMaterialUnit,
@@ -899,5 +905,38 @@ public partial class FurnaceRegistrations
         {
             builder.AddContent(0, displayValue);
         }
+    }
+
+    // ========== 分页汇总（B33） ==========
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+        var props = typeof(FurnaceRegistrationDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+        foreach (var key in _summableColumnKeys)
+        {
+            if (!props.TryGetValue(key, out var prop)) continue;
+            var type = prop.PropertyType;
+            try
+            {
+                if (type == typeof(decimal?))
+                {
+                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    _pageSums[key] = ((int)sum).ToString();
+                }
+                else if (type == typeof(int?))
+                {
+                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    _pageSums[key] = sum.ToString();
+                }
+            }
+            catch { }
+        }
+    }
+    private string RenderFooterCell(ColumnDef col)
+    {
+        return _pageSums.GetValueOrDefault(col.Key, "");
     }
 }

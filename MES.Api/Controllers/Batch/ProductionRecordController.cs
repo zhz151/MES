@@ -197,7 +197,7 @@ public class ProductionRecordController : ControllerBase
     {
         var result = await _service.GetMaterialReceiveCheckAsync(batchId);
         if (result == null)
-            return Ok(ApiResponse<MaterialReceiveCheckDto>.Ok(null!, "暂无检验到料记录"));
+            return Ok(ApiResponse<MaterialReceiveCheckDto>.Ok(null!, "暂无成检到料记录"));
         return Ok(ApiResponse<MaterialReceiveCheckDto>.Ok(result, "查询成功"));
     }
 
@@ -212,7 +212,7 @@ public class ProductionRecordController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<MaterialReceiveCheckDto>.Fail("请求参数无效"));
         var result = await _service.CreateMaterialReceiveCheckAsync(request);
-        return Ok(ApiResponse<MaterialReceiveCheckDto>.Ok(result, "检验到料创建成功，批次已完成"));
+        return Ok(ApiResponse<MaterialReceiveCheckDto>.Ok(result, "成检到料创建成功，批次已完成"));
     }
 
     /// <summary>
@@ -438,6 +438,17 @@ public class ProductionRecordController : ControllerBase
     }
 
     /// <summary>
+    /// 获取待检验到料批次（成品检验阶段且未创建检验到料记录）
+    /// </summary>
+    [HttpGet("material-check/pending")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<PendingMaterialCheckDto>>>> GetPendingMaterialChecks()
+    {
+        var result = await _service.GetPendingMaterialChecksAsync();
+        return Ok(ApiResponse<List<PendingMaterialCheckDto>>.Ok(result));
+    }
+
+    /// <summary>
     /// 批量创建检验到料（批次完成标志）
     /// </summary>
     [HttpPost("material-checks/batch")]
@@ -450,7 +461,7 @@ public class ProductionRecordController : ControllerBase
         if (requests.Count == 0)
             return BadRequest(ApiResponse<List<MaterialReceiveCheckDto>>.Fail("请求列表不能为空"));
         var result = await _service.BatchCreateMaterialReceiveChecksAsync(requests);
-        return Ok(ApiResponse<List<MaterialReceiveCheckDto>>.Ok(result, $"批量检验到料创建成功，共{result.Count}条"));
+        return Ok(ApiResponse<List<MaterialReceiveCheckDto>>.Ok(result, $"批量成检到料创建成功，共{result.Count}条"));
     }
 
     /// <summary>

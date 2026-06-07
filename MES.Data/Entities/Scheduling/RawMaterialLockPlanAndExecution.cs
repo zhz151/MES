@@ -98,12 +98,12 @@ public class RawMaterialLockPlanAndExecution : BaseEntity
     public int? DaysDiffFromDelivery { get; set; }
     public string? RawMaterialLockRemark { get; set; }
 
-    // ========== G13: 销售催单（从 SalesUrging 实体 JOIN 获取） ==========
-    /// <summary>销售催单</summary>
-    public bool SalesUrging { get; set; }
+    // ========== G13: 工单需求调整（从 OrderDemandAdjustment 实体 JOIN 获取） ==========
+    /// <summary>催单</summary>
+    public bool IsUrging { get; set; }
 
-    /// <summary>催单备注</summary>
-    public string? UrgingRemark { get; set; }
+    /// <summary>调整备注</summary>
+    public string? AdjustmentRemark { get; set; }
 
     // ========== G15: 预执行（页面操作标记）==========
     /// <summary>执行：用户手动标注"近几日会投料"的工单</summary>

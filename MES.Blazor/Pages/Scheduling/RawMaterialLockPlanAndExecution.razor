@@ -20,12 +20,35 @@
     <div class="d-flex justify-space-between align-center mb-4">
         <MudText Typo="Typo.h5" Class="font-weight-bold">
             <MudIcon Icon="@Icons.Material.Filled.Lock" Class="mr-2" Color="Color.Warning" />
-            原锁计划及执行
-        </MudText>
-        <MudText Typo="Typo.body2">
-            共 @_totalCount 条记录
+            原锁计划
         </MudText>
     </div>
+
+    <!-- 待成检到料批次卡片（默认折叠） -->
+    <MudExpansionPanels>
+        <MudExpansionPanel Text="@($"待成检到料批次（{_preInputCount}批，{((int)_preInputWeight).ToString()}kg）")"
+                           IsExpanded="false"
+                           Class="mb-4">
+            <ChildContent>
+                <MudCard Elevation="1">
+                    <MudCardContent>
+                        <MudGrid>
+                            <MudItem xs="12" md="3">
+                                <MudText Typo="Typo.body2">
+                                    <b>批次数：</b>@_preInputCount
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="12" md="3">
+                                <MudText Typo="Typo.body2">
+                                    <b>总重量(kg)：</b>@(((int)_preInputWeight).ToString())
+                                </MudText>
+                            </MudItem>
+                        </MudGrid>
+                    </MudCardContent>
+                </MudCard>
+            </ChildContent>
+        </MudExpansionPanel>
+    </MudExpansionPanels>
 
     <MudCard>
         <MudCardContent>
@@ -46,24 +69,41 @@
             </MudGrid>
 
             <!-- 数据表格 -->
+            <div id="raw-material-lock-plan-list-table">
+            @{
+                var _groupHeaders = GetGroupHeaders();
+                var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100);
+            }
+            @* 工具栏：列显隐 + 记录数（置于组字段上方） *@
+            <div class="woe-toolbar">
+                <ColumnDisplaySelect Columns="_allColumns"
+                                     OnColumnToggle="OnColumnToggle"
+                                     OnMoveUp="MoveColumnUp"
+                                     OnMoveDown="MoveColumnDown" />
+                <MudText Typo="Typo.body2" Class="ml-4">
+                    共 @_totalCount 条记录
+                </MudText>
+            </div>
+            @* 分组标题栏（flex bar，JS 测量宽度后精确定位） *@
+            <div class="col-group-header-scroll" id="rmlp-group-header-scroll">
+                <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                    @foreach (var gh in _groupHeaders)
+                    {
+                        <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                            <span class="col-group-badge">@gh.GroupName</span>
+                        </div>
+                    }
+                </div>
+            </div>
             <MudTable @ref="table"
                       T="RawMaterialLockPlanAndExecutionDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"
                       Hover="true"
-                      Class="mt-4 auto-table compact-table"
+                      Class="mt-0 auto-table compact-table"
                       Elevation="0"
                       RowsPerPage="@_pageSize"
                       RowsPerPageLabel="每页行数:">
-                <ToolBarContent>
-                    <ColumnDisplaySelect Columns="_allColumns"
-                                         OnColumnToggle="OnColumnToggle"
-                                         OnMoveUp="MoveColumnUp"
-                                         OnMoveDown="MoveColumnDown" />
-                    <MudText Typo="Typo.body2">
-                        共 @_totalCount 条记录
-                    </MudText>
-                </ToolBarContent>
                 <HeaderContent>
                     @{
                         int? _prevGk = null;
@@ -73,12 +113,8 @@
                         var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
                         _prevGk = col.GroupKey;
                         var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
-                        <MudTh Class="@_headerClass" Style="@($"width: {col.Width ?? "120"}px")">
+                        <MudTh Class="@_headerClass" Style="@($"width: {col.Width}px")">
                             <div class="col-header-cell">
-                                @if (_isGroupStart && col.GroupName != null)
-                                {
-                                    <span class="col-group-badge">@col.GroupName</span>
-                                }
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
                                 @if (col.FilterType != null)
                                 {
@@ -114,7 +150,7 @@
                         var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
                         _prevGk3 = col.GroupKey;
                         var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell";
-                        <MudTd Class="@_footerClass" Style="@($"width: {col.Width ?? "120"}px")">
+                        <MudTd Class="@_footerClass" Style="@($"width: {col.Width}px")">
                             <span class="col-footer-sum">@RenderFooterCell(col)</span>
                         </MudTd>
                     }
@@ -123,6 +159,7 @@
                     <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
             </MudTable>
+            </div>
         </MudCardContent>
     </MudCard>
 </MudContainer>

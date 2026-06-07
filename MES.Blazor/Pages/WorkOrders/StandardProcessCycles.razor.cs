@@ -528,7 +528,7 @@ public partial class StandardProcessCycles
                 }
                 else
                 {
-                    builder.AddContent(0, item.DeliveryState);
+                    builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
                 }
                 break;
             case "StandardCycleDays":

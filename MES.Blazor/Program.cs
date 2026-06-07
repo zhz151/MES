@@ -72,12 +72,15 @@ builder.Services.AddScoped<QualityProcessTrackingService>();
 builder.Services.AddScoped<ScanService>();
 
 // ========== Scheduling 上下文 ==========
-builder.Services.AddScoped<SalesUrgingService>();
+builder.Services.AddScoped<OrderDemandAdjustmentService>();
 builder.Services.AddScoped<RawMaterialLockPlanAndExecutionService>();
 builder.Services.AddScoped<ProductionOverviewService>();
 builder.Services.AddScoped<SectionProductionStatusService>();
 builder.Services.AddScoped<MES.Blazor.Services.SectionFlowAnalysisService>();
 builder.Services.AddScoped<WorkOrderScheduleService>();
+builder.Services.AddScoped<BatchPlanService>();
+builder.Services.AddScoped<ColdRollPlanService>();
+builder.Services.AddScoped<FinalInspectionKanbanService>();
 
 // ========== Configuration 上下文 ==========
 builder.Services.AddScoped<StandardWorkDayService>();

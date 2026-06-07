@@ -471,7 +471,7 @@ public partial class Equipments
                 Manufacturer = cache.Manufacturer,
                 InstallationDate = installationDate,
                 Remark = cache.Remark,
-                Location = cache.Location,
+                Location = cache.Location ?? "",
                 RelatedSection = cache.RelatedSection,
                 NeedInspection = cache.NeedInspection,
                 InspectionPerson = cache.InspectionPerson,

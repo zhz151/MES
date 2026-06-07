@@ -20,7 +20,7 @@
     <div class="d-flex justify-space-between align-center mb-4">
         <MudText Typo="Typo.h5" Class="font-weight-bold">
             <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" Color="Color.Primary" />
-            成检到料及执行
+            成检追踪
         </MudText>
     </div>
 
@@ -28,7 +28,7 @@
         <MudCardContent>
             <MudGrid>
                 <MudItem xs="12" md="6">
-                    <MudTextField T="string" Label="批次号/制造物品/钢种/规格/确认人"
+                    <MudTextField T="string" Label="批次号/制造物品/钢种/规格/确认人/业务员"
                                   Value="@_searchKeyword" ValueChanged="@OnSearchChanged"
                                   Immediate="true" DebounceInterval="500"
                                   Clearable="true" ClearButton="true"
@@ -37,31 +37,51 @@
             </MudGrid>
 
             <div id="quality-process-tracking-list-table">
+            @{
+                var _groupHeaders = GetGroupHeaders();
+                var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100);
+            }
+            <div class="woe-toolbar">
+                <ColumnDisplaySelect Columns="_allColumns"
+                                     OnColumnToggle="OnColumnToggle"
+                                     OnMoveUp="MoveColumnUp"
+                                     OnMoveDown="MoveColumnDown" />
+                <MudText Typo="Typo.body2">
+                    共 @_totalCount 条记录
+                </MudText>
+                <MudButton Variant="Variant.Text" Size="Size.Small"
+                           Color="Color.Default"
+                           StartIcon="@Icons.Material.Filled.RestartAlt"
+                           OnClick="ResetColumnDisplay" Class="ml-2">
+                    重置
+                </MudButton>
+            </div>
+            @* 分组标题栏 *@
+            <div class="col-group-header-scroll" id="qpt-group-header-scroll">
+                <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                    @foreach (var gh in _groupHeaders)
+                    {
+                        <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                            <span class="col-group-badge">@gh.GroupName</span>
+                        </div>
+                    }
+                </div>
+            </div>
             <MudTable @ref="table" T="QualityProcessTrackingDto"
                       ServerData="@LoadDataFromServer"
-                      Dense="true" Hover="true" Class="mt-4 auto-table compact-table"
+                      Dense="true" Hover="true" Class="mt-0 auto-table compact-table"
                       Elevation="0" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
 
-                <ToolBarContent>
-                    <ColumnDisplaySelect Columns="_allColumns"
-                                         OnColumnToggle="OnColumnToggle"
-                                         OnMoveUp="MoveColumnUp"
-                                         OnMoveDown="MoveColumnDown" />
-                    <MudText Typo="Typo.body2">
-                        共 @_totalCount 条记录
-                    </MudText>
-                    <MudButton Variant="Variant.Text" Size="Size.Small"
-                               Color="Color.Default"
-                               StartIcon="@Icons.Material.Filled.RestartAlt"
-                               OnClick="ResetColumnDisplay" Class="ml-2">
-                        重置
-                    </MudButton>
-                </ToolBarContent>
-
                 <HeaderContent>
+                    @{
+                        int? _prevGk = null;
+                    }
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTh Style="width: col.Width">
+                        var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
+                        _prevGk = col.GroupKey;
+                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
+                        <MudTh Class="@_headerClass" Style="@($"width: {col.Width}px")">
                             <div class="col-header-cell">
                                 <span @onclick='() => ToggleSort(col.Key)'
                                       style="cursor:pointer" class="th-label">
@@ -82,11 +102,32 @@
                 </HeaderContent>
 
                 <RowTemplate Context="item">
+                    @{
+                        int? _prevGk2 = null;
+                    }
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>@RenderCell(item, col)</MudTd>
+                        var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
+                        _prevGk2 = col.GroupKey;
+                        var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
+                        <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
                     }
                 </RowTemplate>
+
+                <FooterContent>
+                    @{
+                        int? _prevGk3 = null;
+                    }
+                    @foreach (var col in _visibleColumns)
+                    {
+                        var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
+                        _prevGk3 = col.GroupKey;
+                        var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell";
+                        <MudTd Class="@_footerClass" Style="@($"width: {col.Width}px")">
+                            <span class="col-footer-sum">@RenderFooterCell(col)</span>
+                        </MudTd>
+                    }
+                </FooterContent>
 
                 <PagerContent>
                     <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />

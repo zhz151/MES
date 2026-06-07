@@ -7,19 +7,28 @@ using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Core.DTOs;
 using MES.Core.Models;
+using System.Reflection;
 using System.Text.Json;
 
-namespace MES.Blazor.Pages.Scheduling;
+namespace MES.Blazor.Pages.Orders;
 
-public partial class SalesUrgings
+public partial class OrderDemandAdjustment
 {
-    private MudTable<SalesUrgingDto>? table;
-    private List<SalesUrgingDto> _pageItems = new();
+    private MudTable<OrderDemandAdjustmentDto>? table;
+    private List<OrderDemandAdjustmentDto> _pageItems = new();
     private int _totalCount;
     private int _restoredPageIndex;
     private int _currentPageIndex = 1;
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
+
+    // B33 分页汇总
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        "TotalQuantity", "TotalWeight"
+    };
+
     private string _searchKeyword = string.Empty;
 
     // 排序状态
@@ -62,7 +71,7 @@ public partial class SalesUrgings
         // G12: 实时关注
         var g12 = new List<ColumnDef>
         {
-            new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = new() { new("0","无需排产"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = new() { new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "TotalRemainingWorkDays",  Label = "剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "CapacityWorkDays",        Label = "产能工量(天)", SortKey = "CapacityWorkDays",        Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "UrgencyLevel",            Label = "工单计划性",    SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注" },
@@ -71,11 +80,13 @@ public partial class SalesUrgings
             new() { Key = "RawMaterialLockRemark",   Label = "原锁备注",     SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                             GroupKey = 12, GroupName = "实时关注" },
         };
 
-        // G13: 销售催单（手工编辑）
+        // G13: 工单需求调整（手工编辑）
         var g13 = new List<ColumnDef>
         {
-            new() { Key = "IsSalesUrging",           Label = "销售催单",      SortKey = "IsSalesUrging",           FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "销售催单" },
-            new() { Key = "UrgingRemark",            Label = "催单备注",      SortKey = "UrgingRemark",            FilterType = "string", Width = "200", GroupKey = 13, GroupName = "销售催单" },
+            new() { Key = "IsUrging",      Label = "催单",  SortKey = "IsUrging",      FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "IsBatchDelivery",          Label = "分批交货",      SortKey = "IsBatchDelivery",          FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "IsPaused",                  Label = "工单暂停",      SortKey = "IsPaused",                  FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "AdjustmentRemark",          Label = "需求调整备注",  SortKey = "AdjustmentRemark",          FilterType = "string", Width = "200", GroupKey = 13, GroupName = "工单需求调整" },
         };
 
         var all = new List<ColumnDef>();
@@ -87,7 +98,7 @@ public partial class SalesUrgings
 
     // ========== 服务端数据加载 ==========
 
-    private async Task<TableData<SalesUrgingDto>> LoadDataFromServer(TableState state)
+    private async Task<TableData<OrderDemandAdjustmentDto>> LoadDataFromServer(TableState state)
     {
         // 保持 RowsPerPage 与用户选择同步，避免排序/筛选后复位
         _pageSize = state.PageSize;
@@ -117,11 +128,12 @@ public partial class SalesUrgings
                 query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filtersJson);
             }
 
-            var result = await SalesUrgingService.GetPagedAsync(query);
+            var result = await DemandAdjustmentService.GetPagedAsync(query);
 
             if (result.Success && result.Data != null)
             {
                 _pageItems = result.Data.Items;
+                ComputePageSums();
                 _totalCount = result.Data.TotalCount;
                 _currentPageIndex = state.Page + 1;
                 await SavePageStateAsync();
@@ -129,6 +141,7 @@ public partial class SalesUrgings
             else
             {
                 _pageItems = new();
+                _pageSums.Clear();
                 _totalCount = 0;
             }
         }
@@ -139,7 +152,7 @@ public partial class SalesUrgings
             _totalCount = 0;
         }
 
-        return new TableData<SalesUrgingDto>
+        return new TableData<OrderDemandAdjustmentDto>
         {
             Items = _pageItems,
             TotalItems = _totalCount
@@ -169,7 +182,7 @@ public partial class SalesUrgings
     {
         try
         {
-            var result = await SalesUrgingService.GetFilterContextsAsync();
+            var result = await DemandAdjustmentService.GetFilterContextsAsync();
             if (result.Success && result.Data != null)
             {
                 BuildFilterContextOptions(result.Data);
@@ -277,23 +290,23 @@ public partial class SalesUrgings
 
     // ========== 内联编辑 ==========
 
-    private async Task ToggleSalesUrging(SalesUrgingDto item)
+    private async Task ToggleUrging(OrderDemandAdjustmentDto item)
     {
-        item.IsSalesUrging = !item.IsSalesUrging;
+        item.IsUrging = !item.IsUrging;
         await SaveUrgingAsync(item);
     }
 
-    private async Task OnUrgingRemarkChanged(SalesUrgingDto item, string? newValue)
+    private async Task OnAdjustmentRemarkChanged(OrderDemandAdjustmentDto item, string? newValue)
     {
-        item.UrgingRemark = newValue;
+        item.AdjustmentRemark = newValue;
         await SaveUrgingAsync(item);
     }
 
-    private async Task SaveUrgingAsync(SalesUrgingDto item)
+    private async Task SaveUrgingAsync(OrderDemandAdjustmentDto item)
     {
         try
         {
-            var result = await SalesUrgingService.SaveUrgingAsync(item.WorkOrderId, item.IsSalesUrging, item.UrgingRemark);
+            var result = await DemandAdjustmentService.SaveUrgingAsync(item.WorkOrderId, item.IsUrging, item.IsBatchDelivery, item.IsPaused, item.AdjustmentRemark);
             if (result.Success)
             {
                 Snackbar.Add("保存成功", Severity.Success);
@@ -307,6 +320,70 @@ public partial class SalesUrgings
         {
             Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
         }
+    }
+
+    // ========== 分组标题栏同步 ==========
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // 分组标题栏：测量实际列宽 + 同步滚动
+        await JS.InvokeVoidAsync("initGroupHeaders", "#order-demand-adjustment-list-table");
+    }
+
+    // ========== 分组标题栏 ==========
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+        int? lastKey = null;
+        int totalWidth = 0;
+        var groupKey = 0;
+        var groupName = "";
+        var count = 0;
+
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo
+                {
+                    GroupKey = groupKey,
+                    GroupName = groupName,
+                    TotalWidth = totalWidth,
+                    ColumnCount = count,
+                    CssClass = GetHeaderGroupCss(groupKey, true)
+                });
+                totalWidth = 0;
+                count = 0;
+            }
+            groupKey = gk;
+            groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++;
+            lastKey = gk;
+        }
+        if (count > 0)
+        {
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        }
+        return result;
     }
 
     // ========== 分组 CSS ==========
@@ -344,7 +421,7 @@ public partial class SalesUrgings
         _allColumns = GetAllColumnDefs();
 
         // 恢复排序/筛选/列显隐状态
-        var savedState = await PageState.LoadAsync("salesurgings");
+        var savedState = await PageState.LoadAsync("order-demand-adjustment");
         if (savedState != null)
         {
             sortColumn = savedState.SortBy ?? "ScheduleStage";
@@ -393,7 +470,7 @@ public partial class SalesUrgings
 
     // ========== 单元格渲染 ==========
 
-    private RenderFragment RenderCell(SalesUrgingDto item, ColumnDef col) => builder =>
+    private RenderFragment RenderCell(OrderDemandAdjustmentDto item, ColumnDef col) => builder =>
     {
         switch (col.Key)
         {
@@ -446,7 +523,7 @@ public partial class SalesUrgings
                 builder.AddContent(0, item.TotalQuantity);
                 break;
             case "TotalWeight":
-                builder.AddContent(0, item.TotalWeight.ToString("G29"));
+                builder.AddContent(0, ((int)item.TotalWeight).ToString());
                 break;
             case "ScheduleStage":
                 builder.OpenComponent<MudChip>(0);
@@ -473,30 +550,64 @@ public partial class SalesUrgings
             case "RawMaterialLockRemark":
                 builder.AddContent(0, item.RawMaterialLockRemark ?? "-");
                 break;
-            case "IsSalesUrging":
+            case "IsUrging":
                 // 内联编辑：Switch 切换催单状态
                 builder.OpenElement(0, "div");
                 builder.AddAttribute(1, "style", "display:flex; align-items:center; gap:4px;");
                 builder.OpenComponent<MudSwitch<bool>>(2);
-                builder.AddAttribute(3, "Value", item.IsSalesUrging);
+                builder.AddAttribute(3, "Value", item.IsUrging);
                 builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, async v =>
                 {
-                    item.IsSalesUrging = v;
+                    item.IsUrging = v;
                     await SaveUrgingAsync(item);
                 }));
                 builder.AddAttribute(5, "Color", Color.Primary);
                 builder.AddAttribute(6, "Dense", true);
                 builder.CloseComponent();
-                builder.AddContent(7, item.IsSalesUrging ? "是" : "否");
+                builder.AddContent(7, item.IsUrging ? "是" : "否");
                 builder.CloseElement();
                 break;
-            case "UrgingRemark":
+            case "IsBatchDelivery":
+                // 内联编辑：Switch 切换分批交货
+                builder.OpenElement(0, "div");
+                builder.AddAttribute(1, "style", "display:flex; align-items:center; gap:4px;");
+                builder.OpenComponent<MudSwitch<bool>>(2);
+                builder.AddAttribute(3, "Value", item.IsBatchDelivery);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, async v =>
+                {
+                    item.IsBatchDelivery = v;
+                    await SaveUrgingAsync(item);
+                }));
+                builder.AddAttribute(5, "Color", Color.Primary);
+                builder.AddAttribute(6, "Dense", true);
+                builder.CloseComponent();
+                builder.AddContent(7, item.IsBatchDelivery ? "是" : "否");
+                builder.CloseElement();
+                break;
+            case "IsPaused":
+                // 内联编辑：Switch 切换暂停状态
+                builder.OpenElement(0, "div");
+                builder.AddAttribute(1, "style", "display:flex; align-items:center; gap:4px;");
+                builder.OpenComponent<MudSwitch<bool>>(2);
+                builder.AddAttribute(3, "Value", item.IsPaused);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, async v =>
+                {
+                    item.IsPaused = v;
+                    await SaveUrgingAsync(item);
+                }));
+                builder.AddAttribute(5, "Color", Color.Error);
+                builder.AddAttribute(6, "Dense", true);
+                builder.CloseComponent();
+                builder.AddContent(7, item.IsPaused ? "是" : "否");
+                builder.CloseElement();
+                break;
+            case "AdjustmentRemark":
                 // 内联编辑：文本框
                 builder.OpenComponent<MudTextField<string?>>(0);
-                builder.AddAttribute(1, "Value", item.UrgingRemark);
-                builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string?>(this, v =>
+                builder.AddAttribute(1, "Value", item.AdjustmentRemark);
+                builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string?>(this, async v =>
                 {
-                    _ = OnUrgingRemarkChanged(item, v);
+                    await OnAdjustmentRemarkChanged(item, v);
                 }));
                 builder.AddAttribute(3, "Dense", true);
                 builder.AddAttribute(4, "Immediate", true);
@@ -538,6 +649,30 @@ public partial class SalesUrgings
             PageIndex = _currentPageIndex,
             Extras = extras
         };
-        await PageState.SaveAsync("salesurgings", state);
+        await PageState.SaveAsync("order-demand-adjustment", state);
+    }
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        var props = typeof(OrderDemandAdjustmentDto).GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        foreach (var key in _summableColumnKeys)
+        {
+            var prop = props.FirstOrDefault(p => p.Name == key);
+            if (prop == null) continue;
+            decimal sum = 0;
+            foreach (var item in _pageItems)
+            {
+                var val = prop.GetValue(item);
+                if (val == null) continue;
+                sum += Convert.ToDecimal(val);
+            }
+            _pageSums[key] = ((int)sum).ToString();
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        return _pageSums.GetValueOrDefault(col.Key, "");
     }
 }

@@ -413,7 +413,7 @@ public partial class GradeMappings
             {
                 item.StandardGrade = cache.StandardGrade;
                 item.PlantGrade = cache.PlantGrade;
-                item.Density = cache.Density.Value;
+                if (cache.Density.HasValue) item.Density = cache.Density.Value;
                 item.HeatTreatment = cache.HeatTreatment;
                 item.SpecialMaterial = cache.SpecialMaterial;
                 item.SpecialNote = cache.SpecialNote;

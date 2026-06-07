@@ -101,7 +101,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<WorkOrderListSummary> WorkOrderListSummaries { get; set; } = null!;
 
     // ========== Scheduling 上下文 ==========
-    public DbSet<SalesUrging> SalesUrgings { get; set; } = null!;
+    public DbSet<OrderDemandAdjustment> OrderDemandAdjustments { get; set; } = null!;
     public DbSet<RawMaterialLockPreExecution> RawMaterialLockPreExecutions { get; set; } = null!;
     public DbSet<SectionFlowCategorySetting> SectionFlowCategorySettings { get; set; } = null!;
     public DbSet<SectionFlowCategoryItem> SectionFlowCategoryItems { get; set; } = null!;
@@ -189,7 +189,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureWorkOrderListSummary(builder);
 
         // ========== Scheduling 上下文 ==========
-        ConfigureSalesUrging(builder);
+        ConfigureOrderDemandAdjustment(builder);
         ConfigureRawMaterialLockPreExecution(builder);
         ConfigureSectionFlowCategorySetting(builder);
         ConfigureSectionFlowCategoryItem(builder);
@@ -1346,6 +1346,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Specification).HasMaxLength(100);
             entity.Property(e => e.ProductionType).HasMaxLength(50);
             entity.Property(e => e.IsForceCompleted);
+            entity.Property(e => e.Salesman).HasMaxLength(50);
+            entity.Property(e => e.DeliveryState).HasMaxLength(50);
 
             entity.HasOne(e => e.ProductionBatch)
                 .WithMany()
@@ -1355,6 +1357,18 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => e.ProductionBatchId)
                 .IsUnique()
                 .HasDatabaseName("UK_MaterialReceiveCheck_BatchId");
+
+            entity.HasIndex(e => e.ReceiveDate)
+                .HasDatabaseName("IX_MaterialReceiveCheck_ReceiveDate");
+
+            entity.HasIndex(e => e.BatchNo)
+                .HasDatabaseName("IX_MaterialReceiveCheck_BatchNo");
+
+            entity.HasIndex(e => e.PlantGrade)
+                .HasDatabaseName("IX_MaterialReceiveCheck_PlantGrade");
+
+            entity.HasIndex(e => e.Specification)
+                .HasDatabaseName("IX_MaterialReceiveCheck_Specification");
         });
     }
 
@@ -1541,6 +1555,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
             entity.HasIndex(e => e.ProductionBatchId).HasDatabaseName("IX_ProcessInspection_BatchId");
             entity.HasIndex(e => e.ProcessGroupId).HasDatabaseName("IX_ProcessInspection_ProcessGroupId");
+            entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_ProcessInspection_InspectionDate");
+            entity.HasIndex(e => e.BatchNo).HasDatabaseName("IX_ProcessInspection_BatchNo");
         });
     }
 
@@ -1876,6 +1892,17 @@ public class AppDbContext : IdentityDbContext<AppUser>
             // G12: 原锁备注
             entity.Property(e => e.RawMaterialLockRemark).HasMaxLength(20);
 
+            // Group 14: 在产节点待量
+            entity.Property(e => e.PendingSectionRoughTube).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.PendingSectionWarehouseFix).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.PendingSection60Roll).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.PendingSection50Roll).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.PendingSection30Roll).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.PendingSection20Roll).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.PendingSectionThreeRoll).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.PendingSectionDrawBench).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.ProductionAttentionProcess).HasMaxLength(50);
+
             // 刷新追踪
             entity.Property(e => e.LastRefreshTime).HasColumnType("datetime2");
 
@@ -2053,16 +2080,18 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
     // ========== Scheduling 上下文 ==========
 
-    private static void ConfigureSalesUrging(ModelBuilder builder)
+    private static void ConfigureOrderDemandAdjustment(ModelBuilder builder)
     {
-        builder.Entity<SalesUrging>(entity =>
+        builder.Entity<OrderDemandAdjustment>(entity =>
         {
-            entity.ToTable("SalesUrging");
+            entity.ToTable("OrderDemandAdjustment");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.WorkOrderId).IsRequired();
-            entity.Property(e => e.IsSalesUrging).IsRequired().HasDefaultValue(false);
-            entity.Property(e => e.UrgingRemark).HasMaxLength(500);
-            entity.HasIndex(e => e.WorkOrderId).IsUnique().HasDatabaseName("UK_SU_WorkOrderId");
+            entity.Property(e => e.IsUrging).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.IsBatchDelivery).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.IsPaused).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.AdjustmentRemark).HasMaxLength(500);
+            entity.HasIndex(e => e.WorkOrderId).IsUnique().HasDatabaseName("UK_ODA_WorkOrderId");
         });
     }
 
@@ -2215,7 +2244,18 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.RawMaterialLockRemark).HasMaxLength(200);
 
             // G13
-            entity.Property(e => e.UrgingRemark).HasMaxLength(500);
+            entity.Property(e => e.AdjustmentRemark).HasMaxLength(500);
+
+            // G14
+            entity.Property(e => e.PendingSectionRoughTube).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.PendingSectionWarehouseFix).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.PendingSection60Roll).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.PendingSection50Roll).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.PendingSection30Roll).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.PendingSection20Roll).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.PendingSectionThreeRoll).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.PendingSectionDrawBench).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.ProductionAttentionProcess).HasMaxLength(50);
 
             // 唯一约束：一个工单一条记录
             entity.HasIndex(e => e.WorkOrderId)

@@ -18,9 +18,13 @@ public class QualityProcessTrackingDto
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }
     public string? ProductionType { get; set; }
+    public string? LengthStatus { get; set; }
+    public decimal? ProductionWeight { get; set; }
     public DateTime ReceiveDate { get; set; }
     public string? Shift { get; set; }
     public string? Checker { get; set; }
+    public string? Salesman { get; set; }
+    public string? DeliveryState { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
     public DateTimeOffset UpdatedTime { get; set; }
 
@@ -52,4 +56,5 @@ public class QualityProcessTrackingDto
 
     // ========== G5: 执行状态 ==========
     public string QualityStatus { get; set; } = "待检验";    // 待检验/检验中/完成检验
+    public bool IsForceCompleted { get; set; }               // 强制完成
 }

@@ -151,7 +151,7 @@
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "ExecDate",          Label = "执行日期", IsRequired = true },               // → Entity.ExecDate
-        new() { Key = "BatchNo",           Label = "批次号", IsRequired = true },                 // → Entity.ProductionBatchId（通过批次号解析关联批次）
+        new() { Key = "BatchNo",           Label = "生产编号", IsRequired = true },                 // → Entity.ProductionBatchId（通过批次号解析关联批次）
         new() { Key = "ProcessName",       Label = "工序名称", IsRequired = true },               // → Entity.ProcessName + 联合解析 ProcessGroupId
         new() { Key = "ManufacturingSpec", Label = "制造规格", IsRequired = true },                 // → Entity.ManufacturingSpec + 联合解析 ProcessGroupId
         new() { Key = "SectionName",       Label = "工段名称", IsRequired = true },               // → Entity.SectionName（与ProcessGroupId联合解析SequenceNumber）

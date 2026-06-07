@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
@@ -44,6 +45,13 @@ public partial class WarehouseInventory
     private string sortColumn = "InboundDate";
     private bool sortDescending = true;
 
+    // B33 分页汇总
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        "InitialQuantity", "InitialWeight", "Meters", "RemainingQuantity", "RemainingWeight"
+    };
+
     // ========== ExcelFilter 状态 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -60,7 +68,7 @@ public partial class WarehouseInventory
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "BatchNo",             Label = "批次号",   SortKey = "BatchNo", FilterType = "string", Width = "120" },
+        new() { Key = "BatchNo",             Label = "仓库批次", SortKey = "BatchNo", FilterType = "string", Width = "120" },
         new() { Key = "InboundDate",         Label = "入库日期", SortKey = "InboundDate", FilterType = "date", Width = "120" },
         new() { Key = "InboundSource",       Label = "来源",     SortKey = "InboundSource", FilterType = "string", Width = "120" },
         new() { Key = "SourceOrderNo",       Label = "物料单号", SortKey = "SourceOrderNo", FilterType = "string", Width = "120" },
@@ -207,11 +215,11 @@ public partial class WarehouseInventory
                 builder.AddContent(0, item.InitialQuantity);
                 break;
             case "InitialWeight":
-                builder.AddContent(0, item.InitialWeight.ToString("G29"));
+                builder.AddContent(0, ((int)item.InitialWeight).ToString());
                 break;
             case "Meters":
                 if (item.Meters.HasValue)
-                    builder.AddContent(0, item.Meters.Value.ToString("G29"));
+                    builder.AddContent(0, ((int)item.Meters.Value).ToString());
                 break;
             case "RemainingQuantity":
                 builder.OpenComponent<MudChip>(0);
@@ -224,7 +232,7 @@ public partial class WarehouseInventory
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
                 builder.AddAttribute(2, "Color", item.RemainingWeight > 0 ? Color.Success : Color.Default);
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.RemainingWeight.ToString("G29"))));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, ((int)item.RemainingWeight).ToString())));
                 builder.CloseComponent();
                 break;
             case "UnitWeight":
@@ -348,6 +356,7 @@ public partial class WarehouseInventory
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
                 _currentPage = state.Page + 1;
+                ComputePageSums();
 
                 _selectedItems.RemoveWhere(i => !_pageItems.Any(x => x.Id == i.Id));
             }
@@ -355,6 +364,7 @@ public partial class WarehouseInventory
             {
                 _pageItems = new();
                 _totalCount = 0;
+                _pageSums.Clear();
             }
         }
         catch (Exception ex)
@@ -362,6 +372,7 @@ public partial class WarehouseInventory
             Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
             _pageItems = new();
             _totalCount = 0;
+            _pageSums.Clear();
         }
 
         return new TableData<InventoryBatchDto>
@@ -824,5 +835,29 @@ public partial class WarehouseInventory
             Extras = extras
         };
         await PageState.SaveAsync("warehouseinventory", state);
+    }
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        var props = typeof(InventoryBatchDto).GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        foreach (var key in _summableColumnKeys)
+        {
+            var prop = props.FirstOrDefault(p => p.Name == key);
+            if (prop == null) continue;
+            decimal sum = 0;
+            foreach (var item in _pageItems)
+            {
+                var val = prop.GetValue(item);
+                if (val == null) continue;
+                sum += Convert.ToDecimal(val);
+            }
+            _pageSums[key] = ((int)sum).ToString();
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        return _pageSums.GetValueOrDefault(col.Key, "");
     }
 }

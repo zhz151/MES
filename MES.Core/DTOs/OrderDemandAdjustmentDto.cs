@@ -1,9 +1,9 @@
 namespace MES.Core.DTOs;
 
 /// <summary>
-/// 销售催单列表 DTO（G1+G12 + 手工字段）
+/// 订单需求调整列表 DTO（G1+G12 + 手工字段）
 /// </summary>
-public class SalesUrgingDto
+public class OrderDemandAdjustmentDto
 {
     public int Id { get; set; }
     public int WorkOrderId { get; set; }
@@ -40,17 +40,23 @@ public class SalesUrgingDto
     public int? DaysDiffFromDelivery { get; set; }
     public string? RawMaterialLockRemark { get; set; }
 
-    // ========== 手工字段（销售催单实体） ==========
-    /// <summary>销售催单（手工填写）</summary>
-    public bool IsSalesUrging { get; set; }
+    // ========== 手工字段（工单需求调整实体） ==========
+    /// <summary>催单（手工填写）</summary>
+    public bool IsUrging { get; set; }
 
-    /// <summary>催单备注（手工填写）</summary>
-    public string? UrgingRemark { get; set; }
+    /// <summary>分批交货（手工填写）</summary>
+    public bool IsBatchDelivery { get; set; }
+
+    /// <summary>工单暂停（手工填写）</summary>
+    public bool IsPaused { get; set; }
+
+    /// <summary>调整备注（手工填写）</summary>
+    public string? AdjustmentRemark { get; set; }
 
     // ========== 显示文本 ==========
     public string DelayPenaltyText => DelayPenalty ? "是" : "否";
     public string ScheduleStageText => ScheduleStage switch
     {
-        0 => "无需排产", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => "未知"
+        0 => "工单完成", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => "未知"
     };
 }

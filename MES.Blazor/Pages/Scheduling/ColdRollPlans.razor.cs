@@ -12,9 +12,9 @@ public partial class ColdRollPlans
     private MudTable<ColdRollPlanRowDto>? table;
     private List<ColdRollPlanRowDto> _allItems = new();
     private List<ColdRollPlanRowDto> _pageItems = new();
-    private bool _isFirstLoad = true;
     private string _searchKeyword = string.Empty;
     private bool _isSimplifiedView = false;
+    private int _pageSize = 10000;
 
     // ========== 排序状态 ==========
     private string sortColumn = "ShortDisplay";
@@ -98,9 +98,9 @@ public partial class ColdRollPlans
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync()
     {
-        _isFirstLoad = true;
+        return Task.CompletedTask;
     }
 
     // ========== 打印 ==========
@@ -113,7 +113,6 @@ public partial class ColdRollPlans
     private async Task OnSectionTabChanged(string? section)
     {
         _selectedSection = section;
-        _isFirstLoad = false;
         if (table != null)
             await table.ReloadServerData();
     }
@@ -233,6 +232,7 @@ public partial class ColdRollPlans
     // ========== 加载数据 ==========
     private async Task<TableData<ColdRollPlanRowDto>> LoadDataFromServer(TableState state)
     {
+        _pageSize = state.PageSize;
         try
         {
             var data = await ColdRollSvc.GetPlanAsync(_selectedSection);

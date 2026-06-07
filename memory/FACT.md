@@ -12,10 +12,19 @@
 - **ConfigParameter 分类清单：** MaterialPlanStatus(4), DefaultValue(6), MaterialPlanRatio(4), DimensionTolerance(4), LengthDefault(2), ReworkRatio(8), WarehouseThreshold(4), ContractWeight(2), SequenceJump(1), ProcessingDiscount(1), ProductionCapacity(5), DateBucket(5) — 涉及 14 个 Service
 - **ApiEndpoints** — 所有 `api/xxx` 路径在 `MES.Shared.Constants.ApiEndpoints` 集中管理，Service 类通过 `ApiEndpoints.Xxx` 引用
 
-## Scheduling 模块 — 8 个页面
+## Scheduling 模块 — 9 个页面
+
+### FinalInspectionKanban（成检看板）— 新增
+- 内存全量加载 + 客户端分页/排序/筛选的看板页面。`FinalInspectionKanbanService` 实现 `IFinalInspectionKanbanService`，调用 `api/final-inspection-kanban` 端点获取全量数据。ApiEndpoint = `api/final-inspection-kanban`。
+- DTO: `FinalInspectionKanbanDto`（G1 批次信息: BatchNo/TagNo/PlantGrade/CurrentValidWeight，G2 关联工单: WorkOrderNo/Salesman/Specification/LengthStatus/MinLength/MaxLength，G3 排程信息: ScheduleStage/UrgencyLevel，G4 成检状态: KanbanStage/ReceiveDate/MaxInspectionDate）。
+- 三档 Tab 筛选（全部/待到料/待检验/检验中）+ Tab 汇总（批次数/总重量）。全量数据 `_allItems` + `BuildFilterOptionsFromData()` 内存驱动筛选上下文。
+- **MudChip 样式渲染** — UrgencyLevel 中 "A+急"/"A急" 显示 Color.Error，"B顺" 显示 Color.Warning；ScheduleStage 中 "成品检验" 显示 Color.Primary，"生产执行" 显示 Color.Info，"工单完成" 显示 Color.Default。
+- 列分组 G1-G4 + `initGroupHeaders` JS 函数 + `OnAfterRenderAsync` 对齐组标题。ComputePageSums B33 汇总（仅 CurrentValidWeight）。B22 分页行数持久化。
+- GroupHeaderInfo 模型计算分组宽度。`BuildFilterOptionsFromData()` 处理 enum/string 两种 FilterType。
 
 ### RawMaterialLockPlanAndExecution
 - 原锁计划及执行页面（LEFT JOIN 实时查询模式）。G1-G12 来自 `WorkOrderExecutionSummary`（ScheduleStage=1），G13 LEFT JOIN `OrderDemandAdjustment`（IsUrging/IsBatchDelivery/IsPaused/AdjustmentRemark 四个字段），G15 LEFT JOIN `RawMaterialLockPreExecution` 独立小表。ApiEndpoint = `api/raw-material-lock-plan`。无独立物化表，无"计划安排"按钮。G15 字段：IsPreInput, BudgetInputDate, IsMainNoMaterialComplete（系统计算）
+- **待检验到料批次卡片** — 页面顶部 MudExpansionPanels 包裹的 MudExpansionPanel（默认折叠），显示待检验批次的数量和总重量。数据通过 `GetPendingMaterialChecksAsync()` 获取 `PendingMaterialCheckDto` 列表。
 
 ### BatchPlan（批次看板）
 - 在产明细计划实时视图。`ProductionBatch`（Status=None/InProgress）LEFT JOIN `WorkOrderExecutionSummary`（UrgencyLevel/ScheduleStage） + `WorkOrderSchedule`（ProductionAttentionProcess）。ApiEndpoint = `api/batch-plan`。17 个工段筛选 Tab（含冷轧类工序+工段逻辑、过程/成品检验 SequenceNumber 比较）。IsKeyBatch 逻辑：ScheduleStage==2 && Urgency in ["A+急","A急"] && (PendingProcess=="荒管处理" || PendingProcess==ProductionAttentionProcess || ProductionAttentionProcess=="收尾-成检")。Tab 汇总通过 PagedResult.Extras 字典返回。计算字段客户端排序（`_clientSortableKeys` HashSet 定义）。枚举筛选通过 EnumOptions 映射中文显示。列分组标题栏 G2→G4→G1→G3 排列。
@@ -56,8 +65,8 @@
 - WorkOrderSchedule 物化表实体（继承 BaseEntity）：字段与 DTO 一致。通过"计划安排"按钮从 WorkOrderExecutionSummary 全量刷新。筛选规则：块1 = ScheduleStage==2，块2 = IsMainNoMaterialComplete，块3 = ScheduleStage==1 + IsUrging + IsBatchDelivery。`WorkOrderId` 唯一。
 
 ## 当前规范版本
-- **04_开发规范.md V8.42**（2026-06-06）
-- **mes-code-check SKILL.md V8.42**（2026-06-06）
+- **04_开发规范.md V8.43**（2026-06-06）
+- **mes-code-check SKILL.md V8.43**（2026-06-06）
 
 ## 分页汇总行规范（§6.4.4）— B18
 - 涉及支数/米数/重量/批次数的列表页，必须在 MudTable FooterContent 中添加分页汇总行
@@ -116,11 +125,42 @@
 - 映射代码：`col.EnumOptions!.ToDictionary(e => e.Value, e => e.Display)`
 
 ## Scheduling 模块整体架构
-- **8 个 Blazor 页面**：OrderOverview / SectionProductionStatus / SectionFlowAnalysis / WorkOrderSchedules / RawMaterialLockPlanAndExecution / BatchPlans / ColdRollPlans / OrderDemandAdjustment（旧称 SalesUrging，位于 Orders 目录）
+- **9 个 Blazor 页面**：OrderOverview / SectionProductionStatus / SectionFlowAnalysis / WorkOrderSchedules / RawMaterialLockPlanAndExecution / BatchPlans / ColdRollPlans / FinalInspectionKanban / OrderDemandAdjustment（位于 Orders 目录）
 - **核心数据源**：`WorkOrderExecutionSummary`（ScheduleStage 1/2+），各页面通过 LEFT JOIN 或 ProductionBatch 驱动查询
 - **物化表**：WorkOrderSchedule（ScheduleStage=2 全量刷新）、RawMaterialLockPlanAndExecution（ScheduleStage=1 全量刷新）。OrderDemandAdjustment 为薄表仅存手工标记
-- **实时查询**：RawMaterialLockPlanAndExecution（LEFT JOIN 非物化）、BatchPlans/ColdRollPlans/OrderDemandAdjustment/SectionProductionStatus 均基于 ProductionBatch 实时聚合
+- **实时查询**：RawMaterialLockPlanAndExecution（LEFT JOIN 非物化）、BatchPlans/ColdRollPlans/OrderDemandAdjustment/SectionProductionStatus/FinalInspectionKanban 均基于 ProductionBatch 实时聚合
 - **组合模式**：SectionFlowAnalysisService 委托 SectionProductionStatusService 获取数据后重映射
-- **ExcelFilter 系统**：WorkOrderSchedules/SectionProductionStatus 使用，GetFilterContextsAsync 返回字典 + 前端 _columnFilters + PageState 持久化。特殊值 `__NOT_NULL__` / `__EXCEL_FILTER_NULL__`
-- **EnumOptions 硬编码**：WorkOrderSchedules 对小型稳定枚举列直接内嵌映射
+- **全量加载模式**：FinalInspectionKanban 全量加载后客户端分页/排序/筛选（`_allItems` 缓存 + `BuildFilterOptionsFromData` 内存驱动筛选上下文）
+- **ExcelFilter 系统**：WorkOrderSchedules/SectionProductionStatus/FinalInspectionKanban 使用，GetFilterContextsAsync 返回字典 + 前端 _columnFilters + PageState 持久化。特殊值 `__NOT_NULL__` / `__EXCEL_FILTER_NULL__`
+- **EnumOptions 硬编码**：WorkOrderSchedules/FinalInspectionKanban 对小型稳定枚举列直接内嵌映射
 - **服务端筛选扩展**：`.ApplyFilters()` 和 `.ApplySort()` 泛型反射扩展方法，filters JSON 序列化为 `List<FilterDescriptor>`
+
+## Quality 模块 — 质量检验
+
+### 整体架构
+- **13 个 Blazor 页面**：ChemicalCompositions / ChemicalCompositionCreate / ChemicalValidationRules / ChemicalValidationRuleCreate / FurnaceRegistrations / FurnaceRegistrationCreate / FinalInspections / FinalInspectionCreate / ProcessInspections / ProcessInspectionCreate / MaterialChecks / MaterialCheckCreate / QualityProcessTracking
+- **实体**（`MES.Data.Entities`）：ChemicalComposition（牌号化学成分）、ChemicalValidationRule（牌号验证）、FurnaceRegistration（来料炉号登记）、FinalInspection（成品检验）、ProcessInspection（过程检验）、MaterialReceiveCheck（成检到料）、InspectionRecord（点检记录，跨 Equipment/Quality）
+- **Service**（`MES.Services.Quality`）：ChemicalCompositionService / ChemicalValidationRuleService / FurnaceRegistrationService / FinalInspectionService / ProcessInspectionService / QualityProcessTrackingService
+- **Controller**（`MES.Api.Controllers.Quality`）：7 个，路由 `api/化学-composition`、`api/final-inspection` 等。均 `[Authorize]` + Roles.Staffs.Quality / Roles.Directors.Quality / Roles.Admin
+- **ApiEndpoints 常量**：ChemicalComposition / ChemicalValidationRule / FinalInspection / FurnaceRegistration / ProcessInspection / QualityProcessTracking
+- **标准的服务端分页列表页**：ChemicalCompositions / ChemicalValidationRules / FurnaceRegistrations / FinalInspections / ProcessInspections — 均实现 GetFilterContextsAsync + GetPagedAsync + B22 分页行数持久化 + ComputePageSums B33 汇总
+- **创建页**：每个列表对应一个独立创建页（`/xxx/create`），URL 路径区分
+- **只读追踪页**：QualityProcessTracking（仅有 GetPagedAsync + GetFilterContextsAsync，无写操作），聚合 MaterialReceiveCheck + FinalInspection + Warehouse 数据
+
+### MaterialChecks（检验到料）
+- 检验到料管理页，ApiEndpoint 由 `MES.Blazor.Services.ProductionRecordService` 提供。数据源 `MaterialReceiveCheck` 实体。Service 方法在 `MES.Services.Batch.ProductionRecordService` 中（非 Quality Service 目录）。
+- **DTO**：`MaterialReceiveCheckDto`、`UpdateMaterialReceiveCheckRequest`（ReceiveDate/Shift/Checker/Remark/IsForceCompleted）、`PendingMaterialCheckDto`
+- **列定义**：17 列（ReceiveDate/BatchNo/ManufacturingItem/PlantGrade/Specification/TagNo/WorkOrderNo/SalesOrderNo/FurnaceNo/SourceUnit/ProductionType/ProductionCutQuantity/DataSource/Shift/Checker/IsForceCompleted/Remark/CreatedTime/UpdatedTime）。列分组 G1-G4。`IsApplicable` 属性控制条件显示。
+- **内联编辑**：ReceiveDate（MudTextField yyyy-MM-dd）/Shift/Checker/Remark 四字段，双击行启动编辑（`_editingIds` 跟踪），EditCache 备份旧值用于取消恢复。`SaveEdit` 调用 `UpdateMaterialReceiveCheckAsync` 保存。
+- **IsForceCompleted MudSwitch 内联编辑** — 直接 RenderCell 中 MudSwitch，`CheckedChanged` 回调中调用 `UpdateMaterialReceiveCheckAsync` 仅传 `IsForceCompleted` 参数。**ReceiveDate 防覆盖**：Service 层 `if (request.ReceiveDate != default)` 判断跳过默认值赋值，防止切换强制完成时到料日期被重置为 `0001-01-01`。
+- **DataSource 枚举显示** — RenderCell 中 `switch` 映射 "SCAN"→"扫码"、"MANUAL"→"手动"。列 FilterType="enum"，EnumOptions 关联中文显示。
+- **筛选上下文**：`GetMaterialCheckFilterContextsAsync` 返回字典（含 ReceiveDate 格式化为 `yyyy-MM-dd`）。前端 `BuildFilterContextOptions` 中枚举列通过 `col.EnumOptions!.ToDictionary(e => e.Value, e => e.Display)` 映射中文显示；布尔列自动补充 True/False 选项；后端未返回的枚举列自动从 EnumOptions 补充。
+- **待检验到料卡片**：页面顶部显示待检验批次概览，通过 `GetPendingMaterialChecksAsync()` 获取 `PendingMaterialCheckDto` 列表。`_showPending` 控制展开/折叠。
+- **B22 分页行数持久化**：`_pageSize = state.PageSize` 在 LoadDataFromServer 首行。
+- **箭头导航**：`enableTableArrowNav` JS 函数支持键盘上下键导航。
+
+### 关键枚举
+- **InspectionItem** — PMIInspection / VisualInspection / Dimension / Endoscopy / HydrostaticPressure / UnderwaterPneumatic / EddyCurrent / Ultrasonic / PortColoring
+- **DataSource** — SCAN / MANUAL（跨 FinalInspection / ProcessInspection / MaterialReceiveCheck）
+- **ManufacturingItem** — OrderFinishedProduct / PreparedMaterial / SurplusStock / IntermediateProduct / SpecialDeliveryStatus
+- **ProductionType** — RoughTube / InProcess / Inventory / OutsourcedPurchased / Rework / Subcontract / ExternalProcessing

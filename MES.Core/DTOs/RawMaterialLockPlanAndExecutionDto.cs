@@ -95,9 +95,11 @@ public class RawMaterialLockPlanAndExecutionDto
     public int? DaysDiffFromDelivery { get; set; }
     public string? RawMaterialLockRemark { get; set; }
 
-    // ========== G13: 销售催单（从 SalesUrging JOIN） ==========
-    public bool SalesUrging { get; set; }
-    public string? UrgingRemark { get; set; }
+    // ========== G13: 工单需求调整（从 OrderDemandAdjustment JOIN） ==========
+    public bool IsUrging { get; set; }
+    public bool IsBatchDelivery { get; set; }
+    public bool IsPaused { get; set; }
+    public string? AdjustmentRemark { get; set; }
 
     // ========== G15: 预执行（页面操作标记）==========
     /// <summary>执行：近几日会投料</summary>
@@ -119,9 +121,9 @@ public class RawMaterialLockPlanAndExecutionDto
     public string DelayPenaltyText => DelayPenalty ? "是" : "否";
     public string ScheduleStageText => ScheduleStage switch
     {
-        0 => "无需排产", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => "未知"
+        0 => "工单完成", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => "未知"
     };
-    public string SalesUrgingText => SalesUrging ? "是" : "否";
+    public string UrgingText => IsUrging ? "是" : "否";
     public string IsPreInputText => IsPreInput ? "是" : "否";
     public string BudgetInputDateText => BudgetInputDate?.ToString("yyyy-MM-dd") ?? "-";
     public string ExecutionErrorText => ExecutionError ? "是" : "否";

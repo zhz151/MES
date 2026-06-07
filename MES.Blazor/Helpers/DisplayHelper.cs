@@ -37,6 +37,16 @@ public static class DisplayHelper
     public static string FormatNullableInt(int? value) => value?.ToString() ?? "";
 
     /// <summary>
+    /// 列表页整型化：将可空 decimal 强制显示为整数（§10.7 支数/米数/重量/批次数）
+    /// </summary>
+    public static string FormatDecimalAsInt(decimal value) => ((int)value).ToString();
+
+    /// <summary>
+    /// 列表页整型化：将可空 decimal? 强制显示为整数
+    /// </summary>
+    public static string FormatNullableDecimalAsInt(decimal? value) => value.HasValue ? ((int)value.Value).ToString() : "";
+
+    /// <summary>
     /// 格式化可空日期值
     /// </summary>
     public static string FormatNullableDate(DateTime? value) => value?.ToString("yyyy-MM-dd") ?? "";

@@ -37,52 +37,142 @@ public partial class QualityProcessTracking
 
     // ========== 列定义 ==========
 
-    private static List<ColumnDef> GetAllColumnDefs() => new()
+    private static List<ColumnDef> GetAllColumnDefs()
     {
         // G1: 批次信息
-        new() { Key = "BatchNo",           Label = "批次号",      SortKey = "batchno",       FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
-        new() { Key = "ManufacturingItem",  Label = "制造物品",    SortKey = "manufacturingitem", FilterType = "string",  Width = "120", GroupKey = 1 },
-        new() { Key = "PlantGrade",         Label = "钢种",        SortKey = "plantgrade",     FilterType = "string",  Width = "120", GroupKey = 1 },
-        new() { Key = "Specification",      Label = "规格",        SortKey = "specification",  FilterType = "string",  Width = "120", GroupKey = 1 },
-        new() { Key = "ReceiveDate",        Label = "到料日期",    SortKey = "receivedate",    FilterType = "date",    Width = "120", GroupKey = 1 },
-        new() { Key = "Shift",              Label = "班次",        SortKey = "shift",          FilterType = "string",  Width = "120", GroupKey = 1 },
-        new() { Key = "Checker",            Label = "确认人",      SortKey = "checker",        FilterType = "string",  Width = "120", GroupKey = 1 },
-        new() { Key = "TagNo",              Label = "挂牌号",      SortKey = "tagno",          FilterType = "string",  Width = "120", GroupKey = 1, Visible = false },
-        new() { Key = "WorkOrderNo",        Label = "工单号",      SortKey = "workorderno",    FilterType = "string",  Width = "120", GroupKey = 1, Visible = false },
-        new() { Key = "SalesOrderNo",       Label = "订单号",      SortKey = "salesorderno",   FilterType = "string",  Width = "120", GroupKey = 1, Visible = false },
-        new() { Key = "FurnaceNo",          Label = "炉号",        SortKey = "furnaceno",      FilterType = "string",  Width = "120", GroupKey = 1, Visible = false },
-        new() { Key = "SourceUnit",         Label = "来料单位",    SortKey = "sourceunit",     FilterType = "string",  Width = "120", GroupKey = 1, Visible = false },
-        new() { Key = "ProductionType",     Label = "生产类型",    SortKey = "productiontype", FilterType = "string",  Width = "120", GroupKey = 1, Visible = false },
+        var g1 = new List<ColumnDef>
+        {
+            new() { Key = "BatchNo",              Label = "生产编号",       SortKey = "batchno",              FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "ManufacturingItem",     Label = "制造物品",       SortKey = "manufacturingitem",    FilterType = "enum",    Width = "120", GroupKey = 1, GroupName = "批次信息",
+                EnumOptions = new() { new("OrderFinishedProduct","订单成品"), new("PreparedMaterial","备料成品"), new("SurplusStock","余库料"), new("IntermediateProduct","中间品"), new("SpecialDeliveryStatus","特定交态成品") } },
+            new() { Key = "PlantGrade",            Label = "工厂牌号",       SortKey = "plantgrade",            FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "Specification",         Label = "规格",           SortKey = "specification",         FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "LengthStatus",          Label = "长度状态",       SortKey = "lengthstatus",          FilterType = "enum",    Width = "100", GroupKey = 1, GroupName = "批次信息",
+                EnumOptions = new() { new("Fixed","定尺"), new("Range","范围尺"), new("NonFixed","非定尺") } },
+            new() { Key = "TagNo",                 Label = "挂牌号",         SortKey = "tagno",                 FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
+            new() { Key = "WorkOrderNo",           Label = "工单号",         SortKey = "workorderno",           FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
+            new() { Key = "SalesOrderNo",          Label = "订单号",         SortKey = "salesorderno",          FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
+            new() { Key = "FurnaceNo",             Label = "炉号",           SortKey = "furnaceno",             FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
+            new() { Key = "SourceUnit",            Label = "来料单位",       SortKey = "sourceunit",            FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
+            new() { Key = "ProductionType",        Label = "生产类型",       SortKey = "productiontype",        FilterType = "enum",    Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false,
+                EnumOptions = new() { new("RoughTube","荒管生产"), new("InProcess","在制生产"), new("Inventory","库存"), new("OutsourcedPurchased","外购"), new("Rework","返整"), new("Subcontract","委外生产"), new("ExternalProcessing","对外加工") } },
+            new() { Key = "Salesman",              Label = "业务员",         SortKey = "salesman",              FilterType = "string",  Width = "100", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "DeliveryState",         Label = "交货状态",       SortKey = "deliverystate",         FilterType = "enum",    Width = "120", GroupKey = 1, GroupName = "批次信息",
+                EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态") } },
+            new() { Key = "ProductionWeight",      Label = "生产重量(kg)",  SortKey = "productionweight",      FilterType = "number",  Width = "80",  GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "ProductionCutQuantity", Label = "生产支数",       SortKey = "productioncutquantity", FilterType = "number",  Width = "80",  GroupKey = 1, GroupName = "批次信息" },
+        };
 
-        // G2: 检验日期
-        new() { Key = "PmiDate",                    Label = "PMI检验",       SortKey = "pmidate",                FilterType = "date",   Width = "120", GroupKey = 2, GroupName = "检验日期" },
-        new() { Key = "VisualDate",                 Label = "表检",          SortKey = "visualdate",             FilterType = "date",   Width = "120", GroupKey = 2 },
-        new() { Key = "DimensionDate",              Label = "尺寸",          SortKey = "dimensiondate",          FilterType = "date",   Width = "120", GroupKey = 2 },
-        new() { Key = "EndoscopyDate",              Label = "内窥",          SortKey = "endoscopydate",          FilterType = "date",   Width = "120", GroupKey = 2 },
-        new() { Key = "HydroDate",                  Label = "水压",          SortKey = "hydrodate",              FilterType = "date",   Width = "120", GroupKey = 2 },
-        new() { Key = "UnderwaterPneumaticDate",    Label = "水下气压",      SortKey = "underwaterpneumaticdate",FilterType = "date",   Width = "120", GroupKey = 2 },
-        new() { Key = "EddyCurrentDate",             Label = "涡流",          SortKey = "eddycurrentdate",         FilterType = "date",   Width = "120", GroupKey = 2 },
-        new() { Key = "UltrasonicDate",              Label = "超声波",        SortKey = "ultrasonicdate",          FilterType = "date",   Width = "120", GroupKey = 2 },
-        new() { Key = "PortColoringDate",            Label = "端口着色",      SortKey = "portcoloringdate",        FilterType = "date",   Width = "120", GroupKey = 2 },
-        new() { Key = "InspectionCount",             Label = "检测项数",      SortKey = "inspectioncount",         FilterType = "number", Width = "80", GroupKey = 2 },
+        // G2: 检验来料
+        var g2 = new List<ColumnDef>
+        {
+            new() { Key = "ReceiveDate",           Label = "到料日期",       SortKey = "receivedate",           FilterType = "date",    Width = "120", GroupKey = 2, GroupName = "检验来料" },
+            new() { Key = "Shift",                 Label = "班次",           SortKey = "shift",                 FilterType = "string",  Width = "120", GroupKey = 2, GroupName = "检验来料" },
+            new() { Key = "Checker",               Label = "确认人",         SortKey = "checker",               FilterType = "string",  Width = "120", GroupKey = 2, GroupName = "检验来料" },
+            new() { Key = "IsForceCompleted",      Label = "强制完成",       SortKey = "isforcecompleted",      FilterType = "boolean", Width = "100", GroupKey = 2, GroupName = "检验来料", BoolTrueLabel = "是", BoolFalseLabel = "否" },
+        };
 
-        // G3: 检验汇总
-        new() { Key = "TotalQuantity",              Label = "检验支数",      SortKey = "totalquantity",           FilterType = "number", Width = "80", GroupKey = 3, GroupName = "检验汇总" },
-        new() { Key = "QualifiedQuantity",           Label = "合格支数",      SortKey = "qualifiedquantity",       FilterType = "number", Width = "80", GroupKey = 3 },
-        new() { Key = "DefectReworkQuantity",        Label = "返整支数",      SortKey = "defectreworkquantity",    FilterType = "number", Width = "80", GroupKey = 3 },
-        new() { Key = "DefectWarehouseQuantity",     Label = "不合格入库",    SortKey = "defectwarehousequantity", FilterType = "number", Width = "80", GroupKey = 3 },
-        new() { Key = "DefectScrapQuantity",         Label = "报废支数",      SortKey = "defectscrapquantity",     FilterType = "number", Width = "80", GroupKey = 3 },
-        new() { Key = "ProductionCutQuantity",       Label = "生产支数",      SortKey = "productioncutquantity",   FilterType = "number", Width = "80", GroupKey = 3 },
+        // G3: 各项检验的日期
+        var g3 = new List<ColumnDef>
+        {
+            new() { Key = "InspectionCount",              Label = "检测项数",      SortKey = "inspectioncount",         FilterType = "number", Width = "80",  GroupKey = 3, GroupName = "各项检验的日期" },
+            new() { Key = "PmiDate",                      Label = "PMI检验",       SortKey = "pmidate",                 FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期" },
+            new() { Key = "VisualDate",                   Label = "表检",          SortKey = "visualdate",              FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期" },
+            new() { Key = "DimensionDate",                Label = "尺寸",          SortKey = "dimensiondate",           FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期" },
+            new() { Key = "EndoscopyDate",                Label = "内窥",          SortKey = "endoscopydate",           FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期" },
+            new() { Key = "HydroDate",                    Label = "水压",          SortKey = "hydrodate",               FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期" },
+            new() { Key = "UnderwaterPneumaticDate",      Label = "水下气压",      SortKey = "underwaterpneumaticdate", FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期" },
+            new() { Key = "EddyCurrentDate",               Label = "涡流",          SortKey = "eddycurrentdate",         FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期" },
+            new() { Key = "UltrasonicDate",                Label = "超声波",        SortKey = "ultrasonicdate",          FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期" },
+            new() { Key = "PortColoringDate",              Label = "端口着色",      SortKey = "portcoloringdate",        FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期" },
+        };
 
-        // G4: 成品入库
-        new() { Key = "InboundQuantity",     Label = "入库支数",    SortKey = "inboundquantity",   FilterType = "number", Width = "80", GroupKey = 4, GroupName = "成品入库" },
-        new() { Key = "InboundWeight",       Label = "入库重量",    SortKey = "inboundweight",     FilterType = "number", Width = "80", GroupKey = 4 },
-        new() { Key = "InboundDate",         Label = "入库日期",    SortKey = "inbounddate",       FilterType = "date",   Width = "120", GroupKey = 4 },
+        // G4: 检验的数量信息
+        var g4 = new List<ColumnDef>
+        {
+            new() { Key = "TotalQuantity",              Label = "检验支数",       SortKey = "totalquantity",           FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
+            new() { Key = "QualifiedQuantity",           Label = "合格支数",       SortKey = "qualifiedquantity",       FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
+            new() { Key = "DefectReworkQuantity",        Label = "返整支数",       SortKey = "defectreworkquantity",    FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
+            new() { Key = "DefectWarehouseQuantity",     Label = "不合格入库",     SortKey = "defectwarehousequantity", FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
+            new() { Key = "DefectScrapQuantity",         Label = "报废支数",       SortKey = "defectscrapquantity",     FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
+        };
 
-        // G5: 执行状态
-        new() { Key = "QualityStatus", Label = "执行状态", SortKey = "qualitystatus", FilterType = "string", Width = "120", GroupKey = 5, GroupName = "执行状态",
-            EnumOptions = new() { new(){ Value = "待检验", Display = "待检验" }, new(){ Value = "检验中", Display = "检验中" }, new(){ Value = "完成检验", Display = "完成检验" } } },
+        // G5: 入库的信息
+        var g5 = new List<ColumnDef>
+        {
+            new() { Key = "InboundDate",         Label = "入库日期",    SortKey = "inbounddate",       FilterType = "date",   Width = "120", GroupKey = 5, GroupName = "入库的信息" },
+            new() { Key = "InboundQuantity",     Label = "入库支数",    SortKey = "inboundquantity",   FilterType = "number", Width = "80",  GroupKey = 5, GroupName = "入库的信息" },
+            new() { Key = "InboundWeight",       Label = "入库重量",    SortKey = "inboundweight",     FilterType = "number", Width = "80",  GroupKey = 5, GroupName = "入库的信息" },
+        };
+
+        // G6: 执行状态
+        var g6 = new List<ColumnDef>
+        {
+            new() { Key = "QualityStatus", Label = "执行状态", SortKey = "qualitystatus", FilterType = "enum", Width = "120", GroupKey = 6, GroupName = "执行状态",
+                EnumOptions = new() { new(){ Value = "待检验", Display = "待检验" }, new(){ Value = "检验中", Display = "检验中" }, new(){ Value = "完成检验", Display = "完成检验" }, new(){ Value = "异常完成", Display = "异常完成" } } },
+        };
+
+        var all = new List<ColumnDef>();
+        all.AddRange(g1);
+        all.AddRange(g2);
+        all.AddRange(g3);
+        all.AddRange(g4);
+        all.AddRange(g5);
+        all.AddRange(g6);
+        return all;
+    }
+
+    // ========== B33: 分页汇总 ==========
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        "InspectionCount", "TotalQuantity", "QualifiedQuantity",
+        "DefectReworkQuantity", "DefectWarehouseQuantity", "DefectScrapQuantity",
+        "ProductionCutQuantity", "ProductionWeight",
+        "InboundQuantity", "InboundWeight"
     };
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+
+        var props = typeof(QualityProcessTrackingDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+
+        foreach (var col in _visibleColumns.Where(c => _summableColumnKeys.Contains(c.Key)))
+        {
+            if (!props.TryGetValue(col.Key, out var prop)) continue;
+            var type = prop.PropertyType;
+            try
+            {
+                if (type == typeof(int))
+                {
+                    var sum = _pageItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal) || type == typeof(decimal?))
+                {
+                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    _pageSums[col.Key] = ((int)sum).ToString();
+                }
+                else if (type == typeof(int?))
+                {
+                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    _pageSums[col.Key] = sum.ToString();
+                }
+            }
+            catch { }
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        if (_pageSums.TryGetValue(col.Key, out var sum))
+            return sum;
+        return "-";
+    }
 
     // ========== 服务端数据加载 ==========
 
@@ -119,9 +209,11 @@ public partial class QualityProcessTracking
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
                 _currentPage = state.Page + 1;
+                ComputePageSums();
             }
             else
             {
+                Snackbar.Add(result.Message ?? "数据加载失败", Severity.Warning);
                 _pageItems = new();
                 _totalCount = 0;
             }
@@ -246,6 +338,62 @@ public partial class QualityProcessTracking
         if (table != null) await table.ReloadServerData();
     }
 
+    // ========== 分组标题栏 ==========
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+        int? lastKey = null;
+        int totalWidth = 0;
+        var groupKey = 0;
+        var groupName = "";
+        var count = 0;
+
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo
+                {
+                    GroupKey = groupKey,
+                    GroupName = groupName,
+                    TotalWidth = totalWidth,
+                    ColumnCount = count,
+                    CssClass = GetHeaderGroupCss(groupKey, true)
+                });
+                totalWidth = 0;
+                count = 0;
+            }
+            groupKey = gk;
+            groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++;
+            lastKey = gk;
+        }
+        if (count > 0)
+        {
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        }
+        return result;
+    }
+
     // ========== 初始化 ==========
 
     protected override async Task OnInitializedAsync()
@@ -281,6 +429,9 @@ public partial class QualityProcessTracking
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        // 分组标题栏对齐
+        await JS.InvokeAsync<object>("initGroupHeaders", new object[] { "#quality-process-tracking-list-table" });
+
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
@@ -291,30 +442,28 @@ public partial class QualityProcessTracking
 
     // ========== 列分组样式 ==========
 
-    private static string GetHeaderGroupCss(int groupKey, bool isGroupStart)
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
     {
-        return groupKey switch
+        var cls = groupKey switch
         {
-            1 => "col-g1",
-            2 => "col-g2",
-            3 => "col-g3",
-            4 => "col-g4",
-            5 => "col-g5",
+            1 => "col-g1", 2 => "col-g2", 3 => "col-g3",
+            4 => "col-g4", 5 => "col-g5", 6 => "col-g6",
             _ => ""
         };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
     }
 
-    private static string GetCellGroupCss(int groupKey, bool isGroupStart)
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
     {
-        return groupKey switch
+        var cls = groupKey switch
         {
-            1 => "col-g1-cell",
-            2 => "col-g2-cell",
-            3 => "col-g3-cell",
-            4 => "col-g4-cell",
-            5 => "col-g5-cell",
+            1 => "col-g1-cell", 2 => "col-g2-cell", 3 => "col-g3-cell",
+            4 => "col-g4-cell", 5 => "col-g5-cell", 6 => "col-g6-cell",
             _ => ""
         };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
     }
 
     // ========== 单元格渲染 ==========
@@ -333,7 +482,7 @@ public partial class QualityProcessTracking
                 break;
 
             case "ManufacturingItem":
-                builder.AddContent(0, item.ManufacturingItem);
+                builder.AddContent(0, DisplayHelper.GetManufacturingItemText(item.ManufacturingItem));
                 break;
 
             case "PlantGrade":
@@ -373,7 +522,23 @@ public partial class QualityProcessTracking
                 break;
 
             case "ProductionType":
-                builder.AddContent(0, item.ProductionType);
+                builder.AddContent(0, DisplayHelper.GetProductionTypeText(item.ProductionType));
+                break;
+
+            case "Salesman":
+                builder.AddContent(0, item.Salesman);
+                break;
+
+            case "DeliveryState":
+                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
+                break;
+
+            case "LengthStatus":
+                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                break;
+
+            case "ProductionWeight":
+                builder.AddContent(0, item.ProductionWeight.HasValue ? ((int)item.ProductionWeight.Value).ToString() : "-");
                 break;
 
             case "ProductionCutQuantity":
@@ -382,6 +547,15 @@ public partial class QualityProcessTracking
 
             case "ReceiveDate":
                 builder.AddContent(0, item.ReceiveDate.ToString("yyyy-MM-dd"));
+                break;
+
+            // === G2: 检验来料 ===
+            case "IsForceCompleted":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", item.IsForceCompleted ? Color.Error : Color.Default);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.IsForceCompleted ? "是" : "否")));
+                builder.CloseComponent();
                 break;
 
             // === G2: 日期字段 ===
@@ -394,7 +568,6 @@ public partial class QualityProcessTracking
             case "EddyCurrentDate":
             case "UltrasonicDate":
             case "PortColoringDate":
-            case "InboundDate":
             case "MaxInspectionDate":
                 {
                     var val = typeof(QualityProcessTrackingDto).GetProperty(col.Key)?.GetValue(item) as DateTime?;
@@ -427,16 +600,18 @@ public partial class QualityProcessTracking
             // === G5: 执行状态 ===
             case "QualityStatus":
                 {
-                    var color = item.QualityStatus switch
-                    {
-                        "完成检验" => Color.Success,
-                        "检验中" => Color.Warning,
-                        _ => Color.Default
-                    };
+                    var displayText = item.IsForceCompleted ? "异常完成" : item.QualityStatus;
+                    var color = item.IsForceCompleted ? Color.Error :
+                        item.QualityStatus switch
+                        {
+                            "完成检验" => Color.Success,
+                            "检验中" => Color.Warning,
+                            _ => Color.Default
+                        };
                     builder.OpenComponent<MudChip>(0);
                     builder.AddAttribute(1, "Size", Size.Small);
                     builder.AddAttribute(2, "Color", color);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.QualityStatus)));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, displayText)));
                     builder.CloseComponent();
                 }
                 break;

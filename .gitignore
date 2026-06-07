@@ -59,6 +59,8 @@ appsettings.Production.json
 *.pubxml.user
 publish/
 PublishProfiles/
+temp_build/
+temp_buildwwwroot/
 
 # ===================
 # IDE / Editor

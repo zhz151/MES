@@ -55,28 +55,44 @@
 
             <!-- 数据表格 -->
             <div id="workorder-execution-list-table">
+            @{
+                var _groupHeaders = GetGroupHeaders();
+                var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100);
+            }
+            @* 工具栏：列显隐 + 记录数（置于组字段上方） *@
+            <div class="woe-toolbar">
+                <ColumnDisplaySelect Columns="_allColumns"
+                                     OnColumnToggle="OnColumnToggle"
+                                     OnMoveUp="MoveColumnUp"
+                                     OnMoveDown="MoveColumnDown" />
+                <MudText Typo="Typo.body2" Class="ml-4">
+                    共 @_totalCount 条记录
+                    @if (lastRefreshTime.HasValue)
+                    {
+                        <span class="ml-4">最后更新：@lastRefreshTime.Value.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                    }
+                </MudText>
+            </div>
+            @* 分组标题栏（flex bar，JS 测量宽度后精确定位） *@
+            <div class="col-group-header-scroll" id="woe-group-header-scroll">
+                <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                    @foreach (var gh in _groupHeaders)
+                    {
+                        <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                            <span class="col-group-badge">@gh.GroupName</span>
+                        </div>
+                    }
+                </div>
+            </div>
             <MudTable @ref="table"
                       T="WorkOrderExecutionSummaryDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"
                       Hover="true"
-                      Class="mt-4 auto-table compact-table"
+                      Class="mt-0 auto-table compact-table"
                       Elevation="0"
                       RowsPerPage="@_pageSize"
                       RowsPerPageLabel="每页行数:">
-                <ToolBarContent>
-                    <ColumnDisplaySelect Columns="_allColumns"
-                                         OnColumnToggle="OnColumnToggle"
-                                         OnMoveUp="MoveColumnUp"
-                                         OnMoveDown="MoveColumnDown" />
-                    <MudText Typo="Typo.body2">
-                        共 @_totalCount 条记录
-                        @if (lastRefreshTime.HasValue)
-                        {
-                            <span class="ml-4">最后更新：@lastRefreshTime.Value.ToString("yyyy-MM-dd HH:mm:ss")</span>
-                        }
-                    </MudText>
-                </ToolBarContent>
                 <HeaderContent>
                     @{
                         int? _prevGk = null;
@@ -88,10 +104,6 @@
                         var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
                         <MudTh Class="@_headerClass" Style="@($"width: {col.Width}px")">
                             <div class="col-header-cell">
-                                @if (_isGroupStart && col.GroupName != null)
-                                {
-                                    <span class="col-group-badge">@col.GroupName</span>
-                                }
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
                                 @if (col.FilterType != null)
                                 {

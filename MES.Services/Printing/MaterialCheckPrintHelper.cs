@@ -30,6 +30,8 @@ public static class MaterialCheckPrintHelper
                 ["Shift"] = m.Shift ?? "",
                 ["Checker"] = m.Checker ?? "",
                 ["ProductionCutQuantity"] = m.ProductionCutQuantity.ToString(),
+                ["ProductionWeight"] = m.ProductionWeight?.ToString("G29") ?? "",
+                ["LengthStatus"] = m.LengthStatus ?? "",
                 ["IsForceCompleted"] = m.IsForceCompleted ? "是" : "否",
                 ["Remark"] = m.Remark ?? "",
                 ["CreatedTime"] = m.CreatedTime.ToString("yyyy-MM-dd HH:mm"),
@@ -38,6 +40,6 @@ public static class MaterialCheckPrintHelper
             return dict;
         }).ToList();
 
-        return TablePrintHelper.GeneratePdf("检验到料列表", items, columns);
+        return TablePrintHelper.GeneratePdf("成检到料列表", items, columns);
     }
 }

@@ -26,12 +26,12 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
         // G1-G12: WorkOrderExecutionSummary（仅 ScheduleStage=1）
         var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking()
             .Where(e => e.ScheduleStage == 1);
-        // G13: SalesUrging
-        var urgingQuery = _context.Set<SalesUrging>().AsNoTracking();
+        // G13: OrderDemandAdjustment
+        var urgingQuery = _context.Set<OrderDemandAdjustment>().AsNoTracking();
         // G15: RawMaterialLockPreExecution
         var preExecQuery = _context.Set<RawMaterialLockPreExecution>().AsNoTracking();
 
-        // LEFT JOIN SalesUrging + RawMaterialLockPreExecution
+        // LEFT JOIN OrderDemandAdjustment + RawMaterialLockPreExecution
         var q = from e in summaryQuery
                 join u in urgingQuery on e.WorkOrderId equals u.WorkOrderId into uj
                 from u in uj.DefaultIfEmpty()
@@ -123,9 +123,11 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                     DaysDiffFromDelivery = e.DaysDiffFromDelivery,
                     RawMaterialLockRemark = e.RawMaterialLockRemark,
 
-                    // G13: 实时 LEFT JOIN SalesUrging
-                    SalesUrging = u != null && u.IsSalesUrging,
-                    UrgingRemark = u != null ? u.UrgingRemark : null,
+                    // G13: 实时 LEFT JOIN OrderDemandAdjustment
+                    IsUrging = u != null && u.IsUrging,
+                    IsBatchDelivery = u != null && u.IsBatchDelivery,
+                    IsPaused = u != null && u.IsPaused,
+                    AdjustmentRemark = u != null ? u.AdjustmentRemark : null,
 
                     // G15: 实时 LEFT JOIN RawMaterialLockPreExecution
                     IsPreInput = p != null && p.IsPreInput,
@@ -156,7 +158,7 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                 x.LengthStatus.Contains(kw) ||
                 (x.UrgencyLevel != null && x.UrgencyLevel.Contains(kw)) ||
                 (x.RawMaterialLockRemark != null && x.RawMaterialLockRemark.Contains(kw)) ||
-                (x.UrgingRemark != null && x.UrgingRemark.Contains(kw)));
+                (x.AdjustmentRemark != null && x.AdjustmentRemark.Contains(kw)));
         }
 
         // 筛选
@@ -166,6 +168,11 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
         q = ApplySorting(q, query.SortBy, query.IsDescending);
 
         var totalCount = await q.CountAsync();
+
+        // 汇总: 待检验到料批次（IsPreInput=true）
+        var preInputCount = await q.CountAsync(x => x.IsPreInput);
+        var preInputWeight = await q.Where(x => x.IsPreInput).SumAsync(x => x.TotalWeight);
+
         var items = await q
             .Skip((query.PageIndex - 1) * query.PageSize)
             .Take(query.PageSize)
@@ -176,7 +183,12 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
             Items = items,
             TotalCount = totalCount,
             PageIndex = query.PageIndex,
-            PageSize = query.PageSize
+            PageSize = query.PageSize,
+            Extras = new Dictionary<string, object>
+            {
+                ["preInputCount"] = preInputCount,
+                ["preInputWeight"] = preInputWeight
+            }
         };
     }
 
@@ -383,13 +395,13 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
             })
             .ToListAsync();
 
-        // UrgingRemark 来自 SalesUrging 独立表
+        // AdjustmentRemark 来自 OrderDemandAdjustment 独立表
         var workOrderIds = all.Select(x => x.WorkOrderId).Distinct().ToHashSet();
-        var urgingRemarks = workOrderIds.Count > 0
-            ? await _context.Set<SalesUrging>()
+        var adjustmentRemarks = workOrderIds.Count > 0
+            ? await _context.Set<OrderDemandAdjustment>()
                 .Where(u => workOrderIds.Contains(u.WorkOrderId))
-                .Where(u => u.UrgingRemark != null)
-                .Select(u => u.UrgingRemark!)
+                .Where(u => u.AdjustmentRemark != null)
+                .Select(u => u.AdjustmentRemark!)
                 .Distinct()
                 .OrderBy(x => x)
                 .ToListAsync()
@@ -407,7 +419,7 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
             ["Specification"] = all.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
             ["UrgencyLevel"] = all.Where(x => x.UrgencyLevel != null).Select(x => x.UrgencyLevel!).Distinct().OrderBy(x => x).ToList(),
             ["RawMaterialLockRemark"] = all.Where(x => x.RawMaterialLockRemark != null).Select(x => x.RawMaterialLockRemark!).Distinct().OrderBy(x => x).ToList(),
-            ["UrgingRemark"] = urgingRemarks,
+            ["AdjustmentRemark"] = adjustmentRemarks,
         };
     }
 

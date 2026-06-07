@@ -129,7 +129,7 @@ public class ProductionRecordService
         catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    // ========== 检验到料 ==========
+    // ========== 成检到料 ==========
 
     public async Task<ApiResponse<MaterialReceiveCheckDto>> GetMaterialReceiveCheckAsync(int batchId)
     {
@@ -415,5 +415,17 @@ public class ProductionRecordService
             return response ?? ApiResponse<string>.Fail("打印失败");
         }
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    // ========== 待成检到料查询 ==========
+
+    public async Task<ApiResponse<List<PendingMaterialCheckDto>>> GetPendingMaterialChecksAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<PendingMaterialCheckDto>>>($"{BaseUrl}/material-check/pending")
+                   ?? ApiResponse<List<PendingMaterialCheckDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<PendingMaterialCheckDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 }

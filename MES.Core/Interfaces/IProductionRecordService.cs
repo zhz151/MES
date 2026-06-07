@@ -170,6 +170,13 @@ public interface IProductionRecordService
     /// </summary>
     Task<List<OutsourceRecoveryDto>> BatchCreateOutsourceRecoveriesAsync(List<CreateOutsourceRecoveryRequest> requests);
 
+    // ========== 待检验到料查询 ==========
+
+    /// <summary>
+    /// 获取待检验到料批次（成品检验阶段且未创建检验到料记录）
+    /// </summary>
+    Task<List<PendingMaterialCheckDto>> GetPendingMaterialChecksAsync();
+
     // ========== 筛选上下文 ==========
 
     /// <summary>

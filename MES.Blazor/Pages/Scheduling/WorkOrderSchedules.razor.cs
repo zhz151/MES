@@ -20,8 +20,6 @@ public partial class WorkOrderSchedules
     private int _currentPageIndex = 1;
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
-    private bool _isPlanning;
-    private bool _isUpdating;
     private string _searchKeyword = string.Empty;
 
     // 排序状态
@@ -43,6 +41,10 @@ public partial class WorkOrderSchedules
     {
         "TotalItemCount", "TotalQuantity", "TotalMeters", "TotalWeight",
         "FlowTotalBatchCount", "FlowIncompleteBatchCount",
+        "PendingSectionRoughTube", "PendingSectionWarehouseFix",
+        "PendingSection60Roll", "PendingSection50Roll",
+        "PendingSection30Roll", "PendingSection20Roll",
+        "PendingSectionThreeRoll", "PendingSectionDrawBench",
     };
 
     private static List<ColumnDef> GetAllColumnDefs()
@@ -86,7 +88,7 @@ public partial class WorkOrderSchedules
         // G12: 实时关注
         var g12 = new List<ColumnDef>
         {
-            new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = new() { new("0","无需排产"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = new() { new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "TotalRemainingWorkDays",  Label = "剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "CapacityWorkDays",        Label = "产能工量(天)", SortKey = "CapacityWorkDays",        Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "UrgencyLevel",            Label = "工单计划性",    SortKey = "UrgencyLevel",            FilterType = "string", Width = "120", GroupKey = 12, GroupName = "实时关注" },
@@ -95,11 +97,28 @@ public partial class WorkOrderSchedules
             new() { Key = "RawMaterialLockRemark",   Label = "原锁备注",     SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",     GroupKey = 12, GroupName = "实时关注" },
         };
 
-        // G13: 销售催单
+        // G13: 工单需求调整
         var g13 = new List<ColumnDef>
         {
-            new() { Key = "SalesUrging",             Label = "销售催单",      SortKey = "SalesUrging",             FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "销售催单" },
-            new() { Key = "UrgingRemark",            Label = "催单备注",      SortKey = "UrgingRemark",            FilterType = "string", Width = "200", GroupKey = 13, GroupName = "销售催单" },
+            new() { Key = "IsUrging",      Label = "催单",  SortKey = "IsUrging",      FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "IsBatchDelivery",          Label = "分批交货",      SortKey = "IsBatchDelivery",          FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "IsPaused",                  Label = "工单暂停",      SortKey = "IsPaused",                  FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "AdjustmentRemark",         Label = "需求调整备注",  SortKey = "AdjustmentRemark",         FilterType = "string", Width = "200", GroupKey = 13, GroupName = "工单需求调整" },
+        };
+
+        // G14: 在产节点待量
+        var g14 = new List<ColumnDef>
+        {
+            new() { Key = "PendingSectionRoughTube",       Label = "荒管处理待量",  SortKey = "PendingSectionRoughTube",       Width = "80",  GroupKey = 14, GroupName = "在产待量" },
+            new() { Key = "PendingSectionWarehouseFix",    Label = "在制修检待量",  SortKey = "PendingSectionWarehouseFix",    Width = "80",  GroupKey = 14, GroupName = "在产待量" },
+            new() { Key = "PendingSection60Roll",          Label = "60冷轧待量",    SortKey = "PendingSection60Roll",          Width = "80",  GroupKey = 14, GroupName = "在产待量" },
+            new() { Key = "PendingSection50Roll",          Label = "50冷轧待量",    SortKey = "PendingSection50Roll",          Width = "80",  GroupKey = 14, GroupName = "在产待量" },
+            new() { Key = "PendingSection30Roll",          Label = "30冷轧待量",    SortKey = "PendingSection30Roll",          Width = "80",  GroupKey = 14, GroupName = "在产待量" },
+            new() { Key = "PendingSection20Roll",          Label = "20冷轧待量",    SortKey = "PendingSection20Roll",          Width = "80",  GroupKey = 14, GroupName = "在产待量" },
+            new() { Key = "PendingSectionThreeRoll",       Label = "三辊冷轧待量",  SortKey = "PendingSectionThreeRoll",       Width = "80",  GroupKey = 14, GroupName = "在产待量" },
+            new() { Key = "PendingSectionDrawBench",       Label = "冷拔待量",      SortKey = "PendingSectionDrawBench",       Width = "80",  GroupKey = 14, GroupName = "在产待量" },
+            new() { Key = "DeformedProcessCompleted",      Label = "变形完成",      SortKey = "DeformedProcessCompleted",      FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 14, GroupName = "在产待量" },
+            new() { Key = "ProductionAttentionProcess",    Label = "生产关注工序",  SortKey = "ProductionAttentionProcess",    FilterType = "string", Width = "120", GroupKey = 14, GroupName = "在产待量" },
         };
 
         var all = new List<ColumnDef>();
@@ -107,6 +126,7 @@ public partial class WorkOrderSchedules
         all.AddRange(g7);
         all.AddRange(g12);
         all.AddRange(g13);
+        all.AddRange(g14);
         return all;
     }
 
@@ -353,60 +373,6 @@ public partial class WorkOrderSchedules
         if (table != null) await table.ReloadServerData();
     }
 
-    // ========== 操作按钮 ==========
-
-    private async Task PlanArrangement()
-    {
-        _isPlanning = true;
-        try
-        {
-            var result = await WorkOrderScheduleSvc.PlanArrangementAsync();
-            if (result.Success)
-            {
-                Snackbar.Add($"计划安排完成，共{result.Data}条", Severity.Success);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "计划安排失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"计划安排失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _isPlanning = false;
-        }
-        if (table != null) await table.ReloadServerData();
-    }
-
-    private async Task ExecuteDataUpdate()
-    {
-        _isUpdating = true;
-        try
-        {
-            var result = await WorkOrderScheduleSvc.ExecuteDataUpdateAsync();
-            if (result.Success)
-            {
-                Snackbar.Add($"执行数据更新完成，共更新{result.Data}条", Severity.Success);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "执行数据更新失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"执行数据更新失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _isUpdating = false;
-        }
-        if (table != null) await table.ReloadServerData();
-    }
-
     // ========== 分组 CSS ==========
 
     private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
@@ -417,6 +383,7 @@ public partial class WorkOrderSchedules
             7 => "col-g7",
             12 => "col-g12",
             13 => "col-g13",
+            14 => "col-g14",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start";
@@ -431,10 +398,67 @@ public partial class WorkOrderSchedules
             7 => "col-g7-cell",
             12 => "col-g12-cell",
             13 => "col-g13-cell",
+            14 => "col-g14-cell",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
         return cls;
+    }
+
+    // ========== 分组标题栏 ==========
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+        int? lastKey = null;
+        int totalWidth = 0;
+        var groupKey = 0;
+        var groupName = "";
+        var count = 0;
+
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo
+                {
+                    GroupKey = groupKey,
+                    GroupName = groupName,
+                    TotalWidth = totalWidth,
+                    ColumnCount = count,
+                    CssClass = GetHeaderGroupCss(groupKey, true)
+                });
+                totalWidth = 0;
+                count = 0;
+            }
+            groupKey = gk;
+            groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++;
+            lastKey = gk;
+        }
+        if (count > 0)
+        {
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        }
+        return result;
     }
 
     // ========== 初始化 ==========
@@ -484,6 +508,14 @@ public partial class WorkOrderSchedules
             await table.ReloadServerData();
 
         await LoadFilterContextsAsync();
+    }
+
+    // ========== 分组标题栏同步 ==========
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // 分组标题栏：测量实际列宽 + 同步滚动
+        await JS.InvokeVoidAsync("initGroupHeaders", "#workorder-schedule-list-table");
     }
 
     // ========== 单元格渲染 ==========
@@ -609,11 +641,49 @@ public partial class WorkOrderSchedules
                 break;
 
             // G13
-            case "SalesUrging":
-                builder.AddContent(0, item.SalesUrgingText);
+            case "IsUrging":
+                builder.AddContent(0, item.UrgingText);
                 break;
-            case "UrgingRemark":
-                builder.AddContent(0, item.UrgingRemark ?? "-");
+            case "IsBatchDelivery":
+                builder.AddContent(0, item.IsBatchDelivery ? "是" : "否");
+                break;
+            case "IsPaused":
+                builder.AddContent(0, item.IsPaused ? "是" : "否");
+                break;
+            case "AdjustmentRemark":
+                builder.AddContent(0, item.AdjustmentRemark ?? "-");
+                break;
+
+            // G14: 在产节点待量
+            case "PendingSectionRoughTube":
+                builder.AddContent(0, item.PendingSectionRoughTube.HasValue ? ((int)item.PendingSectionRoughTube.Value).ToString() : "-");
+                break;
+            case "PendingSectionWarehouseFix":
+                builder.AddContent(0, item.PendingSectionWarehouseFix.HasValue ? ((int)item.PendingSectionWarehouseFix.Value).ToString() : "-");
+                break;
+            case "PendingSection60Roll":
+                builder.AddContent(0, item.PendingSection60Roll.HasValue ? ((int)item.PendingSection60Roll.Value).ToString() : "-");
+                break;
+            case "PendingSection50Roll":
+                builder.AddContent(0, item.PendingSection50Roll.HasValue ? ((int)item.PendingSection50Roll.Value).ToString() : "-");
+                break;
+            case "PendingSection30Roll":
+                builder.AddContent(0, item.PendingSection30Roll.HasValue ? ((int)item.PendingSection30Roll.Value).ToString() : "-");
+                break;
+            case "PendingSection20Roll":
+                builder.AddContent(0, item.PendingSection20Roll.HasValue ? ((int)item.PendingSection20Roll.Value).ToString() : "-");
+                break;
+            case "PendingSectionThreeRoll":
+                builder.AddContent(0, item.PendingSectionThreeRoll.HasValue ? ((int)item.PendingSectionThreeRoll.Value).ToString() : "-");
+                break;
+            case "PendingSectionDrawBench":
+                builder.AddContent(0, item.PendingSectionDrawBench.HasValue ? ((int)item.PendingSectionDrawBench.Value).ToString() : "-");
+                break;
+            case "DeformedProcessCompleted":
+                builder.AddContent(0, item.DeformedProcessCompleted ? "是" : "否");
+                break;
+            case "ProductionAttentionProcess":
+                builder.AddContent(0, item.ProductionAttentionProcess ?? "收尾-成检");
                 break;
         }
     };

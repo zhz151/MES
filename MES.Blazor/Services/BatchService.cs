@@ -41,7 +41,7 @@ public class BatchService
             var response = await _http.GetFromJsonAsync<ApiResponse<List<ProductionBatchListDto>>>($"{BaseUrl}/all-list");
             return response?.Data ?? new List<ProductionBatchListDto>();
         }
-        catch (Exception ex)
+        catch
         {
             return new List<ProductionBatchListDto>();
         }

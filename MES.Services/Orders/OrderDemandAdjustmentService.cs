@@ -8,30 +8,32 @@ using MES.Data.Entities.Scheduling;
 
 using MES.Services.Helpers;
 
-namespace MES.Services.Scheduling;
+namespace MES.Services.Orders;
 
 /// <summary>
-/// 销售催单服务
+/// 订单需求调整服务
 /// </summary>
-public class SalesUrgingService : ISalesUrgingService
+public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
 {
     private readonly AppDbContext _context;
+    private readonly IWorkOrderExecutionService _workOrderExecutionService;
 
-    public SalesUrgingService(AppDbContext context)
+    public OrderDemandAdjustmentService(AppDbContext context, IWorkOrderExecutionService workOrderExecutionService)
     {
         _context = context;
+        _workOrderExecutionService = workOrderExecutionService;
     }
 
-    public async Task<PagedResult<SalesUrgingDto>> GetPagedAsync(QueryParams query)
+    public async Task<PagedResult<OrderDemandAdjustmentDto>> GetPagedAsync(QueryParams query)
     {
         var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
-        var urgingQuery = _context.Set<SalesUrging>().AsNoTracking();
+        var urgingQuery = _context.Set<OrderDemandAdjustment>().AsNoTracking();
 
-        // LEFT JOIN: WorkOrderExecutionSummary LEFT JOIN SalesUrging
+        // LEFT JOIN: WorkOrderExecutionSummary LEFT JOIN OrderDemandAdjustment
         var q = from e in summaryQuery
                 join u in urgingQuery on e.WorkOrderId equals u.WorkOrderId into uj
                 from u in uj.DefaultIfEmpty()
-                select new SalesUrgingDto
+                select new OrderDemandAdjustmentDto
                 {
                     Id = e.Id,
                     WorkOrderId = e.WorkOrderId,
@@ -63,8 +65,10 @@ public class SalesUrgingService : ISalesUrgingService
                     EstimatedProcessCompletionDate = e.EstimatedProcessCompletionDate,
                     DaysDiffFromDelivery = e.DaysDiffFromDelivery,
                     RawMaterialLockRemark = e.RawMaterialLockRemark,
-                    IsSalesUrging = u != null && u.IsSalesUrging,
-                    UrgingRemark = u != null ? u.UrgingRemark : null,
+                    IsUrging = u != null && u.IsUrging,
+                    IsBatchDelivery = u != null && u.IsBatchDelivery,
+                    IsPaused = u != null && u.IsPaused,
+                    AdjustmentRemark = u != null ? u.AdjustmentRemark : null,
                 };
 
         // 关键词搜索
@@ -86,11 +90,8 @@ public class SalesUrgingService : ISalesUrgingService
                 x.LengthStatus.Contains(kw) ||
                 (x.UrgencyLevel != null && x.UrgencyLevel.Contains(kw)) ||
                 (x.RawMaterialLockRemark != null && x.RawMaterialLockRemark.Contains(kw)) ||
-                (x.UrgingRemark != null && x.UrgingRemark.Contains(kw)));
+                (x.AdjustmentRemark != null && x.AdjustmentRemark.Contains(kw)));
         }
-
-        // 排除无需排产的数据
-        q = q.Where(x => x.ScheduleStage != 0);
 
         // 筛选
         q = q.ApplyFilters(query.Filters);
@@ -104,7 +105,7 @@ public class SalesUrgingService : ISalesUrgingService
             .Take(query.PageSize)
             .ToListAsync();
 
-        return new PagedResult<SalesUrgingDto>
+        return new PagedResult<OrderDemandAdjustmentDto>
         {
             Items = items,
             TotalCount = totalCount,
@@ -113,35 +114,42 @@ public class SalesUrgingService : ISalesUrgingService
         };
     }
 
-    public async Task<bool> SaveUrgingAsync(int workOrderId, bool isSalesUrging, string? urgingRemark)
+    public async Task<bool> SaveUrgingAsync(int workOrderId, bool isUrging, bool isBatchDelivery, bool isPaused, string? adjustmentRemark)
     {
-        var existing = await _context.Set<SalesUrging>()
+        var existing = await _context.Set<OrderDemandAdjustment>()
             .FirstOrDefaultAsync(u => u.WorkOrderId == workOrderId);
 
         if (existing != null)
         {
-            existing.IsSalesUrging = isSalesUrging;
-            existing.UrgingRemark = urgingRemark;
+            existing.IsUrging = isUrging;
+            existing.IsBatchDelivery = isBatchDelivery;
+            existing.IsPaused = isPaused;
+            existing.AdjustmentRemark = adjustmentRemark;
             _context.Entry(existing).State = EntityState.Modified;
         }
         else
         {
-            _context.Set<SalesUrging>().Add(new SalesUrging
+            _context.Set<OrderDemandAdjustment>().Add(new OrderDemandAdjustment
             {
                 WorkOrderId = workOrderId,
-                IsSalesUrging = isSalesUrging,
-                UrgingRemark = urgingRemark,
+                IsUrging = isUrging,
+                IsBatchDelivery = isBatchDelivery,
+                IsPaused = isPaused,
+                AdjustmentRemark = adjustmentRemark,
             });
         }
 
         await _context.SaveChangesAsync();
+
+        // 实时同步读模型：IsPaused 变化需立即反映到 WorkOrderExecutionSummary.UrgencyLevel（E停）
+        await _workOrderExecutionService.RefreshAllAsync();
+
         return true;
     }
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        var query = _context.Set<WorkOrderExecutionSummary>().AsNoTracking()
-            .Where(e => e.ScheduleStage != 0);
+        var query = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
 
         var all = await query
             .Select(s => new
@@ -160,13 +168,13 @@ public class SalesUrgingService : ISalesUrgingService
             })
             .ToListAsync();
 
-        // UrgingRemark 来自 SalesUrging 表（LEFT JOIN）
+        // AdjustmentRemark 来自 OrderDemandAdjustment 表（LEFT JOIN）
         var workOrderIds = all.Select(x => x.WorkOrderId).Distinct().ToHashSet();
-        var urgingRemarks = workOrderIds.Count > 0
-            ? await _context.Set<SalesUrging>()
+        var adjustmentRemarks = workOrderIds.Count > 0
+            ? await _context.Set<OrderDemandAdjustment>()
                 .Where(u => workOrderIds.Contains(u.WorkOrderId))
-                .Where(u => u.UrgingRemark != null)
-                .Select(u => u.UrgingRemark!)
+                .Where(u => u.AdjustmentRemark != null)
+                .Select(u => u.AdjustmentRemark!)
                 .Distinct()
                 .OrderBy(x => x)
                 .ToListAsync()
@@ -184,12 +192,12 @@ public class SalesUrgingService : ISalesUrgingService
             ["Specification"] = all.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
             ["UrgencyLevel"] = all.Where(x => x.UrgencyLevel != null).Select(x => x.UrgencyLevel!).Distinct().OrderBy(x => x).ToList(),
             ["RawMaterialLockRemark"] = all.Where(x => x.RawMaterialLockRemark != null).Select(x => x.RawMaterialLockRemark!).Distinct().OrderBy(x => x).ToList(),
-            ["UrgingRemark"] = urgingRemarks,
+            ["AdjustmentRemark"] = adjustmentRemarks,
         };
     }
 
-    private static IQueryable<SalesUrgingDto> ApplySorting(
-        IQueryable<SalesUrgingDto> query, string? sortBy, bool isDescending)
+    private static IQueryable<OrderDemandAdjustmentDto> ApplySorting(
+        IQueryable<OrderDemandAdjustmentDto> query, string? sortBy, bool isDescending)
     {
         return string.IsNullOrWhiteSpace(sortBy)
             ? query.OrderByDescending(x => x.ScheduleStage)

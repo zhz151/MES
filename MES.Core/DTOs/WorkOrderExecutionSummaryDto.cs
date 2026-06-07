@@ -200,6 +200,18 @@ public class WorkOrderExecutionSummaryDto
     // ========== G12 关注状态文本 ==========
     public string ScheduleStageText => ScheduleStage switch
     {
-        0 => "无需排产", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => "未知"
+        0 => "工单完成", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => "未知"
     };
+
+    // ========== Group 14: 在产节点待量 ==========
+    public decimal? PendingSectionRoughTube { get; set; }
+    public decimal? PendingSectionWarehouseFix { get; set; }
+    public decimal? PendingSection60Roll { get; set; }
+    public decimal? PendingSection50Roll { get; set; }
+    public decimal? PendingSection30Roll { get; set; }
+    public decimal? PendingSection20Roll { get; set; }
+    public decimal? PendingSectionThreeRoll { get; set; }
+    public decimal? PendingSectionDrawBench { get; set; }
+    public bool DeformedProcessCompleted { get; set; }
+    public string? ProductionAttentionProcess { get; set; }
 }

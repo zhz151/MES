@@ -271,10 +271,17 @@ public class BatchController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<CreateProcessGroupRequest>>>> GetProcessGroupsByBatchNo(string batchNo)
     {
-        var result = await _service.GetProcessGroupsByBatchNoAsync(batchNo);
-        if (result.Count == 0)
-            return NotFound(ApiResponse<List<CreateProcessGroupRequest>>.Fail($"批次号 {batchNo} 不存在或没有工序组"));
-        return Ok(ApiResponse<List<CreateProcessGroupRequest>>.Ok(result, "查询成功"));
+        try
+        {
+            var result = await _service.GetProcessGroupsByBatchNoAsync(batchNo);
+            if (result.Count == 0)
+                return NotFound(ApiResponse<List<CreateProcessGroupRequest>>.Fail($"批次号 {batchNo} 不存在或没有工序组"));
+            return Ok(ApiResponse<List<CreateProcessGroupRequest>>.Ok(result, "查询成功"));
+        }
+        catch (BusinessException ex)
+        {
+            return NotFound(ApiResponse<List<CreateProcessGroupRequest>>.Fail(ex.Message));
+        }
     }
 
     // ========== 批次操作日志 ==========

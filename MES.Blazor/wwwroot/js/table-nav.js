@@ -230,3 +230,75 @@ window.enableTableArrowNav = function (containerSelector) {
     console.log('[ArrowNav] Setup complete on:', containerSelector);
     return true;
 };
+
+// 初始化分组标题栏：测量 MudTable 实际列宽并同步滚动
+// 每次 OnAfterRenderAsync 均会调用，因此需防重复注册 scroll 监听
+window.initGroupHeaders = function (tableSelector) {
+    var wrapper = document.querySelector(tableSelector);
+    if (!wrapper) return false;
+
+    var headerScroll = wrapper.querySelector('.col-group-header-scroll');
+    var headerBar = headerScroll ? headerScroll.querySelector('.col-group-header-bar') : null;
+    if (!headerScroll || !headerBar) return false;
+
+    var groupItems = headerBar.querySelectorAll('.col-group-header-item');
+    if (groupItems.length === 0) return false;
+
+    // 防重复注册 scroll 监听（仅首次调用注册一次）
+    if (!wrapper.dataset.woeScrollInited) {
+        wrapper.dataset.woeScrollInited = 'true';
+        var tableContainer = wrapper.querySelector('.mud-table-container');
+        if (tableContainer) {
+            tableContainer.addEventListener('scroll', function () {
+                headerScroll.scrollLeft = tableContainer.scrollLeft;
+            });
+        }
+    }
+
+    // requestAnimationFrame 确保布局已就绪再测量
+    requestAnimationFrame(function () {
+        var tableContainer = wrapper.querySelector('.mud-table-container');
+        if (!tableContainer) return;
+
+        var thead = tableContainer.querySelector('thead');
+        if (!thead) return;
+        var headerRow = thead.querySelector('tr');
+        if (!headerRow) return;
+        var thCells = headerRow.querySelectorAll('th');
+        if (thCells.length === 0) return;
+
+        function getGroupKey(className) {
+            var match = className.match(/\bcol-g(\d+)\b/);
+            return match ? parseInt(match[1]) : 0;
+        }
+
+        // 按分组测量宽度
+        var itemIndex = 0;
+        var barTotalWidth = 0;
+        var groupItemWidth = 0;
+        var currentGk = null;
+
+        thCells.forEach(function (th) {
+            var gk = getGroupKey(th.className);
+            if (gk !== currentGk && currentGk !== null) {
+                if (itemIndex < groupItems.length) {
+                    groupItems[itemIndex].style.width = groupItemWidth + 'px';
+                    barTotalWidth += groupItemWidth;
+                    itemIndex++;
+                }
+                groupItemWidth = 0;
+            }
+            currentGk = gk;
+            groupItemWidth += th.offsetWidth;
+        });
+        // 最后一个分组
+        if (itemIndex < groupItems.length) {
+            groupItems[itemIndex].style.width = groupItemWidth + 'px';
+            barTotalWidth += groupItemWidth;
+        }
+
+        headerBar.style.width = barTotalWidth + 'px';
+    });
+
+    return true;
+};

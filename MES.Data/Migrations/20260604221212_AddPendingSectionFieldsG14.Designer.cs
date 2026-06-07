@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MES.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260604041505_RemoveUnusedFieldsFromSalesUrging")]
-    partial class RemoveUnusedFieldsFromSalesUrging
+    [Migration("20260604221212_AddPendingSectionFieldsG14")]
+    partial class AddPendingSectionFieldsG14
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -5326,6 +5326,9 @@ namespace MES.Data.Migrations
                         .HasColumnType("decimal(18,3)")
                         .HasDefaultValue(0m);
 
+                    b.Property<bool>("DeformedProcessCompleted")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("DelayPenalty")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -5525,6 +5528,30 @@ namespace MES.Data.Migrations
                         .HasColumnType("decimal(18,3)")
                         .HasDefaultValue(0m);
 
+                    b.Property<decimal?>("PendingSection20Roll")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("PendingSection30Roll")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("PendingSection50Roll")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("PendingSection60Roll")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("PendingSectionDrawBench")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("PendingSectionRoughTube")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("PendingSectionThreeRoll")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("PendingSectionWarehouseFix")
+                        .HasColumnType("decimal(18,3)");
+
                     b.Property<string>("PlantGrade")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -5534,6 +5561,10 @@ namespace MES.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
+
+                    b.Property<string>("ProductionAttentionProcess")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("ProductionMainNo")
                         .IsRequired()

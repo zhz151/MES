@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using MES.Core.Constants;
 using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.Scheduling;
 using MES.Services.Helpers;
 using WoEntity = MES.Data.Entities.WorkOrder;
 
@@ -198,6 +200,18 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 ValidInputWeight = e.ValidInputWeight,
                 ValidOutputQty = e.ValidOutputQty,
                 ValidOutputWeight = e.ValidOutputWeight,
+
+                // Group 14
+                PendingSectionRoughTube = e.PendingSectionRoughTube,
+                PendingSectionWarehouseFix = e.PendingSectionWarehouseFix,
+                PendingSection60Roll = e.PendingSection60Roll,
+                PendingSection50Roll = e.PendingSection50Roll,
+                PendingSection30Roll = e.PendingSection30Roll,
+                PendingSection20Roll = e.PendingSection20Roll,
+                PendingSectionThreeRoll = e.PendingSectionThreeRoll,
+                PendingSectionDrawBench = e.PendingSectionDrawBench,
+                DeformedProcessCompleted = e.DeformedProcessCompleted,
+                ProductionAttentionProcess = e.ProductionAttentionProcess,
             })
             .ToListAsync();
 
@@ -470,7 +484,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         foreach (var summary in summaries)
         {
             if (summary.WoWarehousingStatus == 2)
-                summary.ScheduleStage = 0;          // 无需排产
+                summary.ScheduleStage = 0;          // 工单完成
             else if (summary.MainNoFlowStatus != 2)
                 summary.ScheduleStage = 1;          // 原料锁定
             else if (summary.FlowIncompleteBatchCount > 0)
@@ -478,6 +492,15 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             else
                 summary.ScheduleStage = 3;          // 成品检验
         }
+
+        // ========== G12: 加载暂停工单数据 ==========
+        var pausedIdList = await _context.Set<OrderDemandAdjustment>()
+            .AsNoTracking()
+            .Where(u => workOrderIds.Contains(u.WorkOrderId) && u.IsPaused)
+            .Select(u => u.WorkOrderId)
+            .ToListAsync();
+
+        var pausedIds = pausedIdList.ToHashSet();
 
         // ========== G12: 计算剩余总工量 & 工单计划性 ==========
         var mainNoAgg = summaries
@@ -583,6 +606,10 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 : diff > urgencyB ? "B顺"
                 : diff > urgencyC ? "C缓"
                 : "D缓";
+
+            // 暂停工单 → UrgencyLevel 覆盖为"E停"
+            if (pausedIds.Contains(summary.WorkOrderId))
+                summary.UrgencyLevel = "E停";
 
             // 预计完成日 & 交期相差天数
             summary.EstimatedProcessCompletionDate = DateTime.Today.AddDays(totalDays);
@@ -907,6 +934,156 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
         summary.ScrapWeight = scrapWeight;
         summary.ScrapRatio = scrapRatio;
+
+        // ========== Group 14: 在产节点待量 ==========
+        // 8个固定节点定义：(工序组名称, 工段名称)
+        var nodeDefs = new (string ProcessName, string SectionName)[]
+        {
+            ("荒管处理", SectionDefs.OuterPolish),
+            ("在制修检", SectionDefs.Inspection),
+            ("60冷轧", SectionDefs.ColdRollDraw),
+            ("50冷轧", SectionDefs.ColdRollDraw),
+            ("30冷轧", SectionDefs.ColdRollDraw),
+            ("20冷轧", SectionDefs.ColdRollDraw),
+            ("三辊冷轧", SectionDefs.ColdRollDraw),
+            ("冷拔", SectionDefs.ColdRollDraw),
+        };
+
+        // 使用所有非作废批次（含正常 + 返整）
+        var group14Batches = batches.Where(b => b.Status != BatchStatus.Cancelled).ToList();
+
+        // 预置 pending 字段容器
+        var pendingValues = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (pn, _) in nodeDefs)
+            pendingValues[pn] = 0m;
+
+        foreach (var batch in group14Batches)
+        {
+            if (batch.ProcessGroups == null || batch.ProcessGroups.Count == 0)
+                continue;
+
+            // 已完成的批次视为到达所有节点
+            if (batch.Status == BatchStatus.Completed)
+                continue;
+
+            // 构建本批次 ProcessName → SequenceNumber 映射
+            var pgMap = batch.ProcessGroups
+                .Where(pg => !string.IsNullOrEmpty(pg.ProcessName))
+                .ToDictionary(pg => pg.ProcessName, pg => pg.SequenceNumber, StringComparer.OrdinalIgnoreCase);
+
+            // 获取批次当前工序的 SequenceNumber（未投产 = 0）
+            int batchCurrentSeq = 0;
+            if (!string.IsNullOrEmpty(batch.CurrentGroupName))
+            {
+                var currentSeqOpt = batch.ProcessGroups
+                    .Where(pg => pg.ProcessName.Equals(batch.CurrentGroupName, StringComparison.OrdinalIgnoreCase))
+                    .Select(pg => pg.SequenceNumber)
+                    .Cast<int?>()
+                    .FirstOrDefault();
+                batchCurrentSeq = currentSeqOpt ?? 0;
+            }
+
+            var batchWeight = batch.CurrentValidWeight ?? 0m;
+
+            foreach (var (pn, sn) in nodeDefs)
+            {
+                // 该批次无此工序组 → 节点不适用
+                if (!pgMap.TryGetValue(pn, out var targetSeq))
+                    continue;
+
+                if (batchCurrentSeq < targetSeq)
+                {
+                    // 批次未到达此工序组 → 检查该工序组是否确实包含目标工段
+                    // 仅当该工序组定义了目标工段时才计入待量
+                    var targetPg = batch.ProcessGroups
+                        .FirstOrDefault(pg => pg.ProcessName.Equals(pn, StringComparison.OrdinalIgnoreCase));
+                    if (targetPg == null) continue;
+
+                    var targetSectionSeq = GetSectionSequence(targetPg, sn);
+                    if (targetSectionSeq == null) continue; // 该工序组不含此工段
+
+                    pendingValues[pn] += batchWeight;
+                }
+                else if (batchCurrentSeq == targetSeq)
+                {
+                    // === 1. 工段级到达检查：荒管处理·外抛光、在制修检·检验 ===
+                    // 批次已到达此工序组但尚未到达指定工段时，仍需计入待量
+                    if (pn is "荒管处理" or "在制修检")
+                    {
+                        var targetPg = batch.ProcessGroups
+                            .FirstOrDefault(pg => pg.ProcessName.Equals(pn, StringComparison.OrdinalIgnoreCase));
+                        if (targetPg == null) continue;
+
+                        // 获取目标工段在该工序组中的执行序号（如 OuterPolish=5）
+                        var targetSectionSeq = GetSectionSequence(targetPg, sn);
+                        if (targetSectionSeq == null) continue; // 该工序组不含此工段
+
+                        // 批次无当前工段 → 在工序组内但未开始任何工段 → 计入待量
+                        if (string.IsNullOrEmpty(batch.CurrentSectionName))
+                        {
+                            pendingValues[pn] += batchWeight;
+                            continue;
+                        }
+
+                        // 批次当前不在该工序组 → 已越过（例如已到后续工序）→ 不计
+                        if (batch.CurrentGroupName == null ||
+                            !batch.CurrentGroupName.Equals(pn, StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        // 均在同一工序组内，比较工段执行序号
+                        var currentSectionSeq = GetSectionSequence(targetPg, batch.CurrentSectionName);
+                        if (currentSectionSeq == null || currentSectionSeq.Value < targetSectionSeq.Value)
+                        {
+                            // 当前工段序号 < 目标工段序号 → 尚未到达目标工段 → 计入待量
+                            pendingValues[pn] += batchWeight;
+                        }
+                        continue;
+                    }
+
+                    // === 2. 冷拔 — 瞬时工序，无"生产中"概念 ===
+                    if (pn == "冷拔") continue;
+
+                    // === 3. 冷轧系列 — 检查批次是否正在做指定工段且未完成 ===
+                    var isAtSection = batch.CurrentGroupName != null
+                        && batch.CurrentGroupName.Equals(pn, StringComparison.OrdinalIgnoreCase)
+                        && batch.CurrentSectionName == sn;
+
+                    if (isAtSection && batch.CurrentSectionCompleted != true)
+                        pendingValues[pn] += batchWeight;
+                }
+            }
+        }
+
+        // 将 pendingValues 赋值到 summary 字段
+        summary.PendingSectionRoughTube = pendingValues["荒管处理"] > 0 ? pendingValues["荒管处理"] : null;
+        summary.PendingSectionWarehouseFix = pendingValues["在制修检"] > 0 ? pendingValues["在制修检"] : null;
+        summary.PendingSection60Roll = pendingValues["60冷轧"] > 0 ? pendingValues["60冷轧"] : null;
+        summary.PendingSection50Roll = pendingValues["50冷轧"] > 0 ? pendingValues["50冷轧"] : null;
+        summary.PendingSection30Roll = pendingValues["30冷轧"] > 0 ? pendingValues["30冷轧"] : null;
+        summary.PendingSection20Roll = pendingValues["20冷轧"] > 0 ? pendingValues["20冷轧"] : null;
+        summary.PendingSectionThreeRoll = pendingValues["三辊冷轧"] > 0 ? pendingValues["三辊冷轧"] : null;
+        summary.PendingSectionDrawBench = pendingValues["冷拔"] > 0 ? pendingValues["冷拔"] : null;
+
+        // DeformedProcessCompleted: 后6项（全部冷轧/冷拔）之和=0 → true
+        var rollingSum = pendingValues["60冷轧"] + pendingValues["50冷轧"] + pendingValues["30冷轧"]
+            + pendingValues["20冷轧"] + pendingValues["三辊冷轧"] + pendingValues["冷拔"];
+        summary.DeformedProcessCompleted = rollingSum == 0m;
+
+        // ProductionAttentionProcess: 前8项中值>0 且 SequenceNumber 最小的工序名称
+        // 取第一个有 ProcessGroup 的批次作为 SequenceNumber 参照
+        var refPgMap = group14Batches
+            .Where(b => b.ProcessGroups != null && b.ProcessGroups.Count > 0)
+            .SelectMany(b => b.ProcessGroups)
+            .Where(pg => !string.IsNullOrEmpty(pg.ProcessName))
+            .GroupBy(pg => pg.ProcessName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Min(pg => pg.SequenceNumber), StringComparer.OrdinalIgnoreCase);
+
+        var attentionProcess = nodeDefs
+            .Where(n => pendingValues[n.ProcessName] > 0 && refPgMap.ContainsKey(n.ProcessName))
+            .OrderBy(n => refPgMap[n.ProcessName])
+            .Select(n => n.ProcessName)
+            .FirstOrDefault();
+        summary.ProductionAttentionProcess = attentionProcess;
 
         return summary;
     }
@@ -1300,6 +1477,18 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         target.DaysDiffFromDelivery = source.DaysDiffFromDelivery;
         target.RawMaterialLockRemark = source.RawMaterialLockRemark;
 
+        // Group 14
+        target.PendingSectionRoughTube = source.PendingSectionRoughTube;
+        target.PendingSectionWarehouseFix = source.PendingSectionWarehouseFix;
+        target.PendingSection60Roll = source.PendingSection60Roll;
+        target.PendingSection50Roll = source.PendingSection50Roll;
+        target.PendingSection30Roll = source.PendingSection30Roll;
+        target.PendingSection20Roll = source.PendingSection20Roll;
+        target.PendingSectionThreeRoll = source.PendingSectionThreeRoll;
+        target.PendingSectionDrawBench = source.PendingSectionDrawBench;
+        target.DeformedProcessCompleted = source.DeformedProcessCompleted;
+        target.ProductionAttentionProcess = source.ProductionAttentionProcess;
+
         // 刷新时间
         target.LastRefreshTime = source.LastRefreshTime;
     }
@@ -1552,6 +1741,28 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             ("rawmateriallockremark", false) => query.OrderBy(x => x.RawMaterialLockRemark ?? ""),
             ("rawmateriallockremark", true) => query.OrderByDescending(x => x.RawMaterialLockRemark ?? ""),
 
+            // G14
+            ("pendingsectionroughtube", false) => query.OrderBy(x => x.PendingSectionRoughTube),
+            ("pendingsectionroughtube", true) => query.OrderByDescending(x => x.PendingSectionRoughTube),
+            ("pendingsectionwarehousefix", false) => query.OrderBy(x => x.PendingSectionWarehouseFix),
+            ("pendingsectionwarehousefix", true) => query.OrderByDescending(x => x.PendingSectionWarehouseFix),
+            ("pendingsection60roll", false) => query.OrderBy(x => x.PendingSection60Roll),
+            ("pendingsection60roll", true) => query.OrderByDescending(x => x.PendingSection60Roll),
+            ("pendingsection50roll", false) => query.OrderBy(x => x.PendingSection50Roll),
+            ("pendingsection50roll", true) => query.OrderByDescending(x => x.PendingSection50Roll),
+            ("pendingsection30roll", false) => query.OrderBy(x => x.PendingSection30Roll),
+            ("pendingsection30roll", true) => query.OrderByDescending(x => x.PendingSection30Roll),
+            ("pendingsection20roll", false) => query.OrderBy(x => x.PendingSection20Roll),
+            ("pendingsection20roll", true) => query.OrderByDescending(x => x.PendingSection20Roll),
+            ("pendingsectionthreeroll", false) => query.OrderBy(x => x.PendingSectionThreeRoll),
+            ("pendingsectionthreeroll", true) => query.OrderByDescending(x => x.PendingSectionThreeRoll),
+            ("pendingsectiondrawbench", false) => query.OrderBy(x => x.PendingSectionDrawBench),
+            ("pendingsectiondrawbench", true) => query.OrderByDescending(x => x.PendingSectionDrawBench),
+            ("deformedprocesscompleted", false) => query.OrderBy(x => x.DeformedProcessCompleted),
+            ("deformedprocesscompleted", true) => query.OrderByDescending(x => x.DeformedProcessCompleted),
+            ("productionattentionprocess", false) => query.OrderBy(x => x.ProductionAttentionProcess ?? ""),
+            ("productionattentionprocess", true) => query.OrderByDescending(x => x.ProductionAttentionProcess ?? ""),
+
             _ => query.OrderByDescending(x => x.LastRefreshTime),
         };
     }
@@ -1566,4 +1777,28 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             return od;
         return null;
     }
+
+    /// <summary>
+    /// 获取指定工段在工序组中的执行序号（用于工段级到达判断）
+    /// 对应 ProductionOverviewService.ProcessGroupInfo.GetSectionSequence
+    /// </summary>
+    private static int? GetSectionSequence(ProcessGroup pg, string sectionName) => sectionName switch
+    {
+        SectionDefs.ColdRollDraw => pg.ColdRollDraw,
+        SectionDefs.OilPipeCut => pg.OilPipeCut,
+        SectionDefs.Degrease => pg.Degrease,
+        SectionDefs.Solution => pg.Solution,
+        SectionDefs.Straighten => pg.Straighten,
+        SectionDefs.Cut => pg.Cut,
+        SectionDefs.ThicknessMeasure => pg.ThicknessMeasure,
+        SectionDefs.Pickle => pg.Pickle,
+        SectionDefs.OuterPolish => pg.OuterPolish,
+        SectionDefs.InnerGrinding => pg.InnerGrinding,
+        SectionDefs.OuterSpotGrinding => pg.OuterSpotGrinding,
+        SectionDefs.Inspection => pg.Inspection,
+        SectionDefs.WeldingHead => pg.WeldingHead,
+        SectionDefs.Lubrication => pg.Lubrication,
+        SectionDefs.Warehouse => pg.Warehouse,
+        _ => null
+    };
 }

@@ -38,32 +38,6 @@ public class WorkOrderScheduleService
         }
     }
 
-    public async Task<ApiResponse<int>> PlanArrangementAsync()
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<object?, ApiResponse<int>>($"{BaseUrl}/plan-arrangement", null);
-            return response ?? ApiResponse<int>.Fail("计划安排失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<int>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    public async Task<ApiResponse<int>> ExecuteDataUpdateAsync()
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<object?, ApiResponse<int>>($"{BaseUrl}/execute-data-update", null);
-            return response ?? ApiResponse<int>.Fail("执行数据更新失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<int>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
     public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
     {
         try

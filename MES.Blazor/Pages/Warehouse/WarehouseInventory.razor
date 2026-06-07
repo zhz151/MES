@@ -230,6 +230,13 @@ else
                             <MudTd>@RenderCell(item, col)</MudTd>
                         }
                     </RowTemplate>
+                    <FooterContent>
+                        <MudTd Class="col-footer-cell"></MudTd>
+                        @foreach (var col in _visibleColumns)
+                        {
+                            <MudTd Class="col-footer-cell"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
+                        }
+                    </FooterContent>
                     <PagerContent>
                         <MudText Typo="Typo.body2" Class="d-flex align-center mr-auto">共 @_totalCount 条记录</MudText>
                         <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />

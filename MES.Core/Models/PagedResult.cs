@@ -14,4 +14,9 @@ public class PagedResult<T>
 
     public bool HasPreviousPage => PageIndex > 1;
     public bool HasNextPage => PageIndex < TotalPages;
+
+    /// <summary>
+    /// 扩展数据字典，用于返回分页数据之外的附加信息（如 Tab 汇总等）
+    /// </summary>
+    public Dictionary<string, object>? Extras { get; set; }
 }

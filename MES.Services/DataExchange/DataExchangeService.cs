@@ -517,7 +517,7 @@ public class DataExchangeService : IDataExchangeService
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
         }),
 
-        ["MaterialReceiveCheck"] = new EntityDef("检验到料", "检验到料", typeof(MaterialReceiveCheck), 8, null,
+        ["MaterialReceiveCheck"] = new EntityDef("成检到料", "成检到料", typeof(MaterialReceiveCheck), 8, null,
             new List<ColumnDef>
         {
             new("批次号", "BatchNo") { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },

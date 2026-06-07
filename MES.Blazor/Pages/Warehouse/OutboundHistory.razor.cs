@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using MudBlazor;
@@ -40,6 +41,12 @@ public partial class OutboundHistory
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
+    // B33 分页汇总
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        "OutboundQuantity", "OutboundWeight"
+    };
     private string _lastResolvedWarehouseCode = string.Empty;
     private bool _allSelected;
     private bool allSelected
@@ -80,7 +87,7 @@ public partial class OutboundHistory
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "BatchNo",          Label = "批次号",   SortKey = "batchno", FilterType = "string" },
+        new() { Key = "BatchNo",          Label = "仓库批次", SortKey = "batchno", FilterType = "string" },
         new() { Key = "OutboundDate",     Label = "出库日期", SortKey = "outbounddate",     IsRequired = true },
         new() { Key = "OutboundType",     Label = "出库类型", SortKey = "outboundtype",     IsRequired = true, FilterType = "enum",
             EnumOptions = new() { new("SalesOut", "销售出库"), new("SubcontractOut", "委外出库"), new("ReturnOut", "退货出库"), new("ProductionPick", "生产领用"), new("InspectionPick", "检验领用"), new("TransferOut", "移库出库"), new("OtherOut", "其他出库") } },
@@ -166,11 +173,13 @@ public partial class OutboundHistory
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
                 _currentPage = state.Page + 1;
+                ComputePageSums();
             }
             else
             {
                 _pageItems = new();
                 _totalCount = 0;
+                _pageSums.Clear();
             }
         }
         catch (Exception ex)
@@ -361,7 +370,7 @@ public partial class OutboundHistory
                 builder.AddContent(0, item.OutboundQuantity);
                 break;
             case "OutboundWeight":
-                builder.AddContent(0, item.OutboundWeight.ToString("G29"));
+                builder.AddContent(0, ((int)item.OutboundWeight).ToString());
                 break;
             case "Remark":
                 builder.AddContent(0, item.Remark);
@@ -795,5 +804,31 @@ public partial class OutboundHistory
             Extras = extras
         };
         await PageState.SaveAsync("outboundhistory", state);
+    }
+
+    // ========== B33 分页汇总 ==========
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        var props = typeof(OutboundRecordDto).GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        foreach (var key in _summableColumnKeys)
+        {
+            var prop = props.FirstOrDefault(p => p.Name == key);
+            if (prop == null) continue;
+            decimal sum = 0;
+            foreach (var item in _pageItems)
+            {
+                var val = prop.GetValue(item);
+                if (val == null) continue;
+                sum += Convert.ToDecimal(val);
+            }
+            _pageSums[key] = ((int)sum).ToString();
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        return _pageSums.GetValueOrDefault(col.Key, "");
     }
 }

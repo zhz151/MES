@@ -35,6 +35,10 @@ public partial class RawMaterialLockPlanAndExecution
 
     private string _searchKeyword = string.Empty;
 
+    // 待成检到料批次卡片摘要
+    private int _preInputCount;
+    private decimal _preInputWeight;
+
     // 排序状态
     private string sortColumn = "ScheduleStage";
     private bool sortDescending = true;
@@ -272,6 +276,18 @@ public partial class RawMaterialLockPlanAndExecution
                 _totalCount = result.Data.TotalCount;
                 _currentPageIndex = state.Page + 1;
                 ComputePageSums();
+
+                if (result.Data.Extras != null)
+                {
+                    _preInputCount = GetExtraInt(result.Data.Extras, "preInputCount");
+                    _preInputWeight = GetExtraDecimal(result.Data.Extras, "preInputWeight");
+                }
+                else
+                {
+                    _preInputCount = 0;
+                    _preInputWeight = 0m;
+                }
+
                 await SavePageStateAsync();
             }
             else
@@ -496,6 +512,62 @@ public partial class RawMaterialLockPlanAndExecution
         return cls;
     }
 
+    // ========== 分组标题栏 ==========
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+        int? lastKey = null;
+        int totalWidth = 0;
+        var groupKey = 0;
+        var groupName = "";
+        var count = 0;
+
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo
+                {
+                    GroupKey = groupKey,
+                    GroupName = groupName,
+                    TotalWidth = totalWidth,
+                    ColumnCount = count,
+                    CssClass = GetHeaderGroupCss(groupKey, true)
+                });
+                totalWidth = 0;
+                count = 0;
+            }
+            groupKey = gk;
+            groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++;
+            lastKey = gk;
+        }
+        if (count > 0)
+        {
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        }
+        return result;
+    }
+
     // ========== 初始化 ==========
 
     protected override async Task OnInitializedAsync()
@@ -543,6 +615,13 @@ public partial class RawMaterialLockPlanAndExecution
             await table.ReloadServerData();
 
         await LoadFilterContextsAsync();
+    }
+
+    // ========== 分组标题栏同步 ==========
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await JS.InvokeVoidAsync("initGroupHeaders", "#raw-material-lock-plan-list-table");
     }
 
     // ========== 单元格渲染 ==========
@@ -790,12 +869,18 @@ public partial class RawMaterialLockPlanAndExecution
                 builder.AddContent(0, item.RawMaterialLockRemark ?? "-");
                 break;
 
-            // G13
-            case "SalesUrging":
-                builder.AddContent(0, item.SalesUrgingText);
+            // G6
+            case "IsUrging":
+                builder.AddContent(0, item.UrgingText);
                 break;
-            case "UrgingRemark":
-                builder.AddContent(0, item.UrgingRemark ?? "-");
+            case "IsBatchDelivery":
+                builder.AddContent(0, item.IsBatchDelivery ? "是" : "否");
+                break;
+            case "IsPaused":
+                builder.AddContent(0, item.IsPaused ? "是" : "否");
+                break;
+            case "AdjustmentRemark":
+                builder.AddContent(0, item.AdjustmentRemark ?? "-");
                 break;
 
             // G15: 预执行
@@ -909,6 +994,22 @@ public partial class RawMaterialLockPlanAndExecution
         3 => Color.Info,
         _ => Color.Default
     };
+
+    // ========== Extras 辅助方法 ==========
+
+    private static int GetExtraInt(Dictionary<string, object> extras, string key)
+    {
+        if (extras.TryGetValue(key, out var val) && val is System.Text.Json.JsonElement je && je.ValueKind == System.Text.Json.JsonValueKind.Number)
+            return je.GetInt32();
+        return 0;
+    }
+
+    private static decimal GetExtraDecimal(Dictionary<string, object> extras, string key)
+    {
+        if (extras.TryGetValue(key, out var val) && val is System.Text.Json.JsonElement je && je.ValueKind == System.Text.Json.JsonValueKind.Number)
+            return je.GetDecimal();
+        return 0m;
+    }
 
     // ========== 持久化 ==========
 

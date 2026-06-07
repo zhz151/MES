@@ -21,12 +21,12 @@
                 var allVisible = grp.Columns.All(c => c.Visible);
                 var anyVisible = grp.Columns.Any(c => c.Visible);
                 bool? groupChecked = allVisible ? true : (anyVisible ? null : false);
-                var isExpanded = _groupExpanded.GetValueOrDefault(grp.Key);
+                var isExpanded = _groupExpanded.GetValueOrDefault(grp.ExpansionKey);
 
                 <div class="mb-1">
                     <!-- 组标题行 -->
                     <div class="d-flex align-center group-header" style="cursor:pointer;"
-                         @onclick="() => ToggleGroupExpand(grp.Key)"
+                         @onclick="() => ToggleGroupExpand(grp)"
                          @onclick:stopPropagation>
                         <MudIconButton Icon="@(isExpanded ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ChevronRight)"
                                        Size="Size.Small"
@@ -34,7 +34,7 @@
                         <MudCheckBox T="bool?"
                                      ThreeState="true"
                                      Value="groupChecked"
-                                     ValueChanged="@((bool? v) => ToggleGroup(grp.Key, v))"
+                                     ValueChanged="@((bool? v) => ToggleGroup(grp, v))"
                                      Color="Color.Primary"
                                      Dense="true"
                                      @onclick:stopPropagation />
@@ -163,23 +163,24 @@
         if (_menuOpen)
         {
             // 打开面板时默认展开所有组
-            _groupExpanded = _groupedApplicableColumns.ToDictionary(g => g.Key, g => true);
+            _groupExpanded = _groupedApplicableColumns.ToDictionary(g => g.ExpansionKey, g => true);
         }
     }
 
-    private void ToggleGroupExpand(string groupKey)
+    private void ToggleGroupExpand(ColumnGroup grp)
     {
-        if (_groupExpanded.ContainsKey(groupKey))
-            _groupExpanded[groupKey] = !_groupExpanded[groupKey];
+        var key = grp.ExpansionKey;
+        if (_groupExpanded.ContainsKey(key))
+            _groupExpanded[key] = !_groupExpanded[key];
         else
-            _groupExpanded[groupKey] = true;
+            _groupExpanded[key] = true;
     }
 
-    private async Task ToggleGroup(string groupKey, bool? value)
+    private async Task ToggleGroup(ColumnGroup grp, bool? value)
     {
         // null (indeterminate) → 设为全部可见；false → 全部隐藏；true → 全部可见
         var visible = value != false;
-        var groupCols = _groupedApplicableColumns.FirstOrDefault(g => g.Key == groupKey)?.Columns;
+        var groupCols = grp.Columns;
         if (groupCols == null) return;
 
         foreach (var col in groupCols)
@@ -223,6 +224,7 @@
     {
         public string Key { get; set; } = "";
         public string GroupName { get; set; } = "";
+        public string ExpansionKey => $"{Key}___{GroupName}";
         public List<ColumnDef> Columns { get; set; } = new();
     }
 }

@@ -202,9 +202,17 @@ public class MaterialReceiveCheckDto
 
     // ========== 汇总计算字段 ==========
     public int ProductionCutQuantity { get; set; }
+    public decimal? ProductionWeight { get; set; }
 
     // ========== 状态 ==========
     public bool IsForceCompleted { get; set; }
+
+    // ========== 批次冗余字段 ==========
+    public string? LengthStatus { get; set; }
+
+    // ========== 工单冗余字段 ==========
+    public string? Salesman { get; set; }
+    public string? DeliveryState { get; set; }
 
     /// <summary>创建时间</summary>
     public DateTimeOffset CreatedTime { get; set; }

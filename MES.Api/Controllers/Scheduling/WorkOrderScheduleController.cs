@@ -36,20 +36,6 @@ public class WorkOrderScheduleController : ControllerBase
         return Ok(ApiResponse<PagedResult<Core.DTOs.WorkOrderScheduleDto>>.Ok(result));
     }
 
-    [HttpPost("plan-arrangement")]
-    public async Task<ActionResult<ApiResponse<int>>> PlanArrangement()
-    {
-        var count = await _service.PlanArrangementAsync();
-        return Ok(ApiResponse<int>.Ok(count, $"计划安排完成，共{count}条"));
-    }
-
-    [HttpPost("execute-data-update")]
-    public async Task<ActionResult<ApiResponse<int>>> ExecuteDataUpdate()
-    {
-        var count = await _service.ExecuteDataUpdateAsync();
-        return Ok(ApiResponse<int>.Ok(count, $"执行数据更新完成，共更新{count}条"));
-    }
-
     [HttpGet("filter-contexts")]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {

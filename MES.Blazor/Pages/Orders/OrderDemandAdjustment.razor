@@ -1,4 +1,4 @@
-@page "/sales-urgings"
+@page "/order-demand-adjustment"
 @using MES.Blazor.Services
 @using MES.Core.DTOs
 @using MES.Core.Models
@@ -7,7 +7,7 @@
 @using MES.Blazor.Components
 @using MES.Blazor.Models
 @using System.Text.Json
-@inject SalesUrgingService SalesUrgingService
+@inject OrderDemandAdjustmentService DemandAdjustmentService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -19,8 +19,8 @@
     <!-- 页面顶部工具栏 -->
     <div class="d-flex justify-space-between align-center mb-4">
         <MudText Typo="Typo.h5" Class="font-weight-bold">
-            <MudIcon Icon="@Icons.Material.Filled.NotificationsActive" Class="mr-2" Color="Color.Primary" />
-            销售催单
+            <MudIcon Icon="@Icons.Material.Filled.Tune" Class="mr-2" Color="Color.Primary" />
+            订单需求调整
         </MudText>
         <div class="d-flex align-center">
             <MudText Typo="Typo.body2" Class="mr-4">
@@ -48,24 +48,41 @@
             </MudGrid>
 
             <!-- 数据表格 -->
+            <div id="order-demand-adjustment-list-table">
+            @{
+                var _groupHeaders = GetGroupHeaders();
+                var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100);
+            }
+            @* 工具栏：列显隐 + 记录数（置于组字段上方） *@
+            <div class="woe-toolbar">
+                <ColumnDisplaySelect Columns="_allColumns"
+                                     OnColumnToggle="OnColumnToggle"
+                                     OnMoveUp="MoveColumnUp"
+                                     OnMoveDown="MoveColumnDown" />
+                <MudText Typo="Typo.body2" Class="ml-4">
+                    共 @_totalCount 条记录
+                </MudText>
+            </div>
+            @* 分组标题栏 *@
+            <div class="col-group-header-scroll" id="oda-group-header-scroll">
+                <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                    @foreach (var gh in _groupHeaders)
+                    {
+                        <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                            <span class="col-group-badge">@gh.GroupName</span>
+                        </div>
+                    }
+                </div>
+            </div>
             <MudTable @ref="table"
-                      T="SalesUrgingDto"
+                      T="OrderDemandAdjustmentDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"
                       Hover="true"
-                      Class="mt-4 auto-table"
+                      Class="mt-0 auto-table"
                       Elevation="0"
                       RowsPerPage="@_pageSize"
                       RowsPerPageLabel="每页行数:">
-                <ToolBarContent>
-                    <ColumnDisplaySelect Columns="_allColumns"
-                                         OnColumnToggle="OnColumnToggle"
-                                         OnMoveUp="MoveColumnUp"
-                                         OnMoveDown="MoveColumnDown" />
-                    <MudText Typo="Typo.body2">
-                        共 @_totalCount 条记录
-                    </MudText>
-                </ToolBarContent>
                 <HeaderContent>
                     @{
                         int? _prevGk = null;
@@ -75,16 +92,12 @@
                         var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
                         _prevGk = col.GroupKey;
                         var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
-                        <MudTh Class="@_headerClass" Style="@($"width: {col.Width ?? "120"}px")">
+                        <MudTh Class="@_headerClass" Style="@($"width: {col.Width}px")">
                             <div class="col-header-cell">
-                                @if (_isGroupStart && col.GroupName != null)
-                                {
-                                    <span class="col-group-badge">@col.GroupName</span>
-                                }
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
                                 @if (col.FilterType != null)
                                 {
-                                    <ExcelFilter T="SalesUrgingDto"
+                                    <ExcelFilter T="OrderDemandAdjustmentDto"
                                                  Label="@col.Label"
                                                  FieldKey="@col.Key"
                                                  FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"
@@ -107,10 +120,17 @@
                         <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
                     }
                 </RowTemplate>
+                <FooterContent>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd Class="col-footer-cell"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
+                    }
+                </FooterContent>
                 <PagerContent>
                     <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
             </MudTable>
+            </div>
         </MudCardContent>
     </MudCard>
 </MudContainer>

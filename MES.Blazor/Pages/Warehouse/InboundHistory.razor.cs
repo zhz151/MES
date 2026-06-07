@@ -8,6 +8,7 @@ using MES.Blazor.Services;
 using MES.Blazor.Shared;
 using MES.Core.DTOs;
 using MES.Core.Models;
+using System.Reflection;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Warehouse;
@@ -33,6 +34,12 @@ public partial class InboundHistory
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
+    // B33 分页汇总
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        "InitialQuantity", "InitialWeight", "Meters"
+    };
     private string _lastResolvedWarehouseCode = string.Empty;
 
     // 排序状态
@@ -104,7 +111,7 @@ public partial class InboundHistory
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "BatchNo",             Label = "批次号",   SortKey = "BatchNo", FilterType = "string", Width = "120" },
+        new() { Key = "BatchNo",             Label = "仓库批次", SortKey = "BatchNo", FilterType = "string", Width = "120" },
         new() { Key = "InboundDate",         Label = "入库日期", SortKey = "InboundDate",    IsRequired = true, Width = "120" },
         new() { Key = "InboundSource",       Label = "来源",     SortKey = "InboundSource", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("Purchase", "外购"), new("Subcontract", "委外"), new("ReturnIn", "退货入库"), new("ProductionInbound", "生产入库"), new("InspectionInbound", "检验入库"), new("TransferIn", "移库入库"), new("Other", "其它") } },
@@ -272,6 +279,7 @@ public partial class InboundHistory
                 _totalCount = result.Data.TotalCount;
                 _currentPage = state.Page + 1;
                 _pageSize = state.PageSize;
+                ComputePageSums();
 
                 // 清理已删除项
                 _selectedItems.RemoveWhere(i => !_pageItems.Any(x => x.Id == i.Id));
@@ -280,6 +288,7 @@ public partial class InboundHistory
             {
                 _pageItems = new();
                 _totalCount = 0;
+                _pageSums.Clear();
             }
         }
         catch (Exception ex)
@@ -287,6 +296,7 @@ public partial class InboundHistory
             Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
             _pageItems = new();
             _totalCount = 0;
+            _pageSums.Clear();
         }
 
         return new TableData<InventoryBatchDto>
@@ -594,7 +604,7 @@ public partial class InboundHistory
                 builder.AddContent(0, item.InitialQuantity);
                 break;
             case "InitialWeight":
-                builder.AddContent(0, item.InitialWeight.ToString("G29"));
+                builder.AddContent(0, ((int)item.InitialWeight).ToString());
                 break;
             case "UnitWeight":
                 if (item.UnitWeight.HasValue)
@@ -610,7 +620,7 @@ public partial class InboundHistory
                 break;
             case "Meters":
                 if (item.Meters.HasValue)
-                    builder.AddContent(0, item.Meters.Value.ToString("G29"));
+                    builder.AddContent(0, ((int)item.Meters.Value).ToString());
                 break;
             case "ActualOuterDiameter":
                 if (item.ActualOuterDiameter.HasValue)
@@ -699,7 +709,7 @@ public partial class InboundHistory
         {
             case "MaterialType": item.MaterialType = value ?? ""; break;
             case "InboundSource": item.InboundSource = value ?? ""; break;
-            case "SourceName": item.SourceName = value; break;
+            case "SourceName": item.SourceName = value ?? ""; break;
             case "HeatNo": item.HeatNo = value; break;
             case "PlantGrade": item.PlantGrade = value ?? ""; break;
             case "Specification": item.Specification = value ?? ""; break;
@@ -826,7 +836,7 @@ public partial class InboundHistory
         else
         {
             _warehouseId = null;
-            _warehouseName = Code;
+            _warehouseName = Code ?? "";
         }
 
         // 初始化列定义
@@ -1079,5 +1089,29 @@ public partial class InboundHistory
             Extras = extras
         };
         await PageState.SaveAsync("inboundhistory", state);
+    }
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        var props = typeof(InventoryBatchDto).GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        foreach (var key in _summableColumnKeys)
+        {
+            var prop = props.FirstOrDefault(p => p.Name == key);
+            if (prop == null) continue;
+            decimal sum = 0;
+            foreach (var item in _pageItems)
+            {
+                var val = prop.GetValue(item);
+                if (val == null) continue;
+                sum += Convert.ToDecimal(val);
+            }
+            _pageSums[key] = ((int)sum).ToString();
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        return _pageSums.GetValueOrDefault(col.Key, "");
     }
 }

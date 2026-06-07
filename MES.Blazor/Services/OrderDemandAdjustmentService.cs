@@ -6,19 +6,19 @@ using MES.Core.Models;
 namespace MES.Blazor.Services;
 
 /// <summary>
-/// 销售催单前端服务
+/// 订单需求调整前端服务
 /// </summary>
-public class SalesUrgingService
+public class OrderDemandAdjustmentService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = ApiEndpoints.SalesUrging;
+    private const string BaseUrl = ApiEndpoints.OrderDemandAdjustment;
 
-    public SalesUrgingService(AuthHttpClient http)
+    public OrderDemandAdjustmentService(AuthHttpClient http)
     {
         _http = http;
     }
 
-    public async Task<ApiResponse<PagedResult<SalesUrgingDto>>> GetPagedAsync(QueryParams query)
+    public async Task<ApiResponse<PagedResult<OrderDemandAdjustmentDto>>> GetPagedAsync(QueryParams query)
     {
         try
         {
@@ -28,20 +28,20 @@ public class SalesUrgingService
 
             if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
 
-            var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<SalesUrgingDto>>>(url);
-            return response ?? ApiResponse<PagedResult<SalesUrgingDto>>.Fail("获取数据失败");
+            var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<OrderDemandAdjustmentDto>>>(url);
+            return response ?? ApiResponse<PagedResult<OrderDemandAdjustmentDto>>.Fail("获取数据失败");
         }
         catch (Exception ex)
         {
-            return ApiResponse<PagedResult<SalesUrgingDto>>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<PagedResult<OrderDemandAdjustmentDto>>.Fail($"网络错误: {ex.Message}");
         }
     }
 
-    public async Task<ApiResponse<bool>> SaveUrgingAsync(int workOrderId, bool isSalesUrging, string? urgingRemark)
+    public async Task<ApiResponse<bool>> SaveUrgingAsync(int workOrderId, bool isUrging, bool isBatchDelivery, bool isPaused, string? adjustmentRemark)
     {
         try
         {
-            var payload = new { WorkOrderId = workOrderId, IsSalesUrging = isSalesUrging, UrgingRemark = urgingRemark };
+            var payload = new { WorkOrderId = workOrderId, IsUrging = isUrging, IsBatchDelivery = isBatchDelivery, IsPaused = isPaused, AdjustmentRemark = adjustmentRemark };
             var response = await _http.PostAsJsonAsync<object, ApiResponse<bool>>($"{BaseUrl}/save", payload);
             return response ?? ApiResponse<bool>.Fail("保存失败");
         }

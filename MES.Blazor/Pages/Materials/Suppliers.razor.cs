@@ -354,10 +354,10 @@ public partial class Suppliers
         _editCache[item.Id] = new EditCache
         {
             SupplierName = item.SupplierName,
-            MaterialCategory = item.MaterialCategory,
-            ContactPerson = item.ContactPerson,
-            ContactPhone = item.ContactPhone,
-            Address = item.Address,
+            MaterialCategory = item.MaterialCategory ?? "",
+            ContactPerson = item.ContactPerson ?? "",
+            ContactPhone = item.ContactPhone ?? "",
+            Address = item.Address ?? "",
             IsActive = item.IsActive,
             Remark = item.Remark
         };

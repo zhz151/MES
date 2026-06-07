@@ -499,10 +499,10 @@
         await ColumnPrefs.SaveAsync(PrefsKey, null, prefs);
     }
 
-    private void ToggleColumn(bool v, ProcessCardColumnDef col)
+    private async Task ToggleColumn(bool v, ProcessCardColumnDef col)
     {
         col.Visible = v;
-        _ = SaveFormatColumnPrefs();
+        await SaveFormatColumnPrefs();
     }
 
     private async Task ResetColumnDefaults()

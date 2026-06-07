@@ -50,6 +50,15 @@ public partial class ProcessInspections
     private string sortColumn = "inspectiondate";
     private bool sortDescending = true;
 
+    // B33: 分页汇总
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        "Quantity", "Weight", "QualifiedQuantity", "QualifiedWeight",
+        "QualifiedConcessionQuantity", "DefectReworkQuantity",
+        "DefectWarehouseQuantity", "DefectScrapQuantity"
+    };
+
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -63,7 +72,7 @@ public partial class ProcessInspections
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "InspectionDate",       Label = "检验日期",   SortKey = "inspectiondate", FilterType = "date", Width = "120" },
-        new() { Key = "BatchNo",               Label = "批次号",     SortKey = "batchno", FilterType = "string", Width = "120" },
+        new() { Key = "BatchNo",               Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120" },
         new() { Key = "ProcessName",           Label = "工序名称",   SortKey = "processname", FilterType = "string", Width = "120" },
         new() { Key = "ManufacturingSpec",     Label = "制造规格",   SortKey = "manufacturingspec", FilterType = "string", Width = "120" },
         new() { Key = "SectionName",           Label = "工段名称",   SortKey = "sectionname", FilterType = "string", Width = "120" },
@@ -120,11 +129,13 @@ public partial class ProcessInspections
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
                 _currentPage = state.Page + 1;
+                ComputePageSums();
             }
             else
             {
                 _pageItems = new();
                 _totalCount = 0;
+                _pageSums.Clear();
             }
         }
         catch (Exception ex)
@@ -619,7 +630,7 @@ public partial class ProcessInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableDecimal(item.Weight));
+                    builder.AddContent(0, DisplayHelper.FormatNullableDecimalAsInt(item.Weight));
                 }
                 break;
             case "InspectionItem":
@@ -664,7 +675,7 @@ public partial class ProcessInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableDecimal(item.QualifiedWeight));
+                    builder.AddContent(0, DisplayHelper.FormatNullableDecimalAsInt(item.QualifiedWeight));
                 }
                 break;
             case "QualifiedConcessionQuantity":
@@ -902,6 +913,43 @@ public partial class ProcessInspections
         "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         _ => ""
     };
+
+    // ========== 分页汇总（B33） ==========
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+
+        var props = typeof(ProcessInspectionDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+
+        foreach (var key in _summableColumnKeys)
+        {
+            if (!props.TryGetValue(key, out var prop)) continue;
+            var type = prop.PropertyType;
+            try
+            {
+                if (type == typeof(decimal?))
+                {
+                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    _pageSums[key] = ((int)sum).ToString();
+                }
+                else if (type == typeof(int?))
+                {
+                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    _pageSums[key] = sum.ToString();
+                }
+            }
+            catch { }
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        return _pageSums.GetValueOrDefault(col.Key, "");
+    }
 
     // ========== 持久化 ==========
 

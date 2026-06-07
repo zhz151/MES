@@ -81,6 +81,10 @@ public partial class SectionFlowAnalysis
             _restoredPageIndex = savedState.PageIndex;
         }
 
+        // 状态恢复后重新加载数据
+        if (savedState != null && table != null)
+            await table.ReloadServerData();
+
         await LoadDataAsync();
     }
 

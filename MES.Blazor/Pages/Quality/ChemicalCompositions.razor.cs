@@ -680,7 +680,7 @@ public partial class ChemicalCompositions
         return sb.ToString();
     }
 
-    private string GetCellPrintValue(ChemicalCompositionDto item, ColumnDef col) => col.Key switch
+    private string? GetCellPrintValue(ChemicalCompositionDto item, ColumnDef col) => col.Key switch
     {
         "PlantGrade" => item.PlantGrade,
         "Carbon" => item.Carbon,

@@ -3,16 +3,17 @@ using Microsoft.Extensions.Logging;
 using MES.Core.Constants;
 using MES.Core.DTOs;
 using MES.Core.Enums;
-using MES.Core.Exceptions;
 using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
+using MES.Data.Entities;
 using MES.Services.Helpers;
 
 namespace MES.Services;
 
 /// <summary>
 /// 质量过程跟踪服务（成检到料 → 成品检验 → 成品入库 联通表）
+/// 优化策略：拆分子查询为预查询 + 内存映射，避免 EF Core 生成 15+ 关联子查询的单一巨量 SQL
 /// </summary>
 public class QualityProcessTrackingService : IQualityProcessTrackingService
 {
@@ -27,170 +28,185 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
 
     public async Task<PagedResult<QualityProcessTrackingDto>> GetPagedAsync(QueryParams query)
     {
-        // 1. 基础查询：MaterialReceiveCheck JOIN ProductionBatch
+        // 1. 基础查询：MaterialReceiveCheck JOIN ProductionBatch（不含子查询）
         var baseQuery = from rc in _context.MaterialReceiveChecks
                         join pb in _context.ProductionBatches on rc.ProductionBatchId equals pb.Id
-                        select new { rc, pb };
+                        select new BaseRow
+                        {
+                            Id = rc.Id,
+                            ProductionBatchId = rc.ProductionBatchId,
+                            BatchNo = rc.BatchNo ?? pb.BatchNo,
+                            ManufacturingItem = rc.ManufacturingItem,
+                            TagNo = rc.TagNo,
+                            WorkOrderNo = rc.WorkOrderNo,
+                            SalesOrderNo = rc.SalesOrderNo,
+                            SourceUnit = rc.SourceUnit,
+                            FurnaceNo = rc.FurnaceNo,
+                            PlantGrade = rc.PlantGrade,
+                            Specification = rc.Specification,
+                            ProductionType = pb.ProductionType,
+                            LengthStatus = rc.LengthStatus,
+                            ProductionWeight = rc.ProductionWeight,
+                            IsForceCompleted = rc.IsForceCompleted,
+                            Salesman = rc.Salesman ?? pb.Salesman,
+                            DeliveryState = rc.DeliveryState ?? pb.DeliveryState,
+                            ReceiveDate = rc.ReceiveDate,
+                            Shift = rc.Shift,
+                            Checker = rc.Checker,
+                            CreatedTime = rc.CreatedTime,
+                            UpdatedTime = rc.UpdatedTime,
+                            PbBatchNo = pb.BatchNo
+                        };
 
-        // 2. 关键词搜索（Select 前过滤）
+        // 2. 关键词搜索
         if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
             var kw = query.Keyword;
             baseQuery = baseQuery.Where(x =>
-                (x.rc.BatchNo != null && x.rc.BatchNo.Contains(kw)) ||
-                (x.rc.ManufacturingItem != null && x.rc.ManufacturingItem.Contains(kw)) ||
-                (x.rc.PlantGrade != null && x.rc.PlantGrade.Contains(kw)) ||
-                (x.rc.Specification != null && x.rc.Specification.Contains(kw)) ||
-                (x.rc.Checker != null && x.rc.Checker.Contains(kw)) ||
-                (x.rc.FurnaceNo != null && x.rc.FurnaceNo.Contains(kw)) ||
-                (x.rc.WorkOrderNo != null && x.rc.WorkOrderNo.Contains(kw)) ||
-                (x.rc.SalesOrderNo != null && x.rc.SalesOrderNo.Contains(kw)) ||
-                (x.rc.TagNo != null && x.rc.TagNo.Contains(kw)) ||
-                (x.rc.SourceUnit != null && x.rc.SourceUnit.Contains(kw))
+                (x.BatchNo != null && x.BatchNo.Contains(kw)) ||
+                (x.ManufacturingItem != null && x.ManufacturingItem.Contains(kw)) ||
+                (x.PlantGrade != null && x.PlantGrade.Contains(kw)) ||
+                (x.Specification != null && x.Specification.Contains(kw)) ||
+                (x.Checker != null && x.Checker.Contains(kw)) ||
+                (x.FurnaceNo != null && x.FurnaceNo.Contains(kw)) ||
+                (x.WorkOrderNo != null && x.WorkOrderNo.Contains(kw)) ||
+                (x.SalesOrderNo != null && x.SalesOrderNo.Contains(kw)) ||
+                (x.TagNo != null && x.TagNo.Contains(kw)) ||
+                (x.SourceUnit != null && x.SourceUnit.Contains(kw)) ||
+                (x.Salesman != null && x.Salesman.Contains(kw)) ||
+                (x.DeliveryState != null && x.DeliveryState.Contains(kw))
             );
         }
 
-        // 3. 计数（Select 前轻量计数）
+        // 3. 计数
         var totalCount = await baseQuery.CountAsync();
 
-        // 4. 排序在 Select 投影后通过 switch expression 处理
-        //    先投影到 DTO，再排序和分页
-
-        // 5. 投影到 DTO（相关子查询）
-        var dtoQuery = baseQuery.Select(x => new QualityProcessTrackingDto
-        {
-            // G1: 批次信息
-            Id = x.rc.Id,
-            ProductionBatchId = x.rc.ProductionBatchId,
-            BatchNo = x.rc.BatchNo ?? x.pb.BatchNo,
-            ManufacturingItem = x.rc.ManufacturingItem,
-            TagNo = x.rc.TagNo,
-            WorkOrderNo = x.rc.WorkOrderNo,
-            SalesOrderNo = x.rc.SalesOrderNo,
-            SourceUnit = x.rc.SourceUnit,
-            FurnaceNo = x.rc.FurnaceNo,
-            PlantGrade = x.rc.PlantGrade,
-            Specification = x.rc.Specification,
-            ProductionType = x.pb.ProductionType,
-            ReceiveDate = x.rc.ReceiveDate,
-            Shift = x.rc.Shift,
-            Checker = x.rc.Checker,
-            CreatedTime = x.rc.CreatedTime,
-            UpdatedTime = x.rc.UpdatedTime,
-
-            // G2: 检验日期（按 InspectionItem 拆分）
-            PmiDate = _context.FinalInspections
-                .Where(fi => fi.ProductionBatchId == x.pb.Id && fi.InspectionItem == InspectionItem.PMIInspection)
-                .Max(fi => (DateTime?)fi.InspectionDate),
-            VisualDate = _context.FinalInspections
-                .Where(fi => fi.ProductionBatchId == x.pb.Id && fi.InspectionItem == InspectionItem.VisualInspection)
-                .Max(fi => (DateTime?)fi.InspectionDate),
-            DimensionDate = _context.FinalInspections
-                .Where(fi => fi.ProductionBatchId == x.pb.Id && fi.InspectionItem == InspectionItem.Dimension)
-                .Max(fi => (DateTime?)fi.InspectionDate),
-            EndoscopyDate = _context.FinalInspections
-                .Where(fi => fi.ProductionBatchId == x.pb.Id && fi.InspectionItem == InspectionItem.Endoscopy)
-                .Max(fi => (DateTime?)fi.InspectionDate),
-            HydroDate = _context.FinalInspections
-                .Where(fi => fi.ProductionBatchId == x.pb.Id && fi.InspectionItem == InspectionItem.HydrostaticPressure)
-                .Max(fi => (DateTime?)fi.InspectionDate),
-            UnderwaterPneumaticDate = _context.FinalInspections
-                .Where(fi => fi.ProductionBatchId == x.pb.Id && fi.InspectionItem == InspectionItem.UnderwaterPneumatic)
-                .Max(fi => (DateTime?)fi.InspectionDate),
-            EddyCurrentDate = _context.FinalInspections
-                .Where(fi => fi.ProductionBatchId == x.pb.Id && fi.InspectionItem == InspectionItem.EddyCurrent)
-                .Max(fi => (DateTime?)fi.InspectionDate),
-            UltrasonicDate = _context.FinalInspections
-                .Where(fi => fi.ProductionBatchId == x.pb.Id && fi.InspectionItem == InspectionItem.Ultrasonic)
-                .Max(fi => (DateTime?)fi.InspectionDate),
-            PortColoringDate = _context.FinalInspections
-                .Where(fi => fi.ProductionBatchId == x.pb.Id && fi.InspectionItem == InspectionItem.PortColoring)
-                .Max(fi => (DateTime?)fi.InspectionDate),
-
-            // G3: 检验汇总
-            ProductionCutQuantity = _context.ProductionRecords
-                .Where(pr => pr.ProductionBatchId == x.pb.Id && pr.SectionName == SectionDefs.Cut && pr.IsFinished)
-                .Sum(pr => (int?)(pr.PostCutQuantity ?? 0)) ?? 0,
-            InspectionCount = _context.FinalInspections
-                .Where(fi => fi.ProductionBatchId == x.pb.Id)
-                .Select(fi => fi.InspectionItem)
-                .Distinct()
-                .Count(),
-            TotalQuantity = _context.FinalInspections
-                .Where(fi => fi.ProductionBatchId == x.pb.Id)
-                .Max(fi => (int?)(fi.Quantity ?? 0)) ?? 0,
-            QualifiedQuantity = _context.FinalInspections
-                .Where(fi => fi.ProductionBatchId == x.pb.Id)
-                .Min(fi => (int?)(fi.QualifiedQuantity ?? 0)) ?? 0,
-            DefectReworkQuantity = _context.FinalInspections
-                .Where(fi => fi.ProductionBatchId == x.pb.Id)
-                .Sum(fi => (int?)(fi.DefectReworkQuantity ?? 0)) ?? 0,
-            DefectWarehouseQuantity = _context.FinalInspections
-                .Where(fi => fi.ProductionBatchId == x.pb.Id)
-                .Sum(fi => (int?)(fi.DefectWarehouseQuantity ?? 0)) ?? 0,
-            DefectScrapQuantity = _context.FinalInspections
-                .Where(fi => fi.ProductionBatchId == x.pb.Id)
-                .Sum(fi => (int?)(fi.DefectScrapQuantity ?? 0)) ?? 0,
-            MaxInspectionDate = _context.FinalInspections
-                .Where(fi => fi.ProductionBatchId == x.pb.Id)
-                .Max(fi => (DateTime?)fi.InspectionDate),
-
-            // G4: 成品入库
-            InboundQuantity = _context.InventoryBatches
-                .Where(ib => ib.ProductionBatchNo == x.pb.BatchNo)
-                .Sum(ib => (int?)ib.InitialQuantity) ?? 0,
-            InboundWeight = _context.InventoryBatches
-                .Where(ib => ib.ProductionBatchNo == x.pb.BatchNo)
-                .Sum(ib => (decimal?)ib.InitialWeight),
-            InboundDate = _context.InventoryBatches
-                .Where(ib => ib.ProductionBatchNo == x.pb.BatchNo)
-                .Max(ib => (DateTime?)ib.InboundDate),
-
-            // G5: 执行状态（CASE WHEN）
-            QualityStatus = _context.FinalInspections.Any(fi => fi.ProductionBatchId == x.pb.Id)
-                ? (_context.InventoryBatches.Any(ib => ib.ProductionBatchNo == x.pb.BatchNo)
-                    ? "完成检验"
-                    : "检验中")
-                : "待检验"
-        });
-
-        // 6. 排序
+        // 4. 排序
         var sortBy = query.SortBy?.ToLower();
-        dtoQuery = (sortBy, query.IsDescending) switch
+        IOrderedQueryable<BaseRow> orderedQuery;
+        switch (sortBy)
         {
-            ("batchno", false) => dtoQuery.OrderBy(q => q.BatchNo ?? ""),
-            ("batchno", true) => dtoQuery.OrderByDescending(q => q.BatchNo ?? ""),
-            ("manufacturingitem", false) => dtoQuery.OrderBy(q => q.ManufacturingItem ?? ""),
-            ("manufacturingitem", true) => dtoQuery.OrderByDescending(q => q.ManufacturingItem ?? ""),
-            ("plantgrade", false) => dtoQuery.OrderBy(q => q.PlantGrade ?? ""),
-            ("plantgrade", true) => dtoQuery.OrderByDescending(q => q.PlantGrade ?? ""),
-            ("specification", false) => dtoQuery.OrderBy(q => q.Specification ?? ""),
-            ("specification", true) => dtoQuery.OrderByDescending(q => q.Specification ?? ""),
-            ("receivedate", false) => dtoQuery.OrderBy(q => q.ReceiveDate),
-            ("receivedate", true) => dtoQuery.OrderByDescending(q => q.ReceiveDate),
-            ("checker", false) => dtoQuery.OrderBy(q => q.Checker ?? ""),
-            ("checker", true) => dtoQuery.OrderByDescending(q => q.Checker ?? ""),
-            ("qualitystatus", false) => dtoQuery.OrderBy(q => q.QualityStatus),
-            ("qualitystatus", true) => dtoQuery.OrderByDescending(q => q.QualityStatus),
-            ("inbounddate", false) => dtoQuery.OrderBy(q => q.InboundDate),
-            ("inbounddate", true) => dtoQuery.OrderByDescending(q => q.InboundDate),
-            ("createdtime", false) => dtoQuery.OrderBy(q => q.CreatedTime),
-            ("createdtime", true) => dtoQuery.OrderByDescending(q => q.CreatedTime),
-            _ => dtoQuery.OrderByDescending(q => q.ReceiveDate)
-        };
-
-        // 7. 分页
-        dtoQuery = dtoQuery
-            .Skip(query.Skip)
-            .Take(query.PageSize);
-
-        // 8. 应用列筛选（After Select, before materialization）
-        if (query.Filters is { Count: > 0 })
-        {
-            dtoQuery = dtoQuery.ApplyFilters(query.Filters);
+            case "batchno":
+                orderedQuery = query.IsDescending
+                    ? baseQuery.OrderByDescending(q => q.BatchNo ?? "")
+                    : baseQuery.OrderBy(q => q.BatchNo ?? "");
+                break;
+            case "manufacturingitem":
+                orderedQuery = query.IsDescending
+                    ? baseQuery.OrderByDescending(q => q.ManufacturingItem ?? "")
+                    : baseQuery.OrderBy(q => q.ManufacturingItem ?? "");
+                break;
+            case "plantgrade":
+                orderedQuery = query.IsDescending
+                    ? baseQuery.OrderByDescending(q => q.PlantGrade ?? "")
+                    : baseQuery.OrderBy(q => q.PlantGrade ?? "");
+                break;
+            case "specification":
+                orderedQuery = query.IsDescending
+                    ? baseQuery.OrderByDescending(q => q.Specification ?? "")
+                    : baseQuery.OrderBy(q => q.Specification ?? "");
+                break;
+            case "checker":
+                orderedQuery = query.IsDescending
+                    ? baseQuery.OrderByDescending(q => q.Checker ?? "")
+                    : baseQuery.OrderBy(q => q.Checker ?? "");
+                break;
+            case "shift":
+                orderedQuery = query.IsDescending
+                    ? baseQuery.OrderByDescending(q => q.Shift ?? "")
+                    : baseQuery.OrderBy(q => q.Shift ?? "");
+                break;
+            case "salesman":
+                orderedQuery = query.IsDescending
+                    ? baseQuery.OrderByDescending(q => q.Salesman ?? "")
+                    : baseQuery.OrderBy(q => q.Salesman ?? "");
+                break;
+            case "deliverystate":
+                orderedQuery = query.IsDescending
+                    ? baseQuery.OrderByDescending(q => q.DeliveryState ?? "")
+                    : baseQuery.OrderBy(q => q.DeliveryState ?? "");
+                break;
+            default:
+                orderedQuery = baseQuery.OrderByDescending(q => q.ReceiveDate);
+                break;
         }
 
-        var items = await dtoQuery.ToListAsync();
+        // 5. 分页（仅返回当前页的基础数据）
+        var pageBase = await orderedQuery
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .ToListAsync();
+
+        // 6. 预查询关联数据
+        var batchIds = pageBase.Select(x => x.ProductionBatchId).Distinct().ToList();
+        var pbBatchNos = pageBase.Select(x => x.PbBatchNo).Where(x => x != null).Distinct().ToList()!;
+
+        // 6a. FinalInspections 按 ProductionBatchId 分组
+        var inspections = batchIds.Count > 0
+            ? await _context.FinalInspections
+                .Where(fi => batchIds.Contains(fi.ProductionBatchId))
+                .AsNoTracking()
+                .ToListAsync()
+            : new List<FinalInspection>();
+
+        var inspectionLookup = inspections
+            .GroupBy(fi => fi.ProductionBatchId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // 6b. InventoryBatches 按 ProductionBatchNo 分组
+        var inventoryBatches = pbBatchNos.Count > 0
+            ? await _context.InventoryBatches
+                .Where(ib => ib.ProductionBatchNo != null && pbBatchNos.Contains(ib.ProductionBatchNo))
+                .AsNoTracking()
+                .ToListAsync()
+            : new List<InventoryBatch>();
+
+        var inventoryLookup = inventoryBatches
+            .Where(ib => ib.ProductionBatchNo != null)
+            .GroupBy(ib => ib.ProductionBatchNo!)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+        // 6c. ProductionRecords（仅 Cut 工段）
+        var productionRecords = batchIds.Count > 0
+            ? await _context.ProductionRecords
+                .Where(pr => batchIds.Contains(pr.ProductionBatchId) && pr.SectionName == SectionDefs.Cut && pr.IsFinished)
+                .AsNoTracking()
+                .ToListAsync()
+            : new List<ProductionRecord>();
+
+        var prLookup = productionRecords
+            .GroupBy(pr => pr.ProductionBatchId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // 7. 内存映射到 DTO（含聚合计算）
+        var items = pageBase.Select(baseRow =>
+        {
+            var inspList = inspectionLookup.GetValueOrDefault(baseRow.ProductionBatchId, new());
+            var invList = inventoryLookup.GetValueOrDefault(baseRow.PbBatchNo ?? "", new());
+            var prList = prLookup.GetValueOrDefault(baseRow.ProductionBatchId, new());
+
+            return MapToDto(baseRow, inspList, invList, prList);
+        }).ToList();
+
+        // 8. 应用列筛选（内存中）
+        if (query.Filters is { Count: > 0 })
+        {
+            // 由于 DTO 是内存对象，需要显式过滤
+            var filtered = items.AsEnumerable();
+            foreach (var filter in query.Filters)
+            {
+                filtered = filtered.Where(item =>
+                {
+                    var prop = typeof(QualityProcessTrackingDto).GetProperty(filter.Field);
+                    if (prop == null) return true;
+                    var val = prop.GetValue(item)?.ToString();
+                    if (filter.Values == null || filter.Values.Count == 0) return true;
+                    if (val == null) return filter.Values.Contains("__EXCEL_FILTER_NULL__");
+                    return filter.Values.Contains(val);
+                });
+            }
+            items = filtered.ToList();
+        }
 
         return new PagedResult<QualityProcessTrackingDto>
         {
@@ -201,38 +217,143 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
         };
     }
 
+    private static QualityProcessTrackingDto MapToDto(
+        BaseRow row,
+        List<FinalInspection> inspections,
+        List<InventoryBatch> inventoryBatches,
+        List<ProductionRecord> productionRecords)
+    {
+        // G5: 执行状态
+        string qualityStatus;
+        if (inspections.Count > 0)
+            qualityStatus = inventoryBatches.Count > 0 ? "完成检验" : "检验中";
+        else
+            qualityStatus = "待检验";
+
+        return new QualityProcessTrackingDto
+        {
+            // G1
+            Id = row.Id,
+            ProductionBatchId = row.ProductionBatchId,
+            BatchNo = row.BatchNo,
+            ManufacturingItem = row.ManufacturingItem,
+            TagNo = row.TagNo,
+            WorkOrderNo = row.WorkOrderNo,
+            SalesOrderNo = row.SalesOrderNo,
+            SourceUnit = row.SourceUnit,
+            FurnaceNo = row.FurnaceNo,
+            PlantGrade = row.PlantGrade,
+            Specification = row.Specification,
+            ProductionType = row.ProductionType,
+            LengthStatus = row.LengthStatus,
+            ProductionWeight = row.ProductionWeight,
+            IsForceCompleted = row.IsForceCompleted,
+            Salesman = row.Salesman,
+            DeliveryState = row.DeliveryState,
+            ReceiveDate = row.ReceiveDate,
+            Shift = row.Shift,
+            Checker = row.Checker,
+            CreatedTime = row.CreatedTime,
+            UpdatedTime = row.UpdatedTime,
+
+            // G2: 检验日期（按 InspectionItem 拆分）
+            PmiDate = GetInspectionDate(inspections, InspectionItem.PMIInspection),
+            VisualDate = GetInspectionDate(inspections, InspectionItem.VisualInspection),
+            DimensionDate = GetInspectionDate(inspections, InspectionItem.Dimension),
+            EndoscopyDate = GetInspectionDate(inspections, InspectionItem.Endoscopy),
+            HydroDate = GetInspectionDate(inspections, InspectionItem.HydrostaticPressure),
+            UnderwaterPneumaticDate = GetInspectionDate(inspections, InspectionItem.UnderwaterPneumatic),
+            EddyCurrentDate = GetInspectionDate(inspections, InspectionItem.EddyCurrent),
+            UltrasonicDate = GetInspectionDate(inspections, InspectionItem.Ultrasonic),
+            PortColoringDate = GetInspectionDate(inspections, InspectionItem.PortColoring),
+
+            // G3: 检验汇总
+            ProductionCutQuantity = productionRecords.Sum(pr => pr.PostCutQuantity ?? 0),
+            InspectionCount = inspections.Select(fi => fi.InspectionItem).Distinct().Count(),
+            TotalQuantity = inspections.Max(fi => (int?)(fi.Quantity ?? 0)) ?? 0,
+            QualifiedQuantity = inspections.Min(fi => (int?)(fi.QualifiedQuantity ?? 0)) ?? 0,
+            DefectReworkQuantity = inspections.Sum(fi => fi.DefectReworkQuantity ?? 0),
+            DefectWarehouseQuantity = inspections.Sum(fi => fi.DefectWarehouseQuantity ?? 0),
+            DefectScrapQuantity = inspections.Sum(fi => fi.DefectScrapQuantity ?? 0),
+            MaxInspectionDate = inspections.Max(fi => (DateTime?)fi.InspectionDate),
+
+            // G4: 成品入库
+            InboundQuantity = inventoryBatches.Sum(ib => ib.InitialQuantity),
+            InboundWeight = inventoryBatches.Sum(ib => (decimal?)ib.InitialWeight),
+            InboundDate = inventoryBatches.Max(ib => (DateTime?)ib.InboundDate),
+
+            // G5
+            QualityStatus = qualityStatus
+        };
+    }
+
+    private static DateTime? GetInspectionDate(List<FinalInspection> inspections, InspectionItem item)
+    {
+        return inspections
+            .Where(fi => fi.InspectionItem == item)
+            .Max(fi => (DateTime?)fi.InspectionDate);
+    }
+
+    /// <summary>
+    /// 基础行投影（不含子查询的轻量 JOIN）
+    /// </summary>
+    private class BaseRow
+    {
+        public int Id { get; set; }
+        public int ProductionBatchId { get; set; }
+        public string? BatchNo { get; set; }
+        public string? ManufacturingItem { get; set; }
+        public string? TagNo { get; set; }
+        public string? WorkOrderNo { get; set; }
+        public string? SalesOrderNo { get; set; }
+        public string? SourceUnit { get; set; }
+        public string? FurnaceNo { get; set; }
+        public string? PlantGrade { get; set; }
+        public string? Specification { get; set; }
+        public string? ProductionType { get; set; }
+        public string? LengthStatus { get; set; }
+        public decimal? ProductionWeight { get; set; }
+        public bool IsForceCompleted { get; set; }
+        public string? Salesman { get; set; }
+        public string? DeliveryState { get; set; }
+        public DateTime ReceiveDate { get; set; }
+        public string? Shift { get; set; }
+        public string? Checker { get; set; }
+        public DateTimeOffset CreatedTime { get; set; }
+        public DateTimeOffset UpdatedTime { get; set; }
+        public string? PbBatchNo { get; set; }
+    }
+
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        var query = from rc in _context.MaterialReceiveChecks
-                    join pb in _context.ProductionBatches on rc.ProductionBatchId equals pb.Id
-                    select new
-                    {
-                        rc.BatchNo,
-                        rc.ManufacturingItem,
-                        rc.PlantGrade,
-                        rc.Specification,
-                        rc.Shift,
-                        rc.Checker,
-                        rc.FurnaceNo,
-                        rc.WorkOrderNo,
-                        rc.SalesOrderNo,
-                        rc.SourceUnit
-                    };
+        var dict = new Dictionary<string, List<string>>();
 
-        var results = await query.AsNoTracking().ToListAsync();
-
-        var dict = new Dictionary<string, List<string>>
-        {
-            ["BatchNo"] = results.Select(x => x.BatchNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["ManufacturingItem"] = results.Select(x => x.ManufacturingItem).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["PlantGrade"] = results.Select(x => x.PlantGrade).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["Specification"] = results.Select(x => x.Specification).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["Shift"] = results.Select(x => x.Shift).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["Checker"] = results.Select(x => x.Checker).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["FurnaceNo"] = results.Select(x => x.FurnaceNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["SourceUnit"] = results.Select(x => x.SourceUnit).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["QualityStatus"] = new List<string> { "待检验", "检验中", "完成检验" }
-        };
+        // 逐列数据库级 DISTINCT（各列均直接来自 MaterialReceiveCheck，无需 JOIN ProductionBatch）
+        dict["BatchNo"] = await _context.MaterialReceiveChecks
+            .Where(m => m.BatchNo != null).Select(m => m.BatchNo).Distinct().OrderBy(x => x).ToListAsync();
+        dict["ManufacturingItem"] = await _context.MaterialReceiveChecks
+            .Where(m => m.ManufacturingItem != null).Select(m => m.ManufacturingItem).Distinct().OrderBy(x => x).ToListAsync();
+        dict["PlantGrade"] = await _context.MaterialReceiveChecks
+            .Where(m => m.PlantGrade != null).Select(m => m.PlantGrade).Distinct().OrderBy(x => x).ToListAsync();
+        dict["Specification"] = await _context.MaterialReceiveChecks
+            .Where(m => m.Specification != null).Select(m => m.Specification).Distinct().OrderBy(x => x).ToListAsync();
+        dict["Shift"] = await _context.MaterialReceiveChecks
+            .Where(m => m.Shift != null).Select(m => m.Shift).Distinct().OrderBy(x => x).ToListAsync();
+        dict["Checker"] = await _context.MaterialReceiveChecks
+            .Where(m => m.Checker != null).Select(m => m.Checker).Distinct().OrderBy(x => x).ToListAsync();
+        dict["FurnaceNo"] = await _context.MaterialReceiveChecks
+            .Where(m => m.FurnaceNo != null).Select(m => m.FurnaceNo).Distinct().OrderBy(x => x).ToListAsync();
+        dict["WorkOrderNo"] = await _context.MaterialReceiveChecks
+            .Where(m => m.WorkOrderNo != null).Select(m => m.WorkOrderNo).Distinct().OrderBy(x => x).ToListAsync();
+        dict["SalesOrderNo"] = await _context.MaterialReceiveChecks
+            .Where(m => m.SalesOrderNo != null).Select(m => m.SalesOrderNo).Distinct().OrderBy(x => x).ToListAsync();
+        dict["SourceUnit"] = await _context.MaterialReceiveChecks
+            .Where(m => m.SourceUnit != null).Select(m => m.SourceUnit).Distinct().OrderBy(x => x).ToListAsync();
+        dict["Salesman"] = await _context.MaterialReceiveChecks
+            .Where(m => m.Salesman != null).Select(m => m.Salesman).Distinct().OrderBy(x => x).ToListAsync();
+        dict["DeliveryState"] = await _context.MaterialReceiveChecks
+            .Where(m => m.DeliveryState != null).Select(m => m.DeliveryState).Distinct().OrderBy(x => x).ToListAsync();
+        dict["QualityStatus"] = new List<string> { "待检验", "检验中", "完成检验" };
 
         return dict;
     }

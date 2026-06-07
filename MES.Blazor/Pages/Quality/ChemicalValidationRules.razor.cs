@@ -724,7 +724,7 @@ public partial class ChemicalValidationRules
         return sb.ToString();
     }
 
-    private string GetCellPrintValue(ChemicalValidationRuleDto item, ColumnDef col) => col.Key switch
+    private string? GetCellPrintValue(ChemicalValidationRuleDto item, ColumnDef col) => col.Key switch
     {
         "PlantGrade" => item.PlantGrade,
         "CMin" => item.CMin, "CMax" => item.CMax,

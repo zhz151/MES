@@ -72,7 +72,7 @@ public partial class OutsourceRecoveries
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "BatchNo",             Label = "批次号",       SortKey = "batchno",                FilterType = "string" },
+        new() { Key = "BatchNo",             Label = "生产编号",     SortKey = "batchno",                FilterType = "string" },
         new() { Key = "OutsourceVendor",     Label = "委外单位",     SortKey = "outsourcevendor",        FilterType = "string" },
         new() { Key = "ProcessName",         Label = "工序名称",     SortKey = "processname",            FilterType = "string" },
         new() { Key = "SectionName",         Label = "工段名称",     SortKey = "sectionname",            FilterType = "string" },
@@ -423,7 +423,7 @@ public partial class OutsourceRecoveries
                 builder.AddContent(0, item.SectionName ?? "");
                 break;
             case "ManufacturingSpec":
-                builder.AddContent(0, DisplayHelper.FormatSpecification(item.ManufacturingSpec));
+                builder.AddContent(0, DisplayHelper.FormatSpecification(item.ManufacturingSpec ?? ""));
                 break;
             case "OutsourceSpec":
                 builder.AddContent(0, item.OutsourceSpec ?? "");

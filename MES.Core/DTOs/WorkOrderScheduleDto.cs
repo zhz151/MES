@@ -49,15 +49,48 @@ public class WorkOrderScheduleDto
     public int? DaysDiffFromDelivery { get; set; }
     public string? RawMaterialLockRemark { get; set; }
 
-    // ========== G13: 销售催单 ==========
-    public bool SalesUrging { get; set; }
-    public string? UrgingRemark { get; set; }
+    // ========== G13: 工单需求调整 ==========
+    public bool IsUrging { get; set; }
+    public bool IsBatchDelivery { get; set; }
+    public bool IsPaused { get; set; }
+    public string? AdjustmentRemark { get; set; }
+
+    // ========== G14: 在产节点待量 ==========
+    /// <summary>荒管处理·外抛光 待量(kg)</summary>
+    public decimal? PendingSectionRoughTube { get; set; }
+
+    /// <summary>在制修检·检验 待量(kg)</summary>
+    public decimal? PendingSectionWarehouseFix { get; set; }
+
+    /// <summary>60冷轧·冷轧拔 待量(kg)</summary>
+    public decimal? PendingSection60Roll { get; set; }
+
+    /// <summary>50冷轧·冷轧拔 待量(kg)</summary>
+    public decimal? PendingSection50Roll { get; set; }
+
+    /// <summary>30冷轧·冷轧拔 待量(kg)</summary>
+    public decimal? PendingSection30Roll { get; set; }
+
+    /// <summary>20冷轧·冷轧拔 待量(kg)</summary>
+    public decimal? PendingSection20Roll { get; set; }
+
+    /// <summary>三辊冷轧·冷轧拔 待量(kg)</summary>
+    public decimal? PendingSectionThreeRoll { get; set; }
+
+    /// <summary>冷拔·冷轧拔 待量(kg)</summary>
+    public decimal? PendingSectionDrawBench { get; set; }
+
+    /// <summary>变形工序是否完成</summary>
+    public bool DeformedProcessCompleted { get; set; }
+
+    /// <summary>生产关注工序</summary>
+    public string? ProductionAttentionProcess { get; set; }
 
     // ========== 显示文本 ==========
     public string DelayPenaltyText => DelayPenalty ? "是" : "否";
     public string ScheduleStageText => ScheduleStage switch
     {
-        0 => "无需排产", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => "未知"
+        0 => "工单完成", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => "未知"
     };
-    public string SalesUrgingText => SalesUrging ? "是" : "否";
+    public string UrgingText => IsUrging ? "是" : "否";
 }

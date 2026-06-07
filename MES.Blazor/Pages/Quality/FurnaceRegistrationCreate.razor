@@ -419,10 +419,10 @@
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
                 builder.AddAttribute(4, "Value", r.RegisteredGrade);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v =>
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
                 {
                     r.RegisteredGrade = v ?? "";
-                    _ = LookupAndSetPlantGrade(r);
+                    await LookupAndSetPlantGrade(r);
                 }));
                 builder.CloseComponent();
                 break;

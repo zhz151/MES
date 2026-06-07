@@ -15,6 +15,8 @@ namespace MES.Blazor.Pages.Quality;
 
 public partial class MaterialChecks
 {
+    // ========== 服务端分页模式（单表查询，每次只取 1 页，同 FinalInspections） ==========
+
     private MudTable<MaterialReceiveCheckDto>? table;
     private List<MaterialReceiveCheckDto> _pageItems = new();
     private int _totalCount;
@@ -49,6 +51,10 @@ public partial class MaterialChecks
     private string sortColumn = "receivedate";
     private bool sortDescending = true;
 
+    // B33: 分页汇总
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new() { "ProductionCutQuantity", "ProductionWeight" };
+
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -62,19 +68,24 @@ public partial class MaterialChecks
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "ReceiveDate",       Label = "到料日期",   SortKey = "receivedate", FilterType = "date", Width = "120" },
-        new() { Key = "BatchNo",           Label = "批次号",     SortKey = "batchno", FilterType = "string", Width = "120" },
-        new() { Key = "ManufacturingItem", Label = "制造物品",   SortKey = "manufacturingitem", FilterType = "string", Width = "120" },
-        new() { Key = "PlantGrade",        Label = "钢种",       SortKey = "plantgrade", FilterType = "string", Width = "120" },
+        new() { Key = "BatchNo",           Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120" },
+        new() { Key = "ManufacturingItem", Label = "制造物品",   SortKey = "manufacturingitem", FilterType = "enum", Width = "120", EnumOptions = new() { new("OrderFinishedProduct","订单成品"), new("PreparedMaterial","备料成品"), new("SurplusStock","余库料"), new("IntermediateProduct","中间品"), new("SpecialDeliveryStatus","特定交态成品") } },
+        new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string", Width = "120" },
         new() { Key = "Specification",     Label = "规格",       SortKey = "specification", FilterType = "string", Width = "120" },
         new() { Key = "TagNo",             Label = "挂牌号",     SortKey = "tagno", FilterType = "string", Visible = false, Width = "120" },
         new() { Key = "WorkOrderNo",       Label = "工单号",     SortKey = "workorderno", FilterType = "string", Visible = false, Width = "120" },
         new() { Key = "SalesOrderNo",      Label = "订单号",     SortKey = "salesorderno", FilterType = "string", Visible = false, Width = "120" },
         new() { Key = "FurnaceNo",         Label = "炉号",       SortKey = "furnaceno", FilterType = "string", Visible = false, Width = "120" },
         new() { Key = "SourceUnit",        Label = "来料单位",   SortKey = "sourceunit", FilterType = "string", Visible = false, Width = "120" },
-        new() { Key = "ProductionType",     Label = "生产类型",   SortKey = "productiontype", FilterType = "string", Visible = false, Width = "120" },
+        new() { Key = "ProductionType",     Label = "生产类型",   SortKey = "productiontype", FilterType = "enum", Width = "120", Visible = false, EnumOptions = new() { new("RoughTube","荒管生产"), new("InProcess","在制生产"), new("Inventory","库存"), new("OutsourcedPurchased","外购"), new("Rework","返整"), new("Subcontract","委外生产"), new("ExternalProcessing","对外加工") } },
         new() { Key = "ProductionCutQuantity", Label = "生产支数", SortKey = "productioncutquantity", FilterType = "number", Width = "80" },
+        new() { Key = "ProductionWeight",  Label = "生产重量",   SortKey = "productionweight", FilterType = "number", Width = "80" },
+        new() { Key = "LengthStatus",      Label = "长度状态",   SortKey = "lengthstatus", FilterType = "enum", Width = "100", EnumOptions = new() { new("Fixed","定尺"), new("Range","范围尺"), new("NonFixed","非定尺") } },
+        new() { Key = "DataSource",        Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Width = "80", EnumOptions = new() { new("SCAN","扫码"), new("MANUAL","手动") } },
         new() { Key = "Shift",             Label = "班次",        SortKey = "shift", FilterType = "string", Width = "120" },
         new() { Key = "Checker",           Label = "确认人",     SortKey = "checker", FilterType = "string", Width = "120" },
+        new() { Key = "Salesman",          Label = "业务员",     SortKey = "salesman", FilterType = "string", Width = "100" },
+        new() { Key = "DeliveryState",     Label = "交货状态",   SortKey = "deliverystate", FilterType = "enum", Width = "120", EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态") } },
         new() { Key = "IsForceCompleted",  Label = "强制完成",   SortKey = "isforcecompleted", FilterType = "boolean", Visible = false, BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "60" },
         new() { Key = "Remark",            Label = "备注",        SortKey = "remark", FilterType = "string", Width = "120" },
         new() { Key = "CreatedTime",       Label = "创建时间",   SortKey = "createdtime", FilterType = "date", Width = "120" },
@@ -95,7 +106,7 @@ public partial class MaterialChecks
                 _isFirstLoad = false;
             }
 
-            var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "createdtime";
+            var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "receivedate";
             var filtersJson = SerializeFilters();
 
             var result = await ProductionRecordService.GetAllMaterialReceiveChecksAsync(
@@ -112,11 +123,13 @@ public partial class MaterialChecks
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
                 _currentPage = state.Page + 1;
+                ComputePageSums();
             }
             else
             {
                 _pageItems = new();
                 _totalCount = 0;
+                _pageSums.Clear();
             }
         }
         catch (Exception ex)
@@ -176,6 +189,17 @@ public partial class MaterialChecks
                 Display = v,
                 Count = 0
             }).ToList();
+        }
+
+        // 枚举列：用 EnumOptions 的中文显示名替换 API 返回的原始值
+        foreach (var col in _allColumns.Where(c => c.FilterType == "enum" && c.EnumOptions != null))
+        {
+            if (_filterContextOptions.TryGetValue(col.Key, out var options))
+            {
+                var enumMap = col.EnumOptions!.ToDictionary(e => e.Value, e => e.Display);
+                foreach (var opt in options.Where(o => enumMap.ContainsKey(o.Value)))
+                    opt.Display = enumMap[opt.Value];
+            }
         }
 
         // 补充枚举列筛选选项（后端不返回枚举列 DISTINCT 值）
@@ -310,8 +334,11 @@ public partial class MaterialChecks
         if (savedState != null && table != null)
             await table.ReloadServerData();
 
-        // 加载筛选上下文（ExcelFilter 下拉选项）
-        await LoadFilterContextsAsync();
+        // 加载筛选上下文和待成检到料卡片数据（并行）
+        await Task.WhenAll(
+            LoadFilterContextsAsync(),
+            LoadPendingMaterialChecksAsync()
+        );
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -324,9 +351,28 @@ public partial class MaterialChecks
         }
     }
 
+    // ========== 待成检到料卡片 ==========
+
+    private List<PendingMaterialCheckDto> _pendingItems = new();
+    private bool _showPending = false;
+
+    private async Task LoadPendingMaterialChecksAsync()
+    {
+        try
+        {
+            var result = await ProductionRecordService.GetPendingMaterialChecksAsync();
+            if (result.Success && result.Data != null)
+                _pendingItems = result.Data;
+        }
+        catch { }
+    }
+
+    private void TogglePendingMaterialChecks() => _showPending = !_showPending;
+
     // ========== 导航 ==========
 
     private void NavigateToCreate() => Navigation.NavigateTo("/material-checks/create");
+    private void NavigateToCreateWithBatch(string batchNo) => Navigation.NavigateTo($"/material-checks/create?batchNo={Uri.EscapeDataString(batchNo)}");
     private void ViewBatch(int batchId) => Navigation.NavigateTo($"/batches/{batchId}");
 
     // ========== 内联编辑 ==========
@@ -418,7 +464,7 @@ public partial class MaterialChecks
     {
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
         {
-            ["ContentText"] = $"确定要删除批次 \"{item.BatchNo}\" 的检验到料记录吗？\n\n删除后批次将恢复为进行中状态！",
+            ["ContentText"] = $"确定要删除批次 \"{item.BatchNo}\" 的成检到料记录吗？\n\n删除后批次将恢复为进行中状态！",
             ["ConfirmText"] = "确认删除",
             ["Color"] = Color.Error
         });
@@ -481,6 +527,9 @@ public partial class MaterialChecks
                 break;
 
             case "ManufacturingItem":
+                builder.AddContent(0, DisplayHelper.GetManufacturingItemText(item.ManufacturingItem));
+                break;
+
             case "PlantGrade":
             case "Specification":
             case "TagNo":
@@ -488,12 +537,32 @@ public partial class MaterialChecks
             case "SalesOrderNo":
             case "FurnaceNo":
             case "SourceUnit":
-            case "ProductionType":
                 builder.AddContent(0, typeof(MaterialReceiveCheckDto).GetProperty(col.Key)?.GetValue(item)?.ToString());
+                break;
+
+            case "ProductionType":
+                builder.AddContent(0, DisplayHelper.GetProductionTypeText(item.ProductionType));
                 break;
 
             case "ProductionCutQuantity":
                 builder.AddContent(0, item.ProductionCutQuantity);
+                break;
+
+            case "ProductionWeight":
+                builder.AddContent(0, item.ProductionWeight.HasValue ? ((int)item.ProductionWeight.Value).ToString() : "");
+                break;
+
+            case "LengthStatus":
+                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                break;
+
+            case "DataSource":
+                builder.AddContent(0, item.DataSource switch
+                {
+                    "SCAN" => "扫码",
+                    "MANUAL" => "手动",
+                    _ => item.DataSource
+                });
                 break;
 
             case "IsForceCompleted":
@@ -569,6 +638,14 @@ public partial class MaterialChecks
                 builder.AddContent(0, item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
 
+            case "Salesman":
+                builder.AddContent(0, item.Salesman);
+                break;
+
+            case "DeliveryState":
+                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
+                break;
+
             default:
                 builder.AddContent(0, "");
                 break;
@@ -590,7 +667,7 @@ public partial class MaterialChecks
     {
         if (!selectedIds.Any())
         {
-            Snackbar.Add("请先选择要打印的检验到料记录", Severity.Warning);
+            Snackbar.Add("请先选择要打印的成检到料记录", Severity.Warning);
             return;
         }
         try
@@ -645,5 +722,38 @@ public partial class MaterialChecks
             Extras = extras
         };
         await PageState.SaveAsync("materialchecks", state);
+    }
+
+    // ========== 分页汇总（B33） ==========
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+        var props = typeof(MaterialReceiveCheckDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+        foreach (var key in _summableColumnKeys)
+        {
+            if (!props.TryGetValue(key, out var prop)) continue;
+            var type = prop.PropertyType;
+            try
+            {
+                if (type == typeof(decimal?))
+                {
+                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    _pageSums[key] = ((int)sum).ToString();
+                }
+                else if (type == typeof(int?))
+                {
+                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    _pageSums[key] = sum.ToString();
+                }
+            }
+            catch { }
+        }
+    }
+    private string RenderFooterCell(ColumnDef col)
+    {
+        return _pageSums.GetValueOrDefault(col.Key, "");
     }
 }

@@ -742,9 +742,9 @@
 
         _batchInfoItems = new List<(string, string)>
         {
-            ("批次号", _batchGroupResult.BatchNo),
+            ("生产编号", _batchGroupResult.BatchNo),
             ("状态", _batchGroupResult.Status),
-            ("钢种", _batchGroupResult.PlantGrade),
+            ("工厂牌号", _batchGroupResult.PlantGrade),
             ("规格", _batchGroupResult.Specification),
             ("挂牌号", _batchGroupResult.TagNo ?? "-"),
             ("生产类型", _batchGroupResult.ProductionType ?? "-"),
@@ -769,9 +769,9 @@
 
         _batchInfoItems = new List<(string, string)>
         {
-            ("批次号", _batchGroupResult.BatchNo),
+            ("生产编号", _batchGroupResult.BatchNo),
             ("状态", _batchGroupResult.Status),
-            ("钢种", _batchGroupResult.PlantGrade),
+            ("工厂牌号", _batchGroupResult.PlantGrade),
             ("规格", _batchGroupResult.Specification),
             ("挂牌号", _batchGroupResult.TagNo ?? "-"),
             ("生产类型", _batchGroupResult.ProductionType ?? "-"),
@@ -805,9 +805,9 @@
         _resolveResult = response.Data;
         _batchInfoItems = new List<(string, string)>
         {
-            ("批次号", _resolveResult.BatchNo),
+            ("生产编号", _resolveResult.BatchNo),
             ("状态", _resolveResult.Status),
-            ("钢种", _resolveResult.PlantGrade),
+            ("工厂牌号", _resolveResult.PlantGrade),
             ("规格", _resolveResult.Specification),
             ("挂牌号", _resolveResult.TagNo ?? "-"),
             ("生产类型", _resolveResult.ProductionType ?? "-"),

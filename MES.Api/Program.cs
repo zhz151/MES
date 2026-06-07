@@ -20,6 +20,7 @@ using MES.Services;
 using MES.Services.DataExchange;
 using MES.Services.DataFix;
 using MES.Services.Order;
+using MES.Services.Orders;
 using MES.Services.Configuration;
 using MES.Services.Scheduling;
 using QuestPDF.Infrastructure;
@@ -188,12 +189,15 @@ builder.Services.AddScoped<IScanService, ScanService>();
 builder.Services.AddScoped<IWorkOrderExecutionService, WorkOrderExecutionService>();
 
 // ========== Scheduling 上下文 ==========
-builder.Services.AddScoped<ISalesUrgingService, SalesUrgingService>();
+builder.Services.AddScoped<IOrderDemandAdjustmentService, OrderDemandAdjustmentService>();
 builder.Services.AddScoped<IRawMaterialLockPlanAndExecutionService, RawMaterialLockPlanAndExecutionService>();
 builder.Services.AddScoped<ProductionOverviewService>();
 builder.Services.AddScoped<ISectionProductionStatusService, SectionProductionStatusService>();
 builder.Services.AddScoped<ISectionFlowAnalysisService, SectionFlowAnalysisService>();
 builder.Services.AddScoped<IWorkOrderScheduleService, WorkOrderScheduleService>();
+builder.Services.AddScoped<IBatchPlanService, BatchPlanService>();
+builder.Services.AddScoped<IColdRollPlanService, ColdRollPlanService>();
+builder.Services.AddScoped<IFinalInspectionKanbanService, FinalInspectionKanbanService>();
 
 // 质量过程跟踪
 builder.Services.AddScoped<IQualityProcessTrackingService, QualityProcessTrackingService>();

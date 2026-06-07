@@ -439,9 +439,9 @@
         builder.AddAttribute(2, "Variant", Variant.Outlined);
         builder.AddAttribute(3, "Size", Size.Small);
         builder.AddAttribute(4, "Value", r.BatchNo);
-        builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v =>
+        builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
         {
-            _ = OnBatchNoChanged(r, v ?? string.Empty);
+            await OnBatchNoChanged(r, v ?? string.Empty);
         }));
         builder.CloseComponent();
     };

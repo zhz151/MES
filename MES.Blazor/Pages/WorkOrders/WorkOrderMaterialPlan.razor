@@ -100,7 +100,7 @@
                                 <MudTd>@plan.PiercingSpec</MudTd>
                                 <MudTd>@(plan.RequiredUnitWeight?.ToString("G29") ?? "-")</MudTd>
                                 <MudTd>@(plan.RequiredPieces?.ToString() ?? "-")</MudTd>
-                                <MudTd>@plan.RequiredWeight.ToString("G29")</MudTd>
+                                <MudTd>@(((int)plan.RequiredWeight).ToString())</MudTd>
                                 <MudTd>@(plan.InputMultiple.ToString())</MudTd>
                                 <MudTd>@plan.RequiredDate.ToString("yyyy-MM-dd")</MudTd>
                                 <MudTd>@(plan.Remark ?? "-")</MudTd>
@@ -153,7 +153,7 @@
                                 <MudTd>@plan.RawMaterialSpec</MudTd>
                                 <MudTd>@(plan.RequiredUnitWeight?.ToString("G29") ?? "-")</MudTd>
                                 <MudTd>@(plan.RequiredPieces?.ToString() ?? "-")</MudTd>
-                                <MudTd>@plan.RequiredWeight.ToString("G29")</MudTd>
+                                <MudTd>@(((int)plan.RequiredWeight).ToString())</MudTd>
                                 <MudTd>@(plan.InputMultiple.ToString())</MudTd>
                                 <MudTd>@plan.RequiredDate.ToString("yyyy-MM-dd")</MudTd>
                                 <MudTd>@(plan.Remark ?? "-")</MudTd>
@@ -214,7 +214,7 @@
                                 <MudTd>@FormatLengthRange(plan.MinLength, plan.MaxLength)</MudTd>
                                 <MudTd>@DisplayHelper.GetDeliveryStateText(plan.DeliveryState)</MudTd>
                                 <MudTd>@(plan.RequiredPiece?.ToString() ?? "-")</MudTd>
-                                <MudTd>@plan.RequiredWeight.ToString("G29")</MudTd>
+                                <MudTd>@(((int)plan.RequiredWeight).ToString())</MudTd>
                                 <MudTd>@(plan.InputMultiple?.ToString() ?? "-")</MudTd>
                                 <MudTd>@(plan.RequiredDate?.ToString("yyyy-MM-dd") ?? "-")</MudTd>
                                 <MudTd>@(plan.Remark ?? "-")</MudTd>
@@ -276,7 +276,7 @@
                                         <span>@(plan.UsedQuantity?.ToString() ?? "-")支</span>
                                     }
                                 </MudTd>
-                                <MudTd>@plan.UsedWeight.ToString("G29")</MudTd>
+                                <MudTd>@(((int)plan.UsedWeight).ToString())</MudTd>
                                 <MudTd>@FormatLocation(plan.LocationArea, plan.LocationRack)</MudTd>
                                 <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
@@ -337,7 +337,7 @@
                                         <span>@(plan.UsedQuantity?.ToString() ?? "-")支</span>
                                     }
                                 </MudTd>
-                                <MudTd>@plan.UsedWeight.ToString("G29")</MudTd>
+                                <MudTd>@(((int)plan.UsedWeight).ToString())</MudTd>
                                 <MudTd>@FormatLocation(plan.LocationArea, plan.LocationRack)</MudTd>
                                 <MudTd>@plan.ReworkTypeText</MudTd>
                                 <MudTd>
@@ -777,12 +777,12 @@
         if (isFixed)
         {
             var total = workOrder.TotalQuantity > 0 ? workOrder.TotalQuantity : 1;
-            return Math.Round(qtySum / (decimal)total * 100).ToString() + "%";
+            return ((int)(qtySum / (decimal)total * 100)).ToString() + "%";
         }
         else
         {
             var total = workOrder.TotalWeight > 0 ? workOrder.TotalWeight : 1;
-            return Math.Round(wtSum / total * 100).ToString() + "%";
+            return ((int)(wtSum / total * 100)).ToString() + "%";
         }
     }
 

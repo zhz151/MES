@@ -69,12 +69,35 @@ public class MaterialReceiveCheck : BaseEntity
     /// <summary>生产类型（待批次上下文枚举迁移后改为 ProductionType?）</summary>
     public string? ProductionType { get; set; }
 
+    /// <summary>
+    /// 长度状态（从 ProductionBatch 复制）
+    /// </summary>
+    public string? LengthStatus { get; set; }
+
+    /// <summary>
+    /// 生产重量(kg) — 按生产类型区分计算逻辑，创建时快照
+    /// </summary>
+    public decimal? ProductionWeight { get; set; }
+
+    /// <summary>
+    /// 生产支数 — 按生产类型区分计算逻辑，创建时快照
+    /// </summary>
+    public int ProductionCutQuantity { get; set; }
+
     // ========== 状态控制 ==========
 
     /// <summary>
     /// 强制完成（人控开关）
     /// </summary>
     public bool IsForceCompleted { get; set; }
+
+    // ========== 冗余字段（从 WorkOrder/ProductionBatch 自动复制） ==========
+
+    /// <summary>业务员</summary>
+    public string? Salesman { get; set; }
+
+    /// <summary>交货状态</summary>
+    public string? DeliveryState { get; set; }
 
     // ========== 导航属性 ==========
 

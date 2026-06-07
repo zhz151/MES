@@ -904,7 +904,7 @@
                 builder.AddContent(0, item.ReturnedQuantity > 0 ? item.ReturnedQuantity.ToString() : "-");
                 break;
             case "returnedweight":
-                builder.AddContent(0, item.ReturnedWeight > 0 ? Math.Round(item.ReturnedWeight).ToString("F0") : "-");
+                builder.AddContent(0, item.ReturnedWeight > 0 ? ((int)item.ReturnedWeight).ToString() : "-");
                 break;
             case "processstatus":
                 builder.AddContent(0, DisplayHelper.GetSubcontractProcessStatusText(item.ProcessStatus));

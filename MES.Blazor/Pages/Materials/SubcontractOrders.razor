@@ -66,9 +66,9 @@
                                 <RowTemplate>
                                     <MudTd>@context.WorkOrderNo</MudTd>
                                     <MudTd>@context.MaterialCategory</MudTd>
-                                    <MudTd Class="text-right">@context.PlanWeight.ToString("G29")</MudTd>
-                                    <MudTd Class="text-right">@context.SubcontractWeight.ToString("G29")</MudTd>
-                                    <MudTd Class="text-right">@context.TotalWeight.ToString("G29")</MudTd>
+                                    <MudTd Class="text-right">@(((int)context.PlanWeight).ToString())</MudTd>
+                                    <MudTd Class="text-right">@(((int)context.SubcontractWeight).ToString())</MudTd>
+                                    <MudTd Class="text-right">@(((int)context.TotalWeight).ToString())</MudTd>
                                     <MudTd>
                                         <MudChip Size="Size.Small" Color="@(context.StatusText == "未穿孔" ? Color.Error : Color.Warning)">
                                             @context.StatusText

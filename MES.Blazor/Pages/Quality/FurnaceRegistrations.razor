@@ -145,6 +145,12 @@
                         }
                     </MudTd>
                 </RowTemplate>
+                <FooterContent>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd Class="col-footer-cell"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
+                    }
+                </FooterContent>
                 <PagerContent>
                     <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>

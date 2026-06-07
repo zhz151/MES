@@ -23,19 +23,14 @@ public class SectionProductionStatusService : ISectionProductionStatusService
 
     public async Task<List<SectionProductionStatusDto>> GetStatusAsync()
     {
-        // 1a. 加载所有批次的工序组（含已完成），用于构建完整维度集合
+        // 1. 加载未完成的批次（含工序组），用于构建维度集合并聚合计算
         var allBatches = await _context.Set<ProductionBatch>()
             .AsNoTracking()
             .Include(b => b.ProcessGroups)
+            .Where(b => b.Status != BatchStatus.Completed)
             .ToListAsync();
 
-        // 1b. 加载未完成的批次，用于聚合计算
-        var batches = allBatches
-            .Where(b => b.Status != BatchStatus.Completed)
-            .ToList();
-
-        // 2. 构建维度集合：所有批次（含已完成）中所有工序组的(工序组名称, 工段名称)唯一组合
-        //    排除"入库"工段
+        // 2. 构建维度集合：所有工序组的(工序组名称, 工段名称)唯一组合（排除"入库"工段）
         var dimensions = allBatches
             .SelectMany(b => b.ProcessGroups)
             .SelectMany(pg => pg.GetNonEmptySections()
@@ -49,8 +44,8 @@ public class SectionProductionStatusService : ISectionProductionStatusService
         if (dimensions.Count == 0)
             return new List<SectionProductionStatusDto>();
 
-        // 3. 对每个批次，计算其最后一道工序的名称（最大 SequenceNumber 的工序组）
-        var batchLastProcessMap = batches.ToDictionary(
+        // 3. 每批次的最后一道工序名称映射
+        var batchLastProcessMap = allBatches.ToDictionary(
             b => b.Id,
             b => b.ProcessGroups
                 .OrderByDescending(pg => pg.SequenceNumber)
@@ -58,46 +53,49 @@ public class SectionProductionStatusService : ISectionProductionStatusService
                 .FirstOrDefault()
         );
 
-        // 4. 按维度聚合
+        // 4. 预聚合字典：O(1) 查找替代 O(dimensions × batches) 嵌套扫描
+        // 生产中：(CurrentGroupName, CurrentSectionName) → 重量合计
+        var inProdLookup = allBatches
+            .Where(b => b.CurrentSectionCompleted == false
+                     && !string.IsNullOrEmpty(b.CurrentGroupName)
+                     && !string.IsNullOrEmpty(b.CurrentSectionName))
+            .GroupBy(b => (Group: b.CurrentGroupName, Section: b.CurrentSectionName))
+            .ToDictionary(g => g.Key, g => g.Sum(b => b.CurrentValidWeight ?? 0m));
+
+        // 待产量：(NextProcess, NextSectionName) → 重量合计
+        var pendingLookup = allBatches
+            .Where(b => b.CurrentSectionCompleted == true
+                     && !string.IsNullOrEmpty(b.NextProcess)
+                     && !string.IsNullOrEmpty(b.NextSectionName))
+            .GroupBy(b => (Group: b.NextProcess, Section: b.NextSectionName))
+            .ToDictionary(g => g.Key, g => g.Sum(b => b.CurrentValidWeight ?? 0m));
+
+        // 5. 成品工序维度集合（当前工序组 = 该批次的最后工序）
+        var finalProcessDimensionSet = allBatches
+            .Where(b => batchLastProcessMap.TryGetValue(b.Id, out var last)
+                     && !string.IsNullOrEmpty(last)
+                     && b.CurrentGroupName == last)
+            .Select(b => (Group: b.CurrentGroupName, Section: b.CurrentSectionName))
+            .Where(kv => !string.IsNullOrEmpty(kv.Group) && !string.IsNullOrEmpty(kv.Section))
+            .ToHashSet();
+
+        // 6. 按维度填充
         var result = new List<SectionProductionStatusDto>(dimensions.Count);
         foreach (var (processGroupName, sectionName) in dimensions)
         {
-            // 生产中：当前工序/工段匹配且工段未完工
-            var inProduction = batches
-                .Where(b => b.CurrentGroupName == processGroupName
-                         && b.CurrentSectionName == sectionName
-                         && b.CurrentSectionCompleted == false)
-                .Sum(b => (decimal?)b.CurrentValidWeight)
-                ?? 0m;
-
-            // 待产量：下一工序/工段匹配且工段已完工
-            var pendingProduction = batches
-                .Where(b => b.NextProcess == processGroupName
-                         && b.NextSectionName == sectionName
-                         && b.CurrentSectionCompleted == true)
-                .Sum(b => (decimal?)b.CurrentValidWeight)
-                ?? 0m;
-
+            var key = (Group: processGroupName, Section: sectionName);
+            var inProduction = inProdLookup.GetValueOrDefault(key);
+            var pendingProduction = pendingLookup.GetValueOrDefault(key);
             var total = inProduction + pendingProduction;
 
-            // 属成品工序量：仅统计涉及该批次最后一道工序的数据
-            var finalInProduction = batches
-                .Where(b => b.CurrentGroupName == processGroupName
-                         && b.CurrentSectionName == sectionName
-                         && b.CurrentSectionCompleted == false
-                         && b.CurrentGroupName == batchLastProcessMap.GetValueOrDefault(b.Id))
-                .Sum(b => (decimal?)b.CurrentValidWeight)
-                ?? 0m;
-
-            var finalPendingProduction = batches
-                .Where(b => b.NextProcess == processGroupName
-                         && b.NextSectionName == sectionName
-                         && b.CurrentSectionCompleted == true
-                         && b.NextProcess == batchLastProcessMap.GetValueOrDefault(b.Id))
-                .Sum(b => (decimal?)b.CurrentValidWeight)
-                ?? 0m;
-
-            var finalTotal = finalInProduction + finalPendingProduction;
+            // 属成品工序量：仅当此维度属于某批次的最后工序
+            decimal finalTotal = 0;
+            if (finalProcessDimensionSet.Contains(key))
+            {
+                var finalInProduction = inProdLookup.GetValueOrDefault(key);
+                var finalPending = pendingLookup.GetValueOrDefault(key);
+                finalTotal = finalInProduction + finalPending;
+            }
 
             result.Add(new SectionProductionStatusDto
             {

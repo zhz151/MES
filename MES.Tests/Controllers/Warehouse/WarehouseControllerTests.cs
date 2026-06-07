@@ -140,7 +140,7 @@ public class WarehouseControllerTests : ControllerTestBase
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var response = Assert.IsType<ApiResponse<object>>(okResult.Value);
+        var response = Assert.IsType<ApiResponse<bool>>(okResult.Value);
         Assert.True(response.Success);
     }
 

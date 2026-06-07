@@ -770,6 +770,47 @@ input[type="number"]::-webkit-outer-spin-button {
    列分组样式 - 用于多列列表页的分组视觉呈现
    ============================================================ */
 
+/* 工单执行状况页工具栏（列显隐 + 记录数，置于组字段上方） */
+.woe-toolbar {
+    display: flex;
+    align-items: center;
+    padding: 4px 0;
+    min-height: 36px;
+}
+
+/* 分组标题栏 - 独立于 MudTable 的 flex 行，由 JS 测量列宽对齐 */
+.col-group-header-scroll {
+    overflow: hidden;
+    border-bottom: 2px solid #e0e0e0;
+    background: #fff;
+}
+
+.col-group-header-bar {
+    display: flex;
+    height: 28px;
+}
+
+.col-group-header-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    border-right: 1px solid #e0e0e0;
+}
+
+.col-group-header-item:last-child {
+    border-right: none;
+}
+
+/* 数据居中 */
+#workorder-execution-list-table .mud-table-cell {
+    text-align: center !important;
+}
+
+#workorder-execution-list-table .col-header-cell {
+    justify-content: center !important;
+}
+
 /* 分组列通用 - 居左排列，不换行 */
 .col-header-cell {
     display: inline-flex;
@@ -790,6 +831,7 @@ input[type="number"]::-webkit-outer-spin-button {
     line-height: 1.6;
     white-space: nowrap;
 }
+
 
 /* G1: 基础数据 - 无色调 */
 .col-g1 .col-group-badge { color: #455A64; background: #ECEFF1; }
@@ -875,6 +917,21 @@ input[type="number"]::-webkit-outer-spin-button {
     color: #1565C0;
     white-space: nowrap;
     font-size: 0.8125rem;
+}
+
+/* 工单执行状况 - 全部数据居中显示 */
+#workorder-execution-list-table .mud-table-cell {
+    text-align: center !important;
+}
+#workorder-execution-list-table .col-header-cell {
+    justify-content: center;
+}
+/* 数字列右对齐 */
+#workorder-execution-list-table .col-numeric {
+    text-align: right !important;
+}
+#workorder-execution-list-table .col-numeric .col-header-cell {
+    justify-content: flex-end;
 }
 
 /* ============================================================
@@ -1024,4 +1081,14 @@ input[type="number"]::-webkit-outer-spin-button {
 .cancelled-orders-card .mud-card-content {
     max-height: 260px;
     overflow-y: auto;
+}
+
+/* ============================================================
+   批次看板 — 重点生产批次行高亮
+   ============================================================ */
+.key-batch-row {
+    background: #fff0f0 !important;
+}
+.key-batch-row:hover {
+    background: #ffe0e0 !important;
 }

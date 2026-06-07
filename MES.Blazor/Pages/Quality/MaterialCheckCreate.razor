@@ -39,7 +39,7 @@
             <CardHeaderContent>
                 <MudText Typo="Typo.h5" Class="font-weight-bold">
                     <MudIcon Icon="@Icons.Material.Filled.AddCircleOutline" Class="mr-2" Color="Color.Primary" />
-                    新建检验到料
+                    新建成检到料
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -48,6 +48,53 @@
         </MudCardHeader>
 
         <MudCardContent>
+
+            <!-- 待成检到料卡片 -->
+            @if (_pendingItems.Any())
+            {
+                <MudPaper Class="pa-3 mb-3" Elevation="0" Style="border: 1px solid #e0e0e0; border-radius: 8px;">
+                    <div Class="d-flex align-center" style="cursor: pointer;" @onclick="TogglePendingMaterialChecks">
+                        <MudIcon Icon="@Icons.Material.Filled.Inbox" Color="Color.Info" Class="mr-2" />
+                        <MudText Typo="Typo.body1" Class="font-weight-bold flex-grow-1">待成检到料批次</MudText>
+                        <MudChip Size="Size.Small" Color="Color.Warning" Class="mr-1">待处理 @_pendingItems.Count</MudChip>
+                        <MudIcon Icon="@(_showPending ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Color="Color.Default" />
+                    </div>
+                    @if (_showPending)
+                    {
+                        <div style="overflow-x: auto; overflow-y: auto; margin-top: 8px; max-height: 25vh;">
+                            <MudTable T="PendingMaterialCheckDto" Items="@_pendingItems" Dense="true" Hover="true" Elevation="0" Class="auto-table">
+                                <HeaderContent>
+                                    <MudTh Style="width: 120px;">生产编号</MudTh>
+                                    <MudTh Style="width: 110px;">工单号</MudTh>
+                                    <MudTh Style="width: 80px;">业务员</MudTh>
+                                    <MudTh Style="width: 100px;">工厂牌号</MudTh>
+                                    <MudTh Style="width: 120px;">规格</MudTh>
+                                    <MudTh Style="width: 80px;">重量</MudTh>
+                                    <MudTh Style="width: 100px;">执行截止日</MudTh>
+                                    <MudTh Style="width: 80px;">截止工段</MudTh>
+                                    <MudTh Style="width: 60px;">操作</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd>@context.BatchNo</MudTd>
+                                    <MudTd>@context.WorkOrderNo</MudTd>
+                                    <MudTd>@context.Salesman</MudTd>
+                                    <MudTd>@context.PlantGrade</MudTd>
+                                    <MudTd>@context.Specification</MudTd>
+                                    <MudTd>@((int)context.CurrentValidWeight)</MudTd>
+                                    <MudTd>@context.CurrentExecDate?.ToString("yyyy-MM-dd")</MudTd>
+                                    <MudTd>@context.CurrentSectionName</MudTd>
+                                    <MudTd>
+                                        <MudIconButton Icon="@Icons.Material.Filled.AddCircle"
+                                                       Color="Color.Primary" Size="Size.Small"
+                                                       Title="添加行"
+                                                       OnClick="() => AddRowFromPending(context)" />
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </div>
+                    }
+                </MudPaper>
+            }
 
             <div id="material-check-create-table">
                 @if (_rows.Any())
@@ -141,6 +188,41 @@
     private bool _isArrowNavSetup;
     private string _errorMessage = string.Empty;
 
+    // ========== 待成检到料卡片 ==========
+
+    private List<PendingMaterialCheckDto> _pendingItems = new();
+    private bool _showPending = true;
+
+    private async Task LoadPendingMaterialChecksAsync()
+    {
+        try
+        {
+            var result = await ProdRecordService.GetPendingMaterialChecksAsync();
+            if (result.Success && result.Data != null)
+                _pendingItems = result.Data;
+        }
+        catch { }
+    }
+
+    private void TogglePendingMaterialChecks() => _showPending = !_showPending;
+
+    private void AddRowFromPending(PendingMaterialCheckDto item)
+    {
+        var existing = _rows.FirstOrDefault(r => r.BatchNo == item.BatchNo);
+        if (existing != null)
+        {
+            Snackbar.Add($"批次 {item.BatchNo} 已在列表中", Severity.Info);
+            return;
+        }
+        _rows.Add(new EditRow
+        {
+            ReceiveDate = DateTime.Today.ToString("yyyy-MM-dd"),
+            BatchNo = item.BatchNo
+        });
+        Snackbar.Add($"已添加批次 {item.BatchNo}", Severity.Success);
+        StateHasChanged();
+    }
+
     // ========== 列定义 ==========
 
     private List<ColumnDef> _allColumns = new();
@@ -150,7 +232,7 @@
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "ReceiveDate",       Label = "到料日期", IsRequired = true },
-        new() { Key = "BatchNo",           Label = "批次号", IsRequired = true },
+        new() { Key = "BatchNo",           Label = "生产编号", IsRequired = true },
         new() { Key = "Shift",             Label = "班次" },
         new() { Key = "Checker",           Label = "检验员" },
         new() { Key = "Remark",            Label = "备注" },
@@ -218,8 +300,27 @@
             _allColumns = reordered;
         }
 
+        // 从查询参数中获取批次号（从列表页卡片跳转）
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (uri.Query.Contains("batchNo="))
+        {
+            var batchNo = System.Web.HttpUtility.ParseQueryString(uri.Query)["batchNo"];
+            if (!string.IsNullOrWhiteSpace(batchNo))
+            {
+                _rows.Clear();
+                _rows.Add(new EditRow
+                {
+                    ReceiveDate = DateTime.Today.ToString("yyyy-MM-dd"),
+                    BatchNo = batchNo
+                });
+            }
+        }
+
         if (!_rows.Any())
             _rows.Add(new EditRow());
+
+        // 加载待成检到料卡片数据
+        await LoadPendingMaterialChecksAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -282,7 +383,7 @@
 
             if (result.Success && result.Data != null)
             {
-                Snackbar.Add($"检验到料创建成功，共{result.Data.Count}条", Severity.Success);
+                Snackbar.Add($"成检到料创建成功，共{result.Data.Count}条", Severity.Success);
                 Navigation.NavigateTo("/material-checks");
             }
             else

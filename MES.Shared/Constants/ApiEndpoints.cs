@@ -57,13 +57,16 @@ public static class ApiEndpoints
     public const string ProductionOverview = "api/production-overview";
     public const string Standard = "api/standard";
     public const string RawMaterialLockPlan = "api/raw-material-lock-plan";
-    public const string SalesUrging = "api/sales-urging";
+    public const string OrderDemandAdjustment = "api/order-demand-adjustment";
     public const string Scan = "api/scan";
 
     // ===== Scheduling 排程 =====
     public const string SectionProductionStatus = "api/section-production-status";
     public const string SectionFlowAnalysis = "api/section-flow-analysis";
     public const string WorkOrderSchedule = "api/workorder-schedule";
+    public const string BatchPlan = "api/batch-plan";
+    public const string ColdRollPlan = "api/cold-roll-plan";
+    public const string FinalInspectionKanban = "api/final-inspection-kanban";
 
     // ===== Configuration 配置 =====
     public const string StandardWorkDay = "api/standard-work-day";

@@ -72,7 +72,7 @@ public partial class SectionOutsources
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "BatchNo",             Label = "批次号",       SortKey = "batchno",             FilterType = "string", Width = "120" },
+        new() { Key = "BatchNo",             Label = "生产编号",     SortKey = "batchno",             FilterType = "string", Width = "120" },
         new() { Key = "ProcessName",         Label = "工序名称",     SortKey = "processname",         FilterType = "string", Width = "120" },
         new() { Key = "ManufacturingSpec",   Label = "制造规格",     SortKey = "manufacturingspec",   FilterType = "string", Width = "120" },
         new() { Key = "SectionName",         Label = "工段名称",     SortKey = "sectionname",         FilterType = "string", Width = "120" },
@@ -454,7 +454,7 @@ public partial class SectionOutsources
                 builder.AddContent(0, item.ProcessName);
                 break;
             case "ManufacturingSpec":
-                builder.AddContent(0, DisplayHelper.FormatSpecification(item.ManufacturingSpec));
+                builder.AddContent(0, DisplayHelper.FormatSpecification(item.ManufacturingSpec ?? ""));
                 break;
             case "SectionName":
                 builder.AddContent(0, item.SectionName);
@@ -465,7 +465,7 @@ public partial class SectionOutsources
 
             case "OutsourceVendor":
                 if (isEditing && cache != null)
-                    RenderEditTextField(builder, cache.OutsourceVendor, v => cache.OutsourceVendor = v);
+                    RenderEditTextField(builder, cache.OutsourceVendor ?? "", v => cache.OutsourceVendor = v);
                 else
                     builder.AddContent(0, item.OutsourceVendor);
                 break;

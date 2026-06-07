@@ -72,7 +72,7 @@ public partial class ProductionRecords
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "ExecDate",          Label = "执行日期",   SortKey = "execdate", FilterType = "date", Width = "120" },
-        new() { Key = "BatchNo",           Label = "批次号",     SortKey = "batchno",           FilterType = "string", Width = "120" },
+        new() { Key = "BatchNo",           Label = "生产编号",   SortKey = "batchno",           FilterType = "string", Width = "120" },
         new() { Key = "ProcessName",       Label = "工序名称",   SortKey = "processname",       FilterType = "string", Width = "120" },
         new() { Key = "ManufacturingSpec", Label = "制造规格", SortKey = "manufacturingspec", FilterType = "string", Width = "120" },
         new() { Key = "SectionName",       Label = "工段名称",   SortKey = "sectionname",       FilterType = "string", Width = "120" },
@@ -605,7 +605,7 @@ public partial class ProductionRecords
                 builder.AddContent(0, item.ProcessName);
                 break;
             case "ManufacturingSpec":
-                builder.AddContent(0, DisplayHelper.FormatSpecification(item.ManufacturingSpec));
+                builder.AddContent(0, DisplayHelper.FormatSpecification(item.ManufacturingSpec ?? ""));
                 break;
             case "SectionName":
                 builder.AddContent(0, item.SectionName);

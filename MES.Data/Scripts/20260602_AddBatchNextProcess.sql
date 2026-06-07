@@ -9072,8 +9072,8 @@ BEGIN
         [EstimatedProcessCompletionDate] date NULL,
         [DaysDiffFromDelivery] int NULL,
         [RawMaterialLockRemark] nvarchar(20) NULL,
-        [SalesUrging] bit NOT NULL DEFAULT CAST(0 AS bit),
-        [UrgingRemark] nvarchar(500) NULL,
+        [IsUrging] bit NOT NULL DEFAULT CAST(0 AS bit),
+        [AdjustmentRemark] nvarchar(500) NULL,
         [CurrentScheduleStage] int NULL,
         [CurrentRawMaterialLockRemark] nvarchar(20) NULL,
         [IsExecuted] bit NULL,
@@ -9091,16 +9091,18 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260529041541_AddSchedulingContext'
 )
 BEGIN
-    CREATE TABLE [SalesUrging] (
+    CREATE TABLE [OrderDemandAdjustment] (
         [Id] int NOT NULL IDENTITY,
         [WorkOrderId] int NOT NULL,
-        [IsSalesUrging] bit NOT NULL DEFAULT CAST(0 AS bit),
-        [UrgingRemark] nvarchar(500) NULL,
+        [IsUrging] bit NOT NULL DEFAULT CAST(0 AS bit),
+        [IsBatchDelivery] bit NOT NULL DEFAULT CAST(0 AS bit),
+        [IsPaused] bit NOT NULL DEFAULT CAST(0 AS bit),
+        [AdjustmentRemark] nvarchar(500) NULL,
         [CreatedTime] datetimeoffset NOT NULL,
         [CreatedBy] nvarchar(50) NOT NULL,
         [UpdatedTime] datetimeoffset NOT NULL,
         [UpdatedBy] nvarchar(50) NOT NULL,
-        CONSTRAINT [PK_SalesUrging] PRIMARY KEY ([Id])
+        CONSTRAINT [PK_OrderDemandAdjustment] PRIMARY KEY ([Id])
     );
 END;
 GO
@@ -9137,7 +9139,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260529041541_AddSchedulingContext'
 )
 BEGIN
-    CREATE UNIQUE INDEX [UK_SU_WorkOrderId] ON [SalesUrging] ([WorkOrderId]);
+    CREATE UNIQUE INDEX [UK_ODA_WorkOrderId] ON [OrderDemandAdjustment] ([WorkOrderId]);
 END;
 GO
 
@@ -9162,7 +9164,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260531201409_AddSalesUrgingLockFields'
 )
 BEGIN
-    ALTER TABLE [SalesUrging] ADD [EstimatedArrivalDate] datetime2 NULL;
+    ALTER TABLE [OrderDemandAdjustment] ADD [EstimatedArrivalDate] datetime2 NULL;
 END;
 GO
 
@@ -9171,7 +9173,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260531201409_AddSalesUrgingLockFields'
 )
 BEGIN
-    ALTER TABLE [SalesUrging] ADD [IsLockConfirmed] bit NOT NULL DEFAULT CAST(0 AS bit);
+    ALTER TABLE [OrderDemandAdjustment] ADD [IsLockConfirmed] bit NOT NULL DEFAULT CAST(0 AS bit);
 END;
 GO
 
@@ -9180,7 +9182,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260531201409_AddSalesUrgingLockFields'
 )
 BEGIN
-    ALTER TABLE [SalesUrging] ADD [IsMainNoMaterialComplete] bit NOT NULL DEFAULT CAST(0 AS bit);
+    ALTER TABLE [OrderDemandAdjustment] ADD [IsMainNoMaterialComplete] bit NOT NULL DEFAULT CAST(0 AS bit);
 END;
 GO
 

@@ -19,7 +19,7 @@ public class MaterialChecksTests : TestBase
     public void Render_HasTitle()
     {
         var cut = Ctx.RenderComponent<MaterialChecks>();
-        cut.Markup.Should().Contain("检验到料");
+        cut.Markup.Should().Contain("成检到料");
     }
 
     [Fact]

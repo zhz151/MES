@@ -247,7 +247,7 @@ public class WorkOrderExecutionSummary : BaseEntity
     public int OrderWarehousingStatus { get; set; }
 
     // ========== Group 12: 实时关注 ==========
-    /// <summary>关注状态(0=无需排产 1=原料锁定 2=生产执行 3=成品检验)</summary>
+    /// <summary>关注状态(0=工单完成 1=原料锁定 2=生产执行 3=成品检验)</summary>
     public int ScheduleStage { get; set; }
 
     /// <summary>剩余总工量（天）：根据关注状态取关联主号的工艺周期/剩余工量</summary>
@@ -267,6 +267,42 @@ public class WorkOrderExecutionSummary : BaseEntity
 
     /// <summary>原锁备注：原料锁定原因（A质量影响/B已购未回/C计划未执行/D未完善计划），仅ScheduleStage=1时有值</summary>
     public string? RawMaterialLockRemark { get; set; }
+
+    // ========== Group 14: 在产节点待量（固定节点） ==========
+    // 固定节点定义：(ProcessName, SectionName) 对
+    // Pending 值 = 未到达 + 正在做指定工段且未完成的批次 CurrentValidWeight 累加
+    // "未到达" = 批次当前工序 SequenceNumber < 目标节点 SequenceNumber
+    // 冷拔为瞬时工序，不含"生产中"状态
+
+    /// <summary>荒管处理·外抛光 待量(kg)</summary>
+    public decimal? PendingSectionRoughTube { get; set; }
+
+    /// <summary>在制修检·检验 待量(kg)</summary>
+    public decimal? PendingSectionWarehouseFix { get; set; }
+
+    /// <summary>60冷轧·冷轧拔 待量(kg)</summary>
+    public decimal? PendingSection60Roll { get; set; }
+
+    /// <summary>50冷轧·冷轧拔 待量(kg)</summary>
+    public decimal? PendingSection50Roll { get; set; }
+
+    /// <summary>30冷轧·冷轧拔 待量(kg)</summary>
+    public decimal? PendingSection30Roll { get; set; }
+
+    /// <summary>20冷轧·冷轧拔 待量(kg)</summary>
+    public decimal? PendingSection20Roll { get; set; }
+
+    /// <summary>三辊冷轧·冷轧拔 待量(kg)</summary>
+    public decimal? PendingSectionThreeRoll { get; set; }
+
+    /// <summary>冷拔·冷轧拔 待量(kg)</summary>
+    public decimal? PendingSectionDrawBench { get; set; }
+
+    /// <summary>变形工序是否完成（后6项之和=0→true）</summary>
+    public bool DeformedProcessCompleted { get; set; }
+
+    /// <summary>生产关注工序：前8项中值>0且SequenceNumber最小的工序名称</summary>
+    public string? ProductionAttentionProcess { get; set; }
 
     // ========== 刷新追踪 ==========
     /// <summary>最后刷新时间</summary>

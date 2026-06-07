@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MES.Core.DTOs;
 using MES.Core.Interfaces;
 using MES.Core.Models;
 using System.Text.Json;
@@ -7,19 +8,19 @@ using System.Text.Json;
 namespace MES.Api.Controllers.Scheduling;
 
 [ApiController]
-[Route("api/sales-urging")]
+[Route("api/batch-plan")]
 [Authorize]
-public class SalesUrgingController : ControllerBase
+public class BatchPlanController : ControllerBase
 {
-    private readonly ISalesUrgingService _service;
+    private readonly IBatchPlanService _service;
 
-    public SalesUrgingController(ISalesUrgingService service)
+    public BatchPlanController(IBatchPlanService service)
     {
         _service = service;
     }
 
     [HttpGet("list")]
-    public async Task<ActionResult<ApiResponse<PagedResult<Core.DTOs.SalesUrgingDto>>>> GetPaged(
+    public async Task<ActionResult<ApiResponse<PagedResult<BatchPlanDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] string? keyword = null,
@@ -28,20 +29,19 @@ public class SalesUrgingController : ControllerBase
         [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
-        QueryParams query = new() { PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword, SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending };
+        var query = new QueryParams
+        {
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? "BatchNo" : sortBy,
+            IsDescending = isDescending
+        };
         if (!string.IsNullOrEmpty(filters))
             query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         var result = await _service.GetPagedAsync(query);
-        return Ok(ApiResponse<PagedResult<Core.DTOs.SalesUrgingDto>>.Ok(result));
-    }
-
-    [HttpPost("save")]
-    public async Task<ActionResult<ApiResponse<bool>>> SaveUrging(
-        [FromBody] SaveUrgingRequest request)
-    {
-        var result = await _service.SaveUrgingAsync(request.WorkOrderId, request.IsSalesUrging, request.UrgingRemark);
-        return Ok(ApiResponse<bool>.Ok(result));
+        return Ok(ApiResponse<PagedResult<BatchPlanDto>>.Ok(result));
     }
 
     [HttpGet("filter-contexts")]
@@ -50,11 +50,4 @@ public class SalesUrgingController : ControllerBase
         var result = await _service.GetFilterContextsAsync();
         return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
     }
-}
-
-public class SaveUrgingRequest
-{
-    public int WorkOrderId { get; set; }
-    public bool IsSalesUrging { get; set; }
-    public string? UrgingRemark { get; set; }
 }
