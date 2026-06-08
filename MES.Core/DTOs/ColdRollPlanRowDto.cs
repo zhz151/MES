@@ -30,4 +30,21 @@ public class ColdRollPlanRowDto
     // ===== 批次统计 =====
     public int BatchCount { get; set; }
     public int KeyBatchCount { get; set; }
+
+    // ===== 冷轧排程 =====
+    /// <summary>在轧设备号（从 ProductionBatch 在产设备字段聚合）</summary>
+    public string? MachineNo { get; set; }
+
+    /// <summary>在轧要求（排程数据，仅供客户端排序/筛选）</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string CompletionType { get; set; } = "None";
+    /// <summary>待轧要求（排程数据，仅供客户端排序/筛选）</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string RollType { get; set; } = "None";
+    /// <summary>待轧序（排程数据，仅供客户端排序/筛选）</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int RollOrder { get; set; }
+    /// <summary>待轧设备号（排程数据，仅供客户端排序/筛选）</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? SchedMachineNo { get; set; }
 }

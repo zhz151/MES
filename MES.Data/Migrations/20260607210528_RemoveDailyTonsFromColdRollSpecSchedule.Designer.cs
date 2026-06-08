@@ -4,6 +4,7 @@ using MES.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MES.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260607210528_RemoveDailyTonsFromColdRollSpecSchedule")]
+    partial class RemoveDailyTonsFromColdRollSpecSchedule
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -4025,13 +4028,6 @@ namespace MES.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("CompletionType")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("None");
-
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -4077,6 +4073,9 @@ namespace MES.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<DateTime>("ScheduleDate")
+                        .HasColumnType("date");
+
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -4087,7 +4086,7 @@ namespace MES.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProcessType", "BilletSpec", "RollingSpec", "IsFinished")
+                    b.HasIndex("ScheduleDate", "ProcessType", "BilletSpec", "RollingSpec", "IsFinished")
                         .IsUnique()
                         .HasDatabaseName("UK_CRSS_Dimensions");
 

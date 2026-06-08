@@ -39,6 +39,8 @@ public class ColdRollPlanService : IColdRollPlanService
                 b.Status,
                 b.CurrentValidWeight,
                 b.SourceSpecification,
+                b.CurrentEquipmentName,
+                b.CurrentOutsource,
                 ProcessGroups = b.ProcessGroups.Select(pg => new ProcessGroup
                 {
                     Id = pg.Id,
@@ -187,11 +189,12 @@ public class ColdRollPlanService : IColdRollPlanService
                     IsKeyBatch = isKeyBatch,
                     PositionDiff = positionDiff,
                     Weight = batch.CurrentValidWeight ?? 0m,
+                    MachineNo = isProducing ? (batch.CurrentEquipmentName ?? batch.CurrentOutsource) : null,
                 });
             }
         }
 
-        // 4. 聚合：按 (ProcessType, BilletSpec, RollingSpec, IsFinished) 分组
+        // 5. 聚合：按 (ProcessType, BilletSpec, RollingSpec, IsFinished) 分组
         var result = intermediate
             .GroupBy(r => new { r.ProcessType, r.BilletSpec, r.RollingSpec, r.IsFinished })
             .Select(g =>
@@ -268,6 +271,14 @@ public class ColdRollPlanService : IColdRollPlanService
                 row.MergeDisplay = $"{row.BilletSpec}×{row.RollingSpec}-{(row.IsFinished ? "成品" : "中间品")}";
                 row.ShortDisplay = GetShortDisplay(row.BilletSpec, row.RollingSpec);
 
+                // 在轧设备号：从近日在轧批次的设备字段聚合（去重）
+                var prodMachineNos = g.Where(x => x.PositionDiff == 0 && !string.IsNullOrEmpty(x.MachineNo))
+                    .Select(x => x.MachineNo)
+                    .Distinct()
+                    .ToList();
+                if (prodMachineNos.Any())
+                    row.MachineNo = string.Join("；", prodMachineNos);
+
                 return row;
             })
             .OrderBy(r => r.ProcessType)
@@ -316,5 +327,7 @@ public class ColdRollPlanService : IColdRollPlanService
         public bool IsKeyBatch { get; set; }
         public int PositionDiff { get; set; }
         public decimal Weight { get; set; }
+        /// <summary>在产设备的设备名（仅 PositionDiff==0 时有值）</summary>
+        public string? MachineNo { get; set; }
     }
 }

@@ -2,6 +2,7 @@
 @using MES.Blazor.Services
 @using MES.Core.DTOs
 @using MES.Core.Models
+@using MES.Blazor.Components
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
 
@@ -45,9 +46,10 @@
                       Label="搜索规格/类型..."
                       Size="Size.Small"
                       ValueChanged="@OnSearchChanged"
-                      Class="mb-2"
+                      Class="mb-2 crp-print-hide"
                       Style="max-width: 300px;"
-                      Immediate="true">
+                      Immediate="true"
+                      DebounceInterval="500">
             <Adornment>
                 <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Small" />
             </Adornment>
@@ -73,6 +75,25 @@
                            Color="Color.Primary"
                            Title="打印"
                            OnClick="@OnPrint" />
+            @if (_scheduleUpdatedTime.HasValue)
+            {
+                <MudText Typo="Typo.body2" Class="ml-4 mr-2">
+                    <b>最后更新：</b>@_scheduleUpdatedTime.Value.ToString("yyyy-MM-dd HH:mm")
+                </MudText>
+            }
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                       Class="ml-2" OnClick="@EnterSchedulingModeAsync">编辑排程</MudButton>
+            @if (_isSchedulingMode)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                           OnClick="@SaveScheduleAsync">保存排程</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                           OnClick="@CancelSchedule">取消</MudButton>
+            }
+            <ColumnDisplaySelect Columns="_allColumns"
+                                 OnColumnToggle="OnColumnToggle"
+                                 OnMoveUp="MoveColumnUp"
+                                 OnMoveDown="MoveColumnDown" />
         </div>
     </div>
 
@@ -118,6 +139,15 @@
                                 <span class="th-label">@col.Label</span>
                                 <span class="sort-indicator" style="font-size: 0.7rem; color: #666;">@GetSortIcon(col.Key)</span>
                             </div>
+                            @if (col.FilterType != null)
+                            {
+                                <ExcelFilter T="ColdRollPlanRowDto"
+                                             Label="@col.Label"
+                                             FieldKey="@col.Key"
+                                             FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"
+                                             ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                             FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))" />
+                            }
                         </MudTh>
                     }
                 </HeaderContent>
@@ -130,7 +160,57 @@
                         var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
                         _prevGk2 = col.GroupKey;
                         var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2) + " " + GetCellExtraClass(col);
-                        <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
+                        var _edit = GetEdit(item);
+                        @if (_isSchedulingMode && col.Key == "CompletionType")
+                        {
+                            <MudTd Class="@_cellClass">
+                                <MudSelect T="string" Value="@_edit.CompletionType"
+                                           ValueChanged="@(v => { _edit.CompletionType = v; })"
+                                           Dense="true" Variant="Variant.Outlined" Class="compact-select">
+                                    <MudSelectItem Value="@("None")">无计划</MudSelectItem>
+                                    <MudSelectItem Value="@("All")">全量</MudSelectItem>
+                                    <MudSelectItem Value="@("Urgent")">急单</MudSelectItem>
+                                    <MudSelectItem Value="@("Partial")">部分</MudSelectItem>
+                                </MudSelect>
+                            </MudTd>
+                        }
+                        else if (_isSchedulingMode && col.Key == "RollType")
+                        {
+                            <MudTd Class="@_cellClass">
+                                <MudSelect T="string" Value="@_edit.RollType"
+                                           ValueChanged="@(v => { _edit.RollType = v; })"
+                                           Dense="true" Variant="Variant.Outlined" Class="compact-select">
+                                    <MudSelectItem Value="@("None")">无计划</MudSelectItem>
+                                    <MudSelectItem Value="@("All")">全量</MudSelectItem>
+                                    <MudSelectItem Value="@("Urgent")">急单</MudSelectItem>
+                                    <MudSelectItem Value="@("Partial")">部分</MudSelectItem>
+                                    <MudSelectItem Value="@("Subsequent")">后续</MudSelectItem>
+                                </MudSelect>
+                            </MudTd>
+                        }
+                        else if (_isSchedulingMode && col.Key == "RollOrder")
+                        {
+                            <MudTd Class="@_cellClass">
+                                <MudNumericField T="int" Value="@_edit.RollOrder"
+                                                 ValueChanged="@(v => { _edit.RollOrder = v; })"
+                                                 Dense="true" Variant="Variant.Outlined"
+                                                 HideSpinButtons="true"
+                                                 Min="0" Class="compact-input" />
+                            </MudTd>
+                        }
+                        else if (_isSchedulingMode && col.Key == "SchedMachineNo")
+                        {
+                            <MudTd Class="@_cellClass">
+                                <MudTextField T="string" Value="@_edit.MachineNo"
+                                              ValueChanged="@(v => { _edit.MachineNo = v ?? ""; })"
+                                              Dense="true" Variant="Variant.Outlined"
+                                              Class="compact-input" />
+                            </MudTd>
+                        }
+                        else
+                        {
+                            <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
+                        }
                     }
                 </RowTemplate>
                 <FooterContent>
@@ -150,6 +230,9 @@
                 <NoRecordsContent>
                     <MudText>暂无数据</MudText>
                 </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="@(new int[]{10, 15, 25, 50, 100})" />
+                </PagerContent>
             </MudTable>
         </MudCardContent>
     </MudCard>
@@ -170,5 +253,21 @@
     }
     .urgent-cell .col-footer-sum {
         color: #c62828 !important;
+    }
+    .compact-select {
+        font-size: 0.7rem !important;
+        min-height: 28px !important;
+    }
+    .compact-select .mud-select-input {
+        font-size: 0.7rem !important;
+        padding: 2px 4px !important;
+    }
+    .compact-input {
+        font-size: 0.7rem !important;
+        min-height: 28px !important;
+    }
+    .compact-input .mud-input-root {
+        font-size: 0.7rem !important;
+        padding: 2px 4px !important;
     }
 </style>

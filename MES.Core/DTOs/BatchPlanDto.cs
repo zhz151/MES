@@ -7,6 +7,10 @@ namespace MES.Core.DTOs;
 /// </summary>
 public class BatchPlanDto
 {
+    // ===== 内部字段（用于后端推导，不序列化到前端） =====
+    [JsonIgnore]
+    public int BatchId { get; set; }
+
     // ===== G1：批次信息 =====
     public string BatchNo { get; set; } = string.Empty;
     public string? TagNo { get; set; }
@@ -77,4 +81,27 @@ public class BatchPlanDto
         (PendingProcess == "荒管处理" ||
          (PendingProcess == ProductionAttentionProcess) ||
          ProductionAttentionProcess == "收尾-成检");
+
+    // ===== G5：冷轧排程（后端从 ProcessGroups 推导 + 匹配冷轧小表） =====
+    // G5-1：冷轧维度（由 ProcessGroups 推导）
+    public string? CurrentCR_ProcessType { get; set; }   // 本层冷轧工序类型
+    public string? CurrentCR_BilletSpec { get; set; }    // 本层冷轧坯料规格
+    public string? CurrentCR_RollingSpec { get; set; }   // 本层冷轧轧制规格
+    public bool CurrentCR_IsFinished { get; set; }       // 本层冷轧是否成品
+    public string? NextCR_ProcessType { get; set; }      // 下层冷轧工序类型
+    public string? NextCR_BilletSpec { get; set; }       // 下层冷轧坯料规格
+    public string? NextCR_RollingSpec { get; set; }      // 下层冷轧轧制规格
+    public bool NextCR_IsFinished { get; set; }          // 下层冷轧是否成品
+    public string? NextNextCR_ProcessType { get; set; }  // 下下层冷轧工序类型
+    public string? NextNextCR_BilletSpec { get; set; }   // 下下层冷轧坯料规格
+    public string? NextNextCR_RollingSpec { get; set; }  // 下下层冷轧轧制规格
+    public bool NextNextCR_IsFinished { get; set; }      // 下下层冷轧是否成品
+
+    // G5-2：本层排程匹配结果（本层维度匹配冷轧小表）
+    public string? CR_CompletionType { get; set; }       // 在轧要求
+
+    // G5-3：下层排程匹配结果（下层维度匹配冷轧小表）
+    public string? CR_RollType { get; set; }             // 待轧要求
+    public int CR_RollOrder { get; set; }                // 顺序
+    public string? CR_SchedMachineNo { get; set; }       // 待轧设备号
 }

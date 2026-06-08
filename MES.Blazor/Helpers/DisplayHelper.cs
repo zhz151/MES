@@ -1070,4 +1070,24 @@ public static class DisplayHelper
             _ => Color.Default
         };
     }
+
+    // ========== 冷轧排程 ==========
+    /// <summary>冷轧完工要求中文显示</summary>
+    public static string GetCompletionTypeText(string? ct) => ct switch
+    {
+        "All" => "全量",
+        "Urgent" => "急单",
+        "Partial" => "部分",
+        _ => "",
+    };
+
+    /// <summary>冷轧排程类型中文显示</summary>
+    public static string GetRollTypeText(string? rollType) => rollType switch
+    {
+        "All" => "全量",
+        "Urgent" => "急单",
+        "Partial" => "部分",
+        "Subsequent" => "后续",
+        _ => "",
+    };
 }

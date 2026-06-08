@@ -80,6 +80,7 @@ builder.Services.AddScoped<MES.Blazor.Services.SectionFlowAnalysisService>();
 builder.Services.AddScoped<WorkOrderScheduleService>();
 builder.Services.AddScoped<BatchPlanService>();
 builder.Services.AddScoped<ColdRollPlanService>();
+builder.Services.AddScoped<ColdRollSpecScheduleService>();
 builder.Services.AddScoped<FinalInspectionKanbanService>();
 
 // ========== Configuration 上下文 ==========

@@ -856,6 +856,17 @@ input[type="number"]::-webkit-outer-spin-button {
 .col-g5 .col-group-badge { color: #6A1B9A; background: #E1BEE7; }
 .col-g5-cell { background: #F8F4FC !important; }
 
+/* G6-G8: 冷轧排程子分组 - 紫色系（与 G5 同色） */
+.col-g6 { background: #F8F4FC !important; }
+.col-g6 .col-group-badge { color: #6A1B9A; background: #E1BEE7; }
+.col-g6-cell { background: #F8F4FC !important; }
+.col-g7 { background: #F8F4FC !important; }
+.col-g7 .col-group-badge { color: #6A1B9A; background: #E1BEE7; }
+.col-g7-cell { background: #F8F4FC !important; }
+.col-g8 { background: #F8F4FC !important; }
+.col-g8 .col-group-badge { color: #6A1B9A; background: #E1BEE7; }
+.col-g8-cell { background: #F8F4FC !important; }
+
 /* G6: 返整执行 - 青色系 */
 .col-g6 { background: #E0F7FA !important; }
 .col-g6 .col-group-badge { color: #00695C; background: #B2DFDB; }

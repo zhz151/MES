@@ -14,6 +14,34 @@
 
 ## Scheduling 模块 — 9 个页面
 
+### BatchPlan（批次看板）— 冷轧排程小表关联
+- **3 层冷轧维度推导**：从 `ProductionBatch.ProcessGroups`（导航属性，含全部工序组）按 SequenceNumber 排序后，基于 PendingProcess 的索引位置推导 3 层：
+  - 本层（`CurrentCR_*`）：PendingProcess 对应的工序组
+  - 下层（`NextCR_*`）：pendingIdx + 1
+  - 下下层（`NextNextCR_*`）：pendingIdx + 2
+- 每层 4 个维度字段：`ProcessType/BilletSpec/RollingSpec/IsFinished`，仅在 `ProcessNames.IsColdRollOrDraw()` 为 true 时填入
+- BilletSpec 推导：本层 = 前一组 ManufacturingSpec，下层 = 本组 ManufacturingSpec，下下层 = 次组 ManufacturingSpec
+- 匹配键：`(ProcessType, BilletSpec, RollingSpec, IsFinished)` → `ColdRollSpecSchedule` 四维唯一键
+
+**匹配逻辑（BatchPlanService，分页查询后内存匹配）：**
+- **在轧要求**（`CR_CompletionType`）：本层冷轧 + `PendingEquipment` 不为空 → 匹配本层维度 → `CompletionType`
+- **待轧要求**（`CR_RollType/CR_RollOrder/CR_SchedMachineNo`）— `else if` 链，互斥：
+  - 场景1：本层冷轧 + `PendingEquipment` 为空 → 匹配本层维度
+  - 场景2（else if）：下层冷轧 + `PendingEquipment` 为空 → 匹配下层维度
+  - 场景3（else if）：下下层冷轧 + `PendingEquipment` 为空 → 匹配下下层维度
+- 3 层扩展至 `BatchPlanDto` 共 16 个 G5 字段（12 维度 + 4 匹配结果），`[JsonIgnore] BatchId` 用于 ProcessGroups 查询关联
+- G5 列分组标题栏：GroupKey 5（本层维度）/ 6（下层维度）/ 7（本层匹配）/ 8（下层匹配）/ 9（下下层维度）
+- `ColdRollPlanService` 和 `ColdRollSpecScheduleService` 必须注入 `AuthHttpClient`（带 JWT Token），非裸 `HttpClient`
+
+### ColdRollPlan（冷轧看板）— ColdRollSpecSchedule 小表保存
+- 全量同步模式：前端加载全部排程记录 → 用户编辑 → `SaveAllAsync(List<ColdRollSpecScheduleDto>)` 全量保存
+- **数据保留机制**：`SaveScheduleAsync()` 在保存前先调用 `GetAllAsync()` 加载全部现有排程记录，将未在当前编辑范围内的记录一并合并发送。防止 Tab 筛选状态下保存导致其他维度数据丢失。
+- `SaveAllAsync` 服务端逻辑：加载全部 DB 记录，按 4 维键匹配，更新/新增 + 删除僵尸数据。但前端已在保存前合并了全部现有记录，因此不会触发僵尸数据删除。
+
+### ColdRollSpecSchedule 实体
+- `ColdRollSpecSchedule`：继承 `BaseEntity`，`RollOrder` int 默认 0（DB 默认值 0，由 migration `FixRollOrderDefault` 修正）
+- 唯一索引：`(ProcessType, BilletSpec, RollingSpec, IsFinished)`
+
 ### FinalInspectionKanban（成检看板）— 新增
 - 内存全量加载 + 客户端分页/排序/筛选的看板页面。`FinalInspectionKanbanService` 实现 `IFinalInspectionKanbanService`，调用 `api/final-inspection-kanban` 端点获取全量数据。ApiEndpoint = `api/final-inspection-kanban`。
 - DTO: `FinalInspectionKanbanDto`（G1 批次信息: BatchNo/TagNo/PlantGrade/CurrentValidWeight，G2 关联工单: WorkOrderNo/Salesman/Specification/LengthStatus/MinLength/MaxLength，G3 排程信息: ScheduleStage/UrgencyLevel，G4 成检状态: KanbanStage/ReceiveDate/MaxInspectionDate）。
@@ -26,15 +54,12 @@
 - 原锁计划及执行页面（LEFT JOIN 实时查询模式）。G1-G12 来自 `WorkOrderExecutionSummary`（ScheduleStage=1），G13 LEFT JOIN `OrderDemandAdjustment`（IsUrging/IsBatchDelivery/IsPaused/AdjustmentRemark 四个字段），G15 LEFT JOIN `RawMaterialLockPreExecution` 独立小表。ApiEndpoint = `api/raw-material-lock-plan`。无独立物化表，无"计划安排"按钮。G15 字段：IsPreInput, BudgetInputDate, IsMainNoMaterialComplete（系统计算）
 - **待检验到料批次卡片** — 页面顶部 MudExpansionPanels 包裹的 MudExpansionPanel（默认折叠），显示待检验批次的数量和总重量。数据通过 `GetPendingMaterialChecksAsync()` 获取 `PendingMaterialCheckDto` 列表。
 
-### BatchPlan（批次看板）
-- 在产明细计划实时视图。`ProductionBatch`（Status=None/InProgress）LEFT JOIN `WorkOrderExecutionSummary`（UrgencyLevel/ScheduleStage） + `WorkOrderSchedule`（ProductionAttentionProcess）。ApiEndpoint = `api/batch-plan`。17 个工段筛选 Tab（含冷轧类工序+工段逻辑、过程/成品检验 SequenceNumber 比较）。IsKeyBatch 逻辑：ScheduleStage==2 && Urgency in ["A+急","A急"] && (PendingProcess=="荒管处理" || PendingProcess==ProductionAttentionProcess || ProductionAttentionProcess=="收尾-成检")。Tab 汇总通过 PagedResult.Extras 字典返回。计算字段客户端排序（`_clientSortableKeys` HashSet 定义）。枚举筛选通过 EnumOptions 映射中文显示。列分组标题栏 G2→G4→G1→G3 排列。
+### BatchPlan（批次看板）— 其他
+- 在产明细计划实时视图。`ProductionBatch`（Status=None/InProgress）LEFT JOIN `WorkOrderExecutionSummary`（UrgencyLevel/ScheduleStage） + `WorkOrderSchedule`（ProductionAttentionProcess）。ApiEndpoint = `api/batch-plan`。17 个工段筛选 Tab（含冷轧类工序+工段逻辑、过程/成品检验 SequenceNumber 比较）。IsKeyBatch 逻辑：ScheduleStage==2 && Urgency in ["A+急","A急"] && (PendingProcess=="荒管处理" || PendingProcess==ProductionAttentionProcess || ProductionAttentionProcess=="收尾-成检")。Tab 汇总通过 PagedResult.Extras 字典返回。计算字段客户端排序（`_clientSortableKeys` HashSet 定义）。枚举筛选通过 EnumOptions 映射中文显示。列分组标题栏 G2→G4→G1→G3→G5 排列。
 
-### ColdRollPlan（冷轧看板）
+### ColdRollPlan（冷轧看板）— 查看/排程
 - 按规格维度聚合的冷轧时间桶分布看板。`ProductionBatch`（Status=None/InProgress，Select 投影仅加载需要的字段）+ ProcessGroups 投影（仅加载 SequenceNumber/ProcessName/ManufacturingSpec + 15 个工段 int? 字段）+ WorkOrderExecutionSummary + WorkOrderSchedule（后两者仅加载关联工单的数据）。ApiEndpoint = `api/cold-roll-plan`。核心逻辑：所有冷轧工序组（IsColdRollOrDraw）均生成行，通过 section seq 差(diff) 映射到各时间桶。近日在轧通过直接状态检查判定（InProgress + 冷轧拔 + 未完工 + 工序组匹配）。与 OrderOverview 对齐关键：同工序组时若 CurrentSectionName=null 或冷轧拔已完成则跳过。总量使用 `_allItems.Sum(r => r.WeightTotal)` 前端直接从列表行总计计算。
-- **ColdRollPlan 简化视图切换** — MudSwitch 切换明细/简化视图，`BuildSimplifiedView()` 按 (ProcessType, ShortDisplay, IsFinished) 聚合所有重量字段。`GetGroupHeaders()` 使用 `_visibleColumns` 实例方法，视图切换时标题栏宽度自动匹配列宽。
-- **ColdRollPlan 急管列高亮** — `urgent-cell` CSS 类浅红底色深红粗体，`GetCellExtraClass()` 对 WeightProdUrgent/WeightWaitNearUrgent 返回 `urgent-cell` 样式。
-- **ColdRollPlan 打印功能** — MudIconButton 打印按钮 + IJSRuntime 调 `window.print()` + `@page { size: landscape }` 横版打印 + `crp-print-hide` 类隐藏工具栏元素。
-- **已移除** DistinctTotalWeight 属性、tab-summary 端点、GetTabSummaryAsync 方法（汇总数据全部改为客户端 _allItems.Sum()）
+- ColdRollPlan 简化视图切换、急管列高亮、打印功能、排程编辑模式（全量同步模式）、搜索栏恢复、ExcelFilter 列筛选、ColumnDisplaySelect 列显隐、MudTablePager 分页、B33 分页汇总
 
 ### OrderOverview（订单总览）
 - 非 MudTable 布局，纯展示卡片式产能负荷总览。`ProductionOverviewService`（无接口），依赖 `AppDbContext` + `IConfigParameterService`。ApiEndpoint = `api/production-overview`。GET `/overview` 返回 `ApiResponse<ProductionOverviewDto>`。
@@ -109,12 +134,12 @@
 - 要求：全项目所有 ServerData 列表页必须遵循此规范（包括必须声明 `_pageSize` 字段 + Razor 绑定 `RowsPerPage="@_pageSize"` + LoadDataFromServer 首行持久化）
 - 截至 V8.37 已修复全项目 34 个列表页，覆盖 Scheduling/Orders/WorkOrders/Batches/Quality/Equipment/Materials/Warehouse/Configuration 所有模块
 
-## PagedResult.Extras 模式（新增于批次看板）
+## PagedResult.Extras 模式
 - 用于返回分页数据之外的附加信息（如 Tab 汇总等）
 - Service 层分页查询后在分页前计算聚合数据，通过 `PagedResult<T>.Extras` Dictionary 返回
 - 前端在 LoadDataFromServer 中读取 `result.Extras` 并赋值到对应字段
 
-## 客户端排序模式（新增于批次看板）
+## 客户端排序模式
 - 计算字段（[JsonIgnore] 不参与 SQL 查询）无法后端排序
 - 定义 `_clientSortableKeys` HashSet 标识哪些排序键需要客户端执行
 - `ApplyClientSideSort()` 在 LoadDataFromServer 加载 _pageItems 后调用，根据 sortColumn/sortDescending 对内存数据排序
@@ -164,3 +189,8 @@
 - **DataSource** — SCAN / MANUAL（跨 FinalInspection / ProcessInspection / MaterialReceiveCheck）
 - **ManufacturingItem** — OrderFinishedProduct / PreparedMaterial / SurplusStock / IntermediateProduct / SpecialDeliveryStatus
 - **ProductionType** — RoughTube / InProcess / Inventory / OutsourcedPurchased / Rework / Subcontract / ExternalProcessing
+
+## 自我约束规则
+- **严格任务边界**：只做用户明确说的任务，多说一个字都先问。看到"顺手能修"的问题必须先问"要不要顺便修"，不能直接动手。
+- **禁止跑偏**：在执行当前任务过程中发现的其他问题，记录在案等当前任务完成后再问用户，而不是中途切换方向。
+- **单一任务原则**：一次只做一个方向的事情。更新文档就只更新文档，不夹带修代码、改样式等其他变更。

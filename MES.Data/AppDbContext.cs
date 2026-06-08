@@ -106,6 +106,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<SectionFlowCategorySetting> SectionFlowCategorySettings { get; set; } = null!;
     public DbSet<SectionFlowCategoryItem> SectionFlowCategoryItems { get; set; } = null!;
     public DbSet<WorkOrderSchedule> WorkOrderSchedules { get; set; } = null!;
+    public DbSet<ColdRollSpecSchedule> ColdRollSpecSchedules { get; set; } = null!;
 
     // ========== Configuration 上下文 ==========
     public DbSet<StandardWorkDay> StandardWorkDays { get; set; } = null!;
@@ -194,6 +195,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureSectionFlowCategorySetting(builder);
         ConfigureSectionFlowCategoryItem(builder);
         ConfigureWorkOrderSchedule(builder);
+        ConfigureColdRollSpecSchedule(builder);
 
         // ========== Configuration 上下文 ==========
         ConfigureStandardWorkDay(builder);
@@ -2108,6 +2110,29 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
             // 索引
             entity.HasIndex(e => e.WorkOrderId).IsUnique().HasDatabaseName("UK_RMLPE_WorkOrderId");
+        });
+    }
+
+    private static void ConfigureColdRollSpecSchedule(ModelBuilder builder)
+    {
+        builder.Entity<ColdRollSpecSchedule>(entity =>
+        {
+            entity.ToTable("ColdRollSpecSchedule");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ProcessType).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.BilletSpec).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.RollingSpec).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.MachineNo).HasMaxLength(200);
+            entity.Property(e => e.CompletionType).IsRequired().HasMaxLength(20).HasDefaultValue("None");
+            entity.Property(e => e.RollType).IsRequired().HasMaxLength(20).HasDefaultValue("None");
+            entity.Property(e => e.RollOrder).IsRequired().HasDefaultValue(1);
+            entity.Property(e => e.MergeDisplay).HasMaxLength(300);
+            entity.Property(e => e.Remark).HasMaxLength(500);
+
+            // 唯一索引：四维度组合不重复（ProcessType + BilletSpec + RollingSpec + IsFinished）
+            entity.HasIndex(e => new { e.ProcessType, e.BilletSpec, e.RollingSpec, e.IsFinished })
+                .IsUnique()
+                .HasDatabaseName("UK_CRSS_Dimensions");
         });
     }
 

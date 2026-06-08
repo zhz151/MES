@@ -66,6 +66,7 @@ public static class ApiEndpoints
     public const string WorkOrderSchedule = "api/workorder-schedule";
     public const string BatchPlan = "api/batch-plan";
     public const string ColdRollPlan = "api/cold-roll-plan";
+    public const string ColdRollSpecSchedule = "api/cold-roll-spec-schedule";
     public const string FinalInspectionKanban = "api/final-inspection-kanban";
 
     // ===== Configuration 配置 =====

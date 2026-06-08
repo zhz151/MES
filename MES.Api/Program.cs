@@ -197,6 +197,7 @@ builder.Services.AddScoped<ISectionFlowAnalysisService, SectionFlowAnalysisServi
 builder.Services.AddScoped<IWorkOrderScheduleService, WorkOrderScheduleService>();
 builder.Services.AddScoped<IBatchPlanService, BatchPlanService>();
 builder.Services.AddScoped<IColdRollPlanService, ColdRollPlanService>();
+builder.Services.AddScoped<IColdRollSpecScheduleService, ColdRollSpecScheduleService>();
 builder.Services.AddScoped<IFinalInspectionKanbanService, FinalInspectionKanbanService>();
 
 // 质量过程跟踪

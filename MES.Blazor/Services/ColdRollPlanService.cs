@@ -1,6 +1,5 @@
 using MES.Core.DTOs;
 using MES.Shared.Constants;
-using System.Net.Http.Json;
 
 namespace MES.Blazor.Services;
 
@@ -9,9 +8,9 @@ namespace MES.Blazor.Services;
 /// </summary>
 public class ColdRollPlanService
 {
-    private readonly HttpClient _http;
+    private readonly AuthHttpClient _http;
 
-    public ColdRollPlanService(HttpClient http)
+    public ColdRollPlanService(AuthHttpClient http)
     {
         _http = http;
     }

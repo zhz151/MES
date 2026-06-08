@@ -93,6 +93,32 @@ public partial class BatchPlans
             new() { Key = "IsKeyBatch",                  Label = "重点生产批次",  FilterType = "boolean", Width = "120", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 3, GroupName = "状态跟踪" },
         };
 
+        // G5: 冷轧排程（G5-1：本层维度 + 下层维度，G5-2：本层匹配，G5-3：下层匹配）
+        var g5 = new List<ColumnDef>
+        {
+            // G5-1：冷轧维度（本层）
+            new() { Key = "CurrentCR_ProcessType",  Label = "本层冷轧工序", Width = "110", GroupKey = 5, GroupName = "冷轧排程(本层)" },
+            new() { Key = "CurrentCR_BilletSpec",   Label = "本层来料规格", Width = "110", GroupKey = 5, GroupName = "冷轧排程(本层)" },
+            new() { Key = "CurrentCR_RollingSpec",  Label = "本层在轧规格", Width = "110", GroupKey = 5, GroupName = "冷轧排程(本层)" },
+            new() { Key = "CurrentCR_IsFinished",   Label = "本层末道",    Width = "80",  GroupKey = 5, GroupName = "冷轧排程(本层)" },
+            // G5-1：冷轧维度（下层）
+            new() { Key = "NextCR_ProcessType",     Label = "下层冷轧工序", Width = "110", GroupKey = 6, GroupName = "冷轧排程(下层)" },
+            new() { Key = "NextCR_BilletSpec",      Label = "下层来料规格", Width = "110", GroupKey = 6, GroupName = "冷轧排程(下层)" },
+            new() { Key = "NextCR_RollingSpec",     Label = "下层在轧规格", Width = "110", GroupKey = 6, GroupName = "冷轧排程(下层)" },
+            new() { Key = "NextCR_IsFinished",      Label = "下层末道",    Width = "80",  GroupKey = 6, GroupName = "冷轧排程(下层)" },
+            // G5-1：冷轧维度（下下层）
+            new() { Key = "NextNextCR_ProcessType", Label = "下下层冷轧工序", Width = "110", GroupKey = 9, GroupName = "冷轧排程(下下层)" },
+            new() { Key = "NextNextCR_BilletSpec",  Label = "下下层来料规格", Width = "110", GroupKey = 9, GroupName = "冷轧排程(下下层)" },
+            new() { Key = "NextNextCR_RollingSpec", Label = "下下层在轧规格", Width = "110", GroupKey = 9, GroupName = "冷轧排程(下下层)" },
+            new() { Key = "NextNextCR_IsFinished",  Label = "下下层末道",    Width = "80",  GroupKey = 9, GroupName = "冷轧排程(下下层)" },
+            // G5-2：本层排程匹配
+            new() { Key = "CR_CompletionType",      Label = "在轧要求",    Width = "90",  GroupKey = 7, GroupName = "冷轧排程(本层匹配)" },
+            // G5-3：下层排程匹配
+            new() { Key = "CR_RollType",            Label = "待轧要求",    Width = "90",  GroupKey = 8, GroupName = "冷轧排程(下层匹配)" },
+            new() { Key = "CR_RollOrder",           Label = "顺序",        Width = "60",  GroupKey = 8, GroupName = "冷轧排程(下层匹配)" },
+            new() { Key = "CR_SchedMachineNo",      Label = "待轧设备号",   Width = "100", GroupKey = 8, GroupName = "冷轧排程(下层匹配)" },
+        };
+
         // G4: 批次关注
         var g4 = new List<ColumnDef>
         {
@@ -106,6 +132,7 @@ public partial class BatchPlans
         all.AddRange(g4);
         all.AddRange(g1);
         all.AddRange(g3);
+        all.AddRange(g5);
         return all;
     }
 
@@ -402,6 +429,11 @@ public partial class BatchPlans
             2 => "col-g2",
             3 => "col-g3",
             4 => "col-g4",
+            5 => "col-g5",
+            6 => "col-g6",
+            7 => "col-g7",
+            8 => "col-g8",
+            9 => "col-g9",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start";
@@ -416,6 +448,11 @@ public partial class BatchPlans
             2 => "col-g2-cell",
             3 => "col-g3-cell",
             4 => "col-g4-cell",
+            5 => "col-g5-cell",
+            6 => "col-g6-cell",
+            7 => "col-g7-cell",
+            8 => "col-g8-cell",
+            9 => "col-g9-cell",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
@@ -567,7 +604,11 @@ public partial class BatchPlans
     /// <summary>无 SortKey 的计算字段：客户端内存排序</summary>
     private static readonly HashSet<string> _clientSortableKeys = new()
     {
-        "IsKeyBatch", "PendingProcess", "PendingSectionName", "PendingSpec", "PendingEquipment"
+        "IsKeyBatch", "PendingProcess", "PendingSectionName", "PendingSpec", "PendingEquipment",
+        "CurrentCR_ProcessType", "CurrentCR_BilletSpec", "CurrentCR_RollingSpec", "CurrentCR_IsFinished",
+        "NextCR_ProcessType", "NextCR_BilletSpec", "NextCR_RollingSpec", "NextCR_IsFinished",
+        "NextNextCR_ProcessType", "NextNextCR_BilletSpec", "NextNextCR_RollingSpec", "NextNextCR_IsFinished",
+        "CR_CompletionType", "CR_RollType", "CR_RollOrder", "CR_SchedMachineNo"
     };
 
     private void ApplyClientSideSort()
@@ -586,6 +627,22 @@ public partial class BatchPlans
         "PendingSectionName" => item.PendingSectionName,
         "PendingSpec" => item.PendingSpec,
         "PendingEquipment" => item.PendingEquipment,
+        "CurrentCR_ProcessType" => item.CurrentCR_ProcessType,
+        "CurrentCR_BilletSpec" => item.CurrentCR_BilletSpec,
+        "CurrentCR_RollingSpec" => item.CurrentCR_RollingSpec,
+        "CurrentCR_IsFinished" => item.CurrentCR_IsFinished,
+        "NextCR_ProcessType" => item.NextCR_ProcessType,
+        "NextCR_BilletSpec" => item.NextCR_BilletSpec,
+        "NextCR_RollingSpec" => item.NextCR_RollingSpec,
+        "NextCR_IsFinished" => item.NextCR_IsFinished,
+        "NextNextCR_ProcessType" => item.NextNextCR_ProcessType,
+        "NextNextCR_BilletSpec" => item.NextNextCR_BilletSpec,
+        "NextNextCR_RollingSpec" => item.NextNextCR_RollingSpec,
+        "NextNextCR_IsFinished" => item.NextNextCR_IsFinished,
+        "CR_CompletionType" => item.CR_CompletionType,
+        "CR_RollType" => item.CR_RollType,
+        "CR_RollOrder" => item.CR_RollOrder,
+        "CR_SchedMachineNo" => item.CR_SchedMachineNo,
         _ => null
     };
 
@@ -721,6 +778,58 @@ public partial class BatchPlans
                 {
                     builder.AddContent(0, "否");
                 }
+                break;
+
+            // G5: 冷轧排程
+            case "CurrentCR_ProcessType":
+                builder.AddContent(0, item.CurrentCR_ProcessType ?? "-");
+                break;
+            case "CurrentCR_BilletSpec":
+                builder.AddContent(0, item.CurrentCR_BilletSpec ?? "-");
+                break;
+            case "CurrentCR_RollingSpec":
+                builder.AddContent(0, item.CurrentCR_RollingSpec ?? "-");
+                break;
+            case "CurrentCR_IsFinished":
+                builder.AddContent(0, item.CurrentCR_IsFinished ? "是" : "否");
+                break;
+            case "NextCR_ProcessType":
+                builder.AddContent(0, item.NextCR_ProcessType ?? "-");
+                break;
+            case "NextCR_BilletSpec":
+                builder.AddContent(0, item.NextCR_BilletSpec ?? "-");
+                break;
+            case "NextCR_RollingSpec":
+                builder.AddContent(0, item.NextCR_RollingSpec ?? "-");
+                break;
+            case "NextCR_IsFinished":
+                builder.AddContent(0, item.NextCR_IsFinished ? "是" : "否");
+                break;
+            case "NextNextCR_ProcessType":
+                builder.AddContent(0, item.NextNextCR_ProcessType ?? "-");
+                break;
+            case "NextNextCR_BilletSpec":
+                builder.AddContent(0, item.NextNextCR_BilletSpec ?? "-");
+                break;
+            case "NextNextCR_RollingSpec":
+                builder.AddContent(0, item.NextNextCR_RollingSpec ?? "-");
+                break;
+            case "NextNextCR_IsFinished":
+                builder.AddContent(0, item.NextNextCR_IsFinished ? "是" : "否");
+                break;
+            case "CR_CompletionType":
+                builder.AddContent(0, string.IsNullOrEmpty(item.CR_CompletionType) || item.CR_CompletionType == "None"
+                    ? "-" : DisplayHelper.GetCompletionTypeText(item.CR_CompletionType));
+                break;
+            case "CR_RollType":
+                builder.AddContent(0, string.IsNullOrEmpty(item.CR_RollType) || item.CR_RollType == "None"
+                    ? "-" : DisplayHelper.GetRollTypeText(item.CR_RollType));
+                break;
+            case "CR_RollOrder":
+                builder.AddContent(0, item.CR_RollOrder > 0 ? item.CR_RollOrder.ToString() : "-");
+                break;
+            case "CR_SchedMachineNo":
+                builder.AddContent(0, item.CR_SchedMachineNo ?? "-");
                 break;
         }
     };
