@@ -90,7 +90,6 @@ public partial class BatchPlans
             new() { Key = "PendingSectionName",     Label = "执行工段",      Width = "120",                      GroupKey = 3, GroupName = "状态跟踪" },
             new() { Key = "PendingSpec",            Label = "执行规格",      Width = "120",                      GroupKey = 3, GroupName = "状态跟踪" },
             new() { Key = "PendingEquipment",       Label = "在轧设备",      Width = "120",                      GroupKey = 3, GroupName = "状态跟踪" },
-            new() { Key = "IsKeyBatch",                  Label = "重点生产批次",  FilterType = "boolean", Width = "120", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 3, GroupName = "状态跟踪" },
         };
 
         // G5: 冷轧排程（G5-1：本层维度 + 下层维度，G5-2：本层匹配，G5-3：下层匹配）
@@ -125,10 +124,30 @@ public partial class BatchPlans
             new() { Key = "UrgencyLevel",               Label = "工单紧急性",    SortKey = "UrgencyLevel",               FilterType = "string", Width = "110", GroupKey = 4, GroupName = "批次关注" },
             new() { Key = "ScheduleStage",               Label = "计划状态",     SortKey = "ScheduleStage",               FilterType = "enum", Width = "110", EnumOptions = new() { new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 4, GroupName = "批次关注" },
             new() { Key = "ProductionAttentionProcess",  Label = "生产关注工序",  SortKey = "ProductionAttentionProcess",  FilterType = "string", Width = "130", GroupKey = 4, GroupName = "批次关注" },
+            new() { Key = "ProductionFlowProperty",     Label = "生产流转性",    SortKey = "ProductionFlowProperty",     FilterType = "string", Width = "100", GroupKey = 4, GroupName = "批次关注" },
+            new() { Key = "IsKeyBatch",                  Label = "重点生产批次",  FilterType = "boolean", Width = "120", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 4, GroupName = "批次关注" },
+        };
+
+        // G10：工单需求调整
+        var g10 = new List<ColumnDef>
+        {
+            new() { Key = "IsUrging",              Label = "催单",         FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 10, GroupName = "工单需求调整" },
+            new() { Key = "IsBatchDelivery",       Label = "分批交货",     FilterType = "boolean", Width = "90",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 10, GroupName = "工单需求调整" },
+            new() { Key = "IsPaused",              Label = "工单暂停",     FilterType = "boolean", Width = "90",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 10, GroupName = "工单需求调整" },
+            new() { Key = "AdjustmentRemark",      Label = "调整备注",     FilterType = "string",  Width = "130", GroupKey = 10, GroupName = "工单需求调整" },
+        };
+
+        // G11：批次流转
+        var g11 = new List<ColumnDef>
+        {
+            new() { Key = "IsFlow",                Label = "流转",        FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 11, GroupName = "批次流转" },
+            new() { Key = "FlowLevel",             Label = "等级",        FilterType = "enum",    Width = "70",  EnumOptions = new() { new("1","1"), new("2","2"), new("3","3") }, GroupKey = 11, GroupName = "批次流转" },
         };
 
         var all = new List<ColumnDef>();
         all.AddRange(g2);
+        all.AddRange(g10);
+        all.AddRange(g11);
         all.AddRange(g4);
         all.AddRange(g1);
         all.AddRange(g3);
@@ -434,6 +453,8 @@ public partial class BatchPlans
             7 => "col-g7",
             8 => "col-g8",
             9 => "col-g9",
+            10 => "col-g10",
+            11 => "col-g11",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start";
@@ -453,6 +474,8 @@ public partial class BatchPlans
             7 => "col-g7-cell",
             8 => "col-g8-cell",
             9 => "col-g9-cell",
+            10 => "col-g10-cell",
+            11 => "col-g11-cell",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
@@ -608,7 +631,8 @@ public partial class BatchPlans
         "CurrentCR_ProcessType", "CurrentCR_BilletSpec", "CurrentCR_RollingSpec", "CurrentCR_IsFinished",
         "NextCR_ProcessType", "NextCR_BilletSpec", "NextCR_RollingSpec", "NextCR_IsFinished",
         "NextNextCR_ProcessType", "NextNextCR_BilletSpec", "NextNextCR_RollingSpec", "NextNextCR_IsFinished",
-        "CR_CompletionType", "CR_RollType", "CR_RollOrder", "CR_SchedMachineNo"
+        "CR_CompletionType", "CR_RollType", "CR_RollOrder", "CR_SchedMachineNo",
+        "IsFlow", "FlowLevel"
     };
 
     private void ApplyClientSideSort()
@@ -643,6 +667,8 @@ public partial class BatchPlans
         "CR_RollType" => item.CR_RollType,
         "CR_RollOrder" => item.CR_RollOrder,
         "CR_SchedMachineNo" => item.CR_SchedMachineNo,
+        "IsFlow" => item.IsFlow,
+        "FlowLevel" => item.FlowLevel,
         _ => null
     };
 
@@ -780,6 +806,72 @@ public partial class BatchPlans
                 }
                 break;
 
+            // G6: 工单需求调整
+            case "IsUrging":
+                if (item.IsUrging)
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", Color.Error);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "是")));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, "否");
+                }
+                break;
+            case "IsBatchDelivery":
+                builder.AddContent(0, item.IsBatchDelivery ? "是" : "否");
+                break;
+            case "IsPaused":
+                if (item.IsPaused)
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", Color.Warning);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "是")));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, "否");
+                }
+                break;
+            case "AdjustmentRemark":
+                builder.AddContent(0, item.AdjustmentRemark ?? "-");
+                break;
+
+            // G11: 批次流转
+            case "IsFlow":
+                if (item.IsFlow)
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", Color.Primary);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "是")));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, "否");
+                }
+                break;
+            case "FlowLevel":
+                var levelColor = item.FlowLevel switch
+                {
+                    1 => Color.Error,
+                    2 => Color.Warning,
+                    3 => Color.Default,
+                    _ => Color.Default
+                };
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", levelColor);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.FlowLevel.ToString())));
+                builder.CloseComponent();
+                break;
+
             // G5: 冷轧排程
             case "CurrentCR_ProcessType":
                 builder.AddContent(0, item.CurrentCR_ProcessType ?? "-");
@@ -830,6 +922,11 @@ public partial class BatchPlans
                 break;
             case "CR_SchedMachineNo":
                 builder.AddContent(0, item.CR_SchedMachineNo ?? "-");
+                break;
+
+            // G4: 生产流转性
+            case "ProductionFlowProperty":
+                builder.AddContent(0, item.ProductionFlowProperty ?? "-");
                 break;
         }
     };

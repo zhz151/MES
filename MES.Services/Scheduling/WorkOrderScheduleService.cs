@@ -10,7 +10,7 @@ using MES.Services.Helpers;
 namespace MES.Services.Scheduling;
 
 /// <summary>
-/// 工单排程服务（LEFT JOIN 实时查询模式）
+/// 工单排程服务（基于 WorkOrderExecutionSummary 实时查询 + WorkOrderPlan 薄表覆盖）
 /// </summary>
 public class WorkOrderScheduleService : IWorkOrderScheduleService
 {
@@ -23,13 +23,12 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
 
     public async Task<PagedResult<WorkOrderScheduleDto>> GetPagedAsync(QueryParams query)
     {
-        // WorkOrderExecutionSummary LEFT JOIN OrderDemandAdjustment
         var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
-        var urgingQuery = _context.Set<OrderDemandAdjustment>().AsNoTracking();
+        var planQuery = _context.Set<WorkOrderPlan>().AsNoTracking();
 
         var q = from e in summaryQuery
-                join u in urgingQuery on e.WorkOrderId equals u.WorkOrderId into uj
-                from u in uj.DefaultIfEmpty()
+                join p in planQuery on e.WorkOrderId equals p.WorkOrderId into pj
+                from p in pj.DefaultIfEmpty()
                 select new WorkOrderScheduleDto
                 {
                     Id = e.Id,
@@ -76,11 +75,11 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                     DaysDiffFromDelivery = e.DaysDiffFromDelivery,
                     RawMaterialLockRemark = e.RawMaterialLockRemark,
 
-                    // G13
-                    IsUrging = u != null && u.IsUrging,
-                    IsBatchDelivery = u != null && u.IsBatchDelivery,
-                    IsPaused = u != null && u.IsPaused,
-                    AdjustmentRemark = u != null ? u.AdjustmentRemark : null,
+                    // G13（直接从实体读取，已由 RefreshAllAsync 同步）
+                    IsUrging = e.IsUrging,
+                    IsBatchDelivery = e.IsBatchDelivery,
+                    IsPaused = e.IsPaused,
+                    AdjustmentRemark = e.AdjustmentRemark,
 
                     // G14
                     PendingSectionRoughTube = e.PendingSectionRoughTube,
@@ -92,14 +91,18 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                     PendingSectionThreeRoll = e.PendingSectionThreeRoll,
                     PendingSectionDrawBench = e.PendingSectionDrawBench,
                     DeformedProcessCompleted = e.DeformedProcessCompleted,
-                    ProductionAttentionProcess = e.ProductionAttentionProcess == null || e.ProductionAttentionProcess == "-"
-                        ? "收尾-成检"
-                        : e.ProductionAttentionProcess,
+                    ProductionAttentionProcess = e.ProductionAttentionProcess,
+                    ProductionFlowProperty = e.ProductionFlowProperty,
+
+                    // G15: 工单计划薄表覆盖值
+                    PlanScheduleStage = p != null ? p.ScheduleStage : null,
+                    PlanUrgencyLevel = p != null ? p.UrgencyLevel : null,
+                    PlanProductionAttentionProcess = p != null ? p.ProductionAttentionProcess : null,
+                    PlanProductionFlowProperty = p != null ? p.ProductionFlowProperty : null,
                 };
 
-        // 筛选条件：生产执行(ScheduleStage==2) 或 催单+分批交货的原料锁定工单
-        q = q.Where(x => x.ScheduleStage == 2
-            || (x.ScheduleStage == 1 && x.IsUrging && x.IsBatchDelivery));
+        // 筛选条件：排除"略"（已无关注的工单），即仅显示有关注价值的工单
+        q = q.Where(x => x.ProductionFlowProperty != null && x.ProductionFlowProperty != "略");
 
         // 关键词搜索
         if (!string.IsNullOrEmpty(query.Keyword))
@@ -147,30 +150,26 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        var query = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
-        var urgingQuery = _context.Set<OrderDemandAdjustment>().AsNoTracking();
-
-        var joined = from e in query
-                     join u in urgingQuery on e.WorkOrderId equals u.WorkOrderId into uj
-                     from u in uj.DefaultIfEmpty()
-                     select new
-                     {
-                         e.WorkOrderId,
-                         e.WorkOrderNo,
-                         e.Salesman,
-                         e.CustomerName,
-                         e.SalesOrderNo,
-                         e.ProductionMainNo,
-                         e.ProductionSubNo,
-                         e.PlantGrade,
-                         e.Specification,
-                         e.UrgencyLevel,
-                         e.RawMaterialLockRemark,
-                         AdjustmentRemark = u != null ? u.AdjustmentRemark : null,
-                         e.ProductionAttentionProcess,
-                     };
-
-        var all = await joined.ToListAsync();
+        var all = await _context.Set<WorkOrderExecutionSummary>()
+            .AsNoTracking()
+            .Select(e => new
+            {
+                e.WorkOrderNo,
+                e.Salesman,
+                e.CustomerName,
+                e.SalesOrderNo,
+                e.ProductionMainNo,
+                e.ProductionSubNo,
+                e.PlantGrade,
+                e.Specification,
+                e.UrgencyLevel,
+                e.RawMaterialLockRemark,
+                e.AdjustmentRemark,
+                e.ProductionAttentionProcess,
+                e.ProductionFlowProperty,
+            })
+            .Where(e => e.ProductionFlowProperty != null && e.ProductionFlowProperty != "略")
+            .ToListAsync();
 
         return new Dictionary<string, List<string>>
         {
@@ -186,9 +185,124 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
             ["RawMaterialLockRemark"] = all.Where(x => x.RawMaterialLockRemark != null).Select(x => x.RawMaterialLockRemark!).Distinct().OrderBy(x => x).ToList(),
             ["AdjustmentRemark"] = all.Where(x => x.AdjustmentRemark != null).Select(x => x.AdjustmentRemark!).Distinct().OrderBy(x => x).ToList(),
             ["ProductionAttentionProcess"] = all
-                .Select(x => x.ProductionAttentionProcess == null || x.ProductionAttentionProcess == "-" ? "收尾-成检" : x.ProductionAttentionProcess)
-                .Distinct().OrderBy(x => x).ToList(),
+                .Select(x => x.ProductionAttentionProcess)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList(),
+            ["ProductionFlowProperty"] = all
+                .Select(x => x.ProductionFlowProperty!)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList(),
         };
+    }
+
+    public async Task<bool> SavePlanAsync(SaveWorkOrderPlanRequest request)
+    {
+        var record = await _context.Set<WorkOrderPlan>()
+            .FirstOrDefaultAsync(p => p.WorkOrderId == request.WorkOrderId);
+
+        if (record == null)
+        {
+            // 全部为 null → 无需创建
+            if (request.ScheduleStage == null && request.UrgencyLevel == null
+                && request.ProductionAttentionProcess == null && request.ProductionFlowProperty == null)
+                return true;
+
+            record = new WorkOrderPlan { WorkOrderId = request.WorkOrderId };
+            _context.Set<WorkOrderPlan>().Add(record);
+        }
+
+        record.ScheduleStage = request.ScheduleStage;
+        record.UrgencyLevel = request.UrgencyLevel;
+        record.ProductionAttentionProcess = request.ProductionAttentionProcess;
+        record.ProductionFlowProperty = request.ProductionFlowProperty;
+
+        // 全部为 null → 删除记录（恢复系统值）
+        if (record.ScheduleStage == null && record.UrgencyLevel == null
+            && record.ProductionAttentionProcess == null && record.ProductionFlowProperty == null)
+        {
+            _context.Set<WorkOrderPlan>().Remove(record);
+        }
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> PlanScheduleAllAsync(QueryParams query)
+    {
+        var q = _context.Set<WorkOrderExecutionSummary>().AsNoTracking()
+            .Where(e => e.ProductionFlowProperty != null && e.ProductionFlowProperty != "略");
+
+        // 关键词搜索（同 GetPagedAsync）
+        if (!string.IsNullOrEmpty(query.Keyword))
+        {
+            var kw = query.Keyword;
+            q = q.Where(e =>
+                e.WorkOrderNo.Contains(kw) ||
+                e.SalesOrderNo.Contains(kw) ||
+                e.Salesman.Contains(kw) ||
+                e.CustomerName.Contains(kw) ||
+                (e.ProductionSubNo != null && e.ProductionSubNo.Contains(kw)) ||
+                e.PlantGrade.Contains(kw) ||
+                e.Specification.Contains(kw) ||
+                e.ProductionMainNo.Contains(kw) ||
+                e.SettlementMethod.Contains(kw) ||
+                e.MaterialName.Contains(kw) ||
+                e.DeliveryState.Contains(kw) ||
+                e.LengthStatus.Contains(kw) ||
+                (e.UrgencyLevel != null && e.UrgencyLevel.Contains(kw)) ||
+                (e.RawMaterialLockRemark != null && e.RawMaterialLockRemark.Contains(kw)) ||
+                (e.AdjustmentRemark != null && e.AdjustmentRemark.Contains(kw)) ||
+                (e.ProductionAttentionProcess != null && e.ProductionAttentionProcess.Contains(kw)));
+        }
+
+        q = q.ApplyFilters(query.Filters);
+
+        var matchingData = await q.Select(e => new
+        {
+            e.WorkOrderId,
+            e.ScheduleStage,
+            e.UrgencyLevel,
+            e.ProductionAttentionProcess,
+            e.ProductionFlowProperty
+        }).ToListAsync();
+
+        var matchingIds = matchingData.Select(x => x.WorkOrderId).ToHashSet();
+        var matchingIdList = matchingIds.ToList();
+
+        // 加载已有的 Plan 记录
+        var existingPlans = new List<WorkOrderPlan>();
+        if (matchingIdList.Count > 0)
+        {
+            existingPlans = await _context.Set<WorkOrderPlan>()
+                .Where(p => matchingIdList.Contains(p.WorkOrderId))
+                .ToListAsync();
+        }
+
+        // Upsert: 匹配的工单设置 Plan = 系统值
+        foreach (var data in matchingData)
+        {
+            var plan = existingPlans.FirstOrDefault(p => p.WorkOrderId == data.WorkOrderId);
+            if (plan == null)
+            {
+                plan = new WorkOrderPlan { WorkOrderId = data.WorkOrderId };
+                _context.Set<WorkOrderPlan>().Add(plan);
+            }
+            plan.ScheduleStage = data.ScheduleStage;
+            plan.UrgencyLevel = data.UrgencyLevel;
+            plan.ProductionAttentionProcess = data.ProductionAttentionProcess;
+            plan.ProductionFlowProperty = data.ProductionFlowProperty;
+        }
+
+        // 删除不匹配查询的 Plan 行
+        var orphanPlans = await _context.Set<WorkOrderPlan>()
+            .Where(p => !matchingIds.Contains(p.WorkOrderId))
+            .ToListAsync();
+        _context.Set<WorkOrderPlan>().RemoveRange(orphanPlans);
+
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     private static IQueryable<WorkOrderScheduleDto> ApplySorting(

@@ -23,18 +23,14 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
 
     public async Task<PagedResult<RawMaterialLockPlanAndExecutionDto>> GetPagedAsync(QueryParams query)
     {
-        // G1-G12: WorkOrderExecutionSummary（仅 ScheduleStage=1）
+        // G1-G12+G13: WorkOrderExecutionSummary（仅 ScheduleStage=1）
         var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking()
             .Where(e => e.ScheduleStage == 1);
-        // G13: OrderDemandAdjustment
-        var urgingQuery = _context.Set<OrderDemandAdjustment>().AsNoTracking();
         // G15: RawMaterialLockPreExecution
         var preExecQuery = _context.Set<RawMaterialLockPreExecution>().AsNoTracking();
 
-        // LEFT JOIN OrderDemandAdjustment + RawMaterialLockPreExecution
+        // LEFT JOIN RawMaterialLockPreExecution（G13 直接从实体读取，无需 JOIN）
         var q = from e in summaryQuery
-                join u in urgingQuery on e.WorkOrderId equals u.WorkOrderId into uj
-                from u in uj.DefaultIfEmpty()
                 join p in preExecQuery on e.WorkOrderId equals p.WorkOrderId into pj
                 from p in pj.DefaultIfEmpty()
                 select new RawMaterialLockPlanAndExecutionDto
@@ -123,11 +119,11 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                     DaysDiffFromDelivery = e.DaysDiffFromDelivery,
                     RawMaterialLockRemark = e.RawMaterialLockRemark,
 
-                    // G13: 实时 LEFT JOIN OrderDemandAdjustment
-                    IsUrging = u != null && u.IsUrging,
-                    IsBatchDelivery = u != null && u.IsBatchDelivery,
-                    IsPaused = u != null && u.IsPaused,
-                    AdjustmentRemark = u != null ? u.AdjustmentRemark : null,
+                    // G13: 直接从实体读取（已由 RefreshAllAsync 同步）
+                    IsUrging = e.IsUrging,
+                    IsBatchDelivery = e.IsBatchDelivery,
+                    IsPaused = e.IsPaused,
+                    AdjustmentRemark = e.AdjustmentRemark,
 
                     // G15: 实时 LEFT JOIN RawMaterialLockPreExecution
                     IsPreInput = p != null && p.IsPreInput,
@@ -381,7 +377,6 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
         var all = await query
             .Select(s => new
             {
-                s.WorkOrderId,
                 s.WorkOrderNo,
                 s.Salesman,
                 s.CustomerName,
@@ -392,20 +387,9 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                 s.Specification,
                 s.UrgencyLevel,
                 s.RawMaterialLockRemark,
+                s.AdjustmentRemark,
             })
             .ToListAsync();
-
-        // AdjustmentRemark 来自 OrderDemandAdjustment 独立表
-        var workOrderIds = all.Select(x => x.WorkOrderId).Distinct().ToHashSet();
-        var adjustmentRemarks = workOrderIds.Count > 0
-            ? await _context.Set<OrderDemandAdjustment>()
-                .Where(u => workOrderIds.Contains(u.WorkOrderId))
-                .Where(u => u.AdjustmentRemark != null)
-                .Select(u => u.AdjustmentRemark!)
-                .Distinct()
-                .OrderBy(x => x)
-                .ToListAsync()
-            : new List<string>();
 
         return new Dictionary<string, List<string>>
         {
@@ -419,7 +403,7 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
             ["Specification"] = all.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
             ["UrgencyLevel"] = all.Where(x => x.UrgencyLevel != null).Select(x => x.UrgencyLevel!).Distinct().OrderBy(x => x).ToList(),
             ["RawMaterialLockRemark"] = all.Where(x => x.RawMaterialLockRemark != null).Select(x => x.RawMaterialLockRemark!).Distinct().OrderBy(x => x).ToList(),
-            ["AdjustmentRemark"] = adjustmentRemarks,
+            ["AdjustmentRemark"] = all.Where(x => x.AdjustmentRemark != null).Select(x => x.AdjustmentRemark!).Distinct().OrderBy(x => x).ToList(),
         };
     }
 

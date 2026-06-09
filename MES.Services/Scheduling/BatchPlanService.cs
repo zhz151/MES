@@ -12,7 +12,7 @@ using MES.Services.Helpers;
 namespace MES.Services.Scheduling;
 
 /// <summary>
-/// 在产明细计划服务 — ProductionBatch LEFT JOIN WorkOrderExecutionSummary + WorkOrderSchedule
+/// 在产明细计划服务 — ProductionBatch LEFT JOIN WorkOrderExecutionSummary + WorkOrderPlan
 /// </summary>
 public class BatchPlanService : IBatchPlanService
 {
@@ -35,7 +35,7 @@ public class BatchPlanService : IBatchPlanService
             .Where(b => b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress);
 
         var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
-        var scheduleQuery = _context.Set<WorkOrderSchedule>().AsNoTracking();
+        var planQuery = _context.Set<WorkOrderPlan>().AsNoTracking();
 
         // ========== 提取并移除工段筛选（__SectionTab），在实体层应用特殊逻辑 ==========
         string? sectionTab = null;
@@ -52,9 +52,9 @@ public class BatchPlanService : IBatchPlanService
         var joined = from b in batchQuery
                      join s in summaryQuery on b.WorkOrderNo equals s.WorkOrderNo into sj
                      from s in sj.DefaultIfEmpty()
-                     join ws in scheduleQuery on b.WorkOrderNo equals ws.WorkOrderNo into wsj
-                     from ws in wsj.DefaultIfEmpty()
-                     select new { b, s, ws };
+                     join plan in planQuery on s.WorkOrderId equals plan.WorkOrderId into planj
+                     from plan in planj.DefaultIfEmpty()
+                     select new { b, s, plan };
 
         // 关键词搜索
         if (!string.IsNullOrEmpty(query.Keyword))
@@ -180,10 +180,17 @@ public class BatchPlanService : IBatchPlanService
             NextProcess = x.b.NextProcess,
             CorrespondingSpec = x.b.CorrespondingSpec,
 
-            // G4
-            UrgencyLevel = x.s != null ? x.s.UrgencyLevel : null,
-            ScheduleStage = x.ws != null ? 2 : (x.s != null ? x.s.ScheduleStage : 0),
-            ProductionAttentionProcess = x.ws != null ? x.ws.ProductionAttentionProcess : null,
+            // G4（COALESCE：工单计划薄表优先，无覆盖则回退系统值）
+            UrgencyLevel = x.plan != null && x.plan.UrgencyLevel != null ? x.plan.UrgencyLevel : (x.s != null ? x.s.UrgencyLevel : null),
+            ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : 0),
+            ProductionAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.ProductionAttentionProcess : null),
+            ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : null),
+
+            // G6（直接从 WorkOrderExecutionSummary 实体读取，无需额外 JOIN）
+            IsUrging = x.s != null && x.s.IsUrging,
+            IsBatchDelivery = x.s != null && x.s.IsBatchDelivery,
+            IsPaused = x.s != null && x.s.IsPaused,
+            AdjustmentRemark = x.s != null ? x.s.AdjustmentRemark : null,
         });
 
         // 通用列筛选
@@ -198,22 +205,37 @@ public class BatchPlanService : IBatchPlanService
             x.CurrentValidWeight,
             x.ScheduleStage,
             x.UrgencyLevel,
+            x.ProductionAttentionProcess,
+            x.ProductionFlowProperty,
             x.CurrentSectionCompleted,
             x.CurrentGroupName,
             x.NextProcess,
-            x.ProductionAttentionProcess
+            x.IsUrging,
+            x.IsBatchDelivery,
         });
         var aggData = await aggQuery.ToListAsync();
 
         var batchCount = aggData.Count;
         var totalWeight = aggData.Sum(x => x.CurrentValidWeight ?? 0m);
 
+        var pProcess = (bool? completed, string? groupName, string? nextProcess) =>
+            completed == false ? groupName : nextProcess;
+
         var keyBatches = aggData.Where(x =>
-            x.ScheduleStage == 2 &&
-            (x.UrgencyLevel == "A+急" || x.UrgencyLevel == "A急") &&
-            ((x.CurrentSectionCompleted == false ? x.CurrentGroupName : x.NextProcess) == "荒管处理" ||
-             (x.CurrentSectionCompleted == false ? x.CurrentGroupName : x.NextProcess) == x.ProductionAttentionProcess ||
-             x.ProductionAttentionProcess == "收尾-成检")).ToList();
+            // Tier 1：生产执行 + 紧急 + pending条件
+            (x.ScheduleStage == 2 &&
+             (x.UrgencyLevel == "A+急" || x.UrgencyLevel == "A急") &&
+             (pProcess(x.CurrentSectionCompleted, x.CurrentGroupName, x.NextProcess) == "荒管处理" ||
+              pProcess(x.CurrentSectionCompleted, x.CurrentGroupName, x.NextProcess) == x.ProductionAttentionProcess ||
+              x.ProductionAttentionProcess is null or "收尾-成检"))
+            ||
+            // Tier 2：原料锁定 + 催单/分批交货 + 紧急 + pending条件
+            (x.ScheduleStage == 1 &&
+             (x.IsUrging || x.IsBatchDelivery) &&
+             (x.UrgencyLevel == "A+急" || x.UrgencyLevel == "A急") &&
+             (pProcess(x.CurrentSectionCompleted, x.CurrentGroupName, x.NextProcess) == "荒管处理" ||
+              pProcess(x.CurrentSectionCompleted, x.CurrentGroupName, x.NextProcess) == x.ProductionAttentionProcess ||
+              x.ProductionAttentionProcess is null or "收尾-成检"))).ToList();
         var keyBatchCount = keyBatches.Count;
         var keyBatchWeight = keyBatches.Sum(x => x.CurrentValidWeight ?? 0m);
 
@@ -367,13 +389,10 @@ public class BatchPlanService : IBatchPlanService
             .Where(b => b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress);
 
         var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
-        var scheduleQuery = _context.Set<WorkOrderSchedule>().AsNoTracking();
 
         var q = from b in batchQuery
                 join s in summaryQuery on b.WorkOrderNo equals s.WorkOrderNo into sj
                 from s in sj.DefaultIfEmpty()
-                join ws in scheduleQuery on b.WorkOrderNo equals ws.WorkOrderNo into wsj
-                from ws in wsj.DefaultIfEmpty()
                 select new
                 {
                     b.BatchNo,
@@ -389,8 +408,9 @@ public class BatchPlanService : IBatchPlanService
                     b.NextProcess,
                     b.NextSectionName,
                     UrgencyLevel = s != null ? s.UrgencyLevel : null,
-                    ScheduleStage = ws != null ? 2 : (s != null ? s.ScheduleStage : (int?)null),
-                    ProductionAttentionProcess = ws != null ? ws.ProductionAttentionProcess : null,
+                    ScheduleStage = s != null ? s.ScheduleStage : (int?)null,
+                    ProductionAttentionProcess = s != null ? s.ProductionAttentionProcess : null,
+                    ProductionFlowProperty = s != null ? s.ProductionFlowProperty : null,
                 };
 
         var all = await q.ToListAsync();
@@ -412,6 +432,7 @@ public class BatchPlanService : IBatchPlanService
             ["UrgencyLevel"] = all.Where(x => x.UrgencyLevel != null).Select(x => x.UrgencyLevel!).Distinct().OrderBy(x => x).ToList(),
             ["ScheduleStage"] = all.Where(x => x.ScheduleStage.HasValue).Select(x => x.ScheduleStage!.Value.ToString()).Distinct().OrderBy(x => x).ToList(),
             ["ProductionAttentionProcess"] = all.Where(x => x.ProductionAttentionProcess != null).Select(x => x.ProductionAttentionProcess!).Distinct().OrderBy(x => x).ToList(),
+            ["ProductionFlowProperty"] = all.Where(x => x.ProductionFlowProperty != null).Select(x => x.ProductionFlowProperty!).Distinct().OrderBy(x => x).ToList(),
         };
     }
 

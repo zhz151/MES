@@ -4,6 +4,7 @@ using MES.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MES.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260609030217_AddWorkOrderExecutionG13Fields")]
+    partial class AddWorkOrderExecutionG13Fields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -4306,13 +4309,20 @@ namespace MES.Data.Migrations
                     b.ToTable("SectionFlowCategorySettings", (string)null);
                 });
 
-            modelBuilder.Entity("MES.Data.Entities.Scheduling.WorkOrderPlan", b =>
+            modelBuilder.Entity("MES.Data.Entities.Scheduling.WorkOrderSchedule", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AdjustmentRemark")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("CapacityWorkDays")
+                        .HasColumnType("int");
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
@@ -4322,16 +4332,163 @@ namespace MES.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<string>("ProductionAttentionProcess")
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("DaysDiffFromDelivery")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("DeformedProcessCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("DelayPenalty")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("DeliveryDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeliveryState")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("ProductionFlowProperty")
+                    b.Property<DateTime?>("EstimatedProcessCompletionDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("FlowIncompleteBatchCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FlowMaxRemainingWorkDays")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("FlowOutputRatio")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("FlowStatus")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FlowTotalBatchCount")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsBatchDelivery")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsPaused")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsUrging")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LengthStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("MainNoFlowOutputRatio")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("MainNoFlowStatus")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MaterialName")
+                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<int?>("ScheduleStage")
+                    b.Property<decimal?>("MaxLength")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("MinLength")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PendingSection20Roll")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PendingSection30Roll")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PendingSection50Roll")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PendingSection60Roll")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PendingSectionDrawBench")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PendingSectionRoughTube")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PendingSectionThreeRoll")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PendingSectionWarehouseFix")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("PlantGrade")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ProductionAttentionProcess")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ProductionMainNo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("ProductionSubNo")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("RawMaterialLockRemark")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SalesOrderNo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Salesman")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("ScheduleStage")
                         .HasColumnType("int");
+
+                    b.Property<string>("SettlementMethod")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("SignDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Specification")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("TotalItemCount")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TotalMeters")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("TotalQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TotalRemainingWorkDays")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TotalWeight")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
@@ -4342,19 +4499,24 @@ namespace MES.Data.Migrations
                         .HasColumnType("datetimeoffset");
 
                     b.Property<string>("UrgencyLevel")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<int>("WorkOrderId")
                         .HasColumnType("int");
+
+                    b.Property<string>("WorkOrderNo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("WorkOrderId")
                         .IsUnique()
-                        .HasDatabaseName("UK_WOP_WorkOrderId");
+                        .HasDatabaseName("UK_WOS_WorkOrderId");
 
-                    b.ToTable("WorkOrderPlan", (string)null);
+                    b.ToTable("WorkOrderSchedules", (string)null);
                 });
 
             modelBuilder.Entity("MES.Data.Entities.SectionOutsource", b =>

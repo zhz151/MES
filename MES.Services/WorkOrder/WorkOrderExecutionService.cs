@@ -212,6 +212,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 PendingSectionDrawBench = e.PendingSectionDrawBench,
                 DeformedProcessCompleted = e.DeformedProcessCompleted,
                 ProductionAttentionProcess = e.ProductionAttentionProcess,
+
+                // Group 13
+                IsUrging = e.IsUrging,
+                IsBatchDelivery = e.IsBatchDelivery,
+                IsPaused = e.IsPaused,
+                AdjustmentRemark = e.AdjustmentRemark,
+                ProductionFlowProperty = e.ProductionFlowProperty,
             })
             .ToListAsync();
 
@@ -493,6 +500,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.ScheduleStage = 3;          // 成品检验
         }
 
+        // ProductionAttentionProcess 兜底调整：仅 ScheduleStage==2 时显示"收尾-成检"，其余保持 null
+        foreach (var summary in summaries)
+        {
+            if (summary.ProductionAttentionProcess == null && summary.ScheduleStage == 2)
+                summary.ProductionAttentionProcess = "收尾-成检";
+        }
+
         // ========== G12: 加载暂停工单数据 ==========
         var pausedIdList = await _context.Set<OrderDemandAdjustment>()
             .AsNoTracking()
@@ -501,6 +515,43 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .ToListAsync();
 
         var pausedIds = pausedIdList.ToHashSet();
+
+        // ========== G13: 加载订单需求调整数据 ==========
+        var adjustments = await _context.Set<OrderDemandAdjustment>()
+            .AsNoTracking()
+            .Where(a => workOrderIds.Contains(a.WorkOrderId))
+            .ToDictionaryAsync(a => a.WorkOrderId);
+
+        // ========== 填充 G13 字段 & 计算生产流转性 ==========
+        foreach (var summary in summaries)
+        {
+            if (adjustments.TryGetValue(summary.WorkOrderId, out var adj))
+            {
+                summary.IsUrging = adj.IsUrging;
+                summary.IsBatchDelivery = adj.IsBatchDelivery;
+                summary.IsPaused = adj.IsPaused;
+                summary.AdjustmentRemark = adj.AdjustmentRemark;
+            }
+            else
+            {
+                summary.IsUrging = false;
+                summary.IsBatchDelivery = false;
+                summary.IsPaused = false;
+                summary.AdjustmentRemark = null;
+            }
+
+            // 生产流转性
+            if (summary.IsPaused)
+                summary.ProductionFlowProperty = "暂停";
+            else if (summary.ScheduleStage == 2 || (summary.ScheduleStage == 1 && summary.IsUrging && summary.IsBatchDelivery))
+                summary.ProductionFlowProperty = "正常";
+            else if (summary.ScheduleStage == 1)
+                summary.ProductionFlowProperty = "待料";
+            else if (summary.ScheduleStage == 0 || summary.ScheduleStage == 3)
+                summary.ProductionFlowProperty = summary.FlowIncompleteBatchCount == 0 ? "略" : "疑问";
+            else
+                summary.ProductionFlowProperty = null;
+        }
 
         // ========== G12: 计算剩余总工量 & 工单计划性 ==========
         var mainNoAgg = summaries
@@ -1489,6 +1540,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         target.DeformedProcessCompleted = source.DeformedProcessCompleted;
         target.ProductionAttentionProcess = source.ProductionAttentionProcess;
 
+        // Group 13
+        target.IsUrging = source.IsUrging;
+        target.IsBatchDelivery = source.IsBatchDelivery;
+        target.IsPaused = source.IsPaused;
+        target.AdjustmentRemark = source.AdjustmentRemark;
+        target.ProductionFlowProperty = source.ProductionFlowProperty;
+
         // 刷新时间
         target.LastRefreshTime = source.LastRefreshTime;
     }
@@ -1510,6 +1568,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 s.Specification,
                 s.UrgencyLevel,
                 s.RawMaterialLockRemark,
+                s.ProductionFlowProperty,
+                s.ProductionAttentionProcess,
+                s.AdjustmentRemark,
             })
             .ToListAsync();
 
@@ -1525,6 +1586,15 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             ["Specification"] = all.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
             ["UrgencyLevel"] = all.Where(x => x.UrgencyLevel != null).Select(x => x.UrgencyLevel!).Distinct().OrderBy(x => x).ToList(),
             ["RawMaterialLockRemark"] = all.Where(x => x.RawMaterialLockRemark != null).Select(x => x.RawMaterialLockRemark!).Distinct().OrderBy(x => x).ToList(),
+            ["ProductionFlowProperty"] = new List<string> { "暂停", "正常", "待料", "疑问", "略" },
+            ["ProductionAttentionProcess"] = all
+                .Where(x => x.ProductionAttentionProcess != null)
+                .Select(x => x.ProductionAttentionProcess!)
+                .Distinct()
+                .OrderBy(x => x)
+                .Union(new[] { "收尾-成检" }) // 确保兜底值始终可选
+                .ToList(),
+            ["AdjustmentRemark"] = all.Where(x => x.AdjustmentRemark != null).Select(x => x.AdjustmentRemark!).Distinct().OrderBy(x => x).ToList(),
         };
     }
 
@@ -1762,6 +1832,18 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             ("deformedprocesscompleted", true) => query.OrderByDescending(x => x.DeformedProcessCompleted),
             ("productionattentionprocess", false) => query.OrderBy(x => x.ProductionAttentionProcess ?? ""),
             ("productionattentionprocess", true) => query.OrderByDescending(x => x.ProductionAttentionProcess ?? ""),
+
+            // Group 13
+            ("isurging", false) => query.OrderBy(x => x.IsUrging),
+            ("isurging", true) => query.OrderByDescending(x => x.IsUrging),
+            ("isbatchdelivery", false) => query.OrderBy(x => x.IsBatchDelivery),
+            ("isbatchdelivery", true) => query.OrderByDescending(x => x.IsBatchDelivery),
+            ("ispaused", false) => query.OrderBy(x => x.IsPaused),
+            ("ispaused", true) => query.OrderByDescending(x => x.IsPaused),
+            ("adjustmentremark", false) => query.OrderBy(x => x.AdjustmentRemark ?? ""),
+            ("adjustmentremark", true) => query.OrderByDescending(x => x.AdjustmentRemark ?? ""),
+            ("productionflowproperty", false) => query.OrderBy(x => x.ProductionFlowProperty ?? ""),
+            ("productionflowproperty", true) => query.OrderByDescending(x => x.ProductionFlowProperty ?? ""),
 
             _ => query.OrderByDescending(x => x.LastRefreshTime),
         };

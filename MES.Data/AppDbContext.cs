@@ -103,9 +103,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
     // ========== Scheduling 上下文 ==========
     public DbSet<OrderDemandAdjustment> OrderDemandAdjustments { get; set; } = null!;
     public DbSet<RawMaterialLockPreExecution> RawMaterialLockPreExecutions { get; set; } = null!;
+    public DbSet<WorkOrderPlan> WorkOrderPlans { get; set; } = null!;
     public DbSet<SectionFlowCategorySetting> SectionFlowCategorySettings { get; set; } = null!;
     public DbSet<SectionFlowCategoryItem> SectionFlowCategoryItems { get; set; } = null!;
-    public DbSet<WorkOrderSchedule> WorkOrderSchedules { get; set; } = null!;
     public DbSet<ColdRollSpecSchedule> ColdRollSpecSchedules { get; set; } = null!;
 
     // ========== Configuration 上下文 ==========
@@ -192,9 +192,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
         // ========== Scheduling 上下文 ==========
         ConfigureOrderDemandAdjustment(builder);
         ConfigureRawMaterialLockPreExecution(builder);
+        ConfigureWorkOrderPlan(builder);
         ConfigureSectionFlowCategorySetting(builder);
         ConfigureSectionFlowCategoryItem(builder);
-        ConfigureWorkOrderSchedule(builder);
         ConfigureColdRollSpecSchedule(builder);
 
         // ========== Configuration 上下文 ==========
@@ -2113,6 +2113,22 @@ public class AppDbContext : IdentityDbContext<AppUser>
         });
     }
 
+    private static void ConfigureWorkOrderPlan(ModelBuilder builder)
+    {
+        builder.Entity<WorkOrderPlan>(entity =>
+        {
+            entity.ToTable("WorkOrderPlan");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.WorkOrderId).IsRequired();
+            entity.Property(e => e.UrgencyLevel).HasMaxLength(50);
+            entity.Property(e => e.ProductionAttentionProcess).HasMaxLength(100);
+            entity.Property(e => e.ProductionFlowProperty).HasMaxLength(50);
+
+            // 唯一索引
+            entity.HasIndex(e => e.WorkOrderId).IsUnique().HasDatabaseName("UK_WOP_WorkOrderId");
+        });
+    }
+
     private static void ConfigureColdRollSpecSchedule(ModelBuilder builder)
     {
         builder.Entity<ColdRollSpecSchedule>(entity =>
@@ -2235,57 +2251,4 @@ public class AppDbContext : IdentityDbContext<AppUser>
         });
     }
 
-    private static void ConfigureWorkOrderSchedule(ModelBuilder builder)
-    {
-        builder.Entity<WorkOrderSchedule>(entity =>
-        {
-            entity.ToTable("WorkOrderSchedules");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.WorkOrderNo).IsRequired().HasMaxLength(50);
-
-            // G1
-            entity.Property(e => e.Salesman).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.CustomerName).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.SettlementMethod).HasMaxLength(50);
-            entity.Property(e => e.SalesOrderNo).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.ProductionMainNo).IsRequired().HasMaxLength(20);
-            entity.Property(e => e.ProductionSubNo).HasMaxLength(20);
-            entity.Property(e => e.MaterialName).HasMaxLength(50);
-            entity.Property(e => e.DeliveryState).HasMaxLength(100);
-            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.LengthStatus).HasMaxLength(20);
-            entity.Property(e => e.MinLength).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.MaxLength).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.TotalMeters).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.TotalWeight).HasColumnType("decimal(18,2)");
-
-            // G7
-            entity.Property(e => e.FlowOutputRatio).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.MainNoFlowOutputRatio).HasColumnType("decimal(18,2)");
-
-            // G12
-            entity.Property(e => e.UrgencyLevel).HasMaxLength(20);
-            entity.Property(e => e.RawMaterialLockRemark).HasMaxLength(200);
-
-            // G13
-            entity.Property(e => e.AdjustmentRemark).HasMaxLength(500);
-
-            // G14
-            entity.Property(e => e.PendingSectionRoughTube).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.PendingSectionWarehouseFix).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.PendingSection60Roll).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.PendingSection50Roll).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.PendingSection30Roll).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.PendingSection20Roll).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.PendingSectionThreeRoll).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.PendingSectionDrawBench).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.ProductionAttentionProcess).HasMaxLength(50);
-
-            // 唯一约束：一个工单一条记录
-            entity.HasIndex(e => e.WorkOrderId)
-                .IsUnique()
-                .HasDatabaseName("UK_WOS_WorkOrderId");
-        });
-    }
 }

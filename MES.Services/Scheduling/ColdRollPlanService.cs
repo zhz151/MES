@@ -67,7 +67,7 @@ public class ColdRollPlanService : IColdRollPlanService
             })
             .ToListAsync();
 
-        // 2. LEFT JOIN WorkOrderExecutionSummary + WorkOrderSchedule（仅加载相关批次的内存字典）
+        // 2. LEFT JOIN WorkOrderExecutionSummary（仅加载相关批次的内存字典）
         var workOrderNos = batchProjections
             .Where(b => !string.IsNullOrEmpty(b.WorkOrderNo))
             .Select(b => b.WorkOrderNo)
@@ -79,10 +79,12 @@ public class ColdRollPlanService : IColdRollPlanService
             .Where(s => workOrderNos.Contains(s.WorkOrderNo))
             .ToDictionaryAsync(s => s.WorkOrderNo);
 
-        var scheduleDict = await _context.Set<WorkOrderSchedule>()
+        // 2b. 加载 WorkOrderPlan 薄表（按 WorkOrderId 索引）
+        var workOrderIds = summaryDict.Values.Select(s => s.WorkOrderId).Distinct().ToList();
+        var planDict = await _context.Set<WorkOrderPlan>()
             .AsNoTracking()
-            .Where(s => workOrderNos.Contains(s.WorkOrderNo))
-            .ToDictionaryAsync(s => s.WorkOrderNo);
+            .Where(p => workOrderIds.Contains(p.WorkOrderId))
+            .ToDictionaryAsync(p => p.WorkOrderId);
 
         // 3. 逐批处理
         var intermediate = new List<BatchAllocation>();
@@ -90,7 +92,6 @@ public class ColdRollPlanService : IColdRollPlanService
         foreach (var batch in batchProjections)
         {
             var summary = summaryDict.GetValueOrDefault(batch.WorkOrderNo);
-            var schedule = scheduleDict.GetValueOrDefault(batch.WorkOrderNo);
 
             var sortedPgs = batch.ProcessGroups
                 .OrderBy(pg => pg.SequenceNumber)
@@ -167,17 +168,28 @@ public class ColdRollPlanService : IColdRollPlanService
                 var billetSpec = GetBilletSpec(sortedPgs, crPg, batch.SourceSpecification);
                 var isFinished = crPg.SequenceNumber == sortedPgs.Max(pg => pg.SequenceNumber);
 
-                // IsKeyBatch
-                var urgency = summary?.UrgencyLevel;
-                int scheduleStage = schedule != null ? 2 : (summary?.ScheduleStage ?? 0);
-                var attentionProcess = schedule?.ProductionAttentionProcess;
+                // IsKeyBatch（COALESCE：WorkOrderPlan 优先，和批次看板统一）
+                var plan = summary != null ? planDict.GetValueOrDefault(summary.WorkOrderId) : null;
+                var urgency = plan?.UrgencyLevel ?? summary?.UrgencyLevel;
+                int scheduleStage = plan?.ScheduleStage ?? (summary?.ScheduleStage ?? 0);
+                var attentionProcess = plan?.ProductionAttentionProcess ?? summary?.ProductionAttentionProcess;
                 var pendingProcess = batch.CurrentSectionCompleted == false ? batch.CurrentGroupName : batch.NextProcess;
 
-                bool isKeyBatch = scheduleStage == 2 &&
-                    (urgency == "A+急" || urgency == "A急") &&
-                    (pendingProcess == "荒管处理" ||
-                     pendingProcess == attentionProcess ||
-                     attentionProcess == "收尾-成检");
+                bool isKeyBatch =
+                    // Tier 1：生产执行 + 紧急 + pending条件（原始逻辑）
+                    (scheduleStage == 2 &&
+                     (urgency == "A+急" || urgency == "A急") &&
+                     (pendingProcess == "荒管处理" ||
+                      pendingProcess == attentionProcess ||
+                      attentionProcess is null or "收尾-成检"))
+                    ||
+                    // Tier 2：原料锁定 + 催单/分批交货 + 紧急 + pending条件
+                    (scheduleStage == 1 &&
+                     (summary?.IsUrging == true || summary?.IsBatchDelivery == true) &&
+                     (urgency == "A+急" || urgency == "A急") &&
+                     (pendingProcess == "荒管处理" ||
+                      pendingProcess == attentionProcess ||
+                      attentionProcess is null or "收尾-成检"));
 
                 intermediate.Add(new BatchAllocation
                 {

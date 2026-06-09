@@ -198,6 +198,15 @@ public partial class WorkOrderExecution
             new() { Key = "RawMaterialLockRemark",   Label = "原锁备注",     SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                             GroupKey = 12, GroupName = "实时关注" },
         };
 
+        // G13: 订单需求调整
+        var g13 = new List<ColumnDef>
+        {
+            new() { Key = "IsUrging",              Label = "催单",             SortKey = "IsUrging", FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "订单需求调整" },
+            new() { Key = "IsBatchDelivery",       Label = "分批交货",         SortKey = "IsBatchDelivery", FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "订单需求调整" },
+            new() { Key = "IsPaused",               Label = "暂停",             SortKey = "IsPaused", FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "订单需求调整" },
+            new() { Key = "AdjustmentRemark",       Label = "调整备注",         SortKey = "AdjustmentRemark", FilterType = "string", Width = "120", GroupKey = 13, GroupName = "订单需求调整" },
+        };
+
         // G14: 在产节点待量
         var g14 = new List<ColumnDef>
         {
@@ -210,7 +219,8 @@ public partial class WorkOrderExecution
             new() { Key = "PendingSectionThreeRoll",       Label = "三辊冷轧待量(kg)",   SortKey = "PendingSectionThreeRoll",       Width = "90",  GroupKey = 14, GroupName = "在产节点待量" },
             new() { Key = "PendingSectionDrawBench",       Label = "冷拔待量(kg)",       SortKey = "PendingSectionDrawBench",       Width = "90",  GroupKey = 14, GroupName = "在产节点待量" },
             new() { Key = "DeformedProcessCompleted",      Label = "变形工序完成",       SortKey = "DeformedProcessCompleted",      FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 14, GroupName = "在产节点待量" },
-            new() { Key = "ProductionAttentionProcess",    Label = "生产关注工序",       SortKey = "ProductionAttentionProcess",    Width = "100", GroupKey = 14, GroupName = "在产节点待量" },
+            new() { Key = "ProductionAttentionProcess",    Label = "生产关注工序",       SortKey = "ProductionAttentionProcess",    FilterType = "string", Width = "100", GroupKey = 14, GroupName = "在产节点待量" },
+            new() { Key = "ProductionFlowProperty",        Label = "生产流转性",         SortKey = "ProductionFlowProperty", FilterType = "string", Width = "100", GroupKey = 14, GroupName = "在产节点待量" },
         };
 
         var all = new List<ColumnDef>();
@@ -226,6 +236,7 @@ public partial class WorkOrderExecution
         all.AddRange(g10);
         all.AddRange(g11);
         all.AddRange(g12);
+        all.AddRange(g13);
         all.AddRange(g14);
         return all;
     }
@@ -349,6 +360,7 @@ public partial class WorkOrderExecution
             if (result.Success && result.Data != null)
             {
                 _pageItems = result.Data.Items;
+
                 _totalCount = result.Data.TotalCount;
                 _currentPageIndex = state.Page + 1;
                 lastRefreshTime = _pageItems.Select(i => i.LastRefreshTime).DefaultIfEmpty().Max();
@@ -455,6 +467,7 @@ public partial class WorkOrderExecution
                 };
             }
         }
+
     }
 
     // ========== ExcelFilter 事件 ==========
@@ -1011,6 +1024,42 @@ public partial class WorkOrderExecution
             case "ProductionAttentionProcess":
                 builder.AddContent(0, item.ProductionAttentionProcess ?? "-");
                 break;
+
+            // ========== G13: 订单需求调整 ==========
+            case "IsUrging":
+                builder.AddContent(0, item.IsUrging ? "是" : "否");
+                break;
+            case "IsBatchDelivery":
+                builder.AddContent(0, item.IsBatchDelivery ? "是" : "否");
+                break;
+            case "IsPaused":
+                builder.AddContent(0, item.IsPaused ? "是" : "否");
+                break;
+            case "AdjustmentRemark":
+                builder.AddContent(0, item.AdjustmentRemark ?? "-");
+                break;
+
+            // ========== 生产流转性 ==========
+            case "ProductionFlowProperty":
+                var flowProp = item.ProductionFlowProperty;
+                if (!string.IsNullOrEmpty(flowProp))
+                {
+                    var color = flowProp switch
+                    {
+                        "暂停" => Color.Error,
+                        "正常" => Color.Success,
+                        "待料" => Color.Warning,
+                        "疑问" => Color.Info,
+                        "略" => Color.Default,
+                        _ => Color.Default
+                    };
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", color);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, flowProp)));
+                    builder.CloseComponent();
+                }
+                break;
         }
     };
 
@@ -1090,6 +1139,7 @@ public partial class WorkOrderExecution
             10 => "col-g10",
             11 => "col-g11",
             12 => "col-g12",
+            13 => "col-g13",
             14 => "col-g14",
             _ => ""
         };
@@ -1113,6 +1163,7 @@ public partial class WorkOrderExecution
             10 => "col-g10-cell",
             11 => "col-g11-cell",
             12 => "col-g12-cell",
+            13 => "col-g13-cell",
             14 => "col-g14-cell",
             _ => ""
         };

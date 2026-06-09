@@ -304,6 +304,23 @@ public class WorkOrderExecutionSummary : BaseEntity
     /// <summary>生产关注工序：前8项中值>0且SequenceNumber最小的工序名称</summary>
     public string? ProductionAttentionProcess { get; set; }
 
+    // ========== Group 13: 订单需求调整 ==========
+    /// <summary>催单</summary>
+    public bool IsUrging { get; set; }
+
+    /// <summary>分批交货</summary>
+    public bool IsBatchDelivery { get; set; }
+
+    /// <summary>暂停</summary>
+    public bool IsPaused { get; set; }
+
+    /// <summary>调整备注</summary>
+    public string? AdjustmentRemark { get; set; }
+
+    // ========== 生产流转性（持久化字段，RefreshAllAsync 时计算填入） ==========
+    /// <summary>生产流转性：暂停/正常/待料/疑问/略</summary>
+    public string? ProductionFlowProperty { get; set; }
+
     // ========== 刷新追踪 ==========
     /// <summary>最后刷新时间</summary>
     public DateTime? LastRefreshTime { get; set; }

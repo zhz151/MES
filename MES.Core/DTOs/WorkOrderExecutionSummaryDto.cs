@@ -214,4 +214,13 @@ public class WorkOrderExecutionSummaryDto
     public decimal? PendingSectionDrawBench { get; set; }
     public bool DeformedProcessCompleted { get; set; }
     public string? ProductionAttentionProcess { get; set; }
+
+    // ========== Group 13: 订单需求调整 ==========
+    public bool IsUrging { get; set; }
+    public bool IsBatchDelivery { get; set; }
+    public bool IsPaused { get; set; }
+    public string? AdjustmentRemark { get; set; }
+
+    // ========== 生产流转性（实体字段，RefreshAllAsync 时计算填入） ==========
+    public string? ProductionFlowProperty { get; set; }
 }

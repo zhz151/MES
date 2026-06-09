@@ -95,7 +95,7 @@ public class RawMaterialLockPlanAndExecutionDto
     public int? DaysDiffFromDelivery { get; set; }
     public string? RawMaterialLockRemark { get; set; }
 
-    // ========== G13: 工单需求调整（从 OrderDemandAdjustment JOIN） ==========
+    // ========== G13: 工单需求调整（从 WorkOrderExecutionSummary 实体读取） ==========
     public bool IsUrging { get; set; }
     public bool IsBatchDelivery { get; set; }
     public bool IsPaused { get; set; }

@@ -119,6 +119,17 @@ public partial class WorkOrderSchedules
             new() { Key = "PendingSectionDrawBench",       Label = "冷拔待量",      SortKey = "PendingSectionDrawBench",       Width = "80",  GroupKey = 14, GroupName = "在产待量" },
             new() { Key = "DeformedProcessCompleted",      Label = "变形完成",      SortKey = "DeformedProcessCompleted",      FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 14, GroupName = "在产待量" },
             new() { Key = "ProductionAttentionProcess",    Label = "生产关注工序",  SortKey = "ProductionAttentionProcess",    FilterType = "string", Width = "120", GroupKey = 14, GroupName = "在产待量" },
+            new() { Key = "ProductionFlowProperty",        Label = "生产流转性",    SortKey = "ProductionFlowProperty",        FilterType = "string", Width = "100", GroupKey = 14, GroupName = "在产待量" },
+        };
+
+        // G15: 工单计划（薄表 — 手工可编辑）
+        var g15 = new List<ColumnDef>
+        {
+            new() { Key = "ConsistencyStatus",              Label = "实时一致性",  SortKey = "ConsistencyStatus",          FilterType = "boolean", Width = "100", BoolTrueLabel = "一致", BoolFalseLabel = "不一致", GroupKey = 15, GroupName = "工单计划" },
+            new() { Key = "PlanScheduleStage",               Label = "工单状态",     SortKey = "PlanScheduleStage",          Width = "100", GroupKey = 15, GroupName = "工单计划" },
+            new() { Key = "PlanUrgencyLevel",                Label = "紧急性",       SortKey = "PlanUrgencyLevel",           Width = "100", GroupKey = 15, GroupName = "工单计划" },
+            new() { Key = "PlanProductionAttentionProcess",  Label = "生产关注",     SortKey = "PlanProductionAttentionProcess", Width = "120", GroupKey = 15, GroupName = "工单计划" },
+            new() { Key = "PlanProductionFlowProperty",      Label = "流转性",       SortKey = "PlanProductionFlowProperty",  Width = "100", GroupKey = 15, GroupName = "工单计划" },
         };
 
         var all = new List<ColumnDef>();
@@ -127,6 +138,7 @@ public partial class WorkOrderSchedules
         all.AddRange(g12);
         all.AddRange(g13);
         all.AddRange(g14);
+        all.AddRange(g15);
         return all;
     }
 
@@ -384,6 +396,7 @@ public partial class WorkOrderSchedules
             12 => "col-g12",
             13 => "col-g13",
             14 => "col-g14",
+            15 => "col-g15",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start";
@@ -399,6 +412,7 @@ public partial class WorkOrderSchedules
             12 => "col-g12-cell",
             13 => "col-g13-cell",
             14 => "col-g14-cell",
+            15 => "col-g15-cell",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
@@ -683,7 +697,120 @@ public partial class WorkOrderSchedules
                 builder.AddContent(0, item.DeformedProcessCompleted ? "是" : "否");
                 break;
             case "ProductionAttentionProcess":
-                builder.AddContent(0, item.ProductionAttentionProcess ?? "收尾-成检");
+                builder.AddContent(0, item.ProductionAttentionProcess ?? "-");
+                break;
+            case "ProductionFlowProperty":
+                var flowProp = item.ProductionFlowProperty;
+                if (!string.IsNullOrEmpty(flowProp))
+                {
+                    var color = flowProp switch
+                    {
+                        "暂停" => Color.Error,
+                        "正常" => Color.Success,
+                        "待料" => Color.Warning,
+                        "疑问" => Color.Info,
+                        _ => Color.Default
+                    };
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", color);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, flowProp)));
+                    builder.CloseComponent();
+                }
+                break;
+
+            // ========== G15: 工单计划（内联编辑） ==========
+            case "ConsistencyStatus":
+                var isConsistent = item.ConsistencyStatus;
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", isConsistent ? Color.Success : Color.Error);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, isConsistent ? "一致" : "不一致")));
+                builder.CloseComponent();
+                break;
+
+            case "PlanScheduleStage":
+                builder.OpenComponent<MudSelect<string>>(0);
+                builder.AddAttribute(1, "Value", item.PlanScheduleStage?.ToString() ?? "");
+                builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
+                {
+                    item.PlanScheduleStage = string.IsNullOrEmpty(v) ? null : int.Parse(v);
+                    await SavePlanAsync(item, "PlanScheduleStage", item.PlanScheduleStage);
+                }));
+                builder.AddAttribute(3, "Dense", true);
+                builder.AddAttribute(4, "Variant", Variant.Text);
+                builder.AddAttribute(5, "Class", "compact-select");
+                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b2 =>
+                {
+                    b2.OpenComponent<MudSelectItem<string>>(0);
+                    b2.AddAttribute(1, "Value", "");
+                    b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "系统值")));
+                    b2.CloseComponent();
+                    foreach (var (val, label) in new[] { ("0", "工单完成"), ("1", "原料锁定"), ("2", "生产执行"), ("3", "成品检验") })
+                    {
+                        b2.OpenComponent<MudSelectItem<string>>(0);
+                        b2.AddAttribute(1, "Value", val);
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, label)));
+                        b2.CloseComponent();
+                    }
+                }));
+                builder.CloseComponent();
+                break;
+
+            case "PlanUrgencyLevel":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Value", item.PlanUrgencyLevel ?? "");
+                builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
+                {
+                    item.PlanUrgencyLevel = string.IsNullOrEmpty(v) ? null : v;
+                    await SavePlanAsync(item, "PlanUrgencyLevel", item.PlanUrgencyLevel);
+                }));
+                builder.AddAttribute(3, "Dense", true);
+                builder.AddAttribute(4, "Variant", Variant.Text);
+                builder.AddAttribute(5, "Class", "compact-select");
+                builder.CloseComponent();
+                break;
+
+            case "PlanProductionAttentionProcess":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Value", item.PlanProductionAttentionProcess ?? "");
+                builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
+                {
+                    item.PlanProductionAttentionProcess = string.IsNullOrEmpty(v) ? null : v;
+                    await SavePlanAsync(item, "PlanProductionAttentionProcess", item.PlanProductionAttentionProcess);
+                }));
+                builder.AddAttribute(3, "Dense", true);
+                builder.AddAttribute(4, "Variant", Variant.Text);
+                builder.AddAttribute(5, "Class", "compact-select");
+                builder.CloseComponent();
+                break;
+
+            case "PlanProductionFlowProperty":
+                builder.OpenComponent<MudSelect<string>>(0);
+                builder.AddAttribute(1, "Value", item.PlanProductionFlowProperty ?? "");
+                builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
+                {
+                    item.PlanProductionFlowProperty = string.IsNullOrEmpty(v) ? null : v;
+                    await SavePlanAsync(item, "PlanProductionFlowProperty", item.PlanProductionFlowProperty);
+                }));
+                builder.AddAttribute(3, "Dense", true);
+                builder.AddAttribute(4, "Variant", Variant.Text);
+                builder.AddAttribute(5, "Class", "compact-select");
+                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b2 =>
+                {
+                    b2.OpenComponent<MudSelectItem<string>>(0);
+                    b2.AddAttribute(1, "Value", "");
+                    b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "系统值")));
+                    b2.CloseComponent();
+                    foreach (var opt in new[] { "正常", "暂停", "待料", "疑问", "略" })
+                    {
+                        b2.OpenComponent<MudSelectItem<string>>(0);
+                        b2.AddAttribute(1, "Value", opt);
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt)));
+                        b2.CloseComponent();
+                    }
+                }));
+                builder.CloseComponent();
                 break;
         }
     };
@@ -718,6 +845,87 @@ public partial class WorkOrderSchedules
         3 => Color.Info,
         _ => Color.Default
     };
+
+    // ========== 计划安排 ==========
+
+    private async Task OnPlanAllAsync()
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            "计划安排",
+            "确认将当前查询范围内所有工单的工单计划值设为系统值，并删除不匹配的 Plan 行？",
+            yesText: "确认",
+            cancelText: "取消");
+        if (confirmed != true) return;
+
+        try
+        {
+            var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "WorkOrderNo";
+            var filtersJson = SerializeFilters();
+
+            var query = new QueryParams
+            {
+                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                SortBy = sortBy,
+                IsDescending = sortDescending,
+                PageSize = 5000,
+            };
+            if (filtersJson != null)
+            {
+                query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filtersJson);
+            }
+
+            var result = await WorkOrderScheduleSvc.PlanScheduleAllAsync(query);
+            if (result.Success)
+            {
+                Snackbar.Add("计划安排成功，已同步系统值并清理多余记录", Severity.Success);
+                if (table != null) await table.ReloadServerData();
+            }
+            else
+            {
+                Snackbar.Add($"计划安排失败: {result.Message}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"计划安排失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // ========== 工单计划保存 ==========
+
+    private async Task SavePlanAsync(WorkOrderScheduleDto item, string fieldName, object? value)
+    {
+        var request = new SaveWorkOrderPlanRequest
+        {
+            WorkOrderId = item.WorkOrderId,
+        };
+
+        switch (fieldName)
+        {
+            case "PlanScheduleStage":
+                request.ScheduleStage = (int?)value;
+                break;
+            case "PlanUrgencyLevel":
+                request.UrgencyLevel = (string?)value;
+                break;
+            case "PlanProductionAttentionProcess":
+                request.ProductionAttentionProcess = (string?)value;
+                break;
+            case "PlanProductionFlowProperty":
+                request.ProductionFlowProperty = (string?)value;
+                break;
+        }
+
+        var result = await WorkOrderScheduleSvc.SavePlanAsync(request);
+        if (result.Success)
+        {
+            Snackbar.Add("保存成功", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add($"保存失败: {result.Message}", Severity.Error);
+        }
+    }
 
     // ========== 持久化 ==========
 

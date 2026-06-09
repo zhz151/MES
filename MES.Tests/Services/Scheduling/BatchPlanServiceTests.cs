@@ -5,7 +5,6 @@ using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
-using MES.Data.Entities.Scheduling;
 using MES.Services.Scheduling;
 using MES.Tests.Tests;
 
@@ -186,39 +185,18 @@ public class BatchPlanServiceTests : TestBase
     }
 
     [Fact]
-    public async Task GetPagedAsync_关联Summary和Schedule()
+    public async Task GetPagedAsync_关联Summary数据()
     {
         using var ctx = CreateDbContext();
         CreateBatch(ctx, "B001", "WO001");
         SeedSummary(ctx, "WO001", scheduleStage: 2);
-        ctx.Set<WorkOrderSchedule>().Add(new WorkOrderSchedule
-        {
-            WorkOrderNo = "WO001",
-            Salesman = "业务员",
-            CustomerName = "客户",
-            SettlementMethod = "理算",
-            SignDate = DateTime.Today,
-            DeliveryDate = DateTime.Today.AddMonths(1),
-            SalesOrderNo = "SO001",
-            ProductionMainNo = "D01",
-            MaterialName = "无缝管",
-            DeliveryState = "固溶酸洗",
-            PlantGrade = "304",
-            Specification = "219*8",
-            LengthStatus = "Fixed",
-            TotalQuantity = 100,
-            TotalMeters = 600,
-            TotalWeight = 2500m,
-            ProductionAttentionProcess = "荒管处理",
-        });
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
         var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
 
         var item = result.Items.Single();
-        item.ScheduleStage.Should().Be(2); // Has schedule record
-        item.ProductionAttentionProcess.Should().Be("荒管处理");
+        item.ScheduleStage.Should().Be(2); // From WorkOrderExecutionSummary
     }
 
     [Fact]

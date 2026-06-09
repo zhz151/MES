@@ -155,11 +155,13 @@ public partial class RawMaterialLockPlanAndExecution
             new() { Key = "RawMaterialLockRemark",   Label = "原锁备注",     SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                             GroupKey = 12, GroupName = "实时关注" },
         };
 
-        // G13: 销售催单
+        // G13: 订单需求调整
         var g13 = new List<ColumnDef>
         {
-            new() { Key = "SalesUrging",             Label = "销售催单",      SortKey = "SalesUrging",             FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "销售催单" },
-            new() { Key = "UrgingRemark",            Label = "催单备注",      SortKey = "UrgingRemark",            FilterType = "string", Width = "200", GroupKey = 13, GroupName = "销售催单" },
+            new() { Key = "IsUrging",             Label = "催单",           SortKey = "IsUrging",             FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "订单需求调整" },
+            new() { Key = "IsBatchDelivery",      Label = "分批交货",       SortKey = "IsBatchDelivery",      FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "订单需求调整" },
+            new() { Key = "IsPaused",             Label = "工单暂停",       SortKey = "IsPaused",             FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "订单需求调整" },
+            new() { Key = "AdjustmentRemark",     Label = "调整备注",       SortKey = "AdjustmentRemark",     FilterType = "string",  Width = "200", GroupKey = 13, GroupName = "订单需求调整" },
         };
 
         // G15: 预执行（页面操作标记）

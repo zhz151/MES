@@ -50,4 +50,30 @@ public class WorkOrderScheduleService
             return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}");
         }
     }
+
+    public async Task<ApiResponse<bool>> SavePlanAsync(SaveWorkOrderPlanRequest request)
+    {
+        try
+        {
+            var result = await _http.PostAsJsonAsync<SaveWorkOrderPlanRequest, ApiResponse<bool>>($"{BaseUrl}/save-plan", request);
+            return result ?? ApiResponse<bool>.Fail("保存失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<bool>.Fail($"保存失败: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<bool>> PlanScheduleAllAsync(QueryParams query)
+    {
+        try
+        {
+            var result = await _http.PostAsJsonAsync<QueryParams, ApiResponse<bool>>($"{BaseUrl}/plan-all", query);
+            return result ?? ApiResponse<bool>.Fail("计划安排失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<bool>.Fail($"计划安排失败: {ex.Message}");
+        }
+    }
 }

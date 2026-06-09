@@ -42,4 +42,18 @@ public class WorkOrderScheduleController : ControllerBase
         var result = await _service.GetFilterContextsAsync();
         return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
     }
+
+    [HttpPost("save-plan")]
+    public async Task<ActionResult<ApiResponse<bool>>> SavePlan([FromBody] Core.DTOs.SaveWorkOrderPlanRequest request)
+    {
+        var result = await _service.SavePlanAsync(request);
+        return Ok(ApiResponse<bool>.Ok(result));
+    }
+
+    [HttpPost("plan-all")]
+    public async Task<ActionResult<ApiResponse<bool>>> PlanAll([FromBody] QueryParams query)
+    {
+        var result = await _service.PlanScheduleAllAsync(query);
+        return Ok(ApiResponse<bool>.Ok(result));
+    }
 }
