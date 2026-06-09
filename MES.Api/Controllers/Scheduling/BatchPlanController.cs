@@ -44,6 +44,14 @@ public class BatchPlanController : ControllerBase
         return Ok(ApiResponse<PagedResult<BatchPlanDto>>.Ok(result));
     }
 
+    [HttpGet("all")]
+    public async Task<ActionResult<ApiResponse<List<BatchPlanDto>>>> GetAll(
+        [FromQuery] string? sectionTab = null)
+    {
+        var result = await _service.GetAllAsync(sectionTab);
+        return Ok(ApiResponse<List<BatchPlanDto>>.Ok(result));
+    }
+
     [HttpGet("filter-contexts")]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {

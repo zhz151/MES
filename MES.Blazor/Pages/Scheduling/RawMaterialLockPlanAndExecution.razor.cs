@@ -14,12 +14,9 @@ namespace MES.Blazor.Pages.Scheduling;
 public partial class RawMaterialLockPlanAndExecution
 {
     private MudTable<RawMaterialLockPlanAndExecutionDto>? table;
-    private List<RawMaterialLockPlanAndExecutionDto> _pageItems = new();
-    private int _totalCount;
-    private int _restoredPageIndex;
-    private int _currentPageIndex = 1;
-    private bool _isFirstLoad = true;
-    private int _pageSize = 10;
+    private List<RawMaterialLockPlanAndExecutionDto> _allItems = new();
+    private List<RawMaterialLockPlanAndExecutionDto> _filteredItems = new();
+    private bool _isLoading;
 
     // B33: 分页汇总
     private Dictionary<string, string> _pageSums = new();
@@ -33,6 +30,7 @@ public partial class RawMaterialLockPlanAndExecution
         "GeneralDefectWeight", "SeriousDefectWeight", "ScrapWeight",
     };
 
+    private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
 
     // 待成检到料批次卡片摘要
@@ -46,6 +44,10 @@ public partial class RawMaterialLockPlanAndExecution
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
+
+    // 非空/空筛选常量
+    private const string FilterNotNull = "__NOT_NULL__";
+    private const string FilterNull = "__EXCEL_FILTER_NULL__";
 
     // ========== 列定义 ==========
     private List<ColumnDef> _allColumns = new();
@@ -191,7 +193,7 @@ public partial class RawMaterialLockPlanAndExecution
     private void ComputePageSums()
     {
         _pageSums.Clear();
-        if (_pageItems.Count == 0) return;
+        if (_filteredItems.Count == 0) return;
 
         var props = typeof(RawMaterialLockPlanAndExecutionDto)
             .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
@@ -206,22 +208,22 @@ public partial class RawMaterialLockPlanAndExecution
             {
                 if (type == typeof(int))
                 {
-                    var sum = _pageItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
+                    var sum = _filteredItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
                     _pageSums[col.Key] = sum.ToString();
                 }
                 else if (type == typeof(decimal))
                 {
-                    var sum = _pageItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
+                    var sum = _filteredItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
                     _pageSums[col.Key] = ((int)sum).ToString();
                 }
                 else if (type == typeof(int?))
                 {
-                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    var sum = _filteredItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
                     _pageSums[col.Key] = sum.ToString();
                 }
                 else if (type == typeof(decimal?))
                 {
-                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    var sum = _filteredItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
                     _pageSums[col.Key] = ((int)sum).ToString();
                 }
             }
@@ -239,157 +241,267 @@ public partial class RawMaterialLockPlanAndExecution
         return "-";
     }
 
-    // ========== 服务端数据加载 ==========
+    // ========== 数据加载 ==========
 
-    private async Task<TableData<RawMaterialLockPlanAndExecutionDto>> LoadDataFromServer(TableState state)
+    private async Task LoadDataAsync()
     {
-        // 保持 RowsPerPage 与用户选择同步，避免排序/筛选后复位
-        _pageSize = state.PageSize;
-
-        if (_isFirstLoad)
-        {
-            state.Page = _restoredPageIndex;
-            _isFirstLoad = false;
-        }
-
+        _isLoading = true;
         try
         {
-            var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "ScheduleStage";
-            var filtersJson = SerializeFilters();
-
             var query = new QueryParams
             {
-                PageIndex = state.Page + 1,
-                PageSize = state.PageSize,
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortBy,
-                IsDescending = sortDescending
+                PageIndex = 1,
+                PageSize = 50000,
+                SortBy = "ScheduleStage",
+                IsDescending = true
             };
-            if (filtersJson != null)
-            {
-                query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filtersJson);
-            }
-
             var result = await RawMaterialLockPlanService.GetPagedAsync(query);
-
             if (result.Success && result.Data != null)
             {
-                _pageItems = result.Data.Items;
-                _totalCount = result.Data.TotalCount;
-                _currentPageIndex = state.Page + 1;
-                ComputePageSums();
-
-                if (result.Data.Extras != null)
-                {
-                    _preInputCount = GetExtraInt(result.Data.Extras, "preInputCount");
-                    _preInputWeight = GetExtraDecimal(result.Data.Extras, "preInputWeight");
-                }
-                else
-                {
-                    _preInputCount = 0;
-                    _preInputWeight = 0m;
-                }
-
-                await SavePageStateAsync();
+                _allItems = result.Data.Items ?? new();
+                _preInputCount = _allItems.Count(x => x.IsPreInput);
+                _preInputWeight = _allItems.Where(x => x.IsPreInput).Sum(x => x.TotalWeight);
             }
             else
             {
-                _pageItems = new();
-                _totalCount = 0;
+                _allItems = new();
+                Snackbar.Add(result?.Message ?? "获取数据失败", Severity.Error);
+                _preInputCount = 0;
+                _preInputWeight = 0m;
             }
         }
         catch (Exception ex)
         {
             Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
-            _pageItems = new();
-            _totalCount = 0;
+            _allItems = new();
+        }
+        finally
+        {
+            _isLoading = false;
         }
 
-        return new TableData<RawMaterialLockPlanAndExecutionDto>
-        {
-            Items = _pageItems,
-            TotalItems = _totalCount
-        };
+        BuildFilterContextOptions();
+        ApplyFiltersAndSort();
     }
 
-    private string? SerializeFilters()
-    {
-        if (_columnFilters.Count == 0) return null;
-        var descriptors = new List<FilterDescriptor>();
-        foreach (var kvp in _columnFilters)
-        {
-            if (kvp.Value.Count == 0) continue;
-            descriptors.Add(new FilterDescriptor
-            {
-                Field = kvp.Key,
-                Operator = "in",
-                Values = kvp.Value.ToList()
-            });
-        }
-        return descriptors.Count > 0 ? JsonSerializer.Serialize(descriptors) : null;
-    }
+    // ========== 筛选上下文构建 ==========
 
-    // ========== 筛选上下文加载 ==========
-
-    private async Task LoadFilterContextsAsync()
-    {
-        try
-        {
-            var result = await RawMaterialLockPlanService.GetFilterContextsAsync();
-            if (result.Success && result.Data != null)
-            {
-                BuildFilterContextOptions(result.Data);
-            }
-        }
-        catch { }
-    }
-
-    private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
+    private void BuildFilterContextOptions()
     {
         _filterContextOptions.Clear();
-        foreach (var kvp in filterContexts)
-        {
-            _filterContextOptions[kvp.Key] = kvp.Value.Select(v => new ExcelFilterOption
-            {
-                Value = v,
-                Display = v,
-                Count = 0
-            }).ToList();
-        }
 
-        // DelayPenalty 列显示中文
-        if (_filterContextOptions.TryGetValue("DelayPenalty", out var delayOptions))
-        {
-            foreach (var opt in delayOptions)
-                opt.Display = opt.Value == "True" ? "是" : "否";
-        }
-
-        // 补充枚举列筛选选项
         foreach (var col in _allColumns)
         {
-            if (col.FilterType == "enum" && col.EnumOptions != null && !_filterContextOptions.ContainsKey(col.Key))
-            {
-                _filterContextOptions[col.Key] = col.EnumOptions.Select(e => new ExcelFilterOption
-                {
-                    Value = e.Value,
-                    Display = e.Display,
-                    Count = 0
-                }).ToList();
-            }
-        }
-
-        // 补充布尔列筛选选项
-        foreach (var col in _allColumns)
-        {
-            if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
+            if (col.FilterType == "number")
             {
                 _filterContextOptions[col.Key] = new List<ExcelFilterOption>
                 {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
+                    new() { Value = FilterNotNull, Display = "非空", Count = _allItems.Count(x => GetFilterValue(x, col.Key) != null) },
+                    new() { Value = FilterNull,    Display = "空",   Count = _allItems.Count(x => GetFilterValue(x, col.Key) == null) },
+                };
+            }
+            else if (col.FilterType == "string")
+            {
+                var options = _allItems
+                    .Select(item => GetFilterValue(item, col.Key))
+                    .Where(v => v != null)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(x => x)
+                    .Select(val => new ExcelFilterOption
+                    {
+                        Value = val!,
+                        Display = val!,
+                        Count = _allItems.Count(x => string.Equals(GetFilterValue(x, col.Key), val, StringComparison.OrdinalIgnoreCase))
+                    })
+                    .ToList();
+                _filterContextOptions[col.Key] = options;
+            }
+            else if (col.FilterType == "enum")
+            {
+                // 使用 EnumOptions 映射
+                if (col.EnumOptions != null)
+                {
+                    _filterContextOptions[col.Key] = col.EnumOptions.Select(e => new ExcelFilterOption
+                    {
+                        Value = e.Value,
+                        Display = e.Display,
+                        Count = _allItems.Count(x => string.Equals(GetFilterValue(x, col.Key), e.Value, StringComparison.OrdinalIgnoreCase))
+                    }).ToList();
+                }
+            }
+            else if (col.FilterType == "boolean")
+            {
+                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
+                {
+                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = _allItems.Count(x => GetFilterValue(x, col.Key) == "True") },
+                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = _allItems.Count(x => GetFilterValue(x, col.Key) == "False") },
                 };
             }
         }
+    }
+
+    private static string? GetFilterValue(RawMaterialLockPlanAndExecutionDto item, string key) => key switch
+    {
+        "WorkOrderNo" => item.WorkOrderNo,
+        "Salesman" => item.Salesman,
+        "CustomerName" => item.CustomerName,
+        "SalesOrderNo" => item.SalesOrderNo,
+        "ProductionMainNo" => item.ProductionMainNo,
+        "ProductionSubNo" => item.ProductionSubNo,
+        "PlantGrade" => item.PlantGrade,
+        "Specification" => item.Specification,
+        "SettlementMethod" => item.SettlementMethod,
+        "MaterialName" => item.MaterialName,
+        "DeliveryState" => item.DeliveryState,
+        "LengthStatus" => item.LengthStatus,
+        "MaterialPlanStatus" => item.MaterialPlanStatus.ToString(),
+        "MainNoMaterialPlanStatus" => item.MainNoMaterialPlanStatus.ToString(),
+        "InputStatus" => item.InputStatus.ToString(),
+        "MainNoInputStatus" => item.MainNoInputStatus.ToString(),
+        "FlowStatus" => item.FlowStatus.ToString(),
+        "MainNoFlowStatus" => item.MainNoFlowStatus.ToString(),
+        "ScheduleStage" => item.ScheduleStage.ToString(),
+        "UrgencyLevel" => item.UrgencyLevel,
+        "RawMaterialLockRemark" => item.RawMaterialLockRemark,
+        "AdjustmentRemark" => item.AdjustmentRemark,
+        "DelayPenalty" => item.DelayPenalty.ToString(),
+        "IsUrging" => item.IsUrging.ToString(),
+        "IsBatchDelivery" => item.IsBatchDelivery.ToString(),
+        "IsPaused" => item.IsPaused.ToString(),
+        "IsPreInput" => item.IsPreInput.ToString(),
+        "ExecutionError" => item.ExecutionError.ToString(),
+        "IsMainNoMaterialComplete" => item.IsMainNoMaterialComplete.ToString(),
+        _ => null
+    };
+
+    // ========== 搜索/筛选/排序 ==========
+
+    private void ApplyFiltersAndSort()
+    {
+        var query = _allItems.AsEnumerable();
+
+        // 关键字搜索
+        if (!string.IsNullOrWhiteSpace(_searchKeyword))
+        {
+            var kw = _searchKeyword.Trim();
+            query = query.Where(x =>
+                (x.WorkOrderNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.SalesOrderNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.Salesman?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.CustomerName?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.PlantGrade?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.Specification?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.ProductionMainNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true));
+        }
+
+        // 列筛选
+        foreach (var kvp in _columnFilters)
+        {
+            if (kvp.Value.Count == 0) continue;
+
+            var col = _allColumns.FirstOrDefault(c => c.Key == kvp.Key);
+            if (col == null) continue;
+
+            if (col.FilterType == "string")
+            {
+                query = query.Where(x =>
+                {
+                    var val = GetFilterValue(x, kvp.Key);
+                    return val != null && kvp.Value.Contains(val, StringComparer.OrdinalIgnoreCase);
+                });
+            }
+            else if (col.FilterType == "enum" || col.FilterType == "boolean")
+            {
+                query = query.Where(x =>
+                {
+                    var val = GetFilterValue(x, kvp.Key);
+                    return val != null && kvp.Value.Contains(val, StringComparer.OrdinalIgnoreCase);
+                });
+            }
+        }
+
+        // 排序
+        query = sortColumn switch
+        {
+            "WorkOrderNo" => sortDescending ? query.OrderByDescending(x => x.WorkOrderNo) : query.OrderBy(x => x.WorkOrderNo),
+            "Salesman" => sortDescending ? query.OrderByDescending(x => x.Salesman) : query.OrderBy(x => x.Salesman),
+            "CustomerName" => sortDescending ? query.OrderByDescending(x => x.CustomerName) : query.OrderBy(x => x.CustomerName),
+            "SignDate" => sortDescending ? query.OrderByDescending(x => x.SignDate) : query.OrderBy(x => x.SignDate),
+            "DeliveryDate" => sortDescending ? query.OrderByDescending(x => x.DeliveryDate) : query.OrderBy(x => x.DeliveryDate),
+            "DelayPenalty" => sortDescending ? query.OrderByDescending(x => x.DelayPenalty) : query.OrderBy(x => x.DelayPenalty),
+            "SettlementMethod" => sortDescending ? query.OrderByDescending(x => x.SettlementMethod) : query.OrderBy(x => x.SettlementMethod),
+            "SalesOrderNo" => sortDescending ? query.OrderByDescending(x => x.SalesOrderNo) : query.OrderBy(x => x.SalesOrderNo),
+            "ProductionMainNo" => sortDescending ? query.OrderByDescending(x => x.ProductionMainNo) : query.OrderBy(x => x.ProductionMainNo),
+            "ProductionSubNo" => sortDescending ? query.OrderByDescending(x => x.ProductionSubNo) : query.OrderBy(x => x.ProductionSubNo),
+            "MaterialName" => sortDescending ? query.OrderByDescending(x => x.MaterialName) : query.OrderBy(x => x.MaterialName),
+            "DeliveryState" => sortDescending ? query.OrderByDescending(x => x.DeliveryState) : query.OrderBy(x => x.DeliveryState),
+            "PlantGrade" => sortDescending ? query.OrderByDescending(x => x.PlantGrade) : query.OrderBy(x => x.PlantGrade),
+            "Specification" => sortDescending ? query.OrderByDescending(x => x.Specification) : query.OrderBy(x => x.Specification),
+            "LengthStatus" => sortDescending ? query.OrderByDescending(x => x.LengthStatus) : query.OrderBy(x => x.LengthStatus),
+            "MinLength" => sortDescending ? query.OrderByDescending(x => x.MinLength) : query.OrderBy(x => x.MinLength),
+            "MaxLength" => sortDescending ? query.OrderByDescending(x => x.MaxLength) : query.OrderBy(x => x.MaxLength),
+            "TotalItemCount" => sortDescending ? query.OrderByDescending(x => x.TotalItemCount) : query.OrderBy(x => x.TotalItemCount),
+            "TotalQuantity" => sortDescending ? query.OrderByDescending(x => x.TotalQuantity) : query.OrderBy(x => x.TotalQuantity),
+            "TotalMeters" => sortDescending ? query.OrderByDescending(x => x.TotalMeters) : query.OrderBy(x => x.TotalMeters),
+            "TotalWeight" => sortDescending ? query.OrderByDescending(x => x.TotalWeight) : query.OrderBy(x => x.TotalWeight),
+            "LatestPlanDate" => sortDescending ? query.OrderByDescending(x => x.LatestPlanDate) : query.OrderBy(x => x.LatestPlanDate),
+            "MaterialPlanRate" => sortDescending ? query.OrderByDescending(x => x.MaterialPlanRate) : query.OrderBy(x => x.MaterialPlanRate),
+            "MaterialPlanStatus" => sortDescending ? query.OrderByDescending(x => x.MaterialPlanStatus) : query.OrderBy(x => x.MaterialPlanStatus),
+            "MainNoMaterialPlanRate" => sortDescending ? query.OrderByDescending(x => x.MainNoMaterialPlanRate) : query.OrderBy(x => x.MainNoMaterialPlanRate),
+            "MainNoMaterialPlanStatus" => sortDescending ? query.OrderByDescending(x => x.MainNoMaterialPlanStatus) : query.OrderBy(x => x.MainNoMaterialPlanStatus),
+            "ProcessCycle" => sortDescending ? query.OrderByDescending(x => x.ProcessCycle) : query.OrderBy(x => x.ProcessCycle),
+            "MaterialPlanProportion" => sortDescending ? query.OrderByDescending(x => x.MaterialPlanProportion) : query.OrderBy(x => x.MaterialPlanProportion),
+            "LatestRequiredDate" => sortDescending ? query.OrderByDescending(x => x.LatestRequiredDate) : query.OrderBy(x => x.LatestRequiredDate),
+            "PendingRoughTubeQty" => sortDescending ? query.OrderByDescending(x => x.PendingRoughTubeQty) : query.OrderBy(x => x.PendingRoughTubeQty),
+            "PendingRoughTubeWeight" => sortDescending ? query.OrderByDescending(x => x.PendingRoughTubeWeight) : query.OrderBy(x => x.PendingRoughTubeWeight),
+            "PendingOutsourceFinishQty" => sortDescending ? query.OrderByDescending(x => x.PendingOutsourceFinishQty) : query.OrderBy(x => x.PendingOutsourceFinishQty),
+            "PendingOutsourceFinishWeight" => sortDescending ? query.OrderByDescending(x => x.PendingOutsourceFinishWeight) : query.OrderBy(x => x.PendingOutsourceFinishWeight),
+            "TheoreticalFinishQty" => sortDescending ? query.OrderByDescending(x => x.TheoreticalFinishQty) : query.OrderBy(x => x.TheoreticalFinishQty),
+            "TheoreticalFinishWeight" => sortDescending ? query.OrderByDescending(x => x.TheoreticalFinishWeight) : query.OrderBy(x => x.TheoreticalFinishWeight),
+            "InputStartDate" => sortDescending ? query.OrderByDescending(x => x.InputStartDate) : query.OrderBy(x => x.InputStartDate),
+            "InputEndDate" => sortDescending ? query.OrderByDescending(x => x.InputEndDate) : query.OrderBy(x => x.InputEndDate),
+            "TotalBatchCount" => sortDescending ? query.OrderByDescending(x => x.TotalBatchCount) : query.OrderBy(x => x.TotalBatchCount),
+            "InputQuantity" => sortDescending ? query.OrderByDescending(x => x.InputQuantity) : query.OrderBy(x => x.InputQuantity),
+            "InputWeight" => sortDescending ? query.OrderByDescending(x => x.InputWeight) : query.OrderBy(x => x.InputWeight),
+            "TheoreticalOutputQty" => sortDescending ? query.OrderByDescending(x => x.TheoreticalOutputQty) : query.OrderBy(x => x.TheoreticalOutputQty),
+            "TheoreticalOutputWeight" => sortDescending ? query.OrderByDescending(x => x.TheoreticalOutputWeight) : query.OrderBy(x => x.TheoreticalOutputWeight),
+            "InputOutputRatio" => sortDescending ? query.OrderByDescending(x => x.InputOutputRatio) : query.OrderBy(x => x.InputOutputRatio),
+            "InputStatus" => sortDescending ? query.OrderByDescending(x => x.InputStatus) : query.OrderBy(x => x.InputStatus),
+            "MainNoInputOutputRatio" => sortDescending ? query.OrderByDescending(x => x.MainNoInputOutputRatio) : query.OrderBy(x => x.MainNoInputOutputRatio),
+            "MainNoInputStatus" => sortDescending ? query.OrderByDescending(x => x.MainNoInputStatus) : query.OrderBy(x => x.MainNoInputStatus),
+            "FlowOutputRatio" => sortDescending ? query.OrderByDescending(x => x.FlowOutputRatio) : query.OrderBy(x => x.FlowOutputRatio),
+            "FlowStatus" => sortDescending ? query.OrderByDescending(x => x.FlowStatus) : query.OrderBy(x => x.FlowStatus),
+            "MainNoFlowOutputRatio" => sortDescending ? query.OrderByDescending(x => x.MainNoFlowOutputRatio) : query.OrderBy(x => x.MainNoFlowOutputRatio),
+            "MainNoFlowStatus" => sortDescending ? query.OrderByDescending(x => x.MainNoFlowStatus) : query.OrderBy(x => x.MainNoFlowStatus),
+            "FlowMaxRemainingWorkDays" => sortDescending ? query.OrderByDescending(x => x.FlowMaxRemainingWorkDays) : query.OrderBy(x => x.FlowMaxRemainingWorkDays),
+            "FlowTotalBatchCount" => sortDescending ? query.OrderByDescending(x => x.FlowTotalBatchCount) : query.OrderBy(x => x.FlowTotalBatchCount),
+            "FlowIncompleteBatchCount" => sortDescending ? query.OrderByDescending(x => x.FlowIncompleteBatchCount) : query.OrderBy(x => x.FlowIncompleteBatchCount),
+            "GeneralDefectWeight" => sortDescending ? query.OrderByDescending(x => x.GeneralDefectWeight) : query.OrderBy(x => x.GeneralDefectWeight),
+            "GeneralDefectRatio" => sortDescending ? query.OrderByDescending(x => x.GeneralDefectRatio) : query.OrderBy(x => x.GeneralDefectRatio),
+            "SeriousDefectWeight" => sortDescending ? query.OrderByDescending(x => x.SeriousDefectWeight) : query.OrderBy(x => x.SeriousDefectWeight),
+            "SeriousDefectRatio" => sortDescending ? query.OrderByDescending(x => x.SeriousDefectRatio) : query.OrderBy(x => x.SeriousDefectRatio),
+            "ScrapWeight" => sortDescending ? query.OrderByDescending(x => x.ScrapWeight) : query.OrderBy(x => x.ScrapWeight),
+            "ScrapRatio" => sortDescending ? query.OrderByDescending(x => x.ScrapRatio) : query.OrderBy(x => x.ScrapRatio),
+            "ScheduleStage" => sortDescending ? query.OrderByDescending(x => x.ScheduleStage) : query.OrderBy(x => x.ScheduleStage),
+            "TotalRemainingWorkDays" => sortDescending ? query.OrderByDescending(x => x.TotalRemainingWorkDays) : query.OrderBy(x => x.TotalRemainingWorkDays),
+            "CapacityWorkDays" => sortDescending ? query.OrderByDescending(x => x.CapacityWorkDays) : query.OrderBy(x => x.CapacityWorkDays),
+            "UrgencyLevel" => sortDescending ? query.OrderByDescending(x => x.UrgencyLevel) : query.OrderBy(x => x.UrgencyLevel),
+            "EstimatedProcessCompletionDate" => sortDescending ? query.OrderByDescending(x => x.EstimatedProcessCompletionDate) : query.OrderBy(x => x.EstimatedProcessCompletionDate),
+            "DaysDiffFromDelivery" => sortDescending ? query.OrderByDescending(x => x.DaysDiffFromDelivery) : query.OrderBy(x => x.DaysDiffFromDelivery),
+            "RawMaterialLockRemark" => sortDescending ? query.OrderByDescending(x => x.RawMaterialLockRemark) : query.OrderBy(x => x.RawMaterialLockRemark),
+            "IsUrging" => sortDescending ? query.OrderByDescending(x => x.IsUrging) : query.OrderBy(x => x.IsUrging),
+            "IsBatchDelivery" => sortDescending ? query.OrderByDescending(x => x.IsBatchDelivery) : query.OrderBy(x => x.IsBatchDelivery),
+            "IsPaused" => sortDescending ? query.OrderByDescending(x => x.IsPaused) : query.OrderBy(x => x.IsPaused),
+            "AdjustmentRemark" => sortDescending ? query.OrderByDescending(x => x.AdjustmentRemark) : query.OrderBy(x => x.AdjustmentRemark),
+            "IsPreInput" => sortDescending ? query.OrderByDescending(x => x.IsPreInput) : query.OrderBy(x => x.IsPreInput),
+            "BudgetInputDate" => sortDescending ? query.OrderByDescending(x => x.BudgetInputDate) : query.OrderBy(x => x.BudgetInputDate),
+            "ExecutionError" => sortDescending ? query.OrderByDescending(x => x.ExecutionError) : query.OrderBy(x => x.ExecutionError),
+            "IsMainNoMaterialComplete" => sortDescending ? query.OrderByDescending(x => x.IsMainNoMaterialComplete) : query.OrderBy(x => x.IsMainNoMaterialComplete),
+            _ => sortDescending ? query.OrderByDescending(x => x.ScheduleStage) : query.OrderBy(x => x.ScheduleStage)
+        };
+
+        _filteredItems = query.ToList();
+        ComputePageSums();
     }
 
     // ========== ExcelFilter 事件 ==========
@@ -400,8 +512,8 @@ public partial class RawMaterialLockPlanAndExecution
             _columnFilters[fieldKey] = selectedValues;
         else
             _columnFilters.Remove(fieldKey);
+        ApplyFiltersAndSort();
         await SavePageStateAsync();
-        if (table != null) await table.ReloadServerData();
     }
 
     // ========== 列显隐事件 ==========
@@ -413,11 +525,23 @@ public partial class RawMaterialLockPlanAndExecution
 
     private async Task MoveColumnUp(ColumnDef col)
     {
+        var idx = _allColumns.IndexOf(col);
+        if (idx > 0)
+        {
+            _allColumns.RemoveAt(idx);
+            _allColumns.Insert(idx - 1, col);
+        }
         await SavePageStateAsync();
     }
 
     private async Task MoveColumnDown(ColumnDef col)
     {
+        var idx = _allColumns.IndexOf(col);
+        if (idx < _allColumns.Count - 1)
+        {
+            _allColumns.RemoveAt(idx);
+            _allColumns.Insert(idx + 1, col);
+        }
         await SavePageStateAsync();
     }
 
@@ -430,15 +554,15 @@ public partial class RawMaterialLockPlanAndExecution
             sortColumn = sortKey;
             sortDescending = false;
         }
+        ApplyFiltersAndSort();
         await SavePageStateAsync();
-        if (table != null) await table.ReloadServerData();
     }
 
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        ApplyFiltersAndSort();
         await SavePageStateAsync();
-        if (table != null) await table.ReloadServerData();
     }
 
     // ========== 预执行内联操作 ==========
@@ -450,8 +574,19 @@ public partial class RawMaterialLockPlanAndExecution
         if (result.Success)
         {
             item.IsPreInput = newValue;
-            // 重新加载数据以反映系统重新计算的主号齐全状态
-            if (table != null) await table.ReloadServerData();
+            // 更新预执行卡片摘要（增量计算，避免全量重载）
+            if (newValue)
+            {
+                _preInputCount++;
+                _preInputWeight += item.TotalWeight;
+            }
+            else
+            {
+                _preInputCount = Math.Max(0, _preInputCount - 1);
+                _preInputWeight = Math.Max(0, _preInputWeight - item.TotalWeight);
+            }
+            ApplyFiltersAndSort();
+            await SavePageStateAsync();
         }
         else
         {
@@ -466,7 +601,8 @@ public partial class RawMaterialLockPlanAndExecution
         if (result.Success)
         {
             item.BudgetInputDate = newDate;
-            await table.ReloadServerData();
+            ApplyFiltersAndSort();
+            await SavePageStateAsync();
         }
         else
         {
@@ -582,7 +718,6 @@ public partial class RawMaterialLockPlanAndExecution
             sortColumn = savedState.SortBy ?? "ScheduleStage";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
-            _restoredPageIndex = savedState.PageIndex;
 
             if (savedState.Extras?.ContainsKey("columnVisibility") == true)
             {
@@ -613,10 +748,7 @@ public partial class RawMaterialLockPlanAndExecution
             }
         }
 
-        if (savedState != null && table != null)
-            await table.ReloadServerData();
-
-        await LoadFilterContextsAsync();
+        await LoadDataAsync();
     }
 
     // ========== 分组标题栏同步 ==========
@@ -997,22 +1129,6 @@ public partial class RawMaterialLockPlanAndExecution
         _ => Color.Default
     };
 
-    // ========== Extras 辅助方法 ==========
-
-    private static int GetExtraInt(Dictionary<string, object> extras, string key)
-    {
-        if (extras.TryGetValue(key, out var val) && val is System.Text.Json.JsonElement je && je.ValueKind == System.Text.Json.JsonValueKind.Number)
-            return je.GetInt32();
-        return 0;
-    }
-
-    private static decimal GetExtraDecimal(Dictionary<string, object> extras, string key)
-    {
-        if (extras.TryGetValue(key, out var val) && val is System.Text.Json.JsonElement je && je.ValueKind == System.Text.Json.JsonValueKind.Number)
-            return je.GetDecimal();
-        return 0m;
-    }
-
     // ========== 持久化 ==========
 
     private async Task SavePageStateAsync()
@@ -1028,7 +1144,7 @@ public partial class RawMaterialLockPlanAndExecution
             SortBy = sortColumn,
             IsDescending = sortDescending,
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            PageIndex = _currentPageIndex,
+            PageIndex = 1,
             Extras = extras
         };
         await PageState.SaveAsync("rawmateriallockplan", state);

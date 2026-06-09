@@ -81,6 +81,7 @@ builder.Services.AddScoped<WorkOrderScheduleService>();
 builder.Services.AddScoped<BatchPlanService>();
 builder.Services.AddScoped<ColdRollPlanService>();
 builder.Services.AddScoped<ColdRollSpecScheduleService>();
+builder.Services.AddScoped<BatchPlanScheduleService>();
 builder.Services.AddScoped<FinalInspectionKanbanService>();
 
 // ========== Configuration 上下文 ==========

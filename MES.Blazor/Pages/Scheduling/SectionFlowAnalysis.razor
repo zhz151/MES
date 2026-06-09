@@ -4,6 +4,7 @@
 @using MES.Core.Models
 @using MES.Blazor.Helpers
 @using MES.Blazor.Models
+@using MES.Blazor.Components
 @using Microsoft.AspNetCore.Authorization
 @using System.Text.Json
 @attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
@@ -42,7 +43,7 @@
     <MudTable @ref="table" T="SectionFlowAnalysisDto"
               Items="@_filteredItems"
               Dense="true" Hover="true" Elevation="0" Class="auto-table"
-              RowsPerPage="25" RowsPerPageLabel="每页行数:">
+              RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
         <ToolBarContent>
             <ColumnDisplaySelect Columns="_allColumns"
                                  OnColumnToggle="OnColumnToggle"
@@ -69,7 +70,7 @@
                     _ => ""
                 };
                 <MudTh Class="@colClass">
-                    <div style="display:inline-flex; align-items:center; gap:4px;">
+                    <div class="col-header-cell">
                         <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">
                             @col.Label
                             @if (sortColumn == col.Key)
@@ -77,6 +78,15 @@
                                 @(sortDescending ? " ▼" : " ▲")
                             }
                         </span>
+                        @if (col.FilterType != null)
+                        {
+                            <ExcelFilter T="SectionFlowAnalysisDto"
+                                         Label="@col.Label"
+                                         FieldKey="@col.Key"
+                                         FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"
+                                         ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                         FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))" />
+                        }
                     </div>
                 </MudTh>
             }

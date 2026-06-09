@@ -39,6 +39,9 @@ public class BatchPlanDto
     public string? NextProcess { get; set; }
     public string? CorrespondingSpec { get; set; }
 
+    /// <summary>执行序（实时：待产执行工序对应 ProcessGroup 的组内序号）</summary>
+    public int? ExecutionSequence { get; set; }
+
     // ===== G4：批次关注（COALESCE：工单计划薄表优先，无覆盖则回退系统值） =====
     public string? UrgencyLevel { get; set; }
     public int ScheduleStage { get; set; }
@@ -97,45 +100,55 @@ public class BatchPlanDto
 
     // ===== G7：批次流转（计算字段，依赖冷轧排程匹配结果 + 紧急级别） =====
 
-    /// <summary>
-    /// 流转标注（UrgencyLevel 已由 Service COALESCE）：
-    /// 在轧要求=All/Partial → true；在轧要求=Urgent → true 仅当 UrgencyLevel 为 A+急/A急
-    /// 待轧要求=All/Subsequent/Partial → true；待轧要求=Urgent → true 仅当 UrgencyLevel 为 A+急/A急
-    /// </summary>
-    [JsonIgnore]
-    public bool IsFlow
+    private enum FlowTrigger { None, AttentionProcess, CompletionType, RollType }
+
+    /// <summary>判定流转触发来源</summary>
+    private FlowTrigger _trigger
     {
         get
         {
+            // 生产关注工序=收尾-成检 → 始终流转
+            if (ProductionAttentionProcess == "收尾-成检")
+                return FlowTrigger.AttentionProcess;
+
             var isUrgent = UrgencyLevel == "A+急" || UrgencyLevel == "A急";
 
             // 在轧要求判定
             if (!string.IsNullOrEmpty(CR_CompletionType) && CR_CompletionType != "None")
             {
                 if (CR_CompletionType == "All" || CR_CompletionType == "Partial")
-                    return true;
+                    return FlowTrigger.CompletionType;
                 if (CR_CompletionType == "Urgent" && isUrgent)
-                    return true;
+                    return FlowTrigger.CompletionType;
             }
 
             // 待轧要求判定
             if (!string.IsNullOrEmpty(CR_RollType) && CR_RollType != "None")
             {
                 if (CR_RollType == "All" || CR_RollType == "Subsequent" || CR_RollType == "Partial")
-                    return true;
+                    return FlowTrigger.RollType;
                 if (CR_RollType == "Urgent" && isUrgent)
-                    return true;
+                    return FlowTrigger.RollType;
             }
 
-            return false;
+            return FlowTrigger.None;
         }
     }
 
     /// <summary>
+    /// 流转标注（UrgencyLevel 已由 Service COALESCE）：
+    /// 生产关注工序=收尾-成检 → true
+    /// 在轧要求=All/Partial → true；在轧要求=Urgent → true 仅当 UrgencyLevel 为 A+急/A急
+    /// 待轧要求=All/Subsequent/Partial → true；待轧要求=Urgent → true 仅当 UrgencyLevel 为 A+急/A急
+    /// </summary>
+    [JsonIgnore]
+    public bool IsFlow => _trigger != FlowTrigger.None;
+
+    /// <summary>
     /// 流转等级：
-    /// IsFlow=true 且 (IsUrging=true 或 IsKeyBatch=true) → 1
-    /// IsFlow=true 且 不满足上述条件 → 2
     /// IsFlow=false → 3
+    /// IsFlow=true + IsKeyBatch=true → 1
+    /// IsFlow=true + IsKeyBatch=false → 2
     /// </summary>
     [JsonIgnore]
     public int FlowLevel
@@ -143,9 +156,72 @@ public class BatchPlanDto
         get
         {
             if (!IsFlow) return 3;
-            return IsUrging || IsKeyBatch ? 1 : 2;
+            return IsKeyBatch ? 1 : 2;
         }
     }
+
+    /// <summary>流转目标</summary>
+    [JsonIgnore]
+    public string? FlowTarget => _trigger switch
+    {
+        FlowTrigger.AttentionProcess => "成检",
+        FlowTrigger.CompletionType => "完工冷轧",
+        FlowTrigger.RollType => "冷轧",
+        _ => null,
+    };
+
+    /// <summary>待轧要求场景对应的层级冷轧工序类型</summary>
+    private string? _rollTypeProcessType
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(CurrentCR_ProcessType) && string.IsNullOrEmpty(PendingEquipment))
+                return CurrentCR_ProcessType;
+            if (!string.IsNullOrEmpty(NextCR_ProcessType) && string.IsNullOrEmpty(PendingEquipment))
+                return NextCR_ProcessType;
+            if (!string.IsNullOrEmpty(NextNextCR_ProcessType) && string.IsNullOrEmpty(PendingEquipment))
+                return NextNextCR_ProcessType;
+            return null;
+        }
+    }
+
+    /// <summary>待轧要求场景对应的层级轧制规格</summary>
+    private string? _rollTypeRollingSpec
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(CurrentCR_ProcessType) && string.IsNullOrEmpty(PendingEquipment))
+                return CurrentCR_RollingSpec;
+            if (!string.IsNullOrEmpty(NextCR_ProcessType) && string.IsNullOrEmpty(PendingEquipment))
+                return NextCR_RollingSpec;
+            if (!string.IsNullOrEmpty(NextNextCR_ProcessType) && string.IsNullOrEmpty(PendingEquipment))
+                return NextNextCR_RollingSpec;
+            return null;
+        }
+    }
+
+    /// <summary>冷轧类型</summary>
+    [JsonIgnore]
+    public string? FlowCRType => _trigger switch
+    {
+        FlowTrigger.AttentionProcess => "-",
+        FlowTrigger.CompletionType => PendingProcess,
+        FlowTrigger.RollType => _rollTypeProcessType,
+        _ => null,
+    };
+
+    /// <summary>执行规格</summary>
+    [JsonIgnore]
+    public string? FlowExecSpec => _trigger switch
+    {
+        FlowTrigger.AttentionProcess => PendingSpec,
+        FlowTrigger.CompletionType => CurrentCR_RollingSpec,
+        FlowTrigger.RollType => _rollTypeRollingSpec,
+        _ => null,
+    };
+
+    /// <summary>目标序（实时：根据 FlowTarget 从 ProcessGroups 推导）</summary>
+    public int? TargetSequence { get; set; }
 
     // ===== G5：冷轧排程（后端从 ProcessGroups 推导 + 匹配冷轧小表） =====
     // G5-1：冷轧维度（由 ProcessGroups 推导）
@@ -169,4 +245,45 @@ public class BatchPlanDto
     public string? CR_RollType { get; set; }             // 待轧要求
     public int CR_RollOrder { get; set; }                // 顺序
     public string? CR_SchedMachineNo { get; set; }       // 待轧设备号
+
+    // ===== 批次计划薄表（来自 BatchPlanSchedule 小表，持久化） =====
+    public bool PlanIsFlow { get; set; }
+    public int PlanFlowLevel { get; set; }
+    public string? PlanFlowTarget { get; set; }
+    public string? PlanFlowCRType { get; set; }
+    public string? PlanFlowExecSpec { get; set; }
+    public int? PlanExecutionSequence { get; set; }
+    public int? PlanTargetSequence { get; set; }
+    public bool IsGrabOrder { get; set; }
+    public string? PlanRemark { get; set; }
+
+    // ===== 执行反馈（实时计算） =====
+
+    /// <summary>原工量差 = 小表目标序 - 小表执行序</summary>
+    [JsonIgnore]
+    public int? OriginalDiff =>
+        PlanTargetSequence.HasValue && PlanExecutionSequence.HasValue
+            ? PlanTargetSequence.Value - PlanExecutionSequence.Value
+            : null;
+
+    /// <summary>现工量差 = 小表目标序 - 当前执行序</summary>
+    [JsonIgnore]
+    public int? CurrentDiff =>
+        PlanTargetSequence.HasValue && ExecutionSequence.HasValue
+            ? PlanTargetSequence.Value - ExecutionSequence.Value
+            : null;
+
+    /// <summary>是否执行 = 原工量差 ≠ 现工量差</summary>
+    [JsonIgnore]
+    public bool? IsExecuted =>
+        OriginalDiff.HasValue && CurrentDiff.HasValue
+            ? OriginalDiff.Value != CurrentDiff.Value
+            : null;
+
+    /// <summary>达标 = 当前执行序 ≥ 小表目标序</summary>
+    [JsonIgnore]
+    public bool? IsCompliant =>
+        ExecutionSequence.HasValue && PlanTargetSequence.HasValue
+            ? ExecutionSequence.Value >= PlanTargetSequence.Value
+            : null;
 }

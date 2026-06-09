@@ -33,7 +33,11 @@
             工段待产量
         </MudText>
         <div class="d-flex align-center">
-            <MudText Typo="Typo.body2" Class="mr-4">
+            <ColumnDisplaySelect Columns="_allColumns"
+                                 OnColumnToggle="OnColumnToggle"
+                                 OnMoveUp="MoveColumnUp"
+                                 OnMoveDown="MoveColumnDown" />
+            <MudText Typo="Typo.body2" Class="ml-4">
                 共 @_filteredItems.Count 条记录
             </MudText>
         </div>
@@ -43,7 +47,7 @@
     <MudTable @ref="table" T="SectionProductionStatusDto"
               Items="@_filteredItems"
               Dense="true" Hover="true" Elevation="0" Class="auto-table"
-              RowsPerPage="25" RowsPerPageLabel="每页行数:">
+              RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
         <HeaderContent>
             @foreach (var col in _visibleColumns)
             {

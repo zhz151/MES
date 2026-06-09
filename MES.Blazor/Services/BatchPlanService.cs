@@ -50,4 +50,20 @@ public class BatchPlanService
             return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}");
         }
     }
+
+    public async Task<List<BatchPlanDto>> GetAllAsync(string? sectionTab)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/all";
+            if (!string.IsNullOrEmpty(sectionTab))
+                url += $"?sectionTab={Uri.EscapeDataString(sectionTab)}";
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<BatchPlanDto>>>(url);
+            return response?.Data ?? new List<BatchPlanDto>();
+        }
+        catch
+        {
+            return new List<BatchPlanDto>();
+        }
+    }
 }

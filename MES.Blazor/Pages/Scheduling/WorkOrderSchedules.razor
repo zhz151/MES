@@ -59,7 +59,7 @@
                                      OnMoveUp="MoveColumnUp"
                                      OnMoveDown="MoveColumnDown" />
                 <MudText Typo="Typo.body2" Class="ml-4">
-                    共 @_totalCount 条记录
+                    共 @_filteredItems.Count 条记录
                 </MudText>
             </div>
             @* 分组标题栏（flex bar，JS 测量宽度后精确定位） *@
@@ -75,7 +75,7 @@
             </div>
             <MudTable @ref="table"
                       T="WorkOrderScheduleDto"
-                      ServerData="@LoadDataFromServer"
+                      Items="@_filteredItems"
                       Dense="true"
                       Hover="true"
                       Class="mt-0 auto-table compact-table"

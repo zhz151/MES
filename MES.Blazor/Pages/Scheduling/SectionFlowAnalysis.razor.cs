@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using MudBlazor;
+using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
@@ -19,11 +20,20 @@ public partial class SectionFlowAnalysis
     // ========== 页面状态持久化 ==========
     private int _restoredPageIndex;
     private int _currentPageIndex = 1;
+    private int _pageSize = 25;
     private string _searchKeyword = string.Empty;
 
     // ========== 排序状态 ==========
     private string sortColumn = "Category";
     private bool sortDescending = false;
+
+    // ========== ExcelFilter 筛选 ==========
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+    private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
+
+    // 非空/空筛选常量
+    private const string FilterNotNull = "__NOT_NULL__";
+    private const string FilterNull = "__EXCEL_FILTER_NULL__";
 
     // ========== 列定义 ==========
     private List<ColumnDef> _allColumns = new();
@@ -71,7 +81,7 @@ public partial class SectionFlowAnalysis
             _allColumns = reordered;
         }
 
-        // 恢复排序/搜索状态
+        // 恢复排序/搜索/筛选状态
         var savedState = await PageState.LoadAsync("section-flow-analysis");
         if (savedState != null)
         {
@@ -79,6 +89,26 @@ public partial class SectionFlowAnalysis
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? "";
             _restoredPageIndex = savedState.PageIndex;
+
+            // 恢复列筛选状态
+            if (savedState.Extras?.ContainsKey("columnFilters") == true)
+            {
+                try
+                {
+                    var raw = savedState.Extras["columnFilters"];
+                    var dict = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(raw);
+                    if (dict != null)
+                        _columnFilters = dict.ToDictionary(kv => kv.Key, kv => new HashSet<string>(kv.Value));
+                }
+                catch { }
+            }
+
+            // 恢复分页行数
+            if (savedState.Extras?.ContainsKey("pageSize") == true)
+            {
+                if (int.TryParse(savedState.Extras["pageSize"], out var ps))
+                    _pageSize = ps;
+            }
         }
 
         // 状态恢复后重新加载数据
@@ -114,8 +144,58 @@ public partial class SectionFlowAnalysis
             _isLoading = false;
         }
 
+        BuildFilterContextOptions();
         ApplyFiltersAndSort();
     }
+
+    // ========== 筛选上下文构建 ==========
+
+    private void BuildFilterContextOptions()
+    {
+        _filterContextOptions.Clear();
+
+        foreach (var col in _allColumns)
+        {
+            if (col.FilterType == "number")
+            {
+                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
+                {
+                    new() { Value = FilterNotNull, Display = "非空", Count = _allItems.Count(x => GetDecimalValue(x, col.Key).HasValue) },
+                    new() { Value = FilterNull,    Display = "空",   Count = _allItems.Count(x => !GetDecimalValue(x, col.Key).HasValue) },
+                };
+            }
+            else if (col.FilterType == "string")
+            {
+                var options = _allItems
+                    .Select(item => GetStringValue(item, col.Key))
+                    .Where(v => v != null)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(x => x)
+                    .Select(val => new ExcelFilterOption
+                    {
+                        Value = val!,
+                        Display = val!,
+                        Count = _allItems.Count(x => string.Equals(GetStringValue(x, col.Key), val, StringComparison.OrdinalIgnoreCase))
+                    })
+                    .ToList();
+                _filterContextOptions[col.Key] = options;
+            }
+        }
+    }
+
+    private static string? GetStringValue(SectionFlowAnalysisDto item, string key) => key switch
+    {
+        "Category" => item.CategoryCode ?? item.CategoryName,
+        "StatusJudgment" => item.StatusJudgment,
+        _ => null
+    };
+
+    private static decimal? GetDecimalValue(SectionFlowAnalysisDto item, string key) => key switch
+    {
+        "PendingTotal" => item.PendingTotal,
+        "SustainableDays" => item.SustainableDays,
+        _ => null
+    };
 
     // ========== 搜索 ==========
 
@@ -138,7 +218,36 @@ public partial class SectionFlowAnalysis
             var kw = _searchKeyword.Trim();
             filtered = filtered.Where(x =>
                 (x.CategoryCode?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
-                (x.CategoryName?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true));
+                (x.CategoryName?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.StatusJudgment?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true));
+        }
+
+        // 列筛选
+        foreach (var kvp in _columnFilters)
+        {
+            if (kvp.Value.Count == 0) continue;
+
+            var col = _allColumns.FirstOrDefault(c => c.Key == kvp.Key);
+            if (col == null) continue;
+
+            if (col.FilterType == "number")
+            {
+                var hasNotNull = kvp.Value.Contains(FilterNotNull);
+                var hasNull = kvp.Value.Contains(FilterNull);
+
+                if (hasNotNull && !hasNull)
+                    filtered = filtered.Where(x => GetDecimalValue(x, kvp.Key).HasValue);
+                else if (hasNull && !hasNotNull)
+                    filtered = filtered.Where(x => !GetDecimalValue(x, kvp.Key).HasValue);
+            }
+            else if (col.FilterType == "string")
+            {
+                filtered = filtered.Where(x =>
+                {
+                    var val = GetStringValue(x, kvp.Key);
+                    return val != null && kvp.Value.Contains(val, StringComparer.OrdinalIgnoreCase);
+                });
+            }
         }
 
         // 内存排序
@@ -171,6 +280,17 @@ public partial class SectionFlowAnalysis
             sortColumn = key;
             sortDescending = false;
         }
+        ApplyFiltersAndSort();
+        await SavePageStateAsync();
+    }
+
+    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
+    {
+        if (selectedValues.Count > 0)
+            _columnFilters[fieldKey] = selectedValues;
+        else
+            _columnFilters.Remove(fieldKey);
+
         ApplyFiltersAndSort();
         await SavePageStateAsync();
     }
@@ -208,12 +328,21 @@ public partial class SectionFlowAnalysis
 
     private async Task SavePageStateAsync()
     {
+        var extras = new Dictionary<string, string>
+        {
+            ["pageSize"] = _pageSize.ToString()
+        };
+        if (_columnFilters.Count > 0)
+            extras["columnFilters"] = JsonSerializer.Serialize(
+                _columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
+
         var state = new PageState
         {
             SortBy = sortColumn,
             IsDescending = sortDescending,
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
             PageIndex = _currentPageIndex,
+            Extras = extras,
         };
         await PageState.SaveAsync("section-flow-analysis", state);
     }

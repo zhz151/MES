@@ -107,6 +107,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<SectionFlowCategorySetting> SectionFlowCategorySettings { get; set; } = null!;
     public DbSet<SectionFlowCategoryItem> SectionFlowCategoryItems { get; set; } = null!;
     public DbSet<ColdRollSpecSchedule> ColdRollSpecSchedules { get; set; } = null!;
+    public DbSet<BatchPlanSchedule> BatchPlanSchedules { get; set; } = null!;
 
     // ========== Configuration 上下文 ==========
     public DbSet<StandardWorkDay> StandardWorkDays { get; set; } = null!;
@@ -196,6 +197,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureSectionFlowCategorySetting(builder);
         ConfigureSectionFlowCategoryItem(builder);
         ConfigureColdRollSpecSchedule(builder);
+        ConfigureBatchPlanSchedule(builder);
 
         // ========== Configuration 上下文 ==========
         ConfigureStandardWorkDay(builder);
@@ -2248,6 +2250,26 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => new { e.SettingId, e.ProcessGroupName, e.SectionName })
                 .IsUnique()
                 .HasDatabaseName("UK_SFCI_SettingId_ProcessGroupName_SectionName");
+        });
+    }
+
+    private static void ConfigureBatchPlanSchedule(ModelBuilder builder)
+    {
+        builder.Entity<BatchPlanSchedule>(entity =>
+        {
+            entity.ToTable("BatchPlanSchedules");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.BatchId).IsRequired();
+            entity.Property(e => e.IsFlow).IsRequired();
+            entity.Property(e => e.FlowLevel).IsRequired();
+            entity.Property(e => e.FlowTarget).HasMaxLength(50);
+            entity.Property(e => e.FlowCRType).HasMaxLength(100);
+            entity.Property(e => e.FlowExecSpec).HasMaxLength(100);
+            entity.Property(e => e.IsGrabOrder).IsRequired();
+            entity.Property(e => e.PlanRemark).HasMaxLength(500);
+
+            // 唯一索引
+            entity.HasIndex(e => e.BatchId).IsUnique().HasDatabaseName("UK_BPS_BatchId");
         });
     }
 

@@ -7,6 +7,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.Scheduling;
+using MES.Services.Extensions;
 using MES.Services.Helpers;
 
 namespace MES.Services.Scheduling;
@@ -380,6 +381,290 @@ public class BatchPlanService : IBatchPlanService
                 ["keyBatchCount"] = keyBatchCount,
                 ["keyBatchWeight"] = keyBatchWeight,
             }
+        };
+    }
+
+    public async Task<List<BatchPlanDto>> GetAllAsync(string? sectionTab)
+    {
+        var batchQuery = _context.ProductionBatches.AsNoTracking()
+            .Where(b => b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress);
+
+        var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
+        var planQuery = _context.Set<WorkOrderPlan>().AsNoTracking();
+        var batchPlanQuery = _context.Set<BatchPlanSchedule>().AsNoTracking();
+
+        var joined = from b in batchQuery
+                     join s in summaryQuery on b.WorkOrderNo equals s.WorkOrderNo into sj
+                     from s in sj.DefaultIfEmpty()
+                     join plan in planQuery on s.WorkOrderId equals plan.WorkOrderId into planj
+                     from plan in planj.DefaultIfEmpty()
+                     join bp in batchPlanQuery on b.Id equals bp.BatchId into bpj
+                     from bp in bpj.DefaultIfEmpty()
+                     select new { b, s, plan, bp };
+
+        // ========== 工段筛选 ==========
+        if (!string.IsNullOrEmpty(sectionTab))
+        {
+            if (_coldRollTabs.Contains(sectionTab))
+            {
+                joined = joined.Where(x =>
+                    (x.b.CurrentSectionCompleted == false &&
+                     x.b.CurrentGroupName != null && x.b.CurrentGroupName.Contains(sectionTab) &&
+                     x.b.CurrentSectionName == "冷轧拔") ||
+                    (x.b.CurrentSectionCompleted != false &&
+                     x.b.NextProcess != null && x.b.NextProcess.Contains(sectionTab) &&
+                     x.b.NextSectionName == "冷轧拔"));
+            }
+            else if (sectionTab == "过程检验" || sectionTab == "成品检验")
+            {
+                if (sectionTab == "过程检验")
+                {
+                    joined = joined.Where(x =>
+                        (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == "检验" &&
+                         _context.Set<ProcessGroup>()
+                             .Where(pg => pg.ProductionBatchId == x.b.Id)
+                             .Max(pg => (int?)pg.SequenceNumber) >
+                         _context.Set<ProcessGroup>()
+                             .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.CurrentGroupName)
+                             .Select(pg => (int?)pg.SequenceNumber)
+                             .FirstOrDefault()) ||
+                        (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == "检验" && x.b.NextProcess != null &&
+                         _context.Set<ProcessGroup>()
+                             .Where(pg => pg.ProductionBatchId == x.b.Id)
+                             .Max(pg => (int?)pg.SequenceNumber) >
+                         _context.Set<ProcessGroup>()
+                             .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.NextProcess)
+                             .Select(pg => (int?)pg.SequenceNumber)
+                             .FirstOrDefault()));
+                }
+                else
+                {
+                    joined = joined.Where(x =>
+                        (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == "检验" &&
+                         _context.Set<ProcessGroup>()
+                             .Where(pg => pg.ProductionBatchId == x.b.Id)
+                             .Max(pg => (int?)pg.SequenceNumber) ==
+                         _context.Set<ProcessGroup>()
+                             .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.CurrentGroupName)
+                             .Select(pg => (int?)pg.SequenceNumber)
+                             .FirstOrDefault()) ||
+                        (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == "检验" && x.b.NextProcess != null &&
+                         _context.Set<ProcessGroup>()
+                             .Where(pg => pg.ProductionBatchId == x.b.Id)
+                             .Max(pg => (int?)pg.SequenceNumber) ==
+                         _context.Set<ProcessGroup>()
+                             .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.NextProcess)
+                             .Select(pg => (int?)pg.SequenceNumber)
+                             .FirstOrDefault()));
+                }
+            }
+            else
+            {
+                joined = joined.Where(x =>
+                    (x.b.CurrentSectionCompleted == false &&
+                     x.b.CurrentSectionName != null && x.b.CurrentSectionName.Contains(sectionTab)) ||
+                    (x.b.CurrentSectionCompleted != false &&
+                     x.b.NextSectionName != null && x.b.NextSectionName.Contains(sectionTab)));
+            }
+        }
+
+        // 投影到 DTO
+        var q = joined.Select(x => new BatchPlanDto
+        {
+            BatchId = x.b.Id,
+            BatchNo = x.b.BatchNo,
+            TagNo = x.b.TagNo,
+            PlantGrade = x.b.PlantGrade,
+            CurrentValidWeight = x.b.CurrentValidWeight,
+            WorkOrderNo = x.b.WorkOrderNo,
+            Salesman = x.b.Salesman,
+            DeliveryDate = x.b.DeliveryDate,
+            DeliveryState = x.b.DeliveryState,
+            Specification = x.b.Specification,
+            LengthStatus = x.b.LengthStatus,
+            MinLength = x.b.MinLength,
+            MaxLength = x.b.MaxLength,
+            CurrentExecDate = x.b.CurrentExecDate,
+            CurrentSectionCompleted = x.b.CurrentSectionCompleted,
+            CurrentGroupName = x.b.CurrentGroupName,
+            CurrentSectionName = x.b.CurrentSectionName,
+            CurrentSpec = x.b.CurrentSpec,
+            CurrentEquipmentName = x.b.CurrentEquipmentName,
+            CurrentOutsource = x.b.CurrentOutsource,
+            NextSectionName = x.b.NextSectionName,
+            NextProcess = x.b.NextProcess,
+            CorrespondingSpec = x.b.CorrespondingSpec,
+            UrgencyLevel = x.plan != null && x.plan.UrgencyLevel != null ? x.plan.UrgencyLevel : (x.s != null ? x.s.UrgencyLevel : null),
+            ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : 0),
+            ProductionAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.ProductionAttentionProcess : null),
+            ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : null),
+            IsUrging = x.s != null && x.s.IsUrging,
+            IsBatchDelivery = x.s != null && x.s.IsBatchDelivery,
+            IsPaused = x.s != null && x.s.IsPaused,
+            AdjustmentRemark = x.s != null ? x.s.AdjustmentRemark : null,
+
+            // 批次计划薄表
+            PlanIsFlow = x.bp != null && x.bp.IsFlow,
+            PlanFlowLevel = x.bp != null ? x.bp.FlowLevel : 3,
+            PlanFlowTarget = x.bp != null ? x.bp.FlowTarget : null,
+            PlanFlowCRType = x.bp != null ? x.bp.FlowCRType : null,
+            PlanFlowExecSpec = x.bp != null ? x.bp.FlowExecSpec : null,
+            PlanExecutionSequence = x.bp != null ? x.bp.ExecutionSequence : null,
+            PlanTargetSequence = x.bp != null ? x.bp.TargetSequence : null,
+            IsGrabOrder = x.bp != null && x.bp.IsGrabOrder,
+            PlanRemark = x.bp != null ? x.bp.PlanRemark : null,
+        });
+
+        var items = await q.ToListAsync();
+
+        // ========== 冷轧排程维度推导 + 小表匹配 ==========
+        if (items.Count > 0)
+        {
+            var batchIds = items.Select(i => i.BatchId).Distinct().ToList();
+            var allPgs = await _context.Set<ProcessGroup>()
+                .AsNoTracking()
+                .Where(pg => batchIds.Contains(pg.ProductionBatchId))
+                .OrderBy(pg => pg.ProductionBatchId)
+                .ThenBy(pg => pg.SequenceNumber)
+                .ToListAsync();
+            var pgLookup = allPgs.GroupBy(pg => pg.ProductionBatchId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var scheduleAll = await _context.ColdRollSpecSchedules
+                .AsNoTracking()
+                .ToListAsync();
+            var scheduleLookup = scheduleAll.ToDictionary(
+                s => $"{s.ProcessType}|{s.BilletSpec}|{s.RollingSpec}|{s.IsFinished}",
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (var item in items)
+            {
+                if (!pgLookup.TryGetValue(item.BatchId, out var pgs) || pgs.Count == 0)
+                    continue;
+
+                var pendingProcess = item.CurrentSectionCompleted == false
+                    ? item.CurrentGroupName
+                    : item.NextProcess;
+                var pendingSectionName = item.CurrentSectionCompleted == false
+                    ? item.CurrentSectionName
+                    : item.NextSectionName;
+
+                var pendingPg = pgs.FirstOrDefault(pg => pg.ProcessName == pendingProcess);
+                if (pendingPg == null) continue;
+
+                var pendingIdx = pgs.IndexOf(pendingPg);
+                var maxSeq = pgs.Max(pg => pg.SequenceNumber);
+
+                // 冷轧排程（本层）：仅当执行工段=冷轧拔时才填充
+                if (!string.IsNullOrEmpty(pendingProcess) && ProcessNames.IsColdRollOrDraw(pendingProcess)
+                    && pendingSectionName == SectionDefs.ColdRollDraw)
+                {
+                    item.CurrentCR_ProcessType = pendingProcess;
+                    item.CurrentCR_RollingSpec = pendingPg.ManufacturingSpec;
+                    if (pendingIdx > 0)
+                        item.CurrentCR_BilletSpec = pgs[pendingIdx - 1].ManufacturingSpec;
+                    item.CurrentCR_IsFinished = pendingPg.SequenceNumber == maxSeq;
+
+                    if (!string.IsNullOrEmpty(item.PendingEquipment))
+                    {
+                        var curKey = $"{item.CurrentCR_ProcessType}|{item.CurrentCR_BilletSpec}|{item.CurrentCR_RollingSpec}|{item.CurrentCR_IsFinished}";
+                        if (scheduleLookup.TryGetValue(curKey, out var curSched))
+                            item.CR_CompletionType = curSched.CompletionType;
+                    }
+                }
+
+                if (pendingIdx + 1 < pgs.Count)
+                {
+                    var nextPg = pgs[pendingIdx + 1];
+                    if (ProcessNames.IsColdRollOrDraw(nextPg.ProcessName))
+                    {
+                        item.NextCR_ProcessType = nextPg.ProcessName;
+                        item.NextCR_RollingSpec = nextPg.ManufacturingSpec;
+                        item.NextCR_BilletSpec = pendingPg.ManufacturingSpec;
+                        item.NextCR_IsFinished = nextPg.SequenceNumber == maxSeq;
+                    }
+                }
+
+                if (pendingIdx + 2 < pgs.Count)
+                {
+                    var nextNextPg = pgs[pendingIdx + 2];
+                    if (ProcessNames.IsColdRollOrDraw(nextNextPg.ProcessName))
+                    {
+                        item.NextNextCR_ProcessType = nextNextPg.ProcessName;
+                        item.NextNextCR_RollingSpec = nextNextPg.ManufacturingSpec;
+                        item.NextNextCR_BilletSpec = pgs[pendingIdx + 1].ManufacturingSpec;
+                        item.NextNextCR_IsFinished = nextNextPg.SequenceNumber == maxSeq;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(item.CurrentCR_ProcessType)
+                    && string.IsNullOrEmpty(item.PendingEquipment))
+                {
+                    var curKey = $"{item.CurrentCR_ProcessType}|{item.CurrentCR_BilletSpec}|{item.CurrentCR_RollingSpec}|{item.CurrentCR_IsFinished}";
+                    if (scheduleLookup.TryGetValue(curKey, out var curSched))
+                    {
+                        item.CR_RollType = curSched.RollType;
+                        item.CR_RollOrder = curSched.RollOrder;
+                        item.CR_SchedMachineNo = curSched.MachineNo;
+                    }
+                }
+                else if (!string.IsNullOrEmpty(item.NextCR_ProcessType)
+                    && string.IsNullOrEmpty(item.PendingEquipment))
+                {
+                    var nextKey = $"{item.NextCR_ProcessType}|{item.NextCR_BilletSpec}|{item.NextCR_RollingSpec}|{item.NextCR_IsFinished}";
+                    if (scheduleLookup.TryGetValue(nextKey, out var nextSched))
+                    {
+                        item.CR_RollType = nextSched.RollType;
+                        item.CR_RollOrder = nextSched.RollOrder;
+                        item.CR_SchedMachineNo = nextSched.MachineNo;
+                    }
+                }
+                else if (!string.IsNullOrEmpty(item.NextNextCR_ProcessType)
+                    && string.IsNullOrEmpty(item.PendingEquipment))
+                {
+                    var nextNextKey = $"{item.NextNextCR_ProcessType}|{item.NextNextCR_BilletSpec}|{item.NextNextCR_RollingSpec}|{item.NextNextCR_IsFinished}";
+                    if (scheduleLookup.TryGetValue(nextNextKey, out var nextNextSched))
+                    {
+                        item.CR_RollType = nextNextSched.RollType;
+                        item.CR_RollOrder = nextNextSched.RollOrder;
+                        item.CR_SchedMachineNo = nextNextSched.MachineNo;
+                    }
+                }
+
+                // ====== 执行序（取工序组中对应工段的字段值） ======
+                item.ExecutionSequence = pendingPg.GetSectionSequence(item.PendingSectionName);
+
+                // ====== 目标序（取工序组中对应工段的字段值） ======
+                item.TargetSequence = ComputeTargetSequence(pgs, item.FlowTarget, item.FlowCRType);
+            }
+        }
+
+        return items;
+    }
+
+    public static int? ComputeTargetSequence(List<ProcessGroup> pgs, string? flowTarget, string? flowCRType)
+    {
+        if (string.IsNullOrEmpty(flowTarget) || pgs.Count == 0)
+            return null;
+
+        return flowTarget switch
+        {
+            // 成检：取工段"检验"的最大工序内序号
+            "成检" => pgs.Where(pg => pg.Inspection.HasValue)
+                        .Select(pg => (int?)pg.Inspection)
+                        .Max(),
+
+            // 完工冷轧：匹配冷轧类型+工段"冷轧拔"，字段值+1
+            "完工冷轧" => pgs.FirstOrDefault(pg =>
+                              pg.ProcessName == flowCRType && pg.ColdRollDraw.HasValue)
+                          ?.ColdRollDraw + 1,
+
+            // 冷轧：匹配冷轧类型+工段"冷轧拔"的字段值
+            "冷轧" => pgs.FirstOrDefault(pg =>
+                          pg.ProcessName == flowCRType && pg.ColdRollDraw.HasValue)
+                      ?.ColdRollDraw,
+
+            _ => null,
         };
     }
 

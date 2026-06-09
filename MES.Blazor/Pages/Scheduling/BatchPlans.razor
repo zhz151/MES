@@ -9,6 +9,7 @@
 @using System.Text.Json
 @attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
 @inject BatchPlanService BatchPlanSvc
+@inject BatchPlanScheduleService BatchPlanScheduleSvc
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -18,10 +19,23 @@
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <!-- 页面顶部工具栏 -->
     <div class="d-flex flex-column mb-4">
-        <MudText Typo="Typo.h5" Class="font-weight-bold mb-4">
-            <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" Color="Color.Primary" />
-            批次看板
-        </MudText>
+        <div class="d-flex justify-space-between align-center mb-4">
+            <MudText Typo="Typo.h5" Class="font-weight-bold">
+                <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" Color="Color.Primary" />
+                批次看板
+            </MudText>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Disabled="@_isPlanning"
+                       OnClick="@HandlePlanAllAsync"
+                       Class="mr-6">
+                @if (_isPlanning)
+                {
+                    <MudProgressCircular Size="Size.Small" Class="mr-1" Indeterminate="true" />
+                }
+                计划安排
+            </MudButton>
+        </div>
 
         <!-- 工段筛选 Tab -->
         <div class="d-flex flex-wrap align-center gap-2 mb-2" style="gap: 4px;">
@@ -80,7 +94,7 @@
                 var _groupHeaders = GetGroupHeaders();
                 var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100);
             }
-            @* 工具栏：列显隐 + 记录数 *@
+            @* 工具栏：列显隐 + 记录数 + 计划安排 *@
             <div class="woe-toolbar">
                 <ColumnDisplaySelect Columns="_allColumns"
                                      OnColumnToggle="OnColumnToggle"
@@ -89,6 +103,7 @@
                 <MudText Typo="Typo.body2" Class="ml-4">
                     共 @_totalCount 条记录
                 </MudText>
+                <div class="spacer"></div>
             </div>
             @* 分组标题栏 *@
             <div class="col-group-header-scroll" id="bp-group-header-scroll">

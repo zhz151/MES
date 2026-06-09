@@ -17,4 +17,9 @@ public interface IBatchPlanService
     /// 获取列筛选上下文
     /// </summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
+
+    /// <summary>
+    /// 全量加载（含冷轧排程维度），按工段筛选后返回全部记录
+    /// </summary>
+    Task<List<BatchPlanDto>> GetAllAsync(string? sectionTab);
 }

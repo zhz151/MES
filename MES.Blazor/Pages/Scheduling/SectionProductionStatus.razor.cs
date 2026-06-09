@@ -20,6 +20,7 @@ public partial class SectionProductionStatus
     // ========== 页面状态持久化 ==========
     private int _restoredPageIndex;
     private int _currentPageIndex = 1;
+    private int _pageSize = 25;
     private string _searchKeyword = string.Empty;
 
     // ========== 排序状态 ==========
@@ -29,6 +30,7 @@ public partial class SectionProductionStatus
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
+    private bool _isFirstLoad = true;
 
     // 非空/空筛选常量
     private const string FilterNotNull = "__NOT_NULL__";
@@ -78,6 +80,30 @@ public partial class SectionProductionStatus
                         _columnFilters = dict.ToDictionary(kv => kv.Key, kv => new HashSet<string>(kv.Value));
                 }
                 catch { }
+            }
+
+            // 恢复列显隐
+            if (savedState.Extras?.ContainsKey("columnVisibility") == true)
+            {
+                try
+                {
+                    var raw = savedState.Extras["columnVisibility"];
+                    var visibleKeys = JsonSerializer.Deserialize<List<string>>(raw);
+                    if (visibleKeys != null)
+                    {
+                        var visibleSet = new HashSet<string>(visibleKeys);
+                        foreach (var col in _allColumns)
+                            col.Visible = visibleSet.Contains(col.Key);
+                    }
+                }
+                catch { }
+            }
+
+            // 恢复分页行数
+            if (savedState.Extras?.ContainsKey("pageSize") == true)
+            {
+                if (int.TryParse(savedState.Extras["pageSize"], out var ps))
+                    _pageSize = ps;
             }
         }
 
@@ -252,6 +278,35 @@ public partial class SectionProductionStatus
         await SavePageStateAsync();
     }
 
+    // ========== 列显隐 ==========
+
+    private async Task OnColumnToggle(ColumnDef col)
+    {
+        await SavePageStateAsync();
+    }
+
+    private async Task MoveColumnUp(ColumnDef col)
+    {
+        var idx = _allColumns.IndexOf(col);
+        if (idx > 0)
+        {
+            _allColumns.RemoveAt(idx);
+            _allColumns.Insert(idx - 1, col);
+        }
+        await SavePageStateAsync();
+    }
+
+    private async Task MoveColumnDown(ColumnDef col)
+    {
+        var idx = _allColumns.IndexOf(col);
+        if (idx < _allColumns.Count - 1)
+        {
+            _allColumns.RemoveAt(idx);
+            _allColumns.Insert(idx + 1, col);
+        }
+        await SavePageStateAsync();
+    }
+
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
@@ -274,7 +329,11 @@ public partial class SectionProductionStatus
 
     private async Task SavePageStateAsync()
     {
-        var extras = new Dictionary<string, string>();
+        var extras = new Dictionary<string, string>
+        {
+            ["pageSize"] = _pageSize.ToString(),
+            ["columnVisibility"] = JsonSerializer.Serialize(_allColumns.Where(c => c.Visible).Select(c => c.Key).ToList())
+        };
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(
                 _columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
