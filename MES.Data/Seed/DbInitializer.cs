@@ -772,6 +772,10 @@ public static class DbInitializer
                 new() { Category = "ReworkRatio", ParamKey = "FewerPassWtUpper", ParamValue = 2.0m, Remark = "少道次壁厚上限" },
                 new() { Category = "ReworkRatio", ParamKey = "MinUnitWeightRatio", ParamValue = 1.05m, Remark = "改制最小单重系数" },
 
+                // ===== LengthDefault 长度默认值 =====
+                new() { Category = "LengthDefault", ParamKey = "PipeLength", ParamValue = 6000m, Remark = "默认管长(mm)" },
+                new() { Category = "LengthDefault", ParamKey = "UnitWeightLength", ParamValue = 4500m, Remark = "默认单重计算长度(mm)" },
+
                 // ===== MaterialPlanStatus 物料计划状态阈值 =====
                 new() { Category = "MaterialPlanStatus", ParamKey = "FixedPartial", ParamValue = 102m, Remark = "定尺部分阈值(%)" },
                 new() { Category = "MaterialPlanStatus", ParamKey = "FixedSatisfied", ParamValue = 110m, Remark = "定尺满足阈值(%)" },
@@ -819,8 +823,6 @@ public static class DbInitializer
                 // ===== DefaultValue 默认值 =====
                 new() { Category = "DefaultValue", ParamKey = "ProcessCycle", ParamValue = 25m, Remark = "默认工序周期(天)" },
                 new() { Category = "DefaultValue", ParamKey = "StandardCycle", ParamValue = 3m, Remark = "默认标准周期(天)" },
-                new() { Category = "DefaultValue", ParamKey = "PipeLength", ParamValue = 6000m, Remark = "默认管长(mm)" },
-                new() { Category = "DefaultValue", ParamKey = "UnitWeightLength", ParamValue = 4500m, Remark = "默认单重计算长度(mm)" },
                 new() { Category = "DefaultValue", ParamKey = "BatchMaxSequence", ParamValue = 9999m, Remark = "批次号最大序号" },
                 new() { Category = "DefaultValue", ParamKey = "RoughTubeFinishRatio", ParamValue = 0.92m, Remark = "荒管转成品系数" },
             };
