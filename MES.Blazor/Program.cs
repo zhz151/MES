@@ -70,6 +70,7 @@ builder.Services.AddScoped<QualityProcessTrackingService>();
 
 // ========== 扫码执行 ==========
 builder.Services.AddScoped<ScanService>();
+builder.Services.AddScoped<WorkstationService>();
 
 // ========== Scheduling 上下文 ==========
 builder.Services.AddScoped<OrderDemandAdjustmentService>();
@@ -82,7 +83,7 @@ builder.Services.AddScoped<BatchPlanService>();
 builder.Services.AddScoped<ColdRollPlanService>();
 builder.Services.AddScoped<ColdRollSpecScheduleService>();
 builder.Services.AddScoped<BatchPlanScheduleService>();
-builder.Services.AddScoped<FinalInspectionKanbanService>();
+builder.Services.AddScoped<FinalInspectionPlanService>();
 
 // ========== Configuration 上下文 ==========
 builder.Services.AddScoped<StandardWorkDayService>();

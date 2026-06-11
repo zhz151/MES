@@ -1,4 +1,4 @@
-@page "/final-inspection-kanban"
+@page "/final-inspection-plan"
 @using MES.Core.DTOs
 @using MES.Blazor.Services
 @using MES.Blazor.Components
@@ -7,7 +7,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using System.Text.Json
 @attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
-@inject FinalInspectionKanbanService KanbanSvc
+@inject FinalInspectionPlanService KanbanSvc
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
 @inject PageStateService PageState
@@ -16,7 +16,7 @@
     <div class="d-flex flex-column mb-4">
         <MudText Typo="Typo.h5" Class="font-weight-bold mb-4">
             <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" Color="Color.Primary" />
-            成检看板
+            成检计划
         </MudText>
 
         <!-- 三档 Tab -->
@@ -64,7 +64,7 @@
 
     <MudCard>
         <MudCardContent>
-            <div id="final-inspection-kanban-table">
+            <div id="final-inspection-plan-table">
             @{
                 var _groupHeaders = GetGroupHeaders();
                 var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100);
@@ -84,7 +84,7 @@
                                Title="刷新" Class="ml-4" />
             </div>
             <!-- 分组标题栏 -->
-            <div class="col-group-header-scroll" id="fik-group-header-scroll">
+            <div class="col-group-header-scroll" id="fip-group-header-scroll">
                 <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
                     @foreach (var gh in _groupHeaders)
                     {
@@ -95,7 +95,7 @@
                 </div>
             </div>
             <MudTable @ref="table"
-                      T="FinalInspectionKanbanDto"
+                      T="FinalInspectionPlanDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"
                       Hover="true"
@@ -121,7 +121,7 @@
                                 </span>
                                 @if (col.FilterType != null)
                                 {
-                                    <ExcelFilter T="FinalInspectionKanbanDto"
+                                    <ExcelFilter T="FinalInspectionPlanDto"
                                                  Label="@col.Label"
                                                  FieldKey="@col.Key"
                                                  FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"

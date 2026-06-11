@@ -212,6 +212,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 PendingSectionDrawBench = e.PendingSectionDrawBench,
                 DeformedProcessCompleted = e.DeformedProcessCompleted,
                 ProductionAttentionProcess = e.ProductionAttentionProcess,
+                MaxBatchRemainingWorkDays = e.MaxBatchRemainingWorkDays,
+                MainNoAttentionProcess = e.MainNoAttentionProcess,
 
                 // Group 13
                 IsUrging = e.IsUrging,
@@ -505,6 +507,20 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         {
             if (summary.ProductionAttentionProcess == null && summary.ScheduleStage == 2)
                 summary.ProductionAttentionProcess = "收尾-成检";
+        }
+
+        // MainNoAttentionProcess: 同(订单号+主号)下，取剩余工量最大值所在工单的生产关注工序
+        var mainNoAttentionMap = summaries
+            .Where(s => s.MaxBatchRemainingWorkDays.HasValue && s.ProductionAttentionProcess != null)
+            .GroupBy(s => new { s.SalesOrderNo, s.ProductionMainNo })
+            .ToDictionary(
+                g => (g.Key.SalesOrderNo, g.Key.ProductionMainNo),
+                g => g.OrderByDescending(s => s.MaxBatchRemainingWorkDays)
+                      .First().ProductionAttentionProcess);
+        foreach (var summary in summaries)
+        {
+            var key = (summary.SalesOrderNo, summary.ProductionMainNo);
+            summary.MainNoAttentionProcess = mainNoAttentionMap.GetValueOrDefault(key);
         }
 
         // ========== G12: 加载暂停工单数据 ==========
@@ -1136,6 +1152,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .FirstOrDefault();
         summary.ProductionAttentionProcess = attentionProcess;
 
+        // MaxBatchRemainingWorkDays: 此工单号下所有批次中 RemainingWorkDays 最大值
+        summary.MaxBatchRemainingWorkDays = batches.Count > 0
+            ? batches.Max(b => b.RemainingWorkDays)
+            : (int?)null;
+
         return summary;
     }
 
@@ -1539,6 +1560,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         target.PendingSectionDrawBench = source.PendingSectionDrawBench;
         target.DeformedProcessCompleted = source.DeformedProcessCompleted;
         target.ProductionAttentionProcess = source.ProductionAttentionProcess;
+        target.MaxBatchRemainingWorkDays = source.MaxBatchRemainingWorkDays;
+        target.MainNoAttentionProcess = source.MainNoAttentionProcess;
 
         // Group 13
         target.IsUrging = source.IsUrging;

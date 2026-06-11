@@ -28,4 +28,5 @@ public class ColdRollPlanController : ControllerBase
         var data = await _coldRollPlanService.GetPlanAsync(sectionFilter);
         return Ok(new { Success = true, Data = data });
     }
+
 }

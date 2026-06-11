@@ -35,6 +35,12 @@ public partial class ColdRollPlans
     private DateTime? _scheduleUpdatedTime;
     private readonly Dictionary<string, ScheduleEditData> _scheduleEdits = new();
 
+    // ========== 排程汇总 ==========
+    private bool _showScheduleSummary = false;
+    private List<ColdRollScheduleSummaryDto> _scheduleSummaryData = new();
+    private bool _summaryLoading = false;
+    private int? _summaryMaxDiff = 7; // null=全部, n=原工量差<=n
+
     // ========== 列筛选 ==========
     private readonly Dictionary<string, HashSet<string>> _columnFilters = new();
     private readonly Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -44,7 +50,6 @@ public partial class ColdRollPlans
         public string MachineNo { get; set; } = "";
         public string CompletionType { get; set; } = "None";
         public string RollType { get; set; } = "None";
-        public int RollOrder { get; set; }
     }
 
     // ========== 工段筛选 ==========
@@ -137,6 +142,7 @@ public partial class ColdRollPlans
 
     [Inject] private ColdRollPlanService ColdRollSvc { get; set; } = default!;
     [Inject] private ColdRollSpecScheduleService ScheduleSvc { get; set; } = default!;
+    [Inject] private BatchPlanService BatchPlanSvc { get; set; } = default!;
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
     [Inject] private PageStateService PageState { get; set; } = default!;
@@ -301,7 +307,6 @@ public partial class ColdRollPlans
                             MachineNo = sched.MachineNo ?? "",
                             CompletionType = sched.CompletionType,
                             RollType = sched.RollType,
-                            RollOrder = sched.RollOrder,
                         };
                         break;
                     }
@@ -324,8 +329,7 @@ public partial class ColdRollPlans
                         MachineNo = schedule.MachineNo ?? "",
                         CompletionType = schedule.CompletionType,
                         RollType = schedule.RollType,
-                        RollOrder = schedule.RollOrder,
-                    };
+                    };;
                 }
                 else
                 {
@@ -348,7 +352,6 @@ public partial class ColdRollPlans
             {
                 item.CompletionType = edit.CompletionType;
                 item.RollType = edit.RollType;
-                item.RollOrder = edit.RollOrder;
                 item.SchedMachineNo = edit.MachineNo;
             }
         }
@@ -401,16 +404,6 @@ public partial class ColdRollPlans
                 }
             }
 
-            // 验证：待轧要求非 None 时，待轧序必须 > 0
-            foreach (var kvp in toSave)
-            {
-                if (kvp.Value.RollType != "None" && kvp.Value.RollOrder <= 0)
-                {
-                    Snackbar.Add($"待轧序不能为 0（待轧要求已设置为“{GetRollTypeText(kvp.Value.RollType)}”）", Severity.Warning);
-                    return;
-                }
-            }
-
             var toSaveList = new List<ColdRollSpecScheduleDto>();
 
             // 1. 加载全部现有排程记录（保留未在当前视图中的排程数据，避免 Tab 筛选导致数据丢失）
@@ -434,7 +427,6 @@ public partial class ColdRollPlans
                     MachineNo = string.IsNullOrWhiteSpace(kvp.Value.MachineNo) ? null : kvp.Value.MachineNo,
                     CompletionType = kvp.Value.CompletionType,
                     RollType = kvp.Value.RollType,
-                    RollOrder = kvp.Value.RollOrder,
                 });
             }
 
@@ -468,6 +460,43 @@ public partial class ColdRollPlans
         _isSchedulingMode = false;
         _scheduleEdits.Clear();
         StateHasChanged();
+    }
+
+    // ========== 排程汇总 ==========
+
+    private async Task ToggleScheduleSummaryAsync()
+    {
+        if (_showScheduleSummary)
+        {
+            _showScheduleSummary = false;
+            return;
+        }
+
+        try
+        {
+            _summaryLoading = true;
+            _scheduleSummaryData = await BatchPlanSvc.GetFlowSummaryAsync(_selectedSection, _summaryMaxDiff);
+            _showScheduleSummary = true;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载排程汇总失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _summaryLoading = false;
+        }
+    }
+
+    private async Task OnSummaryMaxDiffChanged(int? maxDiff)
+    {
+        _summaryMaxDiff = maxDiff;
+        if (_showScheduleSummary)
+        {
+            _summaryLoading = true;
+            _scheduleSummaryData = await BatchPlanSvc.GetFlowSummaryAsync(_selectedSection, _summaryMaxDiff);
+            _summaryLoading = false;
+        }
     }
 
     /// <summary>完工要求中文显示（无计划时返回空）</summary>
@@ -611,9 +640,6 @@ public partial class ColdRollPlans
             "RollType" => sortDescending
                 ? filtered.OrderByDescending(x => x.RollType ?? "")
                 : filtered.OrderBy(x => x.RollType ?? ""),
-            "RollOrder" => sortDescending
-                ? filtered.OrderByDescending(x => x.RollOrder)
-                : filtered.OrderBy(x => x.RollOrder),
             "SchedMachineNo" => sortDescending
                 ? filtered.OrderByDescending(x => x.SchedMachineNo ?? "")
                 : filtered.OrderBy(x => x.SchedMachineNo ?? ""),
@@ -685,7 +711,7 @@ public partial class ColdRollPlans
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"加载冷轧看板数据失败: {ex.Message}", Severity.Error);
+            Snackbar.Add($"加载冷轧计划数据失败: {ex.Message}", Severity.Error);
             return new TableData<ColdRollPlanRowDto>
             {
                 Items = new List<ColdRollPlanRowDto>(),
@@ -738,9 +764,8 @@ public partial class ColdRollPlans
 
         var g6 = new List<ColumnDef>
         {
-            new() { Key = "CompletionType", Label = "在轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = new() { new EnumOption("All","全量"), new EnumOption("Urgent","急单"), new EnumOption("Partial","部分") } },
-            new() { Key = "RollType",       Label = "待轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = new() { new EnumOption("All","全量"), new EnumOption("Urgent","急单"), new EnumOption("Partial","部分"), new EnumOption("Subsequent","后续") } },
-            new() { Key = "RollOrder",      Label = "待轧序",   Width = "60",  GroupKey = 6, GroupName = "排程设置" },
+            new() { Key = "CompletionType", Label = "在轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = new() { new EnumOption("All","全量"), new EnumOption("Urgent","急单"), new EnumOption("Partial1","部分(1)"), new EnumOption("Partial2","部分(2)"), new EnumOption("Partial3","部分(3)") } },
+            new() { Key = "RollType",       Label = "待轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = new() { new EnumOption("All","全量"), new EnumOption("Urgent","急单"), new EnumOption("Partial1","部分(1)"), new EnumOption("Partial2","部分(2)"), new EnumOption("Partial3","部分(3)"), new EnumOption("Subsequent","后续") } },
             new() { Key = "SchedMachineNo", Label = "待轧设备号", Width = "100", GroupKey = 6, GroupName = "排程设置", FilterType = "string" },
         };
 
@@ -787,9 +812,8 @@ public partial class ColdRollPlans
 
         var g6 = new List<ColumnDef>
         {
-            new() { Key = "CompletionType", Label = "在轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = new() { new EnumOption("All","全量"), new EnumOption("Urgent","急单"), new EnumOption("Partial","部分") } },
-            new() { Key = "RollType",       Label = "待轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = new() { new EnumOption("All","全量"), new EnumOption("Urgent","急单"), new EnumOption("Partial","部分"), new EnumOption("Subsequent","后续") } },
-            new() { Key = "RollOrder",      Label = "待轧序",   Width = "60",  GroupKey = 6, GroupName = "排程设置" },
+            new() { Key = "CompletionType", Label = "在轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = new() { new EnumOption("All","全量"), new EnumOption("Urgent","急单"), new EnumOption("Partial1","部分(1)"), new EnumOption("Partial2","部分(2)"), new EnumOption("Partial3","部分(3)") } },
+            new() { Key = "RollType",       Label = "待轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = new() { new EnumOption("All","全量"), new EnumOption("Urgent","急单"), new EnumOption("Partial1","部分(1)"), new EnumOption("Partial2","部分(2)"), new EnumOption("Partial3","部分(3)"), new EnumOption("Subsequent","后续") } },
             new() { Key = "SchedMachineNo", Label = "待轧设备号", Width = "100", GroupKey = 6, GroupName = "排程设置", FilterType = "string" },
         };
 
@@ -801,7 +825,6 @@ public partial class ColdRollPlans
     {
         if (col.Key == "CompletionType") return GetCompletionTypeText(item.CompletionType);
         if (col.Key == "RollType") return GetRollTypeText(item.RollType);
-        if (col.Key == "RollOrder") return item.RollOrder > 0 ? item.RollOrder.ToString() : "";
         if (col.Key == "SchedMachineNo") return item.SchedMachineNo ?? "";
 
         return col.Key switch

@@ -45,8 +45,11 @@ public class BatchPlanDto
     // ===== G4：批次关注（COALESCE：工单计划薄表优先，无覆盖则回退系统值） =====
     public string? UrgencyLevel { get; set; }
     public int ScheduleStage { get; set; }
-    public string? ProductionAttentionProcess { get; set; }
+    public string? MainNoAttentionProcess { get; set; }
     public string? ProductionFlowProperty { get; set; }
+
+    /// <summary>最大剩余工量（天）：此工单号下所有批次中 RemainingWorkDays 的最大值</summary>
+    public int? MaxBatchRemainingWorkDays { get; set; }
 
     // ===== 计算字段（仅前端展示用，不参与 SQL 排序） =====
 
@@ -82,15 +85,15 @@ public class BatchPlanDto
         (ScheduleStage == 2 &&
          (UrgencyLevel == "A+急" || UrgencyLevel == "A急") &&
          (PendingProcess == "荒管处理" ||
-          (PendingProcess == ProductionAttentionProcess) ||
-          ProductionAttentionProcess is null or "收尾-成检"))
+          (PendingProcess == MainNoAttentionProcess) ||
+          MainNoAttentionProcess is null or "收尾-成检"))
         ||
         (ScheduleStage == 1 &&
          (IsUrging || IsBatchDelivery) &&
          (UrgencyLevel == "A+急" || UrgencyLevel == "A急") &&
          (PendingProcess == "荒管处理" ||
-          (PendingProcess == ProductionAttentionProcess) ||
-          ProductionAttentionProcess is null or "收尾-成检"));
+          (PendingProcess == MainNoAttentionProcess) ||
+          MainNoAttentionProcess is null or "收尾-成检"));
 
     // ===== G6：工单需求调整（来自 WorkOrderExecutionSummary 实体） =====
     public bool IsUrging { get; set; }
@@ -108,26 +111,40 @@ public class BatchPlanDto
         get
         {
             // 生产关注工序=收尾-成检 → 始终流转
-            if (ProductionAttentionProcess == "收尾-成检")
+            if (MainNoAttentionProcess == "收尾-成检")
                 return FlowTrigger.AttentionProcess;
 
             var isUrgent = UrgencyLevel == "A+急" || UrgencyLevel == "A急";
+            var isPartial1 = isUrgent && (ScheduleStage == 2 || (ScheduleStage == 1 && (IsUrging || IsBatchDelivery)));
+            var isPartial3 = isUrgent || UrgencyLevel == "B顺";
 
             // 在轧要求判定
             if (!string.IsNullOrEmpty(CR_CompletionType) && CR_CompletionType != "None")
             {
-                if (CR_CompletionType == "All" || CR_CompletionType == "Partial")
+                if (CR_CompletionType == "All")
                     return FlowTrigger.CompletionType;
-                if (CR_CompletionType == "Urgent" && isUrgent)
+                if (CR_CompletionType == "Urgent" && IsKeyBatch)
+                    return FlowTrigger.CompletionType;
+                if (CR_CompletionType == "Partial1" && isPartial1)
+                    return FlowTrigger.CompletionType;
+                if (CR_CompletionType == "Partial2" && isUrgent)
+                    return FlowTrigger.CompletionType;
+                if (CR_CompletionType == "Partial3" && isPartial3)
                     return FlowTrigger.CompletionType;
             }
 
             // 待轧要求判定
             if (!string.IsNullOrEmpty(CR_RollType) && CR_RollType != "None")
             {
-                if (CR_RollType == "All" || CR_RollType == "Subsequent" || CR_RollType == "Partial")
+                if (CR_RollType == "All" || CR_RollType == "Subsequent")
                     return FlowTrigger.RollType;
-                if (CR_RollType == "Urgent" && isUrgent)
+                if (CR_RollType == "Urgent" && IsKeyBatch)
+                    return FlowTrigger.RollType;
+                if (CR_RollType == "Partial1" && isPartial1)
+                    return FlowTrigger.RollType;
+                if (CR_RollType == "Partial2" && isUrgent)
+                    return FlowTrigger.RollType;
+                if (CR_RollType == "Partial3" && isPartial3)
                     return FlowTrigger.RollType;
             }
 
@@ -138,8 +155,14 @@ public class BatchPlanDto
     /// <summary>
     /// 流转标注（UrgencyLevel 已由 Service COALESCE）：
     /// 生产关注工序=收尾-成检 → true
-    /// 在轧要求=All/Partial → true；在轧要求=Urgent → true 仅当 UrgencyLevel 为 A+急/A急
-    /// 待轧要求=All/Subsequent/Partial → true；待轧要求=Urgent → true 仅当 UrgencyLevel 为 A+急/A急
+    /// 在轧要求=All → true；在轧要求=Urgent → true 仅当 IsKeyBatch
+    /// 在轧要求=Partial1 → true 仅当 A+急/A急 且 (生产执行 或 原料锁定+催单/分批交货)
+    /// 在轧要求=Partial2 → true 仅当 A+急/A急
+    /// 在轧要求=Partial3 → true 仅当 A+急/A急/B顺
+    /// 待轧要求=All/Subsequent → true；待轧要求=Urgent → true 仅当 IsKeyBatch
+    /// 待轧要求=Partial1 → true 仅当 A+急/A急 且 (生产执行 或 原料锁定+催单/分批交货)
+    /// 待轧要求=Partial2 → true 仅当 A+急/A急
+    /// 待轧要求=Partial3 → true 仅当 A+急/A急/B顺
     /// </summary>
     [JsonIgnore]
     public bool IsFlow => _trigger != FlowTrigger.None;

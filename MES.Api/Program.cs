@@ -184,6 +184,7 @@ builder.Services.AddScoped<IDataFixService, DataFixService>();
 
 // 扫码执行服务
 builder.Services.AddScoped<IScanService, ScanService>();
+builder.Services.AddScoped<IWorkstationService, WorkstationService>();
 
 // ========== 读模型上下文 ==========
 builder.Services.AddScoped<IWorkOrderExecutionService, WorkOrderExecutionService>();
@@ -199,7 +200,7 @@ builder.Services.AddScoped<IBatchPlanService, BatchPlanService>();
 builder.Services.AddScoped<IColdRollPlanService, ColdRollPlanService>();
 builder.Services.AddScoped<IColdRollSpecScheduleService, ColdRollSpecScheduleService>();
 builder.Services.AddScoped<IBatchPlanScheduleService, BatchPlanScheduleService>();
-builder.Services.AddScoped<IFinalInspectionKanbanService, FinalInspectionKanbanService>();
+builder.Services.AddScoped<IFinalInspectionPlanService, FinalInspectionPlanService>();
 
 // 质量过程跟踪
 builder.Services.AddScoped<IQualityProcessTrackingService, QualityProcessTrackingService>();

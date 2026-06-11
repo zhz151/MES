@@ -4,7 +4,7 @@ using MES.Core.Models;
 namespace MES.Core.Interfaces;
 
 /// <summary>
-/// 原锁计划及执行服务接口（LEFT JOIN 实时查询）
+/// 原锁计划服务接口（LEFT JOIN 实时查询）
 /// </summary>
 public interface IRawMaterialLockPlanAndExecutionService
 {

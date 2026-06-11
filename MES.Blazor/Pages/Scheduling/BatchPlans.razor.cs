@@ -113,7 +113,6 @@ public partial class BatchPlans
             new() { Key = "NextNextCR_IsFinished",  Label = "下下层末道",    FilterType = "boolean", Width = "80",  GroupKey = 9, GroupName = "冷轧排程(下下层)" },
             new() { Key = "CR_CompletionType",      Label = "在轧要求",    FilterType = "string",  Width = "90",  GroupKey = 7, GroupName = "冷轧排程(本层匹配)" },
             new() { Key = "CR_RollType",            Label = "待轧要求",    FilterType = "string",  Width = "90",  GroupKey = 8, GroupName = "冷轧排程(下层匹配)" },
-            new() { Key = "CR_RollOrder",           Label = "顺序",        FilterType = "string",  Width = "60",  GroupKey = 8, GroupName = "冷轧排程(下层匹配)" },
             new() { Key = "CR_SchedMachineNo",      Label = "待轧设备号",   FilterType = "string", Width = "100", GroupKey = 8, GroupName = "冷轧排程(下层匹配)" },
         };
 
@@ -122,8 +121,7 @@ public partial class BatchPlans
         {
             new() { Key = "UrgencyLevel",               Label = "工单紧急性",    SortKey = "UrgencyLevel",               FilterType = "string", Width = "110", GroupKey = 4, GroupName = "批次关注" },
             new() { Key = "ScheduleStage",               Label = "计划状态",     SortKey = "ScheduleStage",               FilterType = "enum", Width = "110", EnumOptions = new() { new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 4, GroupName = "批次关注" },
-            new() { Key = "ProductionAttentionProcess",  Label = "生产关注工序",  SortKey = "ProductionAttentionProcess",  FilterType = "string", Width = "130", GroupKey = 4, GroupName = "批次关注" },
-            new() { Key = "ProductionFlowProperty",     Label = "生产流转性",    SortKey = "ProductionFlowProperty",     FilterType = "string", Width = "100", GroupKey = 4, GroupName = "批次关注" },
+            new() { Key = "MainNoAttentionProcess",     Label = "主号关注工序",   SortKey = "MainNoAttentionProcess",    FilterType = "string", Width = "130", GroupKey = 4, GroupName = "批次关注" },
             new() { Key = "IsKeyBatch",                  Label = "重点生产批次",  FilterType = "boolean", Width = "120", GroupKey = 4, GroupName = "批次关注" },
         };
 
@@ -171,15 +169,15 @@ public partial class BatchPlans
         };
 
         var all = new List<ColumnDef>();
-        all.AddRange(g2);
+        all.AddRange(g5);
         all.AddRange(g10);
-        all.AddRange(g11);
-        all.AddRange(g12);
-        all.AddRange(g13);
         all.AddRange(g4);
+        all.AddRange(g11);
+        all.AddRange(g2);
         all.AddRange(g1);
         all.AddRange(g3);
-        all.AddRange(g5);
+        all.AddRange(g13); // 右侧第2
+        all.AddRange(g12); // 最右侧
         return all;
     }
 
@@ -326,8 +324,9 @@ public partial class BatchPlans
         "PendingEquipment" => item.PendingEquipment,
         "UrgencyLevel" => item.UrgencyLevel,
         "ScheduleStage" => item.ScheduleStage.ToString(),
-        "ProductionAttentionProcess" => item.ProductionAttentionProcess,
         "ProductionFlowProperty" => item.ProductionFlowProperty,
+        "MaxBatchRemainingWorkDays" => item.MaxBatchRemainingWorkDays?.ToString(),
+        "MainNoAttentionProcess" => item.MainNoAttentionProcess,
         "AdjustmentRemark" => item.AdjustmentRemark,
         "FlowLevel" => item.FlowLevel.ToString(),
         "FlowTarget" => item.FlowTarget,
@@ -361,7 +360,6 @@ public partial class BatchPlans
         "NextNextCR_IsFinished" => item.NextNextCR_IsFinished.ToString(),
         "CR_CompletionType" => item.CR_CompletionType,
         "CR_RollType" => item.CR_RollType,
-        "CR_RollOrder" => item.CR_RollOrder > 0 ? item.CR_RollOrder.ToString() : null,
         "CR_SchedMachineNo" => item.CR_SchedMachineNo,
         "OriginalDiff" => item.OriginalDiff?.ToString(),
         "CurrentDiff" => item.CurrentDiff?.ToString(),
@@ -565,6 +563,13 @@ public partial class BatchPlans
                 catch { }
             }
 
+            // 确保新字段始终可见（兼容旧保存状态不包含这些列）
+            foreach (var col in _allColumns)
+            {
+                if (col.Key is "MaxBatchRemainingWorkDays" or "MainNoAttentionProcess")
+                    col.Visible = true;
+            }
+
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try
@@ -629,27 +634,27 @@ public partial class BatchPlans
         {
             var kw = _searchKeyword;
             filtered = filtered.Where(x =>
-                (x.BatchNo != null && x.BatchNo.Contains(kw)) ||
-                (x.TagNo != null && x.TagNo.Contains(kw)) ||
-                (x.PlantGrade != null && x.PlantGrade.Contains(kw)) ||
-                (x.WorkOrderNo != null && x.WorkOrderNo.Contains(kw)) ||
-                (x.Salesman != null && x.Salesman.Contains(kw)) ||
-                (x.Specification != null && x.Specification.Contains(kw)) ||
-                (x.PendingProcess != null && x.PendingProcess.Contains(kw)) ||
-                (x.PendingSectionName != null && x.PendingSectionName.Contains(kw)) ||
-                (x.UrgencyLevel != null && x.UrgencyLevel.Contains(kw)) ||
-                (x.ProductionFlowProperty != null && x.ProductionFlowProperty.Contains(kw)) ||
-                (x.ProductionAttentionProcess != null && x.ProductionAttentionProcess.Contains(kw)) ||
-                (x.AdjustmentRemark != null && x.AdjustmentRemark.Contains(kw)) ||
-                (x.FlowTarget != null && x.FlowTarget.Contains(kw)) ||
-                (x.FlowCRType != null && x.FlowCRType.Contains(kw)) ||
-                (x.PlanFlowTarget != null && x.PlanFlowTarget.Contains(kw)) ||
-                (x.PlanFlowCRType != null && x.PlanFlowCRType.Contains(kw)) ||
-                (x.PlanFlowExecSpec != null && x.PlanFlowExecSpec.Contains(kw)) ||
-                (x.PlanRemark != null && x.PlanRemark.Contains(kw)) ||
-                (x.CR_CompletionType != null && x.CR_CompletionType.Contains(kw)) ||
-                (x.CR_RollType != null && x.CR_RollType.Contains(kw)) ||
-                (x.CR_SchedMachineNo != null && x.CR_SchedMachineNo.Contains(kw))
+                (x.BatchNo != null && x.BatchNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.TagNo != null && x.TagNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.PlantGrade != null && x.PlantGrade.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.WorkOrderNo != null && x.WorkOrderNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.Salesman != null && x.Salesman.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.Specification != null && x.Specification.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.PendingProcess != null && x.PendingProcess.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.PendingSectionName != null && x.PendingSectionName.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.UrgencyLevel != null && x.UrgencyLevel.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.ProductionFlowProperty != null && x.ProductionFlowProperty.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.MainNoAttentionProcess != null && x.MainNoAttentionProcess.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.AdjustmentRemark != null && x.AdjustmentRemark.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.FlowTarget != null && x.FlowTarget.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.FlowCRType != null && x.FlowCRType.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.PlanFlowTarget != null && x.PlanFlowTarget.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.PlanFlowCRType != null && x.PlanFlowCRType.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.PlanFlowExecSpec != null && x.PlanFlowExecSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.PlanRemark != null && x.PlanRemark.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.CR_CompletionType != null && x.CR_CompletionType.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.CR_RollType != null && x.CR_RollType.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.CR_SchedMachineNo != null && x.CR_SchedMachineNo.Contains(kw, StringComparison.OrdinalIgnoreCase))
             ).ToList();
         }
 
@@ -721,12 +726,12 @@ public partial class BatchPlans
             "nextnextcr_isfinished" => items.OrderBy(x => x.NextNextCR_IsFinished),
             "cr_completiontype" => items.OrderBy(x => x.CR_CompletionType ?? ""),
             "cr_rolltype" => items.OrderBy(x => x.CR_RollType ?? ""),
-            "cr_rollorder" => items.OrderBy(x => x.CR_RollOrder),
             "cr_schedmachineno" => items.OrderBy(x => x.CR_SchedMachineNo ?? ""),
             "urgencylevel" => items.OrderBy(x => x.UrgencyLevel ?? ""),
             "schedulestage" => items.OrderBy(x => x.ScheduleStage),
-            "productionattentionprocess" => items.OrderBy(x => x.ProductionAttentionProcess ?? ""),
             "productionflowproperty" => items.OrderBy(x => x.ProductionFlowProperty ?? ""),
+            "maxbatchremainingworkdays" => items.OrderBy(x => x.MaxBatchRemainingWorkDays),
+            "mainnoattentionprocess" => items.OrderBy(x => x.MainNoAttentionProcess ?? ""),
             "iskeybatch" => items.OrderBy(x => x.IsKeyBatch),
             "isurging" => items.OrderBy(x => x.IsUrging),
             "isbatchdelivery" => items.OrderBy(x => x.IsBatchDelivery),
@@ -874,9 +879,9 @@ public partial class BatchPlans
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, stageText)));
                 builder.CloseComponent();
                 break;
-            case "ProductionAttentionProcess":
+            case "MainNoAttentionProcess":
                 builder.AddContent(0, item.ScheduleStage == 2
-                    ? (item.ProductionAttentionProcess ?? "收尾-成检")
+                    ? (item.MainNoAttentionProcess ?? "收尾-成检")
                     : "-");
                 break;
             case "IsKeyBatch":
@@ -1017,9 +1022,6 @@ public partial class BatchPlans
                 builder.AddContent(0, string.IsNullOrEmpty(item.CR_RollType) || item.CR_RollType == "None"
                     ? "-" : DisplayHelper.GetRollTypeText(item.CR_RollType));
                 break;
-            case "CR_RollOrder":
-                builder.AddContent(0, item.CR_RollOrder > 0 ? item.CR_RollOrder.ToString() : "-");
-                break;
             case "CR_SchedMachineNo":
                 builder.AddContent(0, item.CR_SchedMachineNo ?? "-");
                 break;
@@ -1027,6 +1029,9 @@ public partial class BatchPlans
             // G4: 生产流转性
             case "ProductionFlowProperty":
                 builder.AddContent(0, item.ProductionFlowProperty ?? "-");
+                break;
+            case "MaxBatchRemainingWorkDays":
+                builder.AddContent(0, item.MaxBatchRemainingWorkDays.HasValue ? $"{item.MaxBatchRemainingWorkDays}天" : "-");
                 break;
 
             // G12: 执行反馈

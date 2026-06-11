@@ -151,7 +151,7 @@
                     GroupName = g.Key.Name,
                     Columns = g.ToList()
                 })
-                .OrderBy(g => g.Key == "_ungrouped" ? int.MaxValue : int.Parse(g.Key.Replace("_ungrouped", "0")))
+                .OrderBy(g => g.Columns.Min(c => Columns.IndexOf(c)))
                 .ToList();
             return groups;
         }

@@ -93,6 +93,8 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                     DeformedProcessCompleted = e.DeformedProcessCompleted,
                     ProductionAttentionProcess = e.ProductionAttentionProcess,
                     ProductionFlowProperty = e.ProductionFlowProperty,
+                    MaxBatchRemainingWorkDays = e.MaxBatchRemainingWorkDays,
+                    MainNoAttentionProcess = e.MainNoAttentionProcess,
 
                     // G15: 工单计划薄表覆盖值
                     PlanScheduleStage = p != null ? p.ScheduleStage : null,
@@ -265,7 +267,9 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
             e.ScheduleStage,
             e.UrgencyLevel,
             e.ProductionAttentionProcess,
-            e.ProductionFlowProperty
+            e.ProductionFlowProperty,
+            e.MaxBatchRemainingWorkDays,
+            e.MainNoAttentionProcess,
         }).ToListAsync();
 
         var matchingIds = matchingData.Select(x => x.WorkOrderId).ToHashSet();
@@ -291,7 +295,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
             }
             plan.ScheduleStage = data.ScheduleStage;
             plan.UrgencyLevel = data.UrgencyLevel;
-            plan.ProductionAttentionProcess = data.ProductionAttentionProcess;
+            plan.ProductionAttentionProcess = data.MainNoAttentionProcess;
             plan.ProductionFlowProperty = data.ProductionFlowProperty;
         }
 

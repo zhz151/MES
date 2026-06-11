@@ -11,6 +11,7 @@
 	<StaticWebAssetsEnabled>true</StaticWebAssetsEnabled>
 	<GenerateStaticWebAssetsManifest>true</GenerateStaticWebAssetsManifest>
 	<UseBlazorDebugging>true</UseBlazorDebugging>
+	<ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
 	<NoWarn>$(NoWarn);CS8669</NoWarn>
   </PropertyGroup>
 	

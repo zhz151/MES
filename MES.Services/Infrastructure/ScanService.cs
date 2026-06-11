@@ -71,6 +71,38 @@ public class ScanService : IScanService
         };
     }
 
+    public async Task<ScanResolveResultDto?> ResolveByBatchAndSectionAsync(string batchNo, string sectionName)
+    {
+        var batch = await FindBatchAsync(batchNo);
+
+        var groups = await _context.ProcessGroups
+            .AsNoTracking()
+            .Where(pg => pg.ProductionBatchId == batch.Id)
+            .OrderBy(pg => pg.SequenceNumber)
+            .ToListAsync();
+
+        // 反向查找：SectionNameMap 是 PropertyName→ChineseName
+        // 建立 ChineseName→PropertyName 的反向映射
+        var reverseMap = SectionNameMap
+            .GroupBy(kv => kv.Value, kv => kv.Key)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        if (!reverseMap.TryGetValue(sectionName, out var propertyName))
+            return null;
+
+        // 找到第一个有此工段的工序组
+        foreach (var group in groups)
+        {
+            var value = GetSectionValue(group, propertyName);
+            if (value.HasValue)
+            {
+                return BuildResult(batch, group);
+            }
+        }
+
+        return null;
+    }
+
     private async Task<Data.Entities.ProductionBatch> FindBatchAsync(string batchNo)
     {
         return await _context.ProductionBatches

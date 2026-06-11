@@ -1,5 +1,4 @@
 @* 文件路径: MES.Blazor/Shared/MainLayout.razor *@
-@inherits LayoutComponentBase
 @using MES.Blazor.Services
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthProvider
@@ -42,13 +41,12 @@
 
                 <!-- 批次模块 -->
                 <AuthorizeView Roles="@Roles.Policies.BatchRead">
-                    <MudMenu Label="批次管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("batches","production-records","section-outsources")">
+                    <MudMenu Label="批次管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("batches","production-records","section-outsources","process-card-print")">
                         <MudMenuItem Class="@GetMenuItemClass("/batches")" OnClick='() => NavigateTo("/batches")'>批次首页</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/production-records")" OnClick='() => NavigateTo("/production-records")'>生产记录</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/section-outsources")" OnClick='() => NavigateTo("/section-outsources")'>工段委外</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/process-card-print")" OnClick='() => NavigateTo("/process-card-print")'>工艺卡打印</MudMenuItem>
                     </MudMenu>
-                    <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("process-card-print")" OnClick='() => NavigateTo("/process-card-print")'>工艺卡打印</MudButton>
-                    <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("mobile-report")" OnClick='() => NavigateTo("/mobile-report")'>扫码报工</MudButton>
                 </AuthorizeView>
 
                 <!-- 质量模块 -->
@@ -112,31 +110,35 @@
                     </MudMenu>
                 </AuthorizeView>
 
-                <!-- 计划及执行 -->
+                <!-- 计划排程 -->
                 <AuthorizeView>
-                    <MudMenu Label="计划及执行" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("order-overview","section-production-status","section-flow-analysis","raw-material-lock-plan","workorder-schedules","batch-plans","cold-roll-plans","final-inspection-kanban")">
+                    <MudMenu Label="计划排程" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("order-overview","section-production-status","section-flow-analysis","raw-material-lock-plan","workorder-schedules","batch-plans","cold-roll-plans","final-inspection-plan")">
                         <MudMenuItem Class="@GetMenuItemClass("/order-overview")" OnClick='() => NavigateTo("/order-overview")'>订单总览</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/section-production-status")" OnClick='() => NavigateTo("/section-production-status")'>工段待产量</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/section-flow-analysis")" OnClick='() => NavigateTo("/section-flow-analysis")'>工段流转分析</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/raw-material-lock-plan")" OnClick='() => NavigateTo("/raw-material-lock-plan")'>原锁计划</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/workorder-schedules")" OnClick='() => NavigateTo("/workorder-schedules")'>工单计划</MudMenuItem>
-                        <MudMenuItem Class="@GetMenuItemClass("/batch-plans")" OnClick='() => NavigateTo("/batch-plans")'>批次看板</MudMenuItem>
-                        <MudMenuItem Class="@GetMenuItemClass("/cold-roll-plans")" OnClick='() => NavigateTo("/cold-roll-plans")'>冷轧看板</MudMenuItem>
-                        <MudMenuItem Class="@GetMenuItemClass("/final-inspection-kanban")" OnClick='() => NavigateTo("/final-inspection-kanban")'>成检看板</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/batch-plans")" OnClick='() => NavigateTo("/batch-plans")'>批次计划</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/cold-roll-plans")" OnClick='() => NavigateTo("/cold-roll-plans")'>冷轧计划</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/final-inspection-plan")" OnClick='() => NavigateTo("/final-inspection-plan")'>成检计划</MudMenuItem>
                     </MudMenu>
                 </AuthorizeView>
 
                 <!-- 数据工具 -->
                 <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("data-exchange")" OnClick='() => NavigateTo("/data-exchange")'>数据工具</MudButton>
 
+                <!-- 扫码报工 -->
+                <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("mobile-report")" OnClick='() => NavigateTo("/mobile-report")'>扫码报工</MudButton>
+
                 <!-- 参数表 -->
                 <AuthorizeView Roles="@Roles.Policies.ConfigurationRead">
-                    <MudMenu Label="参数表" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("standard-work-days","standard-work-day-delivery-states","config-parameters","daily-output-estimates","section-flow-category-settings")">
+                    <MudMenu Label="参数表" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("standard-work-days","standard-work-day-delivery-states","config-parameters","daily-output-estimates","section-flow-category-settings","workstations")">
                         <MudMenuItem Class="@GetMenuItemClass("/standard-work-days")" OnClick='() => NavigateTo("/standard-work-days")'>标准工量天数</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/standard-work-day-delivery-states")" OnClick='() => NavigateTo("/standard-work-day-delivery-states")'>交货状态附加天数</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/config-parameters")" OnClick='() => NavigateTo("/config-parameters")'>业务参数配置</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/daily-output-estimates")" OnClick='() => NavigateTo("/daily-output-estimates")'>日产估算</MudMenuItem>
                         <MudMenuItem Class="@GetMenuItemClass("/section-flow-category-settings")" OnClick='() => NavigateTo("/section-flow-category-settings")'>段落分类及变异量系数</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/workstations")" OnClick='() => NavigateTo("/workstations")'>工位管理</MudMenuItem>
                     </MudMenu>
                 </AuthorizeView>
 
@@ -161,11 +163,12 @@
     </MudAppBar>
 
     <MudMainContent Style="min-height: calc(100vh - 64px); padding: 0; margin-top: 64px;">
-        @Body
+        @ChildContent
     </MudMainContent>
 </MudLayout>
 
 @code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
     private AuthenticationState? _authenticationState;
     private bool _showFurnaceSubmenu;
     private CancellationTokenSource? _hideSubmenuCts;

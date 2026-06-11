@@ -7,7 +7,11 @@
     <title>MES 制造执行系统</title>
     <base href="/" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#1a1a2e" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
     <link href="css/app.css" rel="stylesheet" />
     <link href="MES.Blazor.styles.css" rel="stylesheet" />
@@ -23,9 +27,9 @@
     </div>
 
     <div id="blazor-error-ui">
-        An unhandled error has occurred.
-        <a href="" class="reload">Reload</a>
-        <a class="dismiss">🗙</a>
+        <span id="blazor-error-message">应用加载失败或网络连接断开。</span>
+        <a href="/offline" class="reload">查看离线页面</a>
+        <a class="dismiss">✕</a>
     </div>
     
     <!-- 关键：先加载 MudBlazor JS，再加载 Blazor -->
@@ -34,6 +38,45 @@
     <script src="js/table-nav.js"></script>
     <script src="js/scanner.js"></script>
     <script src="js/filter-popup.js"></script>
+    <script src="js/pwa-install.js"></script>
+    <script>
+        // 响应式布局检测 - 监听窗口大小变化
+        (function () {
+            var MOBILE_BREAKPOINT = 960;
+            window.checkMobile = function () {
+                return window.innerWidth < MOBILE_BREAKPOINT;
+            };
+            window.listenResize = function (dotnetRef, method) {
+                window._resizeRef = dotnetRef;
+                window._resizeMethod = method;
+                window.addEventListener('resize', window._onResize);
+            };
+            window.stopListening = function () {
+                window.removeEventListener('resize', window._onResize);
+                window._resizeRef = null;
+                window._resizeMethod = null;
+            };
+            window._onResize = function () {
+                if (window._resizeRef && window._resizeMethod) {
+                    var isMobile = window.innerWidth < MOBILE_BREAKPOINT;
+                    window._resizeRef.invokeMethodAsync(window._resizeMethod, isMobile);
+                }
+            };
+        })();
+    </script>
+    <script>
+        // 通用文件下载辅助函数
+        window.BlazorDownloadFile = function (fileName, contentType, bytes) {
+            var blob = new Blob([new Uint8Array(bytes)], { type: contentType });
+            var link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        };
+    </script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
 

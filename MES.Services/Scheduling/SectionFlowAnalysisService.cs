@@ -28,6 +28,11 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
         foreach (var item in statusData)
             statusLookup[(item.ProcessGroupName, item.SectionName)] = item;
 
+        // 按 ProcessGroupName 分组的便捷查询（用于"全部"通配）
+        var groupedLookup = statusLookup
+            .GroupBy(kv => kv.Key.ProcessGroupName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Select(kv => kv.Value).ToList(), StringComparer.OrdinalIgnoreCase);
+
         // 2. 加载分类设置 + 明细
         var settings = await _context.SectionFlowCategorySettings
             .AsNoTracking()
@@ -43,13 +48,26 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
 
             foreach (var item in setting.Items)
             {
-                if (!statusLookup.TryGetValue((item.ProcessGroupName, item.SectionName), out var match))
-                    continue;
+                List<SectionProductionStatusDto> matches;
 
-                var baseAmount = GetBaseAmount(setting.CategoryCode, match);
+                if (string.Equals(item.SectionName, "全部", StringComparison.OrdinalIgnoreCase))
+                {
+                    // 通配：匹配该工序组下所有工段
+                    matches = groupedLookup.GetValueOrDefault(item.ProcessGroupName, new List<SectionProductionStatusDto>());
+                }
+                else
+                {
+                    if (!statusLookup.TryGetValue((item.ProcessGroupName, item.SectionName), out var match))
+                        continue;
+                    matches = new List<SectionProductionStatusDto> { match };
+                }
 
-                pendingTotal += baseAmount;
-                variationTotal += item.Coefficient * baseAmount;
+                foreach (var match in matches)
+                {
+                    var baseAmount = GetBaseAmount(setting.CategoryCode, match);
+                    pendingTotal += baseAmount;
+                    variationTotal += item.Coefficient * baseAmount;
+                }
             }
 
             var sustainableDays = setting.DailyProductionTarget.HasValue && setting.DailyProductionTarget.Value > 0
@@ -102,9 +120,10 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
     {
         return categoryCode switch
         {
-            "K" => (match.Total ?? 0m) - (match.FinalProcessTotal ?? 0m),
-            "L" => match.FinalProcessTotal ?? 0m,
-            _ => match.Total ?? 0m
+            "K" => match.Total ?? 0m,                              // 荒管检：汇总量
+            "L" => (match.Total ?? 0m) - (match.FinalProcessTotal ?? 0m), // 在制检：汇总量-成品量
+            "M" => match.FinalProcessTotal ?? 0m,                  // 成品待检：属成品工序量
+            _ => match.Total ?? 0m                                 // A-J：汇总量
         };
     }
 

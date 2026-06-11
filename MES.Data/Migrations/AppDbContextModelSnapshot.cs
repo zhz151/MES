@@ -4127,11 +4127,6 @@ namespace MES.Data.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<int>("RollOrder")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1);
-
                     b.Property<string>("RollType")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -5522,6 +5517,9 @@ namespace MES.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("MainNoAttentionProcess")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<decimal>("MainNoFlowOutputRatio")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(8,2)")
@@ -5577,6 +5575,9 @@ namespace MES.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
+
+                    b.Property<int?>("MaxBatchRemainingWorkDays")
+                        .HasColumnType("int");
 
                     b.Property<decimal?>("MaxLength")
                         .HasColumnType("decimal(18,2)");
@@ -6261,6 +6262,52 @@ namespace MES.Data.Migrations
                         .HasDatabaseName("IX_WOSS_WorkOrderStatus");
 
                     b.ToTable("WorkOrderStatusSummary", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.Workstation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("EquipmentName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SectionName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Workstations");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>

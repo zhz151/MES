@@ -66,4 +66,25 @@ public class BatchPlanService
             return new List<BatchPlanDto>();
         }
     }
+
+    public async Task<List<ColdRollScheduleSummaryDto>> GetFlowSummaryAsync(string? sectionTab, int? maxDiff = null)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/flow-summary";
+            var queryParams = new List<string>();
+            if (!string.IsNullOrEmpty(sectionTab))
+                queryParams.Add($"sectionTab={Uri.EscapeDataString(sectionTab)}");
+            if (maxDiff.HasValue)
+                queryParams.Add($"maxDiff={maxDiff.Value}");
+            if (queryParams.Count > 0)
+                url += "?" + string.Join("&", queryParams);
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<ColdRollScheduleSummaryDto>>>(url);
+            return response?.Data ?? new List<ColdRollScheduleSummaryDto>();
+        }
+        catch
+        {
+            return new List<ColdRollScheduleSummaryDto>();
+        }
+    }
 }

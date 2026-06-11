@@ -50,6 +50,13 @@ public partial class WorkOrderSchedules
     private const string FilterNotNull = "__NOT_NULL__";
     private const string FilterNull = "__EXCEL_FILTER_NULL__";
 
+    // Plan 字段键名（G15 工单计划），用于空值筛选
+    private static readonly HashSet<string> _planFieldKeys = new()
+    {
+        "PlanScheduleStage", "PlanUrgencyLevel",
+        "PlanProductionAttentionProcess", "PlanProductionFlowProperty"
+    };
+
     private static List<ColumnDef> GetAllColumnDefs()
     {
         // G1: 工单基础数据
@@ -123,16 +130,18 @@ public partial class WorkOrderSchedules
             new() { Key = "DeformedProcessCompleted",      Label = "变形完成",      SortKey = "DeformedProcessCompleted",      FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 14, GroupName = "在产待量" },
             new() { Key = "ProductionAttentionProcess",    Label = "生产关注工序",  SortKey = "ProductionAttentionProcess",    FilterType = "string", Width = "120", GroupKey = 14, GroupName = "在产待量" },
             new() { Key = "ProductionFlowProperty",        Label = "生产流转性",    SortKey = "ProductionFlowProperty",        FilterType = "string", Width = "100", GroupKey = 14, GroupName = "在产待量" },
+            new() { Key = "MaxBatchRemainingWorkDays",   Label = "最大剩余工量(天)", SortKey = "MaxBatchRemainingWorkDays",   FilterType = "string", Width = "80",  GroupKey = 14, GroupName = "在产待量" },
+            new() { Key = "MainNoAttentionProcess",      Label = "主号关注工序",   SortKey = "MainNoAttentionProcess",      FilterType = "string", Width = "120", GroupKey = 14, GroupName = "在产待量" },
         };
 
         // G15: 工单计划（薄表 — 手工可编辑）
         var g15 = new List<ColumnDef>
         {
             new() { Key = "ConsistencyStatus",              Label = "实时一致性",  SortKey = "ConsistencyStatus",          FilterType = "boolean", Width = "100", BoolTrueLabel = "一致", BoolFalseLabel = "不一致", GroupKey = 15, GroupName = "工单计划" },
-            new() { Key = "PlanScheduleStage",               Label = "工单状态",     SortKey = "PlanScheduleStage",          Width = "100", GroupKey = 15, GroupName = "工单计划" },
-            new() { Key = "PlanUrgencyLevel",                Label = "紧急性",       SortKey = "PlanUrgencyLevel",           Width = "100", GroupKey = 15, GroupName = "工单计划" },
-            new() { Key = "PlanProductionAttentionProcess",  Label = "生产关注",     SortKey = "PlanProductionAttentionProcess", Width = "120", GroupKey = 15, GroupName = "工单计划" },
-            new() { Key = "PlanProductionFlowProperty",      Label = "流转性",       SortKey = "PlanProductionFlowProperty",  Width = "100", GroupKey = 15, GroupName = "工单计划" },
+            new() { Key = "PlanScheduleStage",               Label = "工单状态",     SortKey = "PlanScheduleStage",          FilterType = "string", Width = "100", GroupKey = 15, GroupName = "工单计划" },
+            new() { Key = "PlanUrgencyLevel",                Label = "紧急性",       SortKey = "PlanUrgencyLevel",           FilterType = "string", Width = "100", GroupKey = 15, GroupName = "工单计划" },
+            new() { Key = "PlanProductionAttentionProcess",  Label = "生产关注",     SortKey = "PlanProductionAttentionProcess", FilterType = "string", Width = "120", GroupKey = 15, GroupName = "工单计划" },
+            new() { Key = "PlanProductionFlowProperty",      Label = "流转性",       SortKey = "PlanProductionFlowProperty",  FilterType = "string", Width = "100", GroupKey = 15, GroupName = "工单计划" },
         };
 
         var all = new List<ColumnDef>();
@@ -257,7 +266,7 @@ public partial class WorkOrderSchedules
             {
                 var options = _allItems
                     .Select(item => GetFilterValue(item, col.Key))
-                    .Where(v => v != null)
+                    .Where(v => v != null && v != FilterNull)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .OrderBy(x => x)
                     .Select(val => new ExcelFilterOption
@@ -267,6 +276,19 @@ public partial class WorkOrderSchedules
                         Count = _allItems.Count(x => string.Equals(GetFilterValue(x, col.Key), val, StringComparison.OrdinalIgnoreCase))
                     })
                     .ToList();
+
+                // Plan 字段增加"空值"筛选选项
+                if (_planFieldKeys.Contains(col.Key))
+                {
+                    var nullCount = _allItems.Count(x => GetFilterValue(x, col.Key) == FilterNull);
+                    options.Insert(0, new ExcelFilterOption
+                    {
+                        Value = FilterNull,
+                        Display = "空值",
+                        Count = nullCount
+                    });
+                }
+
                 _filterContextOptions[col.Key] = options;
             }
             else if (col.FilterType == "enum")
@@ -319,7 +341,13 @@ public partial class WorkOrderSchedules
         "DeformedProcessCompleted" => item.DeformedProcessCompleted.ToString(),
         "ProductionAttentionProcess" => item.ProductionAttentionProcess,
         "ProductionFlowProperty" => item.ProductionFlowProperty,
+        "MaxBatchRemainingWorkDays" => item.MaxBatchRemainingWorkDays?.ToString(),
+        "MainNoAttentionProcess" => item.MainNoAttentionProcess,
         "ConsistencyStatus" => item.ConsistencyStatus.ToString(),
+        "PlanScheduleStage" => item.PlanScheduleStage?.ToString() ?? FilterNull,
+        "PlanUrgencyLevel" => item.PlanUrgencyLevel ?? FilterNull,
+        "PlanProductionAttentionProcess" => item.PlanProductionAttentionProcess ?? FilterNull,
+        "PlanProductionFlowProperty" => item.PlanProductionFlowProperty ?? FilterNull,
         _ => null
     };
 
@@ -420,6 +448,8 @@ public partial class WorkOrderSchedules
             "DeformedProcessCompleted" => sortDescending ? query.OrderByDescending(x => x.DeformedProcessCompleted) : query.OrderBy(x => x.DeformedProcessCompleted),
             "ProductionAttentionProcess" => sortDescending ? query.OrderByDescending(x => x.ProductionAttentionProcess) : query.OrderBy(x => x.ProductionAttentionProcess),
             "ProductionFlowProperty" => sortDescending ? query.OrderByDescending(x => x.ProductionFlowProperty) : query.OrderBy(x => x.ProductionFlowProperty),
+            "MaxBatchRemainingWorkDays" => sortDescending ? query.OrderByDescending(x => x.MaxBatchRemainingWorkDays) : query.OrderBy(x => x.MaxBatchRemainingWorkDays),
+            "MainNoAttentionProcess" => sortDescending ? query.OrderByDescending(x => x.MainNoAttentionProcess) : query.OrderBy(x => x.MainNoAttentionProcess),
             "ConsistencyStatus" => sortDescending ? query.OrderByDescending(x => x.ConsistencyStatus) : query.OrderBy(x => x.ConsistencyStatus),
             "PlanScheduleStage" => sortDescending ? query.OrderByDescending(x => x.PlanScheduleStage) : query.OrderBy(x => x.PlanScheduleStage),
             "PlanUrgencyLevel" => sortDescending ? query.OrderByDescending(x => x.PlanUrgencyLevel) : query.OrderBy(x => x.PlanUrgencyLevel),
@@ -610,6 +640,13 @@ public partial class WorkOrderSchedules
                     }
                 }
                 catch { }
+            }
+
+            // 确保新字段始终可见（兼容旧保存状态不包含这些列）
+            foreach (var col in _allColumns)
+            {
+                if (col.Key is "MaxBatchRemainingWorkDays" or "MainNoAttentionProcess")
+                    col.Visible = true;
             }
 
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
@@ -822,6 +859,12 @@ public partial class WorkOrderSchedules
                     builder.CloseComponent();
                 }
                 break;
+            case "MaxBatchRemainingWorkDays":
+                builder.AddContent(0, item.MaxBatchRemainingWorkDays.HasValue ? $"{item.MaxBatchRemainingWorkDays}天" : "-");
+                break;
+            case "MainNoAttentionProcess":
+                builder.AddContent(0, item.MainNoAttentionProcess ?? "-");
+                break;
 
             // ========== G15: 工单计划（内联编辑） ==========
             case "ConsistencyStatus":
@@ -848,7 +891,7 @@ public partial class WorkOrderSchedules
                 {
                     b2.OpenComponent<MudSelectItem<string>>(0);
                     b2.AddAttribute(1, "Value", "");
-                    b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "系统值")));
+                    b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "空值")));
                     b2.CloseComponent();
                     foreach (var (val, label) in new[] { ("0", "工单完成"), ("1", "原料锁定"), ("2", "生产执行"), ("3", "成品检验") })
                     {
@@ -904,7 +947,7 @@ public partial class WorkOrderSchedules
                 {
                     b2.OpenComponent<MudSelectItem<string>>(0);
                     b2.AddAttribute(1, "Value", "");
-                    b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "系统值")));
+                    b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "空值")));
                     b2.CloseComponent();
                     foreach (var opt in new[] { "正常", "暂停", "待料", "疑问", "略" })
                     {

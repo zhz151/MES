@@ -1,9 +1,9 @@
 namespace MES.Core.DTOs;
 
 /// <summary>
-/// 成检看板 DTO
+/// 成检计划 DTO
 /// </summary>
-public class FinalInspectionKanbanDto
+public class FinalInspectionPlanDto
 {
     public int ProductionBatchId { get; set; }
 

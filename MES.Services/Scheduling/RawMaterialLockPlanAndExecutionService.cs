@@ -10,7 +10,7 @@ using MES.Services.Helpers;
 namespace MES.Services.Scheduling;
 
 /// <summary>
-/// 原锁计划及执行服务（LEFT JOIN 实时查询）
+/// 原锁计划服务（LEFT JOIN 实时查询）
 /// </summary>
 public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExecutionService
 {

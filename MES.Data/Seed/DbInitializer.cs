@@ -843,8 +843,9 @@ public static class DbInitializer
                 new() { CategoryCode = "G", CategoryName = "大轧" },
                 new() { CategoryCode = "H", CategoryName = "小轧" },
                 new() { CategoryCode = "J", CategoryName = "冷拔" },
-                new() { CategoryCode = "K", CategoryName = "过程检" },
-                new() { CategoryCode = "L", CategoryName = "成品待检" },
+                new() { CategoryCode = "K", CategoryName = "荒管检" },
+                new() { CategoryCode = "L", CategoryName = "在制检" },
+                new() { CategoryCode = "M", CategoryName = "成品待检" },
             };
 
             context.SectionFlowCategorySettings.AddRange(settings);
@@ -935,25 +936,14 @@ public static class DbInitializer
             // J 冷拔
             AddItem(settingMap["J"], "冷拔", "冷轧拔", 1m, 1);
 
-            // K 过程检
-            AddItem(settingMap["K"], "20冷轧",   "检验", 1m,    1);
-            AddItem(settingMap["K"], "30冷轧",   "检验", 1m,    2);
-            AddItem(settingMap["K"], "冷拔",     "检验", 1m,    3);
-            AddItem(settingMap["K"], "三辊冷轧", "检验", 1m,    4);
-            AddItem(settingMap["K"], "荒管处理", "检验", 0.75m, 5);
-            AddItem(settingMap["K"], "在制修检", "检验", 0.75m, 6);
-            AddItem(settingMap["K"], "50冷轧",   "检验", 0.5m,  7);
-            AddItem(settingMap["K"], "60冷轧",   "检验", 0.5m,  8);
+            // K 荒管检
+            AddItem(settingMap["K"], "荒管处理", "检验", 1m, 1);
 
-            // L 成品待检
-            AddItem(settingMap["L"], "20冷轧",   "检验", 1m,    1);
-            AddItem(settingMap["L"], "30冷轧",   "检验", 1m,    2);
-            AddItem(settingMap["L"], "50冷轧",   "检验", 0.5m,  3);
-            AddItem(settingMap["L"], "60冷轧",   "检验", 0.5m,  4);
-            AddItem(settingMap["L"], "荒管处理", "检验", 0.75m, 5);
-            AddItem(settingMap["L"], "冷拔",     "检验", 1m,    6);
-            AddItem(settingMap["L"], "三辊冷轧", "检验", 1m,    7);
-            AddItem(settingMap["L"], "在制修检", "检验", 0.75m, 8);
+            // L 在制检
+            AddItem(settingMap["L"], "在制修检", "全部", 1m, 1);
+
+            // M 成品待检
+            AddItem(settingMap["M"], "在制修检", "全部", 1m, 1);
 
             await context.SectionFlowCategoryItems.AddRangeAsync(items);
             await context.SaveChangesAsync();
@@ -971,6 +961,38 @@ public static class DbInitializer
                 new() { MinOuterDiameter = 6,  DailyOutputTons = 0.1m, Remark = "外径>=6mm" },
             };
             context.DailyOutputEstimates.AddRange(estimates);
+            await context.SaveChangesAsync();
+        }
+
+        // ========== 13. Initialize Workstations ==========
+        if (!context.Workstations.Any())
+        {
+            var workstations = new List<Workstation>
+            {
+                // 冷轧拔工段
+                new() { Code = "CR01", Name = "1号冷轧机",  EquipmentName = "LG60冷轧机",   SectionName = "冷轧拔", IsActive = true },
+                new() { Code = "CR02", Name = "2号冷轧机",  EquipmentName = "LG30冷轧机",   SectionName = "冷轧拔", IsActive = true },
+                new() { Code = "CR03", Name = "3号冷轧机",  EquipmentName = "LG20冷轧机",   SectionName = "冷轧拔", IsActive = true },
+                // 外抛光工段
+                new() { Code = "PL01", Name = "1号抛光机",  EquipmentName = "外抛光机",     SectionName = "外抛光", IsActive = true },
+                new() { Code = "PL02", Name = "2号抛光机",  EquipmentName = "外抛光机",     SectionName = "外抛光", IsActive = true },
+                // 酸洗工段
+                new() { Code = "PK01", Name = "酸洗槽1",    EquipmentName = "酸洗槽",       SectionName = "酸洗",   IsActive = true },
+                // 内修磨工段
+                new() { Code = "IG01", Name = "内磨机1",    EquipmentName = "内修磨机",     SectionName = "内修磨", IsActive = true },
+                // 固溶工段
+                new() { Code = "SL01", Name = "固溶炉1",    EquipmentName = "固溶热处理炉", SectionName = "固溶",   IsActive = true },
+                // 断切工段
+                new() { Code = "CT01", Name = "切管机1",    EquipmentName = "自动切管机",   SectionName = "断切",   IsActive = true },
+                // 矫直工段
+                new() { Code = "ST01", Name = "矫直机1",    EquipmentName = "矫直机",       SectionName = "矫直",   IsActive = true },
+                // 检验工段
+                new() { Code = "IN01", Name = "检验台1",    EquipmentName = "检验设备",     SectionName = "检验",   IsActive = true },
+                // 仓储工段
+                new() { Code = "WH01", Name = "入库1",      EquipmentName = null,           SectionName = "入库",   IsActive = true },
+            };
+
+            context.Workstations.AddRange(workstations);
             await context.SaveChangesAsync();
         }
     }

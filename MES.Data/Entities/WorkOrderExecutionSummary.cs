@@ -304,6 +304,12 @@ public class WorkOrderExecutionSummary : BaseEntity
     /// <summary>生产关注工序：前8项中值>0且SequenceNumber最小的工序名称</summary>
     public string? ProductionAttentionProcess { get; set; }
 
+    /// <summary>最大剩余工量（天）：此工单号下所有批次中 RemainingWorkDays 的最大值</summary>
+    public int? MaxBatchRemainingWorkDays { get; set; }
+
+    /// <summary>主号关注工序：同订单号+同主号下，取剩余工量最大值所在工单的生产关注工序</summary>
+    public string? MainNoAttentionProcess { get; set; }
+
     // ========== Group 13: 订单需求调整 ==========
     /// <summary>催单</summary>
     public bool IsUrging { get; set; }

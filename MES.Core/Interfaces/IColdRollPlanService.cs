@@ -12,4 +12,5 @@ public interface IColdRollPlanService
     /// </summary>
     /// <param name="sectionFilter">工段筛选：null=全部, "60冷轧", "50冷轧", "30冷轧", "20冷轧", "三辊冷轧", "冷拔"</param>
     Task<List<ColdRollPlanRowDto>> GetPlanAsync(string? sectionFilter);
+
 }

@@ -13,7 +13,6 @@ public class ColdRollSpecScheduleDto
     public string? MachineNo { get; set; }
     public string CompletionType { get; set; } = "None";
     public string RollType { get; set; } = "None";
-    public int RollOrder { get; set; }
     public string? MergeDisplay { get; set; }
     public string? Remark { get; set; }
     public DateTime UpdatedTime { get; set; }

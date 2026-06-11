@@ -168,7 +168,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             x.b.CurrentOutsource,
             UrgencyLevel = x.plan != null && x.plan.UrgencyLevel != null ? x.plan.UrgencyLevel : (x.s != null ? x.s.UrgencyLevel : null),
             ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : 0),
-            ProductionAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.ProductionAttentionProcess : null),
+            MainNoAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.MainNoAttentionProcess : null),
             IsUrging = x.s != null && x.s.IsUrging,
             IsBatchDelivery = x.s != null && x.s.IsBatchDelivery,
             x.b.PlantGrade,
@@ -236,7 +236,6 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
 
             // 匹配结果变量（先声明，下方赋值）
             string? crCompletionType = null, crRollType = null, crSchedMachineNo = null;
-            int crRollOrder = 0;
 
             // 冷轧排程（本层）：仅当执行工段=冷轧拔时才填充（与 GetAllAsync 保持一致）
             if (!string.IsNullOrEmpty(pendingProcess) && ProcessNames.IsColdRollOrDraw(pendingProcess)
@@ -286,19 +285,19 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             {
                 var curKey = $"{currentCR_ProcessType}|{currentCR_BilletSpec}|{currentCR_RollingSpec}|{currentCR_IsFinished}";
                 if (scheduleLookup.TryGetValue(curKey, out var curSched))
-                { crRollType = curSched.RollType; crRollOrder = curSched.RollOrder; crSchedMachineNo = curSched.MachineNo; }
+                { crRollType = curSched.RollType; crSchedMachineNo = curSched.MachineNo; }
             }
             else if (!string.IsNullOrEmpty(nextCR_ProcessType) && string.IsNullOrEmpty(pendingEquipment))
             {
                 var nextKey = $"{nextCR_ProcessType}|{nextCR_BilletSpec}|{nextCR_RollingSpec}|{nextCR_IsFinished}";
                 if (scheduleLookup.TryGetValue(nextKey, out var nextSched))
-                { crRollType = nextSched.RollType; crRollOrder = nextSched.RollOrder; crSchedMachineNo = nextSched.MachineNo; }
+                { crRollType = nextSched.RollType; crSchedMachineNo = nextSched.MachineNo; }
             }
             else if (!string.IsNullOrEmpty(nextNextCR_ProcessType) && string.IsNullOrEmpty(pendingEquipment))
             {
                 var nextNextKey = $"{nextNextCR_ProcessType}|{nextNextCR_BilletSpec}|{nextNextCR_RollingSpec}|{nextNextCR_IsFinished}";
                 if (scheduleLookup.TryGetValue(nextNextKey, out var nextNextSched))
-                { crRollType = nextNextSched.RollType; crRollOrder = nextNextSched.RollOrder; crSchedMachineNo = nextNextSched.MachineNo; }
+                { crRollType = nextNextSched.RollType; crSchedMachineNo = nextNextSched.MachineNo; }
             }
 
             // 计算 IsFlow
@@ -311,7 +310,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             var isKeyBatch = (b.ScheduleStage == 2 && isUrgent && pendingProcess != null) ||
                              (b.ScheduleStage == 1 && (b.IsUrging || b.IsBatchDelivery) && isUrgent);
 
-            if (b.ProductionAttentionProcess == "收尾-成检")
+            if (b.MainNoAttentionProcess == "收尾-成检")
             {
                 isFlow = true;
                 flowTarget = "成检";
@@ -320,7 +319,13 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             }
             else if (!string.IsNullOrEmpty(crCompletionType) && crCompletionType != "None")
             {
-                if (crCompletionType == "All" || crCompletionType == "Partial" || (crCompletionType == "Urgent" && isUrgent))
+                var isPartial1 = isUrgent && (b.ScheduleStage == 2 || (b.ScheduleStage == 1 && (b.IsUrging || b.IsBatchDelivery)));
+                var isPartial3 = isUrgent || b.UrgencyLevel == "B顺";
+                if (crCompletionType == "All" ||
+                    (crCompletionType == "Urgent" && isKeyBatch) ||
+                    (crCompletionType == "Partial1" && isPartial1) ||
+                    (crCompletionType == "Partial2" && isUrgent) ||
+                    (crCompletionType == "Partial3" && isPartial3))
                 {
                     isFlow = true;
                     flowTarget = "完工冷轧";
@@ -331,7 +336,13 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
 
             if (!isFlow && !string.IsNullOrEmpty(crRollType) && crRollType != "None")
             {
-                if (crRollType == "All" || crRollType == "Subsequent" || crRollType == "Partial" || (crRollType == "Urgent" && isUrgent))
+                var isPartial1 = isUrgent && (b.ScheduleStage == 2 || (b.ScheduleStage == 1 && (b.IsUrging || b.IsBatchDelivery)));
+                var isPartial3 = isUrgent || b.UrgencyLevel == "B顺";
+                if (crRollType == "All" || crRollType == "Subsequent" ||
+                    (crRollType == "Urgent" && isKeyBatch) ||
+                    (crRollType == "Partial1" && isPartial1) ||
+                    (crRollType == "Partial2" && isUrgent) ||
+                    (crRollType == "Partial3" && isPartial3))
                 {
                     isFlow = true;
                     flowTarget = "冷轧";

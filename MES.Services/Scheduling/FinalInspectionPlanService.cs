@@ -8,18 +8,18 @@ using MES.Data.Entities;
 namespace MES.Services.Scheduling;
 
 /// <summary>
-/// 成检看板服务 — 三档分组：待到料/待检验/检验中
+/// 成检计划服务 — 三档分组：待到料/待检验/检验中
 /// </summary>
-public class FinalInspectionKanbanService : IFinalInspectionKanbanService
+public class FinalInspectionPlanService : IFinalInspectionPlanService
 {
     private readonly AppDbContext _context;
 
-    public FinalInspectionKanbanService(AppDbContext context)
+    public FinalInspectionPlanService(AppDbContext context)
     {
         _context = context;
     }
 
-    public async Task<List<FinalInspectionKanbanDto>> GetKanbanAsync()
+    public async Task<List<FinalInspectionPlanDto>> GetKanbanAsync()
     {
         // === 预查询辅助数据 ===
 
@@ -74,7 +74,7 @@ public class FinalInspectionKanbanService : IFinalInspectionKanbanService
             receivedIds, receiveDateMap, inspectedIds, inspectionDateMap,
             warehousedSet, summaryMap);
 
-        var result = new List<FinalInspectionKanbanDto>();
+        var result = new List<FinalInspectionPlanDto>();
         result.AddRange(awaitingMaterial);
         result.AddRange(inProcess);
         return result;
@@ -83,7 +83,7 @@ public class FinalInspectionKanbanService : IFinalInspectionKanbanService
     /// <summary>
     /// 待到料：InProgress 批次中 ProcessGroup 判定为"成品检验"且未到料的
     /// </summary>
-    private async Task<List<FinalInspectionKanbanDto>> BuildAwaitingMaterialAsync(
+    private async Task<List<FinalInspectionPlanDto>> BuildAwaitingMaterialAsync(
         HashSet<int> receivedIds,
         Dictionary<string, SummaryProjection> summaryMap)
     {
@@ -126,7 +126,7 @@ public class FinalInspectionKanbanService : IFinalInspectionKanbanService
             .GroupBy(pg => pg.ProductionBatchId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        var result = new List<FinalInspectionKanbanDto>();
+        var result = new List<FinalInspectionPlanDto>();
 
         foreach (var b in candidates)
         {
@@ -163,7 +163,7 @@ public class FinalInspectionKanbanService : IFinalInspectionKanbanService
     /// <summary>
     /// 待检验 + 检验中：从 MaterialReceiveCheck 出发
     /// </summary>
-    private async Task<List<FinalInspectionKanbanDto>> BuildInProcessAsync(
+    private async Task<List<FinalInspectionPlanDto>> BuildInProcessAsync(
         HashSet<int> receivedIds,
         Dictionary<int, DateTime> receiveDateMap,
         HashSet<int> inspectedIds,
@@ -191,7 +191,7 @@ public class FinalInspectionKanbanService : IFinalInspectionKanbanService
             })
             .ToDictionaryAsync(b => b.Id);
 
-        var result = new List<FinalInspectionKanbanDto>();
+        var result = new List<FinalInspectionPlanDto>();
 
         foreach (var batchId in receivedIds)
         {
@@ -218,11 +218,11 @@ public class FinalInspectionKanbanService : IFinalInspectionKanbanService
         return result;
     }
 
-    private static FinalInspectionKanbanDto MapFromBatch(
+    private static FinalInspectionPlanDto MapFromBatch(
         BatchProjection b,
         Dictionary<string, SummaryProjection> summaryMap)
     {
-        var dto = new FinalInspectionKanbanDto
+        var dto = new FinalInspectionPlanDto
         {
             ProductionBatchId = b.Id,
             BatchNo = b.BatchNo,

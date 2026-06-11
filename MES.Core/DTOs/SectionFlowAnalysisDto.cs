@@ -1,7 +1,7 @@
 namespace MES.Core.DTOs;
 
 /// <summary>
-/// 生产段流转量分析 DTO — 按 11 个段落类别汇总
+/// 生产段流转量分析 DTO — 按 12 个段落类别汇总
 /// </summary>
 public class SectionFlowAnalysisDto
 {

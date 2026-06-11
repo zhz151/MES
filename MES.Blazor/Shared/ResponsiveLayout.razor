@@ -1,0 +1,67 @@
+@* 响应式布局路由器 — 根据屏幕宽度切换 MobileLayout / MainLayout *@
+@inherits LayoutComponentBase
+@implements IDisposable
+
+@if (_isMobile)
+{
+    <MobileLayout>
+        <CascadingAuthenticationState>
+            @Body
+        </CascadingAuthenticationState>
+    </MobileLayout>
+}
+else
+{
+    <MainLayout>
+        <CascadingAuthenticationState>
+            @Body
+        </CascadingAuthenticationState>
+    </MainLayout>
+}
+
+@code {
+    private bool _isMobile;
+
+    [Inject] private IJSRuntime JSRuntime { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isMobile = await DetectMobile();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var dotNetRef = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("listenResize", dotNetRef, nameof(OnResize));
+        }
+    }
+
+    private async Task<bool> DetectMobile()
+    {
+        try
+        {
+            return await JSRuntime.InvokeAsync<bool>("checkMobile");
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnResize(bool isMobile)
+    {
+        if (_isMobile != isMobile)
+        {
+            _isMobile = isMobile;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose()
+    {
+        try { JSRuntime.InvokeVoidAsync("stopListening"); } catch { }
+    }
+}

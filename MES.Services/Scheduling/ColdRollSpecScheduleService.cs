@@ -48,7 +48,6 @@ public class ColdRollSpecScheduleService : IColdRollSpecScheduleService
                 existing.MachineNo = dto.MachineNo;
                 existing.CompletionType = string.IsNullOrEmpty(dto.CompletionType) ? "None" : dto.CompletionType;
                 existing.RollType = dto.RollType;
-                existing.RollOrder = dto.RollOrder;
                 existing.MergeDisplay = dto.MergeDisplay;
                 existing.Remark = dto.Remark;
             }
@@ -64,7 +63,6 @@ public class ColdRollSpecScheduleService : IColdRollSpecScheduleService
                     MachineNo = dto.MachineNo,
                     CompletionType = string.IsNullOrEmpty(dto.CompletionType) ? "None" : dto.CompletionType,
                     RollType = string.IsNullOrEmpty(dto.RollType) ? "None" : dto.RollType,
-                    RollOrder = dto.RollOrder,
                     MergeDisplay = dto.MergeDisplay,
                     Remark = dto.Remark,
                 });
@@ -91,7 +89,6 @@ public class ColdRollSpecScheduleService : IColdRollSpecScheduleService
             MachineNo = entity.MachineNo,
             CompletionType = entity.CompletionType,
             RollType = entity.RollType,
-            RollOrder = entity.RollOrder,
             MergeDisplay = entity.MergeDisplay,
             Remark = entity.Remark,
             UpdatedTime = entity.UpdatedTime.DateTime,

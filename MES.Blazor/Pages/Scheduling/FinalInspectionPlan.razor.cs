@@ -10,10 +10,10 @@ using System.Text.Json;
 
 namespace MES.Blazor.Pages.Scheduling;
 
-public partial class FinalInspectionKanban
+public partial class FinalInspectionPlan
 {
-    private MudTable<FinalInspectionKanbanDto>? table;
-    private List<FinalInspectionKanbanDto> _pageItems = new();
+    private MudTable<FinalInspectionPlanDto>? table;
+    private List<FinalInspectionPlanDto> _pageItems = new();
     private int _totalCount;
     private int _restoredPageIndex;
     private int _currentPageIndex = 1;
@@ -50,7 +50,7 @@ public partial class FinalInspectionKanban
     };
 
     // 全量数据（加载后缓存）
-    private List<FinalInspectionKanbanDto> _allItems = new();
+    private List<FinalInspectionPlanDto> _allItems = new();
 
     // ========== 列定义 ==========
 
@@ -106,7 +106,7 @@ public partial class FinalInspectionKanban
         _pageSums.Clear();
         if (_pageItems.Count == 0) return;
 
-        var props = typeof(FinalInspectionKanbanDto)
+        var props = typeof(FinalInspectionPlanDto)
             .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
             .ToDictionary(p => p.Name, p => p);
 
@@ -145,7 +145,7 @@ public partial class FinalInspectionKanban
     {
         _allColumns = GetAllColumnDefs();
 
-        var savedState = await PageState.LoadAsync("final-inspection-kanban");
+        var savedState = await PageState.LoadAsync("final-inspection-plan");
         if (savedState != null)
         {
             sortColumn = savedState.SortBy ?? "BatchNo";
@@ -196,7 +196,7 @@ public partial class FinalInspectionKanban
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await JS.InvokeVoidAsync("initGroupHeaders", "#final-inspection-kanban-table");
+        await JS.InvokeVoidAsync("initGroupHeaders", "#final-inspection-plan-table");
     }
 
     private async Task LoadDataAsync()
@@ -246,7 +246,7 @@ public partial class FinalInspectionKanban
         }
     }
 
-    private static string? GetFilterValue(FinalInspectionKanbanDto item, string key) => key switch
+    private static string? GetFilterValue(FinalInspectionPlanDto item, string key) => key switch
     {
         "BatchNo" => item.BatchNo,
         "TagNo" => item.TagNo,
@@ -295,7 +295,7 @@ public partial class FinalInspectionKanban
 
     // ========== 数据加载 ==========
 
-    private async Task<TableData<FinalInspectionKanbanDto>> LoadDataFromServer(TableState state)
+    private async Task<TableData<FinalInspectionPlanDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
 
@@ -349,14 +349,14 @@ public partial class FinalInspectionKanban
         _pageItems = items;
         ComputePageSums();
         await SavePageStateAsync();
-        return new TableData<FinalInspectionKanbanDto>
+        return new TableData<FinalInspectionPlanDto>
         {
             Items = items,
             TotalItems = _totalCount
         };
     }
 
-    private static List<FinalInspectionKanbanDto> ApplySorting(List<FinalInspectionKanbanDto> items, string sortBy, bool desc)
+    private static List<FinalInspectionPlanDto> ApplySorting(List<FinalInspectionPlanDto> items, string sortBy, bool desc)
     {
         var query = sortBy.ToLower() switch
         {
@@ -526,7 +526,7 @@ public partial class FinalInspectionKanban
 
     // ========== 列值渲染 ==========
 
-    private RenderFragment RenderCell(FinalInspectionKanbanDto item, ColumnDef col) => builder =>
+    private RenderFragment RenderCell(FinalInspectionPlanDto item, ColumnDef col) => builder =>
     {
         builder.OpenElement(0, "span");
         switch (col.Key)
@@ -644,6 +644,6 @@ public partial class FinalInspectionKanban
             PageIndex = _currentPageIndex,
             Extras = extras
         };
-        await PageState.SaveAsync("final-inspection-kanban", state);
+        await PageState.SaveAsync("final-inspection-plan", state);
     }
 }

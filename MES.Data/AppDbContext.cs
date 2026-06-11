@@ -115,6 +115,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<ConfigParameter> ConfigParameters { get; set; } = null!;
     public DbSet<DailyOutputEstimate> DailyOutputEstimates { get; set; } = null!;
 
+    // 工位管理
+    public DbSet<Workstation> Workstations { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -2143,7 +2146,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.MachineNo).HasMaxLength(200);
             entity.Property(e => e.CompletionType).IsRequired().HasMaxLength(20).HasDefaultValue("None");
             entity.Property(e => e.RollType).IsRequired().HasMaxLength(20).HasDefaultValue("None");
-            entity.Property(e => e.RollOrder).IsRequired().HasDefaultValue(1);
             entity.Property(e => e.MergeDisplay).HasMaxLength(300);
             entity.Property(e => e.Remark).HasMaxLength(500);
 

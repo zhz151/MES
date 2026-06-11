@@ -11,7 +11,7 @@
     <div class="d-flex flex-column mb-4">
         <MudText Typo="Typo.h5" Class="font-weight-bold mb-4">
             <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" Color="Color.Primary" />
-            冷轧看板
+            冷轧计划
         </MudText>
 
         <!-- 工段筛选 Tab -->
@@ -75,6 +75,25 @@
                            Color="Color.Primary"
                            Title="打印"
                            OnClick="@OnPrint" />
+            @if (_showScheduleSummary)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Close"
+                               Size="Size.Small"
+                               Color="Color.Error"
+                               Title="关闭排程汇总"
+                               OnClick="@ToggleScheduleSummaryAsync" />
+            }
+            else
+            {
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                           Class="ml-1" OnClick="@ToggleScheduleSummaryAsync" Disabled="@_summaryLoading">
+                    @if (_summaryLoading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                    }
+                    排程汇总
+                </MudButton>
+            }
             @if (_scheduleUpdatedTime.HasValue)
             {
                 <MudText Typo="Typo.body2" Class="ml-4 mr-2">
@@ -170,7 +189,9 @@
                                     <MudSelectItem Value="@("None")">无计划</MudSelectItem>
                                     <MudSelectItem Value="@("All")">全量</MudSelectItem>
                                     <MudSelectItem Value="@("Urgent")">急单</MudSelectItem>
-                                    <MudSelectItem Value="@("Partial")">部分</MudSelectItem>
+                                    <MudSelectItem Value="@("Partial1")">部分(1)</MudSelectItem>
+                                    <MudSelectItem Value="@("Partial2")">部分(2)</MudSelectItem>
+                                    <MudSelectItem Value="@("Partial3")">部分(3)</MudSelectItem>
                                 </MudSelect>
                             </MudTd>
                         }
@@ -183,19 +204,11 @@
                                     <MudSelectItem Value="@("None")">无计划</MudSelectItem>
                                     <MudSelectItem Value="@("All")">全量</MudSelectItem>
                                     <MudSelectItem Value="@("Urgent")">急单</MudSelectItem>
-                                    <MudSelectItem Value="@("Partial")">部分</MudSelectItem>
+                                    <MudSelectItem Value="@("Partial1")">部分(1)</MudSelectItem>
+                                    <MudSelectItem Value="@("Partial2")">部分(2)</MudSelectItem>
+                                    <MudSelectItem Value="@("Partial3")">部分(3)</MudSelectItem>
                                     <MudSelectItem Value="@("Subsequent")">后续</MudSelectItem>
                                 </MudSelect>
-                            </MudTd>
-                        }
-                        else if (_isSchedulingMode && col.Key == "RollOrder")
-                        {
-                            <MudTd Class="@_cellClass">
-                                <MudNumericField T="int" Value="@_edit.RollOrder"
-                                                 ValueChanged="@(v => { _edit.RollOrder = v; })"
-                                                 Dense="true" Variant="Variant.Outlined"
-                                                 HideSpinButtons="true"
-                                                 Min="0" Class="compact-input" />
                             </MudTd>
                         }
                         else if (_isSchedulingMode && col.Key == "SchedMachineNo")
@@ -236,6 +249,94 @@
             </MudTable>
         </MudCardContent>
     </MudCard>
+
+    @* 排程汇总 — 按冷轧类型分列表展示 *@
+    @if (_showScheduleSummary && _scheduleSummaryData.Any())
+    {
+        var _summaryGroups = _scheduleSummaryData
+            .GroupBy(x => x.ProcessType)
+            .OrderBy(g => g.Key)
+            .ToList();
+
+        <div class="mt-4">
+            <div class="d-flex align-center mb-3" style="gap: 12px;">
+                <MudText Typo="Typo.h6" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Summarize" Class="mr-1" Color="Color.Primary" />
+                    排程汇总 — 按冷轧类型分组
+                </MudText>
+                <div class="d-flex align-center" style="gap: 4px;">
+                    <MudText Typo="Typo.body2" Class="mr-1" Style="color: #666;">原工量差 &le;</MudText>
+                    @foreach (var opt in new[] { 3, 5, 7 })
+                    {
+                        <MudButton Variant="@(_summaryMaxDiff == opt ? Variant.Filled : Variant.Outlined)"
+                                   Color="@(_summaryMaxDiff == opt ? Color.Primary : Color.Default)"
+                                   Size="Size.Small"
+                                   OnClick="@(() => OnSummaryMaxDiffChanged(opt))">@opt</MudButton>
+                    }
+                    <MudButton Variant="@(!_summaryMaxDiff.HasValue ? Variant.Filled : Variant.Outlined)"
+                               Color="@(!_summaryMaxDiff.HasValue ? Color.Primary : Color.Default)"
+                               Size="Size.Small"
+                               OnClick="@(() => OnSummaryMaxDiffChanged(null))">全部</MudButton>
+                </div>
+            </div>
+
+            @foreach (var group in _summaryGroups)
+            {
+                var groupItems = group.ToList();
+                var grpTotalWeight = groupItems.Sum(x => x.TotalWeight);
+                var grpFlowWeight = groupItems.Sum(x => x.FlowWeight);
+
+                <MudCard Class="mb-3" Style="border-left: 4px solid #1976D2;">
+                    <MudCardContent Class="pa-3">
+                        <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-2" Style="color: #1565C0;">
+                            @group.Key
+                            <span class="ml-4" style="font-size: 0.85rem; color: #555; font-weight: normal;">
+                                总批次数：<b>@groupItems.Sum(x => x.TotalBatchCount)</b>
+                                &nbsp;|&nbsp;总重量(kg)：<b>@(((int)grpTotalWeight).ToString())</b>
+                                &nbsp;|&nbsp;流转重量(kg)：<b style="color:#2E7D32;">@(((int)grpFlowWeight).ToString())</b>
+                            </span>
+                        </MudText>
+
+                        <table class="summary-flow-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 200px;">外径跨度</th>
+                                    <th style="width: 100px;">批次数</th>
+                                    <th style="width: 120px;">总重量(kg)</th>
+                                    <th style="width: 120px;">流转重量(kg)</th>
+                                    <th style="width: 120px;">完工冷轧(kg)</th>
+                                    <th style="width: 120px;">冷轧(kg)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in groupItems)
+                                {
+                                    <tr>
+                                        <td>@item.ShortDisplay</td>
+                                        <td>@item.TotalBatchCount</td>
+                                        <td>@(((int)item.TotalWeight).ToString())</td>
+                                        <td style="color: #2E7D32;">@(((int)item.FlowWeight).ToString())</td>
+                                        <td style="color: #1565C0;">@(((int)item.CompletionWeight).ToString())</td>
+                                        <td style="color: #E65100;">@(((int)item.RollWeight).ToString())</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td><b>小计</b></td>
+                                    <td><b>@groupItems.Sum(x => x.TotalBatchCount)</b></td>
+                                    <td><b>@(((int)grpTotalWeight).ToString())</b></td>
+                                    <td><b style="color:#2E7D32;">@(((int)grpFlowWeight).ToString())</b></td>
+                                    <td><b style="color:#1565C0;">@(((int)groupItems.Sum(x => x.CompletionWeight)).ToString())</b></td>
+                                    <td><b style="color:#E65100;">@(((int)groupItems.Sum(x => x.RollWeight)).ToString())</b></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </MudCardContent>
+                </MudCard>
+            }
+        </div>
+    }
 </MudContainer>
 
 <style>
@@ -269,5 +370,30 @@
     .compact-input .mud-input-root {
         font-size: 0.7rem !important;
         padding: 2px 4px !important;
+    }
+    .summary-flow-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+    .summary-flow-table th {
+        text-align: left;
+        padding: 6px 8px;
+        border-bottom: 2px solid #e0e0e0;
+        color: #333;
+        font-weight: 600;
+    }
+    .summary-flow-table td {
+        padding: 5px 8px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .summary-flow-table tfoot td {
+        border-top: 2px solid #1976D2;
+        border-bottom: none;
+        padding-top: 6px;
+        background-color: #f5f9ff;
+    }
+    .summary-flow-table tbody tr:hover {
+        background-color: #fafafa;
     }
 </style>

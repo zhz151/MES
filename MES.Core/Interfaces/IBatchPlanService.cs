@@ -22,4 +22,11 @@ public interface IBatchPlanService
     /// 全量加载（含冷轧排程维度），按工段筛选后返回全部记录
     /// </summary>
     Task<List<BatchPlanDto>> GetAllAsync(string? sectionTab);
+
+    /// <summary>
+    /// 获取冷轧排程流转汇总 — 基于批次看板实际 IsFlow 判定结果，按(FlowCRType, 外径跨度)聚合
+    /// </summary>
+    /// <param name="sectionTab">工段筛选</param>
+    /// <param name="maxDiff">最大原工量差筛选：null=全部，n=原工量差小于等于n的流转批次</param>
+    Task<List<ColdRollScheduleSummaryDto>> GetFlowSummaryAsync(string? sectionTab, int? maxDiff = null);
 }

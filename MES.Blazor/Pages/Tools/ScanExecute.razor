@@ -6,6 +6,7 @@
 @using Microsoft.AspNetCore.Authorization
 @implements IDisposable
 @inject ScanService ScanService
+@inject WorkstationService WorkstationService
 @inject FinalInspectionService FinalInspectionService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -35,24 +36,47 @@
                                Color="Color.Primary"
                                Size="Size.Small"
                                OnClick="@(() => { _mode = ScanMode.Production; StateHasChanged(); })"
-                               Style="flex: 1; max-width: 120px; font-size: 0.875rem; height: 36px;">
+                               Style="flex: 1; max-width: 120px; font-size: 0.875rem; height: 44px;">
                         报工
                     </MudButton>
                     <MudButton Variant="@(_mode == ScanMode.ProcessInspection ? Variant.Filled : Variant.Outlined)"
                                Color="Color.Primary"
                                Size="Size.Small"
                                OnClick="@(() => { _mode = ScanMode.ProcessInspection; StateHasChanged(); })"
-                               Style="flex: 1; max-width: 120px; font-size: 0.875rem; height: 36px;">
+                               Style="flex: 1; max-width: 120px; font-size: 0.875rem; height: 44px;">
                         过程检验
                     </MudButton>
                     <MudButton Variant="@(_mode == ScanMode.FinalInspection ? Variant.Filled : Variant.Outlined)"
                                Color="Color.Primary"
                                Size="Size.Small"
                                OnClick="@(() => { _mode = ScanMode.FinalInspection; StateHasChanged(); })"
-                               Style="flex: 1; max-width: 120px; font-size: 0.875rem; height: 36px;">
+                               Style="flex: 1; max-width: 120px; font-size: 0.875rem; height: 44px;">
                         成品检验
                     </MudButton>
                 </div>
+
+                @* 工位上下文 *@
+                @if (_hasWorkstation)
+                {
+                    <MudPaper Class="pa-3 mb-4" Elevation="2" Style="width: 100%; border-left: 4px solid #1976d2; background: #e3f2fd;">
+                        <div class="d-flex align-center mb-1">
+                            <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Color="Color.Primary" Size="Size.Small" Class="mr-1" />
+                            <MudText Typo="Typo.body2" Class="font-weight-bold" Color="Color.Primary">@_workstationContext!.Name</MudText>
+                            <MudChip Size="Size.Small" Color="Color.Primary" Class="ml-2">@_workstationContext.Code</MudChip>
+                        </div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            设备：@_workstationContext.EquipmentName
+                            @if (!string.IsNullOrEmpty(_workstationContext.SectionName))
+                            {
+                                <text> | 工段：@_workstationContext.SectionName</text>
+                            }
+                        </MudText>
+                        <MudButton Variant="Variant.Text" Color="Color.Default" Size="Size.Small"
+                                   OnClick="ClearWorkstation" Class="mt-1" Style="font-size: 0.75rem;">
+                            更换工位
+                        </MudButton>
+                    </MudPaper>
+                }
 
                 @* 扫描步骤 *@
                 <div class="d-flex flex-column align-center">
@@ -62,33 +86,34 @@
                                OnClick="StartCamera"
                                Disabled="@_isCameraStarted"
                                Class="mb-4 pa-4"
-                               Style="font-size: 1.1rem;">
-                        @(_isCameraStarted ? "扫描中..." : "扫描二维码")
+                               Style="font-size: 1.2rem; min-height: 52px;">
+                        @_scanButtonText
                     </MudButton>
 
                     @if (_isCameraStarted)
                     {
-                        <div style="position: relative; width: 100%; max-width: 480px;">
-                            <video id="scan-video"
-                                   style="width: 100%; border: 2px solid #ccc; border-radius: 8px; background: #000;"></video>
+                        <div class="camera-overlay">
+                            <video id="scan-video" class="camera-video"></video>
                             <canvas id="scan-canvas" style="display: none;"></canvas>
-                            <MudButton Variant="Variant.Outlined" Color="Color.Error"
-                                       Size="Size.Small"
-                                       OnClick="StopCamera"
-                                       Class="mt-2"
-                                       FullWidth="true">
-                                取消扫描
-                            </MudButton>
+                            <div class="camera-footer">
+                                <MudButton Variant="Variant.Filled" Color="Color.Error"
+                                           Size="Size.Large"
+                                           OnClick="StopCamera"
+                                           FullWidth="true"
+                                           StartIcon="@Icons.Material.Filled.Close">
+                                    取消扫描
+                                </MudButton>
+                            </div>
                         </div>
                     }
 
                     <MudText Typo="Typo.body2" Class="mt-4 mb-1" Color="Color.Secondary">或手动输入</MudText>
-                    <div style="width: 100%; max-width: 480px;">
+                    <div style="width: 100%;" class="manual-input-container">
                         <MudTextField @bind-Value="_manualInput"
                                       Label="输入批次号（或 批次号|工序组ID）"
                                       Variant="Variant.Outlined"
                                       Class="mb-2"
-                                      Style="font-size: 0.875rem; height: 32px;" />
+                                      Style="font-size: 0.875rem; height: 44px;" />
                         <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
                                    FullWidth="true"
                                    OnClick="ResolveManualInput"
@@ -125,7 +150,7 @@
                            Label="请选择工序组"
                            Variant="Variant.Outlined"
                            Class="mb-2"
-                           Style="font-size: 0.875rem; height: 32px;"
+                           Style="font-size: 0.875rem; height: 44px;"
                            AnchorOrigin="Origin.BottomCenter"
                            ToStringFunc="@((ProcessGroupOption? g) => g == null ? "" : $"{g.SequenceNumber}. {g.ProcessName} ({g.ManufacturingSpec ?? "-"})")">
                     @foreach (var g in _batchGroupResult?.ProcessGroups ?? new())
@@ -194,7 +219,7 @@
                                Label="选择工段"
                                Variant="Variant.Outlined"
                                Class="mb-2"
-                               Style="font-size: 0.875rem; height: 32px;"
+                               Style="font-size: 0.875rem; height: 44px;"
                                For="@(() => _selectedSection)">
                         @foreach (var sec in _resolveResult?.AvailableSections ?? new())
                         {
@@ -209,7 +234,7 @@
                                Label="检验项目"
                                Variant="Variant.Outlined"
                                Class="mb-2"
-                               Style="font-size: 0.875rem; height: 32px;"
+                               Style="font-size: 0.875rem; height: 44px;"
                                AnchorOrigin="Origin.BottomCenter">
                         @foreach (InspectionItem item in Enum.GetValues<InspectionItem>())
                         {
@@ -226,11 +251,11 @@
                                       Label="检验日期"
                                       Placeholder="yyyy-MM-dd"
                                       Variant="Variant.Outlined"
-                                      Style="font-size: 0.875rem; height: 32px;" />
+                                      Style="font-size: 0.875rem; height: 44px;" />
                         <MudSelect @bind-Value="_shift"
                                    Label="班次"
                                    Variant="Variant.Outlined"
-                                   Style="font-size: 0.875rem; height: 32px;">
+                                   Style="font-size: 0.875rem; height: 44px;">
                             <MudSelectItem Value="@("白班")">白班</MudSelectItem>
                             <MudSelectItem Value="@("中班")">中班</MudSelectItem>
                             <MudSelectItem Value="@("夜班")">夜班</MudSelectItem>
@@ -240,11 +265,11 @@
                         <MudTextField @bind-Value="_inspector"
                                       Label="检验员"
                                       Variant="Variant.Outlined"
-                                      Style="font-size: 0.875rem; height: 32px;" />
+                                      Style="font-size: 0.875rem; height: 44px;" />
                         <MudTextField @bind-Value="_equipmentName"
                                       Label="设备名称"
                                       Variant="Variant.Outlined"
-                                      Style="font-size: 0.875rem; height: 32px;" />
+                                      Style="font-size: 0.875rem; height: 44px;" />
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;" class="mt-2">
                         <MudNumericField T="int?"
@@ -252,23 +277,23 @@
                                          Label="检验数量"
                                          Variant="Variant.Outlined"
                                          HideSpinButtons="true"
-                                         Style="font-size: 0.875rem; height: 32px;" />
+                                         Style="font-size: 0.875rem; height: 44px;" />
                         <MudNumericField T="decimal?" Format="G29"
                                          @bind-Value="_weight"
                                          Label="检验重量(kg)"
                                          Variant="Variant.Outlined"
                                          HideSpinButtons="true"
-                                         Style="font-size: 0.875rem; height: 32px;" />
+                                         Style="font-size: 0.875rem; height: 44px;" />
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;" class="mt-2">
                         <MudTextField @bind-Value="_inspectionItem"
                                       Label="检验项目"
                                       Variant="Variant.Outlined"
-                                      Style="font-size: 0.875rem; height: 32px;" />
+                                      Style="font-size: 0.875rem; height: 44px;" />
                         <MudTextField @bind-Value="_sourceUnit"
                                       Label="来料单位"
                                       Variant="Variant.Outlined"
-                                      Style="font-size: 0.875rem; height: 32px;" />
+                                      Style="font-size: 0.875rem; height: 44px;" />
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;" class="mt-2">
                         <MudNumericField T="int?"
@@ -276,13 +301,13 @@
                                          Label="合格支数"
                                          Variant="Variant.Outlined"
                                          HideSpinButtons="true"
-                                         Style="font-size: 0.875rem; height: 32px;" />
+                                         Style="font-size: 0.875rem; height: 44px;" />
                         <MudNumericField T="decimal?" Format="G29"
                                          @bind-Value="_qualifiedWeight"
                                          Label="合格重量(kg)"
                                          Variant="Variant.Outlined"
                                          HideSpinButtons="true"
-                                         Style="font-size: 0.875rem; height: 32px;" />
+                                         Style="font-size: 0.875rem; height: 44px;" />
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;" class="mt-2">
                         <MudNumericField T="int?"
@@ -290,29 +315,29 @@
                                          Label="返整支数"
                                          Variant="Variant.Outlined"
                                          HideSpinButtons="true"
-                                         Style="font-size: 0.875rem; height: 32px;" />
+                                         Style="font-size: 0.875rem; height: 44px;" />
                         <MudNumericField T="int?"
                                          @bind-Value="_defectWarehouseQuantity"
                                          Label="入库支数"
                                          Variant="Variant.Outlined"
                                          HideSpinButtons="true"
-                                         Style="font-size: 0.875rem; height: 32px;" />
+                                         Style="font-size: 0.875rem; height: 44px;" />
                         <MudNumericField T="int?"
                                          @bind-Value="_defectScrapQuantity"
                                          Label="报废支数"
                                          Variant="Variant.Outlined"
                                          HideSpinButtons="true"
-                                         Style="font-size: 0.875rem; height: 32px;" />
+                                         Style="font-size: 0.875rem; height: 44px;" />
                     </div>
                     <MudTextField @bind-Value="_defectDescription"
                                   Label="不合格情况描述"
                                   Variant="Variant.Outlined"
-                                  Style="font-size: 0.875rem; height: 32px;"
+                                  Style="font-size: 0.875rem; height: 44px;"
                                   Class="mt-2" />
                     <MudTextField @bind-Value="_remark"
                                   Label="备注"
                                   Variant="Variant.Outlined"
-                                  Style="font-size: 0.875rem; height: 32px;"
+                                  Style="font-size: 0.875rem; height: 44px;"
                                   Class="mt-2" />
                 }
                 else if (_mode == ScanMode.Production)
@@ -323,11 +348,11 @@
                                       Label="执行日期"
                                       Placeholder="yyyy-MM-dd"
                                       Variant="Variant.Outlined"
-                                      Style="font-size: 0.875rem; height: 32px;" />
+                                      Style="font-size: 0.875rem; height: 44px;" />
                         <MudSelect @bind-Value="_shift"
                                    Label="班次"
                                    Variant="Variant.Outlined"
-                                   Style="font-size: 0.875rem; height: 32px;">
+                                   Style="font-size: 0.875rem; height: 44px;">
                             <MudSelectItem Value="@("白班")">白班</MudSelectItem>
                             <MudSelectItem Value="@("中班")">中班</MudSelectItem>
                             <MudSelectItem Value="@("夜班")">夜班</MudSelectItem>
@@ -337,11 +362,11 @@
                         <MudTextField @bind-Value="_operator"
                                       Label="操作工（工号）"
                                       Variant="Variant.Outlined"
-                                      Style="font-size: 0.875rem; height: 32px;" />
+                                      Style="font-size: 0.875rem; height: 44px;" />
                         <MudTextField @bind-Value="_equipmentName"
                                       Label="设备名称"
                                       Variant="Variant.Outlined"
-                                      Style="font-size: 0.875rem; height: 32px;" />
+                                      Style="font-size: 0.875rem; height: 44px;" />
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;" class="mt-2">
                         <MudNumericField T="int?"
@@ -349,18 +374,18 @@
                                          Label="生产支数"
                                          Variant="Variant.Outlined"
                                          HideSpinButtons="true"
-                                         Style="font-size: 0.875rem; height: 32px;" />
+                                         Style="font-size: 0.875rem; height: 44px;" />
                         <MudNumericField T="decimal?" Format="G29"
                                          @bind-Value="_weight"
                                          Label="重量(kg)"
                                          Variant="Variant.Outlined"
                                          HideSpinButtons="true"
-                                         Style="font-size: 0.875rem; height: 32px;" />
+                                         Style="font-size: 0.875rem; height: 44px;" />
                     </div>
                     <MudTextField @bind-Value="_remark"
                                   Label="备注"
                                   Variant="Variant.Outlined"
-                                  Style="font-size: 0.875rem; height: 32px;"
+                                  Style="font-size: 0.875rem; height: 44px;"
                                   Class="mt-2" />
                 }
                 else if (_mode == ScanMode.FinalInspection)
@@ -371,11 +396,11 @@
                                       Label="检验日期"
                                       Placeholder="yyyy-MM-dd"
                                       Variant="Variant.Outlined"
-                                      Style="font-size: 0.875rem; height: 32px;" />
+                                      Style="font-size: 0.875rem; height: 44px;" />
                         <MudSelect @bind-Value="_shift"
                                    Label="班次"
                                    Variant="Variant.Outlined"
-                                   Style="font-size: 0.875rem; height: 32px;">
+                                   Style="font-size: 0.875rem; height: 44px;">
                             <MudSelectItem Value="@("白班")">白班</MudSelectItem>
                             <MudSelectItem Value="@("中班")">中班</MudSelectItem>
                             <MudSelectItem Value="@("夜班")">夜班</MudSelectItem>
@@ -385,11 +410,11 @@
                         <MudTextField @bind-Value="_finalInspector"
                                       Label="检验员"
                                       Variant="Variant.Outlined"
-                                      Style="font-size: 0.875rem; height: 32px;" />
+                                      Style="font-size: 0.875rem; height: 44px;" />
                         <MudTextField @bind-Value="_equipmentName"
                                       Label="设备名称"
                                       Variant="Variant.Outlined"
-                                      Style="font-size: 0.875rem; height: 32px;" />
+                                      Style="font-size: 0.875rem; height: 44px;" />
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;" class="mt-2">
                         <MudNumericField T="int?"
@@ -397,13 +422,13 @@
                                          Label="检验支数"
                                          Variant="Variant.Outlined"
                                          HideSpinButtons="true"
-                                         Style="font-size: 0.875rem; height: 32px;" />
+                                         Style="font-size: 0.875rem; height: 44px;" />
                         <MudNumericField T="decimal?" Format="G29"
                                          @bind-Value="_weight"
                                          Label="检验重量(kg)"
                                          Variant="Variant.Outlined"
                                          HideSpinButtons="true"
-                                         Style="font-size: 0.875rem; height: 32px;" />
+                                         Style="font-size: 0.875rem; height: 44px;" />
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;" class="mt-2">
                         <MudNumericField T="int?"
@@ -411,13 +436,13 @@
                                          Label="合格支数"
                                          Variant="Variant.Outlined"
                                          HideSpinButtons="true"
-                                         Style="font-size: 0.875rem; height: 32px;" />
+                                         Style="font-size: 0.875rem; height: 44px;" />
                         <MudNumericField T="decimal?" Format="G29"
                                          @bind-Value="_qualifiedWeight"
                                          Label="合格重量(kg)"
                                          Variant="Variant.Outlined"
                                          HideSpinButtons="true"
-                                         Style="font-size: 0.875rem; height: 32px;" />
+                                         Style="font-size: 0.875rem; height: 44px;" />
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;" class="mt-2">
                         <MudNumericField T="int?"
@@ -425,24 +450,24 @@
                                          Label="返整支数"
                                          Variant="Variant.Outlined"
                                          HideSpinButtons="true"
-                                         Style="font-size: 0.875rem; height: 32px;" />
+                                         Style="font-size: 0.875rem; height: 44px;" />
                         <MudNumericField T="int?"
                                          @bind-Value="_defectWarehouseQuantity"
                                          Label="入库支数"
                                          Variant="Variant.Outlined"
                                          HideSpinButtons="true"
-                                         Style="font-size: 0.875rem; height: 32px;" />
+                                         Style="font-size: 0.875rem; height: 44px;" />
                         <MudNumericField T="int?"
                                          @bind-Value="_defectScrapQuantity"
                                          Label="报废支数"
                                          Variant="Variant.Outlined"
                                          HideSpinButtons="true"
-                                         Style="font-size: 0.875rem; height: 32px;" />
+                                         Style="font-size: 0.875rem; height: 44px;" />
                     </div>
                     <MudTextField @bind-Value="_defectDescription"
                                   Label="不合格情况描述"
                                   Variant="Variant.Outlined"
-                                  Style="font-size: 0.875rem; height: 32px;"
+                                  Style="font-size: 0.875rem; height: 44px;"
                                   Class="mt-2" />
 
                     @* 尺寸检验专用字段 *@
@@ -453,16 +478,16 @@
                             <MudTextField @bind-Value="_finalOuterDiameterRange"
                                           Label="外径范围"
                                           Variant="Variant.Outlined"
-                                          Style="font-size: 0.875rem; height: 32px;" />
+                                          Style="font-size: 0.875rem; height: 44px;" />
                             <MudTextField @bind-Value="_finalWallThicknessRange"
                                           Label="壁厚范围"
                                           Variant="Variant.Outlined"
-                                          Style="font-size: 0.875rem; height: 32px;" />
+                                          Style="font-size: 0.875rem; height: 44px;" />
                         </div>
                         <MudTextField @bind-Value="_finalLengthAllowanceRange"
                                       Label="长度余量范围"
                                       Variant="Variant.Outlined"
-                                      Style="font-size: 0.875rem; height: 32px;"
+                                      Style="font-size: 0.875rem; height: 44px;"
                                       Class="mt-2" />
                     }
 
@@ -479,20 +504,20 @@
                                              Label="压力(Mpa)"
                                              Variant="Variant.Outlined"
                                              HideSpinButtons="true"
-                                             Style="font-size: 0.875rem; height: 32px;" />
+                                             Style="font-size: 0.875rem; height: 44px;" />
                             <MudNumericField T="int?"
                                              @bind-Value="_finalHoldTime"
                                              Label="保压时间(s)"
                                              Variant="Variant.Outlined"
                                              HideSpinButtons="true"
-                                             Style="font-size: 0.875rem; height: 32px;" />
+                                             Style="font-size: 0.875rem; height: 44px;" />
                         </div>
                     }
 
                     <MudTextField @bind-Value="_remark"
                                   Label="备注"
                                   Variant="Variant.Outlined"
-                                  Style="font-size: 0.875rem; height: 32px;"
+                                  Style="font-size: 0.875rem; height: 44px;"
                                   Class="mt-2" />
                 }
 
@@ -576,6 +601,10 @@
     private string? _submittedSection;
     private ScanMode _submittedMode;
 
+    // 工位上下文
+    private WorkstationDto? _workstationContext;
+    private bool _hasWorkstation => _workstationContext != null;
+
     // 检验专用字段（过程检验）
     private string? _inspector;
     private string? _inspectionItem;
@@ -598,6 +627,8 @@
 
     private bool _isFinalInspection => _mode == ScanMode.FinalInspection;
     private bool _isSubmitDisabled => _isSubmitting || (_isFinalInspection ? _finalInspectionItem == null : string.IsNullOrWhiteSpace(_selectedSection));
+
+    private string _scanButtonText => _isCameraStarted ? "扫描中..." : _hasWorkstation ? "扫批次条码" : "扫工位码";
 
     private DotNetObjectReference<ScanExecute>? _dotNetRef;
 
@@ -650,32 +681,49 @@
     [JSInvokable]
     public async Task OnQrCodeDetected(string data)
     {
-        // 支持两种格式：
-        //   1. 批次号|工序组ID  （如 BATCH-001|5，直接到报工/过程检验步骤）
-        //   2. 纯批次号          （如 BATCH-001，先选工序组，或成品检验直接到表单）
         try
         {
+            // 支持三种格式：
+            //   1. 工位码（如 W001/WS-01）— 先扫工位，绑定上下文
+            //   2. 批次号|工序组ID  — 直接到报工/过程检验步骤
+            //   3. 纯批次号          — 结合工位上下文或选工序组
             var parts = data.Split('|');
-            if (parts.Length == 1)
+            if (parts.Length >= 2 && int.TryParse(parts[1], out var groupId))
             {
-                // 纯批次号 — 成品检验直接到表单，其他先选工序组
-                if (_mode == ScanMode.FinalInspection)
+                // 格式2：批次号|工序组ID
+                await ResolveAndPreview(parts[0], groupId);
+                return;
+            }
+
+            // 尝试解析为工位码（仅当未绑定工位时）
+            if (!_hasWorkstation)
+            {
+                var wsResponse = await WorkstationService.GetByCodeAsync(data);
+                if (wsResponse.Success && wsResponse.Data != null)
                 {
-                    await ResolveForFinalInspection(parts[0]);
-                }
-                else
-                {
-                    await ResolveByBatchOnly(parts[0]);
+                    _workstationContext = wsResponse.Data;
+                    _equipmentName = _workstationContext.EquipmentName;
+                    Snackbar.Add($"已识别工位：{_workstationContext.Name}", Severity.Success);
+                    await StopCamera();
+                    StateHasChanged();
+                    return;
                 }
             }
-            else if (parts.Length >= 2 && int.TryParse(parts[1], out var groupId))
+
+            // 格式3：纯批次号
+            if (_hasWorkstation && !string.IsNullOrEmpty(_workstationContext!.SectionName)
+                && _mode != ScanMode.FinalInspection)
             {
-                await ResolveAndPreview(parts[0], groupId);
+                // 有工位上下文且绑定了工段 -> 按工段自动匹配工序组
+                await ResolveByBatchAndSection(data, _workstationContext.SectionName);
+            }
+            else if (_mode == ScanMode.FinalInspection)
+            {
+                await ResolveForFinalInspection(data);
             }
             else
             {
-                Snackbar.Add("无效的二维码格式", Severity.Error);
-                StateHasChanged();
+                await ResolveByBatchOnly(data);
             }
         }
         catch (Exception ex)
@@ -704,24 +752,24 @@
         var input = _manualInput!.Trim();
         var parts = input.Split('|');
 
-        if (parts.Length == 1)
+        if (parts.Length >= 2 && int.TryParse(parts[1], out var groupId))
         {
-            if (_mode == ScanMode.FinalInspection)
-            {
-                await ResolveForFinalInspection(parts[0]);
-            }
-            else
-            {
-                await ResolveByBatchOnly(parts[0]);
-            }
-        }
-        else if (parts.Length >= 2 && int.TryParse(parts[1], out var groupId))
-        {
+            // 批次号|工序组ID
             await ResolveAndPreview(parts[0], groupId);
+        }
+        else if (_hasWorkstation && !string.IsNullOrEmpty(_workstationContext!.SectionName)
+                 && _mode != ScanMode.FinalInspection)
+        {
+            // 已绑定工位 -> 按工段自动匹配工序组
+            await ResolveByBatchAndSection(input, _workstationContext.SectionName);
+        }
+        else if (_mode == ScanMode.FinalInspection)
+        {
+            await ResolveForFinalInspection(input);
         }
         else
         {
-            Snackbar.Add("输入格式无效，请输入批次号 或 批次号|工序组ID", Severity.Error);
+            await ResolveByBatchOnly(input);
         }
     }
 
@@ -729,6 +777,13 @@
 
     private async Task ResolveByBatchOnly(string batchNo)
     {
+        // 如果已绑定工位且绑定了工段，则按工段自动匹配工序组
+        if (_hasWorkstation && !string.IsNullOrEmpty(_workstationContext!.SectionName))
+        {
+            await ResolveByBatchAndSection(batchNo, _workstationContext.SectionName);
+            return;
+        }
+
         var response = await ScanService.GetBatchProcessGroupsAsync(batchNo);
         if (!response.Success)
         {
@@ -815,12 +870,12 @@
             ("制造规格", _resolveResult.ManufacturingSpec ?? "-"),
         };
 
-        // 重置报工字段
+        // 重置报工字段（保留工位上下文的设备名）
         _selectedSection = null;
         _execDateText = DateTime.Today.ToString("yyyy-MM-dd");
         _shift = "白班";
         _operator = null;
-        _equipmentName = null;
+        _equipmentName = _workstationContext?.EquipmentName;
         _quantity = null;
         _weight = null;
         _remark = null;
@@ -834,6 +889,70 @@
         _defectDescription = null;
         _sourceUnit = null;
         ResetFinalInspectionFields();
+
+        // 工位上下文自动匹配工段
+        if (_hasWorkstation && !string.IsNullOrEmpty(_workstationContext?.SectionName)
+            && _resolveResult?.AvailableSections.Any(s => s.SectionName == _workstationContext.SectionName) == true)
+        {
+            _selectedSection = _workstationContext.SectionName;
+        }
+
+        _step = ScanStep.Preview;
+        await StopCamera();
+        StateHasChanged();
+    }
+
+    private async Task ResolveByBatchAndSection(string batchNo, string sectionName)
+    {
+        var response = await ScanService.ResolveByBatchAndSectionAsync(batchNo, sectionName);
+        if (!response.Success || response.Data == null)
+        {
+            Snackbar.Add(response.Message ?? $"批次 {batchNo} 中未找到工段：{sectionName}", Severity.Warning);
+            // fallback: 让用户手动选工序组
+            await ResolveByBatchOnly(batchNo);
+            return;
+        }
+
+        // 直接使用匹配到的结果
+        _resolveResult = response.Data;
+        _batchInfoItems = new List<(string, string)>
+        {
+            ("生产编号", _resolveResult.BatchNo),
+            ("状态", _resolveResult.Status),
+            ("工厂牌号", _resolveResult.PlantGrade),
+            ("规格", _resolveResult.Specification),
+            ("挂牌号", _resolveResult.TagNo ?? "-"),
+            ("生产类型", _resolveResult.ProductionType ?? "-"),
+            ("工序", _resolveResult.ProcessName),
+            ("制造规格", _resolveResult.ManufacturingSpec ?? "-"),
+        };
+
+        // 重置报工字段（保留工位上下文的设备名）
+        _selectedSection = null;
+        _execDateText = DateTime.Today.ToString("yyyy-MM-dd");
+        _shift = "白班";
+        _operator = null;
+        _equipmentName = _workstationContext?.EquipmentName;
+        _quantity = null;
+        _weight = null;
+        _remark = null;
+        _inspector = null;
+        _inspectionItem = null;
+        _qualifiedQuantity = null;
+        _qualifiedWeight = null;
+        _defectReworkQuantity = null;
+        _defectWarehouseQuantity = null;
+        _defectScrapQuantity = null;
+        _defectDescription = null;
+        _sourceUnit = null;
+        ResetFinalInspectionFields();
+
+        // 工位上下文自动匹配工段
+        if (_hasWorkstation && !string.IsNullOrEmpty(_workstationContext?.SectionName)
+            && _resolveResult?.AvailableSections.Any(s => s.SectionName == _workstationContext.SectionName) == true)
+        {
+            _selectedSection = _workstationContext.SectionName;
+        }
 
         _step = ScanStep.Preview;
         await StopCamera();
@@ -1096,6 +1215,15 @@
         _finalPressure = null;
         _finalHoldTime = null;
         await StopCamera();
+        StateHasChanged();
+    }
+
+    private void ClearWorkstation()
+    {
+        _workstationContext = null;
+        _equipmentName = null;
+        _selectedSection = null;
+        Snackbar.Add("已清除工位", Severity.Normal);
         StateHasChanged();
     }
 

@@ -1,7 +1,7 @@
 namespace MES.Data.Entities.Scheduling;
 
 /// <summary>
-/// 原锁计划及执行（物化表，通过"计划安排"按钮全量刷新）
+/// 原锁计划（物化表，通过"计划安排"按钮全量刷新）
 /// 存储 ScheduleStage=1（原料锁定）的工单快照数据
 /// </summary>
 public class RawMaterialLockPlanAndExecution : BaseEntity

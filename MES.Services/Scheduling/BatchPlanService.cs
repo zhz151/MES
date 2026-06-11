@@ -184,7 +184,7 @@ public class BatchPlanService : IBatchPlanService
             // G4（COALESCE：工单计划薄表优先，无覆盖则回退系统值）
             UrgencyLevel = x.plan != null && x.plan.UrgencyLevel != null ? x.plan.UrgencyLevel : (x.s != null ? x.s.UrgencyLevel : null),
             ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : 0),
-            ProductionAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.ProductionAttentionProcess : null),
+            MainNoAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.MainNoAttentionProcess : null),
             ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : null),
 
             // G6（直接从 WorkOrderExecutionSummary 实体读取，无需额外 JOIN）
@@ -192,6 +192,7 @@ public class BatchPlanService : IBatchPlanService
             IsBatchDelivery = x.s != null && x.s.IsBatchDelivery,
             IsPaused = x.s != null && x.s.IsPaused,
             AdjustmentRemark = x.s != null ? x.s.AdjustmentRemark : null,
+            MaxBatchRemainingWorkDays = x.s != null ? x.s.MaxBatchRemainingWorkDays : null,
         });
 
         // 通用列筛选
@@ -206,7 +207,7 @@ public class BatchPlanService : IBatchPlanService
             x.CurrentValidWeight,
             x.ScheduleStage,
             x.UrgencyLevel,
-            x.ProductionAttentionProcess,
+            x.MainNoAttentionProcess,
             x.ProductionFlowProperty,
             x.CurrentSectionCompleted,
             x.CurrentGroupName,
@@ -227,16 +228,16 @@ public class BatchPlanService : IBatchPlanService
             (x.ScheduleStage == 2 &&
              (x.UrgencyLevel == "A+急" || x.UrgencyLevel == "A急") &&
              (pProcess(x.CurrentSectionCompleted, x.CurrentGroupName, x.NextProcess) == "荒管处理" ||
-              pProcess(x.CurrentSectionCompleted, x.CurrentGroupName, x.NextProcess) == x.ProductionAttentionProcess ||
-              x.ProductionAttentionProcess is null or "收尾-成检"))
+              pProcess(x.CurrentSectionCompleted, x.CurrentGroupName, x.NextProcess) == x.MainNoAttentionProcess ||
+              x.MainNoAttentionProcess is null or "收尾-成检"))
             ||
             // Tier 2：原料锁定 + 催单/分批交货 + 紧急 + pending条件
             (x.ScheduleStage == 1 &&
              (x.IsUrging || x.IsBatchDelivery) &&
              (x.UrgencyLevel == "A+急" || x.UrgencyLevel == "A急") &&
              (pProcess(x.CurrentSectionCompleted, x.CurrentGroupName, x.NextProcess) == "荒管处理" ||
-              pProcess(x.CurrentSectionCompleted, x.CurrentGroupName, x.NextProcess) == x.ProductionAttentionProcess ||
-              x.ProductionAttentionProcess is null or "收尾-成检"))).ToList();
+              pProcess(x.CurrentSectionCompleted, x.CurrentGroupName, x.NextProcess) == x.MainNoAttentionProcess ||
+              x.MainNoAttentionProcess is null or "收尾-成检"))).ToList();
         var keyBatchCount = keyBatches.Count;
         var keyBatchWeight = keyBatches.Sum(x => x.CurrentValidWeight ?? 0m);
 
@@ -337,7 +338,6 @@ public class BatchPlanService : IBatchPlanService
                     if (scheduleLookup.TryGetValue(curKey, out var curSched))
                     {
                         item.CR_RollType = curSched.RollType;
-                        item.CR_RollOrder = curSched.RollOrder;
                         item.CR_SchedMachineNo = curSched.MachineNo;
                     }
                 }
@@ -349,7 +349,6 @@ public class BatchPlanService : IBatchPlanService
                     if (scheduleLookup.TryGetValue(nextKey, out var nextSched))
                     {
                         item.CR_RollType = nextSched.RollType;
-                        item.CR_RollOrder = nextSched.RollOrder;
                         item.CR_SchedMachineNo = nextSched.MachineNo;
                     }
                 }
@@ -361,7 +360,6 @@ public class BatchPlanService : IBatchPlanService
                     if (scheduleLookup.TryGetValue(nextNextKey, out var nextNextSched))
                     {
                         item.CR_RollType = nextNextSched.RollType;
-                        item.CR_RollOrder = nextNextSched.RollOrder;
                         item.CR_SchedMachineNo = nextNextSched.MachineNo;
                     }
                 }
@@ -496,12 +494,13 @@ public class BatchPlanService : IBatchPlanService
             CorrespondingSpec = x.b.CorrespondingSpec,
             UrgencyLevel = x.plan != null && x.plan.UrgencyLevel != null ? x.plan.UrgencyLevel : (x.s != null ? x.s.UrgencyLevel : null),
             ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : 0),
-            ProductionAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.ProductionAttentionProcess : null),
+            MainNoAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.MainNoAttentionProcess : null),
             ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : null),
             IsUrging = x.s != null && x.s.IsUrging,
             IsBatchDelivery = x.s != null && x.s.IsBatchDelivery,
             IsPaused = x.s != null && x.s.IsPaused,
             AdjustmentRemark = x.s != null ? x.s.AdjustmentRemark : null,
+            MaxBatchRemainingWorkDays = x.s != null ? x.s.MaxBatchRemainingWorkDays : null,
 
             // 批次计划薄表
             PlanIsFlow = x.bp != null && x.bp.IsFlow,
@@ -604,7 +603,6 @@ public class BatchPlanService : IBatchPlanService
                     if (scheduleLookup.TryGetValue(curKey, out var curSched))
                     {
                         item.CR_RollType = curSched.RollType;
-                        item.CR_RollOrder = curSched.RollOrder;
                         item.CR_SchedMachineNo = curSched.MachineNo;
                     }
                 }
@@ -615,7 +613,6 @@ public class BatchPlanService : IBatchPlanService
                     if (scheduleLookup.TryGetValue(nextKey, out var nextSched))
                     {
                         item.CR_RollType = nextSched.RollType;
-                        item.CR_RollOrder = nextSched.RollOrder;
                         item.CR_SchedMachineNo = nextSched.MachineNo;
                     }
                 }
@@ -626,7 +623,6 @@ public class BatchPlanService : IBatchPlanService
                     if (scheduleLookup.TryGetValue(nextNextKey, out var nextNextSched))
                     {
                         item.CR_RollType = nextNextSched.RollType;
-                        item.CR_RollOrder = nextNextSched.RollOrder;
                         item.CR_SchedMachineNo = nextNextSched.MachineNo;
                     }
                 }
@@ -640,6 +636,87 @@ public class BatchPlanService : IBatchPlanService
         }
 
         return items;
+    }
+
+    /// <summary>
+    /// 获取冷轧排程流转汇总 — 基于批次计划薄表 PlanIsFlow（含手工调整），按(FlowCRType, 外径跨度)聚合
+    /// </summary>
+    public async Task<List<ColdRollScheduleSummaryDto>> GetFlowSummaryAsync(string? sectionTab, int? maxDiff = null)
+    {
+        // 1. 加载全量批次计划数据（复用 GetAllAsync 的完整逻辑，含 IsFlow 判定）
+        var allItems = await GetAllAsync(sectionTab);
+
+        // 2. 按原工量差筛选（PlanTargetSequence - PlanExecutionSequence）
+        if (maxDiff.HasValue)
+        {
+            allItems = allItems.Where(x =>
+                !x.OriginalDiff.HasValue ||
+                x.OriginalDiff.Value <= maxDiff.Value).ToList();
+        }
+
+        // 3. 仅取流转批次
+        var flowItems = allItems.Where(x => x.PlanIsFlow).ToList();
+        if (flowItems.Count == 0) return new List<ColdRollScheduleSummaryDto>();
+
+        // 3. 为每个流转批次确定(PlanFlowCRType, 外径跨度)用于聚合
+        var raw = new List<(string FlowCRType, string ShortDisplay, decimal Weight, string FlowTarget)>();
+
+        foreach (var item in flowItems)
+        {
+            if (string.IsNullOrEmpty(item.PlanFlowCRType)) continue;
+
+            // 根据批次计划组中的流转目标和冷轧类型，匹配实时冷轧层维度推导→外径跨度
+            string? billetSpec = null;
+            string? rollingSpec = null;
+
+            if (item.PlanFlowTarget == "完工冷轧")
+            {
+                // CompletionType 流转：使用当前冷轧层维度
+                billetSpec = item.CurrentCR_BilletSpec;
+                rollingSpec = item.CurrentCR_RollingSpec;
+            }
+            else if (item.PlanFlowTarget == "冷轧")
+            {
+                // RollType 流转：匹配 PlanFlowCRType 找到对应的冷轧层
+                if (item.PlanFlowCRType == item.CurrentCR_ProcessType)
+                { billetSpec = item.CurrentCR_BilletSpec; rollingSpec = item.CurrentCR_RollingSpec; }
+                else if (item.PlanFlowCRType == item.NextCR_ProcessType)
+                { billetSpec = item.NextCR_BilletSpec; rollingSpec = item.NextCR_RollingSpec; }
+                else if (item.PlanFlowCRType == item.NextNextCR_ProcessType)
+                { billetSpec = item.NextNextCR_BilletSpec; rollingSpec = item.NextNextCR_RollingSpec; }
+            }
+
+            if (string.IsNullOrEmpty(billetSpec) || string.IsNullOrEmpty(rollingSpec)) continue;
+
+            // 从规格提取外径跨度
+            var outer1 = billetSpec.Split('*', '×').FirstOrDefault()?.Trim() ?? "";
+            var outer2 = rollingSpec.Split('*', '×').FirstOrDefault()?.Trim() ?? "";
+            var shortDisplay = string.IsNullOrEmpty(outer1) || string.IsNullOrEmpty(outer2)
+                ? ""
+                : $"{outer1}-{outer2}";
+
+            raw.Add((item.PlanFlowCRType, shortDisplay, item.CurrentValidWeight ?? 0m, item.PlanFlowTarget ?? ""));
+        }
+
+        // 4. 按 (PlanFlowCRType, ShortDisplay) 聚合，区分流转目标
+        var result = raw
+            .GroupBy(r => new { r.FlowCRType, r.ShortDisplay })
+            .Select(g => new ColdRollScheduleSummaryDto
+            {
+                ShortDisplay = g.Key.ShortDisplay,
+                ProcessType = g.Key.FlowCRType,
+                TotalBatchCount = g.Count(),
+                TotalWeight = g.Sum(x => x.Weight),
+                FlowBatchCount = g.Count(),
+                FlowWeight = g.Sum(x => x.Weight),
+                CompletionWeight = g.Where(x => x.FlowTarget == "完工冷轧").Sum(x => x.Weight),
+                RollWeight = g.Where(x => x.FlowTarget == "冷轧").Sum(x => x.Weight),
+            })
+            .OrderBy(r => r.ProcessType)
+            .ThenBy(r => r.ShortDisplay)
+            .ToList();
+
+        return result;
     }
 
     public static int? ComputeTargetSequence(List<ProcessGroup> pgs, string? flowTarget, string? flowCRType)
@@ -694,7 +771,7 @@ public class BatchPlanService : IBatchPlanService
                     b.NextSectionName,
                     UrgencyLevel = s != null ? s.UrgencyLevel : null,
                     ScheduleStage = s != null ? s.ScheduleStage : (int?)null,
-                    ProductionAttentionProcess = s != null ? s.ProductionAttentionProcess : null,
+                    MainNoAttentionProcess = s != null ? s.MainNoAttentionProcess : null,
                     ProductionFlowProperty = s != null ? s.ProductionFlowProperty : null,
                 };
 
@@ -716,7 +793,7 @@ public class BatchPlanService : IBatchPlanService
             ["NextSectionName"] = all.Where(x => x.NextSectionName != null).Select(x => x.NextSectionName!).Distinct().OrderBy(x => x).ToList(),
             ["UrgencyLevel"] = all.Where(x => x.UrgencyLevel != null).Select(x => x.UrgencyLevel!).Distinct().OrderBy(x => x).ToList(),
             ["ScheduleStage"] = all.Where(x => x.ScheduleStage.HasValue).Select(x => x.ScheduleStage!.Value.ToString()).Distinct().OrderBy(x => x).ToList(),
-            ["ProductionAttentionProcess"] = all.Where(x => x.ProductionAttentionProcess != null).Select(x => x.ProductionAttentionProcess!).Distinct().OrderBy(x => x).ToList(),
+            ["MainNoAttentionProcess"] = all.Where(x => x.MainNoAttentionProcess != null).Select(x => x.MainNoAttentionProcess!).Distinct().OrderBy(x => x).ToList(),
             ["ProductionFlowProperty"] = all.Where(x => x.ProductionFlowProperty != null).Select(x => x.ProductionFlowProperty!).Distinct().OrderBy(x => x).ToList(),
         };
     }

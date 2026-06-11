@@ -89,6 +89,12 @@ public class WorkOrderScheduleDto
     /// <summary>生产流转性</summary>
     public string? ProductionFlowProperty { get; set; }
 
+    /// <summary>最大剩余工量（天）：此工单号下所有批次中 RemainingWorkDays 的最大值</summary>
+    public int? MaxBatchRemainingWorkDays { get; set; }
+
+    /// <summary>主号关注工序：同主号下剩余工量最大值所在工单的生产关注工序</summary>
+    public string? MainNoAttentionProcess { get; set; }
+
     // ========== G15: 工单计划薄表覆盖值（null = 使用系统值）==========
     /// <summary>工单状态覆盖</summary>
     public int? PlanScheduleStage { get; set; }
@@ -109,24 +115,22 @@ public class WorkOrderScheduleDto
     public string? DisplayUrgencyLevel => PlanUrgencyLevel ?? UrgencyLevel;
 
     /// <summary>显示的生产关注工序（覆盖值 ?? 系统值）</summary>
-    public string? DisplayProductionAttentionProcess => PlanProductionAttentionProcess ?? ProductionAttentionProcess;
+    public string? DisplayProductionAttentionProcess => PlanProductionAttentionProcess ?? MainNoAttentionProcess;
 
     /// <summary>显示的生产流转性（覆盖值 ?? 系统值）</summary>
     public string? DisplayProductionFlowProperty => PlanProductionFlowProperty ?? ProductionFlowProperty;
 
     // ========== 实时一致性 ==========
     /// <summary>
-    /// 实时一致性：G15计划值（覆盖值）与G12/G14系统值完全一致时为 true
-    /// 比较 关注状态(PlanScheduleStage vs ScheduleStage) +
-    ///      工单计划性(PlanUrgencyLevel vs UrgencyLevel) +
-    ///      生产关注工序(PlanProductionAttentionProcess vs ProductionAttentionProcess) +
-    ///      生产流转性(PlanProductionFlowProperty vs ProductionFlowProperty)
+    /// 实时一致性：计划值必须已覆盖 且 与系统值一致
+    /// - ScheduleStage（int）：Plan 非 null 且相等
+    /// - 字符串字段：Plan 和系统值均为空/ null 时等价，视为一致
     /// </summary>
     public bool ConsistencyStatus =>
-        DisplayScheduleStage == ScheduleStage &&
-        DisplayUrgencyLevel == UrgencyLevel &&
-        DisplayProductionAttentionProcess == ProductionAttentionProcess &&
-        DisplayProductionFlowProperty == ProductionFlowProperty;
+        PlanScheduleStage != null && PlanScheduleStage == ScheduleStage &&
+        (string.IsNullOrEmpty(PlanUrgencyLevel) ? string.IsNullOrEmpty(UrgencyLevel) : PlanUrgencyLevel == UrgencyLevel) &&
+        (string.IsNullOrEmpty(PlanProductionAttentionProcess) ? string.IsNullOrEmpty(MainNoAttentionProcess) : PlanProductionAttentionProcess == MainNoAttentionProcess) &&
+        (string.IsNullOrEmpty(PlanProductionFlowProperty) ? string.IsNullOrEmpty(ProductionFlowProperty) : PlanProductionFlowProperty == ProductionFlowProperty);
 
     // ========== 显示文本 ==========
     public string DelayPenaltyText => DelayPenalty ? "是" : "否";

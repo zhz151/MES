@@ -58,4 +58,13 @@ public class BatchPlanController : ControllerBase
         var result = await _service.GetFilterContextsAsync();
         return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
     }
+
+    [HttpGet("flow-summary")]
+    public async Task<ActionResult<ApiResponse<List<ColdRollScheduleSummaryDto>>>> GetFlowSummary(
+        [FromQuery] string? sectionTab = null,
+        [FromQuery] int? maxDiff = null)
+    {
+        var result = await _service.GetFlowSummaryAsync(sectionTab, maxDiff);
+        return Ok(ApiResponse<List<ColdRollScheduleSummaryDto>>.Ok(result));
+    }
 }

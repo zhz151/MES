@@ -221,6 +221,8 @@ public partial class WorkOrderExecution
             new() { Key = "DeformedProcessCompleted",      Label = "变形工序完成",       SortKey = "DeformedProcessCompleted",      FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 14, GroupName = "在产节点待量" },
             new() { Key = "ProductionAttentionProcess",    Label = "生产关注工序",       SortKey = "ProductionAttentionProcess",    FilterType = "string", Width = "100", GroupKey = 14, GroupName = "在产节点待量" },
             new() { Key = "ProductionFlowProperty",        Label = "生产流转性",         SortKey = "ProductionFlowProperty", FilterType = "string", Width = "100", GroupKey = 14, GroupName = "在产节点待量" },
+            new() { Key = "MaxBatchRemainingWorkDays",   Label = "最大剩余工量(天)", SortKey = "MaxBatchRemainingWorkDays", FilterType = "string", Width = "80",  GroupKey = 14, GroupName = "在产节点待量" },
+            new() { Key = "MainNoAttentionProcess",      Label = "主号关注工序",    SortKey = "MainNoAttentionProcess",    FilterType = "string", Width = "120", GroupKey = 14, GroupName = "在产节点待量" },
         };
 
         var all = new List<ColumnDef>();
@@ -611,6 +613,13 @@ public partial class WorkOrderExecution
                     }
                 }
                 catch { }
+            }
+
+            // 确保新字段始终可见（兼容旧保存状态不包含这些列）
+            foreach (var col in _allColumns)
+            {
+                if (col.Key is "MaxBatchRemainingWorkDays" or "MainNoAttentionProcess")
+                    col.Visible = true;
             }
 
             // 恢复列筛选
@@ -1023,6 +1032,12 @@ public partial class WorkOrderExecution
                 break;
             case "ProductionAttentionProcess":
                 builder.AddContent(0, item.ProductionAttentionProcess ?? "-");
+                break;
+            case "MaxBatchRemainingWorkDays":
+                builder.AddContent(0, item.MaxBatchRemainingWorkDays.HasValue ? $"{item.MaxBatchRemainingWorkDays}天" : "-");
+                break;
+            case "MainNoAttentionProcess":
+                builder.AddContent(0, item.MainNoAttentionProcess ?? "-");
                 break;
 
             // ========== G13: 订单需求调整 ==========

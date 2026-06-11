@@ -1,7 +1,7 @@
 namespace MES.Core.DTOs;
 
 /// <summary>
-/// 原锁计划及执行 DTO（G1+G2+G5+G3+G7+G10+G12+G13+G15）
+/// 原锁计划 DTO（G1+G2+G5+G3+G7+G10+G12+G13+G15）
 /// </summary>
 public class RawMaterialLockPlanAndExecutionDto
 {

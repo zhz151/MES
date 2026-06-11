@@ -172,7 +172,7 @@ public class ColdRollPlanService : IColdRollPlanService
                 var plan = summary != null ? planDict.GetValueOrDefault(summary.WorkOrderId) : null;
                 var urgency = plan?.UrgencyLevel ?? summary?.UrgencyLevel;
                 int scheduleStage = plan?.ScheduleStage ?? (summary?.ScheduleStage ?? 0);
-                var attentionProcess = plan?.ProductionAttentionProcess ?? summary?.ProductionAttentionProcess;
+                var attentionProcess = plan?.ProductionAttentionProcess ?? summary?.MainNoAttentionProcess;
                 var pendingProcess = batch.CurrentSectionCompleted == false ? batch.CurrentGroupName : batch.NextProcess;
 
                 bool isKeyBatch =

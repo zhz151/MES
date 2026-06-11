@@ -1077,7 +1077,9 @@ public static class DisplayHelper
     {
         "All" => "全量",
         "Urgent" => "急单",
-        "Partial" => "部分",
+        "Partial1" => "部分(1)",
+        "Partial2" => "部分(2)",
+        "Partial3" => "部分(3)",
         _ => "",
     };
 
@@ -1086,7 +1088,9 @@ public static class DisplayHelper
     {
         "All" => "全量",
         "Urgent" => "急单",
-        "Partial" => "部分",
+        "Partial1" => "部分(1)",
+        "Partial2" => "部分(2)",
+        "Partial3" => "部分(3)",
         "Subsequent" => "后续",
         _ => "",
     };

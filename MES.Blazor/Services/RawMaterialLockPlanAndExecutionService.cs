@@ -6,7 +6,7 @@ using MES.Core.Models;
 namespace MES.Blazor.Services;
 
 /// <summary>
-/// 原锁计划及执行前端服务
+/// 原锁计划前端服务
 /// </summary>
 public class RawMaterialLockPlanAndExecutionService
 {

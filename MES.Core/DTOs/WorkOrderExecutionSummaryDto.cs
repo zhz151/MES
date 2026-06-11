@@ -214,6 +214,8 @@ public class WorkOrderExecutionSummaryDto
     public decimal? PendingSectionDrawBench { get; set; }
     public bool DeformedProcessCompleted { get; set; }
     public string? ProductionAttentionProcess { get; set; }
+    public int? MaxBatchRemainingWorkDays { get; set; }
+    public string? MainNoAttentionProcess { get; set; }
 
     // ========== Group 13: 订单需求调整 ==========
     public bool IsUrging { get; set; }
