@@ -160,7 +160,20 @@ public class WorkOrderListSummaryService : IWorkOrderListSummaryService
         // 加载客户数据
         var customerByOrderNo = await LoadCustomerByOrderNoAsync(new List<string> { salesOrderNo });
 
-        var summaries = workOrders.Select(wo => BuildSummary(wo, planData, allWorkOrdersInOrders, customerByOrderNo)).ToList();
+        var fixedFinishRatio = await GetConfigAsync("MaterialPlanRatio", "FixedFinishRatio", 1.02m);
+        var fixedInventoryRatio = await GetConfigAsync("MaterialPlanRatio", "FixedInventoryRatio", 1.02m);
+        var nonFixedFinishRatio = await GetConfigAsync("MaterialPlanRatio", "NonFixedFinishRatio", 1.05m);
+        var nonFixedInventoryRatio = await GetConfigAsync("MaterialPlanRatio", "NonFixedInventoryRatio", 1.05m);
+        var fixedPartial = await GetConfigAsync("MaterialPlanStatus", "FixedPartial", 102m);
+        var fixedSatisfied = await GetConfigAsync("MaterialPlanStatus", "FixedSatisfied", 110m);
+        var nonFixedPartial = await GetConfigAsync("MaterialPlanStatus", "NonFixedPartial", 105m);
+        var nonFixedSatisfied = await GetConfigAsync("MaterialPlanStatus", "NonFixedSatisfied", 120m);
+        var smallBatchMaxQty = await GetConfigAsync("MaterialPlanStatus", "SmallBatchMaxQty", 20m);
+        var smallBatchSatisfiedRate = await GetConfigAsync("MaterialPlanStatus", "SmallBatchSatisfiedRate", 100m);
+
+        var summaries = workOrders.Select(wo => BuildSummary(wo, planData, allWorkOrdersInOrders, customerByOrderNo,
+            fixedFinishRatio, fixedInventoryRatio, nonFixedFinishRatio, nonFixedInventoryRatio,
+            smallBatchMaxQty, smallBatchSatisfiedRate, fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied)).ToList();
         await UpsertSummariesAsync(summaries, orderIds);
     }
 
@@ -331,13 +344,13 @@ public class WorkOrderListSummaryService : IWorkOrderListSummaryService
         PlanData planData,
         List<WoEntity> allWorkOrdersInOrder,
         Dictionary<string, (string salesman, string? endCustomer)> customerByOrderNo,
-        decimal fixedFinishRatio = 1.02m,
-        decimal fixedInventoryRatio = 1.02m,
-        decimal nonFixedFinishRatio = 1.05m,
-        decimal nonFixedInventoryRatio = 1.05m,
-        decimal smallBatchMaxQty = 20m, decimal smallBatchSatisfiedRate = 100m,
-        decimal fixedPartial = 102m, decimal fixedSatisfied = 110m,
-        decimal nonFixedPartial = 105m, decimal nonFixedSatisfied = 120m)
+        decimal fixedFinishRatio,
+        decimal fixedInventoryRatio,
+        decimal nonFixedFinishRatio,
+        decimal nonFixedInventoryRatio,
+        decimal smallBatchMaxQty, decimal smallBatchSatisfiedRate,
+        decimal fixedPartial, decimal fixedSatisfied,
+        decimal nonFixedPartial, decimal nonFixedSatisfied)
     {
         var woId = wo.Id;
 

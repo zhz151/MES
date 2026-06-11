@@ -24,6 +24,40 @@ public partial class ConfigParameters
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
 
+    // ========== 分类名映射（英文→中文） ==========
+
+    private static readonly Dictionary<string, string> CategoryDisplayMap = new()
+    {
+        // 用料计划域
+        ["MaterialPlanRatio"] = "用料计划-比率",
+        ["MaterialPlanStatus"] = "用料计划-状态阈值",
+        ["DimensionTolerance"] = "用料计划-尺寸公差",
+        ["LengthDefault"] = "用料计划-长度默认值",
+        ["ReworkRatio"] = "用料计划-返工比率",
+        // 批次域
+        ["ProcessingDiscount"] = "批次-加工折扣",
+        ["ProductionThreshold"] = "批次-生产阈值",
+        // 产能排程域
+        ["DateBucket"] = "产能排程-时间桶",
+        ["ProductionCapacity"] = "产能排程-日产能",
+        // 仓库域
+        ["WarehouseThreshold"] = "仓库-完成阈值",
+        // 交期排程域
+        ["WorkOrderDays"] = "交期排程-工单天数",
+        ["UrgencyThreshold"] = "交期排程-紧急度阈值",
+        // 合同域
+        ["ContractWeight"] = "合同-重量校验",
+        // 质量域
+        ["SequenceJump"] = "质量-工序跳号",
+        // 通用域
+        ["DefaultValue"] = "通用-默认值",
+    };
+
+    public static string GetCategoryDisplay(string category)
+    {
+        return CategoryDisplayMap.TryGetValue(category, out var display) ? display : category;
+    }
+
     // 排序状态
     private string sortColumn = "Category";
     private bool sortDescending = false;
@@ -38,7 +72,7 @@ public partial class ConfigParameters
         new() { Key = "Category",   Label = "参数分类",   SortKey = "category",   FilterType = null, IsRequired = true },
         new() { Key = "ParamKey",   Label = "参数键",     SortKey = "paramkey",   FilterType = null, IsRequired = true },
         new() { Key = "ParamValue", Label = "参数值",     SortKey = "paramvalue", FilterType = null, IsRequired = true },
-        new() { Key = "Remark",     Label = "备注",       SortKey = "remark",     FilterType = null },
+        new() { Key = "Remark",     Label = "用途说明",   SortKey = "remark",     FilterType = null },
     };
 
     // ========== 服务端数据加载 ==========
@@ -112,8 +146,29 @@ public partial class ConfigParameters
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        // 支持中文分类名搜索：将中文名映射回英文
+        _searchKeyword = ExpandSearchKeyword(_searchKeyword);
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
+    }
+
+    /// <summary>
+    /// 将用户输入的中文分类名扩展为英文，使搜索能命中数据库中的英文分类名
+    /// </summary>
+    private static string ExpandSearchKeyword(string keyword)
+    {
+        if (string.IsNullOrWhiteSpace(keyword)) return keyword;
+
+        // 对每个中英文映射，如果关键字包含中文名，则追加上对应的英文分类名
+        var extraTerms = new List<string>();
+        foreach (var kvp in CategoryDisplayMap)
+        {
+            if (keyword.Contains(kvp.Value))
+                extraTerms.Add(kvp.Key);
+        }
+        return extraTerms.Count > 0
+            ? keyword + " " + string.Join(" ", extraTerms)
+            : keyword;
     }
 
     // ========== 列选择操作 ==========

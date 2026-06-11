@@ -7,6 +7,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
 @using System.Text.Json
+@using static MES.Blazor.Pages.Configuration.ConfigParameters
 @inject ConfigParameterService ConfigParameterService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -22,7 +23,7 @@
             <CardHeaderContent>
                 <MudText Typo="Typo.h5" Class="font-weight-bold">
                     <MudIcon Icon="@Icons.Material.Filled.Tune" Class="mr-2" Color="Color.Primary" />
-                    业务参数配置
+                    全局-参数配置
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -40,7 +41,7 @@
             <MudGrid>
                 <MudItem xs="12" md="12">
                     <MudTextField T="string"
-                                  Label="模糊搜索 - 分类/参数键/备注"
+                                  Label="模糊搜索 - 分类/参数键/用途说明"
                                   Value="_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
@@ -112,7 +113,7 @@
                             }
                             else
                             {
-                                @item.Category
+                                <span title="@item.Category">@GetCategoryDisplay(item.Category)</span>
                             }
                         }
                         else if (col.Key == "ParamKey")

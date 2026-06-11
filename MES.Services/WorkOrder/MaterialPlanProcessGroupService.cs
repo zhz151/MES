@@ -15,14 +15,23 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
     private readonly AppDbContext _context;
     private readonly IStandardWorkDayService _standardWorkDayService;
     private readonly IStandardWorkDayDeliveryStateService _deliveryStateService;
+    private readonly IConfigParameterService _configService;
 
     public MaterialPlanProcessGroupService(AppDbContext context,
         IStandardWorkDayService standardWorkDayService,
-        IStandardWorkDayDeliveryStateService deliveryStateService)
+        IStandardWorkDayDeliveryStateService deliveryStateService,
+        IConfigParameterService configService)
     {
         _context = context;
         _standardWorkDayService = standardWorkDayService;
         _deliveryStateService = deliveryStateService;
+        _configService = configService;
+    }
+
+    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
+    {
+        var map = await _configService.GetConfigMapAsync(category);
+        return map.GetValueOrDefault(key, defaultValue);
     }
 
     public async Task<List<MaterialPlanProcessGroupDto>> GetByPlanAsync(int planType, int planId)
@@ -180,36 +189,37 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
     /// </summary>
     private async Task<int> CalculateStandardCycleAsync(int planType, int planId, List<SavePlanProcessGroupItem> items)
     {
-        if (items.Count == 0) return 3;
+        var defaultCycle = (int)await GetConfigAsync("DefaultValue", "StandardCycle", 3m);
+        if (items.Count == 0) return defaultCycle;
 
         int workOrderId;
 
         if (planType == 1)
         {
             var plan = await _context.PurchaseSemiPlans.FindAsync(planId);
-            if (plan == null) return 3;
+            if (plan == null) return defaultCycle;
             workOrderId = plan.WorkOrderId;
         }
         else if (planType == 3)
         {
             var plan = await _context.InventoryPlans.FindAsync(planId);
-            if (plan == null) return 3;
-            if (plan.ReworkType == null) return 3;
+            if (plan == null) return defaultCycle;
+            if (plan.ReworkType == null) return defaultCycle;
             workOrderId = plan.WorkOrderId;
         }
         else if (planType == 4)
         {
             var plan = await _context.RoundBarPiercingPlans.FindAsync(planId);
-            if (plan == null) return 3;
+            if (plan == null) return defaultCycle;
             workOrderId = plan.WorkOrderId;
         }
         else
         {
-            return 3;
+            return defaultCycle;
         }
 
         var workOrder = await _context.WorkOrders.FindAsync(workOrderId);
-        if (workOrder == null) return 3;
+        if (workOrder == null) return defaultCycle;
 
         var allSections = new List<(string, int)>();
         foreach (var item in items)
@@ -227,7 +237,7 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
             allSections, dayMap, deliveryStateExtraDays,
             workOrder.DeliveryState.ToString());
 
-        return cycle > 0 ? cycle : 3;
+        return cycle > 0 ? cycle : defaultCycle;
     }
 
     /// <summary>

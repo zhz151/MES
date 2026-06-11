@@ -906,7 +906,8 @@ public class ProductionRecordService : IProductionRecordService
         };
 
         // 计算生产支数/生产重量（创建时快照）
-        ComputeMaterialCheckQuantities(batch, entity);
+        var groupDiscountRate = await GetConfigAsync("ProcessingDiscount", "GroupDiscountRate", 0.025m);
+        ComputeMaterialCheckQuantities(batch, entity, groupDiscountRate);
 
         _context.MaterialReceiveChecks.Add(entity);
 
@@ -1024,7 +1025,8 @@ public class ProductionRecordService : IProductionRecordService
                 IsForceCompleted = false
             });
             // 计算生产支数/生产重量（创建时快照）
-            ComputeMaterialCheckQuantities(batch, entities[^1]);
+            var grpDiscount = await GetConfigAsync("ProcessingDiscount", "GroupDiscountRate", 0.025m);
+            ComputeMaterialCheckQuantities(batch, entities[^1], grpDiscount);
         }
 
         foreach (var batch in modifiedBatches)
@@ -1424,7 +1426,7 @@ public class ProductionRecordService : IProductionRecordService
         };
     }
 
-    private void ComputeMaterialCheckQuantities(ProductionBatch batch, MaterialReceiveCheck entity)
+    private void ComputeMaterialCheckQuantities(ProductionBatch batch, MaterialReceiveCheck entity, decimal groupDiscountRate)
     {
         // 库存/外购/返整/委外加工 → 现有效原料支数/重量
         // 荒管生产/在制生产/对外加工 → 切管产记录汇总 / 目标重量
@@ -1454,7 +1456,7 @@ public class ProductionRecordService : IProductionRecordService
             {
                 var effectiveGroupCount = batch.ProcessGroups
                     .Count(pg => GetSectionsFromProcessGroup(pg).Count > 0);
-                var discount = 1.0m - effectiveGroupCount * 0.025m;
+                var discount = 1.0m - effectiveGroupCount * groupDiscountRate;
                 if (discount < 0) discount = 0;
                 entity.ProductionWeight = (int?)(batch.CurrentValidWeight.Value * discount);
             }

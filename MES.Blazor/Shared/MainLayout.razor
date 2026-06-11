@@ -132,13 +132,13 @@
 
                 <!-- 参数表 -->
                 <AuthorizeView Roles="@Roles.Policies.ConfigurationRead">
-                    <MudMenu Label="参数表" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("standard-work-days","standard-work-day-delivery-states","config-parameters","daily-output-estimates","section-flow-category-settings","workstations")">
-                        <MudMenuItem Class="@GetMenuItemClass("/standard-work-days")" OnClick='() => NavigateTo("/standard-work-days")'>标准工量天数</MudMenuItem>
-                        <MudMenuItem Class="@GetMenuItemClass("/standard-work-day-delivery-states")" OnClick='() => NavigateTo("/standard-work-day-delivery-states")'>交货状态附加天数</MudMenuItem>
-                        <MudMenuItem Class="@GetMenuItemClass("/config-parameters")" OnClick='() => NavigateTo("/config-parameters")'>业务参数配置</MudMenuItem>
-                        <MudMenuItem Class="@GetMenuItemClass("/daily-output-estimates")" OnClick='() => NavigateTo("/daily-output-estimates")'>日产估算</MudMenuItem>
-                        <MudMenuItem Class="@GetMenuItemClass("/section-flow-category-settings")" OnClick='() => NavigateTo("/section-flow-category-settings")'>段落分类及变异量系数</MudMenuItem>
-                        <MudMenuItem Class="@GetMenuItemClass("/workstations")" OnClick='() => NavigateTo("/workstations")'>工位管理</MudMenuItem>
+                    <MudMenu Label="参数表" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("standard-work-days","standard-work-day-delivery-states","daily-output-estimates","section-flow-category-settings","config-parameters","workstations")">
+                        <MudMenuItem Class="@GetMenuItemClass("/standard-work-days")" OnClick='() => NavigateTo("/standard-work-days")'>交期排程-标准工量天数</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/standard-work-day-delivery-states")" OnClick='() => NavigateTo("/standard-work-day-delivery-states")'>交期排程-交货状态附加天数</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/daily-output-estimates")" OnClick='() => NavigateTo("/daily-output-estimates")'>产量排程-日产能预估</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/section-flow-category-settings")" OnClick='() => NavigateTo("/section-flow-category-settings")'>产量排程-日流转量配置</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/config-parameters")" OnClick='() => NavigateTo("/config-parameters")'>全局-参数配置</MudMenuItem>
+                        <MudMenuItem Class="@GetMenuItemClass("/workstations")" OnClick='() => NavigateTo("/workstations")'>扫码-工位管理</MudMenuItem>
                     </MudMenu>
                 </AuthorizeView>
 
