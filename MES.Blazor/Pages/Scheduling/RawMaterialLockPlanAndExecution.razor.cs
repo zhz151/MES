@@ -18,6 +18,29 @@ public partial class RawMaterialLockPlanAndExecution
     private List<RawMaterialLockPlanAndExecutionDto> _filteredItems = new();
     private bool _isLoading;
 
+    // 汇总数据
+    private int _totalOrderCount;
+    private decimal _totalWeight;
+    private int _outsourceBatchCount;
+    private decimal _outsourceWeight;
+    private decimal _outsourceWeight_AJ;
+    private decimal _outsourceWeight_A;
+    private decimal _outsourceWeight_B;
+    private decimal _outsourceWeight_C;
+    private decimal _outsourceWeight_D;
+    private decimal _pendingWeight;
+    private decimal _pendingWeight_AJ;
+    private decimal _pendingWeight_A;
+    private decimal _pendingWeight_B;
+    private decimal _pendingWeight_C;
+    private decimal _pendingWeight_D;
+    private int _preInputCount;
+    private decimal _preInputWeight;
+    private int _preInputOutsourceCount;
+    private decimal _preInputOutsourceWeight;
+    private int _preInputSelfCount;
+    private decimal _preInputSelfWeight;
+
     // B33: 分页汇总
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
@@ -32,10 +55,6 @@ public partial class RawMaterialLockPlanAndExecution
 
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
-
-    // 待成检到料批次卡片摘要
-    private int _preInputCount;
-    private decimal _preInputWeight;
 
     // 排序状态
     private string sortColumn = "ScheduleStage";
@@ -259,15 +278,13 @@ public partial class RawMaterialLockPlanAndExecution
             if (result.Success && result.Data != null)
             {
                 _allItems = result.Data.Items ?? new();
-                _preInputCount = _allItems.Count(x => x.IsPreInput);
-                _preInputWeight = _allItems.Where(x => x.IsPreInput).Sum(x => x.TotalWeight);
+                RecalculateSummary();
             }
             else
             {
                 _allItems = new();
+                RecalculateSummary();
                 Snackbar.Add(result?.Message ?? "获取数据失败", Severity.Error);
-                _preInputCount = 0;
-                _preInputWeight = 0m;
             }
         }
         catch (Exception ex)
@@ -282,6 +299,47 @@ public partial class RawMaterialLockPlanAndExecution
 
         BuildFilterContextOptions();
         ApplyFiltersAndSort();
+    }
+
+    // ========== 汇总计算 ==========
+
+    private void RecalculateSummary()
+    {
+        _totalOrderCount = _allItems.Count;
+        _totalWeight = _allItems.Sum(x => x.TotalWeight);
+        _outsourceBatchCount = _allItems.Count(x => x.PendingOutsourceFinishWeight > 0);
+        _outsourceWeight = _allItems.Sum(x => x.PendingOutsourceFinishWeight);
+
+        // 成品在购按紧急性分类
+        _outsourceWeight_AJ = _allItems.Where(x => x.UrgencyLevel == "A+急").Sum(x => x.PendingOutsourceFinishWeight);
+        _outsourceWeight_A  = _allItems.Where(x => x.UrgencyLevel == "A急").Sum(x => x.PendingOutsourceFinishWeight);
+        _outsourceWeight_B  = _allItems.Where(x => x.UrgencyLevel == "B顺").Sum(x => x.PendingOutsourceFinishWeight);
+        _outsourceWeight_C  = _allItems.Where(x => x.UrgencyLevel == "C缓").Sum(x => x.PendingOutsourceFinishWeight);
+        _outsourceWeight_D  = _allItems.Where(x => x.UrgencyLevel == "D缓").Sum(x => x.PendingOutsourceFinishWeight);
+
+        // 待投料 = (工单总重量 - 外购成品) × 1.1 - 已投料，与订单总览 R1 对齐
+        Func<RawMaterialLockPlanAndExecutionDto, decimal> pendingCalc = x =>
+            (x.TotalWeight - x.PendingOutsourceFinishWeight) * 1.1m - x.InputWeight;
+
+        _pendingWeight = _allItems.Sum(x => Math.Max(0, pendingCalc(x)));
+
+        _pendingWeight_AJ = _allItems.Where(x => x.UrgencyLevel == "A+急").Sum(x => Math.Max(0, pendingCalc(x)));
+        _pendingWeight_A  = _allItems.Where(x => x.UrgencyLevel == "A急").Sum(x => Math.Max(0, pendingCalc(x)));
+        _pendingWeight_B  = _allItems.Where(x => x.UrgencyLevel == "B顺").Sum(x => Math.Max(0, pendingCalc(x)));
+        _pendingWeight_C  = _allItems.Where(x => x.UrgencyLevel == "C缓").Sum(x => Math.Max(0, pendingCalc(x)));
+        _pendingWeight_D  = _allItems.Where(x => x.UrgencyLevel == "D缓").Sum(x => Math.Max(0, pendingCalc(x)));
+
+        _preInputCount = _allItems.Count(x => x.IsPreInput);
+        _preInputWeight = _allItems.Where(x => x.IsPreInput).Sum(x => x.TotalWeight);
+
+        var preInputItems = _allItems.Where(x => x.IsPreInput).ToList();
+        var outsourceItems = preInputItems.Where(x => x.PendingOutsourceFinishWeight > 0).ToList();
+        var selfItems = preInputItems.Where(x => x.PendingOutsourceFinishWeight == 0).ToList();
+
+        _preInputOutsourceCount = outsourceItems.Count;
+        _preInputOutsourceWeight = outsourceItems.Sum(x => x.TotalWeight);
+        _preInputSelfCount = selfItems.Count;
+        _preInputSelfWeight = selfItems.Sum(x => x.TotalWeight);
     }
 
     // ========== 筛选上下文构建 ==========
@@ -574,17 +632,7 @@ public partial class RawMaterialLockPlanAndExecution
         if (result.Success)
         {
             item.IsPreInput = newValue;
-            // 更新预执行卡片摘要（增量计算，避免全量重载）
-            if (newValue)
-            {
-                _preInputCount++;
-                _preInputWeight += item.TotalWeight;
-            }
-            else
-            {
-                _preInputCount = Math.Max(0, _preInputCount - 1);
-                _preInputWeight = Math.Max(0, _preInputWeight - item.TotalWeight);
-            }
+            RecalculateSummary();
             ApplyFiltersAndSort();
             await SavePageStateAsync();
         }

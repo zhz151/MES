@@ -77,6 +77,43 @@ public class FinalInspectionPlanService : IFinalInspectionPlanService
         var result = new List<FinalInspectionPlanDto>();
         result.AddRange(awaitingMaterial);
         result.AddRange(inProcess);
+
+        // === 5. 批量加载 FinalInspections，填充各项检验日期和数量 ===
+        var allBatchIds = result.Select(r => r.ProductionBatchId).Distinct().ToList();
+        if (allBatchIds.Count > 0)
+        {
+            var allInspections = await _context.FinalInspections
+                .AsNoTracking()
+                .Where(fi => allBatchIds.Contains(fi.ProductionBatchId))
+                .ToListAsync();
+
+            var inspectionLookup = allInspections
+                .GroupBy(fi => fi.ProductionBatchId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            foreach (var dto in result)
+            {
+                if (!inspectionLookup.TryGetValue(dto.ProductionBatchId, out var inspList) || inspList.Count == 0)
+                    continue;
+
+                dto.PmiDate = GetInspectionDate(inspList, InspectionItem.PMIInspection);
+                dto.VisualDate = GetInspectionDate(inspList, InspectionItem.VisualInspection);
+                dto.DimensionDate = GetInspectionDate(inspList, InspectionItem.Dimension);
+                dto.EndoscopyDate = GetInspectionDate(inspList, InspectionItem.Endoscopy);
+                dto.HydroDate = GetInspectionDate(inspList, InspectionItem.HydrostaticPressure);
+                dto.UnderwaterPneumaticDate = GetInspectionDate(inspList, InspectionItem.UnderwaterPneumatic);
+                dto.EddyCurrentDate = GetInspectionDate(inspList, InspectionItem.EddyCurrent);
+                dto.UltrasonicDate = GetInspectionDate(inspList, InspectionItem.Ultrasonic);
+                dto.PortColoringDate = GetInspectionDate(inspList, InspectionItem.PortColoring);
+                dto.InspectionCount = inspList.Select(fi => fi.InspectionItem).Distinct().Count();
+                dto.TotalQuantity = inspList.Max(fi => (int?)(fi.Quantity ?? 0)) ?? 0;
+                dto.QualifiedQuantity = inspList.Min(fi => (int?)(fi.QualifiedQuantity ?? 0)) ?? 0;
+                dto.DefectReworkQuantity = inspList.Sum(fi => fi.DefectReworkQuantity ?? 0);
+                dto.DefectWarehouseQuantity = inspList.Sum(fi => fi.DefectWarehouseQuantity ?? 0);
+                dto.DefectScrapQuantity = inspList.Sum(fi => fi.DefectScrapQuantity ?? 0);
+            }
+        }
+
         return result;
     }
 
@@ -245,6 +282,15 @@ public class FinalInspectionPlanService : IFinalInspectionPlanService
         }
 
         return dto;
+    }
+
+    // ========== 辅助方法 ==========
+
+    private static DateTime? GetInspectionDate(List<FinalInspection> inspections, InspectionItem item)
+    {
+        return inspections
+            .Where(fi => fi.InspectionItem == item)
+            .Max(fi => (DateTime?)fi.InspectionDate);
     }
 
     // ========== 中间投影类 ==========

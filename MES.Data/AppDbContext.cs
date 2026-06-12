@@ -108,6 +108,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<SectionFlowCategoryItem> SectionFlowCategoryItems { get; set; } = null!;
     public DbSet<ColdRollSpecSchedule> ColdRollSpecSchedules { get; set; } = null!;
     public DbSet<BatchPlanSchedule> BatchPlanSchedules { get; set; } = null!;
+    public DbSet<BatchPlanTarget> BatchPlanTargets { get; set; } = null!;
 
     // ========== Configuration 上下文 ==========
     public DbSet<StandardWorkDay> StandardWorkDays { get; set; } = null!;
@@ -201,6 +202,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureSectionFlowCategoryItem(builder);
         ConfigureColdRollSpecSchedule(builder);
         ConfigureBatchPlanSchedule(builder);
+        ConfigureBatchPlanTarget(builder);
 
         // ========== Configuration 上下文 ==========
         ConfigureStandardWorkDay(builder);
@@ -1352,6 +1354,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.PlantGrade).HasMaxLength(50);
             entity.Property(e => e.Specification).HasMaxLength(100);
             entity.Property(e => e.ProductionType).HasMaxLength(50);
+            entity.Property(e => e.ProductionWeight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.IsForceCompleted);
             entity.Property(e => e.Salesman).HasMaxLength(50);
             entity.Property(e => e.DeliveryState).HasMaxLength(50);
@@ -2272,6 +2275,20 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
             // 唯一索引
             entity.HasIndex(e => e.BatchId).IsUnique().HasDatabaseName("UK_BPS_BatchId");
+        });
+    }
+
+    private static void ConfigureBatchPlanTarget(ModelBuilder builder)
+    {
+        builder.Entity<BatchPlanTarget>(entity =>
+        {
+            entity.ToTable("BatchPlanTargets");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SectionName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DailyTarget).HasColumnType("decimal(18,2)");
+
+            // 唯一索引：每个工段一条目标
+            entity.HasIndex(e => e.SectionName).IsUnique().HasDatabaseName("UK_BPT_SectionName");
         });
     }
 

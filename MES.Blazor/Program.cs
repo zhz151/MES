@@ -83,6 +83,7 @@ builder.Services.AddScoped<BatchPlanService>();
 builder.Services.AddScoped<ColdRollPlanService>();
 builder.Services.AddScoped<ColdRollSpecScheduleService>();
 builder.Services.AddScoped<BatchPlanScheduleService>();
+builder.Services.AddScoped<BatchPlanTargetService>();
 builder.Services.AddScoped<FinalInspectionPlanService>();
 
 // ========== Configuration 上下文 ==========

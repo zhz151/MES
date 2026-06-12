@@ -43,6 +43,8 @@
             <MudText Typo="Typo.body2">
                 <b>总重量(kg)：</b>@(((int)_tabTotalWeight).ToString())
             </MudText>
+            <MudChip Size="Size.Small" Color="Color.Error">A+急 @_urgentAPlusCount 批 / @(((int)_urgentAPlusWeight).ToString())kg</MudChip>
+            <MudChip Size="Size.Small" Color="Color.Warning">A急 @_urgentACount 批 / @(((int)_urgentAWeight).ToString())kg</MudChip>
         </div>
     </div>
 

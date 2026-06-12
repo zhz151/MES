@@ -89,39 +89,37 @@ public class BatchPlanService : IBatchPlanService
                      x.b.NextProcess != null && x.b.NextProcess.Contains(sectionTab) &&
                      x.b.NextSectionName == "冷轧拔"));
             }
-            else if (sectionTab == "过程检验" || sectionTab == "成品检验")
+            else if (sectionTab == "过程检验" || sectionTab == "成品检验" || sectionTab == "荒管检" || sectionTab == "在制检")
             {
-                // 检验类：工段=检验，再按工序值区分
-                // 过程检验=所在工序值<本批次最大工序值，成品检验=所在工序值=本批次最大工序值
-                if (sectionTab == "过程检验")
+                if (sectionTab == "成品检验")
                 {
+                    // 成品检验：工段=检验，且是本批次最大工序值
                     joined = joined.Where(x =>
-                        // Path 1: 当前工序未完工 → CurrentGroupName seq < batch max seq
                         (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == "检验" &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
-                             .Max(pg => (int?)pg.SequenceNumber) >
+                             .Max(pg => (int?)pg.SequenceNumber) ==
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.CurrentGroupName)
                              .Select(pg => (int?)pg.SequenceNumber)
                              .FirstOrDefault()) ||
-                        // Path 2: 当前工序已完工/无数据 → NextProcess seq < batch max seq
                         (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == "检验" && x.b.NextProcess != null &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
-                             .Max(pg => (int?)pg.SequenceNumber) >
+                             .Max(pg => (int?)pg.SequenceNumber) ==
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.NextProcess)
                              .Select(pg => (int?)pg.SequenceNumber)
                              .FirstOrDefault()));
                 }
-                else // 成品检验
+                else
                 {
+                    // 过程检验/荒管检/在制检：工段=检验，且非本批次最大工序值
                     joined = joined.Where(x =>
                         (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == "检验" &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
-                             .Max(pg => (int?)pg.SequenceNumber) ==
+                             .Max(pg => (int?)pg.SequenceNumber) >
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.CurrentGroupName)
                              .Select(pg => (int?)pg.SequenceNumber)
@@ -129,11 +127,25 @@ public class BatchPlanService : IBatchPlanService
                         (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == "检验" && x.b.NextProcess != null &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
-                             .Max(pg => (int?)pg.SequenceNumber) ==
+                             .Max(pg => (int?)pg.SequenceNumber) >
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.NextProcess)
                              .Select(pg => (int?)pg.SequenceNumber)
                              .FirstOrDefault()));
+
+                    // 荒管检/在制检：额外按工序名过滤
+                    if (sectionTab == "荒管检")
+                    {
+                        joined = joined.Where(x =>
+                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessNames.RoughTubeProcessing) ||
+                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessNames.RoughTubeProcessing));
+                    }
+                    else if (sectionTab == "在制检")
+                    {
+                        joined = joined.Where(x =>
+                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessNames.InProcessRepair) ||
+                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessNames.InProcessRepair));
+                    }
                 }
             }
             else
@@ -413,15 +425,16 @@ public class BatchPlanService : IBatchPlanService
                      x.b.NextProcess != null && x.b.NextProcess.Contains(sectionTab) &&
                      x.b.NextSectionName == "冷轧拔"));
             }
-            else if (sectionTab == "过程检验" || sectionTab == "成品检验")
+            else if (sectionTab == "过程检验" || sectionTab == "成品检验" || sectionTab == "荒管检" || sectionTab == "在制检")
             {
-                if (sectionTab == "过程检验")
+                if (sectionTab == "成品检验")
                 {
+                    // 成品检验：工段=检验，且是本批次最大工序值
                     joined = joined.Where(x =>
                         (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == "检验" &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
-                             .Max(pg => (int?)pg.SequenceNumber) >
+                             .Max(pg => (int?)pg.SequenceNumber) ==
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.CurrentGroupName)
                              .Select(pg => (int?)pg.SequenceNumber)
@@ -429,7 +442,7 @@ public class BatchPlanService : IBatchPlanService
                         (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == "检验" && x.b.NextProcess != null &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
-                             .Max(pg => (int?)pg.SequenceNumber) >
+                             .Max(pg => (int?)pg.SequenceNumber) ==
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.NextProcess)
                              .Select(pg => (int?)pg.SequenceNumber)
@@ -437,11 +450,12 @@ public class BatchPlanService : IBatchPlanService
                 }
                 else
                 {
+                    // 过程检验/荒管检/在制检：工段=检验，且非本批次最大工序值
                     joined = joined.Where(x =>
                         (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == "检验" &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
-                             .Max(pg => (int?)pg.SequenceNumber) ==
+                             .Max(pg => (int?)pg.SequenceNumber) >
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.CurrentGroupName)
                              .Select(pg => (int?)pg.SequenceNumber)
@@ -449,11 +463,25 @@ public class BatchPlanService : IBatchPlanService
                         (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == "检验" && x.b.NextProcess != null &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
-                             .Max(pg => (int?)pg.SequenceNumber) ==
+                             .Max(pg => (int?)pg.SequenceNumber) >
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.NextProcess)
                              .Select(pg => (int?)pg.SequenceNumber)
                              .FirstOrDefault()));
+
+                    // 荒管检/在制检：额外按工序名过滤
+                    if (sectionTab == "荒管检")
+                    {
+                        joined = joined.Where(x =>
+                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessNames.RoughTubeProcessing) ||
+                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessNames.RoughTubeProcessing));
+                    }
+                    else if (sectionTab == "在制检")
+                    {
+                        joined = joined.Where(x =>
+                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessNames.InProcessRepair) ||
+                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessNames.InProcessRepair));
+                    }
                 }
             }
             else
@@ -504,7 +532,7 @@ public class BatchPlanService : IBatchPlanService
 
             // 批次计划薄表
             PlanIsFlow = x.bp != null && x.bp.IsFlow,
-            PlanFlowLevel = x.bp != null ? x.bp.FlowLevel : 3,
+            PlanFlowLevel = x.bp != null ? x.bp.FlowLevel : 5,
             PlanFlowTarget = x.bp != null ? x.bp.FlowTarget : null,
             PlanFlowCRType = x.bp != null ? x.bp.FlowCRType : null,
             PlanFlowExecSpec = x.bp != null ? x.bp.FlowExecSpec : null,

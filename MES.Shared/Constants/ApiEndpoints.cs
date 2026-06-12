@@ -70,6 +70,7 @@ public static class ApiEndpoints
     public const string ColdRollSpecSchedule = "api/cold-roll-spec-schedule";
     public const string FinalInspectionPlan = "api/final-inspection-plan";
     public const string BatchPlanSchedule = "api/batch-plan-schedule";
+    public const string BatchPlanTarget = "api/batch-plan-target";
 
     // ===== Configuration 配置 =====
     public const string StandardWorkDay = "api/standard-work-day";

@@ -163,23 +163,38 @@ public class BatchPlanDto
     /// 待轧要求=Partial1 → true 仅当 A+急/A急 且 (生产执行 或 原料锁定+催单/分批交货)
     /// 待轧要求=Partial2 → true 仅当 A+急/A急
     /// 待轧要求=Partial3 → true 仅当 A+急/A急/B顺
-    /// </summary>
     [JsonIgnore]
     public bool IsFlow => _trigger != FlowTrigger.None;
 
     /// <summary>
-    /// 流转等级：
-    /// IsFlow=false → 3
-    /// IsFlow=true + IsKeyBatch=true → 1
-    /// IsFlow=true + IsKeyBatch=false → 2
+    /// 流转等级，与 _trigger 的 Partial 级别配套：
+    /// IsKeyBatch=true → 1
+    /// Partial1 → 2
+    /// Partial2 → 3
+    /// Partial3 → 4
+    /// 其余（All/Urgent/Subsequent/AttentionProcess）→ 2
+    /// IsFlow=false → 5
     /// </summary>
     [JsonIgnore]
     public int FlowLevel
     {
         get
         {
-            if (!IsFlow) return 3;
-            return IsKeyBatch ? 1 : 2;
+            if (IsKeyBatch) return 1;
+            if (!IsFlow) return 5;
+
+            // 根据触发值确定等级
+            var triggerValue = CR_CompletionType;
+            if (string.IsNullOrEmpty(triggerValue) || triggerValue == "None")
+                triggerValue = CR_RollType;
+
+            return triggerValue switch
+            {
+                "Partial1" => 2,
+                "Partial2" => 3,
+                "Partial3" => 4,
+                _ => 2, // All, Urgent, Subsequent, AttentionProcess → 2
+            };
         }
     }
 
@@ -303,10 +318,30 @@ public class BatchPlanDto
             ? OriginalDiff.Value != CurrentDiff.Value
             : null;
 
-    /// <summary>达标 = 当前执行序 ≥ 小表目标序</summary>
+    /// <summary>
+    /// 达标状态（与批次计划关联）：
+    /// ExecutionSequence >= PlanTargetSequence 时：
+    ///   FlowTarget=="冷轧" 且 PendingEquipment 为空 → 半达标
+    ///   其他 → 达标
+    /// ExecutionSequence < PlanTargetSequence → 未达标
+    /// 数据不足 → null
+    /// </summary>
     [JsonIgnore]
-    public bool? IsCompliant =>
-        ExecutionSequence.HasValue && PlanTargetSequence.HasValue
-            ? ExecutionSequence.Value >= PlanTargetSequence.Value
-            : null;
+    public string? IsCompliant
+    {
+        get
+        {
+            if (!ExecutionSequence.HasValue || !PlanTargetSequence.HasValue)
+                return null;
+
+            if (ExecutionSequence.Value >= PlanTargetSequence.Value)
+            {
+                if (FlowTarget == "冷轧" && string.IsNullOrEmpty(PendingEquipment))
+                    return "半达标";
+                return "达标";
+            }
+
+            return "未达标";
+        }
+    }
 }

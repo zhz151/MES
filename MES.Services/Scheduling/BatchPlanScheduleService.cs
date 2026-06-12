@@ -101,15 +101,15 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                      x.b.NextProcess != null && x.b.NextProcess.Contains(sectionTab) &&
                      x.b.NextSectionName == "冷轧拔"));
             }
-            else if (sectionTab == "过程检验" || sectionTab == "成品检验")
+            else if (sectionTab == "过程检验" || sectionTab == "成品检验" || sectionTab == "荒管检" || sectionTab == "在制检")
             {
-                if (sectionTab == "过程检验")
+                if (sectionTab == "成品检验")
                 {
                     joined = joined.Where(x =>
                         (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == "检验" &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
-                             .Max(pg => (int?)pg.SequenceNumber) >
+                             .Max(pg => (int?)pg.SequenceNumber) ==
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.CurrentGroupName)
                              .Select(pg => (int?)pg.SequenceNumber)
@@ -117,7 +117,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                         (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == "检验" && x.b.NextProcess != null &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
-                             .Max(pg => (int?)pg.SequenceNumber) >
+                             .Max(pg => (int?)pg.SequenceNumber) ==
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.NextProcess)
                              .Select(pg => (int?)pg.SequenceNumber)
@@ -125,11 +125,12 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                 }
                 else
                 {
+                    // 过程检验/荒管检/在制检：工段=检验，且非最大工序值
                     joined = joined.Where(x =>
                         (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == "检验" &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
-                             .Max(pg => (int?)pg.SequenceNumber) ==
+                             .Max(pg => (int?)pg.SequenceNumber) >
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.CurrentGroupName)
                              .Select(pg => (int?)pg.SequenceNumber)
@@ -137,11 +138,25 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                         (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == "检验" && x.b.NextProcess != null &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
-                             .Max(pg => (int?)pg.SequenceNumber) ==
+                             .Max(pg => (int?)pg.SequenceNumber) >
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.NextProcess)
                              .Select(pg => (int?)pg.SequenceNumber)
                              .FirstOrDefault()));
+
+                    // 荒管检/在制检：额外按工序名过滤
+                    if (sectionTab == "荒管检")
+                    {
+                        joined = joined.Where(x =>
+                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessNames.RoughTubeProcessing) ||
+                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessNames.RoughTubeProcessing));
+                    }
+                    else if (sectionTab == "在制检")
+                    {
+                        joined = joined.Where(x =>
+                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessNames.InProcessRepair) ||
+                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessNames.InProcessRepair));
+                    }
                 }
             }
             else
@@ -302,13 +317,19 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
 
             // 计算 IsFlow
             var isFlow = false;
-            var flowLevel = 3;
+            var flowLevel = 5;
             string? flowTarget = null;
             string? flowCRType = null;
             string? flowExecSpec = null;
             var isUrgent = b.UrgencyLevel == "A+急" || b.UrgencyLevel == "A急";
-            var isKeyBatch = (b.ScheduleStage == 2 && isUrgent && pendingProcess != null) ||
-                             (b.ScheduleStage == 1 && (b.IsUrging || b.IsBatchDelivery) && isUrgent);
+            var isKeyBatch = (b.ScheduleStage == 2 && isUrgent &&
+                              (pendingProcess == "荒管处理" ||
+                               pendingProcess == b.MainNoAttentionProcess ||
+                               b.MainNoAttentionProcess is null or "收尾-成检")) ||
+                             (b.ScheduleStage == 1 && (b.IsUrging || b.IsBatchDelivery) && isUrgent &&
+                              (pendingProcess == "荒管处理" ||
+                               pendingProcess == b.MainNoAttentionProcess ||
+                               b.MainNoAttentionProcess is null or "收尾-成检"));
 
             if (b.MainNoAttentionProcess == "收尾-成检")
             {
@@ -357,10 +378,26 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             }
 
             if (isFlow)
-                flowLevel = isKeyBatch ? 1 : 2;
+            {
+                if (isKeyBatch)
+                    flowLevel = 1;
+                else
+                {
+                    var triggerValue = crCompletionType;
+                    if (string.IsNullOrEmpty(triggerValue) || triggerValue == "None")
+                        triggerValue = crRollType;
+
+                    flowLevel = triggerValue switch
+                    {
+                        "Partial1" => 2,
+                        "Partial2" => 3,
+                        "Partial3" => 4,
+                        _ => 2, // All, Urgent, Subsequent
+                    };
+                }
+            }
             else
-                flowLevel = 3;
-            // isKeyBatch 用于此处但不等同
+                flowLevel = 5;
             var execSeq = pendingPg.GetSectionSequence(pendingSectionName);
             var targetSeq = BatchPlanService.ComputeTargetSequence(pgs, flowTarget, flowCRType);
 

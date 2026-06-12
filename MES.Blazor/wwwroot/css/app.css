@@ -1208,3 +1208,33 @@ input[type="number"]::-webkit-outer-spin-button {
     background: rgba(0, 0, 0, 0.85);
     border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+/* ========== 批次计划等级高亮 ========== */
+.compact-select.flow-level-1 .mud-input input,
+.auto-table td .flow-level-1 input {
+    color: #D32F2F !important;
+    font-weight: 700 !important;
+}
+.compact-select.flow-level-2 .mud-input input,
+.auto-table td .flow-level-2 input {
+    color: #F57C00 !important;
+    font-weight: 600 !important;
+}
+.compact-select.flow-level-3 .mud-input input,
+.auto-table td .flow-level-3 input {
+    color: #1976D2 !important;
+    font-weight: 600 !important;
+}
+
+/* ========== 批次计划产量目标-零值淡化/有值高亮 ========== */
+.daily-target-zero .mud-input-root {
+    color: #FFFFFF !important;
+}
+.daily-target-set .mud-input-root {
+    color: #1565C0 !important;
+    font-weight: 600 !important;
+}
+.daily-target-set {
+    background: #E3F2FD !important;
+    border-radius: 4px;
+}

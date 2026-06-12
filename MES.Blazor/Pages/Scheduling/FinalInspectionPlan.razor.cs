@@ -32,6 +32,10 @@ public partial class FinalInspectionPlan
     // Tab 汇总
     private int _tabCount;
     private decimal _tabTotalWeight;
+    private int _urgentAPlusCount;
+    private decimal _urgentAPlusWeight;
+    private int _urgentACount;
+    private decimal _urgentAWeight;
 
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
@@ -46,7 +50,13 @@ public partial class FinalInspectionPlan
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
-        "CurrentValidWeight"
+        "CurrentValidWeight",
+        "InspectionCount",
+        "TotalQuantity",
+        "QualifiedQuantity",
+        "DefectReworkQuantity",
+        "DefectWarehouseQuantity",
+        "DefectScrapQuantity"
     };
 
     // 全量数据（加载后缓存）
@@ -91,11 +101,38 @@ public partial class FinalInspectionPlan
             new() { Key = "MaxInspectionDate",     Label = "最晚检验",   SortKey = "MaxInspectionDate",     Width = "110", GroupKey = 4, GroupName = "成检状态" },
         };
 
+        // G5: 各项检验的日期
+        var g5 = new List<ColumnDef>
+        {
+            new() { Key = "InspectionCount",      Label = "检测项数",   Width = "80",  GroupKey = 5, GroupName = "各项检验的日期" },
+            new() { Key = "PmiDate",              Label = "PMI检验",   SortKey = "PmiDate",              Width = "110", GroupKey = 5, GroupName = "各项检验的日期" },
+            new() { Key = "VisualDate",           Label = "表检",      SortKey = "VisualDate",           Width = "110", GroupKey = 5, GroupName = "各项检验的日期" },
+            new() { Key = "DimensionDate",        Label = "尺寸",      SortKey = "DimensionDate",        Width = "110", GroupKey = 5, GroupName = "各项检验的日期" },
+            new() { Key = "EndoscopyDate",        Label = "内窥",      SortKey = "EndoscopyDate",        Width = "110", GroupKey = 5, GroupName = "各项检验的日期" },
+            new() { Key = "HydroDate",            Label = "水压",      SortKey = "HydroDate",            Width = "110", GroupKey = 5, GroupName = "各项检验的日期" },
+            new() { Key = "UnderwaterPneumaticDate", Label = "水下气压", SortKey = "UnderwaterPneumaticDate", Width = "110", GroupKey = 5, GroupName = "各项检验的日期" },
+            new() { Key = "EddyCurrentDate",      Label = "涡流",      SortKey = "EddyCurrentDate",      Width = "110", GroupKey = 5, GroupName = "各项检验的日期" },
+            new() { Key = "UltrasonicDate",       Label = "超声波",    SortKey = "UltrasonicDate",       Width = "110", GroupKey = 5, GroupName = "各项检验的日期" },
+            new() { Key = "PortColoringDate",     Label = "端口着色",  SortKey = "PortColoringDate",     Width = "110", GroupKey = 5, GroupName = "各项检验的日期" },
+        };
+
+        // G6: 检验的数量信息
+        var g6 = new List<ColumnDef>
+        {
+            new() { Key = "TotalQuantity",         Label = "检验支数",   SortKey = "TotalQuantity",         Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
+            new() { Key = "QualifiedQuantity",      Label = "合格支数",   SortKey = "QualifiedQuantity",      Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
+            new() { Key = "DefectReworkQuantity",   Label = "返整支数",   SortKey = "DefectReworkQuantity",   Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
+            new() { Key = "DefectWarehouseQuantity",Label = "不合格入库", SortKey = "DefectWarehouseQuantity",Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
+            new() { Key = "DefectScrapQuantity",    Label = "报废支数",   SortKey = "DefectScrapQuantity",    Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
+        };
+
         var all = new List<ColumnDef>();
         all.AddRange(g1);
         all.AddRange(g2);
         all.AddRange(g3);
         all.AddRange(g4);
+        all.AddRange(g5);
+        all.AddRange(g6);
         return all;
     }
 
@@ -279,6 +316,10 @@ public partial class FinalInspectionPlan
 
         _tabCount = filtered.Count;
         _tabTotalWeight = filtered.Sum(x => x.CurrentValidWeight ?? 0);
+        _urgentAPlusCount = filtered.Count(x => x.UrgencyLevel == "A+急");
+        _urgentAPlusWeight = filtered.Where(x => x.UrgencyLevel == "A+急").Sum(x => x.CurrentValidWeight ?? 0);
+        _urgentACount = filtered.Count(x => x.UrgencyLevel == "A急");
+        _urgentAWeight = filtered.Where(x => x.UrgencyLevel == "A急").Sum(x => x.CurrentValidWeight ?? 0);
     }
 
     // ========== ExcelFilter 事件 ==========
@@ -374,6 +415,20 @@ public partial class FinalInspectionPlan
             "urgencylevel" => items.OrderBy(x => x.UrgencyLevel ?? ""),
             "receivedate" => items.OrderBy(x => x.ReceiveDate),
             "maxinspectiondate" => items.OrderBy(x => x.MaxInspectionDate),
+            "pmidate" => items.OrderBy(x => x.PmiDate),
+            "visualdate" => items.OrderBy(x => x.VisualDate),
+            "dimensiondate" => items.OrderBy(x => x.DimensionDate),
+            "endoscopydate" => items.OrderBy(x => x.EndoscopyDate),
+            "hydrodate" => items.OrderBy(x => x.HydroDate),
+            "underwaterpneumaticdate" => items.OrderBy(x => x.UnderwaterPneumaticDate),
+            "eddycurrentdate" => items.OrderBy(x => x.EddyCurrentDate),
+            "ultrasonicdate" => items.OrderBy(x => x.UltrasonicDate),
+            "portcoloringdate" => items.OrderBy(x => x.PortColoringDate),
+            "totalquantity" => items.OrderBy(x => x.TotalQuantity),
+            "qualifiedquantity" => items.OrderBy(x => x.QualifiedQuantity),
+            "defectreworkquantity" => items.OrderBy(x => x.DefectReworkQuantity),
+            "defectwarehousequantity" => items.OrderBy(x => x.DefectWarehouseQuantity),
+            "defectscrapquantity" => items.OrderBy(x => x.DefectScrapQuantity),
             _ => items.OrderBy(x => x.BatchNo ?? "")
         };
         return desc ? query.Reverse().ToList() : query.ToList();
@@ -448,6 +503,8 @@ public partial class FinalInspectionPlan
             2 => "col-g2",
             3 => "col-g3",
             4 => "col-g4",
+            5 => "col-g5",
+            6 => "col-g6",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start";
@@ -462,6 +519,8 @@ public partial class FinalInspectionPlan
             2 => "col-g2-cell",
             3 => "col-g3-cell",
             4 => "col-g4-cell",
+            5 => "col-g5-cell",
+            6 => "col-g6-cell",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
@@ -618,6 +677,53 @@ public partial class FinalInspectionPlan
                 break;
             case "MaxInspectionDate":
                 builder.AddContent(0, item.MaxInspectionDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            // G4: 各项检验的日期
+            case "InspectionCount":
+                builder.AddContent(0, item.InspectionCount.ToString());
+                break;
+            case "PmiDate":
+                builder.AddContent(0, item.PmiDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "VisualDate":
+                builder.AddContent(0, item.VisualDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "DimensionDate":
+                builder.AddContent(0, item.DimensionDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "EndoscopyDate":
+                builder.AddContent(0, item.EndoscopyDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "HydroDate":
+                builder.AddContent(0, item.HydroDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "UnderwaterPneumaticDate":
+                builder.AddContent(0, item.UnderwaterPneumaticDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "EddyCurrentDate":
+                builder.AddContent(0, item.EddyCurrentDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "UltrasonicDate":
+                builder.AddContent(0, item.UltrasonicDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "PortColoringDate":
+                builder.AddContent(0, item.PortColoringDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            // G5: 检验的数量信息
+            case "TotalQuantity":
+                builder.AddContent(0, item.TotalQuantity.ToString());
+                break;
+            case "QualifiedQuantity":
+                builder.AddContent(0, item.QualifiedQuantity.ToString());
+                break;
+            case "DefectReworkQuantity":
+                builder.AddContent(0, item.DefectReworkQuantity.ToString());
+                break;
+            case "DefectWarehouseQuantity":
+                builder.AddContent(0, item.DefectWarehouseQuantity.ToString());
+                break;
+            case "DefectScrapQuantity":
+                builder.AddContent(0, item.DefectScrapQuantity.ToString());
                 break;
             default:
                 builder.AddContent(0, "-");

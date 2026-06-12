@@ -32,14 +32,59 @@ public partial class BatchPlans
     {
         "全部", "60冷轧", "50冷轧", "30冷轧", "20冷轧", "三辊冷轧", "冷拔",
         "油管断", "去油", "固溶", "矫直", "断切", "酸洗", "外抛光", "外点磨",
-        "过程检验", "成品检验"
+        "荒管检", "在制检", "成品检验"
     };
 
     // ========== Tab 汇总数据 ==========
     private int _tabBatchCount;
     private decimal _tabTotalWeight;
+    private int _tabFlowBatchCount;
+    private decimal _tabFlowBatchWeight;
     private int _tabKeyBatchCount;
     private decimal _tabKeyBatchWeight;
+
+    // ========== 产量目标 + 初始化 ==========
+    private Dictionary<string, decimal> _dailyTargets = new();
+
+    private async Task LoadDailyTargetsAsync()
+    {
+        try
+        {
+            var targets = await BatchPlanTargetSvc.GetAllAsync();
+            foreach (var t in targets)
+            {
+                if (_dailyTargets.ContainsKey(t.SectionName))
+                    _dailyTargets[t.SectionName] = t.DailyTarget;
+            }
+        }
+        catch
+        {
+            // 加载失败不阻塞页面，保持默认 0
+        }
+    }
+
+    private async Task SaveDailyTargetsAsync()
+    {
+        try
+        {
+            var dtos = _dailyTargets.Select(kv => new BatchPlanTargetDto
+            {
+                SectionName = kv.Key,
+                DailyTarget = kv.Value,
+            }).ToList();
+            await BatchPlanTargetSvc.SaveAllAsync(dtos);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"保存产量目标失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task OnDailyTargetChanged(string section, decimal value)
+    {
+        _dailyTargets[section] = value;
+        await SaveDailyTargetsAsync();
+    }
 
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
@@ -151,7 +196,7 @@ public partial class BatchPlans
             new() { Key = "OriginalDiff",        Label = "原工量差",   Width = "80",  GroupKey = 12, GroupName = "执行反馈" },
             new() { Key = "CurrentDiff",         Label = "现工量差",   Width = "80",  GroupKey = 12, GroupName = "执行反馈" },
             new() { Key = "IsExecuted",          Label = "是否执行",   FilterType = "boolean", Width = "80",  GroupKey = 12, GroupName = "执行反馈" },
-            new() { Key = "IsCompliant",         Label = "达标",       FilterType = "boolean", Width = "70",  GroupKey = 12, GroupName = "执行反馈" },
+            new() { Key = "IsCompliant",         Label = "达标",       FilterType = "enum", Width = "70",  EnumOptions = new() { new("达标","达标"), new("半达标","半达标"), new("未达标","未达标") }, GroupKey = 12, GroupName = "执行反馈" },
         };
 
         // G13：批次计划（持久化，内联编辑）
@@ -263,6 +308,9 @@ public partial class BatchPlans
     {
         _tabBatchCount = _allItems.Count;
         _tabTotalWeight = _allItems.Sum(x => x.CurrentValidWeight ?? 0m);
+        var flowBatches = _allItems.Where(x => x.PlanIsFlow).ToList();
+        _tabFlowBatchCount = flowBatches.Count;
+        _tabFlowBatchWeight = flowBatches.Sum(x => x.CurrentValidWeight ?? 0m);
         var keyBatches = _allItems.Where(x => x.IsKeyBatch).ToList();
         _tabKeyBatchCount = keyBatches.Count;
         _tabKeyBatchWeight = keyBatches.Sum(x => x.CurrentValidWeight ?? 0m);
@@ -589,6 +637,14 @@ public partial class BatchPlans
             }
         }
 
+        // 初始化产量目标
+        _dailyTargets = _sectionTabs
+            .Where(t => t != "全部")
+            .ToDictionary(t => t, t => 0m);
+
+        // 从数据库加载已保存的目标
+        await LoadDailyTargetsAsync();
+
         await LoadDataAsync();
 
         if (savedState != null && table != null)
@@ -610,6 +666,8 @@ public partial class BatchPlans
     {
         _tabBatchCount = 0;
         _tabTotalWeight = 0m;
+        _tabFlowBatchCount = 0;
+        _tabFlowBatchWeight = 0m;
         _tabKeyBatchCount = 0;
         _tabKeyBatchWeight = 0m;
     }
@@ -955,7 +1013,9 @@ public partial class BatchPlans
                 {
                     1 => Color.Error,
                     2 => Color.Warning,
-                    3 => Color.Default,
+                    3 => Color.Info,
+                    4 => Color.Default,
+                    5 => Color.Default,
                     _ => Color.Default
                 };
                 builder.OpenComponent<MudChip>(0);
@@ -1064,20 +1124,28 @@ public partial class BatchPlans
                 }
                 break;
             case "IsCompliant":
-                if (item.IsCompliant == true)
+                if (item.IsCompliant == "达标")
                 {
                     builder.OpenComponent<MudChip>(0);
                     builder.AddAttribute(1, "Size", Size.Small);
                     builder.AddAttribute(2, "Color", Color.Success);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "是")));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "达标")));
                     builder.CloseComponent();
                 }
-                else if (item.IsCompliant == false)
+                else if (item.IsCompliant == "半达标")
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", Color.Warning);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "半达标")));
+                    builder.CloseComponent();
+                }
+                else if (item.IsCompliant == "未达标")
                 {
                     builder.OpenComponent<MudChip>(0);
                     builder.AddAttribute(1, "Size", Size.Small);
                     builder.AddAttribute(2, "Color", Color.Error);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "否")));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "未达标")));
                     builder.CloseComponent();
                 }
                 else
@@ -1110,9 +1178,9 @@ public partial class BatchPlans
                 builder.AddAttribute(3, "Dense", true);
                 builder.AddAttribute(4, "Variant", Variant.Text);
                 builder.AddAttribute(5, "Min", 1);
-                builder.AddAttribute(6, "Max", 3);
+                builder.AddAttribute(6, "Max", 5);
                 builder.AddAttribute(7, "HideSpinButtons", true);
-                builder.AddAttribute(8, "Class", "compact-select");
+                builder.AddAttribute(8, "Class", $"compact-select flow-level-{item.PlanFlowLevel}");
                 builder.CloseComponent();
                 break;
             case "PlanFlowTarget":

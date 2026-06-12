@@ -24,31 +24,59 @@
         </MudText>
     </div>
 
-    <!-- 待成检到料批次卡片（默认折叠） -->
-    <MudExpansionPanels>
-        <MudExpansionPanel Text="@($"待成检到料批次（{_preInputCount}批，{((int)_preInputWeight).ToString()}kg）")"
-                           IsExpanded="false"
-                           Class="mb-4">
-            <ChildContent>
-                <MudCard Elevation="1">
-                    <MudCardContent>
-                        <MudGrid>
-                            <MudItem xs="12" md="3">
-                                <MudText Typo="Typo.body2">
-                                    <b>批次数：</b>@_preInputCount
-                                </MudText>
-                            </MudItem>
-                            <MudItem xs="12" md="3">
-                                <MudText Typo="Typo.body2">
-                                    <b>总重量(kg)：</b>@(((int)_preInputWeight).ToString())
-                                </MudText>
-                            </MudItem>
-                        </MudGrid>
-                    </MudCardContent>
-                </MudCard>
-            </ChildContent>
-        </MudExpansionPanel>
-    </MudExpansionPanels>
+    <!-- 汇总数据栏 -->
+    <MudPaper Class="pa-4 mb-1" Elevation="0" Style="background: #FAFBFC; border: 1px solid #E0E0E0; border-radius: 8px;">
+        <MudGrid>
+            <MudItem xs="12">
+                <div class="d-flex flex-wrap" style="gap: 16px; align-items: center;">
+                    <MudText Typo="Typo.body2" Class="font-weight-bold" Style="color: #1565C0; min-width: 140px;">
+                        <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Small" Color="Color.Primary" Class="mr-1" />
+                        工单总数: @_totalOrderCount 批
+                    </MudText>
+                    <MudDivider Vertical="true" />
+                    <MudText Typo="Typo.body2" Style="color: #1565C0; min-width: 120px;">
+                        <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Size="Size.Small" Color="Color.Primary" Class="mr-1" />
+                        成品在购: @(_outsourceWeight > 0 ? $"{(_outsourceWeight / 1000m).ToString("F1")}t" : "0t")
+                    </MudText>
+                    <MudDivider Vertical="true" />
+                    <MudText Typo="Typo.body2" Style="color: #E65100; min-width: 120px;">
+                        <MudIcon Icon="@Icons.Material.Filled.HourglassEmpty" Size="Size.Small" Color="Color.Warning" Class="mr-1" />
+                        待投料: @(_pendingWeight > 0 ? $"{(_pendingWeight / 1000m).ToString("F1")}t" : "0t")
+                    </MudText>
+                </div>
+            </MudItem>
+            <MudItem xs="12" Class="mt-1">
+                <div class="d-flex flex-wrap" style="gap: 12px; align-items: center;">
+                    <MudChip Size="Size.Small" Color="Color.Primary">成品在购</MudChip>
+                    <MudChip Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" Class="pa-1">A+急 @(_outsourceWeight_AJ > 0 ? $"{(_outsourceWeight_AJ / 1000m).ToString("F1")}t" : "0t")</MudChip>
+                    <MudChip Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" Class="pa-1">A急 @(_outsourceWeight_A > 0 ? $"{(_outsourceWeight_A / 1000m).ToString("F1")}t" : "0t")</MudChip>
+                    <MudChip Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined" Class="pa-1">B顺 @(_outsourceWeight_B > 0 ? $"{(_outsourceWeight_B / 1000m).ToString("F1")}t" : "0t")</MudChip>
+                    <MudChip Size="Size.Small" Variant="Variant.Outlined" Class="pa-1">C缓 @(_outsourceWeight_C > 0 ? $"{(_outsourceWeight_C / 1000m).ToString("F1")}t" : "0t")</MudChip>
+                    <MudChip Size="Size.Small" Variant="Variant.Outlined" Class="pa-1">D缓 @(_outsourceWeight_D > 0 ? $"{(_outsourceWeight_D / 1000m).ToString("F1")}t" : "0t")</MudChip>
+                    <MudDivider Vertical="true" />
+                    <MudText Typo="Typo.body2" Style="color: #1565C0;">
+                        <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" Color="Color.Primary" Class="mr-1" />
+                        预执行(外购): @_preInputOutsourceCount 单 / @(_preInputOutsourceWeight > 0 ? $"{(_preInputOutsourceWeight / 1000m).ToString("F1")}t" : "0t")
+                    </MudText>
+                </div>
+            </MudItem>
+            <MudItem xs="12" Class="mt-1">
+                <div class="d-flex flex-wrap" style="gap: 12px; align-items: center;">
+                    <MudChip Size="Size.Small" Color="Color.Primary">待投料</MudChip>
+                    <MudChip Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" Class="pa-1">A+急 @(_pendingWeight_AJ > 0 ? $"{(_pendingWeight_AJ / 1000m).ToString("F1")}t" : "0t")</MudChip>
+                    <MudChip Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" Class="pa-1">A急 @(_pendingWeight_A > 0 ? $"{(_pendingWeight_A / 1000m).ToString("F1")}t" : "0t")</MudChip>
+                    <MudChip Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined" Class="pa-1">B顺 @(_pendingWeight_B > 0 ? $"{(_pendingWeight_B / 1000m).ToString("F1")}t" : "0t")</MudChip>
+                    <MudChip Size="Size.Small" Variant="Variant.Outlined" Class="pa-1">C缓 @(_pendingWeight_C > 0 ? $"{(_pendingWeight_C / 1000m).ToString("F1")}t" : "0t")</MudChip>
+                    <MudChip Size="Size.Small" Variant="Variant.Outlined" Class="pa-1">D缓 @(_pendingWeight_D > 0 ? $"{(_pendingWeight_D / 1000m).ToString("F1")}t" : "0t")</MudChip>
+                    <MudDivider Vertical="true" />
+                    <MudText Typo="Typo.body2" Style="color: #1565C0;">
+                        <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" Color="Color.Primary" Class="mr-1" />
+                        预执行(投料): @_preInputSelfCount 单 / @(_preInputSelfWeight > 0 ? $"{(_preInputSelfWeight / 1000m).ToString("F1")}t" : "0t")
+                    </MudText>
+                </div>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
 
     <MudCard>
         <MudCardContent>
