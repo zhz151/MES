@@ -76,7 +76,7 @@ public partial class SectionOutsources
         new() { Key = "ProcessName",         Label = "工序名称",     SortKey = "processname",         FilterType = "string", Width = "120" },
         new() { Key = "ManufacturingSpec",   Label = "制造规格",     SortKey = "manufacturingspec",   FilterType = "string", Width = "120" },
         new() { Key = "SectionName",         Label = "工段名称",     SortKey = "sectionname",         FilterType = "string", Width = "120" },
-        new() { Key = "SequenceNumber",      Label = "组内序号",     SortKey = "sequencenumber", Width = "45" },
+        new() { Key = "SequenceNumber",      Label = "执行序号",     SortKey = "sequencenumber", Width = "45" },
         new() { Key = "OutsourceVendor",     Label = "委外单位",     SortKey = "outsourcevendor",     FilterType = "string", Width = "120" },
         new() { Key = "SendOutDate",         Label = "发出日期",     SortKey = "sendoutdate",         FilterType = "date", Width = "120" },
         new() { Key = "SendQuantity",        Label = "发出支数",     SortKey = "sendquantity", Width = "80" },
@@ -94,7 +94,8 @@ public partial class SectionOutsources
         new() { Key = "TotalUnprocessedWeight",     Label = "非正常回收(重)", SortKey = "totalunprocessedweight", Width = "80" },
         new() { Key = "ActualRecoveryDate",  Label = "实际回收日期", SortKey = "actualrecoverydate",  FilterType = "date", Width = "120" },
         new() { Key = "Remark",              Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120" },
-        new() { Key = "CreatedTime",         Label = "创建时间",     SortKey = "createdtime", Width = "120" },
+        new() { Key = "DataSource",          Label = "数据来源",     SortKey = "datasource",          FilterType = "enum", Width = "80",
+            EnumOptions = new() { new("SCAN", "扫码"), new("MANUAL", "手动") } },
         new() { Key = "UpdatedTime",         Label = "更新时间",     SortKey = "updatedtime", Width = "120" },
     };
 
@@ -567,6 +568,16 @@ public partial class SectionOutsources
                     RenderEditTextField(builder, cache.Remark ?? "", v => cache.Remark = v);
                 else
                     builder.AddContent(0, item.Remark ?? "");
+                break;
+
+            case "DataSource":
+                var dsText = item.DataSource switch
+                {
+                    "SCAN" => "扫码",
+                    "MANUAL" => "手动",
+                    _ => item.DataSource ?? ""
+                };
+                builder.AddContent(0, dsText);
                 break;
 
             default:

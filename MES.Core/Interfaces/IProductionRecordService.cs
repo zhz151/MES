@@ -210,4 +210,9 @@ public interface IProductionRecordService
     /// 按筛选条件打印全部检验到料
     /// </summary>
     Task<byte[]> PrintMaterialCheckAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? receiveDateFrom, DateTime? receiveDateTo);
+
+    /// <summary>
+    /// 删除生产记录中所有"去油"和"酸洗"的旧数据
+    /// </summary>
+    Task<int> CleanupDegreasePickleRecordsAsync();
 }

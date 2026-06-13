@@ -105,7 +105,8 @@ public partial class FinalInspections
         new() { Key = "Pressure",               Label = "压力Mpa",    SortKey = "pressure", Width = "80" },
         new() { Key = "HoldTime",               Label = "保压时间s",  SortKey = "holdtime", Width = "80" },
         new() { Key = "Remark",                 Label = "检验备注",   SortKey = "remark", FilterType = "string", Width = "120" },
-        new() { Key = "CreatedTime",            Label = "创建日期",   SortKey = "createdtime", Width = "120" },
+        new() { Key = "DataSource",             Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Width = "80",
+            EnumOptions = new() { new("SCAN", "扫码"), new("MANUAL", "手动") } },
         new() { Key = "UpdatedTime",            Label = "更新日期",   SortKey = "updatedtime", Width = "120" },
     };
 
@@ -555,7 +556,7 @@ public partial class FinalInspections
         "Pressure" => item.Pressure?.ToString("G29"),
         "HoldTime" => item.HoldTime?.ToString(),
         "Remark" => item.Remark,
-        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        "DataSource" => item.DataSource,
         "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         _ => null
     };
@@ -699,7 +700,7 @@ public partial class FinalInspections
         "Pressure" => DisplayHelper.FormatNullableDecimal(item.Pressure),
         "HoldTime" => DisplayHelper.FormatNullableInt(item.HoldTime),
         "Remark" => item.Remark ?? "",
-        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        "DataSource" => item.DataSource ?? "",
         "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         _ => ""
     };
@@ -1055,8 +1056,14 @@ public partial class FinalInspections
                     builder.AddContent(0, item.Remark);
                 }
                 break;
-            case "CreatedTime":
-                builder.AddContent(0, item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
+            case "DataSource":
+                var dsText = item.DataSource switch
+                {
+                    "SCAN" => "扫码",
+                    "MANUAL" => "手动",
+                    _ => item.DataSource ?? ""
+                };
+                builder.AddContent(0, dsText);
                 break;
             case "UpdatedTime":
                 builder.AddContent(0, item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));

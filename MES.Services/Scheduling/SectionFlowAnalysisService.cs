@@ -41,7 +41,7 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
             .ToListAsync();
 
         // 3. 逐类计算
-        return settings.Select(setting =>
+        var results = settings.Select(setting =>
         {
             decimal pendingTotal = 0;
             decimal variationTotal = 0;
@@ -50,9 +50,22 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
             {
                 List<SectionProductionStatusDto> matches;
 
-                if (string.Equals(item.SectionName, "全部", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(item.ProcessGroupName, "全部", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(item.SectionName, "全部", StringComparison.OrdinalIgnoreCase))
                 {
-                    // 通配：匹配该工序组下所有工段
+                    // 双通配：匹配所有工序组的所有工段
+                    matches = statusLookup.Values.ToList();
+                }
+                else if (string.Equals(item.ProcessGroupName, "全部", StringComparison.OrdinalIgnoreCase))
+                {
+                    // 工序组通配：匹配所有工序组中指定工段名
+                    matches = statusLookup.Values
+                        .Where(v => string.Equals(v.SectionName, item.SectionName, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                }
+                else if (string.Equals(item.SectionName, "全部", StringComparison.OrdinalIgnoreCase))
+                {
+                    // 工段通配：匹配该工序组下所有工段
                     matches = groupedLookup.GetValueOrDefault(item.ProcessGroupName, new List<SectionProductionStatusDto>());
                 }
                 else
@@ -99,6 +112,20 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
                 StatusJudgment = status,
             };
         }).ToList();
+
+        // 4. 后处理：L(在制检) = Total(全部, 检验) - K.PendingTotal - M.PendingTotal
+        var lResult = results.FirstOrDefault(r => r.CategoryCode == "L");
+        var mResult = results.FirstOrDefault(r => r.CategoryCode == "M");
+        var kResult = results.FirstOrDefault(r => r.CategoryCode == "K");
+        if (lResult != null && mResult?.PendingTotal.HasValue == true && kResult?.PendingTotal.HasValue == true)
+        {
+            var rawL = lResult.PendingTotal ?? 0m;
+            var subtract = kResult.PendingTotal.Value + mResult.PendingTotal.Value;
+            lResult.PendingTotal = rawL > subtract ? rawL - subtract : null;
+            lResult.VariationTotal = lResult.PendingTotal > 0 ? lResult.PendingTotal : null;
+        }
+
+        return results;
     }
 
     public async Task<bool> UpdateSettingAsync(SectionFlowSettingUpdateDto dto)
@@ -121,8 +148,8 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
         return categoryCode switch
         {
             "K" => match.Total ?? 0m,                              // 荒管检：汇总量
-            "L" => (match.Total ?? 0m) - (match.FinalProcessTotal ?? 0m), // 在制检：汇总量-成品量
-            "M" => match.FinalProcessTotal ?? 0m,                  // 成品待检：属成品工序量
+            "L" => match.Total ?? 0m,                              // 在制检：汇总量（后需整体减 M）
+            "M" => match.FinalProcessTotal ?? 0m,                  // 成品待检：所有工序组中工段=检验的属成品工序量
             _ => match.Total ?? 0m                                 // A-J：汇总量
         };
     }

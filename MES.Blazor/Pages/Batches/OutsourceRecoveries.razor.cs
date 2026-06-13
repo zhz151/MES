@@ -88,7 +88,9 @@ public partial class OutsourceRecoveries
         new() { Key = "UnprocessedQuantity", Label = "非正常回收(支)", SortKey = "unprocessedquantity" },
         new() { Key = "UnprocessedWeight",   Label = "非正常回收(重)", SortKey = "unprocessedweight" },
         new() { Key = "Remark",              Label = "备注",          SortKey = "remark",                 FilterType = "string" },
-        new() { Key = "CreatedTime",         Label = "创建时间",     SortKey = "createdtime",            FilterType = "date" },
+        new() { Key = "DataSource",          Label = "数据来源",     SortKey = "datasource",            FilterType = "enum",
+            EnumOptions = new() { new("SCAN", "扫码"), new("MANUAL", "手动") } },
+        new() { Key = "UpdatedTime",         Label = "更新时间",     SortKey = "updatedtime",            FilterType = "date" },
     };
 
     // ========== 分页汇总计算 ==========
@@ -458,8 +460,17 @@ public partial class OutsourceRecoveries
             case "Remark":
                 builder.AddContent(0, item.Remark ?? "");
                 break;
-            case "CreatedTime":
-                builder.AddContent(0, item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
+            case "DataSource":
+                var dsText = item.DataSource switch
+                {
+                    "SCAN" => "扫码",
+                    "MANUAL" => "手动",
+                    _ => item.DataSource ?? ""
+                };
+                builder.AddContent(0, dsText);
+                break;
+            case "UpdatedTime":
+                builder.AddContent(0, item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
             default:
                 builder.AddContent(0, "");
@@ -487,7 +498,8 @@ public partial class OutsourceRecoveries
         "UnprocessedQuantity" => item.UnprocessedQuantity?.ToString("G29"),
         "UnprocessedWeight" => $"{(int)(item.UnprocessedWeight ?? 0)}",
         "Remark" => item.Remark,
-        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        "DataSource" => item.DataSource,
+        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         _ => null
     };
 

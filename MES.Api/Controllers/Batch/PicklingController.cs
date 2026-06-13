@@ -1,0 +1,262 @@
+using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MES.Core.DTOs;
+using MES.Core.Interfaces;
+using MES.Core.Models;
+using MES.Shared.Constants;
+
+namespace MES.Api.Controllers;
+
+/// <summary>
+/// 去油/酸洗控制器（入缸记录 + 完工记录）
+/// </summary>
+[ApiController]
+[Route("api/pickling")]
+[Authorize]
+public class PicklingController : ControllerBase
+{
+    private readonly IPicklingService _service;
+    private readonly ILogger<PicklingController> _logger;
+
+    public PicklingController(IPicklingService service, ILogger<PicklingController> logger)
+    {
+        _service = service;
+        _logger = logger;
+    }
+
+    // ========== 入缸记录 ==========
+
+    /// <summary>
+    /// 跨批次分页查询入缸记录
+    /// </summary>
+    [HttpGet("list")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<PagedResult<PicklingInRecordDto>>>> GetPaged(
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? keyword = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool isDescending = true,
+        [FromQuery] DateTime? inDateFrom = null,
+        [FromQuery] DateTime? inDateTo = null,
+        [FromQuery] DateTime? completeDateFrom = null,
+        [FromQuery] DateTime? completeDateTo = null,
+        [FromQuery] string? filters = null)
+    {
+        if (pageSize > 5000) pageSize = 5000;
+        var query = new QueryParams
+        {
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            Keyword = keyword,
+            SortBy = sortBy ?? "createdtime",
+            IsDescending = isDescending,
+            InDateFrom = inDateFrom,
+            InDateTo = inDateTo,
+            CompleteDateFrom = completeDateFrom,
+            CompleteDateTo = completeDateTo
+        };
+        if (!string.IsNullOrEmpty(filters))
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        var result = await _service.GetPagedAsync(query);
+        return Ok(ApiResponse<PagedResult<PicklingInRecordDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 创建入缸记录
+    /// </summary>
+    [HttpPost]
+    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<PicklingInRecordDto>>> Create([FromBody] CreatePicklingInRecordRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<PicklingInRecordDto>.Fail("请求参数无效"));
+        var result = await _service.CreateAsync(request);
+        return Ok(ApiResponse<PicklingInRecordDto>.Ok(result, "创建成功"));
+    }
+
+    /// <summary>
+    /// 批量创建入缸记录
+    /// </summary>
+    [HttpPost("batch")]
+    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<PicklingInRecordDto>>>> BatchCreate(
+        [FromBody] List<CreatePicklingInRecordRequest> requests)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<PicklingInRecordDto>>.Fail("请求参数无效"));
+        if (requests.Count == 0)
+            return BadRequest(ApiResponse<List<PicklingInRecordDto>>.Fail("请求列表不能为空"));
+        var result = await _service.BatchCreateAsync(requests);
+        return Ok(ApiResponse<List<PicklingInRecordDto>>.Ok(result, "批量创建成功"));
+    }
+
+    /// <summary>
+    /// 更新入缸记录（内联编辑）
+    /// </summary>
+    [HttpPut("{id}")]
+    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<PicklingInRecordDto>>> Update(int id, [FromBody] UpdatePicklingInRecordRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<PicklingInRecordDto>.Fail("请求参数无效"));
+        var result = await _service.UpdateAsync(id, request);
+        return Ok(ApiResponse<PicklingInRecordDto>.Ok(result, "更新成功"));
+    }
+
+    /// <summary>
+    /// 删除入缸记录
+    /// </summary>
+    [HttpDelete("{id}")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<ActionResult<ApiResponse>> Delete(int id)
+    {
+        await _service.DeleteAsync(id);
+        return Ok(ApiResponse.Ok("删除成功"));
+    }
+
+    // ========== 完工记录 ==========
+
+    /// <summary>
+    /// 获取指定入缸的完工记录
+    /// </summary>
+    [HttpGet("{picklingInRecordId}/out-record")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<PicklingOutRecordDto?>>> GetOutRecordByInId(int picklingInRecordId)
+    {
+        var result = await _service.GetOutRecordByInIdAsync(picklingInRecordId);
+        return Ok(ApiResponse<PicklingOutRecordDto?>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 跨批次分页查询完工记录
+    /// </summary>
+    [HttpGet("out-records/list")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<PagedResult<PicklingOutRecordDto>>>> GetOutRecordsPaged(
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? keyword = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool isDescending = true,
+        [FromQuery] DateTime? completeDateFrom = null,
+        [FromQuery] DateTime? completeDateTo = null,
+        [FromQuery] string? filters = null)
+    {
+        if (pageSize > 5000) pageSize = 5000;
+        var query = new QueryParams
+        {
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            Keyword = keyword,
+            SortBy = sortBy ?? "completedate",
+            IsDescending = isDescending,
+            CompleteDateFrom = completeDateFrom,
+            CompleteDateTo = completeDateTo
+        };
+        if (!string.IsNullOrEmpty(filters))
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        var result = await _service.GetOutRecordsPagedAsync(query);
+        return Ok(ApiResponse<PagedResult<PicklingOutRecordDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 创建完工记录（自动更新入缸状态为 Completed）
+    /// </summary>
+    [HttpPost("out-record")]
+    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<PicklingOutRecordDto>>> CreateOutRecord(
+        [FromBody] CreatePicklingOutRecordRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<PicklingOutRecordDto>.Fail("请求参数无效"));
+        var result = await _service.CreateOutRecordAsync(request);
+        return Ok(ApiResponse<PicklingOutRecordDto>.Ok(result, "创建成功"));
+    }
+
+    /// <summary>
+    /// 更新完工记录
+    /// </summary>
+    [HttpPut("out-record/{id}")]
+    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<PicklingOutRecordDto>>> UpdateOutRecord(int id, [FromBody] UpdatePicklingOutRecordRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<PicklingOutRecordDto>.Fail("请求参数无效"));
+        var result = await _service.UpdateOutRecordAsync(id, request);
+        return Ok(ApiResponse<PicklingOutRecordDto>.Ok(result, "更新成功"));
+    }
+
+    /// <summary>
+    /// 删除完工记录
+    /// </summary>
+    [HttpDelete("out-record/{id}")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<ActionResult<ApiResponse>> DeleteOutRecord(int id)
+    {
+        await _service.DeleteOutRecordAsync(id);
+        return Ok(ApiResponse.Ok("删除成功"));
+    }
+
+    // ========== 打印 ==========
+
+    /// <summary>
+    /// 批量打印入缸记录（选中）
+    /// </summary>
+    [HttpPost("print-selected")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintSelected([FromBody] PicklingInRecordPrintBatchRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    /// <summary>
+    /// 按筛选条件打印全部入缸记录
+    /// </summary>
+    [HttpPost("print-all")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintAll([FromBody] PicklingInRecordPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending,
+            request.InDateFrom, request.InDateTo,
+            request.CompleteDateFrom, request.CompleteDateTo,
+            request.Columns);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    // ========== 筛选上下文 ==========
+
+    /// <summary>
+    /// 获取入缸记录筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    [HttpGet("filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
+    {
+        var result = await _service.GetFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
+
+    /// <summary>
+    /// 获取完工记录筛选上下文
+    /// </summary>
+    [HttpGet("out-records/filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetOutRecordFilterContexts()
+    {
+        var result = await _service.GetOutRecordFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
+}

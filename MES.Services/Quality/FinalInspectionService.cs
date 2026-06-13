@@ -610,7 +610,8 @@ public class FinalInspectionService : IFinalInspectionService
                 r.WallThicknessRange,
                 r.LengthAllowanceRange,
                 r.InspectionDate,
-                r.Remark
+                r.Remark,
+                r.DataSource
             })
             .ToListAsync();
 
@@ -636,7 +637,8 @@ public class FinalInspectionService : IFinalInspectionService
             ["WallThicknessRange"] = all.Select(x => x.WallThicknessRange ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
             ["LengthAllowanceRange"] = all.Select(x => x.LengthAllowanceRange ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
             ["InspectionDate"] = all.Select(x => x.InspectionDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList(),
-            ["Remark"] = all.Select(x => x.Remark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList()
+            ["Remark"] = all.Select(x => x.Remark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["DataSource"] = all.Select(x => x.DataSource ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList()
         };
     }
 

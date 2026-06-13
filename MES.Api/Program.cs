@@ -61,7 +61,7 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSet
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(connectionString, o => o.CommandTimeout(120)));
 
 builder.Services.AddIdentity<AppUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
@@ -162,7 +162,9 @@ builder.Services.AddScoped<IChemicalCompositionService, ChemicalCompositionServi
 builder.Services.AddScoped<IFurnaceRegistrationService, FurnaceRegistrationService>();
 builder.Services.AddScoped<IChemicalValidationRuleService, ChemicalValidationRuleService>();
 builder.Services.AddScoped<IFinalInspectionService, FinalInspectionService>();
+builder.Services.AddScoped<INcrService, NcrService>();
 builder.Services.AddScoped<ISectionOutsourceService, SectionOutsourceService>();
+builder.Services.AddScoped<IPicklingService, PicklingService>();
 
 // Register material context services
 builder.Services.AddScoped<IMaterialService, MaterialService>();

@@ -204,12 +204,13 @@ public class ProcessInspectionService : IProcessInspectionService
         var taskPlantGrades = _context.ProcessInspections.Where(r => r.PlantGrade != null && r.PlantGrade != "").Select(r => r.PlantGrade).Distinct().OrderBy(v => v).ToListAsync();
         var taskInspectionDates = _context.ProcessInspections.Select(r => r.InspectionDate).Distinct().ToListAsync();
         var taskRemarks = _context.ProcessInspections.Where(r => r.Remark != null && r.Remark != "").Select(r => r.Remark).Distinct().OrderBy(v => v).ToListAsync();
+        var taskDataSources = _context.ProcessInspections.Where(r => r.DataSource != null && r.DataSource != "").Select(r => r.DataSource).Distinct().OrderBy(v => v).ToListAsync();
 
         await Task.WhenAll(
             taskBatchNos, taskProcessNames, taskManufacturingSpecs, taskSectionNames,
             taskEquipmentNames, taskInspectors, taskShifts, taskInspectionItems,
             taskConcessionRemarks, taskDefectDescriptions, taskSourceUnits, taskTagNos,
-            taskPlantGrades, taskInspectionDates, taskRemarks);
+            taskPlantGrades, taskInspectionDates, taskRemarks, taskDataSources);
 
         var batchNos = (await taskBatchNos)!;
         var processNames = (await taskProcessNames)!;
@@ -226,6 +227,7 @@ public class ProcessInspectionService : IProcessInspectionService
         var plantGrades = (await taskPlantGrades)!;
         var inspectionDates = (await taskInspectionDates).Select(d => d.ToString("yyyy-MM-dd")).OrderBy(x => x).ToList();
         var remarks = (await taskRemarks)!;
+        var dataSources = (await taskDataSources)!;
 
         var result = new Dictionary<string, List<string>>
         {
@@ -239,6 +241,7 @@ public class ProcessInspectionService : IProcessInspectionService
             ["InspectionItem"] = inspectionItems,
             ["ConcessionRemark"] = concessionRemarks,
             ["DefectDescription"] = defectDescriptions,
+            ["DataSource"] = dataSources,
             ["SourceUnit"] = sourceUnits,
             ["TagNo"] = tagNos,
             ["PlantGrade"] = plantGrades,

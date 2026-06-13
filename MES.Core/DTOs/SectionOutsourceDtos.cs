@@ -170,6 +170,7 @@ public class OutsourceRecoveryDto
     public decimal? UnprocessedWeight { get; set; }
     public string? Remark { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
+    public DateTimeOffset UpdatedTime { get; set; }
 
     // ========== 冗余字段 ==========
     /// <summary>批次号</summary>

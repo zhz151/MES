@@ -15,6 +15,7 @@ public static class ApiEndpoints
     public const string Batch = "api/batch";
     public const string ProductionRecord = "api/production-record";
     public const string SectionOutsource = "api/section-outsource";
+    public const string Pickling = "api/pickling";
 
     // ===== Order 订单 =====
     public const string Order = "api/order";
@@ -33,6 +34,7 @@ public static class ApiEndpoints
     public const string GradeMapping = "api/grade-mapping";
     public const string ProcessInspection = "api/process-inspection";
     public const string QualityProcessTracking = "api/quality-process-tracking";
+    public const string Ncr = "api/ncr";
 
     // ===== Equipment 设备 =====
     public const string Equipment = "api/equipment";

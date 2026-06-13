@@ -745,10 +745,8 @@ public static class DbInitializer
 
                 // ===== ProductionThreshold 生产阈值 =====
                 new() { Category = "ProductionThreshold", ParamKey = "ColdRollCompleteRatio", ParamValue = 0.95m, Remark = "冷轧拔完工比率" },
-                new() { Category = "ProductionThreshold", ParamKey = "ValidInputUpper", ParamValue = 1.05m, Remark = "有效投料比率上限" },
-                new() { Category = "ProductionThreshold", ParamKey = "ValidInputLower", ParamValue = 0.95m, Remark = "有效投料比率下限" },
-                new() { Category = "ProductionThreshold", ParamKey = "InspectionInputUpper", ParamValue = 1.02m, Remark = "检验投料比率上限" },
-                new() { Category = "ProductionThreshold", ParamKey = "InspectionInputLower", ParamValue = 0.98m, Remark = "检验投料比率下限" },
+                new() { Category = "ProductionThreshold", ParamKey = "ValidInputUpper", ParamValue = 1.03m, Remark = "有效投料比率上限" },
+                new() { Category = "ProductionThreshold", ParamKey = "ValidInputLower", ParamValue = 0.97m, Remark = "有效投料比率下限" },
 
                 // ===== MaterialPlanRatio 物料计划系数 =====
                 new() { Category = "MaterialPlanRatio", ParamKey = "FixedFinishRatio", ParamValue = 1.02m, Remark = "定尺成品采购系数" },
@@ -941,11 +939,11 @@ public static class DbInitializer
             // K 荒管检
             AddItem(settingMap["K"], "荒管处理", "检验", 1m, 1);
 
-            // L 在制检
-            AddItem(settingMap["L"], "在制修检", "全部", 1m, 1);
+            // L 在制检：全部工序组工段=检验的汇总量，后处理减去 K+M
+            AddItem(settingMap["L"], "全部", "检验", 1m, 1);
 
-            // M 成品待检
-            AddItem(settingMap["M"], "在制修检", "全部", 1m, 1);
+            // M 成品待检：所有工序组中工段=检验的属成品工序量（FinalProcessTotal）汇总
+            AddItem(settingMap["M"], "全部", "检验", 1m, 1);
 
             await context.SectionFlowCategoryItems.AddRangeAsync(items);
             await context.SaveChangesAsync();

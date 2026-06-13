@@ -79,31 +79,30 @@
     </MudPaper>
 
     <MudCard>
-        <MudCardContent>
+        <MudCardContent Class="py-1">
             <!-- 筛选栏 -->
-            <MudGrid>
-                <MudItem xs="12" md="6">
-                    <MudTextField T="string"
-                                  Label="工单号/订单号/业务员/客户/牌号/规格/主号"
-                                  Value="@_searchKeyword"
-                                  ValueChanged="@OnSearchChanged"
-                                  Immediate="true"
-                                  DebounceInterval="500"
-                                  Clearable="true"
-                                  ClearButton="true"
-                                  Adornment="Adornment.End"
-                                  AdornmentIcon="@Icons.Material.Filled.Search" />
-                </MudItem>
-            </MudGrid>
+            <div>
+                <MudTextField T="string"
+                              Label="工单号/订单号/业务员/客户/牌号/规格/主号"
+                              Value="@_searchKeyword"
+                              ValueChanged="@OnSearchChanged"
+                              Immediate="true"
+                              DebounceInterval="500"
+                              Clearable="true"
+                              ClearButton="true"
+                              Dense="true"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@Icons.Material.Filled.Search" />
+            </div>
 
             <!-- 数据表格 -->
-            <div id="raw-material-lock-plan-list-table">
+            <div id="raw-material-lock-plan-list-table" class="mt-1">
             @{
                 var _groupHeaders = GetGroupHeaders();
                 var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100);
             }
             @* 工具栏：列显隐 + 记录数（置于组字段上方） *@
-            <div class="woe-toolbar">
+            <div class="woe-toolbar" style="min-height:28px;padding:2px 0">
                 <ColumnDisplaySelect Columns="_allColumns"
                                      OnColumnToggle="OnColumnToggle"
                                      OnMoveUp="MoveColumnUp"

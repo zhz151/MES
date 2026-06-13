@@ -88,7 +88,6 @@ public partial class MaterialChecks
         new() { Key = "DeliveryState",     Label = "交货状态",   SortKey = "deliverystate", FilterType = "enum", Width = "120", EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态") } },
         new() { Key = "IsForceCompleted",  Label = "强制完成",   SortKey = "isforcecompleted", FilterType = "boolean", Visible = false, BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "60" },
         new() { Key = "Remark",            Label = "备注",        SortKey = "remark", FilterType = "string", Width = "120" },
-        new() { Key = "CreatedTime",       Label = "创建时间",   SortKey = "createdtime", FilterType = "date", Width = "120" },
         new() { Key = "UpdatedTime",       Label = "更新时间",   SortKey = "updatedtime", FilterType = "date", Width = "120" },
     };
 
@@ -628,10 +627,6 @@ public partial class MaterialChecks
                 {
                     builder.AddContent(0, item.Remark);
                 }
-                break;
-
-            case "CreatedTime":
-                builder.AddContent(0, item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
 
             case "UpdatedTime":

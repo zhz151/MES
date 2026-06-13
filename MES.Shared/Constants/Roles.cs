@@ -48,6 +48,7 @@ public static class Roles
         public const string EquipmentWrite = "EquipmentDirector,Admin";
 
         public const string QualityRead = "QualityStaff,QualityDirector,Admin";
+        public const string QualityWrite = "QualityDirector,Admin";
 
         public const string WarehouseRead = "WarehouseStaff,WarehouseDirector,Admin";
 

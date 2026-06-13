@@ -1107,10 +1107,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                         continue;
                     }
 
-                    // === 2. 冷拔 — 瞬时工序，无"生产中"概念 ===
-                    if (pn == "冷拔") continue;
-
-                    // === 3. 冷轧系列 — 检查批次是否正在做指定工段且未完成 ===
+                    // === 3. 冷轧/冷拔系列 — 检查批次是否正在做指定工段且未完成 ===
                     var isAtSection = batch.CurrentGroupName != null
                         && batch.CurrentGroupName.Equals(pn, StringComparison.OrdinalIgnoreCase)
                         && batch.CurrentSectionName == sn;

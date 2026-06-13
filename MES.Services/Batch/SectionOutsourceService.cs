@@ -206,6 +206,8 @@ public class SectionOutsourceService : ISectionOutsourceService
             ("isurgent", true) => queryable.OrderByDescending(s => s.IsUrgent),
             ("remark", false) => queryable.OrderBy(s => s.Remark ?? ""),
             ("remark", true) => queryable.OrderByDescending(s => s.Remark ?? ""),
+            ("datasource", false) => queryable.OrderBy(s => s.DataSource ?? ""),
+            ("datasource", true) => queryable.OrderByDescending(s => s.DataSource ?? ""),
             ("updatedtime", false) => queryable.OrderBy(s => s.UpdatedTime),
             ("updatedtime", true) => queryable.OrderByDescending(s => s.UpdatedTime),
             _ => query.IsDescending
@@ -540,7 +542,8 @@ public class SectionOutsourceService : ISectionOutsourceService
                 UnprocessedQuantity = r.UnprocessedQuantity,
                 UnprocessedWeight = r.UnprocessedWeight,
                 Remark = r.Remark,
-                CreatedTime = r.CreatedTime
+                CreatedTime = r.CreatedTime,
+                UpdatedTime = r.UpdatedTime
             })
             .ToListAsync();
     }
@@ -685,6 +688,8 @@ public class SectionOutsourceService : ISectionOutsourceService
             ("sendquantity", true) => queryable.OrderByDescending(r => r.SectionOutsource.SendQuantity ?? 0),
             ("sendweight", false) => queryable.OrderBy(r => r.SectionOutsource.SendWeight ?? 0),
             ("sendweight", true) => queryable.OrderByDescending(r => r.SectionOutsource.SendWeight ?? 0),
+            ("datasource", false) => queryable.OrderBy(r => r.DataSource ?? ""),
+            ("datasource", true) => queryable.OrderByDescending(r => r.DataSource ?? ""),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(r => r.CreatedTime)
                 : queryable.OrderBy(r => r.CreatedTime)
@@ -705,6 +710,7 @@ public class SectionOutsourceService : ISectionOutsourceService
                 Remark = r.Remark,
                 DataSource = r.DataSource,
                 CreatedTime = r.CreatedTime,
+                UpdatedTime = r.UpdatedTime,
                 BatchNo = r.SectionOutsource.ProductionBatch.BatchNo,
                 OutsourceVendor = r.SectionOutsource.OutsourceVendor,
                 ProcessName = r.SectionOutsource.ProcessName,
@@ -1114,7 +1120,8 @@ public class SectionOutsourceService : ISectionOutsourceService
                 OutsourceSpec = r.SectionOutsource.OutsourceSpec,
                 r.SectionOutsource.TagNo,
                 r.SectionOutsource.PlantGrade,
-                r.Remark
+                r.Remark,
+                r.DataSource
             })
             .ToListAsync();
 
@@ -1131,6 +1138,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["Remark"] = results.Where(x => x.Remark != null).Select(x => x.Remark!).Distinct().OrderBy(x => x).ToList()!,
             ["RecoveryDate"] = results.Select(x => x.RecoveryDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
             ["CreatedTime"] = results.Select(x => x.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")).Distinct().OrderBy(x => x).ToList(),
+            ["DataSource"] = results.Where(x => x.DataSource != null).Select(x => x.DataSource!).Distinct().OrderBy(x => x).ToList()!,
         };
     }
 
@@ -1159,6 +1167,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             s.Remark,
             s.SendOutDate,
             s.ExpectedReturnDate,
+            s.DataSource,
             ActualRecoveryDate = s.OutsourceRecoveries.Max(r => (DateTime?)r.RecoveryDate)
         }).ToListAsync();
 
@@ -1174,6 +1183,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["OutsourceSpec"] = results.Select(x => x.OutsourceSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
             ["Remark"] = results.Select(x => x.Remark).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
             ["SendOutDate"] = results.Select(x => x.SendOutDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["DataSource"] = results.Select(x => x.DataSource).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
             ["ExpectedReturnDate"] = results.Where(x => x.ExpectedReturnDate.HasValue)
                 .Select(x => x.ExpectedReturnDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
             ["ActualRecoveryDate"] = results.Where(x => x.ActualRecoveryDate.HasValue)

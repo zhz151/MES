@@ -1,0 +1,322 @@
+@page "/quality/ncr/create"
+@page "/quality/ncr/{Id:int}"
+@using MES.Core.DTOs
+@using MES.Core.Enums
+@using MES.Blazor.Services
+@using MES.Blazor.Helpers
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
+@attribute [Authorize(Roles = Roles.Policies.QualityRead)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.BugReport" Class="mr-2" Color="Color.Error" />
+                    @if (_isEditMode)
+                    {
+                        <span>编辑不合格报告 #@Id</span>
+                    }
+                    else
+                    {
+                        <span>新建不合格报告</span>
+                    }
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="GoBack">返回</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            @if (!_isEditMode)
+            {
+                <!-- 待处理批次卡片 -->
+                <MudPaper Elevation="0" Class="mb-4 pa-4" Style="border: 1px solid #e0e0e0; border-radius: 8px;">
+                    <div Class="d-flex align-center" style="cursor: pointer;" @onclick="TogglePendingChecks">
+                        <MudIcon Icon="@Icons.Material.Filled.Inbox" Color="Color.Error" Class="mr-2" />
+                        <MudText Typo="Typo.body1" Class="font-weight-bold flex-grow-1">待处理批次</MudText>
+                        <MudChip Color="@GetWarningColor()" Size="Size.Small" Class="mr-1">待处理 @_pendingItems.Count</MudChip>
+                        <MudIcon Icon="@(_showPending ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Color="Color.Default" />
+                    </div>
+                    @if (_showPending && _pendingItems.Count > 0)
+                    {
+                        <div style="overflow-x: auto; overflow-y: auto; max-height: 25vh; margin-top: 8px;">
+                            <MudTable T="NcrPendingCheckDto"
+                                      Items="@_pendingItems"
+                                      Dense="true" Hover="true"
+                                      Elevation="0"
+                                      Class="auto-table">
+                                <HeaderContent>
+                                    <MudTh Style="width: 120px;">生产编号</MudTh>
+                                    <MudTh Style="width: 110px;">工单号</MudTh>
+                                    <MudTh Style="width: 80px;">来源</MudTh>
+                                    <MudTh Style="width: 100px;">检验项目</MudTh>
+                                    <MudTh Style="width: 100px;">处置方式</MudTh>
+                                    <MudTh Style="width: 100px;">不合格/总检</MudTh>
+                                    <MudTh Style="width: 80px;">占比</MudTh>
+                                    <MudTh Style="width: 60px;">操作</MudTh>
+                                </HeaderContent>
+                                <RowTemplate Context="item">
+                                    <MudTd>
+                                        <MudLink @onclick='() => FillFromCard(item)' Style="cursor: pointer;">
+                                            @item.BatchNo
+                                        </MudLink>
+                                    </MudTd>
+                                    <MudTd>@item.WorkOrderNo</MudTd>
+                                    <MudTd>
+                                        <MudChip Size="Size.Small"
+                                                 Color="@GetSourceTypeColor(item.SourceType)">
+                                            @GetSourceTypeText(item.SourceType)
+                                        </MudChip>
+                                    </MudTd>
+                                    <MudTd>@GetInspectionItemDisplay(item.InspectionItem, item.SourceType)</MudTd>
+                                    <MudTd>
+                                        <MudChip Size="Size.Small"
+                                                 Color="@GetDisposalChipColor(item.DisposalMethod)">
+                                            @GetDisposalMethodText(item.DisposalMethod)
+                                        </MudChip>
+                                    </MudTd>
+                                    <MudTd>@item.DefectQuantity / @item.TotalQuantity</MudTd>
+                                    <MudTd>@item.Percentage.ToString("F1")%</MudTd>
+                                    <MudTd>
+                                        <MudIconButton Icon="@Icons.Material.Filled.AddCircle"
+                                                       Color="Color.Primary" Size="Size.Small"
+                                                       Title="填充表单"
+                                                       OnClick="() => FillFromCard(item)" />
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </div>
+                    }
+                </MudPaper>
+            }
+
+            <MudForm @ref="form">
+                <!-- G1: 问题反馈 -->
+                <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-2" Color="Color.Error">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" /> G1 问题反馈
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudTextField T="string" Label="反馈日期 *" @bind-Value="_reportDate"
+                                      Placeholder="yyyy-MM-dd" Immediate="true"
+                                      Required="true" RequiredError="反馈日期不能为空" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudTextField T="string" Label="反馈部门" @bind-Value="_formData.ReportDepartment" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudTextField T="string" Label="反馈人" @bind-Value="_formData.Reporter" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudSelect T="PipeCategory" Label="钢管类别 *" @bind-Value="_formData.PipeCategory"
+                                   Variant="Variant.Outlined" Immediate="true"
+                                   Required="true" RequiredError="钢管类别不能为空">
+                            @foreach (var opt in GetPipeCategoryOptions())
+                            {
+                                <MudSelectItem Value="opt.Value">@opt.Text</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+                <MudGrid>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudTextField T="string" Label="生产编号 *"
+                                      Value="_formData.BatchNo"
+                                      ValueChanged="@OnBatchNoChanged"
+                                      Immediate="true"
+                                      Required="true" RequiredError="生产编号不能为空"
+                                      Disabled="@_isEditMode" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudTextField T="string" Label="工单号" @bind-Value="_formData.WorkOrderNo" Disabled="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4" md="3">
+                        <MudTextField T="string" Label="牌号" @bind-Value="_formData.PlantGrade" Disabled="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4" md="3">
+                        <MudTextField T="string" Label="规格" @bind-Value="_formData.Specification" Disabled="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4" md="2">
+                        <MudNumericField T="int?" Label="不合格支数" @bind-Value="_formData.DefectiveQuantity"
+                                         HideSpinButtons="true" />
+                    </MudItem>
+                </MudGrid>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="问题描述" @bind-Value="_formData.ProblemDescription"
+                                      Lines="2" MaxLines="4" />
+                    </MudItem>
+                </MudGrid>
+
+                <!-- G2: 不合格品处置 -->
+                <MudText Typo="Typo.subtitle1" Class="font-weight-bold mt-4 mb-2" Color="Color.Warning">
+                    <MudIcon Icon="@Icons.Material.Filled.Handyman" Size="Size.Small" /> G2 不合格品处置
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudSelect T="DisposalMethod?" Label="处置方式" @bind-Value="_formData.DisposalMethod"
+                                   Variant="Variant.Outlined">
+                            <MudSelectItem Value="@((DisposalMethod?)null)">请选择</MudSelectItem>
+                            @foreach (var opt in GetDisposalMethodOptions())
+                            {
+                                <MudSelectItem Value="opt.Value">@opt.Text</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudCheckBox T="bool" Label="处置是否完结" @bind-Value="_formData.DisposalIsCompleted" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudTextField T="string" Label="处置完结日期" @bind-Value="_disposalCompleteDate"
+                                      Placeholder="yyyy-MM-dd" />
+                    </MudItem>
+                </MudGrid>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="处置备注" @bind-Value="_formData.DisposalRemark" Lines="2" />
+                    </MudItem>
+                </MudGrid>
+
+                <!-- G3: 原因分析 -->
+                <MudText Typo="Typo.subtitle1" Class="font-weight-bold mt-4 mb-2" Color="Color.Info">
+                    <MudIcon Icon="@Icons.Material.Filled.Analytics" Size="Size.Small" /> G3 原因分析
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect T="SeverityLevel?" Label="事故严重程度" @bind-Value="_formData.Severity"
+                                   Variant="Variant.Outlined">
+                            <MudSelectItem Value="@((SeverityLevel?)null)">请选择</MudSelectItem>
+                            @foreach (var opt in GetSeverityOptions())
+                            {
+                                <MudSelectItem Value="opt.Value">@opt.Text</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudTextField T="string" Label="分析确认人" @bind-Value="_formData.AnalysisConfirmer" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudTextField T="string" Label="确认日期" @bind-Value="_analysisConfirmDate"
+                                      Placeholder="yyyy-MM-dd" />
+                    </MudItem>
+                </MudGrid>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="原因分析" @bind-Value="_formData.RootCauseAnalysis"
+                                      Lines="3" MaxLines="5" />
+                    </MudItem>
+                </MudGrid>
+
+                <!-- G4: 责任人及处理 -->
+                <MudText Typo="Typo.subtitle1" Class="font-weight-bold mt-4 mb-2" Color="Color.Default">
+                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" /> G4 责任人及处理
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudSelect T="ResponsibilityCategory?" Label="责任类别" @bind-Value="_formData.ResponsibilityCategory"
+                                   Variant="Variant.Outlined">
+                            <MudSelectItem Value="@((ResponsibilityCategory?)null)">请选择</MudSelectItem>
+                            @foreach (var opt in GetResponsibilityCategoryOptions())
+                            {
+                                <MudSelectItem Value="opt.Value">@opt.Text</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudTextField T="string" Label="责任部门" @bind-Value="_formData.ResponsibleDept" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudTextField T="string" Label="生产责任人" @bind-Value="_formData.ResponsiblePerson" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudTextField T="string" Label="生产操作日期" @bind-Value="_operationDate"
+                                      Placeholder="yyyy-MM-dd" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudCheckBox T="bool" Label="处理是否完结" @bind-Value="_formData.PersonIsCompleted" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudTextField T="string" Label="完结日期" @bind-Value="_personCompleteDate"
+                                      Placeholder="yyyy-MM-dd" />
+                    </MudItem>
+                </MudGrid>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="对责任人的处理" @bind-Value="_formData.PersonDisposition" Lines="2" />
+                    </MudItem>
+                </MudGrid>
+
+                <!-- G5: 纠正预防措施及结果验证 -->
+                <MudText Typo="Typo.subtitle1" Class="font-weight-bold mt-4 mb-2" Color="Color.Success">
+                    <MudIcon Icon="@Icons.Material.Filled.Verified" Size="Size.Small" /> G5 纠正预防措施及结果验证
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudTextField T="string" Label="计划人" @bind-Value="_formData.ActionPlanner" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudTextField T="string" Label="计划日期" @bind-Value="_actionPlanDate"
+                                      Placeholder="yyyy-MM-dd" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudTextField T="string" Label="验证人" @bind-Value="_formData.ActionVerifier" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudTextField T="string" Label="验证日期" @bind-Value="_actionVerifyDate"
+                                      Placeholder="yyyy-MM-dd" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudSelect T="VerifyResult?" Label="验证结论" @bind-Value="_formData.VerifyResult"
+                                   Variant="Variant.Outlined">
+                            <MudSelectItem Value="@((VerifyResult?)null)">请选择</MudSelectItem>
+                            @foreach (var opt in GetVerifyResultOptions())
+                            {
+                                <MudSelectItem Value="opt.Value">@opt.Text</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="纠正预防措施" @bind-Value="_formData.CorrectiveAction" Lines="3" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="结果判定" @bind-Value="_formData.ActionResult" Lines="2" />
+                    </MudItem>
+                </MudGrid>
+
+                <!-- 状态（编辑模式显示） -->
+                @if (_isEditMode)
+                {
+                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold mt-4 mb-2" Color="Color.Default">
+                        <MudIcon Icon="@Icons.Material.Filled.Flag" Size="Size.Small" /> 状态
+                    </MudText>
+                    <MudGrid>
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudText>当前状态: <strong>@GetStatusText(_currentStatus)</strong></MudText>
+                        </MudItem>
+                    </MudGrid>
+                }
+
+                <!-- 提交按钮 -->
+                <MudGrid Class="mt-4">
+                    <MudItem xs="12" Class="d-flex justify-end gap-2">
+                        <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="GoBack">取消</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Error"
+                                   OnClick="Save" Disabled="@_isSaving"
+                                   StartIcon="@Icons.Material.Filled.Save">
+                            @if (_isSaving)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ml-1" />
+                            }
+                            保存
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudForm>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>

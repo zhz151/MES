@@ -237,6 +237,17 @@ public class ProductionRecordController : ControllerBase
         return Ok(ApiResponse.Ok($"已刷新 {count} 个批次跟踪字段"));
     }
 
+    /// <summary>
+    /// 删除生产记录中所有"去油"和"酸洗"的旧数据（已被 PicklingInRecord 替代）
+    /// </summary>
+    [HttpDelete("cleanup-degrease-pickle")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse>> CleanupDegreasePickleRecords()
+    {
+        var count = await _service.CleanupDegreasePickleRecordsAsync();
+        return Ok(ApiResponse.Ok($"已删除 {count} 条去油/酸洗生产记录"));
+    }
+
     // ========== 跨批次查询（用于独立页面） ==========
 
     /// <summary>

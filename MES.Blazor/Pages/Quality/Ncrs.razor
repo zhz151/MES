@@ -1,0 +1,162 @@
+@page "/quality/ncr"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using MES.Core.Enums
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.BugReport" Class="mr-2" Color="Color.Error" />
+                    不合格报告
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <AuthorizeView Roles="@Roles.Policies.QualityWrite">
+                    <MudButton Variant="Variant.Filled" Color="Color.Error"
+                               StartIcon="@Icons.Material.Filled.Add" OnClick="CreateNew">
+                        新建
+                    </MudButton>
+                </AuthorizeView>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <!-- 待处理批次卡片 -->
+            <MudPaper Elevation="0" Class="mb-4 pa-4" Style="border: 1px solid #e0e0e0; border-radius: 8px;">
+                <div style="display: flex; align-items: center; cursor: pointer;" @onclick="TogglePendingChecks">
+                    <MudIcon Icon="@Icons.Material.Filled.Inbox" Color="Color.Error" Class="mr-2" />
+                    <MudText Typo="Typo.body1" Class="font-weight-medium mr-4">待处理批次</MudText>
+                    <MudChip Color="@GetWarningColor()" Size="Size.Small">@_pendingItems.Count 条</MudChip>
+                    <MudSpacer />
+                    <MudIcon Icon="@(_showPending ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" />
+                </div>
+                @if (_showPending && _pendingItems.Count > 0)
+                {
+                    <div style="overflow-x: auto; overflow-y: auto; max-height: 25vh; margin-top: 8px;">
+                        <MudTable T="NcrPendingCheckDto"
+                                  Items="@_pendingItems"
+                                  Dense="true" Hover="true"
+                                  Elevation="0"
+                                  Class="auto-table">
+                            <HeaderContent>
+                                <MudTh>生产编号</MudTh>
+                                <MudTh>工单号</MudTh>
+                                <MudTh>来源</MudTh>
+                                <MudTh>检验项目</MudTh>
+                                <MudTh>处置方式</MudTh>
+                                <MudTh>不合格/总检</MudTh>
+                                <MudTh>占比</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="item">
+                                <MudTd>
+                                    <MudLink @onclick='() => CreateFromPending(item)'
+                                             Style="cursor: pointer;">
+                                        @item.BatchNo
+                                    </MudLink>
+                                </MudTd>
+                                <MudTd>@item.WorkOrderNo</MudTd>
+                                <MudTd>
+                                    <MudChip Size="Size.Small"
+                                             Color="@GetSourceTypeColor(item.SourceType)">
+                                        @GetSourceTypeText(item.SourceType)
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd>@GetInspectionItemDisplay(item.InspectionItem, item.SourceType)</MudTd>
+                                <MudTd>
+                                    <MudChip Size="Size.Small"
+                                             Color="@GetDisposalChipColor(item.DisposalMethod)">
+                                        @GetDisposalMethodText(item.DisposalMethod)
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd>@item.DefectQuantity / @item.TotalQuantity</MudTd>
+                                <MudTd>@item.Percentage.ToString("F1")%</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </div>
+                }
+            </MudPaper>
+
+            <!-- 搜索栏 -->
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  Label="模糊搜索 - 生产编号/工单号/牌号/规格/被反馈人/确认人"
+                                  Value="_searchKeyword" ValueChanged="@OnSearchChanged"
+                                  Immediate="true" DebounceInterval="500"
+                                  Clearable="true" ClearButton="true"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+            </MudGrid>
+
+            <!-- 数据表格 -->
+            <MudTable @ref="table"
+                      T="NcrDto"
+                      ServerData="@LoadDataFromServer"
+                      Dense="true" Hover="true"
+                      Elevation="0" RowsPerPage="@_pageSize"
+                      Class="auto-table">
+                <ToolBarContent>
+                    <ColumnDisplaySelect Columns="@_allColumns"
+                                         OnColumnToggle="@OnColumnToggle"
+                                         OnMoveUp="@MoveColumnUp"
+                                         OnMoveDown="@MoveColumnDown" />
+                    <MudSpacer />
+                    <MudText Typo="Typo.body2" Class="ml-auto">共 @_totalCount 条记录</MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTh Style="@($"width: {col.Width}")">
+                            <div style="display: flex; align-items: center; gap: 2px;">
+                                <span @onclick='() => ToggleSort(col.SortKey ?? col.Key)'
+                                      style="cursor: pointer; white-space: nowrap; user-select: none;">
+                                    @col.Label
+                                    @if (sortColumn == (col.SortKey ?? col.Key))
+                                    {
+                                        <MudIcon Size="Size.Small"
+                                                 Icon="@(sortDescending ? Icons.Material.Filled.ArrowDownward : Icons.Material.Filled.ArrowUpward)" />
+                                    }
+                                </span>
+                                @if (col.FilterType != null)
+                                {
+                                    <ExcelFilter T="NcrDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))" />
+                                }
+                            </div>
+                        </MudTh>
+                    }
+                    <MudTh Style="width: 140px;">操作</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="item">
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd>
+                            @RenderCell(item, col)
+                        </MudTd>
+                    }
+                    <MudTd>
+                        <AuthorizeView Roles="@Roles.Policies.QualityWrite">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                           Size="Size.Small" Color="Color.Primary"
+                                           OnClick='() => EditItem(item.Id)' />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Size="Size.Small" Color="Color.Error"
+                                           OnClick='() => DeleteItem(item.Id)' />
+                        </AuthorizeView>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
+                </PagerContent>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>

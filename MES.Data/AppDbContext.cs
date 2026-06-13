@@ -77,6 +77,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<OutsourceRecovery> OutsourceRecoveries { get; set; } = null!;
     public DbSet<MaterialReceiveCheck> MaterialReceiveChecks { get; set; } = null!;
     public DbSet<BatchOperationLog> BatchOperationLogs { get; set; } = null!;
+    public DbSet<PicklingInRecord> PicklingInRecords { get; set; } = null!;
+    public DbSet<PicklingOutRecord> PicklingOutRecords { get; set; } = null!;
 
     // ========== 质量上下文 ==========
 
@@ -85,6 +87,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<FurnaceRegistration> FurnaceRegistrations { get; set; } = null!;
     public DbSet<ChemicalValidationRule> ChemicalValidationRules { get; set; } = null!;
     public DbSet<FinalInspection> FinalInspections { get; set; } = null!;
+    public DbSet<Ncr> Ncrs { get; set; } = null!;
 
     // ========== 设备上下文 ==========
 
@@ -174,6 +177,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureOutsourceRecovery(builder);
         ConfigureMaterialReceiveCheck(builder);
         ConfigureBatchOperationLog(builder);
+        ConfigurePicklingInRecord(builder);
+        ConfigurePicklingOutRecord(builder);
 
         // ========== 质量上下文 ==========
         ConfigureProcessInspection(builder);
@@ -181,6 +186,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureFurnaceRegistration(builder);
         ConfigureChemicalValidationRule(builder);
         ConfigureFinalInspection(builder);
+        ConfigureNcr(builder);
 
         // ========== 设备上下文 ==========
         ConfigureEquipment(builder);
@@ -1330,6 +1336,70 @@ public class AppDbContext : IdentityDbContext<AppUser>
         });
     }
 
+    private static void ConfigurePicklingInRecord(ModelBuilder builder)
+    {
+        builder.Entity<PicklingInRecord>(entity =>
+        {
+            entity.ToTable("PicklingInRecord");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.ProductionBatchId).IsRequired();
+            entity.Property(e => e.ProcessGroupId).IsRequired();
+            entity.Property(e => e.ProcessName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ManufacturingSpec).HasMaxLength(100);
+            entity.Property(e => e.SectionName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.SequenceNumber).IsRequired();
+            entity.Property(e => e.InDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.Status).IsRequired().HasConversion<string>().HasMaxLength(15).HasDefaultValue(PicklingStatus.Soaking);
+            entity.Property(e => e.EquipmentName).HasMaxLength(100);
+            entity.Property(e => e.Operator).HasMaxLength(50);
+            entity.Property(e => e.Shift).HasMaxLength(10);
+            entity.Property(e => e.Quantity);
+            entity.Property(e => e.Weight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.IsFinished).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.TagNo).HasMaxLength(50);
+            entity.Property(e => e.PlantGrade).HasMaxLength(50);
+            entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.Property(e => e.DataSource).HasMaxLength(10).HasDefaultValue("MANUAL");
+
+            entity.HasOne(e => e.ProductionBatch)
+                .WithMany()
+                .HasForeignKey(e => e.ProductionBatchId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ProcessGroup)
+                .WithMany()
+                .HasForeignKey(e => e.ProcessGroupId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasIndex(e => e.ProductionBatchId).HasDatabaseName("IX_PicklingInRecord_BatchId");
+            entity.HasIndex(e => new { e.ProductionBatchId, e.ProcessGroupId, e.SectionName })
+                .IsUnique()
+                .HasDatabaseName("UK_PicklingInRecord_Section");
+        });
+    }
+
+    private static void ConfigurePicklingOutRecord(ModelBuilder builder)
+    {
+        builder.Entity<PicklingOutRecord>(entity =>
+        {
+            entity.ToTable("PicklingOutRecord");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.PicklingInRecordId).IsRequired();
+            entity.Property(e => e.CompleteDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.Property(e => e.DataSource).HasMaxLength(10).HasDefaultValue("MANUAL");
+
+            entity.HasOne(e => e.PicklingInRecord)
+                .WithMany(e => e.PicklingOutRecords)
+                .HasForeignKey(e => e.PicklingInRecordId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.PicklingInRecordId).HasDatabaseName("IX_PicklingOutRecord_InRecordId");
+        });
+    }
+
     private static void ConfigureMaterialReceiveCheck(ModelBuilder builder)
     {
         builder.Entity<MaterialReceiveCheck>(entity =>
@@ -1633,6 +1703,68 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => e.BatchNo).HasDatabaseName("IX_FinalInspection_BatchNo");
             entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_FinalInspection_InspectionDate");
             entity.HasIndex(e => e.InspectionItem).HasDatabaseName("IX_FinalInspection_InspectionItem");
+        });
+    }
+
+    private static void ConfigureNcr(ModelBuilder builder)
+    {
+        builder.Entity<Ncr>(entity =>
+        {
+            entity.ToTable("Ncr");
+            entity.HasKey(e => e.Id);
+
+            // G1: 问题反馈
+            entity.Property(e => e.ReportDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.ReportDepartment).HasMaxLength(50);
+            entity.Property(e => e.Reporter).HasMaxLength(50);
+            entity.Property(e => e.PipeCategory).IsRequired().HasConversion<string>().HasMaxLength(30);
+            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.WorkOrderNo).HasMaxLength(100);
+            entity.Property(e => e.PlantGrade).HasMaxLength(50);
+            entity.Property(e => e.Specification).HasMaxLength(100);
+            entity.Property(e => e.DefectiveQuantity);
+            entity.Property(e => e.ProblemDescription).HasMaxLength(500);
+            entity.Property(e => e.SourceInspectionItem).HasMaxLength(100);
+
+            // G2: 不合格品处置
+            entity.Property(e => e.DisposalMethod).HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.DisposalRemark).HasMaxLength(500);
+            entity.Property(e => e.DisposalIsCompleted);
+            entity.Property(e => e.DisposalCompleteDate).HasColumnType("datetime2");
+
+            // G3: 原因分析
+            entity.Property(e => e.RootCauseAnalysis).HasMaxLength(1000);
+            entity.Property(e => e.Severity).HasConversion<string>().HasMaxLength(10);
+            entity.Property(e => e.AnalysisConfirmer).HasMaxLength(50);
+            entity.Property(e => e.AnalysisConfirmDate).HasColumnType("datetime2");
+
+            // G4: 责任人及处理
+            entity.Property(e => e.ResponsibilityCategory).HasConversion<string>().HasMaxLength(30);
+            entity.Property(e => e.ResponsibleDept).HasMaxLength(100);
+            entity.Property(e => e.OperationDate).HasColumnType("datetime2");
+            entity.Property(e => e.ResponsiblePerson).HasMaxLength(50);
+            entity.Property(e => e.PersonDisposition).HasMaxLength(500);
+            entity.Property(e => e.PersonIsCompleted);
+            entity.Property(e => e.PersonCompleteDate).HasColumnType("datetime2");
+
+            // G5: 纠正预防措施及结果验证
+            entity.Property(e => e.CorrectiveAction).HasMaxLength(1000);
+            entity.Property(e => e.ActionPlanner).HasMaxLength(50);
+            entity.Property(e => e.ActionPlanDate).HasColumnType("datetime2");
+            entity.Property(e => e.ActionVerifier).HasMaxLength(50);
+            entity.Property(e => e.ActionVerifyDate).HasColumnType("datetime2");
+            entity.Property(e => e.ActionResult).HasMaxLength(200);
+            entity.Property(e => e.VerifyResult).HasConversion<string>().HasMaxLength(20);
+
+            // 状态
+            entity.Property(e => e.Status).IsRequired().HasConversion<string>().HasMaxLength(15);
+
+            // 索引
+            entity.HasIndex(e => e.BatchNo).HasDatabaseName("IX_Ncr_BatchNo");
+            entity.HasIndex(e => e.Status).HasDatabaseName("IX_Ncr_Status");
+            entity.HasIndex(e => e.ReportDate).HasDatabaseName("IX_Ncr_ReportDate");
+            entity.HasIndex(e => e.Severity).HasDatabaseName("IX_Ncr_Severity");
+            entity.HasIndex(e => e.DisposalMethod).HasDatabaseName("IX_Ncr_DisposalMethod");
         });
     }
 

@@ -1,0 +1,114 @@
+@namespace MES.Blazor.Shared
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Blazor.Helpers
+@inject PicklingService PicklingService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6" Class="font-weight-bold">
+            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" Color="Color.Success" />
+            完工登记
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudPaper Class="pa-4" Elevation="1">
+                    <MudGrid>
+                        <MudItem xs="6" sm="4">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">批次号</MudText>
+                            <MudText Typo="Typo.body2">@BatchNo</MudText>
+                        </MudItem>
+                        <MudItem xs="6" sm="4">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">工段</MudText>
+                            <MudText Typo="Typo.body2">@SectionName</MudText>
+                        </MudItem>
+                        <MudItem xs="6" sm="4">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">入缸日期</MudText>
+                            <MudText Typo="Typo.body2">@InDate.ToString("yyyy-MM-dd")</MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string"
+                              Label="完工日期 *"
+                              @bind-Value="_completeDateStr"
+                              Placeholder="yyyy-MM-dd"
+                              Dense="true" Variant="Variant.Outlined" />
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudTextField T="string"
+                              Label="备注"
+                              @bind-Value="_remark"
+                              Dense="true" Variant="Variant.Outlined"
+                              Clearable="true" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" Color="Color.Default"
+                   OnClick="Cancel" Disabled="@_submitting">
+            取消
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Success"
+                   OnClick="Submit" Disabled="@_submitting"
+                   StartIcon="@Icons.Material.Filled.Save">
+            确认完工
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public int PicklingInRecordId { get; set; }
+    [Parameter] public string BatchNo { get; set; } = string.Empty;
+    [Parameter] public string SectionName { get; set; } = string.Empty;
+    [Parameter] public DateTime InDate { get; set; }
+
+    private string _completeDateStr = DateTime.Today.ToString("yyyy-MM-dd");
+    private string? _remark;
+    private bool _submitting;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        if (!DateTime.TryParse(_completeDateStr, out var completeDate))
+        {
+            Snackbar.Add("完工日期格式无效，请使用 yyyy-MM-dd 格式", Severity.Warning);
+            return;
+        }
+
+        _submitting = true;
+        try
+        {
+            var request = new CreatePicklingOutRecordRequest
+            {
+                PicklingInRecordId = PicklingInRecordId,
+                CompleteDate = completeDate,
+                Remark = _remark?.Trim()
+            };
+
+            var result = await PicklingService.CreateOutRecordAsync(request);
+            if (result.Success)
+            {
+                Snackbar.Add("完工登记成功", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add($"完工登记失败: {result.Message}", Severity.Error);
+            }
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+}

@@ -1894,6 +1894,179 @@ namespace MES.Data.Migrations
                     b.ToTable("MaterialReceiveCheck", (string)null);
                 });
 
+            modelBuilder.Entity("MES.Data.Entities.Ncr", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ActionPlanDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ActionPlanner")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ActionResult")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ActionVerifier")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("ActionVerifyDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("AnalysisConfirmDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("AnalysisConfirmer")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("BatchNo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("CorrectiveAction")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int?>("DefectiveQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("DisposalCompleteDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("DisposalIsCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("DisposalMethod")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("DisposalRemark")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("OperationDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("PersonCompleteDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PersonDisposition")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("PersonIsCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PipeCategory")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("PlantGrade")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ProblemDescription")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("ReportDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReportDepartment")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Reporter")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ResponsibilityCategory")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("ResponsibleDept")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ResponsiblePerson")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("RootCauseAnalysis")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Severity")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("SourceInspectionItem")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Specification")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("nvarchar(15)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("VerifyResult")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("WorkOrderNo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BatchNo")
+                        .HasDatabaseName("IX_Ncr_BatchNo");
+
+                    b.HasIndex("DisposalMethod")
+                        .HasDatabaseName("IX_Ncr_DisposalMethod");
+
+                    b.HasIndex("ReportDate")
+                        .HasDatabaseName("IX_Ncr_ReportDate");
+
+                    b.HasIndex("Severity")
+                        .HasDatabaseName("IX_Ncr_Severity");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_Ncr_Status");
+
+                    b.ToTable("Ncr", (string)null);
+                });
+
             modelBuilder.Entity("MES.Data.Entities.Notification", b =>
                 {
                     b.Property<int>("Id")
@@ -2392,6 +2565,166 @@ namespace MES.Data.Migrations
                         .HasDatabaseName("IX_OutsourceRecovery_OutsourceId");
 
                     b.ToTable("OutsourceRecovery", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.PicklingInRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DataSource")
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasDefaultValue("MANUAL");
+
+                    b.Property<string>("EquipmentName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("InDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsFinished")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("ManufacturingSpec")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Operator")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("PlantGrade")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("ProcessGroupId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProcessName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("ProductionBatchId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("SectionName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("SequenceNumber")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Shift")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(15)
+                        .HasColumnType("nvarchar(15)")
+                        .HasDefaultValue("Soaking");
+
+                    b.Property<string>("TagNo")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal?>("Weight")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProcessGroupId");
+
+                    b.HasIndex("ProductionBatchId")
+                        .HasDatabaseName("IX_PicklingInRecord_BatchId");
+
+                    b.HasIndex("ProductionBatchId", "ProcessGroupId", "SectionName")
+                        .IsUnique()
+                        .HasDatabaseName("UK_PicklingInRecord_Section");
+
+                    b.ToTable("PicklingInRecord", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.PicklingOutRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CompleteDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DataSource")
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasDefaultValue("MANUAL");
+
+                    b.Property<int>("PicklingInRecordId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PicklingInRecordId")
+                        .HasDatabaseName("IX_PicklingOutRecord_InRecordId");
+
+                    b.ToTable("PicklingOutRecord", (string)null);
                 });
 
             modelBuilder.Entity("MES.Data.Entities.PiercingPlanProcessGroup", b =>
@@ -6601,6 +6934,36 @@ namespace MES.Data.Migrations
                     b.Navigation("SectionOutsource");
                 });
 
+            modelBuilder.Entity("MES.Data.Entities.PicklingInRecord", b =>
+                {
+                    b.HasOne("MES.Data.Entities.ProcessGroup", "ProcessGroup")
+                        .WithMany()
+                        .HasForeignKey("ProcessGroupId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("MES.Data.Entities.ProductionBatch", "ProductionBatch")
+                        .WithMany()
+                        .HasForeignKey("ProductionBatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProcessGroup");
+
+                    b.Navigation("ProductionBatch");
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.PicklingOutRecord", b =>
+                {
+                    b.HasOne("MES.Data.Entities.PicklingInRecord", "PicklingInRecord")
+                        .WithMany("PicklingOutRecords")
+                        .HasForeignKey("PicklingInRecordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PicklingInRecord");
+                });
+
             modelBuilder.Entity("MES.Data.Entities.PiercingPlanProcessGroup", b =>
                 {
                     b.HasOne("MES.Data.Entities.RoundBarPiercingPlan", null)
@@ -6844,6 +7207,11 @@ namespace MES.Data.Migrations
             modelBuilder.Entity("MES.Data.Entities.OrderItem", b =>
                 {
                     b.Navigation("ProductRequirement");
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.PicklingInRecord", b =>
+                {
+                    b.Navigation("PicklingOutRecords");
                 });
 
             modelBuilder.Entity("MES.Data.Entities.ProductionBatch", b =>

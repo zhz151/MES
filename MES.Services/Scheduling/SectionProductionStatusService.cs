@@ -70,14 +70,28 @@ public class SectionProductionStatusService : ISectionProductionStatusService
             .GroupBy(b => (Group: b.NextProcess, Section: b.NextSectionName))
             .ToDictionary(g => g.Key, g => g.Sum(b => b.CurrentValidWeight ?? 0m));
 
-        // 5. 成品工序维度集合（当前工序组 = 该批次的最后工序）
-        var finalProcessDimensionSet = allBatches
-            .Where(b => batchLastProcessMap.TryGetValue(b.Id, out var last)
+        // 5. 属成品工序量的预聚合字典（仅统计处于最后工序的批次）
+        // 生产中 — 当前工序组 = 该批次的最后工序
+        var finalInProdLookup = allBatches
+            .Where(b => b.CurrentSectionCompleted == false
+                     && !string.IsNullOrEmpty(b.CurrentGroupName)
+                     && !string.IsNullOrEmpty(b.CurrentSectionName)
+                     && batchLastProcessMap.TryGetValue(b.Id, out var last)
                      && !string.IsNullOrEmpty(last)
                      && b.CurrentGroupName == last)
-            .Select(b => (Group: b.CurrentGroupName, Section: b.CurrentSectionName))
-            .Where(kv => !string.IsNullOrEmpty(kv.Group) && !string.IsNullOrEmpty(kv.Section))
-            .ToHashSet();
+            .GroupBy(b => (Group: b.CurrentGroupName, Section: b.CurrentSectionName))
+            .ToDictionary(g => g.Key, g => g.Sum(b => b.CurrentValidWeight ?? 0m));
+
+        // 待产量 — 下一工序 = 该批次的最后工序
+        var finalPendingLookup = allBatches
+            .Where(b => b.CurrentSectionCompleted == true
+                     && !string.IsNullOrEmpty(b.NextProcess)
+                     && !string.IsNullOrEmpty(b.NextSectionName)
+                     && batchLastProcessMap.TryGetValue(b.Id, out var last)
+                     && !string.IsNullOrEmpty(last)
+                     && b.NextProcess == last)
+            .GroupBy(b => (Group: b.NextProcess, Section: b.NextSectionName))
+            .ToDictionary(g => g.Key, g => g.Sum(b => b.CurrentValidWeight ?? 0m));
 
         // 6. 按维度填充
         var result = new List<SectionProductionStatusDto>(dimensions.Count);
@@ -88,14 +102,9 @@ public class SectionProductionStatusService : ISectionProductionStatusService
             var pendingProduction = pendingLookup.GetValueOrDefault(key);
             var total = inProduction + pendingProduction;
 
-            // 属成品工序量：仅当此维度属于某批次的最后工序
-            decimal finalTotal = 0;
-            if (finalProcessDimensionSet.Contains(key))
-            {
-                var finalInProduction = inProdLookup.GetValueOrDefault(key);
-                var finalPending = pendingLookup.GetValueOrDefault(key);
-                finalTotal = finalInProduction + finalPending;
-            }
+            // 属成品工序量：仅统计此维度下处于最后工序的批次重量
+            var finalTotal = finalInProdLookup.GetValueOrDefault(key)
+                           + finalPendingLookup.GetValueOrDefault(key);
 
             result.Add(new SectionProductionStatusDto
             {

@@ -100,6 +100,26 @@ public class QueryParams
     public DateTime? RecoveryDateTo { get; set; }
 
     /// <summary>
+    /// 入缸日期范围筛选-开始（仅去油酸洗使用）
+    /// </summary>
+    public DateTime? InDateFrom { get; set; }
+
+    /// <summary>
+    /// 入缸日期范围筛选-结束（仅去油酸洗使用）
+    /// </summary>
+    public DateTime? InDateTo { get; set; }
+
+    /// <summary>
+    /// 完工日期范围筛选-开始（仅去油酸洗使用）
+    /// </summary>
+    public DateTime? CompleteDateFrom { get; set; }
+
+    /// <summary>
+    /// 完工日期范围筛选-结束（仅去油酸洗使用）
+    /// </summary>
+    public DateTime? CompleteDateTo { get; set; }
+
+    /// <summary>
     /// 计算跳过的记录数
     /// </summary>
     public int Skip => (PageIndex - 1) * PageSize;
