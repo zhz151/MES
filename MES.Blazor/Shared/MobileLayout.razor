@@ -29,11 +29,6 @@
                 MES 制造执行系统
             </MudText>
 
-            <MudNavLink Href="/" Match="NavLinkMatch.All" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">
-                <MudIcon Icon="@Icons.Material.Filled.Dashboard" Size="Size.Small" Class="mr-2" />
-                仪表板
-            </MudNavLink>
-
             <MudDivider Style="background: #333; margin: 4px 0;" />
 
             <MudExpansionPanels>
@@ -153,6 +148,7 @@
                             <MudNavLink Href="/section-flow-category-settings" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">产量排程-日流转量配置</MudNavLink>
                             <MudNavLink Href="/config-parameters" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">全局-参数配置</MudNavLink>
                             <MudNavLink Href="/workstations" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">扫码-工位管理</MudNavLink>
+                            <MudNavLink Href="/employees" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">扫码-员工管理</MudNavLink>
                         </div>
                     </ChildContent>
                 </MudExpansionPanel>
@@ -161,6 +157,8 @@
 
                 <MudNavLink Href="/data-exchange" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">数据工具</MudNavLink>
                 <MudNavLink Href="/mobile-report" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">扫码报工</MudNavLink>
+                <MudNavLink Href="/repair-execute" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">扫码维修</MudNavLink>
+                <MudNavLink Href="/equipment-repair" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">扫码报修</MudNavLink>
                 <MudNavLink Href="/admin/users" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">用户管理</MudNavLink>
             </MudExpansionPanels>
 

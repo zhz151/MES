@@ -757,6 +757,19 @@ public static class DisplayHelper
     }
 
     /// <summary>
+    /// 获取维修类别颜色
+    /// </summary>
+    public static Color GetRepairCategoryColor(string? category)
+    {
+        return category switch
+        {
+            "换模" => Color.Primary,
+            "外协维修" => Color.Warning,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
     /// 获取维修工单状态中文文本（枚举版本）
     /// </summary>
     public static string GetRepairOrderStatusText(RepairOrderStatus status)

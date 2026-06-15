@@ -154,4 +154,41 @@ public class RepairOrderController : ControllerBase
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
+
+    /// <summary>
+    /// 获取指定设备的待处理维修工单
+    /// </summary>
+    [HttpGet("by-equipment/{equipmentId}")]
+    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<RepairOrderListDto>>>> GetPendingByEquipment(int equipmentId)
+    {
+        var result = await _service.GetPendingByEquipmentAsync(equipmentId);
+        return Ok(ApiResponse<List<RepairOrderListDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 开始维修
+    /// </summary>
+    [HttpPut("{id}/start")]
+    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<RepairOrderListDto>>> StartRepair(int id, [FromBody] StartRepairRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<RepairOrderListDto>.Fail("请求参数无效"));
+        var result = await _service.StartRepairAsync(id, request);
+        return Ok(ApiResponse<RepairOrderListDto>.Ok(result, "开始维修成功"));
+    }
+
+    /// <summary>
+    /// 完成维修
+    /// </summary>
+    [HttpPut("{id}/complete")]
+    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<RepairOrderListDto>>> CompleteRepair(int id, [FromBody] CompleteRepairRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<RepairOrderListDto>.Fail("请求参数无效"));
+        var result = await _service.CompleteRepairAsync(id, request);
+        return Ok(ApiResponse<RepairOrderListDto>.Ok(result, "维修完成"));
+    }
 }

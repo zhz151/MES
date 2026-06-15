@@ -1,0 +1,306 @@
+@page "/repair-execute"
+@using Microsoft.AspNetCore.Authorization
+@using MES.Core.DTOs
+@using MES.Blazor.Services
+@attribute [Authorize]
+@implements IDisposable
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Handyman" Class="mr-2" Color="Color.Primary" />
+                    扫码维修
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="GoBack">返回</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            @* ========== 状态：等待扫码 ========== *@
+            @if (_step == RepairExecStep.Scan)
+            {
+                <div class="d-flex flex-column align-center">
+                    <MudText Typo="Typo.h6" Class="mb-3 font-weight-bold text-center">
+                        <MudIcon Icon="@Icons.Material.Filled.QrCodeScanner" Color="Color.Primary" Class="mr-1" />
+                        扫设备二维码
+                    </MudText>
+
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               Size="Size.Large"
+                               StartIcon="@Icons.Material.Filled.CameraAlt"
+                               OnClick="StartCamera"
+                               Disabled="@_isCameraStarted"
+                               Class="mb-3 pa-3"
+                               Style="font-size: 1rem; min-height: 44px;">
+                        @(_isCameraStarted ? "扫描中..." : "扫设备条码")
+                    </MudButton>
+
+                    @if (_isCameraStarted)
+                    {
+                        <div class="camera-overlay">
+                            <video id="repair-exec-scan-video" class="camera-video"></video>
+                            <canvas id="repair-exec-scan-canvas" style="display: none;"></canvas>
+                            <div class="camera-footer">
+                                <MudButton Variant="Variant.Filled" Color="Color.Error"
+                                           Size="Size.Large"
+                                           OnClick="StopCamera"
+                                           FullWidth="true"
+                                           StartIcon="@Icons.Material.Filled.Close">
+                                    取消扫描
+                                </MudButton>
+                            </div>
+                        </div>
+                    }
+
+                    <MudText Typo="Typo.body2" Class="mt-3 mb-1" Color="Color.Secondary">或手动输入设备编码</MudText>
+                    <div style="width: 100%;" class="manual-input-container">
+                        <MudTextField @bind-Value="_manualInput"
+                                      Label="输入设备编码（如 EQ-001）"
+                                      Variant="Variant.Outlined"
+                                      Class="mb-2"
+                                      Style="font-size: 0.875rem; height: 44px;" />
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                   FullWidth="true"
+                                   OnClick="ResolveManualInput"
+                                   Disabled="string.IsNullOrWhiteSpace(_manualInput)">
+                            解析
+                        </MudButton>
+                    </div>
+
+                    @if (_resolveError != null)
+                    {
+                        <MudAlert Severity="Severity.Error" Class="mt-3 w-100">@_resolveError</MudAlert>
+                    }
+                </div>
+            }
+
+            @* ========== 状态：设备识别 → 显示待维修工单 ========== *@
+            @if (_step == RepairExecStep.Review)
+            {
+                <div class="d-flex flex-column">
+                    @* 设备信息摘要 *@
+                    <MudPaper Class="pa-3 mb-3" Elevation="2" Style="border-left: 4px solid #1976d2; background: #e3f2fd;">
+                        <div class="d-flex align-center mb-1" style="gap: 12px;">
+                            <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Color="Color.Primary" Size="Size.Small" />
+                            <MudText Typo="Typo.body2" Class="font-weight-bold" Color="Color.Primary">
+                                @_equipment!.EquipmentName (@_equipment.EquipmentCode)
+                            </MudText>
+                            <MudChip Size="Size.Small" Color="Color.Primary">@_equipment.Location</MudChip>
+                            @if (!string.IsNullOrEmpty(_equipment.RelatedSection))
+                            {
+                                <MudChip Size="Size.Small" Color="Color.Tertiary">@_equipment.RelatedSection</MudChip>
+                            }
+                        </div>
+                        <MudButton Variant="Variant.Text" Color="Color.Default" Size="Size.Small"
+                                   OnClick="Rescan" Style="font-size: 0.75rem;">
+                            重新扫描
+                        </MudButton>
+                    </MudPaper>
+
+                    @if (_errorMessage != null)
+                    {
+                        <MudAlert Severity="Severity.Warning" Class="mb-3">@_errorMessage</MudAlert>
+                    }
+
+                    @* 待维修工单列表 *@
+                    @if (_pendingOrders.Count > 0)
+                    {
+                        <MudText Typo="Typo.subtitle2" Class="mb-2 font-weight-bold">待维修工单</MudText>
+
+                        @foreach (var order in _pendingOrders)
+                        {
+                            <MudPaper Class="pa-3 mb-2" Elevation="1" Style="@GetOrderBorderStyle(order.RepairStatus)">
+                                <div class="d-flex flex-column" style="gap: 4px;">
+                                    <div class="d-flex align-center" style="gap: 8px;">
+                                        <MudText Typo="Typo.body2" Class="font-weight-bold">@order.RepairOrderNo</MudText>
+                                        @if (order.RepairStatus == "InProgress")
+                                        {
+                                            <MudChip Size="Size.Small" Color="Color.Warning">维修中</MudChip>
+                                        }
+                                        else
+                                        {
+                                            <MudChip Size="Size.Small" Color="Color.Default">待维修</MudChip>
+                                        }
+                                        @if (!string.IsNullOrEmpty(order.FaultType))
+                                        {
+                                            <MudChip Size="Size.Small">@order.FaultType</MudChip>
+                                        }
+                                    </div>
+                                    <MudText Typo="Typo.body2">@order.FaultDescription</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        报修人：@order.ReportPerson ｜ 报修时间：@order.ReportTime.ToString("yyyy-MM-dd HH:mm")
+                                    </MudText>
+
+                                    @if (order.RepairStatus == "Pending")
+                                    {
+                                        <div class="d-flex" style="gap: 8px; margin-top: 8px;">
+                                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                                       Size="Size.Small"
+                                                       OnClick="() => StartRepair(order)"
+                                                       Disabled="@_isProcessing"
+                                                       StartIcon="@Icons.Material.Filled.PlayArrow">
+                                                开始维修
+                                            </MudButton>
+                                        </div>
+                                    }
+
+                                    @if (order.RepairStatus == "InProgress" && _activeOrder == null)
+                                    {
+                                        <MudButton Variant="Variant.Filled" Color="Color.Success"
+                                                   Size="Size.Small"
+                                                   OnClick="() => SelectActiveOrder(order)"
+                                                   Class="mt-2"
+                                                   StartIcon="@Icons.Material.Filled.CheckCircle">
+                                            完成维修
+                                        </MudButton>
+                                    }
+                                </div>
+                            </MudPaper>
+                        }
+                    }
+
+                    @* ========== 完成维修表单 ========== *@
+                    @if (_activeOrder != null)
+                    {
+                        <MudPaper Class="pa-3 mb-2" Elevation="2" Style="border-left: 4px solid #4caf50; background: #e8f5e9;">
+                            <MudText Typo="Typo.subtitle2" Class="mb-2 font-weight-bold">
+                                完成维修 - @_activeOrder.RepairOrderNo
+                            </MudText>
+
+                            <MudText Typo="Typo.body2" Class="mb-2">
+                                维修人：<strong>@_repairPerson</strong>
+                            </MudText>
+
+                            @* 维修类别 *@
+                            <MudText Typo="Typo.subtitle2" Class="mb-1">维修类别</MudText>
+                            <div class="d-flex mb-3" style="gap: 8px;">
+                                @foreach (var cat in _repairCategories)
+                                {
+                                    <MudButton Variant="@(_repairCategory == cat ? Variant.Filled : Variant.Outlined)"
+                                               Color="@(_repairCategory == cat ? Color.Primary : Color.Default)"
+                                               Size="Size.Small"
+                                               OnClick="() => ToggleCategory(cat)"
+                                               Class="pa-2"
+                                               Style="font-size: 0.875rem; min-width: 80px;">
+                                        @cat
+                                    </MudButton>
+                                }
+                            </div>
+
+                            @* 维修内容 *@
+                            <MudText Typo="Typo.subtitle2" Class="mb-1">维修内容 <span class="required-star">*</span></MudText>
+                            <MudTextField @bind-Value="_repairContent"
+                                          Variant="Variant.Outlined"
+                                          Lines="3"
+                                          Placeholder="请描述维修内容..."
+                                          Class="mb-3"
+                                          Style="font-size: 0.875rem;" />
+
+                            @* 使用备件 *@
+                            <MudText Typo="Typo.subtitle2" Class="mb-1">使用备件（选填）</MudText>
+                            <MudTextField @bind-Value="_sparePartUsed"
+                                          Variant="Variant.Outlined"
+                                          Lines="2"
+                                          Placeholder="填写使用的备件信息..."
+                                          Class="mb-3"
+                                          Style="font-size: 0.875rem;" />
+
+                            @* 其它维修人 *@
+                            <MudText Typo="Typo.subtitle2" Class="mb-1">其它维修人（选填，多人协作时添加）</MudText>
+                            <div class="d-flex align-center mb-2" style="gap: 8px;">
+                                <MudTextField @bind-Value="_otherPersonInput"
+                                              Label="输入姓名"
+                                              Variant="Variant.Outlined"
+                                              Style="flex: 1; font-size: 0.875rem; height: 44px;" />
+                                <MudIconButton Icon="@Icons.Material.Filled.PersonAdd"
+                                               Color="Color.Primary"
+                                               Size="Size.Small"
+                                               OnClick="AddOtherPerson"
+                                               Disabled="string.IsNullOrWhiteSpace(_otherPersonInput)" />
+                            </div>
+                            @if (_otherRepairPersons.Count > 0)
+                            {
+                                <div class="d-flex flex-wrap mb-3" style="gap: 4px;">
+                                    @foreach (var p in _otherRepairPersons)
+                                    {
+                                        <MudChip Size="Size.Small"
+                                                 Color="Color.Tertiary"
+                                                 OnDelete="() => RemoveOtherPerson(p)">
+                                            @p
+                                        </MudChip>
+                                    }
+                                </div>
+                            }
+
+                            @* 提交按钮 *@
+                            <MudButton Variant="Variant.Filled" Color="Color.Success"
+                                       FullWidth="true"
+                                       Size="Size.Large"
+                                       OnClick="SubmitComplete"
+                                       Disabled="@(string.IsNullOrWhiteSpace(_repairContent) || _isProcessing)"
+                                       Class="mt-2 pa-3"
+                                       StartIcon="@Icons.Material.Filled.CheckCircle"
+                                       Style="font-size: 1rem; min-height: 48px;">
+                                确认完成维修
+                            </MudButton>
+
+                            @if (_submitError != null)
+                            {
+                                <MudAlert Severity="Severity.Error" Class="mt-3">@_submitError</MudAlert>
+                            }
+                        </MudPaper>
+                    }
+
+                    @* 如果没有待维修工单 *@
+                    @if (_pendingOrders.Count == 0 && _errorMessage == null)
+                    {
+                        <MudPaper Class="pa-4 text-center" Elevation="1">
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Color="Color.Success" Class="mb-2" />
+                            <MudText Typo="Typo.body1">该设备暂无待维修工单</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-1">所有维修工单均已完成</MudText>
+                        </MudPaper>
+                    }
+                </div>
+            }
+
+            @* ========== 状态：操作成功 ========== *@
+            @if (_step == RepairExecStep.Success)
+            {
+                <div class="d-flex flex-column align-center pa-4">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Color="Color.Success" Class="mb-3" />
+                    <MudText Typo="Typo.h5" Class="font-weight-bold mb-2">@_successMessage</MudText>
+                    @if (_activeOrder != null)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4 text-center">
+                            工单编号：@_activeOrder.RepairOrderNo
+                        </MudText>
+                    }
+                    <div class="d-flex" style="gap: 8px; width: 100%;">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   FullWidth="true"
+                                   OnClick="ResetAndScanAgain">
+                            继续维修
+                        </MudButton>
+                        <MudButton Variant="Variant.Text" Color="Color.Default"
+                                   FullWidth="true"
+                                   OnClick="GoBack">
+                            返回
+                        </MudButton>
+                    </div>
+                </div>
+            }
+        </MudCardContent>
+    </MudCard>
+
+    @* 加载提示 *@
+    <MudOverlay Visible="_isProcessing">
+        <div class="d-flex flex-column align-center justify-center" style="height: 100%;">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+            <MudText Typo="Typo.body1" Color="Color.Primary" Class="mt-3">处理中...</MudText>
+        </div>
+    </MudOverlay>
+</MudContainer>

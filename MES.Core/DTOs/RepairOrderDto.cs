@@ -18,6 +18,7 @@ public class RepairOrderListDto
     public string ReportPerson { get; set; } = null!;
     public DateTime ReportTime { get; set; }
     public string? RepairPerson { get; set; }
+    public string? RepairCategory { get; set; }
     public DateTime? RepairStartTime { get; set; }
     public DateTime? RepairEndTime { get; set; }
     public string? RepairContent { get; set; }
@@ -36,6 +37,7 @@ public class CreateRepairOrderRequest
     public string ReportPerson { get; set; } = null!;
     public DateTime ReportTime { get; set; }
     public string? RepairPerson { get; set; }
+    public string? RepairCategory { get; set; }
     public DateTime? RepairStartTime { get; set; }
     public DateTime? RepairEndTime { get; set; }
     public string? RepairContent { get; set; }
@@ -53,10 +55,38 @@ public class UpdateRepairOrderRequest
     public string? ReportPerson { get; set; }
     public DateTime? ReportTime { get; set; }
     public string? RepairPerson { get; set; }
+    public string? RepairCategory { get; set; }
     public DateTime? RepairStartTime { get; set; }
     public DateTime? RepairEndTime { get; set; }
     public string? RepairContent { get; set; }
     public string? SparePartUsed { get; set; }
+}
+
+/// <summary>
+/// 开始维修请求（仅设置维修人和开始时间）
+/// </summary>
+public class StartRepairRequest
+{
+    /// <summary>维修人（当前扫码人）</summary>
+    public string RepairPerson { get; set; } = null!;
+}
+
+/// <summary>
+/// 完成维修请求
+/// </summary>
+public class CompleteRepairRequest
+{
+    /// <summary>维修类别</summary>
+    public string? RepairCategory { get; set; }
+
+    /// <summary>维修内容</summary>
+    public string RepairContent { get; set; } = null!;
+
+    /// <summary>使用备件</summary>
+    public string? SparePartUsed { get; set; }
+
+    /// <summary>其它维修人（多人协作时补充）</summary>
+    public List<string>? OtherRepairPersons { get; set; }
 }
 
 /// <summary>

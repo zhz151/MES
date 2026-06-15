@@ -55,6 +55,11 @@ public class RepairOrder : BaseEntity
     public string? RepairPerson { get; set; }
 
     /// <summary>
+    /// 维修类别：厂内维修 / 外协维修 / 换模
+    /// </summary>
+    public string? RepairCategory { get; set; }
+
+    /// <summary>
     /// 维修开始时间
     /// </summary>
     public DateTime? RepairStartTime { get; set; }

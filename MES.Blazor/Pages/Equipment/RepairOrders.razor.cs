@@ -63,6 +63,7 @@ public partial class RepairOrders
         public string ReportPerson { get; set; } = "";
         public string ReportTimeText { get; set; } = "";
         public string? RepairPerson { get; set; }
+        public string? RepairCategory { get; set; }
         public string? RepairStartTimeText { get; set; }
         public string? RepairEndTimeText { get; set; }
         public string? RepairContent { get; set; }
@@ -90,6 +91,8 @@ public partial class RepairOrders
         new() { Key = "ReportPerson",   Label = "报修人",     SortKey = "reportperson", FilterType = "string", IsRequired = true },
         new() { Key = "ReportTime",     Label = "报修时间",   SortKey = "reporttime", FilterType = "date", IsRequired = true },
         new() { Key = "RepairPerson",   Label = "维修人",     SortKey = "repairperson", FilterType = "string" },
+        new() { Key = "RepairCategory", Label = "维修类别",   SortKey = "repaircategory", FilterType = "enum",
+            EnumOptions = new() { new("厂内维修", "厂内维修"), new("外协维修", "外协维修"), new("换模", "换模") } },
         new() { Key = "RepairStartTime",Label = "开始时间",   SortKey = "repairstarttime", FilterType = "date" },
         new() { Key = "RepairEndTime",  Label = "完成时间",   SortKey = "repairendtime", FilterType = "date" },
         new() { Key = "RepairContent",  Label = "维修内容", SortKey = "repaircontent", FilterType = "string" },
@@ -344,6 +347,16 @@ public partial class RepairOrders
             case "RepairPerson":
                 builder.AddContent(0, item.RepairPerson);
                 break;
+            case "RepairCategory":
+                if (!string.IsNullOrEmpty(item.RepairCategory))
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", DisplayHelper.GetRepairCategoryColor(item.RepairCategory));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.RepairCategory)));
+                    builder.CloseComponent();
+                }
+                break;
             case "RepairStartTime":
                 builder.AddContent(0, item.RepairStartTime?.ToString("yyyy-MM-dd HH:mm"));
                 break;
@@ -463,6 +476,34 @@ public partial class RepairOrders
                 builder.AddAttribute(3, "Size", Size.Small);
                 builder.AddAttribute(4, "Value", cache.RepairPerson);
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => cache.RepairPerson = v));
+                builder.CloseComponent();
+                break;
+            case "RepairCategory":
+                builder.OpenComponent<MudSelect<string?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", cache.RepairCategory);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => cache.RepairCategory = v));
+                builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
+                {
+                    cb.OpenComponent<MudSelectItem<string?>>(0);
+                    cb.AddAttribute(1, "Value", (string?)null);
+                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "")));
+                    cb.CloseComponent();
+                    cb.OpenComponent<MudSelectItem<string?>>(0);
+                    cb.AddAttribute(1, "Value", "厂内维修");
+                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "厂内维修")));
+                    cb.CloseComponent();
+                    cb.OpenComponent<MudSelectItem<string?>>(0);
+                    cb.AddAttribute(1, "Value", "外协维修");
+                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "外协维修")));
+                    cb.CloseComponent();
+                    cb.OpenComponent<MudSelectItem<string?>>(0);
+                    cb.AddAttribute(1, "Value", "换模");
+                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "换模")));
+                    cb.CloseComponent();
+                }));
                 builder.CloseComponent();
                 break;
             case "RepairStartTime":
@@ -590,6 +631,7 @@ public partial class RepairOrders
             ReportPerson = item.ReportPerson,
             ReportTimeText = item.ReportTime.ToString("yyyy-MM-dd HH:mm"),
             RepairPerson = item.RepairPerson,
+            RepairCategory = item.RepairCategory,
             RepairStartTimeText = item.RepairStartTime?.ToString("yyyy-MM-dd HH:mm"),
             RepairEndTimeText = item.RepairEndTime?.ToString("yyyy-MM-dd HH:mm"),
             RepairContent = item.RepairContent,
@@ -656,6 +698,7 @@ public partial class RepairOrders
                 ReportPerson = cache.ReportPerson,
                 ReportTime = reportTime,
                 RepairPerson = cache.RepairPerson,
+                RepairCategory = cache.RepairCategory,
                 RepairStartTime = repairStartTime,
                 RepairEndTime = repairEndTime,
                 RepairContent = cache.RepairContent,

@@ -113,6 +113,8 @@ public class RepairOrderService : IRepairOrderService
             ("reportperson", false) => baseQuery.OrderBy(x => x.Order.ReportPerson),
             ("repairperson", true) => baseQuery.OrderByDescending(x => x.Order.RepairPerson ?? ""),
             ("repairperson", false) => baseQuery.OrderBy(x => x.Order.RepairPerson ?? ""),
+            ("repaircategory", true) => baseQuery.OrderByDescending(x => x.Order.RepairCategory ?? ""),
+            ("repaircategory", false) => baseQuery.OrderBy(x => x.Order.RepairCategory ?? ""),
             ("repairstarttime", true) => baseQuery.OrderByDescending(x => x.Order.RepairStartTime),
             ("repairstarttime", false) => baseQuery.OrderBy(x => x.Order.RepairStartTime),
             ("repairendtime", true) => baseQuery.OrderByDescending(x => x.Order.RepairEndTime),
@@ -145,6 +147,7 @@ public class RepairOrderService : IRepairOrderService
                 ReportPerson = x.Order.ReportPerson,
                 ReportTime = x.Order.ReportTime,
                 RepairPerson = x.Order.RepairPerson,
+                RepairCategory = x.Order.RepairCategory,
                 RepairStartTime = x.Order.RepairStartTime,
                 RepairEndTime = x.Order.RepairEndTime,
                 RepairContent = x.Order.RepairContent,
@@ -183,6 +186,7 @@ public class RepairOrderService : IRepairOrderService
                             ReportPerson = r.ReportPerson,
                             ReportTime = r.ReportTime,
                             RepairPerson = r.RepairPerson,
+                            RepairCategory = r.RepairCategory,
                             RepairStartTime = r.RepairStartTime,
                             RepairEndTime = r.RepairEndTime,
                             RepairContent = r.RepairContent,
@@ -220,6 +224,7 @@ public class RepairOrderService : IRepairOrderService
             ReportPerson = request.ReportPerson,
             ReportTime = request.ReportTime,
             RepairPerson = request.RepairPerson,
+            RepairCategory = request.RepairCategory,
             RepairStartTime = request.RepairStartTime,
             RepairEndTime = request.RepairEndTime,
             RepairContent = request.RepairContent,
@@ -264,6 +269,7 @@ public class RepairOrderService : IRepairOrderService
         if (request.ReportPerson != null) entity.ReportPerson = request.ReportPerson;
         if (request.ReportTime.HasValue) entity.ReportTime = request.ReportTime.Value;
         if (request.RepairPerson != null) entity.RepairPerson = request.RepairPerson;
+        if (request.RepairCategory != null) entity.RepairCategory = request.RepairCategory;
         if (request.RepairStartTime.HasValue) entity.RepairStartTime = request.RepairStartTime.Value;
         if (request.RepairEndTime.HasValue) entity.RepairEndTime = request.RepairEndTime.Value;
         if (request.RepairContent != null) entity.RepairContent = request.RepairContent;
@@ -310,6 +316,7 @@ public class RepairOrderService : IRepairOrderService
                         r.ReportPerson,
                         r.ReportTime,
                         r.RepairPerson,
+                        r.RepairCategory,
                         r.RepairStartTime,
                         r.RepairEndTime,
                         r.RepairContent,
@@ -332,6 +339,7 @@ public class RepairOrderService : IRepairOrderService
             ["ReportPerson"] = all.Select(x => x.ReportPerson).Distinct().OrderBy(x => x).ToList(),
             ["ReportTime"] = all.Select(x => x.ReportTime.ToString("yyyy-MM-dd HH:mm")).Distinct().OrderBy(x => x).ToList(),
             ["RepairPerson"] = all.Where(x => x.RepairPerson != null).Select(x => x.RepairPerson!).Distinct().OrderBy(x => x).ToList(),
+            ["RepairCategory"] = all.Where(x => x.RepairCategory != null).Select(x => x.RepairCategory!).Distinct().OrderBy(x => x).ToList(),
             ["RepairStartTime"] = all.Where(x => x.RepairStartTime != null).Select(x => x.RepairStartTime!.Value.ToString("yyyy-MM-dd HH:mm")).Distinct().OrderBy(x => x).ToList(),
             ["RepairEndTime"] = all.Where(x => x.RepairEndTime != null).Select(x => x.RepairEndTime!.Value.ToString("yyyy-MM-dd HH:mm")).Distinct().OrderBy(x => x).ToList(),
             ["RepairContent"] = all.Where(x => x.RepairContent != null).Select(x => x.RepairContent!).Distinct().OrderBy(x => x).ToList(),
@@ -357,6 +365,96 @@ public class RepairOrderService : IRepairOrderService
         query.PageSize = int.MaxValue;
         var result = await GetPagedAsync(query);
         return RepairOrderPrintHelper.GenerateBatchPdf(result.Items, columns);
+    }
+
+    public async Task<List<RepairOrderListDto>> GetPendingByEquipmentAsync(int equipmentId)
+    {
+        var query = from r in _context.RepairOrders
+                    join e in _context.Equipment on r.EquipmentId equals e.Id
+                    where r.EquipmentId == equipmentId
+                          && r.RepairEndTime == null // 未完成的工单（Pending 或 InProgress）
+                    orderby r.ReportTime descending
+                    select new RepairOrderListDto
+                    {
+                        Id = r.Id,
+                        RepairOrderNo = r.RepairOrderNo,
+                        EquipmentId = r.EquipmentId,
+                        EquipmentName = e.EquipmentName,
+                        EquipmentCode = e.EquipmentCode,
+                        EquipmentLocation = e.Location,
+                        FaultDescription = r.FaultDescription,
+                        FaultType = r.FaultType,
+                        Priority = r.Priority,
+                        RepairStatus = r.RepairStartTime != null
+                            ? nameof(RepairOrderStatus.InProgress)
+                            : nameof(RepairOrderStatus.Pending),
+                        ReportPerson = r.ReportPerson,
+                        ReportTime = r.ReportTime,
+                        RepairPerson = r.RepairPerson,
+                        RepairCategory = r.RepairCategory,
+                        RepairStartTime = r.RepairStartTime,
+                        RepairEndTime = r.RepairEndTime,
+                        RepairContent = r.RepairContent,
+                        SparePartUsed = r.SparePartUsed
+                    };
+
+        return await query.ToListAsync();
+    }
+
+    public async Task<RepairOrderListDto> StartRepairAsync(int id, StartRepairRequest request)
+    {
+        var entity = await _context.RepairOrders
+            .FirstOrDefaultAsync(r => r.Id == id);
+        if (entity == null) throw new BusinessException("维修工单不存在");
+        if (entity.RepairStartTime != null) throw new BusinessException("该工单已开始维修");
+        if (entity.RepairEndTime != null) throw new BusinessException("该工单已完成维修");
+
+        entity.RepairPerson = request.RepairPerson;
+        entity.RepairStartTime = DateTime.Now;
+        entity.RepairStatus = nameof(RepairOrderStatus.InProgress);
+
+        await _context.SaveChangesAsync();
+        return await ToDtoAsync(entity);
+    }
+
+    public async Task<RepairOrderListDto> CompleteRepairAsync(int id, CompleteRepairRequest request)
+    {
+        var entity = await _context.RepairOrders
+            .FirstOrDefaultAsync(r => r.Id == id);
+        if (entity == null) throw new BusinessException("维修工单不存在");
+        if (entity.RepairStartTime == null) throw new BusinessException("该工单尚未开始维修，请先开始维修");
+        if (entity.RepairEndTime != null) throw new BusinessException("该工单已完成维修");
+
+        entity.RepairCategory = request.RepairCategory;
+        entity.RepairContent = request.RepairContent;
+        entity.SparePartUsed = request.SparePartUsed;
+        entity.RepairEndTime = DateTime.Now;
+        entity.RepairStatus = nameof(RepairOrderStatus.Completed);
+
+        // 多人协作：将其它维修人追加到 RepairPerson 字段
+        if (request.OtherRepairPersons is { Count: > 0 })
+        {
+            var existingPersons = (entity.RepairPerson ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList();
+            foreach (var p in request.OtherRepairPersons)
+            {
+                var trimmed = p.Trim();
+                if (!string.IsNullOrEmpty(trimmed) && !existingPersons.Contains(trimmed, StringComparer.OrdinalIgnoreCase))
+                    existingPersons.Add(trimmed);
+            }
+            entity.RepairPerson = string.Join(",", existingPersons);
+        }
+
+        // 回写设备最近维修日期
+        var equipment = await _context.Equipment
+            .FirstOrDefaultAsync(e => e.Id == entity.EquipmentId);
+        if (equipment != null)
+        {
+            if (!equipment.LastRepairDate.HasValue || entity.RepairEndTime.Value > equipment.LastRepairDate.Value)
+                equipment.LastRepairDate = entity.RepairEndTime.Value;
+        }
+
+        await _context.SaveChangesAsync();
+        return await ToDtoAsync(entity);
     }
 
     private static string DeriveRepairStatus(DateTime? startTime, DateTime? endTime)
@@ -404,6 +502,7 @@ public class RepairOrderService : IRepairOrderService
             ReportPerson = entity.ReportPerson,
             ReportTime = entity.ReportTime,
             RepairPerson = entity.RepairPerson,
+            RepairCategory = entity.RepairCategory,
             RepairStartTime = entity.RepairStartTime,
             RepairEndTime = entity.RepairEndTime,
             RepairContent = entity.RepairContent,

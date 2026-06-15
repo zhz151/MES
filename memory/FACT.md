@@ -12,6 +12,19 @@
 - **ConfigParameter 分类清单：** MaterialPlanStatus(4), DefaultValue(6), MaterialPlanRatio(4), DimensionTolerance(4), LengthDefault(2), ReworkRatio(8), WarehouseThreshold(4), ContractWeight(2), SequenceJump(1), ProcessingDiscount(1), ProductionCapacity(5), DateBucket(5) — 涉及 14 个 Service
 - **ApiEndpoints** — 所有 `api/xxx` 路径在 `MES.Shared.Constants.ApiEndpoints` 集中管理，Service 类通过 `ApiEndpoints.Xxx` 引用
 
+## 远程数据库问题记录
+- **远程服务器配置**：2 核 CPU、2 GB 内存，SQL Server 2022
+- **冷缓存问题**：SQL Server 重启后缓冲池为空，首次查询需读磁盘，`Any()` 查询从 <100ms 变 5-10 秒
+- **CommandTimeout 修复**：DbContext 配置 `o.CommandTimeout(120)`，将默认 30 秒超时改为 120 秒，避免 RefreshAll 全表扫描超时
+- **远程病毒发现**：`csrss.exe` (PID 2052) 被注入恶意代码，对外发数百个 SQL 1433 端口 SYN_SENT 请求，导致 CPU/内存 90%
+- **解决方案**：数据库迁移到本地 SQL Server，连接字符串改为 `Server=localhost;Integrated Security=true`
+
+## 数据库备份/恢复经验
+- **不要直接复制运行中的 MDF/LDF**：即使停掉 SQL Server 后复制，仍可能因文件头损坏导致 5171 错误
+- **备份恢复更可靠**：用 `BACKUP DATABASE ... WITH FORMAT` + `RESTORE DATABASE ... WITH MOVE, REPLACE`
+- **备份路径权限**：SQL Server 默认无 C 盘根目录写入权限，应写 `MSSQL\Backup` 目录
+- **版本匹配**：附加/恢复 MDF 要求源和目标 SQL Server 版本一致（上同版本=SQL Server 2022 16.0.1000.6 可交叉）
+
 ## Scheduling 模块 — 9 个页面
 
 ### BatchPlan（批次看板）— 冷轧排程小表关联
@@ -190,7 +203,17 @@
 - **ManufacturingItem** — OrderFinishedProduct / PreparedMaterial / SurplusStock / IntermediateProduct / SpecialDeliveryStatus
 - **ProductionType** — RoughTube / InProcess / Inventory / OutsourcedPurchased / Rework / Subcontract / ExternalProcessing
 
+## Equipment 模块 — 维修工单
+- **RepairOrder 实体**（继承 `BaseEntity`）：字段包含 RepairOrderNo(WX-YYYYMMDD-XXX)/EquipmentId/FaultDescription/FaultType/Priority/RepairStatus(自动推导)/ReportPerson/ReportTime/RepairPerson(逗号分隔多人)/RepairCategory(厂内维修/外协维修/换模)/RepairStartTime/RepairEndTime/RepairContent/SparePartUsed
+- **RepairCategory**：三类 — 厂内维修（Default灰色）/ 外协维修（Warning橙色）/ 换模（Primary蓝色），完成维修时设置
+- **维修执行**（扫码维修 `/repair-execute`）：两步流程。开始维修 `PUT /api/repair-order/{id}/start` 设置 RepairPerson+RepairStartTime(→InProgress)；完成维修 `PUT /api/repair-order/{id}/complete` 设置 RepairCategory+RepairContent+SparePartUsed+OtherRepairPersons(→Completed)。待处理工单查询 `GET /api/repair-order/by-equipment/{equipmentId}`
+- **多人协作**：OtherRepairPersons 追加到 RepairPerson（逗号分隔，自动去重）
+- **列表页**（`/repair-orders`）：服务端分页 + 列显隐 + ExcelFilter + 内联编辑 + 批量打印
+- **扫码报修**（`/equipment-repair`）：3 步流程（Scan→Form→Success），BarcodeDetector+jsQR 双引擎
+- **状态推导**：endTime!=null→Completed, startTime!=null→InProgress, 都为空→Pending
+- **导航入口**：MainLayout 中"扫码维修"按钮位于"扫码报修"之前；MobileLayout 同理
+
 ## 自我约束规则
 - **严格任务边界**：只做用户明确说的任务，多说一个字都先问。看到"顺手能修"的问题必须先问"要不要顺便修"，不能直接动手。
 - **禁止跑偏**：在执行当前任务过程中发现的其他问题，记录在案等当前任务完成后再问用户，而不是中途切换方向。
-- **单一任务原则**：一次只做一个方向的事情。更新文档就只更新文档，不夹带修代码、改样式等其他变更。
+- **单一任务原则**：一次只做一件事。更新文档就只更新文档，不夹带修代码、改样式等其他变更。

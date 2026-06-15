@@ -97,6 +97,36 @@ public class RepairOrderService
         catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    public async Task<ApiResponse<List<RepairOrderListDto>>> GetPendingByEquipmentAsync(int equipmentId)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<RepairOrderListDto>>>($"{BaseUrl}/by-equipment/{equipmentId}")
+                   ?? ApiResponse<List<RepairOrderListDto>>.Fail("获取待维修工单失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<RepairOrderListDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<RepairOrderListDto>> StartRepairAsync(int id, StartRepairRequest request)
+    {
+        try
+        {
+            return await _http.PutAsJsonAsync<StartRepairRequest, ApiResponse<RepairOrderListDto>>($"{BaseUrl}/{id}/start", request)
+                   ?? ApiResponse<RepairOrderListDto>.Fail("开始维修失败");
+        }
+        catch (Exception ex) { return ApiResponse<RepairOrderListDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<RepairOrderListDto>> CompleteRepairAsync(int id, CompleteRepairRequest request)
+    {
+        try
+        {
+            return await _http.PutAsJsonAsync<CompleteRepairRequest, ApiResponse<RepairOrderListDto>>($"{BaseUrl}/{id}/complete", request)
+                   ?? ApiResponse<RepairOrderListDto>.Fail("完成维修失败");
+        }
+        catch (Exception ex) { return ApiResponse<RepairOrderListDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     public async Task<ApiResponse<string>> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
     {
         try
