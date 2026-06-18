@@ -1305,4 +1305,42 @@ public class SectionOutsourceService : ISectionOutsourceService
         }
     }
 
+    // ========== 按批次查询待回收记录 ==========
+
+    public async Task<List<SectionOutsourceDto>> GetPendingByBatchAsync(string batchNo, string sectionName)
+    {
+        return await _context.SectionOutsources
+            .AsNoTracking()
+            .Include(s => s.ProductionBatch)
+            .Where(s => s.ProductionBatch.BatchNo == batchNo
+                && s.Status == SectionOutsourceStatus.PendingRecovery
+                && s.SectionName == sectionName)
+            .Select(s => new SectionOutsourceDto
+            {
+                Id = s.Id,
+                ProductionBatchId = s.ProductionBatchId,
+                ProcessGroupId = s.ProcessGroupId,
+                BatchNo = s.ProductionBatch.BatchNo,
+                ProcessName = s.ProcessName,
+                ManufacturingSpec = s.ManufacturingSpec,
+                SectionName = s.SectionName,
+                SequenceNumber = s.SequenceNumber,
+                OutsourceVendor = s.OutsourceVendor,
+                SendOutDate = s.SendOutDate,
+                SendQuantity = s.SendQuantity,
+                SendWeight = s.SendWeight,
+                Status = s.Status.ToString(),
+                TagNo = s.TagNo,
+                PlantGrade = s.PlantGrade,
+                OutsourceSpec = s.OutsourceSpec,
+                ExpectedReturnDate = s.ExpectedReturnDate,
+                IsUrgent = s.IsUrgent,
+                Remark = s.Remark,
+                DataSource = s.DataSource,
+                CreatedTime = s.CreatedTime,
+                UpdatedTime = s.UpdatedTime,
+            })
+            .ToListAsync();
+    }
+
     }

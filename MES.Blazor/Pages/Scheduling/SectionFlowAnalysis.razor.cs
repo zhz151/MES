@@ -31,6 +31,13 @@ public partial class SectionFlowAnalysis
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
 
+    // B33: 分页汇总
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        "PendingTotal",
+    };
+
     // 非空/空筛选常量
     private const string FilterNotNull = "__NOT_NULL__";
     private const string FilterNull = "__EXCEL_FILTER_NULL__";
@@ -269,6 +276,7 @@ public partial class SectionFlowAnalysis
         };
 
         _filteredItems = filtered.ToList();
+        ComputePageSums();
     }
 
     private async Task ToggleSort(string key)
@@ -345,6 +353,23 @@ public partial class SectionFlowAnalysis
             Extras = extras,
         };
         await PageState.SaveAsync("section-flow-analysis", state);
+    }
+
+    // ========== 分页汇总 ==========
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_filteredItems.Count == 0) return;
+
+        _pageSums["PendingTotal"] = ((int)_filteredItems.Sum(x => x.PendingTotal ?? 0m)).ToString();
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        if (_pageSums.TryGetValue(col.Key, out var sum))
+            return sum;
+        return "-";
     }
 
     // ========== 显示辅助 ==========

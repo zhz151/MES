@@ -16,7 +16,6 @@ public partial class WorkOrderSchedules
     private MudTable<WorkOrderScheduleDto>? table;
     private List<WorkOrderScheduleDto> _allItems = new();
     private List<WorkOrderScheduleDto> _filteredItems = new();
-    private bool _isLoading;
 
     // 排序状态
     private string sortColumn = "WorkOrderNo";
@@ -211,7 +210,6 @@ public partial class WorkOrderSchedules
 
     private async Task LoadDataAsync()
     {
-        _isLoading = true;
         try
         {
             var query = new QueryParams
@@ -236,10 +234,6 @@ public partial class WorkOrderSchedules
         {
             Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
             _allItems = new();
-        }
-        finally
-        {
-            _isLoading = false;
         }
 
         BuildFilterContextOptions();

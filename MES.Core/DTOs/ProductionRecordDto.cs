@@ -22,10 +22,21 @@ public class ProductionRecordDto
     public string? Shift { get; set; }
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
+
+    /// <summary>固溶温度(℃)，仅固溶工段使用</summary>
+    public decimal? SolutionTemperature { get; set; }
+
+    /// <summary>保温时间(min)，仅固溶工段使用</summary>
+    public int? SoakTime { get; set; }
+
     public bool IsFinished { get; set; }
     public decimal? CuttingMultiple { get; set; }
     public decimal? FinishedCutLength { get; set; }
     public int? PostCutQuantity { get; set; }
+
+    /// <summary>平头数，仅荒管切割使用：1=一端，2=两端</summary>
+    public int? FaceCutCount { get; set; }
+
     public string? TagNo { get; set; }
     public string? PlantGrade { get; set; }
     public string? Remark { get; set; }
@@ -96,10 +107,20 @@ public class CreateProductionRecordRequest
 
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
+
+    /// <summary>固溶温度(℃)，仅固溶工段使用</summary>
+    public decimal? SolutionTemperature { get; set; }
+
+    /// <summary>保温时间(min)，仅固溶工段使用</summary>
+    public int? SoakTime { get; set; }
+
     public bool IsFinished { get; set; }
     public decimal? CuttingMultiple { get; set; }
     public decimal? FinishedCutLength { get; set; }
     public int? PostCutQuantity { get; set; }
+
+    /// <summary>平头数，仅荒管切割使用：1=一端，2=两端</summary>
+    public int? FaceCutCount { get; set; }
 
     [MaxLength(50)]
     public string? TagNo { get; set; }
@@ -136,10 +157,20 @@ public class UpdateProductionRecordRequest
 
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
+
+    /// <summary>固溶温度(℃)，仅固溶工段使用</summary>
+    public decimal? SolutionTemperature { get; set; }
+
+    /// <summary>保温时间(min)，仅固溶工段使用</summary>
+    public int? SoakTime { get; set; }
+
     public bool IsFinished { get; set; }
     public decimal? CuttingMultiple { get; set; }
     public decimal? FinishedCutLength { get; set; }
     public int? PostCutQuantity { get; set; }
+
+    /// <summary>平头数，仅荒管切割使用：1=一端，2=两端</summary>
+    public int? FaceCutCount { get; set; }
 
     [MaxLength(50)]
     public string? TagNo { get; set; }

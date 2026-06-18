@@ -100,6 +100,7 @@ public partial class StandardWorkDayDeliveryStates
             _totalCount = 0;
         }
 
+        await SavePageStateAsync();
         return new TableData<StandardWorkDayDeliveryStateDto>
         {
             Items = _pageItems,

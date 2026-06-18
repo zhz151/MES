@@ -15,6 +15,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.Configuration;
 using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Shared.Constants;
@@ -1004,6 +1005,28 @@ public class DataExchangeService : IDataExchangeService
             new(SectionDefs.Lubrication, "Lubrication", typeof(int?), isRequired: false),
             new(SectionDefs.Warehouse, "Warehouse", typeof(int?), isRequired: false),
         }, compositeKeyColumns: new[] { "RoundBarPiercingPlanId", "SequenceNumber" }),
+
+        ["Workstation"] = new EntityDef("工位管理", "工位管理", typeof(Workstation), 1, "Code", new List<ColumnDef>
+        {
+            new("工位编码", "Code"),
+            new("工位名称", "Name", typeof(string), isRequired: false),
+            new("设备名称", "EquipmentName", typeof(string), isRequired: false),
+            new("工段", "SectionName", typeof(string), isRequired: true),
+            new("报工模板类型", "ReportType", typeof(string), isRequired: true),
+            new("是否启用", "IsActive", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+        }),
+
+        ["Employee"] = new EntityDef("员工管理", "员工管理", typeof(Employee), 1, "Code", new List<ColumnDef>
+        {
+            new("工号", "Code"),
+            new("姓名", "Name"),
+            new("部门", "Department", typeof(string), isRequired: false),
+            new("岗位", "Position", typeof(string), isRequired: false),
+            new("岗位备注", "PositionRemark", typeof(string), isRequired: false),
+            new("工资结算模式", "SalaryMode", typeof(string), isRequired: false),
+            new("工资结算备注", "SalaryRemark", typeof(string), isRequired: false),
+            new("是否启用", "IsActive", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+        }),
     };
 
     public static readonly List<string> EntityOrder = new()
@@ -1018,6 +1041,7 @@ public class DataExchangeService : IDataExchangeService
         "Equipment", "RepairOrder", "MaintenanceOrder", "InspectionRecord",
         "InventoryPlan", "PurchaseSemiPlan", "PurchaseFinishedPlan", "RoundBarPiercingPlan",
         "SemiPlanProcessGroup", "InventoryPlanProcessGroup", "PiercingPlanProcessGroup",
+        "Workstation", "Employee",
     };
 
     #endregion

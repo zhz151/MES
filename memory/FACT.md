@@ -213,6 +213,35 @@
 - **状态推导**：endTime!=null→Completed, startTime!=null→InProgress, 都为空→Pending
 - **导航入口**：MainLayout 中"扫码维修"按钮位于"扫码报修"之前；MobileLayout 同理
 
+## Quality 模块 — NCR 不合格品
+- **NCR（不合格品报告）**：完整 CRUD + 列表页（分页/排序/筛选/内联编辑）+ 分页汇总行（B33）。包含评审、处置、跟踪完整流程。
+- **NcrService/NcrController**：Quality 上下文，ApiEndpoint = `api/ncr`
+- **B33 分页汇总**：DefectiveQuantity 列汇总，FooterContent 实现
+
+## Batch 模块 — 酸洗模块
+- **PicklingInRecord（酸洗入缸记录）**：跨批次列表+内联编辑+批量创建+完工登记+方向键导航+列选择器+列分组
+- **PicklingOutRecord（酸洗完工记录）**：跨批次列表+内联编辑+删除+方向键导航+列选择器。**计件工资结算冗余字段**：ProductionBatchId/BatchNo/ProcessName/ManufacturingSpec/SectionName/TagNo/PlantGrade/EquipmentName/Operator/Shift/Quantity/Weight/IsFinished（创建时从入缸记录复制）
+- **PicklingService**：`GetByBatchAsync`(入缸列表), `CreateAsync`(入缸), `CreateOutRecordAsync`(出缸), `GetPicklingOutRecordsAsync`(出缸列表), `UpdatePicklingOutRecordAsync`(更新出缸), `DeletePicklingOutRecordAsync`(删除出缸), `GetPendingByBatchAsync`(待出缸列表)
+- **生产记录增强**：新增 SolutionTemperature（固溶温度）/ SoakTime（保温时间）/ FaceCutCount（断切倍数）字段
+
+## ScanExecute — 扫码报工 8 种类型
+- 8 种报工类型：ProductionRecord(普通报工), PicklingInRecord(酸洗入缸), PicklingOutRecord(酸洗出缸), SectionOutsource(工段委外), OutsourceRecovery(委外回收), ProcessInspection(过程检验), MaterialReceiveCheck(成检到料), FinalInspection(成品检验)
+- 4 种步骤3模式（Pattern A/B/C/D），工位码绑定(Code→SectionName+EquipmentName+ReportType)
+- Employee 员工表支持多人扫码协作（工号读取姓名/部门/岗位）
+
+## Index 看板 — 待重新设计
+- **仪表板上下文已撤销**（V3.0 2026-06-16）：删除所有 Dashboard 代码（DTO/Service/Controller/子页面）
+- **首页 Index.razor** 已清空，待重新设计为 2×2 看板布局（工单急单/生产执行/质量检验/设备状态）
+- 看板上下文详细设计已更新为"纯首页卡片 + 链接功能页模式"
+
+## Workstation — 工位管理重设计
+- **字段变更**：Name 改为可空、SectionName 改为必填、新增 ReportType(8种报工模板类型)/IsActive(启用标记)、移除旧字段(所属工序组/所属产线/备注)
+- **Employee 新增**：工号(Code)/姓名(Name)/部门(Department)/岗位(Position)/岗位备注/工资结算模式(SalaryMode)/工资结算备注/启用(IsActive)
+
+## 读模型刷新移除
+- **V8.43(2026-06-13)** 移除 3 个读模型刷新 Service：OrderListSummaryService, WorkOrderListSummaryService, WorkOrderStatusSummaryService
+- 实体表保留，API 启动时不再执行全量 RefreshAllAsync
+
 ## 自我约束规则
 - **严格任务边界**：只做用户明确说的任务，多说一个字都先问。看到"顺手能修"的问题必须先问"要不要顺便修"，不能直接动手。
 - **禁止跑偏**：在执行当前任务过程中发现的其他问题，记录在案等当前任务完成后再问用户，而不是中途切换方向。

@@ -71,7 +71,6 @@ public partial class FurnaceRegistrations
         new() { Key = "Tungsten",         Label = "W",            SortKey = "tungsten", Width = "80" },
         new() { Key = "PREN",             Label = "PREN腐蚀当量",  SortKey = "pren", Width = "80" },
         new() { Key = "Remark",           Label = "备注",         SortKey = "remark", FilterType = "string", Width = "120" },
-        new() { Key = "CreatedTime",      Label = "创建日期",   SortKey = "createdtime", Width = "120" },
         new() { Key = "UpdatedTime",      Label = "更新日期",   SortKey = "updatedtime", Width = "120" },
     };
 
@@ -548,7 +547,7 @@ public partial class FurnaceRegistrations
         "FurnaceNumber" => item.FurnaceNumber,
         "Specification" => item.Specification,
         "Quantity" => item.Quantity?.ToString(),
-        "Weight" => item.Weight?.ToString("G29"),
+        "Weight" => DisplayHelper.FormatNullableDecimalAsInt(item.Weight),
         "Carbon" => item.Carbon?.ToString("G29"),
         "Silicon" => item.Silicon?.ToString("G29"),
         "Manganese" => item.Manganese?.ToString("G29"),
@@ -566,7 +565,6 @@ public partial class FurnaceRegistrations
         "Tungsten" => item.Tungsten?.ToString("G29"),
         "PREN" => item.PREN?.ToString("G29"),
         "Remark" => item.Remark,
-        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         _ => null
     };
@@ -650,7 +648,7 @@ public partial class FurnaceRegistrations
         "FurnaceNumber" => item.FurnaceNumber,
         "Specification" => item.Specification,
         "Quantity" => item.Quantity?.ToString(),
-        "Weight" => item.Weight?.ToString("G29"),
+        "Weight" => DisplayHelper.FormatNullableDecimalAsInt(item.Weight),
         "Carbon" => item.Carbon?.ToString("G29"),
         "Silicon" => item.Silicon?.ToString("G29"),
         "Manganese" => item.Manganese?.ToString("G29"),
@@ -668,7 +666,6 @@ public partial class FurnaceRegistrations
         "Tungsten" => item.Tungsten?.ToString("G29"),
         "PREN" => item.PREN?.ToString("G29"),
         "Remark" => item.Remark,
-        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         _ => ""
     };
@@ -778,9 +775,6 @@ public partial class FurnaceRegistrations
             case "Remark":
                 RenderEditField(builder, isEditing, cache?.Remark, v => { if (cache != null) cache.Remark = v; }, item.Remark);
                 break;
-            case "CreatedTime":
-                builder.AddContent(0, item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
-                break;
             case "UpdatedTime":
                 builder.AddContent(0, item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
@@ -827,7 +821,7 @@ public partial class FurnaceRegistrations
         }
         else
         {
-            builder.AddContent(0, item.Weight?.ToString("G29"));
+            builder.AddContent(0, DisplayHelper.FormatNullableDecimalAsInt(item.Weight));
         }
     }
 

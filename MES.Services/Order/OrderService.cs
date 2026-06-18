@@ -18,17 +18,15 @@ public class OrderService : IOrderService
     private readonly AppDbContext _context;
     private readonly ILogger<OrderService> _logger;
     private readonly INotificationService _notificationService;
-    private readonly OrderListSummaryService? _orderListSummaryService;
     private readonly IConfigParameterService _configService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
-    public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService, IConfigParameterService configService, OrderListSummaryService? orderListSummaryService = null)
+    public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService, IConfigParameterService configService)
     {
         _context = context;
         _logger = logger;
         _notificationService = notificationService;
         _configService = configService;
-        _orderListSummaryService = orderListSummaryService;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -335,7 +333,8 @@ public class OrderService : IOrderService
         _context.SalesOrders.Add(salesOrder);
         await _context.SaveChangesAsync();
 
-        if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(salesOrder.Id);
+        // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
+        // if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(salesOrder.Id);
 
         _logger.LogInformation("创建订单成功: {OrderNumber}", salesOrder.OrderNumber);
 
@@ -404,7 +403,8 @@ public class OrderService : IOrderService
             throw new BusinessException("订单已被其他用户修改，请刷新后重试");
         }
 
-        if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(salesOrder.Id);
+        // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
+        // if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(salesOrder.Id);
 
         var updatedCustomer = await _context.CustomerProfiles.FirstOrDefaultAsync(c => c.Id == salesOrder.CustomerId);
 
@@ -503,7 +503,8 @@ public async Task DeleteAsync(int id)
         await transaction.CommitAsync();
 
         // 6. 刷新读模型（订单已删除，读模型自动移除）
-        if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(salesOrder.Id);
+        // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
+        // if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(salesOrder.Id);
 
         _logger.LogInformation("订单 {OrderNumber} 已被删除，同时自动清理了 {Count} 个关联工单",
             salesOrder.OrderNumber, workOrderCount);
@@ -574,7 +575,8 @@ public async Task DeleteAsync(int id)
             throw;
         }
 
-        if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(orderId);
+        // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
+        // if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(orderId);
 
         return await MapToOrderItemDto(orderItem);
     }
@@ -679,7 +681,8 @@ public async Task DeleteAsync(int id)
             throw;
         }
 
-        if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(orderId);
+        // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
+        // if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(orderId);
 
         return await MapToOrderItemDto(orderItem);
     }
@@ -721,7 +724,8 @@ public async Task DeleteAsync(int id)
             throw;
         }
 
-        if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(orderId);
+        // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
+        // if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(orderId);
     }
 
     public async Task<SaveAllOrderResponse> SaveAllAsync(int id, SaveAllOrderRequest request)
@@ -951,7 +955,8 @@ public async Task DeleteAsync(int id)
                 .ToList();
 
             // 刷新读模型
-            if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(salesOrder.Id);
+            // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
+        // if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(salesOrder.Id);
 
             return new SaveAllOrderResponse
             {

@@ -21,7 +21,6 @@ public class DataFixService : IDataFixService
     private readonly ISubcontractOrderService _subcontractOrderService;
     private readonly ILogger<DataFixService> _logger;
     private readonly IConfigParameterService _configService;
-    private readonly IWorkOrderListSummaryService _workOrderListSummaryService;
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
@@ -32,7 +31,6 @@ public class DataFixService : IDataFixService
         ISubcontractOrderService subcontractOrderService,
         ILogger<DataFixService> logger,
         IConfigParameterService configService,
-        IWorkOrderListSummaryService workOrderListSummaryService,
         IWorkOrderExecutionService workOrderExecutionService)
     {
         _context = context;
@@ -41,7 +39,6 @@ public class DataFixService : IDataFixService
         _subcontractOrderService = subcontractOrderService;
         _logger = logger;
         _configService = configService;
-        _workOrderListSummaryService = workOrderListSummaryService;
         _workOrderExecutionService = workOrderExecutionService;
     }
 
@@ -449,11 +446,7 @@ public class DataFixService : IDataFixService
 
     private async Task FixWorkOrderSummariesAsync()
     {
-        _logger.LogInformation("开始刷新工单汇总读模型");
-
-        await _workOrderListSummaryService.RefreshAllAsync();
-        _logger.LogInformation("用料计划总览读模型刷新完成");
-
+        _logger.LogInformation("开始刷新工单执行状况汇总");
         await _workOrderExecutionService.RefreshAllAsync();
         _logger.LogInformation("工单执行状况汇总刷新完成");
     }

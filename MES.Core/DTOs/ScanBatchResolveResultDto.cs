@@ -43,4 +43,7 @@ public class ProcessGroupOption
 
     /// <summary>制造规格</summary>
     public string? ManufacturingSpec { get; set; }
+
+    /// <summary>该工序组包含的工段名称列表（用于按工位工段过滤）</summary>
+    public List<string> SectionNames { get; set; } = new();
 }

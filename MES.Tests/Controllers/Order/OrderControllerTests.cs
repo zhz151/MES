@@ -17,9 +17,7 @@ public class OrderControllerTests : ControllerTestBase
     public OrderControllerTests()
     {
         _serviceMock = new Mock<IOrderService>();
-        var summaryServiceMock = new Mock<OrderListSummaryService>(
-            Mock.Of<Data.AppDbContext>(), Mock.Of<ILogger<OrderListSummaryService>>());
-        _controller = new OrderController(_serviceMock.Object, summaryServiceMock.Object);
+        _controller = new OrderController(_serviceMock.Object);
     }
 
     [Fact]

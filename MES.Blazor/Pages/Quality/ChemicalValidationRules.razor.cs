@@ -88,7 +88,6 @@ public partial class ChemicalValidationRules
         new() { Key = "WMin",         Label = "W-",         SortKey = "wmin", FilterType = "string", Width = "120" },
         new() { Key = "WMax",         Label = "W+",         SortKey = "wmax", FilterType = "string", Width = "120" },
         new() { Key = "PRENMin",      Label = "PREN腐蚀当量-", SortKey = "prenmin", FilterType = "string", Width = "120" },
-        new() { Key = "CreatedTime",  Label = "创建日期",   SortKey = "createdtime", Width = "120" },
         new() { Key = "UpdatedTime",  Label = "更新日期",   SortKey = "updatedtime", Width = "120" },
     };
 
@@ -505,7 +504,6 @@ public partial class ChemicalValidationRules
         "AlMin" => item.AlMin, "AlMax" => item.AlMax,
         "WMin" => item.WMin, "WMax" => item.WMax,
         "PRENMin" => item.PRENMin,
-        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         _ => null
     };
@@ -624,9 +622,6 @@ public partial class ChemicalValidationRules
             case "PRENMin":
                 RenderEditField(builder, isEditing, cache?.PRENMin, v => { if (cache != null) cache.PRENMin = v; }, item.PRENMin);
                 break;
-            case "CreatedTime":
-                builder.AddContent(0, item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
-                break;
             case "UpdatedTime":
                 builder.AddContent(0, item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
@@ -743,7 +738,6 @@ public partial class ChemicalValidationRules
         "AlMin" => item.AlMin, "AlMax" => item.AlMax,
         "WMin" => item.WMin, "WMax" => item.WMax,
         "PRENMin" => item.PRENMin,
-        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         _ => ""
     };

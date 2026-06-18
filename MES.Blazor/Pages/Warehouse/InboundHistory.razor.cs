@@ -250,6 +250,7 @@ public partial class InboundHistory
     {
         try
         {
+            _pageSize = state.PageSize;
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "InboundDate";
             var filtersJson = SerializeFilters();
 
@@ -278,7 +279,6 @@ public partial class InboundHistory
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
                 _currentPage = state.Page + 1;
-                _pageSize = state.PageSize;
                 ComputePageSums();
 
                 // 清理已删除项

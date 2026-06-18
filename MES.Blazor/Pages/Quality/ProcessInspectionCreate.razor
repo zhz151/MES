@@ -214,6 +214,8 @@
         public string? InspectionItem { get; set; }
         public int? QualifiedQuantity { get; set; }
         public decimal? QualifiedWeight { get; set; }
+        public int? QualifiedConcessionQuantity { get; set; }
+        public string? ConcessionRemark { get; set; }
         public int? DefectReworkQuantity { get; set; }
         public int? DefectWarehouseQuantity { get; set; }
         public int? DefectScrapQuantity { get; set; }
@@ -337,6 +339,8 @@
                 InspectionItem = r.InspectionItem,
                 QualifiedQuantity = r.QualifiedQuantity,
                 QualifiedWeight = r.QualifiedWeight,
+                QualifiedConcessionQuantity = r.QualifiedConcessionQuantity,
+                ConcessionRemark = r.ConcessionRemark,
                 DefectReworkQuantity = r.DefectReworkQuantity,
                 DefectWarehouseQuantity = r.DefectWarehouseQuantity,
                 DefectScrapQuantity = r.DefectScrapQuantity,

@@ -15,12 +15,10 @@ namespace MES.Api.Controllers;
 public class OrderController : ControllerBase
 {
     private readonly IOrderService _orderService;
-    private readonly OrderListSummaryService _orderListSummaryService;
 
-    public OrderController(IOrderService orderService, OrderListSummaryService orderListSummaryService)
+    public OrderController(IOrderService orderService)
     {
         _orderService = orderService;
-        _orderListSummaryService = orderListSummaryService;
     }
 
     #region 订单管理
@@ -54,14 +52,6 @@ public class OrderController : ControllerBase
     {
         var result = await _orderService.GetAllListAsync();
         return Ok(ApiResponse<List<SalesOrderListDto>>.Ok(result, "查询成功"));
-    }
-
-    [HttpPost("refresh")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse>> Refresh()
-    {
-        await _orderListSummaryService.RefreshAllAsync();
-        return Ok(ApiResponse.Ok("读模型刷新完成"));
     }
 
     [HttpGet("{id}")]

@@ -72,6 +72,16 @@ public class ProductionRecord : BaseEntity
     public decimal? Weight { get; set; }
 
     /// <summary>
+    /// 固溶温度(℃)，仅固溶工段使用
+    /// </summary>
+    public decimal? SolutionTemperature { get; set; }
+
+    /// <summary>
+    /// 保温时间(min)，仅固溶工段使用
+    /// </summary>
+    public int? SoakTime { get; set; }
+
+    /// <summary>
     /// 是否成品
     /// </summary>
     public bool IsFinished { get; set; }
@@ -90,6 +100,11 @@ public class ProductionRecord : BaseEntity
     /// 切后支数
     /// </summary>
     public int? PostCutQuantity { get; set; }
+
+    /// <summary>
+    /// 平头数，仅荒管切割时使用：1=一端，2=两端
+    /// </summary>
+    public int? FaceCutCount { get; set; }
 
     // ========== 批次冗余字段 ==========
 

@@ -91,10 +91,13 @@ public class ProductionRecordService : IProductionRecordService
                 Shift = r.Shift,
                 Quantity = r.Quantity,
                 Weight = r.Weight,
+                SolutionTemperature = r.SolutionTemperature,
+                SoakTime = r.SoakTime,
                 IsFinished = r.IsFinished,
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
                 PostCutQuantity = r.PostCutQuantity,
+                FaceCutCount = r.FaceCutCount,
                 TagNo = r.TagNo,
                 PlantGrade = r.PlantGrade,
                 Remark = r.Remark
@@ -156,10 +159,13 @@ public class ProductionRecordService : IProductionRecordService
             Shift = request.Shift,
             Quantity = request.Quantity,
             Weight = request.Weight,
+            SolutionTemperature = request.SolutionTemperature,
+            SoakTime = request.SoakTime,
             IsFinished = request.IsFinished,
             CuttingMultiple = request.CuttingMultiple,
             FinishedCutLength = request.FinishedCutLength,
             PostCutQuantity = request.PostCutQuantity,
+            FaceCutCount = request.FaceCutCount,
             TagNo = request.TagNo ?? batch.TagNo,
             PlantGrade = request.PlantGrade ?? batch.PlantGrade,
             Remark = request.Remark,
@@ -186,10 +192,13 @@ public class ProductionRecordService : IProductionRecordService
             Shift = entity.Shift,
             Quantity = entity.Quantity,
             Weight = entity.Weight,
+            SolutionTemperature = entity.SolutionTemperature,
+            SoakTime = entity.SoakTime,
             IsFinished = entity.IsFinished,
             CuttingMultiple = entity.CuttingMultiple,
             FinishedCutLength = entity.FinishedCutLength,
             PostCutQuantity = entity.PostCutQuantity,
+            FaceCutCount = entity.FaceCutCount,
             TagNo = entity.TagNo,
             PlantGrade = entity.PlantGrade,
             Remark = entity.Remark,
@@ -478,10 +487,13 @@ public class ProductionRecordService : IProductionRecordService
                 Shift = request.Shift,
                 Quantity = request.Quantity,
                 Weight = request.Weight,
+                SolutionTemperature = request.SolutionTemperature,
+                SoakTime = request.SoakTime,
                 IsFinished = request.IsFinished,
                 CuttingMultiple = request.CuttingMultiple,
                 FinishedCutLength = request.FinishedCutLength,
                 PostCutQuantity = request.PostCutQuantity,
+                FaceCutCount = request.FaceCutCount,
                 TagNo = request.TagNo ?? batch.TagNo,
                 PlantGrade = request.PlantGrade ?? batch.PlantGrade,
                 Remark = request.Remark,
@@ -511,10 +523,13 @@ public class ProductionRecordService : IProductionRecordService
             Shift = e.Shift,
             Quantity = e.Quantity,
             Weight = e.Weight,
+            SolutionTemperature = e.SolutionTemperature,
+            SoakTime = e.SoakTime,
             IsFinished = e.IsFinished,
             CuttingMultiple = e.CuttingMultiple,
             FinishedCutLength = e.FinishedCutLength,
             PostCutQuantity = e.PostCutQuantity,
+            FaceCutCount = e.FaceCutCount,
             TagNo = e.TagNo,
             PlantGrade = e.PlantGrade,
             Remark = e.Remark
@@ -532,10 +547,13 @@ public class ProductionRecordService : IProductionRecordService
         entity.Shift = request.Shift ?? entity.Shift;
         entity.Quantity = request.Quantity ?? entity.Quantity;
         entity.Weight = request.Weight ?? entity.Weight;
+        entity.SolutionTemperature = request.SolutionTemperature ?? entity.SolutionTemperature;
+        entity.SoakTime = request.SoakTime ?? entity.SoakTime;
         entity.IsFinished = request.IsFinished;
         entity.CuttingMultiple = request.CuttingMultiple ?? entity.CuttingMultiple;
         entity.FinishedCutLength = request.FinishedCutLength ?? entity.FinishedCutLength;
         entity.PostCutQuantity = request.PostCutQuantity ?? entity.PostCutQuantity;
+        entity.FaceCutCount = request.FaceCutCount ?? entity.FaceCutCount;
         entity.TagNo = request.TagNo ?? entity.TagNo;
         entity.PlantGrade = request.PlantGrade ?? entity.PlantGrade;
         entity.Remark = request.Remark ?? entity.Remark;
@@ -560,10 +578,13 @@ public class ProductionRecordService : IProductionRecordService
             Shift = entity.Shift,
             Quantity = entity.Quantity,
             Weight = entity.Weight,
+            SolutionTemperature = entity.SolutionTemperature,
+            SoakTime = entity.SoakTime,
             IsFinished = entity.IsFinished,
             CuttingMultiple = entity.CuttingMultiple,
             FinishedCutLength = entity.FinishedCutLength,
             PostCutQuantity = entity.PostCutQuantity,
+            FaceCutCount = entity.FaceCutCount,
             TagNo = entity.TagNo,
             PlantGrade = entity.PlantGrade,
             Remark = entity.Remark,
@@ -2101,10 +2122,13 @@ public class ProductionRecordService : IProductionRecordService
                 Shift = r.Shift,
                 Quantity = r.Quantity,
                 Weight = r.Weight,
+                SolutionTemperature = r.SolutionTemperature,
+                SoakTime = r.SoakTime,
                 IsFinished = r.IsFinished,
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
                 PostCutQuantity = r.PostCutQuantity,
+                FaceCutCount = r.FaceCutCount,
                 TagNo = r.TagNo,
                 PlantGrade = r.PlantGrade,
                 Remark = r.Remark,
@@ -2145,10 +2169,13 @@ public class ProductionRecordService : IProductionRecordService
                 Shift = r.Shift,
                 Quantity = r.Quantity,
                 Weight = r.Weight,
+                SolutionTemperature = r.SolutionTemperature,
+                SoakTime = r.SoakTime,
                 IsFinished = r.IsFinished,
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
                 PostCutQuantity = r.PostCutQuantity,
+                FaceCutCount = r.FaceCutCount,
                 TagNo = r.TagNo,
                 PlantGrade = r.PlantGrade,
                 Remark = r.Remark,
@@ -2156,6 +2183,21 @@ public class ProductionRecordService : IProductionRecordService
                 BatchNo = r.ProductionBatch.BatchNo,
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime
+            })
+            .ToListAsync();
+    }
+
+    public async Task<List<DailySectionOutputDto>> GetDailySectionOutputAsync(DateTime date)
+    {
+        return await _context.ProductionRecords
+            .AsNoTracking()
+            .Where(r => r.ExecDate.Date == date.Date)
+            .GroupBy(r => r.SectionName)
+            .Select(g => new DailySectionOutputDto
+            {
+                SectionName = g.Key,
+                TotalWeight = g.Sum(r => r.Weight ?? 0m),
+                RecordCount = g.Count()
             })
             .ToListAsync();
     }
@@ -2186,6 +2228,10 @@ public class ProductionRecordService : IProductionRecordService
             ("quantity", true) => queryable.OrderByDescending(r => r.Quantity ?? 0),
             ("weight", false) => queryable.OrderBy(r => r.Weight ?? 0),
             ("weight", true) => queryable.OrderByDescending(r => r.Weight ?? 0),
+            ("solutiontemperature", false) => queryable.OrderBy(r => r.SolutionTemperature ?? 0),
+            ("solutiontemperature", true) => queryable.OrderByDescending(r => r.SolutionTemperature ?? 0),
+            ("soaktime", false) => queryable.OrderBy(r => r.SoakTime ?? 0),
+            ("soaktime", true) => queryable.OrderByDescending(r => r.SoakTime ?? 0),
             ("isfinished", false) => queryable.OrderBy(r => r.IsFinished),
             ("isfinished", true) => queryable.OrderByDescending(r => r.IsFinished),
             ("cuttingmultiple", false) => queryable.OrderBy(r => r.CuttingMultiple ?? 0),
@@ -2194,6 +2240,8 @@ public class ProductionRecordService : IProductionRecordService
             ("finishedcutlength", true) => queryable.OrderByDescending(r => r.FinishedCutLength ?? 0),
             ("postcutquantity", false) => queryable.OrderBy(r => r.PostCutQuantity ?? 0),
             ("postcutquantity", true) => queryable.OrderByDescending(r => r.PostCutQuantity ?? 0),
+            ("facecutcount", false) => queryable.OrderBy(r => r.FaceCutCount ?? 0),
+            ("facecutcount", true) => queryable.OrderByDescending(r => r.FaceCutCount ?? 0),
             ("tagno", false) => queryable.OrderBy(r => r.TagNo ?? ""),
             ("tagno", true) => queryable.OrderByDescending(r => r.TagNo ?? ""),
             ("plantgrade", false) => queryable.OrderBy(r => r.PlantGrade ?? ""),
@@ -2656,10 +2704,13 @@ public class ProductionRecordService : IProductionRecordService
                 Shift = r.Shift,
                 Quantity = r.Quantity,
                 Weight = r.Weight,
+                SolutionTemperature = r.SolutionTemperature,
+                SoakTime = r.SoakTime,
                 IsFinished = r.IsFinished,
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
                 PostCutQuantity = r.PostCutQuantity,
+                FaceCutCount = r.FaceCutCount,
                 TagNo = r.TagNo,
                 PlantGrade = r.PlantGrade,
                 Remark = r.Remark,

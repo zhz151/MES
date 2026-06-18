@@ -1,7 +1,7 @@
 namespace MES.Core.DTOs;
 
 /// <summary>
-/// 生产段流转量分析 DTO — 按 12 个段落类别汇总
+/// 生产段流转量分析 DTO — 按段落类别汇总
 /// </summary>
 public class SectionFlowAnalysisDto
 {
@@ -29,4 +29,10 @@ public class SectionFlowAnalysisDto
 
     /// <summary>状态判定：偏少/正常/过多（计算值）</summary>
     public string? StatusJudgment { get; set; }
+
+    /// <summary>重点批次计数（来自批次计划，按(待产工序组, 工段)映射归类）</summary>
+    public int KeyBatchCount { get; set; }
+
+    /// <summary>重点批次重量（来自批次计划）</summary>
+    public decimal? KeyBatchWeight { get; set; }
 }

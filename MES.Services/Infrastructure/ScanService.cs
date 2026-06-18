@@ -5,6 +5,7 @@ using MES.Core.Exceptions;
 using MES.Core.Interfaces;
 using MES.Core.Constants;
 using MES.Data;
+using MES.Data.Entities;
 
 namespace MES.Services;
 
@@ -39,8 +40,27 @@ public class ScanService : IScanService
             .FirstOrDefaultAsync(pg => pg.Id == processGroupId && pg.ProductionBatchId == batch.Id)
             ?? throw new BusinessException($"未找到工序组（ID={processGroupId}）");
 
-        return BuildResult(batch, group);
+        // 查询该批次最大工序组序号，用于判断是否成品
+        var maxSequenceNumber = await _context.ProcessGroups
+            .Where(pg => pg.ProductionBatchId == batch.Id)
+            .MaxAsync(pg => (int?)pg.SequenceNumber) ?? 0;
+
+        var result = BuildResult(batch, group);
+        result.IsFinished = IsFinishedManufacturingItem(batch.ManufacturingItem)
+            && group.SequenceNumber >= maxSequenceNumber;
+        return result;
     }
+
+    /// <summary>
+    /// 判断制造物品是否属于'成品'类别（中文含"成品"的3类）
+    /// </summary>
+    private static bool IsFinishedManufacturingItem(string? manufacturingItem) => manufacturingItem switch
+    {
+        nameof(ManufacturingItem.OrderFinishedProduct) => true,
+        nameof(ManufacturingItem.PreparedMaterial) => true,
+        nameof(ManufacturingItem.SpecialDeliveryStatus) => true,
+        _ => false
+    };
 
     public async Task<ScanBatchResolveResultDto> GetBatchProcessGroupsAsync(string batchNo)
     {
@@ -50,14 +70,16 @@ public class ScanService : IScanService
             .AsNoTracking()
             .Where(pg => pg.ProductionBatchId == batch.Id)
             .OrderBy(pg => pg.SequenceNumber)
-            .Select(pg => new ProcessGroupOption
-            {
-                Id = pg.Id,
-                SequenceNumber = pg.SequenceNumber,
-                ProcessName = pg.ProcessName,
-                ManufacturingSpec = pg.ManufacturingSpec
-            })
             .ToListAsync();
+
+        var groupOptions = groups.Select(g => new ProcessGroupOption
+        {
+            Id = g.Id,
+            SequenceNumber = g.SequenceNumber,
+            ProcessName = g.ProcessName,
+            ManufacturingSpec = g.ManufacturingSpec,
+            SectionNames = GetAvailableSectionNames(g)
+        }).ToList();
 
         return new ScanBatchResolveResultDto
         {
@@ -67,7 +89,44 @@ public class ScanService : IScanService
             Specification = batch.Specification,
             TagNo = batch.TagNo,
             ProductionType = batch.ProductionType,
-            ProcessGroups = groups
+            ProcessGroups = groupOptions
+        };
+    }
+
+    /// <summary>
+    /// 获取工序组中非 null 工段的中文名称列表
+    /// </summary>
+    private static List<string> GetAvailableSectionNames(ProcessGroup group)
+    {
+        var names = new List<string>();
+        foreach (var field in SectionFields)
+        {
+            var value = GetSectionValue(group, field);
+            if (value.HasValue)
+            {
+                var name = SectionNameMap.GetValueOrDefault(field, field);
+                if (!string.IsNullOrEmpty(name))
+                    names.Add(name);
+            }
+        }
+        return names;
+    }
+
+    public async Task<ScanEquipmentResolveResultDto> ResolveEquipmentAsync(string equipmentCode)
+    {
+        var equipment = await _context.Equipment
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.EquipmentCode == equipmentCode)
+            ?? throw new BusinessException($"未找到设备：{equipmentCode}");
+
+        return new ScanEquipmentResolveResultDto
+        {
+            EquipmentId = equipment.Id,
+            EquipmentCode = equipment.EquipmentCode,
+            EquipmentName = equipment.EquipmentName,
+            Location = equipment.Location,
+            RelatedSection = equipment.RelatedSection,
+            ModelNumber = equipment.ModelNumber,
         };
     }
 
@@ -96,7 +155,10 @@ public class ScanService : IScanService
             var value = GetSectionValue(group, propertyName);
             if (value.HasValue)
             {
-                return BuildResult(batch, group);
+                var result = BuildResult(batch, group);
+                result.IsFinished = IsFinishedManufacturingItem(batch.ManufacturingItem)
+                    && group.SequenceNumber >= groups.Max(g => g.SequenceNumber);
+                return result;
             }
         }
 
@@ -129,6 +191,14 @@ public class ScanService : IScanService
 
         availableSections = availableSections.OrderBy(s => s.SequenceNumber).ToList();
 
+        // 计算单支重量（总重量/总支数），用于扫码自动算重
+        decimal? unitWeight = null;
+        if (batch.TotalQuantity > 0)
+        {
+            var weight = batch.CurrentValidWeight.GetValueOrDefault(batch.TotalWeight);
+            unitWeight = Math.Round(weight / batch.TotalQuantity, 4);
+        }
+
         return new ScanResolveResultDto
         {
             BatchNo = batch.BatchNo,
@@ -140,7 +210,8 @@ public class ScanService : IScanService
             ProcessGroupId = group.Id,
             ProcessName = group.ProcessName,
             ManufacturingSpec = group.ManufacturingSpec,
-            AvailableSections = availableSections
+            AvailableSections = availableSections,
+            UnitWeight = unitWeight
         };
     }
 

@@ -88,4 +88,9 @@ public interface IPicklingService
     /// 获取完工记录筛选上下文
     /// </summary>
     Task<Dictionary<string, List<string>>> GetOutRecordFilterContextsAsync();
+
+    /// <summary>
+    /// 按批次号查询入缸记录（用于出缸扫码时选择关联的入缸记录）
+    /// </summary>
+    Task<List<PicklingInRecordDto>> GetByBatchAsync(string batchNo);
 }

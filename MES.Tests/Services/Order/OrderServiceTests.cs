@@ -9,6 +9,7 @@ using MES.Core.Models;
 using MES.Services.Order;
 using MES.Tests.Tests;
 using MES.Data;
+using MES.Data.Entities;
 using Moq;
 
 namespace MES.Tests.Services;
@@ -25,9 +26,7 @@ public class OrderServiceTests : TestBase
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        var summaryLoggerMock = new Mock<ILogger<OrderListSummaryService>>();
-        var summaryService = new OrderListSummaryService(ctx, summaryLoggerMock.Object);
-        return new OrderService(ctx, loggerMock.Object, notificationMock, configMock.Object, summaryService);
+        return new OrderService(ctx, loggerMock.Object, notificationMock, configMock.Object);
     }
 
     // ========== 创建订单 ==========
@@ -340,10 +339,22 @@ public class OrderServiceTests : TestBase
             RowVersion = new byte[8]
         });
 
+        // 手动创建 OrderListSummary 读模型（原 RefreshAllAsync 已移除）
+        ctx.OrderListSummaries.Add(new OrderListSummary
+        {
+            OrderId = order.Id,
+            OrderNumber = "ORD-TEST-001",
+            CustomerName = cust.CustomerUnit,
+            Salesman = cust.Salesman,
+            SignDate = DateTime.Today,
+            Status = SalesOrderStatus.Confirmed,
+        });
+        await ctx.SaveChangesAsync();
+
         // 只查待处理
         var pendingResult = await svc.GetPagedAsync(new QueryParams
         {
-            PageIndex = 0,
+            PageIndex = 1,
             PageSize = 10
         }, orderStatus: "Pending");
 
@@ -352,7 +363,7 @@ public class OrderServiceTests : TestBase
         // 只查已确认
         var confirmedResult = await svc.GetPagedAsync(new QueryParams
         {
-            PageIndex = 0,
+            PageIndex = 1,
             PageSize = 10
         }, orderStatus: "Confirmed");
 

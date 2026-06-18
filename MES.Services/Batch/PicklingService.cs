@@ -353,12 +353,19 @@ public class PicklingService : IPicklingService
                 DataSource = r.DataSource,
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime,
+                ProductionBatchId = r.ProductionBatchId,
                 BatchNo = r.PicklingInRecord.ProductionBatch.BatchNo,
                 ProcessName = r.PicklingInRecord.ProcessName,
-                SectionName = r.PicklingInRecord.SectionName,
-                ManufacturingSpec = r.PicklingInRecord.ManufacturingSpec,
+                ManufacturingSpec = r.ManufacturingSpec,
+                SectionName = r.SectionName,
                 TagNo = r.PicklingInRecord.TagNo,
-                PlantGrade = r.PicklingInRecord.PlantGrade
+                PlantGrade = r.PlantGrade,
+                EquipmentName = r.EquipmentName,
+                Operator = r.Operator,
+                Shift = r.Shift,
+                Quantity = r.Quantity,
+                Weight = r.Weight,
+                IsFinished = r.IsFinished
             })
             .FirstOrDefaultAsync();
     }
@@ -401,6 +408,18 @@ public class PicklingService : IPicklingService
             ("completedate", true) => queryable.OrderByDescending(r => r.CompleteDate),
             ("datasource", false) => queryable.OrderBy(r => r.DataSource ?? ""),
             ("datasource", true) => queryable.OrderByDescending(r => r.DataSource ?? ""),
+            ("equipmentname", false) => queryable.OrderBy(r => r.EquipmentName ?? ""),
+            ("equipmentname", true) => queryable.OrderByDescending(r => r.EquipmentName ?? ""),
+            ("operator", false) => queryable.OrderBy(r => r.Operator ?? ""),
+            ("operator", true) => queryable.OrderByDescending(r => r.Operator ?? ""),
+            ("shift", false) => queryable.OrderBy(r => r.Shift ?? ""),
+            ("shift", true) => queryable.OrderByDescending(r => r.Shift ?? ""),
+            ("quantity", false) => queryable.OrderBy(r => r.Quantity ?? 0),
+            ("quantity", true) => queryable.OrderByDescending(r => r.Quantity ?? 0),
+            ("weight", false) => queryable.OrderBy(r => r.Weight ?? 0),
+            ("weight", true) => queryable.OrderByDescending(r => r.Weight ?? 0),
+            ("isfinished", false) => queryable.OrderBy(r => r.IsFinished),
+            ("isfinished", true) => queryable.OrderByDescending(r => r.IsFinished),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(r => r.CreatedTime)
                 : queryable.OrderBy(r => r.CreatedTime)
@@ -418,12 +437,19 @@ public class PicklingService : IPicklingService
                 DataSource = r.DataSource,
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime,
+                ProductionBatchId = r.ProductionBatchId,
                 BatchNo = r.PicklingInRecord.ProductionBatch.BatchNo,
                 ProcessName = r.PicklingInRecord.ProcessName,
-                SectionName = r.PicklingInRecord.SectionName,
-                ManufacturingSpec = r.PicklingInRecord.ManufacturingSpec,
+                ManufacturingSpec = r.ManufacturingSpec,
+                SectionName = r.SectionName,
                 TagNo = r.PicklingInRecord.TagNo,
-                PlantGrade = r.PicklingInRecord.PlantGrade
+                PlantGrade = r.PlantGrade,
+                EquipmentName = r.EquipmentName,
+                Operator = r.Operator,
+                Shift = r.Shift,
+                Quantity = r.Quantity,
+                Weight = r.Weight,
+                IsFinished = r.IsFinished
             })
             .ToListAsync();
 
@@ -446,12 +472,23 @@ public class PicklingService : IPicklingService
         if (inRecord.Status == PicklingStatus.Completed)
             throw new BusinessException("该入缸记录已完工，不能重复完工");
 
+        // 从入缸记录复制冗余字段（计件工资结算/数据冻结）
         var entity = new PicklingOutRecord
         {
             PicklingInRecordId = request.PicklingInRecordId,
             CompleteDate = request.CompleteDate,
             Remark = request.Remark,
-            DataSource = request.DataSource ?? "MANUAL"
+            DataSource = request.DataSource ?? "MANUAL",
+            ProductionBatchId = inRecord.ProductionBatchId,
+            ManufacturingSpec = inRecord.ManufacturingSpec,
+            SectionName = inRecord.SectionName,
+            EquipmentName = inRecord.EquipmentName,
+            Operator = inRecord.Operator,
+            Shift = inRecord.Shift,
+            Quantity = inRecord.Quantity,
+            Weight = inRecord.Weight,
+            IsFinished = inRecord.IsFinished,
+            PlantGrade = inRecord.PlantGrade
         };
 
         // 自动更新入缸状态为 Completed
@@ -468,12 +505,20 @@ public class PicklingService : IPicklingService
             Remark = entity.Remark,
             DataSource = entity.DataSource,
             CreatedTime = entity.CreatedTime,
+            UpdatedTime = entity.UpdatedTime,
+            ProductionBatchId = entity.ProductionBatchId,
             BatchNo = inRecord.ProductionBatch.BatchNo,
             ProcessName = inRecord.ProcessName,
-            SectionName = inRecord.SectionName,
-            ManufacturingSpec = inRecord.ManufacturingSpec,
+            ManufacturingSpec = entity.ManufacturingSpec,
+            SectionName = entity.SectionName,
             TagNo = inRecord.TagNo,
-            PlantGrade = inRecord.PlantGrade
+            PlantGrade = entity.PlantGrade,
+            EquipmentName = entity.EquipmentName,
+            Operator = entity.Operator,
+            Shift = entity.Shift,
+            Quantity = entity.Quantity,
+            Weight = entity.Weight,
+            IsFinished = entity.IsFinished
         };
     }
 
@@ -500,12 +545,20 @@ public class PicklingService : IPicklingService
             Remark = entity.Remark,
             DataSource = entity.DataSource,
             CreatedTime = entity.CreatedTime,
+            UpdatedTime = entity.UpdatedTime,
+            ProductionBatchId = entity.ProductionBatchId,
             BatchNo = entity.PicklingInRecord.ProductionBatch.BatchNo,
             ProcessName = entity.PicklingInRecord.ProcessName,
-            SectionName = entity.PicklingInRecord.SectionName,
-            ManufacturingSpec = entity.PicklingInRecord.ManufacturingSpec,
+            ManufacturingSpec = entity.ManufacturingSpec,
+            SectionName = entity.SectionName,
             TagNo = entity.PicklingInRecord.TagNo,
-            PlantGrade = entity.PicklingInRecord.PlantGrade
+            PlantGrade = entity.PlantGrade,
+            EquipmentName = entity.EquipmentName,
+            Operator = entity.Operator,
+            Shift = entity.Shift,
+            Quantity = entity.Quantity,
+            Weight = entity.Weight,
+            IsFinished = entity.IsFinished
         };
     }
 
@@ -639,6 +692,41 @@ public class PicklingService : IPicklingService
         return dict;
     }
 
+    public async Task<List<PicklingInRecordDto>> GetByBatchAsync(string batchNo)
+    {
+        return await _context.PicklingInRecords
+            .AsNoTracking()
+            .Include(s => s.ProductionBatch)
+            .Where(s => s.ProductionBatch.BatchNo == batchNo)
+            .OrderByDescending(s => s.InDate)
+            .Select(s => new PicklingInRecordDto
+            {
+                Id = s.Id,
+                ProductionBatchId = s.ProductionBatchId,
+                ProcessGroupId = s.ProcessGroupId,
+                BatchNo = s.ProductionBatch.BatchNo,
+                ProcessName = s.ProcessName,
+                ManufacturingSpec = s.ManufacturingSpec,
+                SectionName = s.SectionName,
+                SequenceNumber = s.SequenceNumber,
+                InDate = s.InDate,
+                Status = s.Status.ToString(),
+                EquipmentName = s.EquipmentName,
+                Operator = s.Operator,
+                Shift = s.Shift,
+                Quantity = s.Quantity,
+                Weight = s.Weight,
+                IsFinished = s.IsFinished,
+                TagNo = s.TagNo,
+                PlantGrade = s.PlantGrade,
+                Remark = s.Remark,
+                DataSource = s.DataSource,
+                CreatedTime = s.CreatedTime,
+                UpdatedTime = s.UpdatedTime
+            })
+            .ToListAsync();
+    }
+
     public async Task<Dictionary<string, List<string>>> GetOutRecordFilterContextsAsync()
     {
         var dict = new Dictionary<string, List<string>>();
@@ -653,11 +741,11 @@ public class PicklingService : IPicklingService
             .ToListAsync();
         if (processNames.Count > 0) dict["ProcessName"] = processNames;
 
+        // SectionName 现为出缸记录实体字段
         var sectionNames = await _context.PicklingOutRecords
             .AsNoTracking()
-            .Include(r => r.PicklingInRecord)
-            .Where(r => r.PicklingInRecord.SectionName != null)
-            .Select(r => r.PicklingInRecord.SectionName)
+            .Where(r => r.SectionName != null)
+            .Select(r => r.SectionName)
             .Distinct()
             .OrderBy(x => x)
             .ToListAsync();
@@ -682,6 +770,41 @@ public class PicklingService : IPicklingService
             .OrderBy(x => x)
             .ToListAsync();
         if (dataSources.Count > 0) dict["DataSource"] = dataSources;
+
+        var equipmentNames = await _context.PicklingOutRecords
+            .AsNoTracking()
+            .Where(r => r.EquipmentName != null)
+            .Select(r => r.EquipmentName!)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToListAsync();
+        if (equipmentNames.Count > 0) dict["EquipmentName"] = equipmentNames;
+
+        var operators = await _context.PicklingOutRecords
+            .AsNoTracking()
+            .Where(r => r.Operator != null)
+            .Select(r => r.Operator!)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToListAsync();
+        if (operators.Count > 0) dict["Operator"] = operators;
+
+        var shifts = await _context.PicklingOutRecords
+            .AsNoTracking()
+            .Where(r => r.Shift != null)
+            .Select(r => r.Shift!)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToListAsync();
+        if (shifts.Count > 0) dict["Shift"] = shifts;
+
+        var isFinishedValues = await _context.PicklingOutRecords
+            .AsNoTracking()
+            .Select(r => r.IsFinished.ToString())
+            .Distinct()
+            .OrderBy(x => x)
+            .ToListAsync();
+        if (isFinishedValues.Count > 0) dict["IsFinished"] = isFinishedValues;
 
         return dict;
     }

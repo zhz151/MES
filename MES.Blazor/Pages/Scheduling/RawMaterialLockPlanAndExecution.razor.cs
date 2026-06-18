@@ -16,7 +16,6 @@ public partial class RawMaterialLockPlanAndExecution
     private MudTable<RawMaterialLockPlanAndExecutionDto>? table;
     private List<RawMaterialLockPlanAndExecutionDto> _allItems = new();
     private List<RawMaterialLockPlanAndExecutionDto> _filteredItems = new();
-    private bool _isLoading;
 
     // 汇总数据
     private int _totalOrderCount;
@@ -264,7 +263,6 @@ public partial class RawMaterialLockPlanAndExecution
 
     private async Task LoadDataAsync()
     {
-        _isLoading = true;
         try
         {
             var query = new QueryParams
@@ -291,10 +289,6 @@ public partial class RawMaterialLockPlanAndExecution
         {
             Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
             _allItems = new();
-        }
-        finally
-        {
-            _isLoading = false;
         }
 
         BuildFilterContextOptions();

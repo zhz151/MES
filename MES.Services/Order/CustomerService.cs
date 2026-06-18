@@ -20,12 +20,10 @@ namespace MES.Services;
 public class CustomerService : ICustomerService
 {
     private readonly AppDbContext _context;
-    private readonly OrderListSummaryService? _orderListSummaryService;
 
-    public CustomerService(AppDbContext context, OrderListSummaryService? orderListSummaryService = null)
+    public CustomerService(AppDbContext context)
     {
         _context = context;
-        _orderListSummaryService = orderListSummaryService;
     }
 
     /// <summary>
@@ -220,13 +218,6 @@ public class CustomerService : ICustomerService
         catch (DbUpdateConcurrencyException)
         {
             throw new BusinessException("客户信息已被其他用户修改，请刷新后重试");
-        }
-
-        // 客户信息变更时刷新订单读模型（名称/业务员/最终客户均在读模型中）
-        if (request.CustomerUnit != null || request.Salesman != null || request.EndCustomer != null)
-        {
-            if (_orderListSummaryService != null)
-                await _orderListSummaryService.RefreshByCustomerAsync(entity.Id);
         }
 
         return entity.ToDto();

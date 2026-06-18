@@ -39,7 +39,7 @@
             <MudGrid>
                 <MudItem xs="12" md="12">
                     <MudTextField T="string"
-                                  Label="模糊搜索 - 工位编码/名称/设备/工段"
+                                  Label="模糊搜索 - 工位编码/名称/设备/工段/模板类型"
                                   Value="_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
@@ -72,12 +72,6 @@
                                StartIcon="@Icons.Material.Filled.RestartAlt"
                                OnClick="ResetColumnDisplay" Class="ml-2">
                         重置
-                    </MudButton>
-                    <MudButton Variant="Variant.Text" Size="Size.Small"
-                               Color="Color.Default"
-                               StartIcon="@Icons.Material.Filled.Download"
-                               OnClick="ExportCsv" Class="ml-2">
-                        导出CSV
                     </MudButton>
                     <MudSpacer />
                     <MudText Typo="Typo.body2" Class="ml-auto">
@@ -131,12 +125,48 @@
                                               Value="@rowCache.Name"
                                               ValueChanged="@(v => rowCache.Name = v)"
                                               Class="compact-input"
-                                              Required="true"
                                               Label="工位名称" />
                             }
                             else
                             {
                                 @item.Name
+                            }
+                        }
+                        else if (col.Key == "ReportType")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudSelect T="string"
+                                           Dense="true"
+                                           Variant="Variant.Outlined"
+                                           Value="@rowCache.ReportType"
+                                           ValueChanged="@(v => rowCache.ReportType = v)"
+                                           Class="compact-input"
+                                           Label="报工模板类型">
+                                    <MudSelectItem Value="@("ProductionRecord")">普通报工</MudSelectItem>
+                                    <MudSelectItem Value="@("PicklingInRecord")">入缸</MudSelectItem>
+                                    <MudSelectItem Value="@("PicklingOutRecord")">出缸完工</MudSelectItem>
+                                    <MudSelectItem Value="@("SectionOutsource")">工段委外</MudSelectItem>
+                                    <MudSelectItem Value="@("OutsourceRecovery")">委外回收</MudSelectItem>
+                                    <MudSelectItem Value="@("ProcessInspection")">过程检验</MudSelectItem>
+                                    <MudSelectItem Value="@("FinalInspection")">成品检验</MudSelectItem>
+                                    <MudSelectItem Value="@("MaterialReceiveCheck")">成检到料</MudSelectItem>
+                                </MudSelect>
+                            }
+                            else
+                            {
+                                @(item.ReportType switch
+                                {
+                                    "ProductionRecord" => "普通报工",
+                                    "PicklingInRecord" => "入缸",
+                                    "PicklingOutRecord" => "出缸完工",
+                                    "SectionOutsource" => "工段委外",
+                                    "OutsourceRecovery" => "委外回收",
+                                    "ProcessInspection" => "过程检验",
+                                    "FinalInspection" => "成品检验",
+                                    "MaterialReceiveCheck" => "成检到料",
+                                    _ => item.ReportType
+                                })
                             }
                         }
                         else if (col.Key == "EquipmentName")
@@ -167,7 +197,6 @@
                                            ValueChanged="@(v => rowCache.SectionName = v)"
                                            Class="compact-input"
                                            Label="工段">
-                                    <MudSelectItem T="string" Value="@null">无</MudSelectItem>
                                     @foreach (var sn in SectionDefs.All)
                                     {
                                         <MudSelectItem Value="@sn">@sn</MudSelectItem>

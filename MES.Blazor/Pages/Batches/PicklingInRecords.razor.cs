@@ -607,7 +607,7 @@ public partial class PicklingInRecords
                 }
                 else
                 {
-                    builder.AddContent(0, item.Weight?.ToString("G29"));
+                    builder.AddContent(0, ((int)(item.Weight ?? 0)).ToString());
                 }
                 break;
             case "IsFinished":

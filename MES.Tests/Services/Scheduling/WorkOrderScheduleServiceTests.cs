@@ -19,7 +19,8 @@ public class WorkOrderScheduleServiceTests : TestBase
 
     private void SeedSummary(AppDbContext ctx, string workOrderNo, int workOrderId,
         int scheduleStage = 2,
-        string? urgencyLevel = null)
+        string? urgencyLevel = null,
+        string? productionFlowProperty = "正常")
     {
         ctx.Set<WorkOrderExecutionSummary>().Add(new WorkOrderExecutionSummary
         {
@@ -43,6 +44,7 @@ public class WorkOrderScheduleServiceTests : TestBase
             TotalWeight = 2500m,
             ScheduleStage = scheduleStage,
             UrgencyLevel = urgencyLevel,
+            ProductionFlowProperty = productionFlowProperty,
             FlowOutputRatio = 85m,
             FlowStatus = 1,
         });
@@ -54,8 +56,8 @@ public class WorkOrderScheduleServiceTests : TestBase
     public async Task GetPagedAsync_仅返回ScheduleStage为2的工单()
     {
         using var ctx = CreateDbContext();
-        SeedSummary(ctx, "WO001", 1, scheduleStage: 2);
-        SeedSummary(ctx, "WO002", 2, scheduleStage: 1); // 应排除（除非满足催单+分批交货）
+        SeedSummary(ctx, "WO001", 1, scheduleStage: 2, productionFlowProperty: "正常");
+        SeedSummary(ctx, "WO002", 2, scheduleStage: 1, productionFlowProperty: null); // 应排除
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
@@ -125,11 +127,8 @@ public class WorkOrderScheduleServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         SeedSummary(ctx, "WO001", 1, scheduleStage: 2);
-        ctx.Set<OrderDemandAdjustment>().Add(new OrderDemandAdjustment
-        {
-            WorkOrderId = 1,
-            AdjustmentRemark = "紧急插单-测试",
-        });
+        var summary = ctx.Set<WorkOrderExecutionSummary>().Find(1);
+        if (summary != null) summary.AdjustmentRemark = "紧急插单-测试";
         SeedSummary(ctx, "WO002", 2, scheduleStage: 2);
         await ctx.SaveChangesAsync();
 
@@ -183,6 +182,7 @@ public class WorkOrderScheduleServiceTests : TestBase
             TotalMeters = 600,
             TotalWeight = 2500m,
             ScheduleStage = 2,
+            ProductionFlowProperty = "正常",
             PendingSectionRoughTube = 10.5m,
             PendingSection60Roll = 20m,
             DeformedProcessCompleted = true,
@@ -225,7 +225,8 @@ public class WorkOrderScheduleServiceTests : TestBase
             TotalMeters = 600,
             TotalWeight = 2500m,
             ScheduleStage = 2,
-            ProductionAttentionProcess = null,
+            ProductionFlowProperty = "正常",
+            ProductionAttentionProcess = "收尾-成检",
         });
         await ctx.SaveChangesAsync();
 

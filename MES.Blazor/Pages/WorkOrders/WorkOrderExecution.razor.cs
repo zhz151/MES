@@ -596,7 +596,7 @@ public partial class WorkOrderExecution
             sortColumn = savedState.SortBy ?? "LastRefreshTime";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
-            _restoredPageIndex = savedState.PageIndex;
+            _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
 
             // 恢复列显隐
             if (savedState.Extras?.ContainsKey("columnVisibility") == true)

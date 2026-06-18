@@ -33,11 +33,12 @@ public partial class Workstations
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "Code",           Label = "工位编码",   SortKey = "code",           FilterType = null, IsRequired = true },
-        new() { Key = "Name",           Label = "工位名称",   SortKey = "name",           FilterType = null, IsRequired = true },
-        new() { Key = "EquipmentName",  Label = "设备名称",   SortKey = "equipmentname",  FilterType = null },
-        new() { Key = "SectionName",    Label = "工段",       SortKey = "sectionname",    FilterType = null },
-        new() { Key = "IsActive",       Label = "启用",       SortKey = "isactive",       FilterType = "bool" },
+        new() { Key = "Code",           Label = "工位编码",     SortKey = "code",           FilterType = null, IsRequired = true },
+        new() { Key = "Name",           Label = "工位名称",     SortKey = "name",           FilterType = null },
+        new() { Key = "EquipmentName",  Label = "设备名称",     SortKey = "equipmentname",  FilterType = null },
+        new() { Key = "SectionName",    Label = "工段",         SortKey = "sectionname",    FilterType = null, IsRequired = true },
+        new() { Key = "ReportType",     Label = "报工模板类型", SortKey = "reporttype",     FilterType = null },
+        new() { Key = "IsActive",       Label = "启用",         SortKey = "isactive",       FilterType = "bool" },
     };
 
     // ========== 服务端数据加载 ==========
@@ -86,6 +87,7 @@ public partial class Workstations
             _totalCount = 0;
         }
 
+        await SavePageStateAsync();
         return new TableData<WorkstationDto>
         {
             Items = _pageItems,
@@ -207,7 +209,6 @@ public partial class Workstations
         {
             Id = newId,
             Code = "",
-            Name = "",
             IsActive = true
         };
 
@@ -236,9 +237,10 @@ public partial class Workstations
     private class EditCache
     {
         public string Code { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
+        public string? Name { get; set; }
         public string? EquipmentName { get; set; }
-        public string? SectionName { get; set; }
+        public string SectionName { get; set; } = null!;
+        public string ReportType { get; set; } = null!;
         public bool IsActive { get; set; } = true;
     }
 
@@ -253,6 +255,7 @@ public partial class Workstations
             Name = item.Name,
             EquipmentName = item.EquipmentName,
             SectionName = item.SectionName,
+            ReportType = item.ReportType,
             IsActive = item.IsActive
         };
     }
@@ -275,7 +278,8 @@ public partial class Workstations
 
         var errors = new List<string>();
         if (string.IsNullOrWhiteSpace(cache.Code)) errors.Add("工位编码不能为空");
-        if (string.IsNullOrWhiteSpace(cache.Name)) errors.Add("工位名称不能为空");
+        if (string.IsNullOrWhiteSpace(cache.SectionName)) errors.Add("工段不能为空");
+        if (string.IsNullOrWhiteSpace(cache.ReportType)) errors.Add("报工模板类型不能为空");
         if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
 
         _isSaving = true;
@@ -290,6 +294,7 @@ public partial class Workstations
                 Name = cache.Name,
                 EquipmentName = cache.EquipmentName,
                 SectionName = cache.SectionName,
+                ReportType = cache.ReportType,
                 IsActive = cache.IsActive
             };
 
@@ -330,7 +335,7 @@ public partial class Workstations
 
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
         {
-            ["ContentText"] = $"确定要删除工位 \"{item.Name}({item.Code})\" 吗？",
+            ["ContentText"] = $"确定要删除工位 \"{item.Name ?? item.Code}\" 吗？",
             ["ConfirmText"] = "确认删除",
             ["Color"] = Color.Error
         });
@@ -369,47 +374,5 @@ public partial class Workstations
             PageIndex = _currentPage
         };
         await PageState.SaveAsync("workstations", state);
-    }
-
-    // ========== 导出 CSV ==========
-
-    private async Task ExportCsv()
-    {
-        try
-        {
-            // 下载当前页数据为 CSV
-            var lines = new List<string>
-            {
-                "工位编码,工位名称,设备名称,工段,启用"
-            };
-
-            foreach (var item in _pageItems)
-            {
-                var code = EscapeCsv(item.Code);
-                var name = EscapeCsv(item.Name);
-                var equip = EscapeCsv(item.EquipmentName ?? "");
-                var section = EscapeCsv(item.SectionName ?? "");
-                var active = item.IsActive ? "是" : "否";
-                lines.Add($"{code},{name},{equip},{section},{active}");
-            }
-
-            var csv = string.Join(Environment.NewLine, lines);
-            var bytes = System.Text.Encoding.UTF8.GetPreamble().Concat(
-                System.Text.Encoding.UTF8.GetBytes(csv)).ToArray();
-
-            var fileName = $"工位管理_{DateTime.Now:yyyyMMdd}.csv";
-            await JS.InvokeVoidAsync("BlazorDownloadFile", fileName, "text/csv", bytes);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"导出失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private static string EscapeCsv(string value)
-    {
-        if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
-            return $"\"{value.Replace("\"", "\"\"")}\"";
-        return value;
     }
 }

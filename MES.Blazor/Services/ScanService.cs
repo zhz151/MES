@@ -70,6 +70,20 @@ public class ScanService
     }
 
     /// <summary>
+    /// 解析设备码，返回设备信息，用于扫码报修
+    /// </summary>
+    public async Task<ApiResponse<ScanEquipmentResolveResultDto>> ResolveEquipmentAsync(string code)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/resolve-equipment?code={Uri.EscapeDataString(code)}";
+            return await _http.GetFromJsonAsync<ApiResponse<ScanEquipmentResolveResultDto>>(url)
+                   ?? ApiResponse<ScanEquipmentResolveResultDto>.Fail("请求失败");
+        }
+        catch (Exception ex) { return ApiResponse<ScanEquipmentResolveResultDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    /// <summary>
     /// 创建过程检验记录（扫码检验提交）
     /// </summary>
     public async Task<ApiResponse<List<ProcessInspectionDto>>> CreateInspectionAsync(CreateProcessInspectionRequest request)

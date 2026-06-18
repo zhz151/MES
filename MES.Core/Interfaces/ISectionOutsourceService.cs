@@ -108,4 +108,9 @@ public interface ISectionOutsourceService
     /// 获取工段委外发出筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
+
+    /// <summary>
+    /// 根据批次号和工段名查询待回收（PendingRecovery）的委外记录
+    /// </summary>
+    Task<List<SectionOutsourceDto>> GetPendingByBatchAsync(string batchNo, string sectionName);
 }

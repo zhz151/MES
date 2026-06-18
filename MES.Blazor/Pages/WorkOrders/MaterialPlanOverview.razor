@@ -102,7 +102,7 @@
                     </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTh Style="width: col.Width">
+                        <MudTh Style="@($"width:{col.Width}px")">
                             <div style="display:inline-flex; align-items:center; gap:4px;">
                                 @if (col.SortKey != null)
                                 {

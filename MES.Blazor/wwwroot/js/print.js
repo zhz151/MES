@@ -21,6 +21,34 @@ window.downloadFile = function (base64, fileName) {
     }
 };
 
+// 打印设备二维码标签
+window.MES = window.MES || {};
+window.MES.printQrCodes = function (codes) {
+    if (!codes || codes.length === 0) return;
+
+    var rows = codes.map(function (code) {
+        var encoded = encodeURIComponent(code);
+        return '<div style="display:inline-block; text-align:center; margin:10px; padding:10px; border:1px dashed #999;">' +
+            '<img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=' + encoded + '" alt="' + code + '" style="width:120px;height:120px;" />' +
+            '<div style="margin-top:6px; font-size:12px; font-weight:bold;">' + code + '</div>' +
+            '</div>';
+    }).join('');
+
+    var html = '<html><head><title>设备二维码</title>' +
+        '<style>' +
+        '@page{size:landscape;margin:10mm;}' +
+        'body{text-align:center;font-family:sans-serif;}' +
+        '</style></head><body>' +
+        '<h2 style="font-size:16px;margin-bottom:20px;">设备二维码标签</h2>' +
+        '<div>' + rows + '</div>' +
+        '<script>window.onload=function(){window.print();}<' + '/script>' +
+        '</body></html>';
+
+    var w = window.open('', '_blank');
+    w.document.write(html);
+    w.document.close();
+};
+
 // 在新窗口中打开打印 HTML
 function openPrintWindow(html, title) {
     var printWindow = window.open('', '_blank');

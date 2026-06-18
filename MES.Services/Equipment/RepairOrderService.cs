@@ -151,7 +151,8 @@ public class RepairOrderService : IRepairOrderService
                 RepairStartTime = x.Order.RepairStartTime,
                 RepairEndTime = x.Order.RepairEndTime,
                 RepairContent = x.Order.RepairContent,
-                SparePartUsed = x.Order.SparePartUsed
+                SparePartUsed = x.Order.SparePartUsed,
+                OtherRepairPersons = x.Order.OtherRepairPersons
             })
             .ToListAsync();
 
@@ -190,7 +191,8 @@ public class RepairOrderService : IRepairOrderService
                             RepairStartTime = r.RepairStartTime,
                             RepairEndTime = r.RepairEndTime,
                             RepairContent = r.RepairContent,
-                            SparePartUsed = r.SparePartUsed
+                            SparePartUsed = r.SparePartUsed,
+                            OtherRepairPersons = r.OtherRepairPersons
                         };
 
         return await baseQuery.ToListAsync();
@@ -274,6 +276,7 @@ public class RepairOrderService : IRepairOrderService
         if (request.RepairEndTime.HasValue) entity.RepairEndTime = request.RepairEndTime.Value;
         if (request.RepairContent != null) entity.RepairContent = request.RepairContent;
         if (request.SparePartUsed != null) entity.SparePartUsed = request.SparePartUsed;
+        if (request.OtherRepairPersons != null) entity.OtherRepairPersons = request.OtherRepairPersons;
 
         // 根据字段完整度自动重算状态
         entity.RepairStatus = DeriveRepairStatus(entity.RepairStartTime, entity.RepairEndTime);
@@ -395,7 +398,8 @@ public class RepairOrderService : IRepairOrderService
                         RepairStartTime = r.RepairStartTime,
                         RepairEndTime = r.RepairEndTime,
                         RepairContent = r.RepairContent,
-                        SparePartUsed = r.SparePartUsed
+                        SparePartUsed = r.SparePartUsed,
+                        OtherRepairPersons = r.OtherRepairPersons
                     };
 
         return await query.ToListAsync();
@@ -431,17 +435,15 @@ public class RepairOrderService : IRepairOrderService
         entity.RepairEndTime = DateTime.Now;
         entity.RepairStatus = nameof(RepairOrderStatus.Completed);
 
-        // 多人协作：将其它维修人追加到 RepairPerson 字段
+        // 多人协作：辅助维修人单独存储（不再合并到 RepairPerson）
         if (request.OtherRepairPersons is { Count: > 0 })
         {
-            var existingPersons = (entity.RepairPerson ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList();
-            foreach (var p in request.OtherRepairPersons)
-            {
-                var trimmed = p.Trim();
-                if (!string.IsNullOrEmpty(trimmed) && !existingPersons.Contains(trimmed, StringComparer.OrdinalIgnoreCase))
-                    existingPersons.Add(trimmed);
-            }
-            entity.RepairPerson = string.Join(",", existingPersons);
+            var distinct = request.OtherRepairPersons
+                .Select(p => p.Trim())
+                .Where(p => !string.IsNullOrEmpty(p))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            entity.OtherRepairPersons = distinct.Count > 0 ? string.Join(",", distinct) : null;
         }
 
         // 回写设备最近维修日期
@@ -506,7 +508,8 @@ public class RepairOrderService : IRepairOrderService
             RepairStartTime = entity.RepairStartTime,
             RepairEndTime = entity.RepairEndTime,
             RepairContent = entity.RepairContent,
-            SparePartUsed = entity.SparePartUsed
+            SparePartUsed = entity.SparePartUsed,
+            OtherRepairPersons = entity.OtherRepairPersons
         };
     }
 }

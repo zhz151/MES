@@ -834,18 +834,20 @@ public static class DbInitializer
         {
             var settings = new List<SectionFlowCategorySetting>
             {
-                new() { CategoryCode = "A", CategoryName = "荒管处理" },
-                new() { CategoryCode = "B", CategoryName = "固溶" },
-                new() { CategoryCode = "C", CategoryName = "矫直" },
-                new() { CategoryCode = "D", CategoryName = "切割" },
-                new() { CategoryCode = "E", CategoryName = "去油" },
-                new() { CategoryCode = "F", CategoryName = "酸洗" },
-                new() { CategoryCode = "G", CategoryName = "大轧" },
-                new() { CategoryCode = "H", CategoryName = "小轧" },
-                new() { CategoryCode = "J", CategoryName = "冷拔" },
-                new() { CategoryCode = "K", CategoryName = "荒管检" },
-                new() { CategoryCode = "L", CategoryName = "在制检" },
-                new() { CategoryCode = "M", CategoryName = "成品待检" },
+                new() { CategoryCode = "A", CategoryName = "外抛光" },
+                new() { CategoryCode = "B", CategoryName = "内修磨" },
+                new() { CategoryCode = "C", CategoryName = "外点磨" },
+                new() { CategoryCode = "D", CategoryName = "荒管检" },
+                new() { CategoryCode = "E", CategoryName = "在制检" },
+                new() { CategoryCode = "F", CategoryName = "固溶" },
+                new() { CategoryCode = "G", CategoryName = "矫直" },
+                new() { CategoryCode = "H", CategoryName = "切割" },
+                new() { CategoryCode = "I", CategoryName = "去油" },
+                new() { CategoryCode = "J", CategoryName = "酸洗" },
+                new() { CategoryCode = "K", CategoryName = "大轧" },
+                new() { CategoryCode = "L", CategoryName = "小轧" },
+                new() { CategoryCode = "M", CategoryName = "冷拔" },
+                new() { CategoryCode = "N", CategoryName = "成品待检" },
             };
 
             context.SectionFlowCategorySettings.AddRange(settings);
@@ -869,81 +871,86 @@ public static class DbInitializer
                 });
             }
 
-            // A 荒管处理
-            AddItem(settingMap["A"], "荒管处理", "外点磨", 1m, 1);
-            AddItem(settingMap["A"], "荒管处理", "外抛光", 1m, 2);
+            // A 外抛光
+            AddItem(settingMap["A"], "荒管处理", "外抛光", 1m, 1);
 
-            // B 固溶
-            AddItem(settingMap["B"], "20冷轧",   "固溶", 1m, 1);
-            AddItem(settingMap["B"], "30冷轧",   "固溶", 1m, 2);
-            AddItem(settingMap["B"], "50冷轧",   "固溶", 1m, 3);
-            AddItem(settingMap["B"], "60冷轧",   "固溶", 1m, 4);
-            AddItem(settingMap["B"], "冷拔",     "固溶", 1m, 5);
-            AddItem(settingMap["B"], "三辊冷轧", "固溶", 1m, 6);
-            AddItem(settingMap["B"], "在制修检", "固溶", 1m, 7);
+            // B 内修磨
+            AddItem(settingMap["B"], "荒管处理", "内修磨", 1m, 1);
 
-            // C 矫直
-            AddItem(settingMap["C"], "20冷轧",   "矫直", 1m,    1);
-            AddItem(settingMap["C"], "30冷轧",   "矫直", 1m,    2);
-            AddItem(settingMap["C"], "50冷轧",   "矫直", 0.5m,  3);
-            AddItem(settingMap["C"], "60冷轧",   "矫直", 0.5m,  4);
-            AddItem(settingMap["C"], "荒管处理", "矫直", 0.25m, 5);
-            AddItem(settingMap["C"], "冷拔",     "矫直", 1m,    6);
-            AddItem(settingMap["C"], "三辊冷轧", "矫直", 1m,    7);
-            AddItem(settingMap["C"], "在制修检", "矫直", 1m,    8);
+            // C 外点磨
+            AddItem(settingMap["C"], "荒管处理", "外点磨", 1m, 1);
 
-            // D 切割
-            AddItem(settingMap["D"], "20冷轧",   "断切",   1m,    1);
-            AddItem(settingMap["D"], "30冷轧",   "断切",   1m,    2);
-            AddItem(settingMap["D"], "50冷轧",   "断切",   0.5m,  3);
-            AddItem(settingMap["D"], "60冷轧",   "断切",   0.5m,  4);
-            AddItem(settingMap["D"], "荒管处理", "断切",   0.25m, 5);
-            AddItem(settingMap["D"], "冷拔",     "断切",   1m,    6);
-            AddItem(settingMap["D"], "三辊冷轧", "断切",   1m,    7);
-            AddItem(settingMap["D"], "在制修检", "断切",   0.25m, 8);
-            AddItem(settingMap["D"], "20冷轧",   "油管断", 0.75m, 9);
-            AddItem(settingMap["D"], "30冷轧",   "油管断", 0.75m, 10);
-            AddItem(settingMap["D"], "50冷轧",   "油管断", 0.5m,  11);
-            AddItem(settingMap["D"], "60冷轧",   "油管断", 0.5m,  12);
-            AddItem(settingMap["D"], "三辊冷轧", "油管断", 0.75m, 13);
+            // D 荒管检
+            AddItem(settingMap["D"], "荒管处理", "检验", 1m, 1);
 
-            // E 去油
-            AddItem(settingMap["E"], "20冷轧",   "去油", 1m,   1);
-            AddItem(settingMap["E"], "30冷轧",   "去油", 1m,   2);
-            AddItem(settingMap["E"], "50冷轧",   "去油", 0.5m, 3);
-            AddItem(settingMap["E"], "60冷轧",   "去油", 0.5m, 4);
-            AddItem(settingMap["E"], "三辊冷轧", "去油", 1m,   5);
+            // E 在制检：全部工序组工段=检验的汇总量，后处理减去 D+N
+            AddItem(settingMap["E"], "全部", "检验", 1m, 1);
 
-            // F 酸洗
-            AddItem(settingMap["F"], "20冷轧",   "酸洗", 1m,    1);
-            AddItem(settingMap["F"], "30冷轧",   "酸洗", 1m,    2);
-            AddItem(settingMap["F"], "50冷轧",   "酸洗", 0.5m,  3);
-            AddItem(settingMap["F"], "60冷轧",   "酸洗", 0.5m,  4);
-            AddItem(settingMap["F"], "荒管处理", "酸洗", 0.25m, 5);
-            AddItem(settingMap["F"], "冷拔",     "酸洗", 1m,    6);
-            AddItem(settingMap["F"], "三辊冷轧", "酸洗", 1m,    7);
-            AddItem(settingMap["F"], "在制修检", "酸洗", 0.25m, 8);
+            // F 固溶
+            AddItem(settingMap["F"], "20冷轧",   "固溶", 1m, 1);
+            AddItem(settingMap["F"], "30冷轧",   "固溶", 1m, 2);
+            AddItem(settingMap["F"], "50冷轧",   "固溶", 1m, 3);
+            AddItem(settingMap["F"], "60冷轧",   "固溶", 1m, 4);
+            AddItem(settingMap["F"], "冷拔",     "固溶", 1m, 5);
+            AddItem(settingMap["F"], "三辊冷轧", "固溶", 1m, 6);
+            AddItem(settingMap["F"], "在制修检", "固溶", 1m, 7);
 
-            // G 大轧
-            AddItem(settingMap["G"], "50冷轧", "冷轧拔", 1m, 1);
-            AddItem(settingMap["G"], "60冷轧", "冷轧拔", 1m, 2);
+            // G 矫直
+            AddItem(settingMap["G"], "20冷轧",   "矫直", 1m,    1);
+            AddItem(settingMap["G"], "30冷轧",   "矫直", 1m,    2);
+            AddItem(settingMap["G"], "50冷轧",   "矫直", 0.5m,  3);
+            AddItem(settingMap["G"], "60冷轧",   "矫直", 0.5m,  4);
+            AddItem(settingMap["G"], "荒管处理", "矫直", 0.25m, 5);
+            AddItem(settingMap["G"], "冷拔",     "矫直", 1m,    6);
+            AddItem(settingMap["G"], "三辊冷轧", "矫直", 1m,    7);
+            AddItem(settingMap["G"], "在制修检", "矫直", 1m,    8);
 
-            // H 小轧
-            AddItem(settingMap["H"], "20冷轧",   "冷轧拔", 1m, 1);
-            AddItem(settingMap["H"], "30冷轧",   "冷轧拔", 1m, 2);
-            AddItem(settingMap["H"], "三辊冷轧", "冷轧拔", 1m, 3);
+            // H 切割
+            AddItem(settingMap["H"], "20冷轧",   "断切",   1m,    1);
+            AddItem(settingMap["H"], "30冷轧",   "断切",   1m,    2);
+            AddItem(settingMap["H"], "50冷轧",   "断切",   0.5m,  3);
+            AddItem(settingMap["H"], "60冷轧",   "断切",   0.5m,  4);
+            AddItem(settingMap["H"], "荒管处理", "断切",   0.25m, 5);
+            AddItem(settingMap["H"], "冷拔",     "断切",   1m,    6);
+            AddItem(settingMap["H"], "三辊冷轧", "断切",   1m,    7);
+            AddItem(settingMap["H"], "在制修检", "断切",   0.25m, 8);
+            AddItem(settingMap["H"], "20冷轧",   "油管断", 0.75m, 9);
+            AddItem(settingMap["H"], "30冷轧",   "油管断", 0.75m, 10);
+            AddItem(settingMap["H"], "50冷轧",   "油管断", 0.5m,  11);
+            AddItem(settingMap["H"], "60冷轧",   "油管断", 0.5m,  12);
+            AddItem(settingMap["H"], "三辊冷轧", "油管断", 0.75m, 13);
 
-            // J 冷拔
-            AddItem(settingMap["J"], "冷拔", "冷轧拔", 1m, 1);
+            // I 去油
+            AddItem(settingMap["I"], "20冷轧",   "去油", 1m,   1);
+            AddItem(settingMap["I"], "30冷轧",   "去油", 1m,   2);
+            AddItem(settingMap["I"], "50冷轧",   "去油", 0.5m, 3);
+            AddItem(settingMap["I"], "60冷轧",   "去油", 0.5m, 4);
+            AddItem(settingMap["I"], "三辊冷轧", "去油", 1m,   5);
 
-            // K 荒管检
-            AddItem(settingMap["K"], "荒管处理", "检验", 1m, 1);
+            // J 酸洗
+            AddItem(settingMap["J"], "20冷轧",   "酸洗", 1m,    1);
+            AddItem(settingMap["J"], "30冷轧",   "酸洗", 1m,    2);
+            AddItem(settingMap["J"], "50冷轧",   "酸洗", 0.5m,  3);
+            AddItem(settingMap["J"], "60冷轧",   "酸洗", 0.5m,  4);
+            AddItem(settingMap["J"], "荒管处理", "酸洗", 0.25m, 5);
+            AddItem(settingMap["J"], "冷拔",     "酸洗", 1m,    6);
+            AddItem(settingMap["J"], "三辊冷轧", "酸洗", 1m,    7);
+            AddItem(settingMap["J"], "在制修检", "酸洗", 0.25m, 8);
 
-            // L 在制检：全部工序组工段=检验的汇总量，后处理减去 K+M
-            AddItem(settingMap["L"], "全部", "检验", 1m, 1);
+            // K 大轧
+            AddItem(settingMap["K"], "50冷轧", "冷轧拔", 1m, 1);
+            AddItem(settingMap["K"], "60冷轧", "冷轧拔", 1m, 2);
 
-            // M 成品待检：所有工序组中工段=检验的属成品工序量（FinalProcessTotal）汇总
-            AddItem(settingMap["M"], "全部", "检验", 1m, 1);
+            // L 小轧
+            AddItem(settingMap["L"], "20冷轧",   "冷轧拔", 1m, 1);
+            AddItem(settingMap["L"], "30冷轧",   "冷轧拔", 1m, 2);
+            AddItem(settingMap["L"], "三辊冷轧", "冷轧拔", 1m, 3);
+
+            // M 冷拔
+            AddItem(settingMap["M"], "冷拔", "冷轧拔", 1m, 1);
+
+            // N 成品待检：所有工序组中工段=检验的属成品工序量（FinalProcessTotal）汇总
+            AddItem(settingMap["N"], "全部", "检验", 1m, 1);
 
             await context.SectionFlowCategoryItems.AddRangeAsync(items);
             await context.SaveChangesAsync();

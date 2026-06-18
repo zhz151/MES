@@ -21,7 +21,7 @@ public class ProductRequirementServiceTests : TestBase
 {
     private ProductRequirementService CreateService(AppDbContext ctx)
     {
-        return new ProductRequirementService(ctx, null!);
+        return new ProductRequirementService(ctx);
     }
 
     private async Task<(int OrderId, int ItemId)> SeedOrderItemAsync(AppDbContext ctx)

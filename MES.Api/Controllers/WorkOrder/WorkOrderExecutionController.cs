@@ -60,6 +60,17 @@ public class WorkOrderExecutionController : ControllerBase
     }
 
     /// <summary>
+    /// 获取工单执行看板聚合数据
+    /// </summary>
+    [HttpGet("dashboard-summary")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<WorkOrderExecutionDashboardItem>>>> GetDashboardSummary()
+    {
+        var result = await _service.GetDashboardSummaryAsync();
+        return Ok(ApiResponse<List<WorkOrderExecutionDashboardItem>>.Ok(result));
+    }
+
+    /// <summary>
     /// 获取筛选上下文（各列的筛选项列表）
     /// </summary>
     [HttpGet("filter-contexts")]

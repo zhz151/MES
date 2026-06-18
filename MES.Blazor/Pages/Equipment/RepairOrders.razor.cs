@@ -68,6 +68,7 @@ public partial class RepairOrders
         public string? RepairEndTimeText { get; set; }
         public string? RepairContent { get; set; }
         public string? SparePartUsed { get; set; }
+        public string? OtherRepairPersons { get; set; }
     }
 
     // ========== 列定义 ==========
@@ -97,6 +98,7 @@ public partial class RepairOrders
         new() { Key = "RepairEndTime",  Label = "完成时间",   SortKey = "repairendtime", FilterType = "date" },
         new() { Key = "RepairContent",  Label = "维修内容", SortKey = "repaircontent", FilterType = "string" },
         new() { Key = "SparePartUsed",  Label = "更换备件", SortKey = "sparepartused", FilterType = "string" },
+        new() { Key = "OtherRepairPersons", Label = "辅助维修人", SortKey = "otherrepairpersons", FilterType = "string" },
     };
 
     // ========== 服务端数据加载 ==========
@@ -369,6 +371,9 @@ public partial class RepairOrders
             case "SparePartUsed":
                 builder.AddContent(0, item.SparePartUsed);
                 break;
+            case "OtherRepairPersons":
+                builder.AddContent(0, item.OtherRepairPersons);
+                break;
             default:
                 builder.AddContent(0, "");
                 break;
@@ -544,6 +549,15 @@ public partial class RepairOrders
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => cache.SparePartUsed = v));
                 builder.CloseComponent();
                 break;
+            case "OtherRepairPersons":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", cache.OtherRepairPersons);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => cache.OtherRepairPersons = v));
+                builder.CloseComponent();
+                break;
         }
     };
 
@@ -636,6 +650,7 @@ public partial class RepairOrders
             RepairEndTimeText = item.RepairEndTime?.ToString("yyyy-MM-dd HH:mm"),
             RepairContent = item.RepairContent,
             SparePartUsed = item.SparePartUsed,
+            OtherRepairPersons = item.OtherRepairPersons,
         };
     }
 
@@ -703,6 +718,7 @@ public partial class RepairOrders
                 RepairEndTime = repairEndTime,
                 RepairContent = cache.RepairContent,
                 SparePartUsed = cache.SparePartUsed,
+                OtherRepairPersons = cache.OtherRepairPersons,
             };
 
             var result = await RepairOrderService.UpdateAsync(id, request);

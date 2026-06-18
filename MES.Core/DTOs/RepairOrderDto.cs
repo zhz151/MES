@@ -23,6 +23,7 @@ public class RepairOrderListDto
     public DateTime? RepairEndTime { get; set; }
     public string? RepairContent { get; set; }
     public string? SparePartUsed { get; set; }
+    public string? OtherRepairPersons { get; set; }
 }
 
 /// <summary>
@@ -42,6 +43,7 @@ public class CreateRepairOrderRequest
     public DateTime? RepairEndTime { get; set; }
     public string? RepairContent { get; set; }
     public string? SparePartUsed { get; set; }
+    public string? OtherRepairPersons { get; set; }
 }
 
 /// <summary>
@@ -60,6 +62,7 @@ public class UpdateRepairOrderRequest
     public DateTime? RepairEndTime { get; set; }
     public string? RepairContent { get; set; }
     public string? SparePartUsed { get; set; }
+    public string? OtherRepairPersons { get; set; }
 }
 
 /// <summary>

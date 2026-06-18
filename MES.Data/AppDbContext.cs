@@ -122,6 +122,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
     // 工位管理
     public DbSet<Workstation> Workstations { get; set; } = null!;
 
+    // 员工管理
+    public DbSet<Employee> Employees { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -215,6 +218,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureStandardWorkDayDeliveryState(builder);
         ConfigureConfigParameter(builder);
         ConfigureDailyOutputEstimate(builder);
+        ConfigureEmployee(builder);
+        ConfigureWorkstation(builder);
 
         // 为所有继承 BaseEntity 的实体统一配置审计字段长度
         foreach (var entityType in builder.Model.GetEntityTypes())
@@ -1391,6 +1396,18 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Remark).HasMaxLength(500);
             entity.Property(e => e.DataSource).HasMaxLength(10).HasDefaultValue("MANUAL");
 
+            // 冗余字段（计件工资结算用）
+            entity.Property(e => e.ProductionBatchId).IsRequired();
+            entity.Property(e => e.ManufacturingSpec).HasMaxLength(100);
+            entity.Property(e => e.SectionName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.EquipmentName).HasMaxLength(100);
+            entity.Property(e => e.Operator).HasMaxLength(50);
+            entity.Property(e => e.Shift).HasMaxLength(10);
+            entity.Property(e => e.Quantity);
+            entity.Property(e => e.Weight).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.IsFinished);
+            entity.Property(e => e.PlantGrade).HasMaxLength(50);
+
             entity.HasOne(e => e.PicklingInRecord)
                 .WithMany(e => e.PicklingOutRecords)
                 .HasForeignKey(e => e.PicklingInRecordId)
@@ -2350,6 +2367,42 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.MinOuterDiameter).IsRequired().HasColumnType("decimal(18,2)");
             entity.Property(e => e.DailyOutputTons).IsRequired().HasColumnType("decimal(18,2)");
             entity.Property(e => e.Remark).HasMaxLength(200);
+        });
+    }
+
+    private static void ConfigureEmployee(ModelBuilder builder)
+    {
+        builder.Entity<Employee>(entity =>
+        {
+            entity.ToTable("Employees");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Department).HasMaxLength(100);
+            entity.Property(e => e.Position).HasMaxLength(100);
+            entity.Property(e => e.PositionRemark).HasMaxLength(200);
+            entity.Property(e => e.SalaryMode).HasMaxLength(50);
+            entity.Property(e => e.SalaryRemark).HasMaxLength(200);
+            entity.HasIndex(e => e.Code)
+                .IsUnique()
+                .HasDatabaseName("UK_Emp_Code");
+        });
+    }
+
+    private static void ConfigureWorkstation(ModelBuilder builder)
+    {
+        builder.Entity<Workstation>(entity =>
+        {
+            entity.ToTable("Workstations");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.EquipmentName).HasMaxLength(100);
+            entity.Property(e => e.SectionName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ReportType).IsRequired().HasMaxLength(50);
+            entity.HasIndex(e => e.Code)
+                .IsUnique()
+                .HasDatabaseName("UK_WS_Code");
         });
     }
 

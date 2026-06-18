@@ -149,13 +149,20 @@ public class PicklingOutRecordDto
     public DateTimeOffset CreatedTime { get; set; }
     public DateTimeOffset UpdatedTime { get; set; }
 
-    // ========== 冗余字段 ==========
+    // ========== 冗余字段（计件工资结算用）==========
+    public int ProductionBatchId { get; set; }
     public string? BatchNo { get; set; }
     public string? ProcessName { get; set; }
-    public string? SectionName { get; set; }
     public string? ManufacturingSpec { get; set; }
+    public string SectionName { get; set; } = null!;
     public string? TagNo { get; set; }
     public string? PlantGrade { get; set; }
+    public string? EquipmentName { get; set; }
+    public string? Operator { get; set; }
+    public string? Shift { get; set; }
+    public int? Quantity { get; set; }
+    public decimal? Weight { get; set; }
+    public bool IsFinished { get; set; }
 }
 
 /// <summary>

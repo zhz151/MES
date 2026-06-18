@@ -30,7 +30,12 @@ public partial class SectionProductionStatus
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
-    private bool _isFirstLoad = true;
+    // B18: 分页汇总
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        "InProduction", "PendingProduction", "Total", "FinalProcessTotal"
+    };
 
     // 非空/空筛选常量
     private const string FilterNotNull = "__NOT_NULL__";
@@ -253,6 +258,7 @@ public partial class SectionProductionStatus
         };
 
         _filteredItems = query.ToList();
+        ComputePageSums();
     }
 
     private static decimal? GetDecimalValue(SectionProductionStatusDto item, string key) => key switch
@@ -381,17 +387,24 @@ public partial class SectionProductionStatus
         }
     };
 
+    // ========== 分页汇总 ==========
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_filteredItems.Count == 0) return;
+
+        _pageSums["InProduction"] = ((int)_filteredItems.Sum(x => x.InProduction ?? 0m)).ToString();
+        _pageSums["PendingProduction"] = ((int)_filteredItems.Sum(x => x.PendingProduction ?? 0m)).ToString();
+        _pageSums["Total"] = ((int)_filteredItems.Sum(x => x.Total ?? 0m)).ToString();
+        _pageSums["FinalProcessTotal"] = ((int)_filteredItems.Sum(x => x.FinalProcessTotal ?? 0m)).ToString();
+    }
+
     private string RenderFooterCell(ColumnDef col)
     {
-        var sum = col.Key switch
-        {
-            "InProduction" => _filteredItems.Sum(x => x.InProduction ?? 0m),
-            "PendingProduction" => _filteredItems.Sum(x => x.PendingProduction ?? 0m),
-            "Total" => _filteredItems.Sum(x => x.Total ?? 0m),
-            "FinalProcessTotal" => _filteredItems.Sum(x => x.FinalProcessTotal ?? 0m),
-            _ => (decimal?)null
-        };
-        return sum.HasValue ? ((int)sum.Value).ToString() : "-";
+        if (_pageSums.TryGetValue(col.Key, out var sum))
+            return sum;
+        return "-";
     }
 
 }

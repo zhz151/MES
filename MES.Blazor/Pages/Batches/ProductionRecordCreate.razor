@@ -160,10 +160,13 @@
         new() { Key = "Shift",             Label = "班次" },                     // → Entity.Shift
         new() { Key = "Quantity",          Label = "加工支数" },                 // → Entity.Quantity
         new() { Key = "Weight",            Label = "加工重量" },                 // → Entity.Weight
+        new() { Key = "SolutionTemperature", Label = "固溶温度(℃)" },           // → Entity.SolutionTemperature
+        new() { Key = "SoakTime",           Label = "保温时间(min)" },            // → Entity.SoakTime
         new() { Key = "IsFinished",        Label = "是否成品" },                 // → Entity.IsFinished
         new() { Key = "CuttingMultiple",   Label = "断切倍数" },                 // → Entity.CuttingMultiple
         new() { Key = "FinishedCutLength", Label = "成品长度" },                 // → Entity.FinishedCutLength
         new() { Key = "PostCutQuantity",   Label = "切后支数" },                 // → Entity.PostCutQuantity
+        new() { Key = "FaceCutCount",      Label = "平头数" },                   // → Entity.FaceCutCount
         new() { Key = "TagNo",             Label = "挂牌号" },                   // → Entity.TagNo
         new() { Key = "PlantGrade",        Label = "工厂牌号" },                 // → Entity.PlantGrade
         new() { Key = "Remark",            Label = "备注" },                     // → Entity.Remark
@@ -207,6 +210,9 @@
         public string? Shift { get; set; }                                                      // → Entity.Shift
         public int? Quantity { get; set; }                                                      // → Entity.Quantity
         public decimal? Weight { get; set; }                                                    // → Entity.Weight
+        public decimal? SolutionTemperature { get; set; }                                        // → Entity.SolutionTemperature
+        public int? SoakTime { get; set; }                                                       // → Entity.SoakTime
+        public int? FaceCutCount { get; set; }                                                   // → Entity.FaceCutCount
         public bool IsFinished { get; set; }                                                    // → Entity.IsFinished
         public decimal? CuttingMultiple { get; set; }                                           // → Entity.CuttingMultiple
         public decimal? FinishedCutLength { get; set; }                                         // → Entity.FinishedCutLength
@@ -315,6 +321,9 @@
                 Shift = r.Shift,
                 Quantity = r.Quantity,
                 Weight = r.Weight,
+                SolutionTemperature = r.SolutionTemperature,
+                SoakTime = r.SoakTime,
+                FaceCutCount = r.FaceCutCount,
                 IsFinished = r.IsFinished,
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
@@ -504,6 +513,40 @@
                 builder.AddAttribute(5, "Format", "G29");
                 builder.AddAttribute(6, "Value", r.Weight);
                 builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.Weight = v));
+                builder.AddAttribute(8, "Clearable", true);
+                builder.CloseComponent();
+                break;
+            case "SolutionTemperature":
+                builder.OpenComponent<MudNumericField<decimal?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "HideSpinButtons",true);
+                builder.AddAttribute(5, "Format", "G29");
+                builder.AddAttribute(6, "Value", r.SolutionTemperature);
+                builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.SolutionTemperature = v));
+                builder.AddAttribute(8, "Clearable", true);
+                builder.CloseComponent();
+                break;
+            case "SoakTime":
+                builder.OpenComponent<MudNumericField<int?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "HideSpinButtons",true);
+                builder.AddAttribute(6, "Value", r.SoakTime);
+                builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.SoakTime = v));
+                builder.AddAttribute(8, "Clearable", true);
+                builder.CloseComponent();
+                break;
+            case "FaceCutCount":
+                builder.OpenComponent<MudNumericField<int?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "HideSpinButtons",true);
+                builder.AddAttribute(6, "Value", r.FaceCutCount);
+                builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.FaceCutCount = v));
                 builder.AddAttribute(8, "Clearable", true);
                 builder.CloseComponent();
                 break;

@@ -75,4 +75,19 @@ public class ScanController : ControllerBase
 
         return Ok(ApiResponse<ScanResolveResultDto>.Ok(result, "解析成功"));
     }
+
+    /// <summary>
+    /// 解析设备码，返回设备信息，用于扫码报修
+    /// </summary>
+    [HttpGet("resolve-equipment")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<ScanEquipmentResolveResultDto>>> ResolveEquipment(
+        [FromQuery] string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return BadRequest(ApiResponse<ScanEquipmentResolveResultDto>.Fail("设备编码不能为空"));
+
+        var result = await _scanService.ResolveEquipmentAsync(code);
+        return Ok(ApiResponse<ScanEquipmentResolveResultDto>.Ok(result, "解析成功"));
+    }
 }

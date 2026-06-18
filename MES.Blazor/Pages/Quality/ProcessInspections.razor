@@ -101,7 +101,7 @@
                     </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTh Style="width: col.Width">
+                        <MudTh Style="@($"width:{col.Width}px")">
                             <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
                                 @if (col.FilterType != null)

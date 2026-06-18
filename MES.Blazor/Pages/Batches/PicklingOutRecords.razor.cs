@@ -45,6 +45,8 @@ public partial class PicklingOutRecords
 
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
+        "Quantity",
+        "Weight"
     };
 
     // ========== ExcelFilter 筛选 ==========
@@ -66,6 +68,12 @@ public partial class PicklingOutRecords
         new() { Key = "SectionName",         Label = "工段名称",     SortKey = "sectionname",      FilterType = "string" },
         new() { Key = "ManufacturingSpec",   Label = "制造规格",     SortKey = "manufacturingspec", FilterType = "string" },
         new() { Key = "CompleteDate",        Label = "完工日期",     SortKey = "completedate",     FilterType = "date" },
+        new() { Key = "EquipmentName",       Label = "设备名称",     SortKey = "equipmentname",    FilterType = "string" },
+        new() { Key = "Operator",            Label = "操作人",       SortKey = "operator",         FilterType = "string" },
+        new() { Key = "Shift",               Label = "班次",         SortKey = "shift",            FilterType = "string" },
+        new() { Key = "Quantity",            Label = "加工支数",     SortKey = "quantity",         FilterType = "string" },
+        new() { Key = "Weight",              Label = "加工重量(kg)", SortKey = "weight",           FilterType = "string" },
+        new() { Key = "IsFinished",          Label = "是否成品",     SortKey = "isfinished",       FilterType = "string" },
         new() { Key = "TagNo",               Label = "挂牌号",       SortKey = "tagno",            FilterType = "string" },
         new() { Key = "PlantGrade",          Label = "工厂牌号",     SortKey = "plantgrade",       FilterType = "string" },
         new() { Key = "Remark",              Label = "备注",         SortKey = "remark",           FilterType = "string" },
@@ -464,6 +472,24 @@ public partial class PicklingOutRecords
                 break;
             case "TagNo":
                 builder.AddContent(0, item.TagNo ?? "");
+                break;
+            case "EquipmentName":
+                builder.AddContent(0, item.EquipmentName ?? "");
+                break;
+            case "Operator":
+                builder.AddContent(0, item.Operator ?? "");
+                break;
+            case "Shift":
+                builder.AddContent(0, item.Shift ?? "");
+                break;
+            case "Quantity":
+                builder.AddContent(0, item.Quantity?.ToString() ?? "");
+                break;
+            case "Weight":
+                builder.AddContent(0, item.Weight?.ToString("G29") ?? "");
+                break;
+            case "IsFinished":
+                builder.AddContent(0, item.IsFinished ? "是" : "否");
                 break;
             case "PlantGrade":
                 builder.AddContent(0, item.PlantGrade ?? "");

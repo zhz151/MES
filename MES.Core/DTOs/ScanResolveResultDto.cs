@@ -34,6 +34,12 @@ public class ScanResolveResultDto
 
     /// <summary>可用工段列表（ProcessGroup 非 null 字段，排除"检验"）</summary>
     public List<SectionOption> AvailableSections { get; set; } = new();
+
+    /// <summary>单支重量(kg)，用于扫码报工自动计算总重量 = 支数 × UnitWeight</summary>
+    public decimal? UnitWeight { get; set; }
+
+    /// <summary>是否成品（系统自动计算：制造物品含'成品' + 当前工序组序号最大）</summary>
+    public bool IsFinished { get; set; }
 }
 
 /// <summary>

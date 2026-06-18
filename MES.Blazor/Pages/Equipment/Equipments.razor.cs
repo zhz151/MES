@@ -114,7 +114,6 @@ public partial class Equipments
         new() { Key = "CurrentMaintStartDate",Label = "本次保养日起始", SortKey = "currentmaintstartdate", FilterType = "date", Width = "120" },
         new() { Key = "LastRepairDate",    Label = "最近维修日期", SortKey = "lastrepairdate", FilterType = "date", Width = "120" },
         new() { Key = "Remark",            Label = "备注",       SortKey = "remark", FilterType = "string", Width = "120" },
-        new() { Key = "CreatedTime",       Label = "创建时间",   SortKey = "createdtime", FilterType = "date", Width = "120" },
     };
 
     // ========== 列选择操作 ==========
@@ -564,7 +563,6 @@ public partial class Equipments
         "CurrentMaintStartDate" => item.CurrentMaintStartDate?.ToString("yyyy-MM-dd"),
         "LastRepairDate" => item.LastRepairDate?.ToString("yyyy-MM-dd"),
         "Remark" => item.Remark,
-        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         _ => null
     };
 
@@ -600,6 +598,26 @@ public partial class Equipments
         {
             Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
         }
+    }
+
+    /// <summary>
+    /// 打印选中设备的二维码标签
+    /// </summary>
+    private async Task PrintQrCodes()
+    {
+        var items = _pageItems.Where(i => selectedIds.Contains(i.Id)).ToList();
+        if (items.Count == 0) return;
+
+        var codes = items.Select(i => i.EquipmentCode).ToList();
+        await JS.InvokeVoidAsync("MES.printQrCodes", codes);
+    }
+
+    /// <summary>
+    /// 打印单个设备的二维码标签
+    /// </summary>
+    private async Task PrintSingleQrCode(EquipmentListDto item)
+    {
+        await JS.InvokeVoidAsync("MES.printQrCodes", new List<string> { item.EquipmentCode });
     }
 
     private async Task PrintAll()
@@ -722,9 +740,6 @@ public partial class Equipments
                 break;
             case "Remark":
                 builder.AddContent(0, item.Remark);
-                break;
-            case "CreatedTime":
-                builder.AddContent(0, item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
             default:
                 builder.AddContent(0, "");

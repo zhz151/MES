@@ -86,6 +86,7 @@ public partial class DailyOutputEstimates
             _totalCount = 0;
         }
 
+        await SavePageStateAsync();
         return new TableData<DailyOutputEstimateDto>
         {
             Items = _pageItems,

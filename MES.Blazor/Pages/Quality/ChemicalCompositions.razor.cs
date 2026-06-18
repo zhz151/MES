@@ -78,7 +78,6 @@ public partial class ChemicalCompositions
         new() { Key = "Aluminum",     Label = "Al",          SortKey = "aluminum", FilterType = "string", Width = "80" },
         new() { Key = "Tungsten",     Label = "W",           SortKey = "tungsten", FilterType = "string", Width = "80" },
         new() { Key = "PREN",         Label = "PREN腐蚀当量", SortKey = "pren", FilterType = "string", Width = "80" },
-        new() { Key = "CreatedTime",  Label = "创建日期",   SortKey = "createdtime", Width = "120" },
         new() { Key = "UpdatedTime",  Label = "更新日期",   SortKey = "updatedtime", Width = "120" },
     };
 
@@ -498,7 +497,6 @@ public partial class ChemicalCompositions
         "Aluminum" => item.Aluminum,
         "Tungsten" => item.Tungsten,
         "PREN" => item.PREN,
-        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         _ => null
     };
@@ -571,9 +569,6 @@ public partial class ChemicalCompositions
                 break;
             case "PREN":
                 RenderEditField(builder, isEditing, cache?.PREN, v => { if (cache != null) cache.PREN = v; }, item.PREN);
-                break;
-            case "CreatedTime":
-                builder.AddContent(0, item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
             case "UpdatedTime":
                 builder.AddContent(0, item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
@@ -699,7 +694,6 @@ public partial class ChemicalCompositions
         "Aluminum" => item.Aluminum,
         "Tungsten" => item.Tungsten,
         "PREN" => item.PREN,
-        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         _ => ""
     };

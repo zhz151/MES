@@ -195,7 +195,7 @@ public class BatchPlanService : IBatchPlanService
 
             // G4（COALESCE：工单计划薄表优先，无覆盖则回退系统值）
             UrgencyLevel = x.plan != null && x.plan.UrgencyLevel != null ? x.plan.UrgencyLevel : (x.s != null ? x.s.UrgencyLevel : null),
-            ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : 0),
+            ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : (x.b.WorkOrderNo == "非工单" ? 4 : 0)),
             MainNoAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.MainNoAttentionProcess : null),
             ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : null),
 
@@ -521,7 +521,7 @@ public class BatchPlanService : IBatchPlanService
             NextProcess = x.b.NextProcess,
             CorrespondingSpec = x.b.CorrespondingSpec,
             UrgencyLevel = x.plan != null && x.plan.UrgencyLevel != null ? x.plan.UrgencyLevel : (x.s != null ? x.s.UrgencyLevel : null),
-            ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : 0),
+            ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : (x.b.WorkOrderNo == "非工单" ? 4 : 0)),
             MainNoAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.MainNoAttentionProcess : null),
             ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : null),
             IsUrging = x.s != null && x.s.IsUrging,
@@ -820,7 +820,8 @@ public class BatchPlanService : IBatchPlanService
             ["NextProcess"] = all.Where(x => x.NextProcess != null).Select(x => x.NextProcess!).Distinct().OrderBy(x => x).ToList(),
             ["NextSectionName"] = all.Where(x => x.NextSectionName != null).Select(x => x.NextSectionName!).Distinct().OrderBy(x => x).ToList(),
             ["UrgencyLevel"] = all.Where(x => x.UrgencyLevel != null).Select(x => x.UrgencyLevel!).Distinct().OrderBy(x => x).ToList(),
-            ["ScheduleStage"] = all.Where(x => x.ScheduleStage.HasValue).Select(x => x.ScheduleStage!.Value.ToString()).Distinct().OrderBy(x => x).ToList(),
+            ["ScheduleStage"] = all.Select(x => x.WorkOrderNo == "非工单" ? "4" : (x.ScheduleStage.HasValue ? x.ScheduleStage!.Value.ToString() : null))
+                .Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
             ["MainNoAttentionProcess"] = all.Where(x => x.MainNoAttentionProcess != null).Select(x => x.MainNoAttentionProcess!).Distinct().OrderBy(x => x).ToList(),
             ["ProductionFlowProperty"] = all.Where(x => x.ProductionFlowProperty != null).Select(x => x.ProductionFlowProperty!).Distinct().OrderBy(x => x).ToList(),
         };

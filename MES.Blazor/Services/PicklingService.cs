@@ -166,4 +166,17 @@ public class PicklingService
             return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}");
         }
     }
+
+    // ========== 按批次查询 ==========
+
+    public async Task<ApiResponse<List<PicklingInRecordDto>>> GetByBatchAsync(string batchNo)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/by-batch/{Uri.EscapeDataString(batchNo)}";
+            return await _http.GetFromJsonAsync<ApiResponse<List<PicklingInRecordDto>>>(url)
+                   ?? ApiResponse<List<PicklingInRecordDto>>.Fail("请求失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<PicklingInRecordDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
 }

@@ -311,6 +311,20 @@ public class SectionOutsourceController : ControllerBase
     }
 
     /// <summary>
+    /// 根据批次号和工段名查询待回收的委外记录
+    /// </summary>
+    [HttpGet("pending-by-batch")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<SectionOutsourceDto>>>> GetPendingByBatch(
+        [FromQuery] string batchNo, [FromQuery] string sectionName)
+    {
+        if (string.IsNullOrWhiteSpace(batchNo) || string.IsNullOrWhiteSpace(sectionName))
+            return BadRequest(ApiResponse<List<SectionOutsourceDto>>.Fail("批次号和工段名不能为空"));
+        var result = await _service.GetPendingByBatchAsync(batchNo, sectionName);
+        return Ok(ApiResponse<List<SectionOutsourceDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
     /// 获取工段委外发出筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     [HttpGet("filter-contexts")]

@@ -161,6 +161,22 @@ public class SectionOutsourceService
         catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    // ========== 按批次查询待回收记录 ==========
+
+    /// <summary>
+    /// 根据批次号和工段名查询待回收的委外记录
+    /// </summary>
+    public async Task<ApiResponse<List<SectionOutsourceDto>>> GetPendingByBatchAsync(string batchNo, string sectionName)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/pending-by-batch?batchNo={Uri.EscapeDataString(batchNo)}&sectionName={Uri.EscapeDataString(sectionName)}";
+            return await _http.GetFromJsonAsync<ApiResponse<List<SectionOutsourceDto>>>(url)
+                   ?? ApiResponse<List<SectionOutsourceDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<SectionOutsourceDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     // ========== 打印 ==========
 
     public async Task<ApiResponse<string>> PrintSelectedAsync(int[] ids, List<PrintColumnDef> columns)

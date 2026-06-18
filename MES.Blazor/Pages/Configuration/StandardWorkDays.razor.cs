@@ -87,6 +87,7 @@ public partial class StandardWorkDays
             _totalCount = 0;
         }
 
+        await SavePageStateAsync();
         return new TableData<StandardWorkDayDto>
         {
             Items = _pageItems,

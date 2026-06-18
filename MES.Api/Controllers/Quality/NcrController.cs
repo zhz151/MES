@@ -25,8 +25,27 @@ public class NcrController : ControllerBase
     /// <summary>分页查询</summary>
     [HttpGet("all")]
     [Authorize(Roles = Roles.Policies.QualityRead)]
-    public async Task<ActionResult<ApiResponse<PagedResult<NcrDto>>>> GetAll([FromQuery] QueryParams query)
+    public async Task<ActionResult<ApiResponse<PagedResult<NcrDto>>>> GetAll(
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? keyword = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool isDescending = true,
+        [FromQuery] string? filters = null)
     {
+        var query = new QueryParams
+        {
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            Keyword = keyword,
+            SortBy = sortBy ?? "createdtime",
+            IsDescending = isDescending
+        };
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try { query.Filters = System.Text.Json.JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        }
         var result = await _ncrService.GetAllAsync(query);
         return Ok(ApiResponse<PagedResult<NcrDto>>.Ok(result));
     }

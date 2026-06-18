@@ -121,6 +121,7 @@ public partial class ConfigParameters
             _totalCount = 0;
         }
 
+        await SavePageStateAsync();
         return new TableData<ConfigParameterDto>
         {
             Items = _pageItems,

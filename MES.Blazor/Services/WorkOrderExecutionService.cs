@@ -57,6 +57,22 @@ public class WorkOrderExecutionService
     }
 
     /// <summary>
+    /// 获取工单执行看板聚合数据
+    /// </summary>
+    public async Task<ApiResponse<List<WorkOrderExecutionDashboardItem>>> GetDashboardSummaryAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<WorkOrderExecutionDashboardItem>>>($"{BaseUrl}/dashboard-summary");
+            return response ?? ApiResponse<List<WorkOrderExecutionDashboardItem>>.Fail("获取看板数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<WorkOrderExecutionDashboardItem>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// 全量刷新所有工单的执行状况汇总
     /// </summary>
     public async Task<ApiResponse<WorkOrderExecutionRefreshResultDto>> RefreshAllAsync()

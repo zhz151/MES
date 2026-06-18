@@ -117,6 +117,19 @@ public class PicklingController : ControllerBase
         return Ok(ApiResponse.Ok("删除成功"));
     }
 
+    // ========== 按批次查询 ==========
+
+    /// <summary>
+    /// 按批次号查询入缸记录（用于出缸扫码时选择关联的入缸记录）
+    /// </summary>
+    [HttpGet("by-batch/{batchNo}")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<PicklingInRecordDto>>>> GetByBatch(string batchNo)
+    {
+        var result = await _service.GetByBatchAsync(batchNo);
+        return Ok(ApiResponse<List<PicklingInRecordDto>>.Ok(result, "查询成功"));
+    }
+
     // ========== 完工记录 ==========
 
     /// <summary>

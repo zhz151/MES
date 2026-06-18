@@ -24,7 +24,6 @@ public class MaterialPlanService : IMaterialPlanService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<MaterialPlanService> _logger;
-    private readonly WorkOrderListSummaryService? _listSummaryService;
     private readonly IStandardWorkDayService _standardWorkDayService;
     private readonly IStandardWorkDayDeliveryStateService _deliveryStateService;
     private readonly IConfigParameterService _configService;
@@ -39,15 +38,13 @@ public class MaterialPlanService : IMaterialPlanService
     public MaterialPlanService(AppDbContext context, ILogger<MaterialPlanService> logger,
         IStandardWorkDayService standardWorkDayService,
         IStandardWorkDayDeliveryStateService deliveryStateService,
-        IConfigParameterService configService,
-        WorkOrderListSummaryService? listSummaryService = null)
+        IConfigParameterService configService)
     {
         _context = context;
         _logger = logger;
         _standardWorkDayService = standardWorkDayService;
         _deliveryStateService = deliveryStateService;
         _configService = configService;
-        _listSummaryService = listSummaryService;
     }
 
     #region Config cache
@@ -2117,14 +2114,8 @@ public class MaterialPlanService : IMaterialPlanService
 
     private async Task RefreshReadModelAsync(int workOrderId)
     {
-        if (_listSummaryService == null) return;
-        var salesOrderNo = await _context.WorkOrders
-            .AsNoTracking()
-            .Where(wo => wo.Id == workOrderId)
-            .Select(wo => wo.SalesOrderNo)
-            .FirstOrDefaultAsync();
-        if (salesOrderNo != null)
-            await _listSummaryService.RefreshBySalesOrderAsync(salesOrderNo);
+        // 读模型刷新已移除（使用实时查询），忽略
+        await Task.CompletedTask;
     }
 
     #endregion

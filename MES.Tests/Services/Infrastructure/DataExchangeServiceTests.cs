@@ -29,9 +29,9 @@ public class DataExchangeServiceTests : TestBase
     // ========== Registry 验证 ==========
 
     [Fact]
-    public void Registry_包含所有39个实体()
+    public void Registry_包含所有44个实体()
     {
-        DataExchangeService.Registry.Should().HaveCount(39);
+        DataExchangeService.Registry.Should().HaveCount(44);
     }
 
     [Fact]
@@ -747,9 +747,9 @@ public class TestableDataExchangeService : DataExchangeService
         return Task.FromResult(new List<string>());
     }
 
-    protected override async Task<(IDbContextTransaction transaction, DbTransaction? dbTransaction)> BeginImportTransactionAsync()
+    protected override Task<(IDbContextTransaction transaction, DbTransaction? dbTransaction)> BeginImportTransactionAsync()
     {
         var mock = new Mock<IDbContextTransaction>();
-        return (mock.Object, null);
+        return Task.FromResult<(IDbContextTransaction transaction, DbTransaction? dbTransaction)>((mock.Object, null));
     }
 }

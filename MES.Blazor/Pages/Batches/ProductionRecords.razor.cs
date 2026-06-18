@@ -82,10 +82,13 @@ public partial class ProductionRecords
         new() { Key = "Shift",             Label = "班次",       SortKey = "shift",             FilterType = "string", Width = "120" },
         new() { Key = "Quantity",          Label = "加工支数",   SortKey = "quantity", Width = "80" },
         new() { Key = "Weight",            Label = "加工重量",   SortKey = "weight", Width = "80" },
+        new() { Key = "SolutionTemperature", Label = "固溶温度(℃)", SortKey = "solutiontemperature", Width = "80" },
+        new() { Key = "SoakTime",           Label = "保温时间(min)", SortKey = "soaktime", Width = "80" },
         new() { Key = "IsFinished",        Label = "是否成品", SortKey = "isfinished",         FilterType = "boolean", BoolTrueLabel = "成品", BoolFalseLabel = "在制品", Width = "60" },
         new() { Key = "CuttingMultiple",   Label = "断切倍数",   SortKey = "cuttingmultiple", Width = "80" },
         new() { Key = "FinishedCutLength", Label = "成品长度",   SortKey = "finishedcutlength", Width = "80" },
         new() { Key = "PostCutQuantity",   Label = "切后支数",   SortKey = "postcutquantity", Width = "80" },
+        new() { Key = "FaceCutCount",      Label = "平头数",     SortKey = "facecutcount", Width = "60" },
         new() { Key = "TagNo",             Label = "挂牌号",     SortKey = "tagno",             FilterType = "string", Width = "120" },
         new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade",        FilterType = "string", Width = "120" },
         new() { Key = "Remark",            Label = "备注",       SortKey = "remark",            FilterType = "string", Width = "120" },
@@ -336,6 +339,9 @@ public partial class ProductionRecords
         public string? Shift { get; set; }
         public int? Quantity { get; set; }
         public decimal? Weight { get; set; }
+        public decimal? SolutionTemperature { get; set; }
+        public int? SoakTime { get; set; }
+        public int? FaceCutCount { get; set; }
         public bool IsFinished { get; set; }
         public decimal? CuttingMultiple { get; set; }
         public decimal? FinishedCutLength { get; set; }
@@ -356,6 +362,9 @@ public partial class ProductionRecords
             Shift = item.Shift,
             Quantity = item.Quantity,
             Weight = item.Weight,
+            SolutionTemperature = item.SolutionTemperature,
+            SoakTime = item.SoakTime,
+            FaceCutCount = item.FaceCutCount,
             IsFinished = item.IsFinished,
             CuttingMultiple = item.CuttingMultiple,
             FinishedCutLength = item.FinishedCutLength,
@@ -395,6 +404,9 @@ public partial class ProductionRecords
                 Shift = cache.Shift,
                 Quantity = cache.Quantity,
                 Weight = cache.Weight,
+                SolutionTemperature = cache.SolutionTemperature,
+                SoakTime = cache.SoakTime,
+                FaceCutCount = cache.FaceCutCount,
                 IsFinished = cache.IsFinished,
                 CuttingMultiple = cache.CuttingMultiple,
                 FinishedCutLength = cache.FinishedCutLength,
@@ -413,6 +425,9 @@ public partial class ProductionRecords
                 item.Shift = result.Data.Shift;
                 item.Quantity = result.Data.Quantity;
                 item.Weight = result.Data.Weight;
+                item.SolutionTemperature = result.Data.SolutionTemperature;
+                item.SoakTime = result.Data.SoakTime;
+                item.FaceCutCount = result.Data.FaceCutCount;
                 item.IsFinished = result.Data.IsFinished;
                 item.CuttingMultiple = result.Data.CuttingMultiple;
                 item.FinishedCutLength = result.Data.FinishedCutLength;
@@ -583,6 +598,8 @@ public partial class ProductionRecords
     {
         "ExecDate" or "EquipmentName" or "Operator" or "Shift"
             or "Quantity" or "Weight"
+            or "SolutionTemperature" or "SoakTime"
+            or "FaceCutCount"
             or "IsFinished" or "CuttingMultiple" or "FinishedCutLength"
             or "PostCutQuantity" or "TagNo" or "PlantGrade" or "Remark" => true,
         _ => false
@@ -700,6 +717,52 @@ public partial class ProductionRecords
                 else
                 {
                     builder.AddContent(0, $"{(int)(item.Weight ?? 0)}");
+                }
+                break;
+            case "SolutionTemperature":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudNumericField<decimal?>>(0);
+                    builder.AddAttribute(1, "Value", cache.SolutionTemperature);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => cache.SolutionTemperature = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.AddAttribute(5, "Format", "G29");
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, DisplayHelper.FormatNullableDecimal(item.SolutionTemperature));
+                }
+                break;
+            case "SoakTime":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudNumericField<int?>>(0);
+                    builder.AddAttribute(1, "Value", cache.SoakTime);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => cache.SoakTime = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.SoakTime));
+                }
+                break;
+            case "FaceCutCount":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudNumericField<int?>>(0);
+                    builder.AddAttribute(1, "Value", cache.FaceCutCount);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => cache.FaceCutCount = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.FaceCutCount));
                 }
                 break;
             case "IsFinished":

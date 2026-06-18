@@ -165,7 +165,7 @@ public partial class BatchPlans
         var g4 = new List<ColumnDef>
         {
             new() { Key = "UrgencyLevel",               Label = "工单紧急性",    SortKey = "UrgencyLevel",               FilterType = "string", Width = "110", GroupKey = 4, GroupName = "批次关注" },
-            new() { Key = "ScheduleStage",               Label = "计划状态",     SortKey = "ScheduleStage",               FilterType = "enum", Width = "110", EnumOptions = new() { new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 4, GroupName = "批次关注" },
+            new() { Key = "ScheduleStage",               Label = "计划状态",     SortKey = "ScheduleStage",               FilterType = "enum", Width = "110", EnumOptions = new() { new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验"), new("4","非工单批次") }, GroupKey = 4, GroupName = "批次关注" },
             new() { Key = "MainNoAttentionProcess",     Label = "主号关注工序",   SortKey = "MainNoAttentionProcess",    FilterType = "string", Width = "130", GroupKey = 4, GroupName = "批次关注" },
             new() { Key = "IsKeyBatch",                  Label = "重点生产批次",  FilterType = "boolean", Width = "120", GroupKey = 4, GroupName = "批次关注" },
         };
@@ -921,6 +921,7 @@ public partial class BatchPlans
                     1 => Color.Warning,
                     2 => Color.Success,
                     3 => Color.Info,
+                    4 => Color.Secondary,
                     _ => Color.Default
                 };
                 var stageText = item.ScheduleStage switch
@@ -929,6 +930,7 @@ public partial class BatchPlans
                     1 => "原料锁定",
                     2 => "生产执行",
                     3 => "成品检验",
+                    4 => "非工单批次",
                     _ => "未知"
                 };
                 builder.OpenComponent<MudChip>(0);

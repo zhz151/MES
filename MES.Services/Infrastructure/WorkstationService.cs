@@ -33,9 +33,10 @@ public class WorkstationService : IWorkstationService
                 var keyword = kw;
                 queryable = queryable.Where(w =>
                     w.Code.Contains(keyword) ||
-                    w.Name.Contains(keyword) ||
+                    (w.Name != null && w.Name.Contains(keyword)) ||
                     (w.EquipmentName != null && w.EquipmentName.Contains(keyword)) ||
-                    (w.SectionName != null && w.SectionName.Contains(keyword)));
+                    w.SectionName.Contains(keyword) ||
+                    (w.ReportType != null && w.ReportType.Contains(keyword)));
             }
         }
 
@@ -59,6 +60,7 @@ public class WorkstationService : IWorkstationService
                 Name = w.Name,
                 EquipmentName = w.EquipmentName,
                 SectionName = w.SectionName,
+                ReportType = w.ReportType,
                 IsActive = w.IsActive
             })
             .ToListAsync();
@@ -83,6 +85,7 @@ public class WorkstationService : IWorkstationService
                 Name = ws.Name,
                 EquipmentName = ws.EquipmentName,
                 SectionName = ws.SectionName,
+                ReportType = ws.ReportType,
                 IsActive = ws.IsActive
             })
             .FirstOrDefaultAsync();
@@ -103,6 +106,7 @@ public class WorkstationService : IWorkstationService
             entity.Name = dto.Name;
             entity.EquipmentName = dto.EquipmentName;
             entity.SectionName = dto.SectionName;
+            entity.ReportType = dto.ReportType;
             entity.IsActive = dto.IsActive;
         }
         else
@@ -114,6 +118,7 @@ public class WorkstationService : IWorkstationService
                 Name = dto.Name,
                 EquipmentName = dto.EquipmentName,
                 SectionName = dto.SectionName,
+                ReportType = dto.ReportType,
                 IsActive = dto.IsActive
             };
             _context.Workstations.Add(entity);

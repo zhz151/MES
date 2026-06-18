@@ -49,6 +49,13 @@ public partial class Ncrs
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    // B33: 分页汇总
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        "DefectiveQuantity"
+    };
+
     // 扩展常量
     private const string PageType = "ncrs";
 
@@ -146,7 +153,6 @@ public partial class Ncrs
                } },
 
         // 审计
-        new() { Key = "CreatedTime",          Label = "创建日期",    SortKey = "createdtime",         Width = "120" },
         new() { Key = "UpdatedTime",          Label = "更新日期",    SortKey = "updatedtime",         Width = "120" },
     };
 
@@ -241,11 +247,13 @@ public partial class Ncrs
             {
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
+                ComputePageSums();
             }
             else
             {
                 _pageItems = new();
                 _totalCount = 0;
+                _pageSums.Clear();
             }
         }
         catch (Exception ex)
@@ -253,6 +261,7 @@ public partial class Ncrs
             Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
             _pageItems = new();
             _totalCount = 0;
+            _pageSums.Clear();
         }
 
         return new TableData<NcrDto>
@@ -456,6 +465,47 @@ public partial class Ncrs
         await ColumnPrefs.SaveAsync(PageType, null, _allColumns);
     }
 
+    // ========== 分页汇总（B33） ==========
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+
+        var props = typeof(NcrDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+
+        foreach (var key in _summableColumnKeys)
+        {
+            if (!props.TryGetValue(key, out var prop)) continue;
+            var type = prop.PropertyType;
+            try
+            {
+                if (type == typeof(int) || type == typeof(int?))
+                {
+                    var sum = _pageItems.Sum(item =>
+                    {
+                        var v = prop.GetValue(item);
+                        return v != null ? Convert.ToInt32(v) : 0;
+                    });
+                    _pageSums[key] = sum.ToString();
+                }
+                else if (type == typeof(decimal?) || type == typeof(decimal))
+                {
+                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    _pageSums[key] = ((int)sum).ToString();
+                }
+            }
+            catch { }
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        return _pageSums.GetValueOrDefault(col.Key, "");
+    }
+
     // ========== 页面状态持久化 ==========
 
     private async Task SavePageStateAsync()
@@ -594,6 +644,9 @@ public partial class Ncrs
             case "ActionVerifyDate":
             case "PersonCompleteDate":
                 builder.AddContent(0, GetDateValue(item, col.Key));
+                break;
+            case "UpdatedTime":
+                builder.AddContent(0, item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
             default:
                 var val = GetPropertyValue(item, col.Key);

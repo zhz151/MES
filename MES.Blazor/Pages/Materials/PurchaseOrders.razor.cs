@@ -463,7 +463,7 @@ public partial class PurchaseOrders
                 builder.AddContent(0, item.WoTotalQuantity);
                 break;
             case "WoTotalWeight":
-                builder.AddContent(0, item.WoTotalWeight?.ToString("G29") ?? "-");
+                builder.AddContent(0, item.WoTotalWeight.HasValue ? ((int)item.WoTotalWeight.Value).ToString() : "-");
                 break;
             case "WoDeliveryState":
                 builder.AddContent(0, item.WoDeliveryState.HasValue ? DisplayHelper.GetDeliveryStateText(item.WoDeliveryState.Value) : "-");

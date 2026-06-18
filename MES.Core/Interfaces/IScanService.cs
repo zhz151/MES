@@ -23,4 +23,11 @@ public interface IScanService
     /// </summary>
     /// <returns>匹配到的解析结果，无匹配返回 null</returns>
     Task<ScanResolveResultDto?> ResolveByBatchAndSectionAsync(string batchNo, string sectionName);
+
+    /// <summary>
+    /// 解析设备码（EQ-xxx），返回设备信息，用于扫码报修
+    /// </summary>
+    /// <param name="equipmentCode">设备编号，如 EQ-001</param>
+    /// <returns>设备扫码解析结果</returns>
+    Task<ScanEquipmentResolveResultDto> ResolveEquipmentAsync(string equipmentCode);
 }

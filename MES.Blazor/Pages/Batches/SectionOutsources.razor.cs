@@ -580,6 +580,10 @@ public partial class SectionOutsources
                 builder.AddContent(0, dsText);
                 break;
 
+            case "UpdatedTime":
+                builder.AddContent(0, item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
+                break;
+
             default:
                 builder.AddContent(0, "");
                 break;

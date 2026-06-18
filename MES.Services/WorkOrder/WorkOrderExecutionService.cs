@@ -1571,6 +1571,158 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         target.LastRefreshTime = source.LastRefreshTime;
     }
 
+    public async Task<List<WorkOrderExecutionDashboardItem>> GetDashboardSummaryAsync()
+    {
+        var result = new List<WorkOrderExecutionDashboardItem>();
+
+        // ========== Stage 1: 原料锁定 ==========
+        // 待投料 = (TotalWeight - PendingOutsourceFinishWeight) × 1.1 - InputWeight
+        // 参考 RawMaterialLockPlanAndExecution.RecalculateSummary()
+        var stage1Data = await _context.Set<WorkOrderExecutionSummary>()
+            .AsNoTracking()
+            .Where(x => x.ScheduleStage == 1 && x.UrgencyLevel != null)
+            .Select(x => new
+            {
+                UrgencyLevel = x.UrgencyLevel ?? "",
+                PendingWeight = (x.TotalWeight - x.PendingOutsourceFinishWeight) * 1.1m - x.InputWeight
+            })
+            .ToListAsync();
+
+        var stage1Grouped = stage1Data
+            .GroupBy(x => x.UrgencyLevel)
+            .Select(g => new WorkOrderExecutionDashboardItem
+            {
+                ScheduleStage = 1,
+                UrgencyLevel = g.Key,
+                OrderCount = g.Count(),
+                TotalWeight = g.Sum(x => Math.Max(0, x.PendingWeight))
+            });
+        result.AddRange(stage1Grouped);
+
+        // ========== Stage 2: 生产在产 ==========
+        // 批次级重量 CurrentValidWeight 按紧急程度分组
+        // COALESCE: WorkOrderPlan.UrgencyLevel 优先，回退 WorkOrderExecutionSummary.UrgencyLevel
+        var stage2Data = await (from b in _context.ProductionBatches.AsNoTracking()
+                                where b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress
+                                join s in _context.Set<WorkOrderExecutionSummary>().AsNoTracking()
+                                    on b.WorkOrderNo equals s.WorkOrderNo into sj
+                                from s in sj.DefaultIfEmpty()
+                                join plan in _context.Set<WorkOrderPlan>().AsNoTracking()
+                                    on s.WorkOrderId equals plan.WorkOrderId into planj
+                                from plan in planj.DefaultIfEmpty()
+                                select new
+                                {
+                                    b.WorkOrderNo,
+                                    Weight = b.CurrentValidWeight ?? 0m,
+                                    PlanUrgency = plan != null ? plan.UrgencyLevel : null,
+                                    SummaryUrgency = s != null ? s.UrgencyLevel : null
+                                }).ToListAsync();
+
+        var stage2Grouped = stage2Data
+            .Select(x => new
+            {
+                x.WorkOrderNo,
+                x.Weight,
+                UrgencyLevel = x.PlanUrgency ?? x.SummaryUrgency
+            })
+            .Where(x => x.UrgencyLevel != null)
+            .GroupBy(x => x.UrgencyLevel!)
+            .Select(g => new WorkOrderExecutionDashboardItem
+            {
+                ScheduleStage = 2,
+                UrgencyLevel = g.Key,
+                OrderCount = g.Select(x => x.WorkOrderNo).Distinct().Count(),
+                TotalWeight = g.Sum(x => x.Weight)
+            });
+        result.AddRange(stage2Grouped);
+
+        // ========== Stage 3: 成品检验 ==========
+        // 成检阶段 = "待检验" + "检验中"
+        // 逻辑同 FinalInspectionPlanService.BuildInProcessAsync
+
+        // 1. MaterialReceiveCheck（排除强制完成）
+        var receiveBatchIds = await _context.MaterialReceiveChecks
+            .AsNoTracking()
+            .Where(rc => !rc.IsForceCompleted)
+            .Select(rc => rc.ProductionBatchId)
+            .Distinct()
+            .ToListAsync();
+        var receivedSet = receiveBatchIds.ToHashSet();
+
+        if (receivedSet.Count > 0)
+        {
+            // 2. FinalInspections 已检批次
+            var inspectedIds = await _context.FinalInspections
+                .AsNoTracking()
+                .Select(fi => fi.ProductionBatchId)
+                .Distinct()
+                .ToListAsync();
+            var inspectedSet = inspectedIds.ToHashSet();
+
+            // 3. 已入库批次
+            var warehousedNos = await _context.InventoryBatches
+                .AsNoTracking()
+                .Where(ib => ib.ProductionBatchNo != null)
+                .Select(ib => ib.ProductionBatchNo!)
+                .Distinct()
+                .ToListAsync();
+            var warehousedSet = warehousedNos.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            // 4. 加载已到料批次数据
+            var batchData = await _context.ProductionBatches.AsNoTracking()
+                .Where(b => receivedSet.Contains(b.Id))
+                .Select(b => new
+                {
+                    b.Id,
+                    b.BatchNo,
+                    b.WorkOrderNo,
+                    Weight = b.CurrentValidWeight ?? 0m
+                })
+                .ToListAsync();
+
+            // 5. 过滤：排除已入库 → 仅保留 待检验 + 检验中
+            var validBatches = batchData
+                .Where(b => b.BatchNo == null || !warehousedSet.Contains(b.BatchNo))
+                .ToList();
+
+            if (validBatches.Count > 0)
+            {
+                var woNos = validBatches.Select(b => b.WorkOrderNo).Distinct().ToList();
+                var summaries = await _context.Set<WorkOrderExecutionSummary>()
+                    .AsNoTracking()
+                    .Where(s => woNos.Contains(s.WorkOrderNo))
+                    .Select(s => new { s.WorkOrderNo, s.UrgencyLevel })
+                    .ToListAsync();
+
+                var urgencyLookup = summaries
+                    .GroupBy(s => s.WorkOrderNo)
+                    .ToDictionary(g => g.Key, g => g.First().UrgencyLevel, StringComparer.OrdinalIgnoreCase);
+
+                var stage3Items = validBatches
+                    .Select(b => new
+                    {
+                        UrgencyLevel = b.WorkOrderNo != null && urgencyLookup.TryGetValue(b.WorkOrderNo, out var u) ? u : null,
+                        b.Weight,
+                        b.WorkOrderNo
+                    })
+                    .Where(x => x.UrgencyLevel != null)
+                    .GroupBy(x => x.UrgencyLevel!)
+                    .Select(g => new WorkOrderExecutionDashboardItem
+                    {
+                        ScheduleStage = 3,
+                        UrgencyLevel = g.Key,
+                        OrderCount = g.Select(x => x.WorkOrderNo).Distinct().Count(),
+                        TotalWeight = g.Sum(x => x.Weight)
+                    })
+                    .ToList();
+
+                result.AddRange(stage3Items);
+            }
+        }
+
+        return result;
+    }
+
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
         var query = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();

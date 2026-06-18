@@ -73,6 +73,7 @@ builder.Services.AddScoped<QualityProcessTrackingService>();
 // ========== 扫码执行 ==========
 builder.Services.AddScoped<ScanService>();
 builder.Services.AddScoped<WorkstationService>();
+builder.Services.AddScoped<EmployeeService>();
 
 // ========== Scheduling 上下文 ==========
 builder.Services.AddScoped<OrderDemandAdjustmentService>();

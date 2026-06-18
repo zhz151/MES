@@ -998,7 +998,14 @@ public class WorkOrderExecutionServiceTests : TestBase
 
         result.Should().ContainKeys("WorkOrderNo", "Salesman", "CustomerName", "SalesOrderNo", "ProductionMainNo", "ProductionSubNo", "PlantGrade", "Specification");
         foreach (var kvp in result)
-            kvp.Value.Should().BeEmpty($"字段 {kvp.Key} 应返回空列表");
+        {
+            if (kvp.Key == "ProductionFlowProperty")
+                kvp.Value.Should().BeEquivalentTo(new[] { "暂停", "正常", "待料", "疑问", "略" });
+            else if (kvp.Key == "ProductionAttentionProcess")
+                kvp.Value.Should().BeEquivalentTo(new[] { "收尾-成检" });
+            else
+                kvp.Value.Should().BeEmpty($"字段 {kvp.Key} 应返回空列表");
+        }
     }
 
     // ==================== 辅助方法 ====================

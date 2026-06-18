@@ -58,6 +58,15 @@ public partial class RepairExecute : IDisposable
         {
             _repairPerson = string.Empty;
         }
+
+        // 支持从查询参数 ?code=xxx 自动解析设备
+        var uri = new Uri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var code = query["code"];
+        if (!string.IsNullOrWhiteSpace(code))
+        {
+            await ResolveCode(code);
+        }
     }
 
     private async Task StartCamera()

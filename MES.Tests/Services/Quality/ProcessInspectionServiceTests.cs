@@ -10,6 +10,7 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Services;
 using MES.Tests.Tests;
+using System.Reflection;
 
 namespace MES.Tests.Services;
 
@@ -18,6 +19,19 @@ namespace MES.Tests.Services;
 /// </summary>
 public class ProcessInspectionServiceTests : TestBase
 {
+    /// <summary>
+    /// 重置 ProcessInspectionService 的静态筛选上下文缓存（InMemory 测试隔离）
+    /// </summary>
+    private static void ResetFilterContextCache()
+    {
+        var cacheField = typeof(ProcessInspectionService).GetField("_filterContextCache",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        cacheField?.SetValue(null, null);
+        var expiryField = typeof(ProcessInspectionService).GetField("_filterContextCacheExpiry",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        expiryField?.SetValue(null, DateTime.MinValue);
+    }
+
     private ProcessInspectionService CreateService(AppDbContext ctx)
     {
         var mockProductionRecordService = new Mock<IProductionRecordService>();
@@ -92,6 +106,7 @@ public class ProcessInspectionServiceTests : TestBase
         ctx.ProcessInspections.Add(new ProcessInspection
         {
             ProductionBatchId = batch.Id,
+            BatchNo = batchNo,
             ProcessName = processName,
             ManufacturingSpec = "219*8",
             SectionName = sectionName,
@@ -394,6 +409,7 @@ public class ProcessInspectionServiceTests : TestBase
     [Fact]
     public async Task GetFilterContextsAsync_返回正确选项()
     {
+        ResetFilterContextCache();
         var ctx = CreateDbContext();
         await SeedInspectionAsync(ctx, batchNo: "BATCH001", processName: "60冷轧", sectionName: "冷轧拔");
         await SeedInspectionAsync(ctx, batchNo: "BATCH002", processName: "冷拔", sectionName: "冷轧拔");
@@ -410,6 +426,7 @@ public class ProcessInspectionServiceTests : TestBase
     [Fact]
     public async Task GetFilterContextsAsync_无数据_返回空列表()
     {
+        ResetFilterContextCache();
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
@@ -423,11 +440,13 @@ public class ProcessInspectionServiceTests : TestBase
     [Fact]
     public async Task GetFilterContextsAsync_Nullable字段排除null()
     {
+        ResetFilterContextCache();
         var ctx = CreateDbContext();
         var batch = await SeedBatchAsync(ctx, "BATCH001");
         ctx.ProcessInspections.Add(new ProcessInspection
         {
             ProductionBatchId = batch.Id, ProcessName = "60冷轧", SectionName = "冷轧拔",
+            BatchNo = "BATCH001",
             SequenceNumber = 1, InspectionDate = DateTime.Today, Quantity = 10,
             EquipmentName = null, Inspector = null, Remark = null
         });

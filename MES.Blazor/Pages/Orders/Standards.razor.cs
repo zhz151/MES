@@ -42,6 +42,8 @@ public partial class Standards
     }
     private int _currentPage = 1;
     private int _pageSize = 10;
+    private int _restoredPageIndex;
+    private bool _isFirstLoad = true;
     private string _searchKeyword = string.Empty;
 
     private string sortColumn = "standardcode";
@@ -72,6 +74,13 @@ public partial class Standards
         _pageSize = state.PageSize;
         try
         {
+            // 首次加载覆盖页码（MudTable 初始化时始终传 page=0）
+            if (_isFirstLoad)
+            {
+                state.Page = _restoredPageIndex;
+                _isFirstLoad = false;
+            }
+
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "standardcode";
             var filtersJson = SerializeFilters();
 
@@ -308,6 +317,10 @@ public partial class Standards
                 catch { }
             }
         }
+
+        // 恢复页码
+        if (savedState != null)
+            _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
 
         // 状态恢复后重新加载表格数据（首次渲染时 ServerData 可能已用默认值加载）
         if (savedState != null && table != null)

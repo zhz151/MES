@@ -23,22 +23,16 @@ public class WorkOrderService : IWorkOrderService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<WorkOrderService> _logger;
-    private readonly WorkOrderStatusSummaryService? _statusSummaryService;
-    private readonly WorkOrderListSummaryService? _listSummaryService;
-    private readonly IConfigParameterService _configService;
+private readonly IConfigParameterService _configService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
     private static readonly SemaphoreSlim _workOrderNoSemaphore = new SemaphoreSlim(1, 1);
 
     public WorkOrderService(AppDbContext context, ILogger<WorkOrderService> logger,
-        IConfigParameterService configService,
-        WorkOrderStatusSummaryService? statusSummaryService = null,
-        WorkOrderListSummaryService? listSummaryService = null)
+        IConfigParameterService configService)
     {
         _context = context;
         _logger = logger;
         _configService = configService;
-        _statusSummaryService = statusSummaryService;
-        _listSummaryService = listSummaryService;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -55,142 +49,8 @@ public class WorkOrderService : IWorkOrderService
 
     public async Task<PagedResult<OrderWorkOrderStatusDto>> GetOrderWorkOrderStatusPageAsync(WorkOrderQueryParams query)
     {
-        if (_statusSummaryService == null)
-        {
-            // 降级回退：读模型服务未注册时使用原实现（预留扩展）
-            return await GetOrderWorkOrderStatusPageLegacyAsync(query);
-        }
-
-        var queryable = _context.Set<WorkOrderStatusSummary>().AsNoTracking().AsQueryable();
-
-        // ===== 筛选 =====
-        if (!string.IsNullOrEmpty(query.Salesman))
-            queryable = queryable.Where(x => x.Salesman.Contains(query.Salesman));
-
-        if (!string.IsNullOrEmpty(query.EndCustomer))
-            queryable = queryable.Where(x => x.EndCustomer != null && x.EndCustomer.Contains(query.EndCustomer));
-
-        if (!string.IsNullOrEmpty(query.Keyword))
-        {
-            var keyword = query.Keyword;
-            queryable = queryable.Where(x =>
-                x.OrderNumber.Contains(keyword) ||
-                x.CustomerName.Contains(keyword) ||
-                x.Salesman.Contains(keyword) ||
-                (x.EndCustomer != null && x.EndCustomer.Contains(keyword)) ||
-                (keyword == "是" && x.HasDelayPenalty) ||
-                (keyword == "否" && !x.HasDelayPenalty)
-            );
-        }
-
-        if (!string.IsNullOrEmpty(query.WorkOrderStatus) && Enum.TryParse<WorkOrderStatus>(query.WorkOrderStatus, out var filterStatus))
-        {
-            queryable = queryable.Where(x => x.WorkOrderStatus == filterStatus);
-        }
-
-        queryable = queryable.ApplyFilters(query.Filters);
-
-        // ===== 总记录数 =====
-        var totalCount = await queryable.CountAsync();
-
-        // ===== 排序 =====
-        if (!string.IsNullOrEmpty(query.SortBy))
-        {
-            var sortDesc = query.IsDescending;
-            switch (query.SortBy.ToLower())
-            {
-                case "ordernumber":
-                    queryable = sortDesc ? queryable.OrderByDescending(x => x.OrderNumber) : queryable.OrderBy(x => x.OrderNumber);
-                    break;
-                case "signdate":
-                    queryable = sortDesc ? queryable.OrderByDescending(x => x.SignDate) : queryable.OrderBy(x => x.SignDate);
-                    break;
-                case "salesman":
-                    queryable = sortDesc ? queryable.OrderByDescending(x => x.Salesman) : queryable.OrderBy(x => x.Salesman);
-                    break;
-                case "customername":
-                    queryable = sortDesc ? queryable.OrderByDescending(x => x.CustomerName) : queryable.OrderBy(x => x.CustomerName);
-                    break;
-                case "endcustomer":
-                    queryable = sortDesc ? queryable.OrderByDescending(x => x.EndCustomer ?? "") : queryable.OrderBy(x => x.EndCustomer ?? "");
-                    break;
-                case "deliverystart":
-                    queryable = sortDesc ? queryable.OrderByDescending(x => x.DeliveryStart) : queryable.OrderBy(x => x.DeliveryStart);
-                    break;
-                case "deliveryend":
-                    queryable = sortDesc ? queryable.OrderByDescending(x => x.DeliveryEnd) : queryable.OrderBy(x => x.DeliveryEnd);
-                    break;
-                case "hasdelaypenalty":
-                    queryable = sortDesc ? queryable.OrderByDescending(x => x.HasDelayPenalty) : queryable.OrderBy(x => x.HasDelayPenalty);
-                    break;
-                case "totalcontractweight":
-                    queryable = sortDesc ? queryable.OrderByDescending(x => x.TotalContractWeight) : queryable.OrderBy(x => x.TotalContractWeight);
-                    break;
-                case "itemcount":
-                    queryable = sortDesc ? queryable.OrderByDescending(x => x.ItemCount) : queryable.OrderBy(x => x.ItemCount);
-                    break;
-                case "workordercount":
-                    queryable = sortDesc ? queryable.OrderByDescending(x => x.WorkOrderCount) : queryable.OrderBy(x => x.WorkOrderCount);
-                    break;
-                case "workorderstatus":
-                    queryable = sortDesc
-                        ? queryable.OrderByDescending(x =>
-                            x.WorkOrderStatus == WorkOrderStatus.Pending ? 1 :
-                            x.WorkOrderStatus == WorkOrderStatus.NotGenerated ? 2 : 3)
-                        : queryable.OrderBy(x =>
-                            x.WorkOrderStatus == WorkOrderStatus.Pending ? 1 :
-                            x.WorkOrderStatus == WorkOrderStatus.NotGenerated ? 2 : 3);
-                    break;
-                default:
-                    queryable = queryable
-                        .OrderBy(x =>
-                            x.WorkOrderStatus == WorkOrderStatus.Pending ? 1 :
-                            x.WorkOrderStatus == WorkOrderStatus.NotGenerated ? 2 : 3)
-                        .ThenByDescending(x => x.SignDate);
-                    break;
-            }
-        }
-        else
-        {
-            queryable = queryable
-                .OrderBy(x =>
-                    x.WorkOrderStatus == WorkOrderStatus.Pending ? 1 :
-                    x.WorkOrderStatus == WorkOrderStatus.NotGenerated ? 2 : 3)
-                .ThenByDescending(x => x.SignDate);
-        }
-
-        // ===== 分页 =====
-        var paged = await queryable
-            .Skip(query.Skip)
-            .Take(query.PageSize)
-            .ToListAsync();
-
-        var items = paged.Select(s => new OrderWorkOrderStatusDto
-        {
-            SalesOrderId = s.SalesOrderId,
-            OrderNumber = s.OrderNumber,
-            SignDate = s.SignDate,
-            Salesman = s.Salesman,
-            CustomerName = s.CustomerName,
-            EndCustomer = s.EndCustomer,
-            DeliveryStart = s.DeliveryStart,
-            DeliveryEnd = s.DeliveryEnd,
-            HasDelayPenalty = s.HasDelayPenalty,
-            TotalContractWeight = s.TotalContractWeight,
-            ItemCount = s.ItemCount,
-            WorkOrderCount = s.WorkOrderCount,
-            WorkOrderStatus = s.WorkOrderStatus,
-            HasWorkOrder = s.HasWorkOrder,
-            WorkOrderId = s.WorkOrderId
-        }).ToList();
-
-        return new PagedResult<OrderWorkOrderStatusDto>
-        {
-            Items = items,
-            TotalCount = totalCount,
-            PageIndex = query.PageIndex,
-            PageSize = query.PageSize
-        };
+        // 使用实时查询（读模型刷新服务已移除）
+        return await GetOrderWorkOrderStatusPageLegacyAsync(query);
     }
 
     /// <summary>
@@ -198,9 +58,6 @@ public class WorkOrderService : IWorkOrderService
     /// </summary>
     public async Task<List<OrderWorkOrderStatusDto>> GetAllOrderStatusListAsync()
     {
-        if (_statusSummaryService == null)
-            return new List<OrderWorkOrderStatusDto>();
-
         var summaries = await _context.Set<WorkOrderStatusSummary>()
             .AsNoTracking()
             .ToListAsync();
@@ -987,10 +844,10 @@ public class WorkOrderService : IWorkOrderService
             await transaction.CommitAsync();
 
             // 刷新读模型
-            if (_statusSummaryService != null)
-                await _statusSummaryService.RefreshByWorkOrderAsync(request.SalesOrderNo);
-            if (_listSummaryService != null)
-                await _listSummaryService.RefreshBySalesOrderAsync(request.SalesOrderNo);
+            // 读模型刷新已移除（原 RefreshByWorkOrderAsync）
+        //if (_statusSummaryService != null) await _statusSummaryService.RefreshByWorkOrderAsync(request.SalesOrderNo);
+            // 读模型刷新已移除（原 RefreshBySalesOrderAsync）
+        //if (_listSummaryService != null) await _listSummaryService.RefreshBySalesOrderAsync(request.SalesOrderNo);
 
             _logger.LogInformation("生成工单成功: 订单号 {OrderNo}, 生成 {Count} 个工单",
                 request.SalesOrderNo, generatedWorkOrders.Count);
@@ -1314,10 +1171,10 @@ public class WorkOrderService : IWorkOrderService
             await transaction.CommitAsync();
 
             // 刷新读模型
-            if (_statusSummaryService != null)
-                await _statusSummaryService.RefreshByWorkOrderAsync(request.SalesOrderNo);
-            if (_listSummaryService != null)
-                await _listSummaryService.RefreshBySalesOrderAsync(request.SalesOrderNo);
+            // 读模型刷新已移除（原 RefreshByWorkOrderAsync）
+        //if (_statusSummaryService != null) await _statusSummaryService.RefreshByWorkOrderAsync(request.SalesOrderNo);
+            // 读模型刷新已移除（原 RefreshBySalesOrderAsync）
+        //if (_listSummaryService != null) await _listSummaryService.RefreshBySalesOrderAsync(request.SalesOrderNo);
 
             _logger.LogInformation("更新修改工单成功: 订单号 {OrderNo}, 更新 {UpdatedCount} 个, 新建 {NewCount} 个",
                 request.SalesOrderNo, result.Count(r => !r.IsModified || existingByKey.ContainsKey((r.ProductionMainNo, r.ProductionSubNo))),
@@ -1388,9 +1245,6 @@ public class WorkOrderService : IWorkOrderService
 
     public async Task<List<WorkOrderListDto>> GetAllListAsync()
     {
-        if (_listSummaryService == null)
-            return new List<WorkOrderListDto>();
-
         var items = await _context.Set<WorkOrderListSummary>()
             .AsNoTracking()
             .OrderByDescending(s => s.CreatedTime)
@@ -1485,264 +1339,9 @@ public class WorkOrderService : IWorkOrderService
 
     public async Task<PagedResult<WorkOrderListDto>> GetPagedAsync(WorkOrderQueryParams query)
     {
-        if (_listSummaryService == null)
-        {
-            return await GetPagedLegacyAsync(query);
-        }
-
-        var queryable = _context.Set<WorkOrderListSummary>().AsNoTracking().AsQueryable();
-
-        // ===== 筛选 =====
-        if (!string.IsNullOrEmpty(query.SalesOrderNo))
-            queryable = queryable.Where(s => s.SalesOrderNo.Contains(query.SalesOrderNo));
-        if (!string.IsNullOrEmpty(query.ProductionMainNo))
-            queryable = queryable.Where(s => s.ProductionMainNo.Contains(query.ProductionMainNo));
-        if (!string.IsNullOrEmpty(query.ProductionSubNo))
-            queryable = queryable.Where(s => s.ProductionSubNo != null && s.ProductionSubNo.Contains(query.ProductionSubNo));
-        if (query.Status.HasValue)
-            queryable = queryable.Where(s => s.Status == query.Status.Value);
-        if (!string.IsNullOrEmpty(query.MaterialName))
-            queryable = queryable.Where(s => s.MaterialName.Contains(query.MaterialName));
-        if (!string.IsNullOrEmpty(query.Specification))
-            queryable = queryable.Where(s => s.Specification.Contains(query.Specification));
-        if (!string.IsNullOrEmpty(query.PlantGrade))
-            queryable = queryable.Where(s => s.PlantGrade.Contains(query.PlantGrade));
-        if (!string.IsNullOrEmpty(query.Salesman))
-            queryable = queryable.Where(s => s.Salesman.Contains(query.Salesman));
-        if (!string.IsNullOrEmpty(query.EndCustomer))
-            queryable = queryable.Where(s => s.EndCustomer != null && s.EndCustomer.Contains(query.EndCustomer));
-        if (query.DeliveryDateStart.HasValue)
-            queryable = queryable.Where(s => s.DeliveryDate >= query.DeliveryDateStart.Value);
-        if (query.DeliveryDateEnd.HasValue)
-            queryable = queryable.Where(s => s.DeliveryDate <= query.DeliveryDateEnd.Value);
-        if (!string.IsNullOrEmpty(query.Keyword))
-        {
-            var keyword = query.Keyword;
-            if (DateTime.TryParse(keyword, out var keywordDate))
-            {
-                var date = keywordDate.Date;
-                queryable = queryable.Where(s =>
-                    s.WorkOrderNo.Contains(keyword) ||
-                    s.SalesOrderNo.Contains(keyword) ||
-                    s.ProductionMainNo.Contains(keyword) ||
-                    (s.ProductionSubNo != null && s.ProductionSubNo.Contains(keyword)) ||
-                    s.Salesman.Contains(keyword) ||
-                    (s.EndCustomer != null && s.EndCustomer.Contains(keyword)) ||
-                    s.MaterialName.Contains(keyword) ||
-                    s.LatestPlanDate == date);
-            }
-            else
-            {
-                queryable = queryable.Where(s =>
-                    s.WorkOrderNo.Contains(keyword) ||
-                    s.SalesOrderNo.Contains(keyword) ||
-                    s.ProductionMainNo.Contains(keyword) ||
-                    (s.ProductionSubNo != null && s.ProductionSubNo.Contains(keyword)) ||
-                    s.Salesman.Contains(keyword) ||
-                    (s.EndCustomer != null && s.EndCustomer.Contains(keyword)) ||
-                    s.MaterialName.Contains(keyword) ||
-                    (s.StandardCode != null && s.StandardCode.Contains(keyword)) ||
-                    s.PlantGrade.Contains(keyword) ||
-                    s.Specification.Contains(keyword));
-            }
-        }
-
-        if (query.MaterialPlanStatus.HasValue)
-            queryable = queryable.Where(s => s.MaterialPlanStatus == query.MaterialPlanStatus.Value);
-        if (query.MainNoMaterialPlanStatus.HasValue)
-            queryable = queryable.Where(s => s.MainNoMaterialPlanStatus == query.MainNoMaterialPlanStatus.Value);
-        if (query.OrderMaterialPlanStatus.HasValue)
-            queryable = queryable.Where(s => s.OrderMaterialPlanStatus == query.OrderMaterialPlanStatus.Value);
-
-        // 计划类型过滤
-        if (!string.IsNullOrEmpty(query.PlanTypeFilter))
-        {
-            var planTypes = query.PlanTypeFilter.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(t => t.ToLowerInvariant())
-                .ToHashSet();
-
-            if (planTypes.Count > 0 && planTypes.Count < 5)
-            {
-                if (planTypes.Contains("semi"))
-                    queryable = queryable.Where(s => s.SemiPlanTotalWeight != null || s.SemiPlanTotalPieces != null);
-                if (planTypes.Contains("finish"))
-                    queryable = queryable.Where(s => s.FinishedPlanTotalWeight != null || s.FinishedPlanTotalPieces != null);
-                if (planTypes.Contains("inventory"))
-                    queryable = queryable.Where(s => s.InventoryPlanTotalWeight != null || s.InventoryPlanTotalPieces != null);
-                if (planTypes.Contains("rework"))
-                    queryable = queryable.Where(s => s.ReworkPlanTotalWeight != null || s.ReworkPlanTotalPieces != null);
-                if (planTypes.Contains("piercing"))
-                    queryable = queryable.Where(s => s.PiercingPlanTotalWeight != null || s.PiercingPlanTotalPieces != null);
-            }
-        }
-
-        queryable = queryable.ApplyFilters(query.Filters);
-
-        var totalCount = await queryable.CountAsync();
-
-        // ===== 排序 =====
-        if (!string.IsNullOrEmpty(query.SortBy))
-        {
-            switch (query.SortBy.ToLower())
-            {
-                case "workorderno":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.WorkOrderNo) : queryable.OrderBy(s => s.WorkOrderNo);
-                    break;
-                case "salesorderno":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.SalesOrderNo) : queryable.OrderBy(s => s.SalesOrderNo);
-                    break;
-                case "deliverydate":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.DeliveryDate) : queryable.OrderBy(s => s.DeliveryDate);
-                    break;
-                case "status":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.Status) : queryable.OrderBy(s => s.Status);
-                    break;
-                case "productionmainno":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.ProductionMainNo) : queryable.OrderBy(s => s.ProductionMainNo);
-                    break;
-                case "productionsubno":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.ProductionSubNo) : queryable.OrderBy(s => s.ProductionSubNo);
-                    break;
-                case "signdate":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.SignDate) : queryable.OrderBy(s => s.SignDate);
-                    break;
-                case "salesman":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.Salesman) : queryable.OrderBy(s => s.Salesman);
-                    break;
-                case "endcustomer":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.EndCustomer ?? "") : queryable.OrderBy(s => s.EndCustomer ?? "");
-                    break;
-                case "delaypenalty":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.DelayPenalty) : queryable.OrderBy(s => s.DelayPenalty);
-                    break;
-                case "settlementmethod":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.SettlementMethod) : queryable.OrderBy(s => s.SettlementMethod);
-                    break;
-                case "plantgrade":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.PlantGrade) : queryable.OrderBy(s => s.PlantGrade);
-                    break;
-                case "specification":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.Specification) : queryable.OrderBy(s => s.Specification);
-                    break;
-                case "lengthstatus":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.LengthStatus) : queryable.OrderBy(s => s.LengthStatus);
-                    break;
-                case "materialname":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.MaterialName) : queryable.OrderBy(s => s.MaterialName);
-                    break;
-                case "maxlength":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.MaxLength) : queryable.OrderBy(s => s.MaxLength);
-                    break;
-                case "minlength":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.MinLength) : queryable.OrderBy(s => s.MinLength);
-                    break;
-                case "totalquantity":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.TotalQuantity) : queryable.OrderBy(s => s.TotalQuantity);
-                    break;
-                case "totalweight":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.TotalWeight) : queryable.OrderBy(s => s.TotalWeight);
-                    break;
-                case "deliverystate":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.DeliveryState) : queryable.OrderBy(s => s.DeliveryState);
-                    break;
-                case "totalitemcount":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.TotalItemCount) : queryable.OrderBy(s => s.TotalItemCount);
-                    break;
-                case "materialplanstatus":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.MaterialPlanStatus) : queryable.OrderBy(s => s.MaterialPlanStatus);
-                    break;
-                case "materialplanrate":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.MaterialPlanRate) : queryable.OrderBy(s => s.MaterialPlanRate);
-                    break;
-                case "latestplandate":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.LatestPlanDate) : queryable.OrderBy(s => s.LatestPlanDate);
-                    break;
-                case "mainnomaterialplanstatus":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.MainNoMaterialPlanStatus) : queryable.OrderBy(s => s.MainNoMaterialPlanStatus);
-                    break;
-                case "ordermaterialplanstatus":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.OrderMaterialPlanStatus) : queryable.OrderBy(s => s.OrderMaterialPlanStatus);
-                    break;
-                case "maxstandardcycle":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.MaxStandardCycle) : queryable.OrderBy(s => s.MaxStandardCycle);
-                    break;
-                case "materialplancoveredcount":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.MaterialPlanCoveredCount) : queryable.OrderBy(s => s.MaterialPlanCoveredCount);
-                    break;
-                case "latestrequireddate":
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.LatestRequiredDate) : queryable.OrderBy(s => s.LatestRequiredDate);
-                    break;
-                default:
-                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.CreatedTime) : queryable.OrderBy(s => s.CreatedTime);
-                    break;
-            }
-        }
-        else
-        {
-            queryable = query.IsDescending ? queryable.OrderByDescending(s => s.CreatedTime) : queryable.OrderBy(s => s.CreatedTime);
-        }
-
-        // ===== 分页 =====
-        var paged = await queryable
-            .Skip(query.Skip)
-            .Take(query.PageSize)
-            .ToListAsync();
-
-        var items = paged.Select(s => new WorkOrderListDto
-        {
-            Id = s.WorkOrderId,
-            WorkOrderNo = s.WorkOrderNo,
-            SalesOrderNo = s.SalesOrderNo,
-            ProductionMainNo = s.ProductionMainNo,
-            ProductionSubNo = s.ProductionSubNo,
-            SignDate = s.SignDate,
-            Salesman = s.Salesman,
-            EndCustomer = s.EndCustomer,
-            DeliveryDate = s.DeliveryDate,
-            DelayPenalty = s.DelayPenalty,
-            SettlementMethod = Enum.Parse<SettlementMethod>(s.SettlementMethod),
-            PlantGrade = s.PlantGrade,
-            MaterialName = Enum.Parse<MaterialName>(s.MaterialName),
-            Specification = s.Specification,
-            LengthStatus = Enum.Parse<LengthStatus>(s.LengthStatus),
-            MinLength = s.MinLength,
-            MaxLength = s.MaxLength,
-            TotalQuantity = s.TotalQuantity,
-            TotalWeight = s.TotalWeight,
-            DeliveryState = Enum.Parse<DeliveryState>(s.DeliveryState),
-            TotalItemCount = s.TotalItemCount,
-            Status = (WorkOrderStatus)s.Status,
-            CreatedTime = s.CreatedTime,
-            MaterialPlanStatus = s.MaterialPlanStatus,
-            MaterialPlanRate = s.MaterialPlanRate,
-            MainNoMaterialPlanStatus = s.MainNoMaterialPlanStatus,
-            MainNoMaterialPlanRate = s.MainNoMaterialPlanRate,
-            OrderMaterialPlanStatus = s.OrderMaterialPlanStatus,
-            LatestPlanDate = s.LatestPlanDate,
-            SemiPlanTotalWeight = s.SemiPlanTotalWeight,
-            SemiPlanTotalPieces = s.SemiPlanTotalPieces,
-            FinishedPlanTotalWeight = s.FinishedPlanTotalWeight,
-            FinishedPlanTotalPieces = s.FinishedPlanTotalPieces,
-            InventoryPlanTotalWeight = s.InventoryPlanTotalWeight,
-            InventoryPlanTotalPieces = s.InventoryPlanTotalPieces,
-            ReworkPlanTotalWeight = s.ReworkPlanTotalWeight,
-            ReworkPlanTotalPieces = s.ReworkPlanTotalPieces,
-            PiercingPlanTotalWeight = s.PiercingPlanTotalWeight,
-            PiercingPlanTotalPieces = s.PiercingPlanTotalPieces,
-            MaxStandardCycle = s.MaxStandardCycle,
-            MaterialPlanCoveredCount = s.MaterialPlanCoveredCount,
-            MaterialPlanProportion = s.MaterialPlanProportion,
-            LatestRequiredDate = s.LatestRequiredDate
-        }).ToList();
-
-        return new PagedResult<WorkOrderListDto>
-        {
-            Items = items,
-            TotalCount = totalCount,
-            PageIndex = query.PageIndex,
-            PageSize = query.PageSize
-        };
+        return await GetPagedLegacyAsync(query);
     }
+
 
     #region 用料计划三级聚合
 
@@ -2223,11 +1822,6 @@ public class WorkOrderService : IWorkOrderService
             workOrder.WorkOrderNo, request.Status);
 
         // 刷新读模型
-        if (_statusSummaryService != null)
-            await _statusSummaryService.RefreshByWorkOrderAsync(workOrder.SalesOrderNo);
-        if (_listSummaryService != null)
-            await _listSummaryService.RefreshBySalesOrderAsync(workOrder.SalesOrderNo);
-
         return new UpdateWorkOrderStatusResponseDto { Id = workOrder.Id, Status = workOrder.Status };
     }
 
@@ -2236,9 +1830,7 @@ public class WorkOrderService : IWorkOrderService
         var workOrder = await _context.WorkOrders.FindAsync(id);
         if (workOrder == null)
         {
-            // 工单已被其他方式删除，清理读模型脏数据
-            await CleanupOrphanedReadModelsAsync(id);
-            _logger.LogWarning("工单 {Id} 不存在（可能已被删除），已清理读模型脏数据", id);
+            _logger.LogWarning("工单 {Id} 不存在（可能已被删除）", id);
             return;
         }
 
@@ -2275,29 +1867,6 @@ public class WorkOrderService : IWorkOrderService
         await _context.SaveChangesAsync();
         _logger.LogInformation("删除工单成功: 工单号 {WorkOrderNo}, 清理计划{PC}+{FC}+{IC}条, 生成入库批次通知{N}条",
             workOrder.WorkOrderNo, semiPlans.Count, finishPlans.Count, invPlans.Count, affectedBatches.Count);
-
-        // 刷新读模型
-        if (_statusSummaryService != null)
-            await _statusSummaryService.RefreshByWorkOrderAsync(workOrder.SalesOrderNo);
-        if (_listSummaryService != null)
-            await _listSummaryService.RefreshBySalesOrderAsync(workOrder.SalesOrderNo);
-    }
-
-    private async Task CleanupOrphanedReadModelsAsync(int workOrderId)
-    {
-        // 清理 WorkOrderListSummary 脏数据
-        var listSummary = await _context.Set<WorkOrderListSummary>()
-            .FirstOrDefaultAsync(s => s.WorkOrderId == workOrderId);
-        if (listSummary != null)
-            _context.Set<WorkOrderListSummary>().Remove(listSummary);
-
-        // 清理 WorkOrderExecutionSummary 脏数据
-        var execSummary = await _context.Set<WorkOrderExecutionSummary>()
-            .FirstOrDefaultAsync(s => s.WorkOrderId == workOrderId);
-        if (execSummary != null)
-            _context.Set<WorkOrderExecutionSummary>().Remove(execSummary);
-
-        await _context.SaveChangesAsync();
     }
 
     public async Task SoftDeleteAsync(int id)
@@ -2320,10 +1889,10 @@ public class WorkOrderService : IWorkOrderService
         // 刷新读模型
         if (salesOrder != null)
         {
-            if (_statusSummaryService != null)
-                await _statusSummaryService.RefreshByWorkOrderAsync(salesOrder.OrderNumber);
-            if (_listSummaryService != null)
-                await _listSummaryService.RefreshBySalesOrderAsync(salesOrder.OrderNumber);
+            // 读模型刷新已移除（原 RefreshByWorkOrderAsync）
+        //if (_statusSummaryService != null) await _statusSummaryService.RefreshByWorkOrderAsync(salesOrder.OrderNumber);
+            // 读模型刷新已移除（原 RefreshBySalesOrderAsync）
+        //if (_listSummaryService != null) await _listSummaryService.RefreshBySalesOrderAsync(salesOrder.OrderNumber);
         }
     }
 
@@ -2345,16 +1914,10 @@ public class WorkOrderService : IWorkOrderService
         _logger.LogInformation("订单变更检测完成，共更新 {Count} 个订单的工单状态", updatedCount);
     }
 
-    public async Task RefreshMaterialPlanReadModelAsync()
+    public Task RefreshMaterialPlanReadModelAsync()
     {
-        if (_listSummaryService == null)
-        {
-            _logger.LogWarning("用料计划读模型服务不可用，跳过刷新");
-            return;
-        }
-        _logger.LogInformation("开始全量刷新用料计划读模型");
-        await _listSummaryService.RefreshAllAsync();
-        _logger.LogInformation("用料计划读模型全量刷新完成");
+        _logger.LogInformation("用料计划读模型刷新已移除（使用实时查询模式），跳过");
+        return Task.CompletedTask;
     }
 
     private async Task<bool> CheckAndUpdateWorkOrderStatusInternalAsync(int salesOrderId)
@@ -2396,10 +1959,10 @@ public class WorkOrderService : IWorkOrderService
             await _context.SaveChangesAsync();
 
             // 刷新读模型
-            if (_statusSummaryService != null)
-                await _statusSummaryService.RefreshByWorkOrderAsync(salesOrder.OrderNumber);
-            if (_listSummaryService != null)
-                await _listSummaryService.RefreshBySalesOrderAsync(salesOrder.OrderNumber);
+            // 读模型刷新已移除（原 RefreshByWorkOrderAsync）
+        //if (_statusSummaryService != null) await _statusSummaryService.RefreshByWorkOrderAsync(salesOrder.OrderNumber);
+            // 读模型刷新已移除（原 RefreshBySalesOrderAsync）
+        //if (_listSummaryService != null) await _listSummaryService.RefreshBySalesOrderAsync(salesOrder.OrderNumber);
 
             return true;
         }

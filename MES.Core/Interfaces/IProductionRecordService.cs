@@ -146,6 +146,11 @@ public interface IProductionRecordService
     Task<List<ProductionRecordDto>> GetAllProductionRecordListAsync();
 
     /// <summary>
+    /// 获取指定日期的各工段产量汇总（按 SectionName 分组聚合重量），供看板使用
+    /// </summary>
+    Task<List<DailySectionOutputDto>> GetDailySectionOutputAsync(DateTime date);
+
+    /// <summary>
     /// 获取所有检验到料记录（不含分页，用于 MaterialChecks 页面列表展示）
     /// </summary>
     Task<List<MaterialReceiveCheckDto>> GetAllMaterialReceiveCheckListAsync();

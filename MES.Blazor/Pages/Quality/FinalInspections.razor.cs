@@ -59,6 +59,15 @@ public partial class FinalInspections
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    // B33: 分页汇总
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        "Quantity", "Weight", "QualifiedQuantity", "QualifiedWeight",
+        "QualifiedConcessionQuantity", "DefectReworkQuantity",
+        "DefectWarehouseQuantity", "DefectScrapQuantity"
+    };
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "InspectionItem",        Label = "检验项目",   SortKey = "inspectionitem", FilterType = "enum", Width = "120",
@@ -140,11 +149,13 @@ public partial class FinalInspections
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
                 _currentPage = state.Page + 1;
+                ComputePageSums();
             }
             else
             {
                 _pageItems = new();
                 _totalCount = 0;
+                _pageSums.Clear();
             }
         }
         catch (Exception ex)
@@ -152,6 +163,7 @@ public partial class FinalInspections
             Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
             _pageItems = new();
             _totalCount = 0;
+            _pageSums.Clear();
         }
 
         return new TableData<FinalInspectionDto>
@@ -567,6 +579,43 @@ public partial class FinalInspections
         "MaterialName" => DisplayHelper.GetMaterialNameText(item.MaterialName),
         _ => GetCellRawValue(item, key) ?? ""
     };
+
+    // ========== 分页汇总（B33） ==========
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+
+        var props = typeof(FinalInspectionDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+
+        foreach (var key in _summableColumnKeys)
+        {
+            if (!props.TryGetValue(key, out var prop)) continue;
+            var type = prop.PropertyType;
+            try
+            {
+                if (type == typeof(decimal?))
+                {
+                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    _pageSums[key] = ((int)sum).ToString();
+                }
+                else if (type == typeof(int?))
+                {
+                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    _pageSums[key] = sum.ToString();
+                }
+            }
+            catch { }
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        return _pageSums.GetValueOrDefault(col.Key, "");
+    }
 
     // ========== 持久化 ==========
 

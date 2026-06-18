@@ -131,20 +131,29 @@
         <FooterContent>
             @foreach (var col in _visibleColumns)
             {
-                <td class="col-footer-cell @(col.Key == "PendingTotal" || col.Key == "SustainableDays" ? "col-footer-sum" : "")">
+                var footerClass = col.Key switch
+                {
+                    "PendingTotal" or "SustainableDays" => "col-footer-sum",
+                    _ => ""
+                };
+                <MudTd Class="@($"col-footer-cell {footerClass}")">
                     @if (col.Key == "PendingTotal")
                     {
-                        <text>合计: @RenderInt(_filteredItems.Sum(x => x.PendingTotal))</text>
+                        <text>合计: @RenderFooterCell(col)</text>
                     }
                     else if (col.Key == "SustainableDays" && _filteredItems.Any(x => x.SustainableDays.HasValue))
                     {
                         <text>均值: @RenderDecimal(_filteredItems.Where(x => x.SustainableDays.HasValue).Average(x => x.SustainableDays!.Value))</text>
                     }
+                    else if (_summableColumnKeys.Contains(col.Key))
+                    {
+                        <text>合计: @RenderFooterCell(col)</text>
+                    }
                     else
                     {
                         <text>&nbsp;</text>
                     }
-                </td>
+                </MudTd>
             }
         </FooterContent>
         <PagerContent>

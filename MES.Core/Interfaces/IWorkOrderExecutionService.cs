@@ -22,4 +22,9 @@ public interface IWorkOrderExecutionService
     /// 获取筛选上下文（各列的筛选项列表）
     /// </summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
+
+    /// <summary>
+    /// 获取工单执行看板聚合数据（按 ScheduleStage × UrgencyLevel 分组）
+    /// </summary>
+    Task<List<WorkOrderExecutionDashboardItem>> GetDashboardSummaryAsync();
 }

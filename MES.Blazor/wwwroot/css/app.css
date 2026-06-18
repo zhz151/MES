@@ -445,10 +445,16 @@ input[type="number"]::-webkit-outer-spin-button {
     padding: 1px 1px !important;
 }
 
-/* table-layout: fixed + MudTh 显式列宽，各列宽度由 <th> 的 Style 决定 */
+/* 默认表格布局：列宽由 <th Style="width:xx"> 决定（偏好宽度，非强制）
+   未设宽度的列由内容撑开（如操作按钮），不会消失。
+   总宽超容器时 mud-table-container(overflow-x:auto) 自动滚动。 */
 .compact-table .mud-table-root {
-    width: max-content !important;
-    table-layout: fixed !important;
+    width: 100%;
+}
+
+/* 数据值居中显示（仅数据行，不包括表头） */
+.compact-table.mud-table tbody .mud-table-cell {
+    text-align: center !important;
 }
 
 /* 输入框填满所在单元格宽度 */
@@ -1238,3 +1244,10 @@ input[type="number"]::-webkit-outer-spin-button {
     background: #E3F2FD !important;
     border-radius: 4px;
 }
+
+/* ========== 列表页表格横向滚动（B34）========== */
+/* compact-table: width:max-content + table-layout:fixed
+   - 列宽总和 ≤ 视口 → 无滚动条，列宽按设定显示
+   - 列宽总和 > 视口 → mud-table-container(overflow-x:auto) 自动滚动
+   未设宽度的列由内容决定宽度（如操作列按钮）。
+   详见 04_开发规范.md §6.29 */

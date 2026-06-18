@@ -48,6 +48,8 @@ public partial class MaterialPlanOverview
     private HashSet<int> selectedWorkOrderIds = new();
     private int _currentPage = 1;
     private int _pageSize = 10;
+    private int _restoredPageIndex;
+    private bool _isFirstLoad = true;
     private string _searchKeyword = string.Empty;
 
     private string sortColumn = "CreatedTime";
@@ -163,6 +165,13 @@ public partial class MaterialPlanOverview
     private async Task<TableData<WorkOrderListDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        // 首次加载覆盖页码（MudTable 初始化时始终传 page=0）
+        if (_isFirstLoad)
+        {
+            state.Page = _restoredPageIndex;
+            _isFirstLoad = false;
+        }
+
         try
         {
             errorMessage = string.Empty;
@@ -396,6 +405,7 @@ public partial class MaterialPlanOverview
             sortColumn = savedState.SortBy ?? "CreatedTime";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
+            _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try

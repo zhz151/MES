@@ -62,6 +62,7 @@ public static class ApiEndpoints
     public const string OrderDemandAdjustment = "api/order-demand-adjustment";
     public const string Scan = "api/scan";
     public const string Workstation = "api/workstation";
+    public const string Employee = "api/employee";
 
     // ===== Scheduling 排程 =====
     public const string SectionProductionStatus = "api/section-production-status";
@@ -73,6 +74,13 @@ public static class ApiEndpoints
     public const string FinalInspectionPlan = "api/final-inspection-plan";
     public const string BatchPlanSchedule = "api/batch-plan-schedule";
     public const string BatchPlanTarget = "api/batch-plan-target";
+
+    // ===== Dashboard 看板 =====
+    public const string DashboardIndex = "api/dashboard/index";
+    public const string DashboardDailyOutput = "api/dashboard/daily-output";
+    public const string DashboardUrgency = "api/dashboard/urgency";
+    public const string DashboardSectionLoad = "api/dashboard/section-load";
+    public const string DashboardQuality = "api/dashboard/quality";
 
     // ===== Configuration 配置 =====
     public const string StandardWorkDay = "api/standard-work-day";

@@ -78,4 +78,9 @@ public class RepairOrder : BaseEntity
     /// 备件更换记录（JSON或简要文字）
     /// </summary>
     public string? SparePartUsed { get; set; }
+
+    /// <summary>
+    /// 辅助维修人（多人协作时补充，逗号分隔）
+    /// </summary>
+    public string? OtherRepairPersons { get; set; }
 }

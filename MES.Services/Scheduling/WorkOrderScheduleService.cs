@@ -150,6 +150,93 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
         };
     }
 
+    public async Task<List<WorkOrderScheduleDto>> GetAllAsync()
+    {
+        var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
+        var planQuery = _context.Set<WorkOrderPlan>().AsNoTracking();
+
+        var q = from e in summaryQuery
+                join p in planQuery on e.WorkOrderId equals p.WorkOrderId into pj
+                from p in pj.DefaultIfEmpty()
+                select new WorkOrderScheduleDto
+                {
+                    Id = e.Id,
+                    WorkOrderId = e.WorkOrderId,
+                    WorkOrderNo = e.WorkOrderNo,
+
+                    // G1
+                    Salesman = e.Salesman,
+                    CustomerName = e.CustomerName,
+                    SignDate = e.SignDate,
+                    DeliveryDate = e.DeliveryDate,
+                    DelayPenalty = e.DelayPenalty,
+                    SettlementMethod = e.SettlementMethod,
+                    SalesOrderNo = e.SalesOrderNo,
+                    ProductionMainNo = e.ProductionMainNo,
+                    ProductionSubNo = e.ProductionSubNo,
+                    MaterialName = e.MaterialName,
+                    DeliveryState = e.DeliveryState,
+                    PlantGrade = e.PlantGrade,
+                    Specification = e.Specification,
+                    LengthStatus = e.LengthStatus,
+                    MinLength = e.MinLength,
+                    MaxLength = e.MaxLength,
+                    TotalItemCount = e.TotalItemCount,
+                    TotalQuantity = e.TotalQuantity,
+                    TotalMeters = e.TotalMeters,
+                    TotalWeight = e.TotalWeight,
+
+                    // G7
+                    FlowOutputRatio = e.FlowOutputRatio,
+                    FlowStatus = e.FlowStatus,
+                    MainNoFlowOutputRatio = e.MainNoFlowOutputRatio,
+                    MainNoFlowStatus = e.MainNoFlowStatus,
+                    FlowTotalBatchCount = e.FlowTotalBatchCount,
+                    FlowIncompleteBatchCount = e.FlowIncompleteBatchCount,
+                    FlowMaxRemainingWorkDays = e.FlowMaxRemainingWorkDays,
+
+                    // G12
+                    ScheduleStage = e.ScheduleStage,
+                    TotalRemainingWorkDays = e.TotalRemainingWorkDays,
+                    CapacityWorkDays = e.CapacityWorkDays,
+                    UrgencyLevel = e.UrgencyLevel,
+                    EstimatedProcessCompletionDate = e.EstimatedProcessCompletionDate,
+                    DaysDiffFromDelivery = e.DaysDiffFromDelivery,
+                    RawMaterialLockRemark = e.RawMaterialLockRemark,
+
+                    // G13
+                    IsUrging = e.IsUrging,
+                    IsBatchDelivery = e.IsBatchDelivery,
+                    IsPaused = e.IsPaused,
+                    AdjustmentRemark = e.AdjustmentRemark,
+
+                    // G14
+                    PendingSectionRoughTube = e.PendingSectionRoughTube,
+                    PendingSectionWarehouseFix = e.PendingSectionWarehouseFix,
+                    PendingSection60Roll = e.PendingSection60Roll,
+                    PendingSection50Roll = e.PendingSection50Roll,
+                    PendingSection30Roll = e.PendingSection30Roll,
+                    PendingSection20Roll = e.PendingSection20Roll,
+                    PendingSectionThreeRoll = e.PendingSectionThreeRoll,
+                    PendingSectionDrawBench = e.PendingSectionDrawBench,
+                    DeformedProcessCompleted = e.DeformedProcessCompleted,
+                    ProductionAttentionProcess = e.ProductionAttentionProcess,
+                    ProductionFlowProperty = e.ProductionFlowProperty,
+                    MaxBatchRemainingWorkDays = e.MaxBatchRemainingWorkDays,
+                    MainNoAttentionProcess = e.MainNoAttentionProcess,
+
+                    // G15
+                    PlanScheduleStage = p != null ? p.ScheduleStage : null,
+                    PlanUrgencyLevel = p != null ? p.UrgencyLevel : null,
+                    PlanProductionAttentionProcess = p != null ? p.ProductionAttentionProcess : null,
+                    PlanProductionFlowProperty = p != null ? p.ProductionFlowProperty : null,
+                };
+
+        q = q.Where(x => x.ProductionFlowProperty != null && x.ProductionFlowProperty != "略");
+
+        return await q.OrderByDescending(x => x.DaysDiffFromDelivery).ToListAsync();
+    }
+
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
         var all = await _context.Set<WorkOrderExecutionSummary>()

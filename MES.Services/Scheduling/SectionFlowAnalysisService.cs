@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs;
+using MES.Core.Enums;
 using MES.Core.Interfaces;
 using MES.Data;
+using MES.Data.Entities;
 using MES.Data.Entities.Scheduling;
 
 namespace MES.Services.Scheduling;
@@ -83,6 +85,10 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
                 }
             }
 
+            // 转换为吨
+            pendingTotal = Math.Round(pendingTotal / 1000m, 0);
+            variationTotal = Math.Round(variationTotal / 1000m, 0);
+
             var sustainableDays = setting.DailyProductionTarget.HasValue && setting.DailyProductionTarget.Value > 0
                 ? Math.Round(variationTotal / setting.DailyProductionTarget.Value, 1)
                 : (decimal?)null;
@@ -113,16 +119,170 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
             };
         }).ToList();
 
-        // 4. 后处理：L(在制检) = Total(全部, 检验) - K.PendingTotal - M.PendingTotal
-        var lResult = results.FirstOrDefault(r => r.CategoryCode == "L");
-        var mResult = results.FirstOrDefault(r => r.CategoryCode == "M");
-        var kResult = results.FirstOrDefault(r => r.CategoryCode == "K");
-        if (lResult != null && mResult?.PendingTotal.HasValue == true && kResult?.PendingTotal.HasValue == true)
+        // 4. 后处理：E(在制检) = Total(全部, 检验) - D.PendingTotal - N.PendingTotal
+        var eResult = results.FirstOrDefault(r => r.CategoryCode == "E");
+        var nResult = results.FirstOrDefault(r => r.CategoryCode == "N");
+        var dResult = results.FirstOrDefault(r => r.CategoryCode == "D");
+        if (eResult != null && nResult?.PendingTotal.HasValue == true && dResult?.PendingTotal.HasValue == true)
         {
-            var rawL = lResult.PendingTotal ?? 0m;
-            var subtract = kResult.PendingTotal.Value + mResult.PendingTotal.Value;
-            lResult.PendingTotal = rawL > subtract ? rawL - subtract : null;
-            lResult.VariationTotal = lResult.PendingTotal > 0 ? lResult.PendingTotal : null;
+            var rawE = eResult.PendingTotal ?? 0m;
+            var subtract = dResult.PendingTotal.Value + nResult.PendingTotal.Value;
+            eResult.PendingTotal = rawE > subtract ? rawE - subtract : null;
+            eResult.VariationTotal = eResult.PendingTotal > 0 ? eResult.PendingTotal : null;
+        }
+
+        // 5. 重点批次统计（按类别汇总批次计划中的重点批次计数和重量，单位：吨）
+        var batchQuery = _context.ProductionBatches.AsNoTracking()
+            .Where(b => b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress);
+        var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
+
+        var batchJoin = from b in batchQuery
+                        join s in summaryQuery on b.WorkOrderNo equals s.WorkOrderNo into sj
+                        from s in sj.DefaultIfEmpty()
+                        select new
+                        {
+                            b.Id,
+                            b.CurrentValidWeight,
+                            b.CurrentSectionCompleted,
+                            b.CurrentGroupName,
+                            b.CurrentSectionName,
+                            b.NextProcess,
+                            b.NextSectionName,
+                            ScheduleStage = s != null ? (int?)s.ScheduleStage : null,
+                            UrgencyLevel = s != null ? s.UrgencyLevel : null,
+                            MainNoAttentionProcess = s != null ? s.MainNoAttentionProcess : null,
+                            IsUrging = s != null && s.IsUrging,
+                            IsBatchDelivery = s != null && s.IsBatchDelivery,
+                        };
+
+        var batches = await batchJoin.ToListAsync();
+
+        // 加载工序组，推导每个批次的末道工序
+        var batchIds = batches.Select(b => b.Id).Distinct().ToList();
+        var lastProcessLookup = await _context.Set<ProcessGroup>()
+            .AsNoTracking()
+            .Where(pg => batchIds.Contains(pg.ProductionBatchId))
+            .GroupBy(pg => pg.ProductionBatchId)
+            .ToDictionaryAsync(g => g.Key,
+                g => g.OrderByDescending(pg => pg.SequenceNumber)
+                    .Select(pg => pg.ProcessName)
+                    .FirstOrDefault());
+
+        var keyBatchStats = results.ToDictionary(r => r.Id, _ => (count: 0, weight: 0m));
+        // 额外跟踪检验类统计用于 E/N 后处理
+        var inspectionStats = (totalCount: 0, totalWeight: 0m, dCount: 0, dWeight: 0m, nCount: 0, nWeight: 0m);
+        var dSettingId = settings.FirstOrDefault(s => s.CategoryCode == "D")?.Id;
+        var eSettingId = settings.FirstOrDefault(s => s.CategoryCode == "E")?.Id;
+        var nSettingId = settings.FirstOrDefault(s => s.CategoryCode == "N")?.Id;
+
+        foreach (var b in batches)
+        {
+            if (b.ScheduleStage == null) continue;
+
+            var pendingProcess = b.CurrentSectionCompleted == false ? b.CurrentGroupName : b.NextProcess;
+            var pendingSection = b.CurrentSectionCompleted == false ? b.CurrentSectionName : b.NextSectionName;
+            if (string.IsNullOrEmpty(pendingProcess) || string.IsNullOrEmpty(pendingSection))
+                continue;
+
+            var uLevel = b.UrgencyLevel ?? "";
+            var isKeyBatch =
+                (b.ScheduleStage == 2 &&
+                 (uLevel == "A+急" || uLevel == "A急") &&
+                 (pendingProcess == "荒管处理" ||
+                  pendingProcess == b.MainNoAttentionProcess ||
+                  b.MainNoAttentionProcess is null or "收尾-成检"))
+                ||
+                (b.ScheduleStage == 1 &&
+                 (b.IsUrging || b.IsBatchDelivery) &&
+                 (uLevel == "A+急" || uLevel == "A急") &&
+                 (pendingProcess == "荒管处理" ||
+                  pendingProcess == b.MainNoAttentionProcess ||
+                  b.MainNoAttentionProcess is null or "收尾-成检"));
+
+            if (!isKeyBatch) continue;
+
+            var isInspection = string.Equals(pendingSection, "检验", StringComparison.OrdinalIgnoreCase);
+            var isFinalProcess = lastProcessLookup.TryGetValue(b.Id, out var lastProc)
+                && string.Equals(pendingProcess, lastProc, StringComparison.OrdinalIgnoreCase);
+            var weightTons = (b.CurrentValidWeight ?? 0m) / 1000m;
+
+            // 对于 D（荒管检）：直接匹配固定维度
+            if (dSettingId.HasValue
+                && string.Equals(pendingProcess, "荒管处理", StringComparison.OrdinalIgnoreCase)
+                && isInspection)
+            {
+                var stats = keyBatchStats[dSettingId.Value];
+                keyBatchStats[dSettingId.Value] = (stats.count + 1, stats.weight + weightTons);
+            }
+
+            // 对于 N（成品待检）：仅末道工序的检验批次
+            if (nSettingId.HasValue && isInspection && isFinalProcess)
+            {
+                var stats = keyBatchStats[nSettingId.Value];
+                keyBatchStats[nSettingId.Value] = (stats.count + 1, stats.weight + weightTons);
+            }
+
+            // 通用匹配（A-C, F-M）
+            foreach (var setting in settings)
+            {
+                if (setting.CategoryCode is "D" or "E" or "N") continue; // 已单独处理
+
+                foreach (var item in setting.Items)
+                {
+                    bool match;
+                    if (string.Equals(item.ProcessGroupName, "全部", StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(item.SectionName, "全部", StringComparison.OrdinalIgnoreCase))
+                        match = true;
+                    else if (string.Equals(item.ProcessGroupName, "全部", StringComparison.OrdinalIgnoreCase))
+                        match = string.Equals(pendingSection, item.SectionName, StringComparison.OrdinalIgnoreCase);
+                    else if (string.Equals(item.SectionName, "全部", StringComparison.OrdinalIgnoreCase))
+                        match = string.Equals(pendingProcess, item.ProcessGroupName, StringComparison.OrdinalIgnoreCase);
+                    else
+                        match = string.Equals(pendingProcess, item.ProcessGroupName, StringComparison.OrdinalIgnoreCase)
+                             && string.Equals(pendingSection, item.SectionName, StringComparison.OrdinalIgnoreCase);
+
+                    if (match)
+                    {
+                        var stats = keyBatchStats[setting.Id];
+                        keyBatchStats[setting.Id] = (stats.count + 1, stats.weight + weightTons);
+                        break;
+                    }
+                }
+            }
+
+            // 收集检验类统计（用于 E = 全部检验 - D - N）
+            if (isInspection)
+            {
+                inspectionStats.totalCount++;
+                inspectionStats.totalWeight += weightTons;
+                if (string.Equals(pendingProcess, "荒管处理", StringComparison.OrdinalIgnoreCase))
+                {
+                    inspectionStats.dCount++;
+                    inspectionStats.dWeight += weightTons;
+                }
+                if (isFinalProcess)
+                {
+                    inspectionStats.nCount++;
+                    inspectionStats.nWeight += weightTons;
+                }
+            }
+        }
+
+        // 计算 E（在制检）= 全部检验 - D - N
+        if (eSettingId.HasValue)
+        {
+            var eCount = inspectionStats.totalCount - inspectionStats.dCount - inspectionStats.nCount;
+            var eWeight = inspectionStats.totalWeight - inspectionStats.dWeight - inspectionStats.nWeight;
+            keyBatchStats[eSettingId.Value] = (eCount > 0 ? eCount : 0, eWeight > 0 ? eWeight : 0m);
+        }
+
+        foreach (var r in results)
+        {
+            if (keyBatchStats.TryGetValue(r.Id, out var stats) && stats.count > 0)
+            {
+                r.KeyBatchCount = stats.count;
+                r.KeyBatchWeight = stats.weight > 0 ? stats.weight : null;
+            }
         }
 
         return results;
@@ -147,10 +307,10 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
     {
         return categoryCode switch
         {
-            "K" => match.Total ?? 0m,                              // 荒管检：汇总量
-            "L" => match.Total ?? 0m,                              // 在制检：汇总量（后需整体减 M）
-            "M" => match.FinalProcessTotal ?? 0m,                  // 成品待检：所有工序组中工段=检验的属成品工序量
-            _ => match.Total ?? 0m                                 // A-J：汇总量
+            "D" => match.Total ?? 0m,                              // 荒管检：汇总量
+            "E" => match.Total ?? 0m,                              // 在制检：汇总量（后需整体减 N）
+            "N" => match.FinalProcessTotal ?? 0m,                  // 成品待检：所有工序组中工段=检验的属成品工序量
+            _ => match.Total ?? 0m                                 // A-C, F-M：汇总量
         };
     }
 

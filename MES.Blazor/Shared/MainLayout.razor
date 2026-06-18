@@ -16,6 +16,9 @@
 
             <!-- 水平导航菜单 -->
             <div class="top-nav" style="display: flex; align-items: center; gap: 2px; flex: 1; overflow: visible;">
+                <!-- 首页 -->
+                <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("")" OnClick='() => NavigateTo("/")'>首页</MudButton>
+
                 <!-- 订单模块 -->
                 <AuthorizeView Roles="@Roles.Policies.OrderRead">
                     <MudMenu Label="订单管理" Dense="true" FullWidth="false" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="@GetMenuClass("orders","order-demand-adjustment","customers","standards","grade-mappings")">
@@ -130,11 +133,8 @@
                 <!-- 扫码报工 -->
                 <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("mobile-report")" OnClick='() => NavigateTo("/mobile-report")'>扫码报工</MudButton>
 
-                <!-- 扫码维修 -->
-                <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("repair-execute")" OnClick='() => NavigateTo("/repair-execute")'>扫码维修</MudButton>
-
-                <!-- 扫码报修 -->
-                <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("equipment-repair")" OnClick='() => NavigateTo("/equipment-repair")'>扫码报修</MudButton>
+                <!-- 设备扫码（报修/维修统一入口） -->
+                <MudButton Variant="Variant.Text" Size="Size.Small" Class="@GetNavClass("equipment-scan")" OnClick='() => NavigateTo("/equipment-scan")'>设备扫码</MudButton>
 
                 <!-- 参数表 -->
                 <AuthorizeView Roles="@Roles.Policies.ConfigurationRead">
