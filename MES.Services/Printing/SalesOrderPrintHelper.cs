@@ -212,7 +212,7 @@ public static class SalesOrderPrintHelper
                 table.Cell().Element(CellStyle).Text(item.DelayPenalty ? "是" : "否").FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(GetSettlementText(item.SettlementMethod)).FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(GetMaterialText(item.MaterialName)).FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(item.ProductionStandardCode).FontSize(6).AlignCenter();
+                table.Cell().Element(CellStyle).Text(item.StandardNo).FontSize(6).AlignCenter();
                 table.Cell().Element(CellStyle).Text(GetDeliveryStateText(item.DeliveryState)).FontSize(6).AlignCenter();
                 table.Cell().Element(CellStyle).Text(item.StandardGrade).FontSize(6).AlignCenter();
                 table.Cell().Element(CellStyle).Text(item.Specification).FontSize(6).AlignCenter();

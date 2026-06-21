@@ -9,7 +9,7 @@
 @inject OrderService OrderService
 @inject CustomerService CustomerService
 @inject ProductRequirementService RequirementService
-@inject ProductionStandardService StandardService
+@inject StandardRegisterService StandardService
 @inject GradeMappingService GradeMappingService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -234,7 +234,7 @@
         public bool DelayPenalty { get; set; }
         public SettlementMethod SettlementMethod { get; set; } = SettlementMethod.Theoretical;
         public MaterialName MaterialName { get; set; } = MaterialName.SeamlessPipe;
-        public int ProductionStandardId { get; set; }
+        public string StandardNo { get; set; } = string.Empty;
         public DeliveryState DeliveryState { get; set; } = DeliveryState.SolutionAnnealedAndPickled;
         public string StandardGrade { get; set; } = string.Empty;
         public decimal OuterDiameter { get; set; }
@@ -251,7 +251,6 @@
         public decimal ContractWeight { get; set; }
         public decimal TheoreticalWeight { get; set; }
         public string? Remark { get; set; }
-        public string ProductionStandardCode { get; set; } = string.Empty;
         public string PlantGrade { get; set; } = string.Empty;
         public decimal Density { get; set; }
     }
@@ -260,7 +259,7 @@
     private List<OrderItemViewModel> _editItems = new();
     private List<int> _itemsToDelete = new();
     private List<CustomerProfileDto> _allCustomers = new();
-    private List<ProductionStandardDto> _productionStandards = new();
+    private List<StandardRegisterDto> _productionStandards = new();
     private List<StandardGradeMappingDto> _gradeMappings = new();
 
     // ========== 单行列表辅助（header表） ==========
@@ -381,13 +380,14 @@
         StateHasChanged();
         try
         {
-            var standardsTask = StandardService.GetAllAsync(false);
+            var standardsTask = StandardService.GetAllAsync();
             var gradesTask = GradeMappingService.GetAllAsync();
             var customersTask = CustomerService.GetAllAsync();
             var orderTask = OrderService.GetByIdAsync(Id);
             await Task.WhenAll(standardsTask, gradesTask, customersTask, orderTask);
 
-            _productionStandards = await standardsTask;
+            var standardsResult = await standardsTask;
+            _productionStandards = standardsResult.Data ?? new();
             _gradeMappings = await gradesTask;
             _allCustomers = await customersTask;
             var result = await orderTask;
@@ -440,7 +440,7 @@
             DelayPenalty = i.DelayPenalty,
             SettlementMethod = i.SettlementMethod,
             MaterialName = i.MaterialName,
-            ProductionStandardId = _productionStandards.FirstOrDefault(s => s.StandardCode == i.ProductionStandardCode)?.Id ?? 1,
+            StandardNo = i.StandardNo,
             DeliveryState = i.DeliveryState,
             StandardGrade = i.StandardGrade,
             OuterDiameter = i.OuterDiameter,
@@ -457,7 +457,6 @@
             ContractWeight = i.ContractWeight,
             TheoreticalWeight = i.TheoreticalWeight,
             Remark = i.Remark,
-            ProductionStandardCode = i.ProductionStandardCode,
             PlantGrade = i.PlantGrade,
             Density = i.Density
         }).ToList();
@@ -470,7 +469,7 @@
             DelayPenalty = i.DelayPenalty,
             SettlementMethod = i.SettlementMethod,
             MaterialName = i.MaterialName,
-            ProductionStandardId = i.ProductionStandardId,
+            StandardNo = i.StandardNo,
             DeliveryState = i.DeliveryState,
             StandardGrade = i.StandardGrade,
             OuterDiameter = i.OuterDiameter,
@@ -487,7 +486,6 @@
             ContractWeight = i.ContractWeight,
             TheoreticalWeight = i.TheoreticalWeight,
             Remark = i.Remark,
-            ProductionStandardCode = i.ProductionStandardCode,
             PlantGrade = i.PlantGrade,
             Density = i.Density
         }).ToList();
@@ -622,7 +620,7 @@
             DelayPenalty = false,
             SettlementMethod = default,
             MaterialName = default,
-            ProductionStandardId = 0,
+            StandardNo = string.Empty,
             DeliveryState = default,
             StandardGrade = string.Empty,
             OuterDiameter = 0,
@@ -639,7 +637,6 @@
             ContractWeight = 0,
             TheoreticalWeight = 0,
             Remark = null,
-            ProductionStandardCode = string.Empty,
             PlantGrade = string.Empty,
             Density = 0
         });
@@ -662,7 +659,7 @@
             DelayPenalty = last.DelayPenalty,
             SettlementMethod = last.SettlementMethod,
             MaterialName = last.MaterialName,
-            ProductionStandardId = last.ProductionStandardId,
+            StandardNo = last.StandardNo,
             DeliveryState = last.DeliveryState,
             StandardGrade = last.StandardGrade,
             OuterDiameter = last.OuterDiameter,
@@ -679,7 +676,6 @@
             ContractWeight = 0,
             TheoreticalWeight = 0,
             Remark = last.Remark,
-            ProductionStandardCode = last.ProductionStandardCode,
             PlantGrade = last.PlantGrade,
             Density = last.Density
         });
@@ -871,7 +867,7 @@
                     DelayPenalty = item.DelayPenalty,
                     SettlementMethod = item.SettlementMethod,
                     MaterialName = item.MaterialName,
-                    ProductionStandardId = item.ProductionStandardId,
+                    StandardNo = item.StandardNo,
                     DeliveryState = item.DeliveryState,
                     StandardGrade = item.StandardGrade,
                     OuterDiameter = item.OuterDiameter,
@@ -1179,9 +1175,9 @@
             case "productionstandard":
                 if (_isEditMode)
                 {
-                    builder.OpenComponent<MudSelect<int>>(0);
-                    builder.AddAttribute(1, "Value", item.ProductionStandardId);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int>(this, v => item.ProductionStandardId = v));
+                    builder.OpenComponent<MudSelect<string>>(0);
+                    builder.AddAttribute(1, "Value", item.StandardNo);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => item.StandardNo = v));
                     builder.AddAttribute(3, "Dense", true);
                     builder.AddAttribute(4, "Variant", Variant.Outlined);
                     builder.AddAttribute(5, "Size", Size.Small);
@@ -1189,15 +1185,15 @@
                     {
                         foreach (var std in _productionStandards)
                         {
-                            cb.OpenComponent<MudSelectItem<int>>(0);
-                            cb.AddAttribute(1, "Value", std.Id);
-                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, std.StandardCode)));
+                            cb.OpenComponent<MudSelectItem<string>>(0);
+                            cb.AddAttribute(1, "Value", std.StandardNo);
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, std.StandardNo)));
                             cb.CloseComponent();
                         }
                     }));
                     builder.CloseComponent();
                 }
-                else { builder.AddContent(0, item.ProductionStandardCode); }
+                else { builder.AddContent(0, item.StandardNo); }
                 break;
             case "deliverystate":
                 if (_isEditMode)

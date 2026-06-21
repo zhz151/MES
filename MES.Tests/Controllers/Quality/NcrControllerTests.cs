@@ -31,7 +31,7 @@ public class NcrControllerTests : ControllerTestBase
         _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>())).ReturnsAsync(pagedResult);
 
         // Act
-        var result = await _controller.GetAll(new QueryParams());
+        var result = await _controller.GetAll();
 
         // Assert
         var (_, response) = AssertOk<ApiResponse<PagedResult<NcrDto>>>(result);
@@ -46,10 +46,8 @@ public class NcrControllerTests : ControllerTestBase
         _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>()))
             .ReturnsAsync(new PagedResult<NcrDto> { Items = new List<NcrDto>() });
 
-        var query = new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "BATCH001", SortBy = "reportdate" };
-
         // Act
-        await _controller.GetAll(query);
+        await _controller.GetAll(pageIndex: 1, pageSize: 20, keyword: "BATCH001", sortBy: "reportdate");
 
         // Assert
         _serviceMock.Verify(x => x.GetAllAsync(It.Is<QueryParams>(q =>

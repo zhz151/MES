@@ -231,18 +231,18 @@ public class OrderService : IOrderService
             .Where(oi => oi.SalesOrderId == id)
             .ToListAsync();
 
-        // 4. 加载产品标准字典
-        var psIds = orderItems
-            .Where(oi => oi.ProductionStandardId > 0)
-            .Select(oi => oi.ProductionStandardId)
+        // 4. 加载标准号字典
+        var standardNos = orderItems
+            .Where(oi => !string.IsNullOrEmpty(oi.StandardNo))
+            .Select(oi => oi.StandardNo)
             .Distinct()
             .ToList();
-        var psDict = psIds.Any()
-            ? await _context.ProductionStandards
+        var srDict = standardNos.Any()
+            ? await _context.StandardRegisters
                 .AsNoTracking()
-                .Where(ps => psIds.Contains(ps.Id))
-                .ToDictionaryAsync(ps => ps.Id, ps => ps)
-            : new Dictionary<int, ProductionStandard>();
+                .Where(sr => standardNos.Contains(sr.StandardNo))
+                .ToDictionaryAsync(sr => sr.StandardNo, sr => sr, StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, Data.Entities.StandardRegister>(StringComparer.OrdinalIgnoreCase);
 
         // 5. 加载牌号映射
         var gradeDict = await LoadGradeMappingsDictAsync(orderItems);
@@ -261,7 +261,6 @@ public class OrderService : IOrderService
             RowVersion = salesOrder.RowVersion,
             Items = orderItems.Select(oi =>
             {
-                psDict.TryGetValue(oi.ProductionStandardId, out var ps);
                 return new OrderItemDto
                 {
                     Id = oi.Id,
@@ -270,7 +269,7 @@ public class OrderService : IOrderService
                     DelayPenalty = oi.DelayPenalty,
                     SettlementMethod = oi.SettlementMethod,
                     MaterialName = oi.MaterialName,
-                    ProductionStandardCode = ps?.StandardCode ?? string.Empty,
+                    StandardNo = oi.StandardNo ?? string.Empty,
                     DeliveryState = oi.DeliveryState,
                     StandardGrade = oi.StandardGrade,
                     PlantGrade = gradeDict.TryGetValue(oi.StandardGrade, out var gm) ? gm.PlantGrade : oi.PlantGrade,
@@ -560,12 +559,6 @@ public async Task DeleteAsync(int id)
         {
             await _context.SaveChangesAsync();
 
-            if (orderItem.ProductionStandard == null && orderItem.ProductionStandardId > 0)
-            {
-                orderItem.ProductionStandard = await _context.ProductionStandards
-                    .FirstOrDefaultAsync(ps => ps.Id == orderItem.ProductionStandardId) ?? null!;
-            }
-
             await CreateItemChangedNotificationIfNeededAsync(orderId);
             await transaction.CommitAsync();
         }
@@ -593,7 +586,6 @@ public async Task DeleteAsync(int id)
             throw new BusinessException("已取消的订单不能修改项次");
 
         var orderItem = await _context.OrderItems
-            .Include(oi => oi.ProductionStandard)
             .FirstOrDefaultAsync(oi => oi.Id == itemId && oi.SalesOrderId == orderId);
 
         if (orderItem == null)
@@ -610,8 +602,9 @@ public async Task DeleteAsync(int id)
 
         var gradeMapping = await _context.StandardGradeMappings
             .FirstOrDefaultAsync(sgm => sgm.StandardGrade == request.StandardGrade);
-        if (gradeMapping == null)
-            throw new BusinessException($"标准牌号 '{request.StandardGrade}' 不存在");
+
+        var plantGrade = gradeMapping?.PlantGrade ?? orderItem.PlantGrade;
+        var density = gradeMapping?.Density ?? orderItem.Density;
 
         ValidateLengthStatus(request.LengthStatus, request.MinLength, request.MaxLength);
 
@@ -626,28 +619,23 @@ public async Task DeleteAsync(int id)
         var meters = CalculateMeters(request.LengthStatus, request.MinLength, request.MaxLength, request.Quantity, request.Meters);
         var metersValue = meters ?? 0m;
         var theoreticalWeight = CalculateTheoreticalWeight(
-            gradeMapping.Density,
+            density,
             normalizedOuterDiameter,
             normalizedWallThickness,
             normalizedOuterDiameterNegative, normalizedOuterDiameterPositive,
             normalizedWallThicknessNegative, normalizedWallThicknessPositive,
             metersValue);
 
-        var productionStandard = await _context.ProductionStandards
-            .FirstOrDefaultAsync(ps => ps.Id == request.ProductionStandardId);
-        if (productionStandard == null)
-            throw new BusinessException("产品标准不存在");
-
         SetOrderItemFields(orderItem,
             deliveryDate: request.DeliveryDate,
             delayPenalty: request.DelayPenalty,
             settlementMethod: request.SettlementMethod,
             materialName: request.MaterialName,
-            productionStandardId: request.ProductionStandardId,
+            standardNo: request.StandardNo,
             deliveryState: request.DeliveryState,
             standardGrade: request.StandardGrade,
-            plantGrade: gradeMapping.PlantGrade,
-            density: gradeMapping.Density,
+            plantGrade: plantGrade,
+            density: density,
             outerDiameter: normalizedOuterDiameter,
             wallThickness: normalizedWallThickness,
             specification: $"{normalizedOuterDiameter}*{normalizedWallThickness}",
@@ -743,18 +731,20 @@ public async Task DeleteAsync(int id)
         _context.Entry(salesOrder).Property(x => x.RowVersion).OriginalValue = request.RowVersion;
 
         // 3. 批量加载引用数据（消除 N+1）
-        var allPsIds = request.NewItems.Concat(request.UpdatedItems)
-            .Select(i => i.ProductionStandardId).Distinct().ToList();
+        var allStandardNos = request.NewItems.Concat(request.UpdatedItems)
+            .Select(i => i.StandardNo).Distinct().ToList();
         var allGradeNames = request.NewItems.Concat(request.UpdatedItems)
             .Select(i => i.StandardGrade).Distinct().ToList();
 
-        var psDict = allPsIds.Any()
-            ? await _context.ProductionStandards.Where(ps => allPsIds.Contains(ps.Id))
-                .ToDictionaryAsync(ps => ps.Id, ps => ps)
-            : new Dictionary<int, ProductionStandard>();
+        var srDict = allStandardNos.Any()
+            ? await _context.StandardRegisters.Where(sr => allStandardNos.Contains(sr.StandardNo))
+                .ToDictionaryAsync(sr => sr.StandardNo, sr => sr, StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, Data.Entities.StandardRegister>(StringComparer.OrdinalIgnoreCase);
         var gradeDict = allGradeNames.Any()
-            ? await _context.StandardGradeMappings.Where(sgm => allGradeNames.Contains(sgm.StandardGrade))
-                .ToDictionaryAsync(sgm => sgm.StandardGrade, sgm => sgm)
+            ? (await _context.StandardGradeMappings.Where(sgm => allGradeNames.Contains(sgm.StandardGrade))
+                .ToListAsync())
+                .GroupBy(sgm => sgm.StandardGrade, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase)
             : new Dictionary<string, StandardGradeMapping>();
 
         var existingItems = salesOrder.OrderItems.ToDictionary(oi => oi.Id);
@@ -770,8 +760,8 @@ public async Task DeleteAsync(int id)
 
         foreach (var itemReq in request.NewItems.Concat(request.UpdatedItems))
         {
-            if (!psDict.ContainsKey(itemReq.ProductionStandardId))
-                throw new BusinessException($"产品标准 ID={itemReq.ProductionStandardId} 不存在");
+            if (!srDict.ContainsKey(itemReq.StandardNo))
+                throw new BusinessException($"标准号 '{itemReq.StandardNo}' 不存在");
             if (!gradeDict.ContainsKey(itemReq.StandardGrade))
                 throw new BusinessException($"标准牌号 '{itemReq.StandardGrade}' 不存在");
             ValidateLengthStatus(itemReq.LengthStatus, itemReq.MinLength, itemReq.MaxLength);
@@ -834,7 +824,7 @@ public async Task DeleteAsync(int id)
                 SetOrderItemFields(orderItem,
                     deliveryDate: updateReq.DeliveryDate, delayPenalty: updateReq.DelayPenalty,
                     settlementMethod: updateReq.SettlementMethod, materialName: updateReq.MaterialName,
-                    productionStandardId: updateReq.ProductionStandardId, deliveryState: updateReq.DeliveryState,
+                    standardNo: updateReq.StandardNo, deliveryState: updateReq.DeliveryState,
                     standardGrade: updateReq.StandardGrade, plantGrade: gradeMapping.PlantGrade,
                     density: gradeMapping.Density, outerDiameter: normalizedOd, wallThickness: normalizedWt,
                     specification: $"{normalizedOd}*{normalizedWt}",
@@ -885,7 +875,7 @@ public async Task DeleteAsync(int id)
                 SetOrderItemFields(orderItem,
                     deliveryDate: newReq.DeliveryDate, delayPenalty: newReq.DelayPenalty,
                     settlementMethod: newReq.SettlementMethod, materialName: newReq.MaterialName,
-                    productionStandardId: newReq.ProductionStandardId, deliveryState: newReq.DeliveryState,
+                    standardNo: newReq.StandardNo, deliveryState: newReq.DeliveryState,
                     standardGrade: newReq.StandardGrade, plantGrade: gradeMapping.PlantGrade,
                     density: gradeMapping.Density, outerDiameter: normalizedOd, wallThickness: normalizedWt,
                     specification: $"{normalizedOd}*{normalizedWt}",
@@ -1018,11 +1008,6 @@ public async Task DeleteAsync(int id)
         var lowerBound = await GetConfigAsync("ContractWeight", "LowerBound", 0.94m);
         var upperBound = await GetConfigAsync("ContractWeight", "UpperBound", 1.06m);
 
-        var productionStandard = await _context.ProductionStandards
-            .FirstOrDefaultAsync(ps => ps.Id == request.ProductionStandardId);
-        if (productionStandard == null)
-            throw new BusinessException("产品标准不存在");
-
         var gradeMapping = await _context.StandardGradeMappings
             .FirstOrDefaultAsync(sgm => sgm.StandardGrade == request.StandardGrade);
         if (gradeMapping == null)
@@ -1060,7 +1045,7 @@ public async Task DeleteAsync(int id)
             delayPenalty: request.DelayPenalty,
             settlementMethod: request.SettlementMethod,
             materialName: request.MaterialName,
-            productionStandardId: request.ProductionStandardId,
+            standardNo: request.StandardNo,
             deliveryState: request.DeliveryState,
             standardGrade: request.StandardGrade,
             plantGrade: gradeMapping.PlantGrade,
@@ -1088,11 +1073,6 @@ public async Task DeleteAsync(int id)
         var lowerBound = await GetConfigAsync("ContractWeight", "LowerBound", 0.94m);
         var upperBound = await GetConfigAsync("ContractWeight", "UpperBound", 1.06m);
 
-        var productionStandard = await _context.ProductionStandards
-            .FirstOrDefaultAsync(ps => ps.Id == request.ProductionStandardId);
-        if (productionStandard == null)
-            throw new BusinessException("产品标准不存在");
-
         var gradeMapping = await _context.StandardGradeMappings
             .FirstOrDefaultAsync(sgm => sgm.StandardGrade == request.StandardGrade);
         if (gradeMapping == null)
@@ -1130,7 +1110,7 @@ public async Task DeleteAsync(int id)
             delayPenalty: request.DelayPenalty,
             settlementMethod: request.SettlementMethod,
             materialName: request.MaterialName,
-            productionStandardId: request.ProductionStandardId,
+            standardNo: request.StandardNo,
             deliveryState: request.DeliveryState,
             standardGrade: request.StandardGrade,
             plantGrade: gradeMapping.PlantGrade,
@@ -1255,7 +1235,7 @@ public async Task DeleteAsync(int id)
 
     private static void SetOrderItemFields(OrderItem item,
         DateTime deliveryDate, bool delayPenalty, SettlementMethod settlementMethod, MaterialName materialName,
-        int productionStandardId, DeliveryState deliveryState, string standardGrade, string plantGrade,
+        string standardNo, DeliveryState deliveryState, string standardGrade, string plantGrade,
         decimal density, decimal outerDiameter, decimal wallThickness, string specification,
         decimal outerDiameterNegative, decimal outerDiameterPositive, decimal wallThicknessNegative,
         decimal wallThicknessPositive, LengthStatus lengthStatus, decimal? minLength, decimal? maxLength,
@@ -1265,7 +1245,7 @@ public async Task DeleteAsync(int id)
         item.DelayPenalty = delayPenalty;
         item.SettlementMethod = settlementMethod;
         item.MaterialName = materialName;
-        item.ProductionStandardId = productionStandardId;
+        item.StandardNo = standardNo;
         item.DeliveryState = deliveryState;
         item.StandardGrade = standardGrade;
         item.PlantGrade = plantGrade;
@@ -1289,12 +1269,6 @@ public async Task DeleteAsync(int id)
 
     private async Task<OrderItemDto> MapToOrderItemDto(OrderItem orderItem)
     {
-        if (orderItem.ProductionStandard == null && orderItem.ProductionStandardId > 0)
-        {
-            orderItem.ProductionStandard = await _context.ProductionStandards
-                .FirstOrDefaultAsync(ps => ps.Id == orderItem.ProductionStandardId) ?? null!;
-        }
-
         return new OrderItemDto
         {
             Id = orderItem.Id,
@@ -1303,7 +1277,7 @@ public async Task DeleteAsync(int id)
             DelayPenalty = orderItem.DelayPenalty,
             SettlementMethod = orderItem.SettlementMethod,
             MaterialName = orderItem.MaterialName,
-            ProductionStandardCode = orderItem.ProductionStandard?.StandardCode ?? string.Empty,
+            StandardNo = orderItem.StandardNo ?? string.Empty,
             DeliveryState = orderItem.DeliveryState,
             StandardGrade = orderItem.StandardGrade,
             PlantGrade = orderItem.PlantGrade,
@@ -1337,9 +1311,11 @@ public async Task DeleteAsync(int id)
         if (gradeNames.Count == 0)
             return new Dictionary<string, StandardGradeMapping>();
 
-        return await _context.StandardGradeMappings
+        return (await _context.StandardGradeMappings
             .Where(sgm => gradeNames.Contains(sgm.StandardGrade))
-            .ToDictionaryAsync(sgm => sgm.StandardGrade);
+            .ToListAsync())
+            .GroupBy(sgm => sgm.StandardGrade, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
     }
 
     private static bool CanTransitionTo(SalesOrderStatus current, SalesOrderStatus target)
@@ -1410,16 +1386,16 @@ public async Task DeleteAsync(int id)
             .Where(c => customerIds.Contains(c.Id))
             .ToDictionaryAsync(c => c.Id, c => c);
 
-        var psIds = salesOrders.SelectMany(so => so.OrderItems)
-            .Where(oi => oi.ProductionStandardId > 0)
-            .Select(oi => oi.ProductionStandardId)
+        var allStandardNos = salesOrders.SelectMany(so => so.OrderItems)
+            .Where(oi => !string.IsNullOrEmpty(oi.StandardNo))
+            .Select(oi => oi.StandardNo)
             .Distinct()
             .ToList();
-        var psDict = psIds.Any()
-            ? await _context.ProductionStandards
-                .Where(ps => psIds.Contains(ps.Id))
-                .ToDictionaryAsync(ps => ps.Id, ps => ps)
-            : new Dictionary<int, ProductionStandard>();
+        var srDict = allStandardNos.Any()
+            ? await _context.StandardRegisters
+                .Where(sr => allStandardNos.Contains(sr.StandardNo))
+                .ToDictionaryAsync(sr => sr.StandardNo, sr => sr, StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, Data.Entities.StandardRegister>(StringComparer.OrdinalIgnoreCase);
 
         // 加载牌号映射（从 StandardGradeMapping 取最新 PlantGrade/Density）
         var allOrderItems = salesOrders.SelectMany(so => so.OrderItems).ToList();
@@ -1441,7 +1417,6 @@ public async Task DeleteAsync(int id)
                 RowVersion = so.RowVersion,
                 Items = so.OrderItems.Select(oi =>
                 {
-                    psDict.TryGetValue(oi.ProductionStandardId, out var ps);
                     return new OrderItemDto
                     {
                         Id = oi.Id,
@@ -1450,7 +1425,7 @@ public async Task DeleteAsync(int id)
                         DelayPenalty = oi.DelayPenalty,
                         SettlementMethod = oi.SettlementMethod,
                         MaterialName = oi.MaterialName,
-                        ProductionStandardCode = ps?.StandardCode ?? string.Empty,
+                        StandardNo = oi.StandardNo ?? string.Empty,
                         DeliveryState = oi.DeliveryState,
                         StandardGrade = oi.StandardGrade,
                         PlantGrade = gradeDict.TryGetValue(oi.StandardGrade, out var gm) ? gm.PlantGrade : oi.PlantGrade,

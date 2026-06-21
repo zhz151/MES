@@ -22,6 +22,7 @@ using MES.Services.DataFix;
 using MES.Services.Order;
 using MES.Services.Orders;
 using MES.Services.Configuration;
+using MES.Services.ProductionStandard;
 using MES.Services.Scheduling;
 using QuestPDF.Infrastructure;
 using MES.Shared.Settings;
@@ -130,14 +131,16 @@ builder.Services.AddSwaggerGen(c =>
 // Register authentication services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 
 // Register order service
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 // Register auxiliary services
 builder.Services.AddScoped<ICustomerService, CustomerService>();
-builder.Services.AddScoped<IProductionStandardService, ProductionStandardService>();
 builder.Services.AddScoped<IGradeMappingService, GradeMappingService>();
+builder.Services.AddScoped<IGradeChemicalCompositionService, GradeChemicalCompositionService>();
+builder.Services.AddScoped<IGradePhysicalPropertyService, GradePhysicalPropertyService>();
 builder.Services.AddScoped<IStandardProcessCycleService, StandardProcessCycleService>();
 builder.Services.AddScoped<IStandardWorkDayService, StandardWorkDayService>();
 builder.Services.AddScoped<IStandardWorkDayDeliveryStateService, StandardWorkDayDeliveryStateService>();
@@ -185,6 +188,7 @@ builder.Services.AddScoped<IDataFixService, DataFixService>();
 builder.Services.AddScoped<IScanService, ScanService>();
 builder.Services.AddScoped<IWorkstationService, WorkstationService>();
 builder.Services.AddScoped<IEmployeeService, MES.Services.Configuration.EmployeeService>();
+builder.Services.AddScoped<IStandardRegisterService, MES.Services.StandardRegister.StandardRegisterService>();
 
 // ========== 读模型上下文 ==========
 builder.Services.AddScoped<IWorkOrderExecutionService, WorkOrderExecutionService>();

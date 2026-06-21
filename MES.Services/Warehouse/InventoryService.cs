@@ -454,7 +454,8 @@ public class InventoryService : IInventoryService
                 .Select(r => r.SourceOrderNo ?? request.SourceOrderNo)
                 .Where(n => !string.IsNullOrEmpty(n))
                 .Distinct()
-                .ToList()!;
+                .Select(n => n!)
+                .ToList();
             await SyncSourceOrdersAsync(sourceOrderNos);
 
             return new BatchInboundResult

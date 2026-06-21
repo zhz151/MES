@@ -283,7 +283,7 @@ public class MaterialService : IMaterialService
             ["MaterialCategory"] = await query.Where(m => m.MaterialCategory != null).Select(m => m.MaterialCategory).Distinct().OrderBy(x => x).ToListAsync(),
             ["PlantGrade"] = await query.Where(m => m.PlantGrade != null).Select(m => m.PlantGrade).Distinct().OrderBy(x => x).ToListAsync(),
             ["Specification"] = await query.Where(m => m.Specification != null).Select(m => m.Specification).Distinct().OrderBy(x => x).ToListAsync(),
-            ["Remark"] = await query.Where(m => m.Remark != null).Select(m => m.Remark).Distinct().OrderBy(x => x).ToListAsync(),
+            ["Remark"] = await query.Where(m => m.Remark != null).Select(m => m.Remark!).Distinct().OrderBy(x => x).ToListAsync(),
             ["IsActive"] = await query.Select(m => m.IsActive.ToString()).Distinct().OrderBy(x => x).ToListAsync(),
         };
     }

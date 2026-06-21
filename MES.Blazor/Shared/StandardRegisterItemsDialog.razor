@@ -1,0 +1,219 @@
+@* 标准号子项目管理弹窗 *@
+@namespace MES.Blazor.Shared
+@using MES.Core.DTOs
+@inject ISnackbar Snackbar
+@inject MES.Blazor.Services.StandardRegisterService Svc
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            子项目 - @StandardNo
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Add" OnClick="AddItem" Class="mb-3">
+            新增行
+        </MudButton>
+
+        <MudTable Items="@_items"
+                  Dense="true"
+                  Hover="true"
+                  Elevation="0"
+                  Class="auto-table"
+                  Striped="true">
+            <HeaderContent>
+                <MudTh Style="width:50px;">序号</MudTh>
+                <MudTh Style="width:120px;">检验项目类别</MudTh>
+                <MudTh Style="width:150px;">检验项目</MudTh>
+                <MudTh Style="width:70px;">强制性</MudTh>
+                <MudTh Style="width:150px;">取样要求</MudTh>
+                <MudTh Style="width:120px;">适用范围</MudTh>
+                <MudTh Style="width:120px;">引用标准</MudTh>
+                <MudTh>详细要求</MudTh>
+                <MudTh Style="width:80px;">操作</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="item">
+                <MudTd>
+                    <MudTextField @bind-Value="item.SeqNo"
+                                  T="int"
+                                  Dense="true"
+                                  Variant="Variant.Outlined"
+                                  HideSpinButtons="true"
+                                  Style="width:50px;" />
+                </MudTd>
+                <MudTd>
+                    <MudTextField @bind-Value="item.InspectionCategory"
+                                  T="string"
+                                  Dense="true"
+                                  Variant="Variant.Outlined"
+                                  Style="width:120px;" />
+                </MudTd>
+                <MudTd>
+                    <MudTextField @bind-Value="item.InspectionItem"
+                                  T="string"
+                                  Dense="true"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  Style="width:150px;" />
+                </MudTd>
+                <MudTd>
+                    <MudSelect @bind-Value="item.IsMandatory"
+                               T="string"
+                               Dense="true"
+                               Variant="Variant.Outlined"
+                               Style="width:70px;">
+                        <MudSelectItem Value="@("是")">是</MudSelectItem>
+                        <MudSelectItem Value="@("否")">否</MudSelectItem>
+                    </MudSelect>
+                </MudTd>
+                <MudTd>
+                    <MudTextField @bind-Value="item.SamplingRequirement"
+                                  T="string"
+                                  Dense="true"
+                                  Variant="Variant.Outlined"
+                                  Style="width:150px;" />
+                </MudTd>
+                <MudTd>
+                    <MudTextField @bind-Value="item.ApplicableRange"
+                                  T="string"
+                                  Dense="true"
+                                  Variant="Variant.Outlined"
+                                  Style="width:120px;" />
+                </MudTd>
+                <MudTd>
+                    <MudTextField @bind-Value="item.RefStandard"
+                                  T="string"
+                                  Dense="true"
+                                  Variant="Variant.Outlined"
+                                  Style="width:120px;" />
+                </MudTd>
+                <MudTd>
+                    <MudTextField @bind-Value="item.DetailRequirement"
+                                  T="string"
+                                  Dense="true"
+                                  Variant="Variant.Outlined"
+                                  Style="min-width:150px;" />
+                </MudTd>
+                <MudTd Style="white-space: nowrap;">
+                    <MudIconButton Icon="@Icons.Material.Filled.Save"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   Title="保存"
+                                   OnClick="@(() => SaveItem(item))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                   Color="Color.Error"
+                                   Size="Size.Small"
+                                   Title="删除"
+                                   OnClick="@(() => DeleteItem(item))" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-2" Dense="true">@_errorMessage</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">关闭</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public int StandardRegisterId { get; set; }
+    [Parameter] public string StandardNo { get; set; } = "";
+
+    private List<StandardRegisterItemDto> _items = new();
+    private string _errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadItems();
+    }
+
+    private async Task LoadItems()
+    {
+        try
+        {
+            var result = await Svc.GetItemsAsync(StandardRegisterId);
+            if (result.Success && result.Data != null)
+            {
+                _items = result.Data;
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"加载子项目失败: {ex.Message}";
+        }
+    }
+
+    private void AddItem()
+    {
+        var maxSeq = _items.Count > 0 ? _items.Max(i => i.SeqNo) : 0;
+        _items.Add(new StandardRegisterItemDto
+        {
+            StandardRegisterId = StandardRegisterId,
+            SeqNo = maxSeq + 1,
+            InspectionItem = ""
+        });
+    }
+
+    private async Task SaveItem(StandardRegisterItemDto item)
+    {
+        if (string.IsNullOrWhiteSpace(item.InspectionItem))
+        {
+            Snackbar.Add("检验项目不能为空", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var result = await Svc.SaveItemAsync(item);
+            if (result.Success)
+            {
+                Snackbar.Add("保存成功", Severity.Success);
+                await LoadItems();
+            }
+            else
+            {
+                _errorMessage = result.Message ?? "保存失败";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"保存失败: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteItem(StandardRegisterItemDto item)
+    {
+        if (item.Id == 0)
+        {
+            _items.Remove(item);
+            return;
+        }
+
+        try
+        {
+            var result = await Svc.DeleteItemAsync(item.Id);
+            if (result.Success)
+            {
+                Snackbar.Add("删除成功", Severity.Success);
+                await LoadItems();
+            }
+            else
+            {
+                _errorMessage = result.Message ?? "删除失败";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"删除失败: {ex.Message}";
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

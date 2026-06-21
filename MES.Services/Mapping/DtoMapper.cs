@@ -10,20 +10,11 @@ namespace MES.Services.Mapping;
 /// </summary>
 public static class DtoMapper
 {
-    public static ProductionStandardDto ToDto(this ProductionStandard entity) => new()
-    {
-        Id = entity.Id,
-        StandardCode = entity.StandardCode,
-        StandardName = entity.StandardName,
-        Remark = entity.Remark,
-        SortOrder = entity.SortOrder,
-        IsActive = entity.IsActive
-    };
-
     public static StandardGradeMappingDto ToDto(this StandardGradeMapping entity) => new()
     {
         Id = entity.Id,
         StandardGrade = entity.StandardGrade,
+        StandardGradeCategory = entity.StandardGradeCategory,
         PlantGrade = entity.PlantGrade,
         Density = entity.Density,
         HeatTreatment = entity.HeatTreatment,
@@ -436,4 +427,43 @@ public static class DtoMapper
             entity.OuterPolish, entity.InnerGrinding, entity.OuterSpotGrinding,
             entity.Inspection, entity.WeldingHead, entity.Lubrication, entity.Warehouse,
             entity.Id, entity.CreatedTime, entity.CreatedBy);
+
+    public static GradeChemicalCompositionDto ToChemicalCompositionDto(this GradeChemicalComposition entity) => new()
+    {
+        Id = entity.Id,
+        StandardGrade = entity.StandardGrade,
+        StandardGradeCategory = entity.StandardGradeCategory,
+        Carbon = entity.Carbon,
+        Silicon = entity.Silicon,
+        Manganese = entity.Manganese,
+        Phosphorus = entity.Phosphorus,
+        Sulfur = entity.Sulfur,
+        Nickel = entity.Nickel,
+        Chromium = entity.Chromium,
+        Molybdenum = entity.Molybdenum,
+        Copper = entity.Copper,
+        Nitrogen = entity.Nitrogen,
+        Niobium = entity.Niobium,
+        Titanium = entity.Titanium,
+        Iron = entity.Iron,
+        Aluminum = entity.Aluminum,
+        Tungsten = entity.Tungsten
+    };
+
+    public static GradePhysicalPropertyDto ToPhysicalPropertyDto(this GradePhysicalProperty entity) => new()
+    {
+        Id = entity.Id,
+        StandardGrade = entity.StandardGrade,
+        StandardGradeCategory = entity.StandardGradeCategory,
+        Density = entity.Density,
+        HeatTreatmentTemp = entity.HeatTreatmentTemp,
+        HardnessRockwell = entity.HardnessRockwell,
+        HardnessVickers = entity.HardnessVickers,
+        HardnessBrinell = entity.HardnessBrinell,
+        TensileStrength = entity.TensileStrength,
+        YieldStrength02 = entity.YieldStrength02,
+        YieldStrength10 = entity.YieldStrength10,
+        Elongation = entity.Elongation,
+        GrainSize = entity.GrainSize
+    };
 }

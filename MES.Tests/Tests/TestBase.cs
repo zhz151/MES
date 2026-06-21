@@ -91,21 +91,6 @@ public abstract class TestBase
     }
 
     /// <summary>
-    /// 种子一个测试产品标准
-    /// </summary>
-    protected async Task<ProductionStandard> SeedStandardAsync(AppDbContext ctx)
-    {
-        var ps = new ProductionStandard
-        {
-            StandardCode = "GB/T 8163",
-            StandardName = "流体管标准"
-        };
-        ctx.ProductionStandards.Add(ps);
-        await ctx.SaveChangesAsync();
-        return ps;
-    }
-
-    /// <summary>
     /// 种子一个测试牌号映射
     /// </summary>
     protected async Task<StandardGradeMapping> SeedGradeMappingAsync(AppDbContext ctx,
@@ -120,5 +105,21 @@ public abstract class TestBase
         ctx.StandardGradeMappings.Add(gm);
         await ctx.SaveChangesAsync();
         return gm;
+    }
+
+    /// <summary>
+    /// 种子一个测试标准号
+    /// </summary>
+    protected async Task<StandardRegister> SeedRegisterAsync(AppDbContext ctx,
+        string standardNo = "GB/T 8163", string standardName = "流体管标准")
+    {
+        var sr = new StandardRegister
+        {
+            StandardNo = standardNo,
+            StandardName = standardName
+        };
+        ctx.StandardRegisters.Add(sr);
+        await ctx.SaveChangesAsync();
+        return sr;
     }
 }

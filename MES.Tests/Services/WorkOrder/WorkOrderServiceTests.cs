@@ -39,7 +39,7 @@ public class WorkOrderServiceTests : TestBase
     private async Task<(int OrderId, string OrderNo)> SeedConfirmedOrderAsync(AppDbContext ctx)
     {
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
 
         var notifMock = new Mock<INotificationService>();
@@ -57,7 +57,7 @@ public class WorkOrderServiceTests : TestBase
             {
                 new()
                 {
-                    ProductionStandardId = ps.Id,
+                    StandardNo = sr.StandardNo,
                     StandardGrade = gm.StandardGrade,
                     MaterialName = MaterialName.SeamlessPipe,
                     OuterDiameter = 219m,
@@ -681,7 +681,7 @@ public class WorkOrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
 
         ctx.WorkOrders.Add(new WorkOrder
@@ -696,7 +696,7 @@ public class WorkOrderServiceTests : TestBase
             DeliveryDate = DateTime.Today.AddMonths(1),
             MaterialName = MaterialName.SeamlessPipe,
             SettlementMethod = SettlementMethod.Theoretical,
-            StandardCode = ps.StandardCode,
+            StandardCode = sr.StandardNo,
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
             PlantGrade = "20#",
             Specification = "219*8",
@@ -727,7 +727,7 @@ public class WorkOrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
 
         ctx.WorkOrders.Add(new WorkOrder
@@ -742,7 +742,7 @@ public class WorkOrderServiceTests : TestBase
             DeliveryDate = DateTime.Today.AddMonths(1),
             MaterialName = MaterialName.SeamlessPipe,
             SettlementMethod = SettlementMethod.Theoretical,
-            StandardCode = ps.StandardCode,
+            StandardCode = sr.StandardNo,
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
             PlantGrade = "20#",
             Specification = "219*8",

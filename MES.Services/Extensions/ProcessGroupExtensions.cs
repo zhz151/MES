@@ -12,7 +12,7 @@ public static class ProcessGroupExtensions
     /// 根据工段名称从工序组中获取对应的执行序号。
     /// 先匹配标准工段名，再通过别名查找。
     /// </summary>
-    public static int? GetSectionSequence(this ProcessGroup pg, string sectionName) => sectionName switch
+    public static int? GetSectionSequence(this ProcessGroup pg, string? sectionName) => sectionName switch
     {
         SectionDefs.ColdRollDraw => pg.ColdRollDraw,
         SectionDefs.OilPipeCut => pg.OilPipeCut,
@@ -30,7 +30,7 @@ public static class ProcessGroupExtensions
         SectionDefs.Lubrication => pg.Lubrication,
         SectionDefs.Warehouse => pg.Warehouse,
         // 别名匹配
-        _ when SectionDefs.Aliases.TryGetValue(sectionName, out var standard) =>
+        _ when SectionDefs.Aliases.TryGetValue(sectionName!, out var standard) =>
             pg.GetSectionSequence(standard),
         _ => null
     };

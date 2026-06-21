@@ -16,6 +16,11 @@ public class StandardGradeMappingDto
     public string StandardGrade { get; set; } = string.Empty;
 
     /// <summary>
+    /// 标准牌号类别
+    /// </summary>
+    public string? StandardGradeCategory { get; set; }
+
+    /// <summary>
     /// 工厂牌号
     /// </summary>
     public string PlantGrade { get; set; } = string.Empty;

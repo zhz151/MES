@@ -50,29 +50,6 @@ public class DtoMapperTests
     // ========== StandardDto / 纯字段映射 ==========
 
     [Fact]
-    public void ToDto_ProductionStandard_映射所有字段()
-    {
-        var entity = new ProductionStandard
-        {
-            Id = 1,
-            StandardCode = "GB/T 8163",
-            StandardName = "流体管",
-            Remark = "备注",
-            SortOrder = 1,
-            IsActive = true,
-        };
-
-        var dto = entity.ToDto();
-
-        dto.Id.Should().Be(1);
-        dto.StandardCode.Should().Be("GB/T 8163");
-        dto.StandardName.Should().Be("流体管");
-        dto.Remark.Should().Be("备注");
-        dto.SortOrder.Should().Be(1);
-        dto.IsActive.Should().BeTrue();
-    }
-
-    [Fact]
     public void ToDto_GradeMapping_映射所有字段()
     {
         var entity = new StandardGradeMapping

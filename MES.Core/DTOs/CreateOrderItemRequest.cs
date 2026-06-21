@@ -33,10 +33,10 @@ public class CreateOrderItemRequest
     public MaterialName MaterialName { get; set; }
 
     /// <summary>
-    /// 产品标准ID
+    /// 标准号
     /// </summary>
-    [Required(ErrorMessage = "产品标准不能为空")]
-    public int ProductionStandardId { get; set; }
+    [Required(ErrorMessage = "标准号不能为空")]
+    public string StandardNo { get; set; } = null!;
 
     /// <summary>
     /// 交货状态

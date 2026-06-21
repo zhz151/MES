@@ -375,7 +375,7 @@ public class ProductionRecordService : IProductionRecordService
         var coldRollDrawWeightByKey = allExistingRecords
             .Where(r => r.SectionName == SectionDefs.ColdRollDraw && r.Weight.HasValue)
             .GroupBy(r => new { r.ProductionBatchId, r.ProcessGroupId })
-            .ToDictionary(g => (g.Key.ProductionBatchId, g.Key.ProcessGroupId), g => g.Sum(r => r.Weight.Value));
+            .ToDictionary(g => (g.Key.ProductionBatchId, g.Key.ProcessGroupId), g => g.Sum(r => r.Weight!.Value));
 
         var simpleDuplicateSections = new HashSet<string>
         {
@@ -1291,7 +1291,7 @@ public class ProductionRecordService : IProductionRecordService
                 .FirstOrDefault(pg => pg.ManufacturingSpec == materialReceiveCheck.Specification
                     && pg.Inspection.HasValue);
             if (materialCheckPg != null)
-                materialCheckSeq = materialCheckPg.Inspection.Value;
+                materialCheckSeq = materialCheckPg.Inspection!.Value;
         }
 
         var currentMaxSeq = Math.Max(Math.Max(Math.Max(Math.Max(maxRecordSeq, maxOutsourceSeq), maxInspectionSeq), materialCheckSeq), maxPicklingSeq);
@@ -1320,7 +1320,7 @@ public class ProductionRecordService : IProductionRecordService
                 SectionStatus sectionStatus;
                 if (hasRecord)
                     sectionStatus = SectionStatus.Completed;
-                else if (hasOutsource && outsource.Status == SectionOutsourceStatus.Recovered)
+                else if (hasOutsource && outsource!.Status == SectionOutsourceStatus.Recovered)
                     sectionStatus = SectionStatus.Completed;
                 else if (hasOutsource)
                     sectionStatus = SectionStatus.Outsource;
@@ -1339,7 +1339,7 @@ public class ProductionRecordService : IProductionRecordService
 
                 // 委外进度
                 decimal? outsourceProgress = null;
-                if (hasOutsource && outsource.SendWeight > 0)
+                if (hasOutsource && outsource!.SendWeight > 0)
                 {
                     outsourceProgress = (decimal)outsource.TotalRecoveredWeight / outsource.SendWeight.Value * 100;
                 }
@@ -1352,16 +1352,16 @@ public class ProductionRecordService : IProductionRecordService
                     Status = sectionStatus.ToString(),
                     ExecDate = record?.ExecDate
                         ?? (inspectionByKey.TryGetValue(key, out var insp) ? insp.InspectionDate : (DateTime?)null)
-                        ?? (hasOutsource ? outsource.SendOutDate : (DateTime?)null)
+                        ?? (hasOutsource ? outsource!.SendOutDate : (DateTime?)null)
                         ?? (sectionName == SectionDefs.Inspection && materialCheckPg != null && pg.Id == materialCheckPg.Id
                             ? materialReceiveCheck?.ReceiveDate : (DateTime?)null),
                     EquipmentName = record?.EquipmentName,
                     Quantity = record?.Quantity,
                     Weight = record?.Weight,
                     Operator = record?.Operator,
-                    OutsourceVendor = hasOutsource ? outsource.OutsourceVendor : null,
+                    OutsourceVendor = hasOutsource ? outsource!.OutsourceVendor : null,
                     OutsourceProgress = hasOutsource
-                        ? (outsource.SendWeight > 0
+                        ? (outsource!.SendWeight > 0
                             ? (decimal)outsource.TotalRecoveredWeight / outsource.SendWeight.Value * 100
                             : null)
                         : null
@@ -1549,7 +1549,7 @@ public class ProductionRecordService : IProductionRecordService
         bool hasMaterialCheck = materialCheck != null;
         if (hasMaterialCheck)
         {
-            batch.CurrentExecDate = materialCheck.ReceiveDate;
+            batch.CurrentExecDate = materialCheck!.ReceiveDate;
             if (batch.Status != BatchStatus.Completed)
                 batch.Status = BatchStatus.Completed;
         }
@@ -1602,7 +1602,7 @@ public class ProductionRecordService : IProductionRecordService
         // ====== 3-5. 当前工段/工序/设备/委外/规格 + 截止执行日 ======
         // 构建 ProcessGroup 查表（Id -> ManufacturingSpec）
         var pgSpecLookup = batch.ProcessGroups
-            .ToDictionary(pg => pg.Id, pg => pg.ManufacturingSpec);
+            .ToDictionary(pg => pg.Id, pg => pg.ManufacturingSpec!);
 
         // 检验到料：预匹配工序组
         int materialCheckSeq = -1;
@@ -1613,7 +1613,7 @@ public class ProductionRecordService : IProductionRecordService
                 .FirstOrDefault(pg => pg.ManufacturingSpec == materialCheck.Specification
                     && pg.Inspection.HasValue);
             if (materialCheckPg != null)
-                materialCheckSeq = materialCheckPg.Inspection.Value;
+                materialCheckSeq = materialCheckPg.Inspection!.Value;
         }
 
         // 转换委外列表为命名类型
@@ -1764,7 +1764,7 @@ public class ProductionRecordService : IProductionRecordService
         foreach (var batchId in activeBatchIds)
         {
             var batch = batchDict[batchId];
-            var pgSpecLookup = batch.ProcessGroups.ToDictionary(pg => pg.Id, pg => pg.ManufacturingSpec);
+            var pgSpecLookup = batch.ProcessGroups.ToDictionary(pg => pg.Id, pg => pg.ManufacturingSpec!);
 
             var productionRecords = recordsByBatch.GetValueOrDefault(batchId) ?? new();
             var sectionOutsources = outsourcesByBatch.GetValueOrDefault(batchId) ?? new();
@@ -1779,7 +1779,7 @@ public class ProductionRecordService : IProductionRecordService
             {
                 if (batch.Status != BatchStatus.Completed)
                     batch.Status = BatchStatus.Completed;
-                batch.CurrentExecDate = batchMaterialChecks.Max(m => (DateTime?)m.ReceiveDate);
+                batch.CurrentExecDate = batchMaterialChecks!.Max(m => (DateTime?)m.ReceiveDate);
             }
             else
             {
@@ -1797,7 +1797,7 @@ public class ProductionRecordService : IProductionRecordService
                     var matchingPg = batch.ProcessGroups
                         .FirstOrDefault(pg => pg.ManufacturingSpec == mc.Specification
                             && pg.Inspection.HasValue);
-                    if (matchingPg != null && matchingPg.Inspection.Value > materialCheckSeq)
+                    if (matchingPg != null && matchingPg.Inspection!.Value > materialCheckSeq)
                         materialCheckSeq = matchingPg.Inspection.Value;
                 }
                 // 精确匹配：用确定的 seq 值重新查找对应的工序组
@@ -1925,7 +1925,7 @@ public class ProductionRecordService : IProductionRecordService
         }
         else if (overallMaxSeq == maxOutsourceSeq)
         {
-            batch.CurrentGroupName = maxSeqOutsource.ProcessName;
+            batch.CurrentGroupName = maxSeqOutsource!.ProcessName;
             batch.CurrentSectionName = maxSeqOutsource.SectionName;
             batch.CurrentEquipmentName = null;
             batch.CurrentSpec = pgSpecLookup.GetValueOrDefault(maxSeqOutsource.ProcessGroupId);
@@ -1975,7 +1975,7 @@ public class ProductionRecordService : IProductionRecordService
             var pgId = maxSeqRecord.ProcessGroupId;
             var totalWeight = productionRecords
                 .Where(r => r.ProcessGroupId == pgId && r.SectionName == SectionDefs.ColdRollDraw && r.Weight.HasValue)
-                .Sum(r => r.Weight.Value);
+                .Sum(r => r.Weight!.Value);
             var threshold = (batch.CurrentValidWeight ?? batch.InputWeight ?? 0) * coldRollCompleteRatio;
             batch.CurrentSectionCompleted = totalWeight >= threshold;
         }
@@ -2847,18 +2847,18 @@ public class ProductionRecordService : IProductionRecordService
         var queryable = _context.MaterialReceiveChecks.AsNoTracking();
         return column switch
         {
-            "BatchNo" => queryable.Where(m => m.BatchNo != null).Select(m => m.BatchNo).Distinct().OrderBy(x => x),
-            "PlantGrade" => queryable.Where(m => m.PlantGrade != null).Select(m => m.PlantGrade).Distinct().OrderBy(x => x),
-            "Specification" => queryable.Where(m => m.Specification != null).Select(m => m.Specification).Distinct().OrderBy(x => x),
-            "Shift" => queryable.Where(m => m.Shift != null).Select(m => m.Shift).Distinct().OrderBy(x => x),
-            "Checker" => queryable.Where(m => m.Checker != null).Select(m => m.Checker).Distinct().OrderBy(x => x),
-            "TagNo" => queryable.Where(m => m.TagNo != null).Select(m => m.TagNo).Distinct().OrderBy(x => x),
-            "WorkOrderNo" => queryable.Where(m => m.WorkOrderNo != null).Select(m => m.WorkOrderNo).Distinct().OrderBy(x => x),
-            "SalesOrderNo" => queryable.Where(m => m.SalesOrderNo != null).Select(m => m.SalesOrderNo).Distinct().OrderBy(x => x),
-            "FurnaceNo" => queryable.Where(m => m.FurnaceNo != null).Select(m => m.FurnaceNo).Distinct().OrderBy(x => x),
-            "SourceUnit" => queryable.Where(m => m.SourceUnit != null).Select(m => m.SourceUnit).Distinct().OrderBy(x => x),
-            "Remark" => queryable.Where(m => m.Remark != null).Select(m => m.Remark).Distinct().OrderBy(x => x),
-            "Salesman" => queryable.Where(m => m.Salesman != null).Select(m => m.Salesman).Distinct().OrderBy(x => x),
+            "BatchNo" => queryable.Where(m => m.BatchNo != null).Select(m => m.BatchNo!).Distinct().OrderBy(x => x),
+            "PlantGrade" => queryable.Where(m => m.PlantGrade != null).Select(m => m.PlantGrade!).Distinct().OrderBy(x => x),
+            "Specification" => queryable.Where(m => m.Specification != null).Select(m => m.Specification!).Distinct().OrderBy(x => x),
+            "Shift" => queryable.Where(m => m.Shift != null).Select(m => m.Shift!).Distinct().OrderBy(x => x),
+            "Checker" => queryable.Where(m => m.Checker != null).Select(m => m.Checker!).Distinct().OrderBy(x => x),
+            "TagNo" => queryable.Where(m => m.TagNo != null).Select(m => m.TagNo!).Distinct().OrderBy(x => x),
+            "WorkOrderNo" => queryable.Where(m => m.WorkOrderNo != null).Select(m => m.WorkOrderNo!).Distinct().OrderBy(x => x),
+            "SalesOrderNo" => queryable.Where(m => m.SalesOrderNo != null).Select(m => m.SalesOrderNo!).Distinct().OrderBy(x => x),
+            "FurnaceNo" => queryable.Where(m => m.FurnaceNo != null).Select(m => m.FurnaceNo!).Distinct().OrderBy(x => x),
+            "SourceUnit" => queryable.Where(m => m.SourceUnit != null).Select(m => m.SourceUnit!).Distinct().OrderBy(x => x),
+            "Remark" => queryable.Where(m => m.Remark != null).Select(m => m.Remark!).Distinct().OrderBy(x => x),
+            "Salesman" => queryable.Where(m => m.Salesman != null).Select(m => m.Salesman!).Distinct().OrderBy(x => x),
             _ => null
         };
     }

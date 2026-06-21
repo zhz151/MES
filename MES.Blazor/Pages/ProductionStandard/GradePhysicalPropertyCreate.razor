@@ -1,0 +1,193 @@
+@page "/grade-physical-properties/create"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using Microsoft.AspNetCore.Authorization
+@inject GradePhysicalPropertyService GradePhysicalPropertyService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = Roles.Policies.StandardWrite)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Primary" />
+                    新建牌号物理性能
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAll" Loading="@isSubmitting">
+                    保存
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <div class="d-flex justify-space-between align-center mb-3">
+                <MudText Typo="Typo.subtitle1">牌号物理性能列表</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow">添加行</MudButton>
+            </div>
+
+            <div id="grade-physical-property-create-table">
+            @if (rows.Count > 0)
+            {
+                <div style="overflow-x: auto;">
+                    <MudTable T="PhysicalPropertyRow" Items="@rows" Dense="true" Hover="true" Elevation="0" Class="auto-table">
+                        <HeaderContent>
+                            <MudTh Style="width: 40px;">行号</MudTh>
+                            <MudTh Style="width: 110px;">标准牌号<span class="required-star">*</span></MudTh>
+                            <MudTh Style="width: 110px;">标准牌号类别</MudTh>
+                            <MudTh Style="width: 110px;">密度(g/cm³)<span class="required-star">*</span></MudTh>
+                            <MudTh Style="width: 100px;">热处理温度</MudTh>
+                            <MudTh Style="width: 100px;">硬度(HRC/HRB)</MudTh>
+                            <MudTh Style="width: 100px;">硬度(HV)</MudTh>
+                            <MudTh Style="width: 100px;">硬度(HB)</MudTh>
+                            <MudTh Style="width: 100px;">抗拉强度(Rm)</MudTh>
+                            <MudTh Style="width: 100px;">屈服强度(Rp0.2)</MudTh>
+                            <MudTh Style="width: 100px;">屈服强度(Rp1.0)</MudTh>
+                            <MudTh Style="width: 100px;">延伸率(A%)</MudTh>
+                            <MudTh Style="width: 100px;">晶粒度</MudTh>
+                            <MudTh Style="width: 50px;">操作</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="row">
+                            <MudTd><MudText Typo="Typo.body2">@row.Sequence</MudText></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.StandardGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.StandardGradeCategory" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd>
+                                <MudNumericField T="decimal" @bind-Value="row.Density" Format="G29" Min="0" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 100px;" HideSpinButtons="true" />
+                            </MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.HeatTreatmentTemp" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.HardnessRockwell" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.HardnessVickers" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.HardnessBrinell" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.TensileStrength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.YieldStrength02" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.YieldStrength10" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.Elongation" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.GrainSize" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd>
+                                @if (rows.Count > 1)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => RemoveRow(row)" />
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+            }
+            </div>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private List<PhysicalPropertyRow> rows = new();
+    private bool isSubmitting;
+    private bool _isArrowNavSetup;
+
+    private class PhysicalPropertyRow
+    {
+        public int Sequence { get; set; }
+        public string StandardGrade { get; set; } = string.Empty;
+        public string? StandardGradeCategory { get; set; }
+        public decimal Density { get; set; }
+        public string? HeatTreatmentTemp { get; set; }
+        public string? HardnessRockwell { get; set; }
+        public string? HardnessVickers { get; set; }
+        public string? HardnessBrinell { get; set; }
+        public string? TensileStrength { get; set; }
+        public string? YieldStrength02 { get; set; }
+        public string? YieldStrength10 { get; set; }
+        public string? Elongation { get; set; }
+        public string? GrainSize { get; set; }
+    }
+
+    protected override void OnInitialized()
+    {
+        AddRow();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#grade-physical-property-create-table"))
+                _isArrowNavSetup = false;
+        }
+    }
+
+    private void AddRow()
+    {
+        rows.Add(new PhysicalPropertyRow { Sequence = rows.Count + 1 });
+    }
+
+    private void RemoveRow(PhysicalPropertyRow row)
+    {
+        if (rows.Count <= 1) { Snackbar.Add("至少保留一条记录", Severity.Warning); return; }
+        rows.Remove(row);
+        for (int i = 0; i < rows.Count; i++) rows[i].Sequence = i + 1;
+    }
+
+    private async Task SaveAll()
+    {
+        var errors = new List<string>();
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var r = rows[i];
+            if (string.IsNullOrWhiteSpace(r.StandardGrade)) errors.Add($"行{i + 1}: 标准牌号不能为空");
+            if (r.Density <= 0) errors.Add($"行{i + 1}: 密度必须大于0");
+        }
+        if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
+
+        isSubmitting = true; StateHasChanged();
+        var successCount = 0;
+        var failCount = 0;
+        var failMessages = new List<string>();
+
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var r = rows[i];
+            var request = new CreateGradePhysicalPropertyRequest
+            {
+                StandardGrade = r.StandardGrade,
+                StandardGradeCategory = r.StandardGradeCategory,
+                Density = r.Density,
+                HeatTreatmentTemp = r.HeatTreatmentTemp,
+                HardnessRockwell = r.HardnessRockwell,
+                HardnessVickers = r.HardnessVickers,
+                HardnessBrinell = r.HardnessBrinell,
+                TensileStrength = r.TensileStrength,
+                YieldStrength02 = r.YieldStrength02,
+                YieldStrength10 = r.YieldStrength10,
+                Elongation = r.Elongation,
+                GrainSize = r.GrainSize
+            };
+
+            try
+            {
+                var result = await GradePhysicalPropertyService.CreateAsync(request);
+                if (result.Success) successCount++;
+                else { failCount++; failMessages.Add($"行{i + 1}: {result.Message}"); }
+            }
+            catch (Exception ex) { failCount++; failMessages.Add($"行{i + 1}: {ex.Message}"); }
+        }
+
+        isSubmitting = false; StateHasChanged();
+
+        if (failCount == 0)
+        {
+            Snackbar.Add($"成功创建 {successCount} 条记录", Severity.Success);
+            Navigation.NavigateTo("/grade-physical-properties");
+        }
+        else
+        {
+            Snackbar.Add($"成功 {successCount} 条，失败 {failCount} 条：{string.Join("；", failMessages)}", Severity.Error);
+        }
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/grade-physical-properties");
+}

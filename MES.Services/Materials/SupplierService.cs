@@ -208,11 +208,11 @@ public class SupplierService : ISupplierService
         {
             ["SupplierCode"] = await query.Where(s => s.SupplierCode != null).Select(s => s.SupplierCode).Distinct().OrderBy(x => x).ToListAsync(),
             ["SupplierName"] = await query.Where(s => s.SupplierName != null).Select(s => s.SupplierName).Distinct().OrderBy(x => x).ToListAsync(),
-            ["MaterialCategory"] = await query.Where(s => s.MaterialCategory != null).Select(s => s.MaterialCategory).Distinct().OrderBy(x => x).ToListAsync(),
-            ["ContactPerson"] = await query.Where(s => s.ContactPerson != null).Select(s => s.ContactPerson).Distinct().OrderBy(x => x).ToListAsync(),
-            ["ContactPhone"] = await query.Where(s => s.ContactPhone != null).Select(s => s.ContactPhone).Distinct().OrderBy(x => x).ToListAsync(),
-            ["Address"] = await query.Where(s => s.Address != null).Select(s => s.Address).Distinct().OrderBy(x => x).ToListAsync(),
-            ["Remark"] = await query.Where(s => s.Remark != null).Select(s => s.Remark).Distinct().OrderBy(x => x).ToListAsync(),
+            ["MaterialCategory"] = await query.Where(s => s.MaterialCategory != null).Select(s => s.MaterialCategory!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["ContactPerson"] = await query.Where(s => s.ContactPerson != null).Select(s => s.ContactPerson!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["ContactPhone"] = await query.Where(s => s.ContactPhone != null).Select(s => s.ContactPhone!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["Address"] = await query.Where(s => s.Address != null).Select(s => s.Address!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["Remark"] = await query.Where(s => s.Remark != null).Select(s => s.Remark!).Distinct().OrderBy(x => x).ToListAsync(),
             ["IsActive"] = await query.Select(s => s.IsActive.ToString()).Distinct().OrderBy(x => x).ToListAsync(),
         };
     }

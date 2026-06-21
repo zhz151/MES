@@ -41,6 +41,8 @@ public class ConfigParameterController : ControllerBase
     public async Task<ActionResult<ApiResponse<ConfigParameterDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
+        if (result == null)
+            return NotFound(ApiResponse<ConfigParameterDto>.Fail("参数不存在"));
         return Ok(ApiResponse<ConfigParameterDto>.Ok(result));
     }
 

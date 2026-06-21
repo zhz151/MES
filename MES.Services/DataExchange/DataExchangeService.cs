@@ -63,18 +63,10 @@ public class DataExchangeService : IDataExchangeService
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        ["ProductionStandard"] = new EntityDef("产品标准", "产品标准", typeof(ProductionStandard), 1, "StandardCode", new List<ColumnDef>
-        {
-            new("标准编码", "StandardCode"),
-            new("标准名称", "StandardName"),
-            new("排序", "SortOrder", typeof(int)),
-            new("是否启用", "IsActive", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
-            new("备注", "Remark", typeof(string), isRequired: false),
-        }),
-
-        ["StandardGradeMapping"] = new EntityDef("牌号对照", "牌号对照", typeof(StandardGradeMapping), 1, "StandardGrade", new List<ColumnDef>
+        ["StandardGradeMapping"] = new EntityDef("牌号对照", "牌号对照", typeof(StandardGradeMapping), 1, null, new List<ColumnDef>
         {
             new("标准牌号", "StandardGrade"),
+            new("标准牌号类别", "StandardGradeCategory", typeof(string), isRequired: false),
             new("工厂牌号", "PlantGrade"),
             new("密度(g/cm³)", "Density", typeof(decimal)),
             new("热处理方式", "HeatTreatment", typeof(string), isRequired: false),
@@ -201,7 +193,7 @@ public class DataExchangeService : IDataExchangeService
             new("延期罚款", "DelayPenalty", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("结算方式", "SettlementMethod", typeof(SettlementMethod), isEnum: true),
             new("物料名称", "MaterialName", typeof(MaterialName), isEnum: true),
-            new("产品标准编码", null!) { IsFkColumn = true, FkEntityKey = "ProductionStandard", FkLookupProperty = "StandardCode", FkTargetProperty = "ProductionStandardId" },
+            new("产品标准编码", "StandardNo"),
             new("交货状态", "DeliveryState", typeof(DeliveryState), isEnum: true),
             new("标准牌号", "StandardGrade"),
             new("工厂牌号", "PlantGrade"),
@@ -1027,11 +1019,73 @@ public class DataExchangeService : IDataExchangeService
             new("工资结算备注", "SalaryRemark", typeof(string), isRequired: false),
             new("是否启用", "IsActive", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
         }),
+
+        // === 标准号（生产标准上下文） ===
+        ["StandardRegister"] = new EntityDef("标准号", "标准号", typeof(Data.Entities.StandardRegister), 1, "StandardNo", new List<ColumnDef>
+        {
+            new("标准号", "StandardNo"),
+            new("标准名称", "StandardName"),
+            new("引用规范", "RefSpecification", typeof(string), isRequired: false),
+            new("标准级别", "StandardLevel", typeof(string), isRequired: false),
+            new("制造方式", "ManufactureMethod", typeof(string), isRequired: false),
+            new("钢类", "SteelType", typeof(string), isRequired: false),
+            new("备注", "Remark", typeof(string), isRequired: false),
+        }),
+
+        ["StandardRegisterItem"] = new EntityDef("标准号子项目", "标准号子项目", typeof(Data.Entities.StandardRegisterItem), 2, null, new List<ColumnDef>
+        {
+            new("标准号", null!) { IsFkColumn = true, FkEntityKey = "StandardRegister", FkLookupProperty = "StandardNo", FkTargetProperty = "StandardRegisterId" },
+            new("序号", "SeqNo", typeof(int)),
+            new("检验项目类别", "InspectionCategory", typeof(string), isRequired: false),
+            new("检验项目", "InspectionItem"),
+            new("强制性", "IsMandatory", typeof(string), isRequired: false),
+            new("取样要求", "SamplingRequirement", typeof(string), isRequired: false),
+            new("适用范围", "ApplicableRange", typeof(string), isRequired: false),
+            new("引用标准", "RefStandard", typeof(string), isRequired: false),
+            new("详细要求", "DetailRequirement", typeof(string), isRequired: false),
+        }),
+
+        ["GradeChemicalComposition"] = new EntityDef("牌号化学成分", "牌号化学成分", typeof(GradeChemicalComposition), 1, null, new List<ColumnDef>
+        {
+            new("标准牌号", "StandardGrade"),
+            new("标准牌号类别", "StandardGradeCategory", typeof(string), isRequired: false),
+            new("碳(C)", "Carbon", typeof(string), isRequired: false),
+            new("硅(Si)", "Silicon", typeof(string), isRequired: false),
+            new("锰(Mn)", "Manganese", typeof(string), isRequired: false),
+            new("磷(P)", "Phosphorus", typeof(string), isRequired: false),
+            new("硫(S)", "Sulfur", typeof(string), isRequired: false),
+            new("镍(Ni)", "Nickel", typeof(string), isRequired: false),
+            new("铬(Cr)", "Chromium", typeof(string), isRequired: false),
+            new("钼(Mo)", "Molybdenum", typeof(string), isRequired: false),
+            new("铜(Cu)", "Copper", typeof(string), isRequired: false),
+            new("氮(N)", "Nitrogen", typeof(string), isRequired: false),
+            new("铌(Nb)", "Niobium", typeof(string), isRequired: false),
+            new("钛(Ti)", "Titanium", typeof(string), isRequired: false),
+            new("铁(Fe)", "Iron", typeof(string), isRequired: false),
+            new("铝(Al)", "Aluminum", typeof(string), isRequired: false),
+            new("钨(W)", "Tungsten", typeof(string), isRequired: false),
+        }),
+
+        ["GradePhysicalProperty"] = new EntityDef("牌号物理性能", "牌号物理性能", typeof(GradePhysicalProperty), 1, null, new List<ColumnDef>
+        {
+            new("标准牌号", "StandardGrade"),
+            new("标准牌号类别", "StandardGradeCategory", typeof(string), isRequired: false),
+            new("密度(g/cm³)", "Density", typeof(decimal)),
+            new("热处理温度", "HeatTreatmentTemp", typeof(string), isRequired: false),
+            new("硬度洛氏", "HardnessRockwell", typeof(string), isRequired: false),
+            new("硬度维氏", "HardnessVickers", typeof(string), isRequired: false),
+            new("硬度布氏", "HardnessBrinell", typeof(string), isRequired: false),
+            new("抗拉强度(MPa)", "TensileStrength", typeof(string), isRequired: false),
+            new("屈服强度0.2(MPa)", "YieldStrength02", typeof(string), isRequired: false),
+            new("屈服强度1.0(MPa)", "YieldStrength10", typeof(string), isRequired: false),
+            new("延伸率(%)", "Elongation", typeof(string), isRequired: false),
+            new("晶粒度", "GrainSize", typeof(string), isRequired: false),
+        }),
     };
 
     public static readonly List<string> EntityOrder = new()
     {
-        "Warehouse", "ProductionStandard", "StandardGradeMapping", "StandardProcessCycle", "CustomerProfile", "SupplierProfile",
+        "Warehouse", "StandardGradeMapping", "StandardProcessCycle", "CustomerProfile", "SupplierProfile",
         "FurnaceRegistration", "ChemicalComposition", "ChemicalValidationRule", "Ncr",
         "SalesOrder",
         "OrderItem", "ProductRequirement",
@@ -1042,6 +1096,8 @@ public class DataExchangeService : IDataExchangeService
         "InventoryPlan", "PurchaseSemiPlan", "PurchaseFinishedPlan", "RoundBarPiercingPlan",
         "SemiPlanProcessGroup", "InventoryPlanProcessGroup", "PiercingPlanProcessGroup",
         "Workstation", "Employee",
+        "StandardRegister", "StandardRegisterItem",
+        "GradeChemicalComposition", "GradePhysicalProperty",
     };
 
     #endregion
@@ -1681,7 +1737,7 @@ public class DataExchangeService : IDataExchangeService
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList();
                     var batchIds = batchNos
-                        .Select(bn => mrcBatchLookup.GetValueOrDefault(bn))
+                        .Select(bn => mrcBatchLookup.GetValueOrDefault(bn!))
                         .Where(id => id > 0)
                         .ToList();
 
@@ -1735,7 +1791,7 @@ public class DataExchangeService : IDataExchangeService
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList();
                     var batchIds = batchNos
-                        .Select(bn => prBatchLookup.GetValueOrDefault(bn))
+                        .Select(bn => prBatchLookup.GetValueOrDefault(bn!))
                         .Where(id => id > 0)
                         .ToList();
                     if (batchIds.Count > 0)
@@ -1750,7 +1806,7 @@ public class DataExchangeService : IDataExchangeService
                                 .ToDictionaryAsync(pg => pg.Id, pg => pg.SequenceNumber)
                             : new Dictionary<int, int>();
                         var batchNoReverse = batchNos
-                            .Select(bn => (bn, id: prBatchLookup.GetValueOrDefault(bn)))
+                            .Select(bn => (bn: bn!, id: prBatchLookup.GetValueOrDefault(bn!)))
                             .Where(x => x.id > 0)
                             .ToDictionary(x => x.id, x => x.bn);
 
@@ -1801,7 +1857,7 @@ public class DataExchangeService : IDataExchangeService
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList();
                     var batchIds = batchNos
-                        .Select(bn => soBatchLookup.GetValueOrDefault(bn))
+                        .Select(bn => soBatchLookup.GetValueOrDefault(bn!))
                         .Where(id => id > 0)
                         .ToList();
                     if (batchIds.Count > 0)
@@ -1816,7 +1872,7 @@ public class DataExchangeService : IDataExchangeService
                                 .ToDictionaryAsync(pg => pg.Id, pg => pg.SequenceNumber)
                             : new Dictionary<int, int>();
                         var batchNoReverse = batchNos
-                            .Select(bn => (bn, id: soBatchLookup.GetValueOrDefault(bn)))
+                            .Select(bn => (bn: bn!, id: soBatchLookup.GetValueOrDefault(bn!)))
                             .Where(x => x.id > 0)
                             .ToDictionary(x => x.id, x => x.bn);
 

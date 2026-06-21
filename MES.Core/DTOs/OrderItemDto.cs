@@ -39,9 +39,9 @@ public class OrderItemDto
     public MaterialName MaterialName { get; set; }
 
     /// <summary>
-    /// 产品标准编码（用于前端显示）
+    /// 标准号（用于前端显示）
     /// </summary>
-    public string ProductionStandardCode { get; set; } = null!;
+    public string StandardNo { get; set; } = null!;
 
     /// <summary>
     /// 交货状态

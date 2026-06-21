@@ -28,7 +28,7 @@ public class ScanController : ControllerBase
     /// <param name="batchNo">批次号</param>
     /// <param name="processGroupId">工序组ID</param>
     [HttpGet("resolve")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<ScanResolveResultDto>>> Resolve(
         [FromQuery] string batchNo,
         [FromQuery] int processGroupId)
@@ -44,7 +44,7 @@ public class ScanController : ControllerBase
     /// 按批次号解析，返回批次信息和该批次下所有工序组选项
     /// </summary>
     [HttpGet("batch-groups")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<ScanBatchResolveResultDto>>> GetBatchProcessGroups(
         [FromQuery] string batchNo)
     {
@@ -59,7 +59,7 @@ public class ScanController : ControllerBase
     /// 按批次号+工段名匹配工序组（工位扫码后自动匹配）
     /// </summary>
     [HttpGet("resolve-by-section")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<ScanResolveResultDto>>> ResolveBySection(
         [FromQuery] string batchNo,
         [FromQuery] string sectionName)

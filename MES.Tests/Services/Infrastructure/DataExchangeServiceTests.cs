@@ -29,9 +29,9 @@ public class DataExchangeServiceTests : TestBase
     // ========== Registry 验证 ==========
 
     [Fact]
-    public void Registry_包含所有44个实体()
+    public void Registry_包含所有46个实体()
     {
-        DataExchangeService.Registry.Should().HaveCount(44);
+        DataExchangeService.Registry.Should().HaveCount(46);
     }
 
     [Fact]
@@ -204,27 +204,6 @@ public class DataExchangeServiceTests : TestBase
         sheet.Cells[2, 1].Value.Should().Be("WH001");
         sheet.Cells[2, 2].Value.Should().Be("测试仓库");
         sheet.Cells[3, 1].Value.Should().Be("WH002");
-    }
-
-    [Fact]
-    public async Task ExportAsync_产品标准_导出包含种子数据()
-    {
-        var ctx = CreateDbContext();
-        ctx.ProductionStandards.Add(new ProductionStandard
-        {
-            StandardCode = "GB/T 8163", StandardName = "流体管",
-            SortOrder = 1, IsActive = true
-        });
-        await ctx.SaveChangesAsync();
-
-        var svc = CreateService(ctx);
-        var bytes = await svc.ExportAsync("ProductionStandard");
-
-        bytes.Should().NotBeNullOrEmpty();
-        using var package = new ExcelPackage(new MemoryStream(bytes));
-        var sheet = package.Workbook.Worksheets[0];
-        sheet.Cells[1, 1].Value.Should().Be("标准编码");
-        sheet.Cells[2, 1].Value.Should().Be("GB/T 8163");
     }
 
     [Fact]
@@ -477,22 +456,6 @@ public class DataExchangeServiceTests : TestBase
         result.SuccessCount.Should().Be(1);
         var saved = await ctx.CustomerProfiles.FirstAsync(c => c.CustomerCode == "C001");
         saved.Status.Should().Be(CustomerStatus.Active);
-    }
-
-    [Fact]
-    public async Task ImportAsync_产品标准_bool值转换()
-    {
-        var ctx = CreateDbContext();
-        var svc = CreateTestableService(ctx);
-
-        var bytes = CreateTestExcel("产品标准", new() { "标准编码", "标准名称", "排序", "是否启用" },
-            new() { new() { "GB/T 8163", "流体管", "1", "是" } });
-
-        var result = await svc.ImportAsync("ProductionStandard", bytes, "skip", "test");
-
-        result.SuccessCount.Should().Be(1);
-        var saved = await ctx.ProductionStandards.FirstAsync(ps => ps.StandardCode == "GB/T 8163");
-        saved.IsActive.Should().BeTrue();
     }
 
     [Fact]

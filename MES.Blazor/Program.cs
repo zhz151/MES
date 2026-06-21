@@ -31,8 +31,9 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https:/
 builder.Services.AddScoped<AuthHttpClient>();
 
 builder.Services.AddScoped<CustomerService>();
-builder.Services.AddScoped<ProductionStandardService>();
 builder.Services.AddScoped<GradeMappingService>();
+builder.Services.AddScoped<GradeChemicalCompositionService>();
+builder.Services.AddScoped<GradePhysicalPropertyService>();
 builder.Services.AddScoped<StandardProcessCycleService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ProductRequirementService>();
@@ -89,10 +90,14 @@ builder.Services.AddScoped<BatchPlanScheduleService>();
 builder.Services.AddScoped<BatchPlanTargetService>();
 builder.Services.AddScoped<FinalInspectionPlanService>();
 
+// ========== 用户管理 ==========
+builder.Services.AddScoped<UserService>();
+
 // ========== Configuration 上下文 ==========
 builder.Services.AddScoped<StandardWorkDayService>();
 builder.Services.AddScoped<StandardWorkDayDeliveryStateService>();
 builder.Services.AddScoped<ConfigParameterService>();
 builder.Services.AddScoped<DailyOutputEstimateService>();
+builder.Services.AddScoped<StandardRegisterService>();
 
 await builder.Build().RunAsync();

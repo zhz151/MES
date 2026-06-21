@@ -1,0 +1,143 @@
+@* 标准号新建/编辑弹窗 *@
+@namespace MES.Blazor.Shared
+@using MES.Core.DTOs
+@inject ISnackbar Snackbar
+@inject MES.Blazor.Services.StandardRegisterService Svc
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@Title</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudTextField @bind-Value="_dto.StandardNo"
+                          Label="标准号"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          RequiredError="标准号不能为空"
+                          Class="mb-3" />
+            <MudTextField @bind-Value="_dto.StandardName"
+                          Label="标准名称"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          RequiredError="标准名称不能为空"
+                          Class="mb-3" />
+            <MudTextField @bind-Value="_dto.RefSpecification"
+                          Label="引用规范"
+                          Variant="Variant.Outlined"
+                          Class="mb-3" />
+            <MudSelect @bind-Value="_dto.StandardLevel"
+                       Label="标准级别"
+                       Variant="Variant.Outlined"
+                       Class="mb-3">
+                <MudSelectItem Value="@("国标")">国标</MudSelectItem>
+                <MudSelectItem Value="@("行标")">行标</MudSelectItem>
+                <MudSelectItem Value="@("企标")">企标</MudSelectItem>
+            </MudSelect>
+            <MudSelect @bind-Value="_dto.ManufactureMethod"
+                       Label="制造方式"
+                       Variant="Variant.Outlined"
+                       Class="mb-3">
+                <MudSelectItem Value="@("焊管")">焊管</MudSelectItem>
+                <MudSelectItem Value="@("无缝")">无缝</MudSelectItem>
+                <MudSelectItem Value="@("无缝+焊管")">无缝+焊管</MudSelectItem>
+            </MudSelect>
+            <MudSelect @bind-Value="_dto.SteelType"
+                       Label="钢类"
+                       Variant="Variant.Outlined"
+                       Class="mb-3">
+                <MudSelectItem Value="@("奥氏体")">奥氏体</MudSelectItem>
+                <MudSelectItem Value="@("双相")">双相</MudSelectItem>
+                <MudSelectItem Value="@("镍基合金")">镍基合金</MudSelectItem>
+            </MudSelect>
+            <MudTextField @bind-Value="_dto.Remark"
+                          Label="备注"
+                          Variant="Variant.Outlined"
+                          Lines="3"
+                          Class="mb-3" />
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-2" Dense="true">@_errorMessage</MudAlert>
+            }
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">取消</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   OnClick="Save"
+                   Disabled="@_isSubmitting"
+                   StartIcon="@(IsCreate ? Icons.Material.Filled.Add : Icons.Material.Filled.Save)">
+            @(IsCreate ? "创建" : "保存")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public StandardRegisterDto Model { get; set; } = default!;
+    [Parameter] public bool IsCreate { get; set; }
+
+    private MudForm? _form;
+    private StandardRegisterDto _dto = new();
+    private bool _isSubmitting;
+    private string _errorMessage = "";
+
+    protected override void OnInitialized()
+    {
+        _dto = new StandardRegisterDto
+        {
+            Id = Model.Id,
+            StandardNo = Model.StandardNo,
+            StandardName = Model.StandardName,
+            RefSpecification = Model.RefSpecification,
+            StandardLevel = Model.StandardLevel,
+            ManufactureMethod = Model.ManufactureMethod,
+            SteelType = Model.SteelType,
+            Remark = Model.Remark
+        };
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(_dto.StandardNo))
+        {
+            _errorMessage = "标准号不能为空";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_dto.StandardName))
+        {
+            _errorMessage = "标准名称不能为空";
+            return;
+        }
+
+        _isSubmitting = true;
+        _errorMessage = "";
+
+        try
+        {
+            var result = await Svc.SaveAsync(_dto);
+            if (result.Success)
+            {
+                Snackbar.Add("保存成功", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(_dto));
+            }
+            else
+            {
+                _errorMessage = result.Message ?? "保存失败";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"保存失败: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

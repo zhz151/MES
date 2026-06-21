@@ -69,6 +69,7 @@ public static class GradeMappingPrintHelper
             {
                 columns.ConstantColumn(28);   // 序号
                 columns.ConstantColumn(100);  // 标准牌号
+                columns.ConstantColumn(100);  // 标准牌号类别
                 columns.ConstantColumn(100);  // 工厂牌号
                 columns.ConstantColumn(70);   // 密度
                 columns.ConstantColumn(80);   // 热处理工艺（压窄）
@@ -79,7 +80,7 @@ public static class GradeMappingPrintHelper
 
             table.Header(header =>
             {
-                string[] headers = { "序号", "标准牌号", "工厂牌号", "密度(g/cm³)", "热处理工艺", "特殊材料", "钢性", "备注" };
+                string[] headers = { "序号", "标准牌号", "标准牌号类别", "工厂牌号", "密度(g/cm³)", "热处理工艺", "特殊材料", "钢性", "备注" };
                 foreach (var h in headers)
                     header.Cell().Element(CellHeaderStyle).Text(h).FontSize(8).AlignCenter();
             });
@@ -90,6 +91,7 @@ public static class GradeMappingPrintHelper
                 seq++;
                 table.Cell().Element(CellStyle).Text(seq.ToString()).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(m.StandardGrade).FontSize(8).AlignCenter();
+                table.Cell().Element(CellStyle).Text(m.StandardGradeCategory ?? "-").FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(m.PlantGrade).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(m.Density.ToString("F4")).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(m.HeatTreatment ?? "-").FontSize(8);

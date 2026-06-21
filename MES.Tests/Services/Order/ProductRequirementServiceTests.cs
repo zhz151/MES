@@ -27,7 +27,7 @@ public class ProductRequirementServiceTests : TestBase
     private async Task<(int OrderId, int ItemId)> SeedOrderItemAsync(AppDbContext ctx)
     {
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
 
         var notifMock = new Mock<INotificationService>();
@@ -45,7 +45,7 @@ public class ProductRequirementServiceTests : TestBase
             {
                 new()
                 {
-                    ProductionStandardId = ps.Id,
+                    StandardNo = sr.StandardNo,
                     StandardGrade = gm.StandardGrade,
                     MaterialName = MaterialName.SeamlessPipe,
                     OuterDiameter = 219m,

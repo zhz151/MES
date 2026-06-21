@@ -356,7 +356,7 @@
     private string GetMergeKey(OrderItemForWorkOrderDto item)
     {
         return $"{item.DeliveryDate:yyyy-MM-dd}|{item.DelayPenalty}|{item.MaterialName}|{item.SettlementMethod}|" +
-               $"{item.StandardCode}|{item.DeliveryState}|{item.PlantGrade}|{item.Specification}|" +
+               $"{item.StandardNo}|{item.DeliveryState}|{item.PlantGrade}|{item.Specification}|" +
                $"{item.OuterDiameterNegative}|{item.OuterDiameterPositive}|{item.WallThicknessNegative}|" +
                $"{item.WallThicknessPositive}|{item.LengthStatus}";
     }

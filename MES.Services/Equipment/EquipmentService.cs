@@ -404,13 +404,13 @@ public class EquipmentService : IEquipmentService
             .Select(e => e.EquipmentName).Distinct().ToListAsync()!;
         contexts["ModelNumber"] = await _context.Equipment
             .AsNoTracking().Where(e => e.ModelNumber != null)
-            .Select(e => e.ModelNumber).Distinct().ToListAsync()!;
+            .Select(e => e.ModelNumber!).Distinct().ToListAsync()!;
         contexts["Location"] = await _context.Equipment
             .AsNoTracking().Where(e => e.Location != null)
-            .Select(e => e.Location).Distinct().ToListAsync()!;
+            .Select(e => e.Location!).Distinct().ToListAsync()!;
         contexts["RelatedSection"] = await _context.Equipment
             .AsNoTracking().Where(e => e.RelatedSection != null)
-            .Select(e => e.RelatedSection).Distinct().ToListAsync()!;
+            .Select(e => e.RelatedSection!).Distinct().ToListAsync()!;
         contexts["LifecycleStatus"] = await _context.Equipment
             .AsNoTracking().Where(e => e.LifecycleStatus != null)
             .Select(e => e.LifecycleStatus).Distinct().ToListAsync()!;

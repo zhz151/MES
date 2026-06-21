@@ -57,8 +57,7 @@ public static class ApiEndpoints
     public const string DataExchange = "api/data-exchange";
     public const string Notification = "api/notification";
     public const string ProductionOverview = "api/production-overview";
-    public const string Standard = "api/standard";
-    public const string RawMaterialLockPlan = "api/raw-material-lock-plan";
+public const string RawMaterialLockPlan = "api/raw-material-lock-plan";
     public const string OrderDemandAdjustment = "api/order-demand-adjustment";
     public const string Scan = "api/scan";
     public const string Workstation = "api/workstation";
@@ -82,11 +81,19 @@ public static class ApiEndpoints
     public const string DashboardSectionLoad = "api/dashboard/section-load";
     public const string DashboardQuality = "api/dashboard/quality";
 
+    // ===== User Management =====
+    public const string Users = "api/users";
+
     // ===== Configuration 配置 =====
     public const string StandardWorkDay = "api/standard-work-day";
     public const string StandardWorkDayDeliveryState = "api/standard-work-day-delivery-state";
     public const string ConfigParameter = "api/config-parameter";
     public const string DailyOutputEstimate = "api/daily-output-estimate";
+
+    // ===== StandardRegister 标准号 =====
+    public const string StandardRegister = "api/standard-register";
+    public const string GradeChemicalComposition = "api/grade-chemical-composition";
+    public const string GradePhysicalProperty = "api/grade-physical-property";
 
     // ===== 通用默认排序字段 =====
     public const string DefaultSortBy = "CreatedTime";

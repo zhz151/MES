@@ -634,7 +634,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
             // 产能工量 = 剩余成品重量(kg) / 1000 / 日产估算(吨/天)
             // 剩余成品重量 = 主号计划成品总量 - 已完成批次的有效成品重量
-            if (summary.TotalRemainingWorkDays.HasValue && agg.MainNoTotalWeight > 0)
+            if (summary.TotalRemainingWorkDays.HasValue && agg!.MainNoTotalWeight > 0)
             {
                 var completedOutput = completedBatchOutputByMainNo.TryGetValue(key, out var co) ? co : 0m;
                 var remainingWeight = agg.MainNoTotalWeight - completedOutput;

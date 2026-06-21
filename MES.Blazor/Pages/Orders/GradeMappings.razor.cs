@@ -65,6 +65,7 @@ public partial class GradeMappings
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "StandardGrade",  Label = "标准牌号",   SortKey = "standardgrade",  FilterType = "string", IsRequired = true },
+        new() { Key = "StandardGradeCategory", Label = "标准牌号类别", SortKey = "standardgradecategory", FilterType = "string" },
         new() { Key = "PlantGrade",     Label = "工厂牌号",   SortKey = "plantgrade",     FilterType = "string", IsRequired = true },
         new() { Key = "Density",        Label = "密度(g/cm³)",SortKey = "density",        FilterType = null, IsRequired = true },
         new() { Key = "HeatTreatment",  Label = "热处理工艺", SortKey = "heattreatment",  FilterType = "string" },
@@ -332,6 +333,7 @@ public partial class GradeMappings
     private string? GetCellRawValue(StandardGradeMappingDto item, string key) => key switch
     {
         "StandardGrade" => item.StandardGrade,
+        "StandardGradeCategory" => item.StandardGradeCategory,
         "PlantGrade" => item.PlantGrade,
         "Density" => item.Density.ToString("G29"),
         "HeatTreatment" => item.HeatTreatment,
@@ -353,6 +355,7 @@ public partial class GradeMappings
     private class EditCache
     {
         public string StandardGrade { get; set; } = string.Empty;
+        public string? StandardGradeCategory { get; set; }
         public string PlantGrade { get; set; } = string.Empty;
         public decimal? Density { get; set; }
         public string? HeatTreatment { get; set; }
@@ -367,6 +370,7 @@ public partial class GradeMappings
         _editCache[item.Id] = new EditCache
         {
             StandardGrade = item.StandardGrade,
+            StandardGradeCategory = item.StandardGradeCategory,
             PlantGrade = item.PlantGrade,
             Density = item.Density,
             HeatTreatment = item.HeatTreatment,
@@ -400,6 +404,7 @@ public partial class GradeMappings
             var request = new UpdateGradeMappingRequest
             {
                 StandardGrade = cache.StandardGrade,
+                StandardGradeCategory = cache.StandardGradeCategory,
                 PlantGrade = cache.PlantGrade,
                 Density = cache.Density,
                 HeatTreatment = cache.HeatTreatment,
@@ -412,6 +417,7 @@ public partial class GradeMappings
             if (result.Success)
             {
                 item.StandardGrade = cache.StandardGrade;
+                item.StandardGradeCategory = cache.StandardGradeCategory;
                 item.PlantGrade = cache.PlantGrade;
                 if (cache.Density.HasValue) item.Density = cache.Density.Value;
                 item.HeatTreatment = cache.HeatTreatment;
@@ -495,6 +501,22 @@ public partial class GradeMappings
                 else
                 {
                     builder.AddContent(0, item.StandardGrade);
+                }
+                break;
+            case "StandardGradeCategory":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Dense", true);
+                    builder.AddAttribute(2, "Variant", Variant.Outlined);
+                    builder.AddAttribute(3, "Value", cache.StandardGradeCategory);
+                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.StandardGradeCategory = v));
+                    builder.AddAttribute(5, "Class", "compact-input");
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, item.StandardGradeCategory);
                 }
                 break;
             case "PlantGrade":

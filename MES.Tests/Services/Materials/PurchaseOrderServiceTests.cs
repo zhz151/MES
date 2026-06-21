@@ -489,7 +489,7 @@ public class PurchaseOrderServiceTests : TestBase
         var ctx = CreateDbContext();
         var sid = await SeedSupplierAsync(ctx);
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
 
         // 使用 SeedConfirmedOrderAsync 模式创建工单
@@ -510,7 +510,7 @@ public class PurchaseOrderServiceTests : TestBase
             DeliveryDate = DateTime.Today.AddMonths(1),
             SettlementMethod = SettlementMethod.Theoretical,
             MaterialName = MaterialName.SeamlessPipe,
-            ProductionStandardId = ps.Id,
+            StandardNo = sr.StandardNo,
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
             StandardGrade = gm.StandardGrade,
             PlantGrade = "20#",
@@ -546,7 +546,7 @@ public class PurchaseOrderServiceTests : TestBase
             DeliveryDate = DateTime.Today.AddMonths(1),
             MaterialName = MaterialName.SeamlessPipe,
             SettlementMethod = SettlementMethod.Theoretical,
-            StandardCode = ps.StandardCode,
+            StandardCode = sr.StandardNo,
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
             PlantGrade = "20#",
             Specification = "219*8",

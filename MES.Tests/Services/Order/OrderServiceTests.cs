@@ -36,11 +36,11 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var request = CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade);
+        var request = CreateSampleOrderRequest(cust.Id, gm.StandardGrade);
         await svc.CreateAsync(request);
         var act = () => svc.CreateAsync(request);
 
@@ -51,7 +51,7 @@ public class OrderServiceTests : TestBase
     public async Task CreateAsync_客户不存在_抛出BusinessException()
     {
         var ctx = CreateDbContext();
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
@@ -64,7 +64,7 @@ public class OrderServiceTests : TestBase
             {
                 new()
                 {
-                    ProductionStandardId = ps.Id,
+                    StandardNo = sr.StandardNo,
                     StandardGrade = gm.StandardGrade,
                     MaterialName = MaterialName.SeamlessPipe,
                     OuterDiameter = 219m,
@@ -89,11 +89,11 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var request = CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade);
+        var request = CreateSampleOrderRequest(cust.Id, gm.StandardGrade);
 
         var result = await svc.CreateAsync(request);
 
@@ -115,11 +115,11 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
 
         var updated = await svc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
         {
@@ -135,11 +135,11 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
         await svc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
         {
             Status = SalesOrderStatus.Confirmed.ToString(),
@@ -161,11 +161,11 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
         await svc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
         {
             Status = SalesOrderStatus.Cancelled.ToString(),
@@ -188,11 +188,11 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
         await svc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
         {
             Status = SalesOrderStatus.Cancelled.ToString(),
@@ -208,11 +208,11 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
         await svc.DeleteAsync(order.Id);
 
         // 查询应抛出不存在
@@ -227,16 +227,16 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
 
         var act = () => svc.AddItemAsync(order.Id, new AddOrderItemRequest
         {
             Sequence = 1, // 已存在
-            ProductionStandardId = ps.Id,
+            StandardNo = sr.StandardNo,
             StandardGrade = gm.StandardGrade,
             MaterialName = MaterialName.SeamlessPipe,
             OuterDiameter = 273m,
@@ -263,15 +263,15 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
 
         var newItem = await svc.AddItemAsync(order.Id, new AddOrderItemRequest
         {
-            ProductionStandardId = ps.Id,
+            StandardNo = sr.StandardNo,
             StandardGrade = gm.StandardGrade,
             MaterialName = MaterialName.SeamlessPipe,
             OuterDiameter = 273m,
@@ -300,11 +300,11 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var request = CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade);
+        var request = CreateSampleOrderRequest(cust.Id, gm.StandardGrade);
 
         var result = await svc.CreateAsync(request);
         var detail = await svc.GetByIdAsync(result.Id);
@@ -328,11 +328,11 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
         await svc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
         {
             Status = SalesOrderStatus.Confirmed.ToString(),
@@ -378,11 +378,11 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
 
         var id = await svc.GetIdByOrderNumberAsync("ORD-TEST-001");
 
@@ -420,17 +420,17 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
         var itemId = (await svc.GetByIdAsync(order.Id)).Items[0].Id;
 
         var result = await svc.UpdateItemAsync(order.Id, itemId, new UpdateOrderItemRequest
         {
             Sequence = 1,
-            ProductionStandardId = ps.Id,
+            StandardNo = sr.StandardNo,
             StandardGrade = gm.StandardGrade,
             MaterialName = MaterialName.SeamlessPipe,
             OuterDiameter = 273m,
@@ -457,16 +457,16 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
 
         var act = () => svc.UpdateItemAsync(order.Id, 999, new UpdateOrderItemRequest
         {
             Sequence = 1,
-            ProductionStandardId = ps.Id,
+            StandardNo = sr.StandardNo,
             StandardGrade = gm.StandardGrade,
             MaterialName = MaterialName.SeamlessPipe,
             OuterDiameter = 273m,
@@ -495,11 +495,11 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
         var itemId = (await svc.GetByIdAsync(order.Id)).Items[0].Id;
 
         await svc.DeleteItemAsync(order.Id, itemId);
@@ -513,11 +513,11 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
 
         var act = () => svc.DeleteItemAsync(order.Id, 999);
 
@@ -529,11 +529,11 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
         await svc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
         {
             Status = SalesOrderStatus.Cancelled.ToString(),
@@ -552,11 +552,11 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
         var rowVersion = (await svc.GetByIdAsync(order.Id)).RowVersion;
 
         var result = await svc.SaveAllAsync(order.Id, new SaveAllOrderRequest
@@ -566,7 +566,7 @@ public class OrderServiceTests : TestBase
             {
                 new()
                 {
-                    ProductionStandardId = ps.Id,
+                    StandardNo = sr.StandardNo,
                     StandardGrade = gm.StandardGrade,
                     MaterialName = MaterialName.SeamlessPipe,
                     OuterDiameter = 273m,
@@ -599,11 +599,11 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, ps.Id, gm.StandardGrade));
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
         var detail = await svc.GetByIdAsync(order.Id);
         var itemId = detail.Items[0].Id;
         var rowVersion = detail.RowVersion;
@@ -619,7 +619,7 @@ public class OrderServiceTests : TestBase
 
     // ========== 辅助方法 ==========
 
-    private CreateSalesOrderRequest CreateSampleOrderRequest(int customerId, int psId, string standardGrade)
+    private CreateSalesOrderRequest CreateSampleOrderRequest(int customerId, string standardGrade)
     {
         return new CreateSalesOrderRequest
         {
@@ -630,7 +630,7 @@ public class OrderServiceTests : TestBase
             {
                 new()
                 {
-                    ProductionStandardId = psId,
+                    StandardNo = "TEST-STD-NO",
                     StandardGrade = standardGrade,
                     MaterialName = MaterialName.SeamlessPipe,
                     OuterDiameter = 219m,

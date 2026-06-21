@@ -8,6 +8,9 @@ public class StandardGradeMapping : BaseEntity
     /// <summary>标准牌号（客户标准）</summary>
     public string StandardGrade { get; set; } = null!;
 
+    /// <summary>标准牌号类别</summary>
+    public string? StandardGradeCategory { get; set; }
+
     /// <summary>工厂牌号</summary>
     public string PlantGrade { get; set; } = null!;
 
@@ -30,6 +33,4 @@ public class StandardGradeMapping : BaseEntity
 
     /// <summary>备注</summary>
     public string? Remark { get; set; }
-
-    public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 }

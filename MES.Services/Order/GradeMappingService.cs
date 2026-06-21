@@ -50,6 +50,7 @@ public class GradeMappingService : IGradeMappingService
                 };
                 queryable = queryable.Where(g =>
                     g.StandardGrade.Contains(keyword) ||
+                    (g.StandardGradeCategory != null && g.StandardGradeCategory.Contains(keyword)) ||
                     g.PlantGrade.Contains(keyword) ||
                     (g.HeatTreatment != null && g.HeatTreatment.Contains(keyword)) ||
                     (parsedSpecial.HasValue && g.SpecialMaterial == parsedSpecial.Value) ||
@@ -76,6 +77,7 @@ public class GradeMappingService : IGradeMappingService
             {
                 Id = g.Id,
                 StandardGrade = g.StandardGrade,
+                StandardGradeCategory = g.StandardGradeCategory,
                 PlantGrade = g.PlantGrade,
                 Density = g.Density,
                 HeatTreatment = g.HeatTreatment,
@@ -107,6 +109,7 @@ public class GradeMappingService : IGradeMappingService
             {
                 Id = g.Id,
                 StandardGrade = g.StandardGrade,
+                StandardGradeCategory = g.StandardGradeCategory,
                 PlantGrade = g.PlantGrade,
                 Density = g.Density,
                 HeatTreatment = g.HeatTreatment,
@@ -142,18 +145,19 @@ public class GradeMappingService : IGradeMappingService
     /// </summary>
     public async Task<StandardGradeMappingDto> CreateAsync(CreateGradeMappingRequest request)
     {
-        // Check standard grade uniqueness
+        // Check standard grade uniqueness (composite: StandardGrade + StandardGradeCategory)
         var exists = await _context.StandardGradeMappings
-            .AnyAsync(g => g.StandardGrade == request.StandardGrade);
+            .AnyAsync(g => g.StandardGrade == request.StandardGrade && g.StandardGradeCategory == request.StandardGradeCategory);
 
         if (exists)
         {
-            throw new BusinessException($"Standard grade '{request.StandardGrade}' already exists");
+            throw new BusinessException($"标准牌号 '{request.StandardGrade}' 已存在");
         }
 
         var entity = new StandardGradeMapping
         {
             StandardGrade = request.StandardGrade,
+            StandardGradeCategory = request.StandardGradeCategory,
             PlantGrade = request.PlantGrade,
             Density = request.Density,
             HeatTreatment = request.HeatTreatment,
@@ -182,17 +186,21 @@ public class GradeMappingService : IGradeMappingService
             throw new BusinessException("Grade mapping does not exist");
         }
 
-        // Check standard grade uniqueness (exclude self)
-        if (!string.IsNullOrEmpty(request.StandardGrade) && request.StandardGrade != entity.StandardGrade)
+        // Check standard grade uniqueness (composite, exclude self)
+        var gradeChanged = !string.IsNullOrEmpty(request.StandardGrade) &&
+            (request.StandardGrade != entity.StandardGrade ||
+             request.StandardGradeCategory != entity.StandardGradeCategory);
+        if (gradeChanged)
         {
             var exists = await _context.StandardGradeMappings
-                .AnyAsync(g => g.StandardGrade == request.StandardGrade && g.Id != id);
+                .AnyAsync(g => g.StandardGrade == request.StandardGrade && g.StandardGradeCategory == request.StandardGradeCategory && g.Id != id);
 
             if (exists)
             {
-                throw new BusinessException($"Standard grade '{request.StandardGrade}' already exists");
+                throw new BusinessException($"标准牌号 '{request.StandardGrade}' 已存在");
             }
             entity.StandardGrade = request.StandardGrade;
+            entity.StandardGradeCategory = request.StandardGradeCategory;
         }
 
         if (!string.IsNullOrEmpty(request.PlantGrade))
@@ -292,6 +300,7 @@ public class GradeMappingService : IGradeMappingService
         return new Dictionary<string, List<string>>
         {
             ["StandardGrade"] = await query.Select(x => x.StandardGrade).Distinct().OrderBy(x => x).ToListAsync(),
+            ["StandardGradeCategory"] = await query.Where(x => x.StandardGradeCategory != null).Select(x => x.StandardGradeCategory!).Distinct().OrderBy(x => x).ToListAsync(),
             ["PlantGrade"] = await query.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToListAsync(),
             ["HeatTreatment"] = await query.Where(x => x.HeatTreatment != null).Select(x => x.HeatTreatment!).Distinct().OrderBy(x => x).ToListAsync(),
             ["SteelProperty"] = await query.Select(x => x.SteelProperty).Distinct().OrderBy(x => x).ToListAsync(),

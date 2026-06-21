@@ -28,7 +28,7 @@ public class GradeMappingController : ControllerBase
     /// 分页查询牌号对照列表（支持关键字搜索）- 用于 ServerData 模式
     /// </summary>
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<PagedResult<StandardGradeMappingDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -56,7 +56,7 @@ public class GradeMappingController : ControllerBase
     /// 获取所有牌号对照（用于下拉框）
     /// </summary>
     [HttpGet("all")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<StandardGradeMappingDto>>>> GetAll()
     {
         var result = await _service.GetAllAsync();
@@ -67,7 +67,7 @@ public class GradeMappingController : ControllerBase
     /// 根据ID获取牌号对照详情
     /// </summary>
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<StandardGradeMappingDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -78,7 +78,7 @@ public class GradeMappingController : ControllerBase
     /// 创建牌号对照
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = $"{Roles.Directors.Standard},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<StandardGradeMappingDto>>> Create([FromBody] CreateGradeMappingRequest request)
     {
         if (!ModelState.IsValid)
@@ -96,7 +96,7 @@ public class GradeMappingController : ControllerBase
     /// 打印单个牌号对照
     /// </summary>
     [HttpGet("{id}/print")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintGradeMapping(int id)
     {
         var pdfBytes = await _service.PrintGradeMappingAsync(id);
@@ -108,7 +108,7 @@ public class GradeMappingController : ControllerBase
     /// 批量打印牌号对照
     /// </summary>
     [HttpPost("print-batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintGradeMappingBatch([FromBody] OrderPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -122,7 +122,7 @@ public class GradeMappingController : ControllerBase
     /// 按筛选条件打印全部牌号对照
     /// </summary>
     [HttpPost("print-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintGradeMappingAll([FromBody] OrderPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -136,7 +136,7 @@ public class GradeMappingController : ControllerBase
     /// 更新牌号对照
     /// </summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = $"{Roles.Directors.Standard},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<StandardGradeMappingDto>>> Update(int id, [FromBody] UpdateGradeMappingRequest request)
     {
         if (!ModelState.IsValid)
@@ -165,7 +165,7 @@ public class GradeMappingController : ControllerBase
     /// 获取牌号对照筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();

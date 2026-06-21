@@ -43,7 +43,7 @@ public class ColdRollPlanServiceTests : TestBase
             LengthStatus = "Fixed",
             ManufacturingItem = "OrderFinishedProduct",
             PlantGrade = "304",
-            Specification = spec,
+            Specification = spec!,
             SourceSpecification = sourceSpec,
             TotalQuantity = 100,
             TotalMeters = 600,

@@ -1171,6 +1171,191 @@ namespace MES.Data.Migrations
                     b.ToTable("FurnaceRegistration", (string)null);
                 });
 
+            modelBuilder.Entity("MES.Data.Entities.GradeChemicalComposition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Aluminum")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Carbon")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Chromium")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Copper")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Iron")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Manganese")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Molybdenum")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Nickel")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Niobium")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Nitrogen")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Phosphorus")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Silicon")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("StandardGrade")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("StandardGradeCategory")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Sulfur")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Titanium")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Tungsten")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StandardGrade", "StandardGradeCategory")
+                        .IsUnique()
+                        .HasDatabaseName("UK_GradeChemicalComposition_StandardGrade_Category")
+                        .HasFilter("[StandardGradeCategory] IS NOT NULL");
+
+                    b.ToTable("GradeChemicalComposition", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.GradePhysicalProperty", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("Density")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Elongation")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("GrainSize")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("HardnessBrinell")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("HardnessRockwell")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("HardnessVickers")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("HeatTreatmentTemp")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("StandardGrade")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("StandardGradeCategory")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TensileStrength")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("YieldStrength02")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("YieldStrength10")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StandardGrade", "StandardGradeCategory")
+                        .IsUnique()
+                        .HasDatabaseName("UK_GradePhysicalProperty_StandardGrade_Category")
+                        .HasFilter("[StandardGradeCategory] IS NOT NULL");
+
+                    b.ToTable("GradePhysicalProperty", (string)null);
+                });
+
             modelBuilder.Entity("MES.Data.Entities.InspectionRecord", b =>
                 {
                     b.Property<int>("Id")
@@ -2315,9 +2500,6 @@ namespace MES.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<int>("ProductionStandardId")
-                        .HasColumnType("int");
-
                     b.Property<int?>("Quantity")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -2347,6 +2529,10 @@ namespace MES.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("StandardNo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<decimal>("TheoreticalWeight")
                         .ValueGeneratedOnAdd()
@@ -2378,14 +2564,8 @@ namespace MES.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProductionStandardId")
-                        .HasDatabaseName("IX_OrderItem_ProductStandardId");
-
                     b.HasIndex("SalesOrderId")
                         .HasDatabaseName("IX_OrderItem_SalesOrderId");
-
-                    b.HasIndex("StandardGrade")
-                        .HasDatabaseName("IX_OrderItem_StandardGrade");
 
                     b.HasIndex("SalesOrderId", "Sequence")
                         .IsUnique()
@@ -3741,69 +3921,6 @@ namespace MES.Data.Migrations
                         .HasDatabaseName("UK_ProductionRecord_Section");
 
                     b.ToTable("ProductionRecord", (string)null);
-                });
-
-            modelBuilder.Entity("MES.Data.Entities.ProductionStandard", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTimeOffset>("CreatedTime")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<string>("Remark")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("SortOrder")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<string>("StandardCode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("StandardName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("UpdatedBy")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTimeOffset>("UpdatedTime")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IsActive")
-                        .HasDatabaseName("IX_ProductionStandard_IsActive");
-
-                    b.HasIndex("SortOrder")
-                        .HasDatabaseName("IX_ProductionStandard_SortOrder");
-
-                    b.HasIndex("StandardCode")
-                        .IsUnique()
-                        .HasDatabaseName("UK_ProductionStandard_Code");
-
-                    b.ToTable("ProductionStandard", (string)null);
                 });
 
             modelBuilder.Entity("MES.Data.Entities.PurchaseFinishedPlan", b =>
@@ -5185,6 +5302,10 @@ namespace MES.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("StandardGradeCategory")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("SteelProperty")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -5208,9 +5329,10 @@ namespace MES.Data.Migrations
                     b.HasIndex("SpecialMaterial")
                         .HasDatabaseName("IX_StandardGradeMapping_SpecialMaterial");
 
-                    b.HasIndex("StandardGrade")
+                    b.HasIndex("StandardGrade", "StandardGradeCategory")
                         .IsUnique()
-                        .HasDatabaseName("UK_StandardGradeMapping_StandardGrade");
+                        .HasDatabaseName("UK_StandardGradeMapping_StandardGrade_Category")
+                        .HasFilter("[StandardGradeCategory] IS NOT NULL");
 
                     b.ToTable("StandardGradeMapping", (string)null);
                 });
@@ -5273,6 +5395,136 @@ namespace MES.Data.Migrations
                         .HasDatabaseName("IX_StandardProcessCycle_PlantGrade");
 
                     b.ToTable("StandardProcessCycle", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.StandardRegister", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ManufactureMethod")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("RefSpecification")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("StandardLevel")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("StandardName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("StandardNo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("SteelType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StandardNo")
+                        .IsUnique()
+                        .HasDatabaseName("UK_StandardRegister_No");
+
+                    b.ToTable("StandardRegister", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.StandardRegisterItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ApplicableRange")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DetailRequirement")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("InspectionCategory")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("InspectionItem")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("IsMandatory")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("RefStandard")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SamplingRequirement")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("SeqNo")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StandardRegisterId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StandardRegisterId")
+                        .HasDatabaseName("IX_StandardRegisterItem_RegisterId");
+
+                    b.ToTable("StandardRegisterItem", (string)null);
                 });
 
             modelBuilder.Entity("MES.Data.Entities.SubcontractOrder", b =>
@@ -7019,28 +7271,11 @@ namespace MES.Data.Migrations
 
             modelBuilder.Entity("MES.Data.Entities.OrderItem", b =>
                 {
-                    b.HasOne("MES.Data.Entities.ProductionStandard", "ProductionStandard")
-                        .WithMany("OrderItems")
-                        .HasForeignKey("ProductionStandardId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("MES.Data.Entities.SalesOrder", "SalesOrder")
                         .WithMany("OrderItems")
                         .HasForeignKey("SalesOrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("MES.Data.Entities.StandardGradeMapping", "GradeMapping")
-                        .WithMany("OrderItems")
-                        .HasForeignKey("StandardGrade")
-                        .HasPrincipalKey("StandardGrade")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("GradeMapping");
-
-                    b.Navigation("ProductionStandard");
 
                     b.Navigation("SalesOrder");
                 });
@@ -7259,6 +7494,17 @@ namespace MES.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MES.Data.Entities.StandardRegisterItem", b =>
+                {
+                    b.HasOne("MES.Data.Entities.StandardRegister", "StandardRegister")
+                        .WithMany("Items")
+                        .HasForeignKey("StandardRegisterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("StandardRegister");
+                });
+
             modelBuilder.Entity("MES.Data.Entities.SubcontractOrder", b =>
                 {
                     b.HasOne("MES.Data.Entities.SupplierProfile", null)
@@ -7350,11 +7596,6 @@ namespace MES.Data.Migrations
                     b.Navigation("ProcessGroups");
                 });
 
-            modelBuilder.Entity("MES.Data.Entities.ProductionStandard", b =>
-                {
-                    b.Navigation("OrderItems");
-                });
-
             modelBuilder.Entity("MES.Data.Entities.SalesOrder", b =>
                 {
                     b.Navigation("OrderItems");
@@ -7370,9 +7611,9 @@ namespace MES.Data.Migrations
                     b.Navigation("OutsourceRecoveries");
                 });
 
-            modelBuilder.Entity("MES.Data.Entities.StandardGradeMapping", b =>
+            modelBuilder.Entity("MES.Data.Entities.StandardRegister", b =>
                 {
-                    b.Navigation("OrderItems");
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("MES.Data.Entities.SubcontractOrder", b =>

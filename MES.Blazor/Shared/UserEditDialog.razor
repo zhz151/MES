@@ -1,0 +1,189 @@
+@* 用户创建/编辑弹窗 *@
+@namespace MES.Blazor.Shared
+@using MES.Core.DTOs.Auth
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@Title</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" Validation="@(new { })">
+            @if (IsCreate)
+            {
+                <MudTextField @bind-Value="_email"
+                              Label="邮箱"
+                              Variant="Variant.Outlined"
+                              Required="true"
+                              RequiredError="邮箱不能为空"
+                              Class="mb-3" />
+                <MudTextField @bind-Value="_userName"
+                              Label="用户名（留空则使用邮箱）"
+                              Variant="Variant.Outlined"
+                              Class="mb-3" />
+                <MudTextField @bind-Value="_password"
+                              Label="密码"
+                              Variant="Variant.Outlined"
+                              InputType="InputType.Password"
+                              Required="true"
+                              RequiredError="密码不能为空"
+                              Class="mb-3" />
+            }
+            <MudTextField @bind-Value="_fullName"
+                          Label="姓名"
+                          Variant="Variant.Outlined"
+                          Class="mb-3" />
+            <MudSwitch @bind-Value="_isActive"
+                       Label="启用"
+                       Color="Color.Success"
+                       Class="mb-3" />
+
+            <MudText Typo="Typo.subtitle2" Class="mb-2">角色分配</MudText>
+            <MudPaper Elevation="0" Class="pa-3" Style="border: 1px solid #e0e0e0; max-height: 300px; overflow-y: auto;">
+                @foreach (var role in AllRoles)
+                {
+                    <div class="d-flex align-center mb-1">
+                        <MudCheckBox @bind-Value="_selectedRoles[role]"
+                                     Dense="true"
+                                     Color="Color.Primary"
+                                     Disabled="@(role == "Admin" && !IsCreate && _originalIsAdmin)" />
+                        <MudText Typo="Typo.body2" Class="ml-1">@GetRoleDisplayName(role)</MudText>
+                    </div>
+                }
+            </MudPaper>
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-3" Dense="true">@_errorMessage</MudAlert>
+            }
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">取消</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   OnClick="Save"
+                   Disabled="@_isSubmitting"
+                   StartIcon="@(IsCreate ? Icons.Material.Filled.Add : Icons.Material.Filled.Save)">
+            @(IsCreate ? "创建" : "保存")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public List<string> AllRoles { get; set; } = new();
+
+    // 创建模式传递 CreateUserRequest，编辑模式传递 UpdateUserRequest
+    [Parameter] public object? Model { get; set; }
+    [Parameter] public bool IsCreate { get; set; }
+
+    private MudForm? _form;
+    private bool _isSubmitting;
+    private string _errorMessage = "";
+
+    // 编辑字段
+    private string _email = "";
+    private string _userName = "";
+    private string _password = "";
+    private string _fullName = "";
+    private bool _isActive = true;
+    private Dictionary<string, bool> _selectedRoles = new();
+    private bool _originalIsAdmin;
+
+    private static readonly Dictionary<string, string> RoleDisplayNames = new()
+    {
+        ["Admin"] = "超级管理员",
+        ["OrderDirector"] = "订单主任", ["OrderStaff"] = "订单专员",
+        ["WorkOrderDirector"] = "工单主任", ["WorkOrderStaff"] = "工单专员",
+        ["BatchDirector"] = "批次主任", ["BatchStaff"] = "批次专员",
+        ["QualityDirector"] = "质检主任", ["QualityStaff"] = "质检专员",
+        ["EquipmentDirector"] = "设备主任", ["EquipmentStaff"] = "设备专员",
+        ["WarehouseDirector"] = "仓库主任", ["WarehouseStaff"] = "仓库专员",
+        ["MaterialDirector"] = "物料主任", ["MaterialStaff"] = "物料专员",
+    };
+
+    private static string GetRoleDisplayName(string role) =>
+        RoleDisplayNames.TryGetValue(role, out var name) ? name : role;
+
+    protected override void OnInitialized()
+    {
+        _selectedRoles = AllRoles.ToDictionary(r => r, r => false);
+
+        if (IsCreate && Model is CreateUserRequest createModel)
+        {
+            _email = createModel.Email;
+            _userName = createModel.UserName ?? "";
+            _fullName = createModel.FullName ?? "";
+            foreach (var role in createModel.Roles)
+                if (_selectedRoles.ContainsKey(role))
+                    _selectedRoles[role] = true;
+        }
+        else if (!IsCreate && Model is UpdateUserRequest updateModel)
+        {
+            _fullName = updateModel.FullName ?? "";
+            _isActive = updateModel.IsActive;
+            _originalIsAdmin = updateModel.Roles.Contains("Admin");
+            foreach (var role in updateModel.Roles)
+                if (_selectedRoles.ContainsKey(role))
+                    _selectedRoles[role] = true;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        // 验证
+        if (IsCreate && string.IsNullOrWhiteSpace(_email))
+        {
+            _errorMessage = "邮箱不能为空";
+            return;
+        }
+        if (IsCreate && string.IsNullOrWhiteSpace(_password))
+        {
+            _errorMessage = "密码不能为空";
+            return;
+        }
+
+        _isSubmitting = true;
+        _errorMessage = "";
+
+        try
+        {
+            var selectedRoles = _selectedRoles.Where(kv => kv.Value).Select(kv => kv.Key).ToList();
+
+            if (IsCreate)
+            {
+                var request = new CreateUserRequest
+                {
+                    Email = _email.Trim(),
+                    Password = _password,
+                    FullName = string.IsNullOrWhiteSpace(_fullName) ? null : _fullName.Trim(),
+                    UserName = string.IsNullOrWhiteSpace(_userName) ? null : _userName.Trim(),
+                    Roles = selectedRoles
+                };
+                MudDialog.Close(DialogResult.Ok(request));
+            }
+            else
+            {
+                var request = new UpdateUserRequest
+                {
+                    FullName = string.IsNullOrWhiteSpace(_fullName) ? null : _fullName.Trim(),
+                    IsActive = _isActive,
+                    Roles = selectedRoles
+                };
+                MudDialog.Close(DialogResult.Ok(request));
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

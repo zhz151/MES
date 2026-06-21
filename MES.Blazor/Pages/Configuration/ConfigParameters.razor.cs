@@ -33,15 +33,15 @@ public partial class ConfigParameters
         ["MaterialPlanStatus"] = "用料计划-状态阈值",
         ["DimensionTolerance"] = "用料计划-尺寸公差",
         ["LengthDefault"] = "用料计划-长度默认值",
-        ["ReworkRatio"] = "用料计划-返工比率",
+        ["ReworkRatio"] = "用料计划-改制系数",
         // 批次域
-        ["ProcessingDiscount"] = "批次-加工折扣",
+        ["ProcessingDiscount"] = "批次-加工损耗率",
         ["ProductionThreshold"] = "批次-生产阈值",
         // 产能排程域
         ["DateBucket"] = "产能排程-时间桶",
         ["ProductionCapacity"] = "产能排程-日产能",
         // 仓库域
-        ["WarehouseThreshold"] = "仓库-完成阈值",
+        ["WarehouseThreshold"] = "采购/委外-完工阈值",
         // 交期排程域
         ["WorkOrderDays"] = "交期排程-工单天数",
         ["UrgencyThreshold"] = "交期排程-紧急度阈值",

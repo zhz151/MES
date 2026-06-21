@@ -177,7 +177,7 @@ public class ChemicalCompositionControllerTests : ControllerTestBase
     {
         // Arrange
         var previewResult = new ImportPreviewResult { TotalRows = 5, ValidCount = 3, ErrorCount = 2 };
-        _serviceMock.Setup(x => x.PreviewImportAsync(It.IsAny<byte[]>(), It.IsAny<string?>()))
+        _serviceMock.Setup(x => x.PreviewImportAsync(It.IsAny<byte[]>(), It.IsAny<string>()))
             .ReturnsAsync(previewResult);
 
         using var ms = new MemoryStream(new byte[] { 0x01, 0x02 });
@@ -208,7 +208,7 @@ public class ChemicalCompositionControllerTests : ControllerTestBase
     {
         // Arrange
         var importResult = new ImportResult { TotalRows = 5, SuccessCount = 4, FailedCount = 1 };
-        _serviceMock.Setup(x => x.ImportAsync(It.IsAny<byte[]>(), It.IsAny<string?>(), It.IsAny<string?>()))
+        _serviceMock.Setup(x => x.ImportAsync(It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string?>()))
             .ReturnsAsync(importResult);
 
         using var ms = new MemoryStream(new byte[] { 0x01, 0x02 });
@@ -228,7 +228,7 @@ public class ChemicalCompositionControllerTests : ControllerTestBase
     {
         // Arrange
         var importResult = new ImportResult { TotalRows = 5, SuccessCount = 0, FailedCount = 5, HasRolledBack = true };
-        _serviceMock.Setup(x => x.ImportAsync(It.IsAny<byte[]>(), It.IsAny<string?>(), It.IsAny<string?>()))
+        _serviceMock.Setup(x => x.ImportAsync(It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string?>()))
             .ReturnsAsync(importResult);
 
         using var ms = new MemoryStream(new byte[] { 0x01, 0x02 });

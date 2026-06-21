@@ -21,7 +21,7 @@ public static class DisplayHelper
     /// <summary>
     /// 格式化规格（外径*壁厚），去除数值末尾无效零
     /// </summary>
-    public static string FormatSpecification(string specification)
+    public static string FormatSpecification(string? specification)
     {
         if (string.IsNullOrEmpty(specification)) return "";
         var parts = specification.Split('*');

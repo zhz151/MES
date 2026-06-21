@@ -189,22 +189,22 @@ public class ProcessInspectionService : IProcessInspectionService
             return _filterContextCache;
 
         // 并行执行所有逐列 DISTINCT 查询
-        var taskBatchNos = _context.ProcessInspections.Where(r => r.BatchNo != null).Select(r => r.BatchNo).Distinct().OrderBy(v => v).ToListAsync();
-        var taskProcessNames = _context.ProcessInspections.Where(r => r.ProcessName != null).Select(r => r.ProcessName).Distinct().OrderBy(v => v).ToListAsync();
-        var taskManufacturingSpecs = _context.ProcessInspections.Where(r => r.ManufacturingSpec != null && r.ManufacturingSpec != "").Select(r => r.ManufacturingSpec).Distinct().OrderBy(v => v).ToListAsync();
-        var taskSectionNames = _context.ProcessInspections.Where(r => r.SectionName != null).Select(r => r.SectionName).Distinct().OrderBy(v => v).ToListAsync();
-        var taskEquipmentNames = _context.ProcessInspections.Where(r => r.EquipmentName != null && r.EquipmentName != "").Select(r => r.EquipmentName).Distinct().OrderBy(v => v).ToListAsync();
-        var taskInspectors = _context.ProcessInspections.Where(r => r.Inspector != null && r.Inspector != "").Select(r => r.Inspector).Distinct().OrderBy(v => v).ToListAsync();
-        var taskShifts = _context.ProcessInspections.Where(r => r.Shift != null && r.Shift != "").Select(r => r.Shift).Distinct().OrderBy(v => v).ToListAsync();
-        var taskInspectionItems = _context.ProcessInspections.Where(r => r.InspectionItem != null && r.InspectionItem != "").Select(r => r.InspectionItem).Distinct().OrderBy(v => v).ToListAsync();
-        var taskConcessionRemarks = _context.ProcessInspections.Where(r => r.ConcessionRemark != null && r.ConcessionRemark != "").Select(r => r.ConcessionRemark).Distinct().OrderBy(v => v).ToListAsync();
-        var taskDefectDescriptions = _context.ProcessInspections.Where(r => r.DefectDescription != null && r.DefectDescription != "").Select(r => r.DefectDescription).Distinct().OrderBy(v => v).ToListAsync();
-        var taskSourceUnits = _context.ProcessInspections.Where(r => r.SourceUnit != null && r.SourceUnit != "").Select(r => r.SourceUnit).Distinct().OrderBy(v => v).ToListAsync();
-        var taskTagNos = _context.ProcessInspections.Where(r => r.TagNo != null && r.TagNo != "").Select(r => r.TagNo).Distinct().OrderBy(v => v).ToListAsync();
-        var taskPlantGrades = _context.ProcessInspections.Where(r => r.PlantGrade != null && r.PlantGrade != "").Select(r => r.PlantGrade).Distinct().OrderBy(v => v).ToListAsync();
+        var taskBatchNos = _context.ProcessInspections.Where(r => r.BatchNo != null).Select(r => r.BatchNo!).Distinct().OrderBy(v => v).ToListAsync();
+        var taskProcessNames = _context.ProcessInspections.Where(r => r.ProcessName != null).Select(r => r.ProcessName!).Distinct().OrderBy(v => v).ToListAsync();
+        var taskManufacturingSpecs = _context.ProcessInspections.Where(r => r.ManufacturingSpec != null && r.ManufacturingSpec != "").Select(r => r.ManufacturingSpec!).Distinct().OrderBy(v => v).ToListAsync();
+        var taskSectionNames = _context.ProcessInspections.Where(r => r.SectionName != null).Select(r => r.SectionName!).Distinct().OrderBy(v => v).ToListAsync();
+        var taskEquipmentNames = _context.ProcessInspections.Where(r => r.EquipmentName != null && r.EquipmentName != "").Select(r => r.EquipmentName!).Distinct().OrderBy(v => v).ToListAsync();
+        var taskInspectors = _context.ProcessInspections.Where(r => r.Inspector != null && r.Inspector != "").Select(r => r.Inspector!).Distinct().OrderBy(v => v).ToListAsync();
+        var taskShifts = _context.ProcessInspections.Where(r => r.Shift != null && r.Shift != "").Select(r => r.Shift!).Distinct().OrderBy(v => v).ToListAsync();
+        var taskInspectionItems = _context.ProcessInspections.Where(r => r.InspectionItem != null && r.InspectionItem != "").Select(r => r.InspectionItem!).Distinct().OrderBy(v => v).ToListAsync();
+        var taskConcessionRemarks = _context.ProcessInspections.Where(r => r.ConcessionRemark != null && r.ConcessionRemark != "").Select(r => r.ConcessionRemark!).Distinct().OrderBy(v => v).ToListAsync();
+        var taskDefectDescriptions = _context.ProcessInspections.Where(r => r.DefectDescription != null && r.DefectDescription != "").Select(r => r.DefectDescription!).Distinct().OrderBy(v => v).ToListAsync();
+        var taskSourceUnits = _context.ProcessInspections.Where(r => r.SourceUnit != null && r.SourceUnit != "").Select(r => r.SourceUnit!).Distinct().OrderBy(v => v).ToListAsync();
+        var taskTagNos = _context.ProcessInspections.Where(r => r.TagNo != null && r.TagNo != "").Select(r => r.TagNo!).Distinct().OrderBy(v => v).ToListAsync();
+        var taskPlantGrades = _context.ProcessInspections.Where(r => r.PlantGrade != null && r.PlantGrade != "").Select(r => r.PlantGrade!).Distinct().OrderBy(v => v).ToListAsync();
         var taskInspectionDates = _context.ProcessInspections.Select(r => r.InspectionDate).Distinct().ToListAsync();
-        var taskRemarks = _context.ProcessInspections.Where(r => r.Remark != null && r.Remark != "").Select(r => r.Remark).Distinct().OrderBy(v => v).ToListAsync();
-        var taskDataSources = _context.ProcessInspections.Where(r => r.DataSource != null && r.DataSource != "").Select(r => r.DataSource).Distinct().OrderBy(v => v).ToListAsync();
+        var taskRemarks = _context.ProcessInspections.Where(r => r.Remark != null && r.Remark != "").Select(r => r.Remark!).Distinct().OrderBy(v => v).ToListAsync();
+        var taskDataSources = _context.ProcessInspections.Where(r => r.DataSource != null && r.DataSource != "").Select(r => r.DataSource!).Distinct().OrderBy(v => v).ToListAsync();
 
         await Task.WhenAll(
             taskBatchNos, taskProcessNames, taskManufacturingSpecs, taskSectionNames,

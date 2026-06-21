@@ -41,6 +41,7 @@ public class StandardWorkDayDeliveryStateController : ControllerBase
     public async Task<ActionResult<ApiResponse<StandardWorkDayDeliveryStateDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
+        if (result == null) return NotFound();
         return Ok(ApiResponse<StandardWorkDayDeliveryStateDto>.Ok(result));
     }
 

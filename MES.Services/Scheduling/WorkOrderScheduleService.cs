@@ -274,7 +274,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
             ["RawMaterialLockRemark"] = all.Where(x => x.RawMaterialLockRemark != null).Select(x => x.RawMaterialLockRemark!).Distinct().OrderBy(x => x).ToList(),
             ["AdjustmentRemark"] = all.Where(x => x.AdjustmentRemark != null).Select(x => x.AdjustmentRemark!).Distinct().OrderBy(x => x).ToList(),
             ["ProductionAttentionProcess"] = all
-                .Select(x => x.ProductionAttentionProcess)
+                .Select(x => x.ProductionAttentionProcess!)
                 .Distinct()
                 .OrderBy(x => x)
                 .ToList(),

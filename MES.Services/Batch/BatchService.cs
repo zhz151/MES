@@ -508,7 +508,7 @@ public class BatchService : IBatchService
             // 保存工序组
             if (request.ProcessGroups != null && request.ProcessGroups.Count > 0)
             {
-                for (int i = 0; i < request.ProcessGroups.Count; i++)
+                for (int i = 0; i < request.ProcessGroups!.Count; i++)
                 {
                     var pg = request.ProcessGroups[i];
                     var pgEntity = new ProcessGroup
@@ -974,7 +974,7 @@ public class BatchService : IBatchService
         // 3c. 创建新工序组
         //  - 若请求项与保留的被引用工序组序列号相同 → 原地更新（避免唯一键冲突）
         //  - 否则 → 新增插入（旧记录已在 3b 删除，同序列号可安全插入）
-        for (int i = 0; i < request.ProcessGroups.Count; i++)
+        for (int i = 0; i < request.ProcessGroups!.Count; i++)
         {
             var pgReq = request.ProcessGroups[i];
             var seq = i + 1;
@@ -1430,7 +1430,7 @@ public class BatchService : IBatchService
             ["ProductionSubNo"] = b.ProductionSubNo ?? "",
             ["ProductionType"] = b.ProductionType ?? "",
             ["Status"] = b.Status.ToString(),
-            ["CurrentExecDate"] = b.CurrentExecDate,
+            ["CurrentExecDate"] = (object?)b.CurrentExecDate,
             ["CurrentGroupName"] = b.CurrentGroupName ?? "",
             ["CurrentSectionName"] = b.CurrentSectionName ?? "",
             ["CurrentEquipmentName"] = b.CurrentEquipmentName ?? "",
@@ -1487,7 +1487,7 @@ public class BatchService : IBatchService
             ["ProductionSubNo"] = b.ProductionSubNo ?? "",
             ["ProductionType"] = b.ProductionType ?? "",
             ["Status"] = b.Status.ToString(),
-            ["CurrentExecDate"] = b.CurrentExecDate,
+            ["CurrentExecDate"] = (object?)b.CurrentExecDate,
             ["CurrentGroupName"] = b.CurrentGroupName ?? "",
             ["CurrentSectionName"] = b.CurrentSectionName ?? "",
             ["CurrentEquipmentName"] = b.CurrentEquipmentName ?? "",

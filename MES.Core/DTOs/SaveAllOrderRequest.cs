@@ -53,8 +53,8 @@ public class OrderItemSaveRequest
     /// <summary>物料名称</summary>
     public MaterialName MaterialName { get; set; }
 
-    /// <summary>产品标准 ID</summary>
-    public int ProductionStandardId { get; set; }
+    /// <summary>标准号</summary>
+    public string StandardNo { get; set; } = null!;
 
     /// <summary>交货状态</summary>
     public DeliveryState DeliveryState { get; set; }

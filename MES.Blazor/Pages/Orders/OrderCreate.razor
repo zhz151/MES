@@ -7,7 +7,7 @@
 @using Microsoft.AspNetCore.Authorization
 @inject OrderService OrderService
 @inject CustomerService CustomerService
-@inject ProductionStandardService StandardService
+@inject StandardRegisterService StandardService
 @using MES.Blazor.Shared
 @inject GradeMappingService GradeMappingService
 @inject NavigationManager Navigation
@@ -194,10 +194,10 @@
 
                                 <!-- 产品标准 - 下拉选择 -->
                                 <MudTd>
-                                    <MudSelect T="int" @bind-Value="item.ProductionStandardId" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
+                                    <MudSelect T="string" @bind-Value="item.StandardNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
                                         @foreach (var std in productionStandards)
                                         {
-                                            <MudSelectItem Value="@std.Id">@std.StandardCode</MudSelectItem>
+                                            <MudSelectItem Value="@std.StandardNo">@std.StandardNo</MudSelectItem>
                                         }
                                     </MudSelect>
                                 </MudTd>
@@ -405,7 +405,7 @@
         public bool DelayPenalty { get; set; }
         public SettlementMethod SettlementMethod { get; set; } = SettlementMethod.Theoretical;
         public MaterialName MaterialName { get; set; } = MaterialName.SeamlessPipe;
-        public int ProductionStandardId { get; set; }
+        public string StandardNo { get; set; } = string.Empty;
         public DeliveryState DeliveryState { get; set; } = DeliveryState.SolutionAnnealedAndPickled;
         public string StandardGrade { get; set; } = string.Empty;
         public LengthStatus LengthStatus { get; set; } = LengthStatus.Fixed;
@@ -450,7 +450,7 @@
 
     private OrderHeaderViewModel headerData = new();
     private List<OrderItemViewModel> editItemViewModels = new();
-    private List<ProductionStandardDto> productionStandards = new();
+    private List<StandardRegisterDto> productionStandards = new();
     private List<StandardGradeMappingDto> gradeMappings = new();
     private List<CustomerProfileDto> allCustomers = new();
     private int? _selectedCustomerId;
@@ -597,7 +597,7 @@
             DelayPenalty = last.DelayPenalty,
             SettlementMethod = last.SettlementMethod,
             MaterialName = last.MaterialName,
-            ProductionStandardId = last.ProductionStandardId,
+            StandardNo = last.StandardNo,
             DeliveryState = last.DeliveryState,
             StandardGrade = last.StandardGrade,
             OuterDiameterStr = last.OuterDiameterStr,
@@ -720,7 +720,8 @@
             allCustomers = await customersTask;
 
             // 产品和牌号数据已并行完成
-            productionStandards = await standardsTask;
+            var standardsResult = await standardsTask;
+            productionStandards = standardsResult.Data ?? new();
             gradeMappings = await gradesTask;
 
             // 添加一个默认项次
@@ -922,7 +923,7 @@
                 DelayPenalty = item.DelayPenalty,
                 SettlementMethod = item.SettlementMethod,
                 MaterialName = item.MaterialName,
-                ProductionStandardId = item.ProductionStandardId,
+                StandardNo = item.StandardNo,
                 DeliveryState = item.DeliveryState,
                 StandardGrade = item.StandardGrade,
                 OuterDiameter = item.OuterDiameter,

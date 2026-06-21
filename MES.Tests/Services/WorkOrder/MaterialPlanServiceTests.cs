@@ -44,7 +44,7 @@ public class MaterialPlanServiceTests : TestBase
         decimal od = 219m, decimal wt = 8m)
     {
         var cust = await SeedCustomerAsync(ctx);
-        var ps = await SeedStandardAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
 
         var notifMock = new Mock<INotificationService>();
@@ -62,7 +62,7 @@ public class MaterialPlanServiceTests : TestBase
             {
                 new()
                 {
-                    ProductionStandardId = ps.Id,
+                    StandardNo = sr.StandardNo,
                     StandardGrade = gm.StandardGrade,
                     MaterialName = MaterialName.SeamlessPipe,
                     OuterDiameter = od,

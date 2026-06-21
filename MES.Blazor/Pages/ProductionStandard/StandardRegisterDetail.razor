@@ -1,0 +1,366 @@
+@page "/standard-registers/create"
+@page "/standard-registers/{Id:int}"
+@using MES.Blazor.Helpers
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
+@inject StandardRegisterService Svc
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = Roles.Policies.StandardRead)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    @if (_isLoading)
+    {
+        <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+    }
+    else
+    {
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <div class="d-flex align-center">
+                        <MudIcon Icon="@Icons.Material.Filled.Description" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
+                        <MudText Typo="Typo.h5" Class="font-weight-bold">@(_isCreateMode ? "新建标准号" : "标准号详情")</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="ml-4">@_dto.StandardNo</MudText>
+                    </div>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                    @if (_isEditMode || _isCreateMode)
+                    {
+                        <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CancelEdit">取消</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAll" Loading="@_isSubmitting">
+                            保存
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <AuthorizeView Roles="@Roles.Policies.StandardWrite">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑</MudButton>
+                        </AuthorizeView>
+                    }
+                </CardHeaderActions>
+            </MudCardHeader>
+
+            <MudCardContent>
+                @* ====== 基本信息 ====== *@
+                <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />基本信息
+                </MudText>
+
+                <MudGrid>
+                    <MudItem xs="6" md="2">
+                        @if (_isEditMode || _isCreateMode)
+                        {
+                            <MudTextField @bind-Value="_editDto.StandardNo"
+                                          Label="标准号"
+                                          Variant="Variant.Outlined"
+                                          Required="true"
+                                          RequiredError="标准号不能为空"
+                                          Disabled="@(!_isCreateMode)" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="mb-1 mud-text-secondary">标准号</MudText>
+                            <MudText Typo="Typo.body1">@_dto.StandardNo</MudText>
+                        }
+                    </MudItem>
+                    <MudItem xs="6" md="4">
+                        @if (_isEditMode || _isCreateMode)
+                        {
+                            <MudTextField @bind-Value="_editDto.StandardName"
+                                          Label="标准名称"
+                                          Variant="Variant.Outlined"
+                                          Required="true"
+                                          RequiredError="标准名称不能为空" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="mb-1 mud-text-secondary">标准名称</MudText>
+                            <MudText Typo="Typo.body1">@_dto.StandardName</MudText>
+                        }
+                    </MudItem>
+                    <MudItem xs="6" md="1">
+                        @if (_isEditMode || _isCreateMode)
+                        {
+                            <MudTextField @bind-Value="_editDto.RefSpecification"
+                                          Label="引用规范"
+                                          Variant="Variant.Outlined" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="mb-1 mud-text-secondary">引用规范</MudText>
+                            <MudText Typo="Typo.body1">@(_dto.RefSpecification ?? "-")</MudText>
+                        }
+                    </MudItem>
+                    <MudItem xs="6" md="1">
+                        @if (_isEditMode || _isCreateMode)
+                        {
+                            <MudSelect @bind-Value="_editDto.StandardLevel"
+                                       Label="标准级别"
+                                       Variant="Variant.Outlined">
+                                <MudSelectItem Value="@("国标")">国标</MudSelectItem>
+                                <MudSelectItem Value="@("行标")">行标</MudSelectItem>
+                                <MudSelectItem Value="@("企标")">企标</MudSelectItem>
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="mb-1 mud-text-secondary">标准级别</MudText>
+                            <MudText Typo="Typo.body1">@(_dto.StandardLevel ?? "-")</MudText>
+                        }
+                    </MudItem>
+                    <MudItem xs="6" md="1">
+                        @if (_isEditMode || _isCreateMode)
+                        {
+                            <MudSelect @bind-Value="_editDto.ManufactureMethod"
+                                       Label="制造方式"
+                                       Variant="Variant.Outlined">
+                                <MudSelectItem Value="@("焊管")">焊管</MudSelectItem>
+                                <MudSelectItem Value="@("无缝")">无缝</MudSelectItem>
+                                <MudSelectItem Value="@("无缝+焊管")">无缝+焊管</MudSelectItem>
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="mb-1 mud-text-secondary">制造方式</MudText>
+                            <MudText Typo="Typo.body1">@(_dto.ManufactureMethod ?? "-")</MudText>
+                        }
+                    </MudItem>
+                    <MudItem xs="6" md="1">
+                        @if (_isEditMode || _isCreateMode)
+                        {
+                            <MudSelect @bind-Value="_editDto.SteelType"
+                                       Label="钢类"
+                                       Variant="Variant.Outlined">
+                                <MudSelectItem Value="@("奥氏体")">奥氏体</MudSelectItem>
+                                <MudSelectItem Value="@("双相")">双相</MudSelectItem>
+                                <MudSelectItem Value="@("镍基合金")">镍基合金</MudSelectItem>
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="mb-1 mud-text-secondary">钢类</MudText>
+                            <MudText Typo="Typo.body1">@(_dto.SteelType ?? "-")</MudText>
+                        }
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        @if (_isEditMode || _isCreateMode)
+                        {
+                            <MudTextField @bind-Value="_editDto.Remark"
+                                          Label="备注"
+                                          Variant="Variant.Outlined" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="mb-1 mud-text-secondary">备注</MudText>
+                            <MudText Typo="Typo.body1">@(_dto.Remark ?? "-")</MudText>
+                        }
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-6" />
+
+                @* ====== 复制来源（仅创建模式） ====== *@
+                @if (_isCreateMode)
+                {
+                    <div class="d-flex align-center mb-4">
+                        <MudText Typo="Typo.body2" Class="mr-2 mud-text-secondary" Style="white-space:nowrap;">复制子项目自：</MudText>
+                        <MudSelect T="int?"
+                                   @bind-Value="_sourceStandardId"
+                                   @bind-Value:after="() => OnSourceChanged(_sourceStandardId)"
+                                   Dense="true"
+                                   Variant="Variant.Outlined"
+                                   Placeholder="选择来源标准号"
+                                   Class="flex-grow-1"
+                                   Style="max-width:400px;">
+                            <MudSelectItem Value="@((int?)null)">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">（不复制）</MudText>
+                            </MudSelectItem>
+                            @foreach (var std in _allStandards)
+                            {
+                                <MudSelectItem Value="@((int?)std.Id)">@std.StandardNo - @std.StandardName</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </div>
+                }
+
+                @* ====== 子项目 ====== *@
+                <div class="d-flex align-center mb-3">
+                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold">
+                        <MudIcon Icon="@Icons.Material.Filled.ListAlt" Size="Size.Small" Class="mr-1" />子项目
+                    </MudText>
+                    @if (_isEditMode || _isCreateMode)
+                    {
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="AddItem"
+                                   Size="Size.Small"
+                                   Class="ml-auto">
+                            新增
+                        </MudButton>
+                    }
+                </div>
+
+                <MudTable Items="@_items"
+                          Dense="true"
+                          Hover="true"
+                          Elevation="0"
+                          Class="auto-table"
+                          Striped="true"
+                          ReadOnly="@(!_isEditMode && !_isCreateMode)">
+                    <HeaderContent>
+                        <MudTh Style="width:50px;">序号</MudTh>
+                        <MudTh Style="width:120px;">检验项目类别</MudTh>
+                        <MudTh Style="width:150px;">检验项目</MudTh>
+                        <MudTh Style="width:70px;">强制性</MudTh>
+                        <MudTh Style="width:150px;">取样要求</MudTh>
+                        <MudTh Style="width:120px;">适用范围</MudTh>
+                        <MudTh Style="width:120px;">引用标准</MudTh>
+                        <MudTh>详细要求</MudTh>
+                        @if (_isEditMode || _isCreateMode) { <MudTh Style="width:60px;">操作</MudTh> }
+                    </HeaderContent>
+                    <RowTemplate Context="item">
+                        <MudTd>
+                            @if (_isEditMode || _isCreateMode)
+                            {
+                                <MudTextField @bind-Value="item.SeqNo"
+                                              T="int"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              HideSpinButtons="true"
+                                              Style="width:50px;" />
+                            }
+                            else
+                            {
+                                @item.SeqNo
+                            }
+                        </MudTd>
+                        <MudTd>
+                            @if (_isEditMode || _isCreateMode)
+                            {
+                                <MudTextField @bind-Value="item.InspectionCategory"
+                                              T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Style="width:120px;" />
+                            }
+                            else
+                            {
+                                @(item.InspectionCategory ?? "-")
+                            }
+                        </MudTd>
+                        <MudTd>
+                            @if (_isEditMode || _isCreateMode)
+                            {
+                                <MudTextField @bind-Value="item.InspectionItem"
+                                              T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Required="true"
+                                              Style="width:150px;" />
+                            }
+                            else
+                            {
+                                @item.InspectionItem
+                            }
+                        </MudTd>
+                        <MudTd>
+                            @if (_isEditMode || _isCreateMode)
+                            {
+                                <MudSelect @bind-Value="item.IsMandatory"
+                                           T="string"
+                                           Dense="true"
+                                           Variant="Variant.Outlined"
+                                           Style="width:70px;">
+                                    <MudSelectItem Value="@("是")">是</MudSelectItem>
+                                    <MudSelectItem Value="@("否")">否</MudSelectItem>
+                                </MudSelect>
+                            }
+                            else
+                            {
+                                @(item.IsMandatory ?? "-")
+                            }
+                        </MudTd>
+                        <MudTd>
+                            @if (_isEditMode || _isCreateMode)
+                            {
+                                <MudTextField @bind-Value="item.SamplingRequirement"
+                                              T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Style="width:150px;" />
+                            }
+                            else
+                            {
+                                @(item.SamplingRequirement ?? "-")
+                            }
+                        </MudTd>
+                        <MudTd>
+                            @if (_isEditMode || _isCreateMode)
+                            {
+                                <MudTextField @bind-Value="item.ApplicableRange"
+                                              T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Style="width:120px;" />
+                            }
+                            else
+                            {
+                                @(item.ApplicableRange ?? "-")
+                            }
+                        </MudTd>
+                        <MudTd>
+                            @if (_isEditMode || _isCreateMode)
+                            {
+                                <MudTextField @bind-Value="item.RefStandard"
+                                              T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Style="width:120px;" />
+                            }
+                            else
+                            {
+                                @(item.RefStandard ?? "-")
+                            }
+                        </MudTd>
+                        <MudTd>
+                            @if (_isEditMode || _isCreateMode)
+                            {
+                                <MudTextField @bind-Value="item.DetailRequirement"
+                                              T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Style="min-width:150px;" />
+                            }
+                            else
+                            {
+                                @(item.DetailRequirement ?? "-")
+                            }
+                        </MudTd>
+                        @if (_isEditMode || _isCreateMode)
+                        {
+                            <MudTd>
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Color="Color.Error"
+                                               Size="Size.Small"
+                                               OnClick="@(() => RemoveItem(item))"
+                                               Title="删除" />
+                            </MudTd>
+                        }
+                    </RowTemplate>
+                </MudTable>
+
+                @if (_isCreateMode && _items.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">暂无子项目数据，可在保存前添加。</MudText>
+                }
+            </MudCardContent>
+        </MudCard>
+    }
+</MudContainer>

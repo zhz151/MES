@@ -144,7 +144,7 @@ public class ChemicalCompositionController : ControllerBase
         await file.CopyToAsync(ms);
         var data = ms.ToArray();
 
-        var result = await _service.PreviewImportAsync(data, file.FileName);
+        var result = await _service.PreviewImportAsync(data, file.FileName ?? "");
         return Ok(ApiResponse<ImportPreviewResult>.Ok(result));
     }
 
@@ -162,7 +162,7 @@ public class ChemicalCompositionController : ControllerBase
         await file.CopyToAsync(ms);
         var data = ms.ToArray();
 
-        var result = await _service.ImportAsync(data, file.FileName, User.Identity?.Name);
+        var result = await _service.ImportAsync(data, file.FileName ?? "", User.Identity?.Name);
         var message = result.HasRolledBack
             ? $"导入失败，已回滚。{result.RollbackReason}"
             : $"导入完成: 成功 {result.SuccessCount}，失败 {result.FailedCount}";

@@ -34,7 +34,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<SalesOrder> SalesOrders { get; set; } = null!;
     public DbSet<OrderItem> OrderItems { get; set; } = null!;
     public DbSet<CustomerProfile> CustomerProfiles { get; set; } = null!;
-    public DbSet<ProductionStandard> ProductionStandards { get; set; } = null!;
     public DbSet<ProductRequirement> ProductRequirements { get; set; } = null!;
     public DbSet<StandardGradeMapping> StandardGradeMappings { get; set; } = null!;
     public DbSet<StandardProcessCycle> StandardProcessCycles { get; set; } = null!;
@@ -125,6 +124,12 @@ public class AppDbContext : IdentityDbContext<AppUser>
     // 员工管理
     public DbSet<Employee> Employees { get; set; } = null!;
 
+    // ========== 生产标准上下文 ==========
+    public DbSet<StandardRegister> StandardRegisters { get; set; } = null!;
+    public DbSet<StandardRegisterItem> StandardRegisterItems { get; set; } = null!;
+    public DbSet<GradeChemicalComposition> GradeChemicalCompositions { get; set; } = null!;
+    public DbSet<GradePhysicalProperty> GradePhysicalProperties { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -139,7 +144,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureSalesOrder(builder);
         ConfigureOrderItem(builder);
         ConfigureCustomerProfile(builder);
-        ConfigureProductionStandard(builder);
         ConfigureProductRequirement(builder);
         ConfigureStandardGradeMapping(builder);
         ConfigureWorkOrder(builder);
@@ -220,6 +224,12 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureDailyOutputEstimate(builder);
         ConfigureEmployee(builder);
         ConfigureWorkstation(builder);
+
+        // ========== 生产标准上下文 ==========
+        ConfigureStandardRegister(builder);
+        ConfigureStandardRegisterItem(builder);
+        ConfigureGradeChemicalComposition(builder);
+        ConfigureGradePhysicalProperty(builder);
 
         // 为所有继承 BaseEntity 的实体统一配置审计字段长度
         foreach (var entityType in builder.Model.GetEntityTypes())
@@ -309,9 +319,10 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.SettlementMethod).IsRequired().HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.MaterialName).IsRequired().HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.DeliveryState).IsRequired().HasConversion<string>().HasMaxLength(50);
-            entity.Property(e => e.StandardGrade).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.StandardGrade).HasMaxLength(50);
+            entity.Property(e => e.PlantGrade).HasMaxLength(50);
             entity.Property(e => e.Density).IsRequired().HasColumnType("decimal(18,4)");
+            entity.Property(e => e.StandardNo).HasMaxLength(100);
             entity.Property(e => e.OuterDiameter).IsRequired().HasColumnType("decimal(18,3)");
             entity.Property(e => e.WallThickness).IsRequired().HasColumnType("decimal(18,3)");
             entity.Property(e => e.Specification).IsRequired().HasMaxLength(50);
@@ -331,11 +342,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
                 .HasDatabaseName("UK_OrderItem_Sequence_Active")
                 .IsUnique();
             entity.HasIndex(e => e.SalesOrderId).HasDatabaseName("IX_OrderItem_SalesOrderId");
-            entity.HasIndex(e => e.ProductionStandardId).HasDatabaseName("IX_OrderItem_ProductStandardId");
-            entity.HasIndex(e => e.StandardGrade).HasDatabaseName("IX_OrderItem_StandardGrade");
             entity.HasOne(e => e.SalesOrder).WithMany(s => s.OrderItems).HasForeignKey(e => e.SalesOrderId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(e => e.ProductionStandard).WithMany(p => p.OrderItems).HasForeignKey(e => e.ProductionStandardId).OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(e => e.GradeMapping).WithMany(g => g.OrderItems).HasForeignKey(e => e.StandardGrade).HasPrincipalKey(g => g.StandardGrade).OnDelete(DeleteBehavior.Restrict);
         });
     }
 
@@ -356,23 +363,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Remark).HasMaxLength(500);
             entity.HasIndex(e => e.CustomerCode).IsUnique().HasDatabaseName("UK_CustomerProfile_Code");
             entity.HasIndex(e => e.CustomerUnit).HasDatabaseName("IX_CustomerProfile_CustomerUnit");
-        });
-    }
-
-    private static void ConfigureProductionStandard(ModelBuilder builder)
-    {
-        builder.Entity<ProductionStandard>(entity =>
-        {
-            entity.ToTable("ProductionStandard");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.StandardCode).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.StandardName).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.Remark).HasMaxLength(500);
-            entity.Property(e => e.SortOrder).HasDefaultValue(0);
-            entity.Property(e => e.IsActive).IsRequired().HasDefaultValue(true);
-            entity.HasIndex(e => e.StandardCode).IsUnique().HasDatabaseName("UK_ProductionStandard_Code");
-            entity.HasIndex(e => e.IsActive).HasDatabaseName("IX_ProductionStandard_IsActive");
-            entity.HasIndex(e => e.SortOrder).HasDatabaseName("IX_ProductionStandard_SortOrder");
         });
     }
 
@@ -405,6 +395,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.ToTable("StandardGradeMapping");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.StandardGrade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.StandardGradeCategory).HasMaxLength(50);
             entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Density).IsRequired().HasColumnType("decimal(18,4)");
             entity.Property(e => e.HeatTreatment).HasMaxLength(100);
@@ -412,9 +403,58 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.SpecialNote).HasMaxLength(500);
             entity.Property(e => e.SteelProperty).IsRequired().HasMaxLength(20).HasDefaultValue("镍基合金");
             entity.Property(e => e.Remark).HasMaxLength(500);
-            entity.HasIndex(e => e.StandardGrade).IsUnique().HasDatabaseName("UK_StandardGradeMapping_StandardGrade");
+            entity.HasIndex(e => new { e.StandardGrade, e.StandardGradeCategory }).IsUnique().HasDatabaseName("UK_StandardGradeMapping_StandardGrade_Category");
             entity.HasIndex(e => e.PlantGrade).HasDatabaseName("IX_StandardGradeMapping_PlantGrade");
             entity.HasIndex(e => e.SpecialMaterial).HasDatabaseName("IX_StandardGradeMapping_SpecialMaterial");
+        });
+    }
+
+    private static void ConfigureGradeChemicalComposition(ModelBuilder builder)
+    {
+        builder.Entity<GradeChemicalComposition>(entity =>
+        {
+            entity.ToTable("GradeChemicalComposition");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.StandardGrade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.StandardGradeCategory).HasMaxLength(50);
+            entity.Property(e => e.Carbon).HasMaxLength(100);
+            entity.Property(e => e.Silicon).HasMaxLength(100);
+            entity.Property(e => e.Manganese).HasMaxLength(100);
+            entity.Property(e => e.Phosphorus).HasMaxLength(100);
+            entity.Property(e => e.Sulfur).HasMaxLength(100);
+            entity.Property(e => e.Nickel).HasMaxLength(100);
+            entity.Property(e => e.Chromium).HasMaxLength(100);
+            entity.Property(e => e.Molybdenum).HasMaxLength(100);
+            entity.Property(e => e.Copper).HasMaxLength(100);
+            entity.Property(e => e.Nitrogen).HasMaxLength(100);
+            entity.Property(e => e.Niobium).HasMaxLength(100);
+            entity.Property(e => e.Titanium).HasMaxLength(100);
+            entity.Property(e => e.Iron).HasMaxLength(100);
+            entity.Property(e => e.Aluminum).HasMaxLength(100);
+            entity.Property(e => e.Tungsten).HasMaxLength(100);
+            entity.HasIndex(e => new { e.StandardGrade, e.StandardGradeCategory }).IsUnique().HasDatabaseName("UK_GradeChemicalComposition_StandardGrade_Category");
+        });
+    }
+
+    private static void ConfigureGradePhysicalProperty(ModelBuilder builder)
+    {
+        builder.Entity<GradePhysicalProperty>(entity =>
+        {
+            entity.ToTable("GradePhysicalProperty");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.StandardGrade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.StandardGradeCategory).HasMaxLength(50);
+            entity.Property(e => e.Density).IsRequired().HasColumnType("decimal(18,4)");
+            entity.Property(e => e.HeatTreatmentTemp).HasMaxLength(100);
+            entity.Property(e => e.HardnessRockwell).HasMaxLength(100);
+            entity.Property(e => e.HardnessVickers).HasMaxLength(100);
+            entity.Property(e => e.HardnessBrinell).HasMaxLength(100);
+            entity.Property(e => e.TensileStrength).HasMaxLength(100);
+            entity.Property(e => e.YieldStrength02).HasMaxLength(100);
+            entity.Property(e => e.YieldStrength10).HasMaxLength(100);
+            entity.Property(e => e.Elongation).HasMaxLength(100);
+            entity.Property(e => e.GrainSize).HasMaxLength(100);
+            entity.HasIndex(e => new { e.StandardGrade, e.StandardGradeCategory }).IsUnique().HasDatabaseName("UK_GradePhysicalProperty_StandardGrade_Category");
         });
     }
 
@@ -2477,4 +2517,45 @@ public class AppDbContext : IdentityDbContext<AppUser>
         });
     }
 
+    // ================================================================
+    //                      生产标准上下文配置
+    // ================================================================
+
+    private static void ConfigureStandardRegister(ModelBuilder builder)
+    {
+        builder.Entity<StandardRegister>(entity =>
+        {
+            entity.ToTable("StandardRegister");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.StandardNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.StandardName).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.RefSpecification).HasMaxLength(200);
+            entity.Property(e => e.StandardLevel).HasMaxLength(20);
+            entity.Property(e => e.ManufactureMethod).HasMaxLength(50);
+            entity.Property(e => e.SteelType).HasMaxLength(50);
+            entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.HasIndex(e => e.StandardNo).IsUnique().HasDatabaseName("UK_StandardRegister_No");
+        });
+    }
+
+    private static void ConfigureStandardRegisterItem(ModelBuilder builder)
+    {
+        builder.Entity<StandardRegisterItem>(entity =>
+        {
+            entity.ToTable("StandardRegisterItem");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.InspectionCategory).HasMaxLength(50);
+            entity.Property(e => e.InspectionItem).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.IsMandatory).HasMaxLength(50);
+            entity.Property(e => e.SamplingRequirement).HasMaxLength(200);
+            entity.Property(e => e.ApplicableRange).HasMaxLength(200);
+            entity.Property(e => e.RefStandard).HasMaxLength(200);
+            entity.Property(e => e.DetailRequirement).HasMaxLength(2000);
+            entity.HasOne(e => e.StandardRegister)
+                .WithMany(s => s.Items)
+                .HasForeignKey(e => e.StandardRegisterId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => e.StandardRegisterId).HasDatabaseName("IX_StandardRegisterItem_RegisterId");
+        });
+    }
 }

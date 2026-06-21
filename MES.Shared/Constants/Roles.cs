@@ -13,8 +13,9 @@ public static class Roles
         public const string Equipment = "EquipmentDirector";
         public const string Warehouse = "WarehouseDirector";
         public const string Material = "MaterialDirector";
+        public const string Standard = "StandardDirector";
     }
-    
+
     public static class Staffs
     {
         public const string Order = "OrderStaff";
@@ -24,6 +25,7 @@ public static class Roles
         public const string Equipment = "EquipmentStaff";
         public const string Warehouse = "WarehouseStaff";
         public const string Material = "MaterialStaff";
+        public const string Standard = "StandardStaff";
     }
 
     /// <summary>
@@ -56,6 +58,9 @@ public static class Roles
 
         public const string ConfigurationRead = "Admin";
         public const string ConfigurationWrite = "Admin";
+
+        public const string StandardRead = "StandardStaff,StandardDirector,Admin";
+        public const string StandardWrite = "StandardDirector,Admin";
     }
 
     public static string[] GetAllRoles()
@@ -64,9 +69,9 @@ public static class Roles
         {
             Admin,
             Directors.Order, Directors.WorkOrder, Directors.Batch, Directors.Quality,
-            Directors.Equipment, Directors.Warehouse, Directors.Material,
+            Directors.Equipment, Directors.Warehouse, Directors.Material, Directors.Standard,
             Staffs.Order, Staffs.WorkOrder, Staffs.Batch, Staffs.Quality,
-            Staffs.Equipment, Staffs.Warehouse, Staffs.Material
+            Staffs.Equipment, Staffs.Warehouse, Staffs.Material, Staffs.Standard
         };
     }
 }

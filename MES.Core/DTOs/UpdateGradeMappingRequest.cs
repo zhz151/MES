@@ -17,6 +17,12 @@ public class UpdateGradeMappingRequest
     public string StandardGrade { get; set; } = string.Empty;
 
     /// <summary>
+    /// 标准牌号类别
+    /// </summary>
+    [StringLength(50, ErrorMessage = "标准牌号类别长度不能超过50")]
+    public string? StandardGradeCategory { get; set; }
+
+    /// <summary>
     /// 工厂牌号
     /// </summary>
     [Required(ErrorMessage = "工厂牌号不能为空")]

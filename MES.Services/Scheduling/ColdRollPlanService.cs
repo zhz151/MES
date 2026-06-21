@@ -77,7 +77,7 @@ public class ColdRollPlanService : IColdRollPlanService
         var summaryDict = await _context.Set<WorkOrderExecutionSummary>()
             .AsNoTracking()
             .Where(s => workOrderNos.Contains(s.WorkOrderNo))
-            .ToDictionaryAsync(s => s.WorkOrderNo);
+            .ToDictionaryAsync(s => s.WorkOrderNo!);
 
         // 2b. 加载 WorkOrderPlan 薄表（按 WorkOrderId 索引）
         var workOrderIds = summaryDict.Values.Select(s => s.WorkOrderId).Distinct().ToList();

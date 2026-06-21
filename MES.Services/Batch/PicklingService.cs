@@ -578,19 +578,19 @@ public class PicklingService : IPicklingService
 
     // ========== 打印 ==========
 
-    public async Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
+    public Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
     {
         // 暂不实现打印，返回空 PDF
-        return Array.Empty<byte>();
+        return Task.FromResult(Array.Empty<byte>());
     }
 
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending,
+    public Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending,
         DateTime? inDateFrom, DateTime? inDateTo,
         DateTime? completeDateFrom, DateTime? completeDateTo,
         List<PrintColumnDef> columns)
     {
         // 暂不实现打印，返回空 PDF
-        return Array.Empty<byte>();
+        return Task.FromResult(Array.Empty<byte>());
     }
 
     // ========== 筛选上下文 ==========

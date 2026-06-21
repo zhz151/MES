@@ -6,7 +6,7 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
-@attribute [Authorize(Roles = Roles.Policies.OrderWrite)]
+@attribute [Authorize(Roles = Roles.Policies.StandardWrite)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <MudCard>
@@ -42,6 +42,7 @@
                         <HeaderContent>
                             <MudTh Style="width: 50px;">行号</MudTh>
                             <MudTh Style="width: 120px;">标准牌号<span class="required-star">*</span></MudTh>
+                            <MudTh Style="width: 120px;">标准牌号类别</MudTh>
                             <MudTh Style="width: 120px;">工厂牌号<span class="required-star">*</span></MudTh>
                             <MudTh Style="width: 130px;">密度 (g/cm³)<span class="required-star">*</span></MudTh>
                             <MudTh Style="width: 80px;">特殊材料</MudTh>
@@ -58,6 +59,14 @@
                             <MudTd>
                                 <MudTextField T="string"
                                               @bind-Value="row.StandardGrade"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Size="Size.Small"
+                                              />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField T="string"
+                                              @bind-Value="row.StandardGradeCategory"
                                               Dense="true"
                                               Variant="Variant.Outlined"
                                               Size="Size.Small"
@@ -139,6 +148,7 @@
     {
         public int Sequence { get; set; }
         public string StandardGrade { get; set; } = string.Empty;
+        public string? StandardGradeCategory { get; set; }
         public string PlantGrade { get; set; } = string.Empty;
         public decimal Density { get; set; }
         public bool SpecialMaterial { get; set; }
@@ -211,6 +221,7 @@
             var request = new CreateGradeMappingRequest
             {
                 StandardGrade = r.StandardGrade,
+                StandardGradeCategory = r.StandardGradeCategory,
                 PlantGrade = r.PlantGrade,
                 Density = r.Density,
                 SpecialMaterial = r.SpecialMaterial,

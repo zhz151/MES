@@ -43,9 +43,9 @@ public class OrderItemForWorkOrderDto
     public SettlementMethod SettlementMethod { get; set; }
 
     /// <summary>
-    /// 产品标准编码
+    /// 标准号
     /// </summary>
-    public string StandardCode { get; set; } = null!;
+    public string StandardNo { get; set; } = null!;
 
     /// <summary>
     /// 交货状态

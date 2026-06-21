@@ -452,24 +452,26 @@ private readonly IConfigParameterService _configService;
         if (!orderItems.Any())
             throw new BusinessException($"订单 {salesOrderNo} 没有有效的项次");
 
-        // 单独加载 ProductionStandard
-        var psIds = orderItems
-            .Where(oi => oi.ProductionStandardId > 0)
-            .Select(oi => oi.ProductionStandardId)
+        // 单独加载 StandardRegister
+        var standardNos = orderItems
+            .Where(oi => !string.IsNullOrEmpty(oi.StandardNo))
+            .Select(oi => oi.StandardNo)
             .Distinct()
             .ToList();
-        var psDict = psIds.Any()
-            ? await _context.ProductionStandards
-                .Where(ps => psIds.Contains(ps.Id))
-                .ToDictionaryAsync(ps => ps.Id, ps => ps)
-            : new Dictionary<int, ProductionStandard>();
+        var srDict = standardNos.Any()
+            ? await _context.StandardRegisters
+                .Where(sr => standardNos.Contains(sr.StandardNo))
+                .ToDictionaryAsync(sr => sr.StandardNo, sr => sr, StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, Data.Entities.StandardRegister>(StringComparer.OrdinalIgnoreCase);
 
         // 加载牌号映射（从 StandardGradeMapping 取最新 PlantGrade/Density）
         var gradeNames = orderItems.Select(oi => oi.StandardGrade).Where(s => !string.IsNullOrEmpty(s)).Distinct().ToList();
         var gradeDict = gradeNames.Any()
-            ? await _context.StandardGradeMappings
+            ? (await _context.StandardGradeMappings
                 .Where(sgm => gradeNames.Contains(sgm.StandardGrade))
-                .ToDictionaryAsync(sgm => sgm.StandardGrade)
+                .ToListAsync())
+                .GroupBy(sgm => sgm.StandardGrade, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase)
             : new Dictionary<string, StandardGradeMapping>();
 
         var groups = GroupOrderItemsByMergeFields(orderItems);
@@ -484,7 +486,8 @@ private readonly IConfigParameterService _configService;
 
             foreach (var item in group)
             {
-                psDict.TryGetValue(item.ProductionStandardId, out var ps);
+                var standardNo = item.StandardNo ?? string.Empty;
+                srDict.TryGetValue(standardNo, out var sr);
                 var dto = new OrderItemForWorkOrderDto
                 {
                     Id = item.Id,
@@ -494,7 +497,7 @@ private readonly IConfigParameterService _configService;
                     DeliveryDate = item.DeliveryDate,
                     DelayPenalty = item.DelayPenalty,
                     SettlementMethod = item.SettlementMethod,
-                    StandardCode = ps?.StandardCode ?? string.Empty,
+                    StandardNo = sr?.StandardNo ?? standardNo,
                     DeliveryState = item.DeliveryState,
                     PlantGrade = gradeDict.TryGetValue(item.StandardGrade, out var gm) ? gm.PlantGrade : item.PlantGrade,
                     Specification = item.Specification,
@@ -547,7 +550,7 @@ private readonly IConfigParameterService _configService;
     private string GetMergeKey(OrderItem item)
     {
         return $"{item.DeliveryDate:yyyy-MM-dd}|{item.DelayPenalty}|{item.MaterialName}|{item.SettlementMethod}|" +
-               $"{item.ProductionStandardId}|{item.DeliveryState}|{item.PlantGrade}|{item.Specification}|" +
+               $"{item.StandardNo}|{item.DeliveryState}|{item.PlantGrade}|{item.Specification}|" +
                $"{item.OuterDiameter}|{item.WallThickness}|" +
                $"{item.OuterDiameterNegative}|{item.OuterDiameterPositive}|" +
                $"{item.WallThicknessNegative}|{item.WallThicknessPositive}|" +
@@ -566,8 +569,8 @@ private readonly IConfigParameterService _configService;
             errors.Add($"结算方式 ({item1.SettlementMethod} ≠ {item2.SettlementMethod})");
         if (item1.MaterialName != item2.MaterialName)
             errors.Add($"物料名称 ({item1.MaterialName} ≠ {item2.MaterialName})");
-        if (item1.ProductionStandardId != item2.ProductionStandardId)
-            errors.Add($"产品标准 ({item1.ProductionStandardId} ≠ {item2.ProductionStandardId})");
+        if (item1.StandardNo != item2.StandardNo)
+            errors.Add($"标准号 ({item1.StandardNo} ≠ {item2.StandardNo})");
         if (item1.DeliveryState != item2.DeliveryState)
             errors.Add($"交货状态 ({item1.DeliveryState} ≠ {item2.DeliveryState})");
         if (item1.StandardGrade != item2.StandardGrade)
@@ -674,17 +677,17 @@ private readonly IConfigParameterService _configService;
             .Where(oi => oi.SalesOrderId == salesOrder.Id)
             .ToDictionaryAsync(oi => oi.Sequence, oi => oi);
 
-        // 单独加载 ProductionStandard
-        var psIds = allOrderItems.Values
-            .Where(oi => oi.ProductionStandardId > 0)
-            .Select(oi => oi.ProductionStandardId)
+        // 单独加载 StandardRegister
+        var standardNos = allOrderItems.Values
+            .Where(oi => !string.IsNullOrEmpty(oi.StandardNo))
+            .Select(oi => oi.StandardNo)
             .Distinct()
             .ToList();
-        var psDict = psIds.Any()
-            ? await _context.ProductionStandards
-                .Where(ps => psIds.Contains(ps.Id))
-                .ToDictionaryAsync(ps => ps.Id, ps => ps)
-            : new Dictionary<int, ProductionStandard>();
+        var srDict = standardNos.Any()
+            ? await _context.StandardRegisters
+                .Where(sr => standardNos.Contains(sr.StandardNo))
+                .ToDictionaryAsync(sr => sr.StandardNo, sr => sr, StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, Data.Entities.StandardRegister>(StringComparer.OrdinalIgnoreCase);
 
         // 3. 验证项次
         foreach (var workOrderGroup in request.WorkOrders)
@@ -768,6 +771,7 @@ private readonly IConfigParameterService _configService;
                 var groupItems = workOrderGroup.OrderItemIds
                     .Select(id => allOrderItems.GetValueOrDefault(id))
                     .Where(item => item != null)
+                    .Select(x => x!)
                     .ToList();
                 if (!groupItems.Any()) continue;
 
@@ -799,7 +803,7 @@ private readonly IConfigParameterService _configService;
                     DelayPenalty = firstItem.DelayPenalty,
                     MaterialName = firstItem.MaterialName,
                     SettlementMethod = firstItem.SettlementMethod,
-                    StandardCode = psDict.GetValueOrDefault(firstItem.ProductionStandardId)?.StandardCode ?? string.Empty,
+                    StandardCode = srDict.GetValueOrDefault(firstItem.StandardNo ?? string.Empty)?.StandardNo ?? firstItem.StandardNo ?? string.Empty,
                     DeliveryState = firstItem.DeliveryState,
                     PlantGrade = firstItem.PlantGrade,
                     Specification = firstItem.Specification,
@@ -890,14 +894,14 @@ private readonly IConfigParameterService _configService;
             .Where(oi => oi.SalesOrderId == salesOrder.Id)
             .ToDictionaryAsync(oi => oi.Sequence, oi => oi);
 
-        var psIds = allOrderItems.Values
-            .Where(oi => oi.ProductionStandardId > 0)
-            .Select(oi => oi.ProductionStandardId).Distinct().ToList();
-        var psDict = psIds.Any()
-            ? await _context.ProductionStandards
-                .Where(ps => psIds.Contains(ps.Id))
-                .ToDictionaryAsync(ps => ps.Id, ps => ps)
-            : new Dictionary<int, ProductionStandard>();
+        var standardNos = allOrderItems.Values
+            .Where(oi => !string.IsNullOrEmpty(oi.StandardNo))
+            .Select(oi => oi.StandardNo).Distinct().ToList();
+        var srDict = standardNos.Any()
+            ? await _context.StandardRegisters
+                .Where(sr => standardNos.Contains(sr.StandardNo))
+                .ToDictionaryAsync(sr => sr.StandardNo, sr => sr, StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, Data.Entities.StandardRegister>(StringComparer.OrdinalIgnoreCase);
 
         // 3. 验证项次
         foreach (var workOrderGroup in request.WorkOrders)
@@ -962,6 +966,7 @@ private readonly IConfigParameterService _configService;
                 var groupItems = group.OrderItemIds
                     .Select(id => allOrderItems.GetValueOrDefault(id))
                     .Where(item => item != null)
+                    .Select(x => x!)
                     .ToList();
                 if (!groupItems.Any()) continue;
 
@@ -987,7 +992,7 @@ private readonly IConfigParameterService _configService;
                         || existingWo.DelayPenalty != firstItem.DelayPenalty
                         || existingWo.MaterialName != firstItem.MaterialName
                         || existingWo.SettlementMethod != firstItem.SettlementMethod
-                        || existingWo.StandardCode != (psDict.GetValueOrDefault(firstItem.ProductionStandardId)?.StandardCode ?? string.Empty)
+                        || existingWo.StandardCode != (srDict.GetValueOrDefault(firstItem.StandardNo ?? string.Empty)?.StandardNo ?? firstItem.StandardNo ?? string.Empty)
                         || existingWo.DeliveryState != firstItem.DeliveryState
                         || existingWo.PlantGrade != firstItem.PlantGrade
                         || existingWo.Specification != firstItem.Specification
@@ -1022,7 +1027,7 @@ private readonly IConfigParameterService _configService;
                         existingWo.DelayPenalty = firstItem.DelayPenalty;
                         existingWo.MaterialName = firstItem.MaterialName;
                         existingWo.SettlementMethod = firstItem.SettlementMethod;
-                        existingWo.StandardCode = psDict.GetValueOrDefault(firstItem.ProductionStandardId)?.StandardCode ?? string.Empty;
+                        existingWo.StandardCode = srDict.GetValueOrDefault(firstItem.StandardNo ?? string.Empty)?.StandardNo ?? firstItem.StandardNo ?? string.Empty;
                         existingWo.DeliveryState = firstItem.DeliveryState;
                         existingWo.PlantGrade = firstItem.PlantGrade;
                         existingWo.Specification = firstItem.Specification;
@@ -1060,8 +1065,8 @@ private readonly IConfigParameterService _configService;
                         ProductionMainNo = group.ProductionMainNo,
                         ProductionSubNo = group.ProductionSubNo,
                         Status = WorkOrderStatus.Confirmed,
-                        TotalQuantity = groupItems.Sum(i => i.LengthStatus == LengthStatus.Fixed ? (i.Quantity ?? 0) : 0),
-                        TotalWeight = groupItems.Sum(i => i.LengthStatus == LengthStatus.Fixed ? i.TheoreticalWeight : i.ContractWeight),
+                        TotalQuantity = groupItems.Sum(i => i!.LengthStatus == LengthStatus.Fixed ? (i.Quantity ?? 0) : 0),
+                        TotalWeight = groupItems.Sum(i => i!.LengthStatus == LengthStatus.Fixed ? i.TheoreticalWeight : i.ContractWeight),
                         IsModified = changed
                     });
                 }
@@ -1092,7 +1097,7 @@ private readonly IConfigParameterService _configService;
                         DelayPenalty = firstItem.DelayPenalty,
                         MaterialName = firstItem.MaterialName,
                         SettlementMethod = firstItem.SettlementMethod,
-                        StandardCode = psDict.GetValueOrDefault(firstItem.ProductionStandardId)?.StandardCode ?? string.Empty,
+                        StandardCode = srDict.GetValueOrDefault(firstItem.StandardNo ?? string.Empty)?.StandardNo ?? firstItem.StandardNo ?? string.Empty,
                         DeliveryState = firstItem.DeliveryState,
                         PlantGrade = firstItem.PlantGrade,
                         Specification = firstItem.Specification,

@@ -45,9 +45,9 @@ public class OrderItem : BaseEntity
     public MaterialName MaterialName { get; set; }
 
     /// <summary>
-    /// 产品标准ID（外键）
+    /// 标准号（从 StandardRegister 弱引用，无 FK 约束）
     /// </summary>
-    public int ProductionStandardId { get; set; }
+    public string? StandardNo { get; set; }
 
     /// <summary>
     /// 交货状态
@@ -150,16 +150,6 @@ public class OrderItem : BaseEntity
     /// 所属销售订单
     /// </summary>
     public virtual SalesOrder SalesOrder { get; set; } = null!;
-
-    /// <summary>
-    /// 产品标准
-    /// </summary>
-    public virtual ProductionStandard ProductionStandard { get; set; } = null!;
-
-    /// <summary>
-    /// 牌号对照
-    /// </summary>
-    public virtual StandardGradeMapping? GradeMapping { get; set; }
 
     /// <summary>
     /// 产品要求（一对一关系）

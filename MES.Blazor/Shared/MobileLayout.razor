@@ -73,16 +73,35 @@
                 <MudExpansionPanel Style="background: transparent; color: #ccc;">
                     <TitleContent><div style="padding: 10px 16px; color: #ccc;">质量管理</div></TitleContent>
                     <ChildContent>
-                        <div style="padding-left: 16px;">
-                            <MudNavLink Href="/quality/process-inspection" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">过程检验</MudNavLink>
-                            <MudNavLink Href="/material-checks" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">成检到料</MudNavLink>
-                            <MudNavLink Href="/quality/final-inspection" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">成品检验</MudNavLink>
-                            <MudNavLink Href="/quality-process-tracking" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">成检追踪</MudNavLink>
-                            <MudNavLink Href="/quality/ncr" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">不合格报告</MudNavLink>
-                            <MudNavLink Href="/quality/furnace" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">炉号登记</MudNavLink>
-                            <MudNavLink Href="/quality/chemical-composition" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">牌号化学</MudNavLink>
-                            <MudNavLink Href="/quality/chemical-validate" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">牌号验证</MudNavLink>
-                        </div>
+                        <!-- 检验 三级嵌套 -->
+                        <MudExpansionPanel Style="background: transparent; color: #999;" Class="ml-4">
+                            <TitleContent><div style="padding: 8px 16px; font-size: 0.9rem;">检验</div></TitleContent>
+                            <ChildContent>
+                                <div style="padding-left: 32px;">
+                                    <MudNavLink Href="/quality/process-inspection" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">过程检验</MudNavLink>
+                                    <MudNavLink Href="/material-checks" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">成检到料</MudNavLink>
+                                    <MudNavLink Href="/quality/final-inspection" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">成品检验</MudNavLink>
+                                    <MudNavLink Href="/quality-process-tracking" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">成检追踪</MudNavLink>
+                                </div>
+                            </ChildContent>
+                        </MudExpansionPanel>
+                        <!-- 不合格报告（二级）-->
+                        <MudNavLink Href="/quality/ncr" Style="color: #ccc; padding: 10px 24px;" OnClick="CloseDrawer">不合格报告</MudNavLink>
+                        <!-- 炉号/化学 三级嵌套 -->
+                        <MudExpansionPanel Style="background: transparent; color: #999;" Class="ml-4">
+                            <TitleContent><div style="padding: 8px 16px; font-size: 0.9rem;">炉号/化学</div></TitleContent>
+                            <ChildContent>
+                                <div style="padding-left: 32px;">
+                                    <MudNavLink Href="/quality/furnace" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">炉号登记</MudNavLink>
+                                    <MudNavLink Href="/quality/chemical-composition" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">牌号化学</MudNavLink>
+                                    <MudNavLink Href="/quality/chemical-validate" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">牌号验证</MudNavLink>
+                                </div>
+                            </ChildContent>
+                        </MudExpansionPanel>
+                        <!-- 理化检测（二级）-->
+                        <MudNavLink Href="/quality/lab-testing" Style="color: #ccc; padding: 10px 24px;" OnClick="CloseDrawer">理化检测</MudNavLink>
+                        <!-- 质量证明书（二级）-->
+                        <MudNavLink Href="/quality/certificate" Style="color: #ccc; padding: 10px 24px;" OnClick="CloseDrawer">质量证明书</MudNavLink>
                     </ChildContent>
                 </MudExpansionPanel>
 
@@ -139,11 +158,22 @@
                 </MudExpansionPanel>
 
                 <MudExpansionPanel Style="background: transparent; color: #ccc;">
+                    <TitleContent><div style="padding: 10px 16px; color: #ccc;">生产标准</div></TitleContent>
+                    <ChildContent>
+                        <div style="padding-left: 16px;">
+                            <MudNavLink Href="/standard-registers" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">标准号列表</MudNavLink>
+                            <MudNavLink Href="/grade-mappings" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">牌号对照</MudNavLink>
+                            <MudNavLink Href="/grade-chemical-compositions" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">牌号化学成分</MudNavLink>
+                            <MudNavLink Href="/grade-physical-properties" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">牌号物理性能</MudNavLink>
+                        </div>
+                    </ChildContent>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Style="background: transparent; color: #ccc;">
                     <TitleContent><div style="padding: 10px 16px; color: #ccc;">参数表</div></TitleContent>
                     <ChildContent>
                         <div style="padding-left: 16px;">
                             <MudNavLink Href="/standard-work-days" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">交期排程-标准工量天数</MudNavLink>
-                            <MudNavLink Href="/standard-work-day-delivery-states" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">交期排程-交货状态附加天数</MudNavLink>
                             <MudNavLink Href="/daily-output-estimates" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">产量排程-日产能预估</MudNavLink>
                             <MudNavLink Href="/section-flow-category-settings" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">产量排程-日流转量配置</MudNavLink>
                             <MudNavLink Href="/config-parameters" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">全局-参数配置</MudNavLink>

@@ -242,7 +242,7 @@ public partial class MaterialChecks
     }
 
 
-    private async Task ToggleSort(string sortKey)
+    private async Task ToggleSort(string? sortKey)
     {
         if (sortColumn == sortKey)
             sortDescending = !sortDescending;

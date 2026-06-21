@@ -1,28 +1,29 @@
-@page "/standards"
+@page "/grade-chemical-compositions"
 @using MES.Blazor.Services
 @using MES.Core.DTOs
 @using MES.Core.Models
+@using MES.Core.Enums
+@using MES.Blazor.Helpers
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
-@using Microsoft.AspNetCore.Components.Rendering
 @using MES.Blazor.Models
 @using System.Text.Json
-@inject ProductionStandardService StandardService
+@inject GradeChemicalCompositionService GradeChemicalCompositionService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
 @inject PageStateService PageState
-@attribute [Authorize(Roles = Roles.Policies.OrderRead)]
+@attribute [Authorize(Roles = Roles.Policies.StandardRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>
                 <MudText Typo="Typo.h5" Class="font-weight-bold">
-                    <MudIcon Icon="@Icons.Material.Filled.DocumentScanner" Class="mr-2" Color="Color.Primary" />
-                    产品标准管理
+                    <MudIcon Icon="@Icons.Material.Filled.Science" Class="mr-2" Color="Color.Primary" />
+                    牌号化学成分
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -30,7 +31,7 @@
                            Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Add"
                            OnClick="NavigateToCreate">
-                    新建标准
+                    新建
                 </MudButton>
             </CardHeaderActions>
         </MudCardHeader>
@@ -40,7 +41,7 @@
             <MudGrid>
                 <MudItem xs="12" md="12">
                     <MudTextField T="string"
-                                  Label="模糊搜索 - 标准编码/名称/状态"
+                                  Label="模糊搜索 - 标准牌号/标准牌号类别"
                                   Value="_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
@@ -53,9 +54,9 @@
             </MudGrid>
 
             <!-- 数据表格 -->
-            <div id="standards-list-table">
+            <div id="grade-chemical-compositions-list-table">
             <MudTable @ref="table"
-                      T="ProductionStandardDto"
+                      T="GradeChemicalCompositionDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"
                       Hover="true"
@@ -75,29 +76,11 @@
                         重置
                     </MudButton>
                     <MudSpacer />
-                    <MudButton Variant="Variant.Outlined"
-                               Size="Size.Small"
-                               Color="Color.Info"
-                               StartIcon="@Icons.Material.Filled.Print"
-                               Disabled="@(!selectedIds.Any())"
-                               OnClick="PrintSelected">
-                        打印选中 (@selectedIds.Count)
-                    </MudButton>
-                    <MudButton Variant="Variant.Text"
-                               Size="Size.Small"
-                               Color="Color.Info"
-                               StartIcon="@Icons.Material.Filled.Print"
-                               OnClick="PrintAll">
-                        打印全部
-                    </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
                         共 @_totalCount 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
-                    <MudTh Style="width: 40px;">
-                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
-                    </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
@@ -105,13 +88,12 @@
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label@if (col.IsRequired) {<span class="required-star">*</span>} @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
                                 @if (col.FilterType != null)
                                 {
-                                    <ExcelFilter T="ProductionStandardDto"
+                                    <ExcelFilter T="GradeChemicalCompositionDto"
                                                  Label="@col.Label"
                                                  FieldKey="@col.Key"
                                                  FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"
                                                  ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
                                                  FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))" />
-
                                 }
                             </div>
                         </MudTh>
@@ -119,15 +101,6 @@
                     <MudTh Style="width: 90px;">操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
-                    <MudTd Style="width: 40px;">
-                        @if (!_editingIds.Contains(item.Id))
-                        {
-                            <MudCheckBox T="bool"
-                                         Value="@selectedIds.Contains(item.Id)"
-                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
-                                         Dense="true" />
-                        }
-                    </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTd>@RenderCell(item, col)</MudTd>

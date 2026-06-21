@@ -330,29 +330,29 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
 
         // 逐列数据库级 DISTINCT（各列均直接来自 MaterialReceiveCheck，无需 JOIN ProductionBatch）
         dict["BatchNo"] = await _context.MaterialReceiveChecks
-            .Where(m => m.BatchNo != null).Select(m => m.BatchNo).Distinct().OrderBy(x => x).ToListAsync();
+            .Where(m => m.BatchNo != null).Select(m => m.BatchNo!).Distinct().OrderBy(x => x).ToListAsync();
         dict["ManufacturingItem"] = await _context.MaterialReceiveChecks
-            .Where(m => m.ManufacturingItem != null).Select(m => m.ManufacturingItem).Distinct().OrderBy(x => x).ToListAsync();
+            .Where(m => m.ManufacturingItem != null).Select(m => m.ManufacturingItem!).Distinct().OrderBy(x => x).ToListAsync();
         dict["PlantGrade"] = await _context.MaterialReceiveChecks
-            .Where(m => m.PlantGrade != null).Select(m => m.PlantGrade).Distinct().OrderBy(x => x).ToListAsync();
+            .Where(m => m.PlantGrade != null).Select(m => m.PlantGrade!).Distinct().OrderBy(x => x).ToListAsync();
         dict["Specification"] = await _context.MaterialReceiveChecks
-            .Where(m => m.Specification != null).Select(m => m.Specification).Distinct().OrderBy(x => x).ToListAsync();
+            .Where(m => m.Specification != null).Select(m => m.Specification!).Distinct().OrderBy(x => x).ToListAsync();
         dict["Shift"] = await _context.MaterialReceiveChecks
-            .Where(m => m.Shift != null).Select(m => m.Shift).Distinct().OrderBy(x => x).ToListAsync();
+            .Where(m => m.Shift != null).Select(m => m.Shift!).Distinct().OrderBy(x => x).ToListAsync();
         dict["Checker"] = await _context.MaterialReceiveChecks
-            .Where(m => m.Checker != null).Select(m => m.Checker).Distinct().OrderBy(x => x).ToListAsync();
+            .Where(m => m.Checker != null).Select(m => m.Checker!).Distinct().OrderBy(x => x).ToListAsync();
         dict["FurnaceNo"] = await _context.MaterialReceiveChecks
-            .Where(m => m.FurnaceNo != null).Select(m => m.FurnaceNo).Distinct().OrderBy(x => x).ToListAsync();
+            .Where(m => m.FurnaceNo != null).Select(m => m.FurnaceNo!).Distinct().OrderBy(x => x).ToListAsync();
         dict["WorkOrderNo"] = await _context.MaterialReceiveChecks
-            .Where(m => m.WorkOrderNo != null).Select(m => m.WorkOrderNo).Distinct().OrderBy(x => x).ToListAsync();
+            .Where(m => m.WorkOrderNo != null).Select(m => m.WorkOrderNo!).Distinct().OrderBy(x => x).ToListAsync();
         dict["SalesOrderNo"] = await _context.MaterialReceiveChecks
-            .Where(m => m.SalesOrderNo != null).Select(m => m.SalesOrderNo).Distinct().OrderBy(x => x).ToListAsync();
+            .Where(m => m.SalesOrderNo != null).Select(m => m.SalesOrderNo!).Distinct().OrderBy(x => x).ToListAsync();
         dict["SourceUnit"] = await _context.MaterialReceiveChecks
-            .Where(m => m.SourceUnit != null).Select(m => m.SourceUnit).Distinct().OrderBy(x => x).ToListAsync();
+            .Where(m => m.SourceUnit != null).Select(m => m.SourceUnit!).Distinct().OrderBy(x => x).ToListAsync();
         dict["Salesman"] = await _context.MaterialReceiveChecks
-            .Where(m => m.Salesman != null).Select(m => m.Salesman).Distinct().OrderBy(x => x).ToListAsync();
+            .Where(m => m.Salesman != null).Select(m => m.Salesman!).Distinct().OrderBy(x => x).ToListAsync();
         dict["DeliveryState"] = await _context.MaterialReceiveChecks
-            .Where(m => m.DeliveryState != null).Select(m => m.DeliveryState).Distinct().OrderBy(x => x).ToListAsync();
+            .Where(m => m.DeliveryState != null).Select(m => m.DeliveryState!).Distinct().OrderBy(x => x).ToListAsync();
         dict["QualityStatus"] = new List<string> { "待检验", "检验中", "完成检验" };
 
         return dict;

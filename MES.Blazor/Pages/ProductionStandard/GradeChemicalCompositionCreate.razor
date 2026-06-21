@@ -1,0 +1,210 @@
+@page "/grade-chemical-compositions/create"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using Microsoft.AspNetCore.Authorization
+@inject GradeChemicalCompositionService GradeChemicalCompositionService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = Roles.Policies.StandardWrite)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Primary" />
+                    新建牌号化学成分
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAll" Loading="@isSubmitting">
+                    保存
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <div class="d-flex justify-space-between align-center mb-3">
+                <MudText Typo="Typo.subtitle1">牌号化学成分列表</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow">添加行</MudButton>
+            </div>
+
+            <div id="grade-chemical-composition-create-table">
+            @if (rows.Count > 0)
+            {
+                <div style="overflow-x: auto;">
+                    <MudTable T="ChemicalCompositionRow" Items="@rows" Dense="true" Hover="true" Elevation="0" Class="auto-table">
+                        <HeaderContent>
+                            <MudTh Style="width: 40px;">行号</MudTh>
+                            <MudTh Style="width: 110px;">标准牌号<span class="required-star">*</span></MudTh>
+                            <MudTh Style="width: 110px;">标准牌号类别</MudTh>
+                            <MudTh Style="width: 80px;">C</MudTh>
+                            <MudTh Style="width: 80px;">Si</MudTh>
+                            <MudTh Style="width: 80px;">Mn</MudTh>
+                            <MudTh Style="width: 80px;">P</MudTh>
+                            <MudTh Style="width: 80px;">S</MudTh>
+                            <MudTh Style="width: 80px;">Ni</MudTh>
+                            <MudTh Style="width: 80px;">Cr</MudTh>
+                            <MudTh Style="width: 80px;">Mo</MudTh>
+                            <MudTh Style="width: 80px;">Cu</MudTh>
+                            <MudTh Style="width: 80px;">N</MudTh>
+                            <MudTh Style="width: 80px;">Nb</MudTh>
+                            <MudTh Style="width: 80px;">Ti</MudTh>
+                            <MudTh Style="width: 80px;">Fe</MudTh>
+                            <MudTh Style="width: 80px;">Al</MudTh>
+                            <MudTh Style="width: 80px;">W</MudTh>
+                            <MudTh Style="width: 50px;">操作</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="row">
+                            <MudTd><MudText Typo="Typo.body2">@row.Sequence</MudText></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.StandardGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.StandardGradeCategory" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.Carbon" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.Silicon" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.Manganese" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.Phosphorus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.Sulfur" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.Nickel" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.Chromium" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.Molybdenum" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.Copper" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.Nitrogen" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.Niobium" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.Titanium" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.Iron" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.Aluminum" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="row.Tungsten" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd>
+                            <MudTd>
+                                @if (rows.Count > 1)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => RemoveRow(row)" />
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+            }
+            </div>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private List<ChemicalCompositionRow> rows = new();
+    private bool isSubmitting;
+    private bool _isArrowNavSetup;
+
+    private class ChemicalCompositionRow
+    {
+        public int Sequence { get; set; }
+        public string StandardGrade { get; set; } = string.Empty;
+        public string? StandardGradeCategory { get; set; }
+        public string? Carbon { get; set; }
+        public string? Silicon { get; set; }
+        public string? Manganese { get; set; }
+        public string? Phosphorus { get; set; }
+        public string? Sulfur { get; set; }
+        public string? Nickel { get; set; }
+        public string? Chromium { get; set; }
+        public string? Molybdenum { get; set; }
+        public string? Copper { get; set; }
+        public string? Nitrogen { get; set; }
+        public string? Niobium { get; set; }
+        public string? Titanium { get; set; }
+        public string? Iron { get; set; }
+        public string? Aluminum { get; set; }
+        public string? Tungsten { get; set; }
+    }
+
+    protected override void OnInitialized()
+    {
+        AddRow();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#grade-chemical-composition-create-table"))
+                _isArrowNavSetup = false;
+        }
+    }
+
+    private void AddRow()
+    {
+        rows.Add(new ChemicalCompositionRow { Sequence = rows.Count + 1 });
+    }
+
+    private void RemoveRow(ChemicalCompositionRow row)
+    {
+        if (rows.Count <= 1) { Snackbar.Add("至少保留一条记录", Severity.Warning); return; }
+        rows.Remove(row);
+        for (int i = 0; i < rows.Count; i++) rows[i].Sequence = i + 1;
+    }
+
+    private async Task SaveAll()
+    {
+        var errors = new List<string>();
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var r = rows[i];
+            if (string.IsNullOrWhiteSpace(r.StandardGrade)) errors.Add($"行{i + 1}: 标准牌号不能为空");
+        }
+        if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
+
+        isSubmitting = true; StateHasChanged();
+        var successCount = 0;
+        var failCount = 0;
+        var failMessages = new List<string>();
+
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var r = rows[i];
+            var request = new CreateGradeChemicalCompositionRequest
+            {
+                StandardGrade = r.StandardGrade,
+                StandardGradeCategory = r.StandardGradeCategory,
+                Carbon = r.Carbon,
+                Silicon = r.Silicon,
+                Manganese = r.Manganese,
+                Phosphorus = r.Phosphorus,
+                Sulfur = r.Sulfur,
+                Nickel = r.Nickel,
+                Chromium = r.Chromium,
+                Molybdenum = r.Molybdenum,
+                Copper = r.Copper,
+                Nitrogen = r.Nitrogen,
+                Niobium = r.Niobium,
+                Titanium = r.Titanium,
+                Iron = r.Iron,
+                Aluminum = r.Aluminum,
+                Tungsten = r.Tungsten
+            };
+
+            try
+            {
+                var result = await GradeChemicalCompositionService.CreateAsync(request);
+                if (result.Success) successCount++;
+                else { failCount++; failMessages.Add($"行{i + 1}: {result.Message}"); }
+            }
+            catch (Exception ex) { failCount++; failMessages.Add($"行{i + 1}: {ex.Message}"); }
+        }
+
+        isSubmitting = false; StateHasChanged();
+
+        if (failCount == 0)
+        {
+            Snackbar.Add($"成功创建 {successCount} 条记录", Severity.Success);
+            Navigation.NavigateTo("/grade-chemical-compositions");
+        }
+        else
+        {
+            Snackbar.Add($"成功 {successCount} 条，失败 {failCount} 条：{string.Join("；", failMessages)}", Severity.Error);
+        }
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/grade-chemical-compositions");
+}

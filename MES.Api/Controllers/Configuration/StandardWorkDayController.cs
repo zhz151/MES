@@ -41,6 +41,8 @@ public class StandardWorkDayController : ControllerBase
     public async Task<ActionResult<ApiResponse<StandardWorkDayDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
+        if (result == null)
+            return NotFound(ApiResponse<StandardWorkDayDto>.Fail("标准工作日不存在"));
         return Ok(ApiResponse<StandardWorkDayDto>.Ok(result));
     }
 
