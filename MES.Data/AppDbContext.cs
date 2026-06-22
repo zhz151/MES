@@ -86,6 +86,15 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<FurnaceRegistration> FurnaceRegistrations { get; set; } = null!;
     public DbSet<ChemicalValidationRule> ChemicalValidationRules { get; set; } = null!;
     public DbSet<FinalInspection> FinalInspections { get; set; } = null!;
+    public DbSet<ChemicalAnalysis> ChemicalAnalyses { get; set; } = null!;
+    public DbSet<HardnessTest> HardnessTests { get; set; } = null!;
+    public DbSet<GrainSizeTest> GrainSizeTests { get; set; } = null!;
+    public DbSet<PittingCorrosionTest> PittingCorrosionTests { get; set; } = null!;
+    public DbSet<IntergranularCorrosionTest> IntergranularCorrosionTests { get; set; } = null!;
+    public DbSet<TensileTest> TensileTests { get; set; } = null!;
+    public DbSet<MetallographicTest> MetallographicTests { get; set; } = null!;
+    public DbSet<FlatteningTest> FlatteningTests { get; set; } = null!;
+    public DbSet<FlaringTest> FlaringTests { get; set; } = null!;
     public DbSet<Ncr> Ncrs { get; set; } = null!;
 
     // ========== 设备上下文 ==========
@@ -129,6 +138,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<StandardRegisterItem> StandardRegisterItems { get; set; } = null!;
     public DbSet<GradeChemicalComposition> GradeChemicalCompositions { get; set; } = null!;
     public DbSet<GradePhysicalProperty> GradePhysicalProperties { get; set; } = null!;
+    public DbSet<SubStandardQuickView> SubStandardQuickViews { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -193,6 +203,15 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureFurnaceRegistration(builder);
         ConfigureChemicalValidationRule(builder);
         ConfigureFinalInspection(builder);
+        ConfigureChemicalAnalysis(builder);
+        ConfigureHardnessTest(builder);
+        ConfigureGrainSizeTest(builder);
+        ConfigurePittingCorrosionTest(builder);
+        ConfigureIntergranularCorrosionTest(builder);
+        ConfigureTensileTest(builder);
+        ConfigureMetallographicTest(builder);
+        ConfigureFlatteningTest(builder);
+        ConfigureFlaringTest(builder);
         ConfigureNcr(builder);
 
         // ========== 设备上下文 ==========
@@ -230,6 +249,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureStandardRegisterItem(builder);
         ConfigureGradeChemicalComposition(builder);
         ConfigureGradePhysicalProperty(builder);
+        ConfigureSubStandardQuickView(builder);
 
         // 为所有继承 BaseEntity 的实体统一配置审计字段长度
         foreach (var entityType in builder.Model.GetEntityTypes())
@@ -433,6 +453,40 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Aluminum).HasMaxLength(100);
             entity.Property(e => e.Tungsten).HasMaxLength(100);
             entity.HasIndex(e => new { e.StandardGrade, e.StandardGradeCategory }).IsUnique().HasDatabaseName("UK_GradeChemicalComposition_StandardGrade_Category");
+        });
+    }
+
+    private static void ConfigureSubStandardQuickView(ModelBuilder builder)
+    {
+        builder.Entity<SubStandardQuickView>(entity =>
+        {
+            entity.ToTable("SubStandardQuickView");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.StandardNo).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ChemicalComposition).HasMaxLength(200);
+            entity.Property(e => e.HydrostaticTest).HasMaxLength(200);
+            entity.Property(e => e.EddyCurrent).HasMaxLength(200);
+            entity.Property(e => e.UltrasonicTest).HasMaxLength(200);
+            entity.Property(e => e.RadiographicTest).HasMaxLength(200);
+            entity.Property(e => e.HardnessRockwell).HasMaxLength(200);
+            entity.Property(e => e.HardnessBrinell).HasMaxLength(200);
+            entity.Property(e => e.HardnessVickers).HasMaxLength(200);
+            entity.Property(e => e.TensileRoomTemp).HasMaxLength(200);
+            entity.Property(e => e.TensileHighTemp).HasMaxLength(200);
+            entity.Property(e => e.WeldJointTensile).HasMaxLength(200);
+            entity.Property(e => e.ImpactTest).HasMaxLength(200);
+            entity.Property(e => e.WeldJointImpact).HasMaxLength(200);
+            entity.Property(e => e.FlatteningTest).HasMaxLength(200);
+            entity.Property(e => e.FlaringTest).HasMaxLength(200);
+            entity.Property(e => e.ExpandingTest).HasMaxLength(200);
+            entity.Property(e => e.BendTest).HasMaxLength(200);
+            entity.Property(e => e.WeldJointBend).HasMaxLength(200);
+            entity.Property(e => e.GrainSize).HasMaxLength(200);
+            entity.Property(e => e.IntergranularCorrosion).HasMaxLength(200);
+            entity.Property(e => e.PittingCorrosion).HasMaxLength(200);
+            entity.Property(e => e.FerriteContent).HasMaxLength(200);
+            entity.Property(e => e.Macrostructure).HasMaxLength(200);
+            entity.HasIndex(e => e.StandardNo).IsUnique().HasDatabaseName("UK_SubStandardQuickView_StandardNo");
         });
     }
 
@@ -1760,6 +1814,267 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => e.BatchNo).HasDatabaseName("IX_FinalInspection_BatchNo");
             entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_FinalInspection_InspectionDate");
             entity.HasIndex(e => e.InspectionItem).HasDatabaseName("IX_FinalInspection_InspectionItem");
+        });
+    }
+
+    private static void ConfigureChemicalAnalysis(ModelBuilder builder)
+    {
+        builder.Entity<ChemicalAnalysis>(entity =>
+        {
+            entity.ToTable("ChemicalAnalysis");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.AnalysisDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.Analyst).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.FurnaceNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Grade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.AnalysisCount);
+            entity.Property(e => e.AnalysisStandard).HasMaxLength(100);
+
+            // 化学元素含量
+            entity.Property(e => e.C).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Si).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Mn).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.P).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.S).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Ni).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Cr).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Mo).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Cu).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.N).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Nb).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Ti).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Fe).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Al).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.W).HasColumnType("decimal(18,6)");
+
+            // 索引
+            entity.HasIndex(e => e.FurnaceNo).HasDatabaseName("IX_ChemicalAnalysis_FurnaceNo");
+            entity.HasIndex(e => e.Grade).HasDatabaseName("IX_ChemicalAnalysis_Grade");
+            entity.HasIndex(e => e.AnalysisDate).HasDatabaseName("IX_ChemicalAnalysis_AnalysisDate");
+        });
+    }
+
+    private static void ConfigureHardnessTest(ModelBuilder builder)
+    {
+        builder.Entity<HardnessTest>(entity =>
+        {
+            entity.ToTable("HardnessTest");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.Inspector).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.FurnaceNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Grade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SampleNo);
+            entity.Property(e => e.SampleSize).HasMaxLength(50);
+            entity.Property(e => e.InspectionStandard).HasMaxLength(100);
+            entity.Property(e => e.HardnessMode).HasMaxLength(50);
+            entity.Property(e => e.HardnessValue).HasMaxLength(200);
+            entity.Property(e => e.Judgment).HasMaxLength(50);
+
+            // 索引
+            entity.HasIndex(e => e.FurnaceNo).HasDatabaseName("IX_HardnessTest_FurnaceNo");
+            entity.HasIndex(e => e.Grade).HasDatabaseName("IX_HardnessTest_Grade");
+            entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_HardnessTest_InspectionDate");
+        });
+    }
+
+    private static void ConfigureGrainSizeTest(ModelBuilder builder)
+    {
+        builder.Entity<GrainSizeTest>(entity =>
+        {
+            entity.ToTable("GrainSizeTest");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.Inspector).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.FurnaceNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Grade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SampleNo);
+            entity.Property(e => e.SampleSize).HasMaxLength(50);
+            entity.Property(e => e.InspectionStandard).HasMaxLength(100);
+            entity.Property(e => e.GrainSizeGrade).HasMaxLength(50);
+            entity.Property(e => e.GrainSizeMethod).HasMaxLength(50);
+            entity.Property(e => e.Magnification).HasMaxLength(50);
+            entity.Property(e => e.Judgment).HasMaxLength(50);
+
+            // 索引
+            entity.HasIndex(e => e.FurnaceNo).HasDatabaseName("IX_GrainSizeTest_FurnaceNo");
+            entity.HasIndex(e => e.Grade).HasDatabaseName("IX_GrainSizeTest_Grade");
+            entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_GrainSizeTest_InspectionDate");
+        });
+    }
+
+    private static void ConfigurePittingCorrosionTest(ModelBuilder builder)
+    {
+        builder.Entity<PittingCorrosionTest>(entity =>
+        {
+            entity.ToTable("PittingCorrosionTest");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.Inspector).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.FurnaceNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Grade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SampleNo);
+            entity.Property(e => e.SampleSize).HasMaxLength(50);
+            entity.Property(e => e.InspectionStandard).HasMaxLength(100);
+            entity.Property(e => e.PolishingGrade).HasMaxLength(100);
+            entity.Property(e => e.RawWeight).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.CorrosionSolution).HasMaxLength(100);
+            entity.Property(e => e.CorrosionTemperature).HasMaxLength(50);
+            entity.Property(e => e.CorrosionTime).HasMaxLength(50);
+            entity.Property(e => e.FinalWeight).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.CorrosionRate).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.MaxPitDepth).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Judgment).HasMaxLength(50);
+
+            entity.HasIndex(e => e.FurnaceNo).HasDatabaseName("IX_PittingCorrosionTest_FurnaceNo");
+            entity.HasIndex(e => e.Grade).HasDatabaseName("IX_PittingCorrosionTest_Grade");
+            entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_PittingCorrosionTest_InspectionDate");
+        });
+    }
+
+    private static void ConfigureIntergranularCorrosionTest(ModelBuilder builder)
+    {
+        builder.Entity<IntergranularCorrosionTest>(entity =>
+        {
+            entity.ToTable("IntergranularCorrosionTest");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.Inspector).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.FurnaceNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Grade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SampleNo);
+            entity.Property(e => e.SampleSize).HasMaxLength(50);
+            entity.Property(e => e.InspectionStandard).HasMaxLength(100);
+            entity.Property(e => e.SensitizationTemperature).HasMaxLength(50);
+            entity.Property(e => e.SensitizationDuration).HasMaxLength(50);
+            entity.Property(e => e.CorrosionSolution).HasMaxLength(100);
+            entity.Property(e => e.CorrosionTime).HasMaxLength(50);
+            entity.Property(e => e.BendDegree).HasMaxLength(50);
+            entity.Property(e => e.Magnification).HasMaxLength(50);
+            entity.Property(e => e.ObservationResult).HasMaxLength(200);
+            entity.Property(e => e.Judgment).HasMaxLength(50);
+
+            entity.HasIndex(e => e.FurnaceNo).HasDatabaseName("IX_IntergranularCorrosionTest_FurnaceNo");
+            entity.HasIndex(e => e.Grade).HasDatabaseName("IX_IntergranularCorrosionTest_Grade");
+            entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_IntergranularCorrosionTest_InspectionDate");
+        });
+    }
+
+    private static void ConfigureTensileTest(ModelBuilder builder)
+    {
+        builder.Entity<TensileTest>(entity =>
+        {
+            entity.ToTable("TensileTest");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.Inspector).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.FurnaceNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Grade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SampleNo);
+            entity.Property(e => e.SampleSize).HasMaxLength(50);
+            entity.Property(e => e.InspectionStandard).HasMaxLength(100);
+            entity.Property(e => e.OriginalGaugeLength).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.FinalGaugeLength).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.TensileStrength).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.YieldStrengthRp02).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.YieldStrengthRp1).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Elongation).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Judgment).HasMaxLength(50);
+
+            entity.HasIndex(e => e.FurnaceNo).HasDatabaseName("IX_TensileTest_FurnaceNo");
+            entity.HasIndex(e => e.Grade).HasDatabaseName("IX_TensileTest_Grade");
+            entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_TensileTest_InspectionDate");
+        });
+    }
+
+    private static void ConfigureMetallographicTest(ModelBuilder builder)
+    {
+        builder.Entity<MetallographicTest>(entity =>
+        {
+            entity.ToTable("MetallographicTest");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.Inspector).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.FurnaceNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Grade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SampleNo);
+            entity.Property(e => e.SampleSize).HasMaxLength(50);
+            entity.Property(e => e.InspectionStandard).HasMaxLength(100);
+            entity.Property(e => e.EtchingMethod).HasMaxLength(100);
+            entity.Property(e => e.ElectrolyticVoltage).HasMaxLength(50);
+            entity.Property(e => e.ElectrolyticTime).HasMaxLength(50);
+            entity.Property(e => e.Magnification).HasMaxLength(50);
+            entity.Property(e => e.FerriteContent).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Judgment).HasMaxLength(50);
+
+            entity.HasIndex(e => e.FurnaceNo).HasDatabaseName("IX_MetallographicTest_FurnaceNo");
+            entity.HasIndex(e => e.Grade).HasDatabaseName("IX_MetallographicTest_Grade");
+            entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_MetallographicTest_InspectionDate");
+        });
+    }
+
+    private static void ConfigureFlatteningTest(ModelBuilder builder)
+    {
+        builder.Entity<FlatteningTest>(entity =>
+        {
+            entity.ToTable("FlatteningTest");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.Inspector).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.FurnaceNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Grade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SampleNo);
+            entity.Property(e => e.SampleSize).HasMaxLength(50);
+            entity.Property(e => e.InspectionStandard).HasMaxLength(100);
+            entity.Property(e => e.FlatteningGap).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Observation).HasMaxLength(200);
+            entity.Property(e => e.Judgment).HasMaxLength(50);
+
+            entity.HasIndex(e => e.FurnaceNo).HasDatabaseName("IX_FlatteningTest_FurnaceNo");
+            entity.HasIndex(e => e.Grade).HasDatabaseName("IX_FlatteningTest_Grade");
+            entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_FlatteningTest_InspectionDate");
+        });
+    }
+
+    private static void ConfigureFlaringTest(ModelBuilder builder)
+    {
+        builder.Entity<FlaringTest>(entity =>
+        {
+            entity.ToTable("FlaringTest");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.Inspector).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.FurnaceNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Grade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SampleNo);
+            entity.Property(e => e.SampleSize).HasMaxLength(50);
+            entity.Property(e => e.InspectionStandard).HasMaxLength(100);
+            entity.Property(e => e.MandrelTaper).HasMaxLength(50);
+            entity.Property(e => e.FlaredDiameter).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.FlaringRate).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Observation).HasMaxLength(200);
+            entity.Property(e => e.Judgment).HasMaxLength(50);
+
+            entity.HasIndex(e => e.FurnaceNo).HasDatabaseName("IX_FlaringTest_FurnaceNo");
+            entity.HasIndex(e => e.Grade).HasDatabaseName("IX_FlaringTest_Grade");
+            entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_FlaringTest_InspectionDate");
         });
     }
 

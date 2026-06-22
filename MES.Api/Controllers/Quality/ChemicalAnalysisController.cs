@@ -1,0 +1,139 @@
+using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MES.Core.DTOs;
+using MES.Core.Interfaces;
+using MES.Core.Models;
+using MES.Shared.Constants;
+
+namespace MES.Api.Controllers;
+
+/// <summary>
+/// 化学分析控制器
+/// </summary>
+[ApiController]
+[Route("api/chemical-analysis")]
+[Authorize]
+public class ChemicalAnalysisController : ControllerBase
+{
+    private readonly IChemicalAnalysisService _service;
+    private readonly ILogger<ChemicalAnalysisController> _logger;
+
+    public ChemicalAnalysisController(IChemicalAnalysisService service, ILogger<ChemicalAnalysisController> logger)
+    {
+        _service = service;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// 获取化学分析详情
+    /// </summary>
+    [HttpGet("{id}")]
+    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<ChemicalAnalysisDto>>> GetById(int id)
+    {
+        var result = await _service.GetByIdAsync(id);
+        if (result == null)
+            return NotFound(ApiResponse<ChemicalAnalysisDto>.Fail("记录不存在"));
+        return Ok(ApiResponse<ChemicalAnalysisDto>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 分页查询化学分析记录
+    /// </summary>
+    [HttpGet("all")]
+    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<PagedResult<ChemicalAnalysisDto>>>> GetAll(
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? keyword = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool isDescending = false,
+        [FromQuery] DateTime? inspectionDateFrom = null,
+        [FromQuery] DateTime? inspectionDateTo = null,
+        [FromQuery] string? filters = null)
+    {
+        if (pageSize > 5000) pageSize = 5000;
+        var query = new QueryParams
+        {
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            Keyword = keyword,
+            SortBy = sortBy ?? "analysisdate",
+            IsDescending = isDescending,
+            InspectionDateFrom = inspectionDateFrom,
+            InspectionDateTo = inspectionDateTo
+        };
+        if (!string.IsNullOrEmpty(filters))
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        var result = await _service.GetAllAsync(query);
+        return Ok(ApiResponse<PagedResult<ChemicalAnalysisDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 创建化学分析记录
+    /// </summary>
+    [HttpPost]
+    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<ChemicalAnalysisDto>>> Create(
+        [FromBody] CreateChemicalAnalysisRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<ChemicalAnalysisDto>.Fail("请求参数无效"));
+        var result = await _service.CreateAsync(request);
+        return Ok(ApiResponse<ChemicalAnalysisDto>.Ok(result, "创建成功"));
+    }
+
+    /// <summary>
+    /// 更新化学分析记录
+    /// </summary>
+    [HttpPut("{id}")]
+    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<ChemicalAnalysisDto>>> Update(
+        int id, [FromBody] UpdateChemicalAnalysisRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<ChemicalAnalysisDto>.Fail("请求参数无效"));
+        var result = await _service.UpdateAsync(id, request);
+        return Ok(ApiResponse<ChemicalAnalysisDto>.Ok(result, "更新成功"));
+    }
+
+    /// <summary>
+    /// 删除化学分析记录
+    /// </summary>
+    [HttpDelete("{id}")]
+    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse>> Delete(int id)
+    {
+        await _service.DeleteAsync(id);
+        return Ok(ApiResponse.Ok("删除成功"));
+    }
+
+    /// <summary>
+    /// 批量创建化学分析记录
+    /// </summary>
+    [HttpPost("batch")]
+    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<ChemicalAnalysisDto>>>> BatchCreate(
+        [FromBody] List<CreateChemicalAnalysisRequest> requests)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<List<ChemicalAnalysisDto>>.Fail("请求参数无效"));
+        if (requests == null || requests.Count == 0)
+            return BadRequest(ApiResponse<List<ChemicalAnalysisDto>>.Fail("请求数据不能为空"));
+        var result = await _service.BatchCreateAsync(requests);
+        return Ok(ApiResponse<List<ChemicalAnalysisDto>>.Ok(result, "批量创建成功"));
+    }
+
+    /// <summary>
+    /// 获取筛选上下文（各列的 DISTINCT 值）
+    /// </summary>
+    [HttpGet("filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
+    {
+        var result = await _service.GetFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result, "查询成功"));
+    }
+}

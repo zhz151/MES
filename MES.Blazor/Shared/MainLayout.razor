@@ -75,7 +75,17 @@
                         <MudNavLink Href="/quality/chemical-composition">牌号化学</MudNavLink>
                         <MudNavLink Href="/quality/chemical-validate">牌号验证</MudNavLink>
                     </MudNavGroup>
-                    <MudNavLink Href="/quality/lab-testing">理化检测</MudNavLink>
+                    <MudNavGroup Title="理化检测" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
+                        <MudNavLink Href="/quality/chemical-analysis">化学检验</MudNavLink>
+                        <MudNavLink Href="/quality/hardness-test">硬度检验</MudNavLink>
+                        <MudNavLink Href="/quality/grain-size-test">晶粒度检验</MudNavLink>
+                        <MudNavLink Href="/quality/pitting-corrosion-test">点腐蚀检验</MudNavLink>
+                        <MudNavLink Href="/quality/intergranular-corrosion-test">晶间腐蚀检验</MudNavLink>
+                        <MudNavLink Href="/quality/tensile-test">室温拉伸检验</MudNavLink>
+                        <MudNavLink Href="/quality/metallographic-test">金相检验</MudNavLink>
+                        <MudNavLink Href="/quality/flattening-test">压扁检验</MudNavLink>
+                        <MudNavLink Href="/quality/flaring-test">扩口检验</MudNavLink>
+                    </MudNavGroup>
                     <MudNavLink Href="/quality/certificate">质量证明书</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
@@ -135,9 +145,11 @@
             <AuthorizeView Roles="@Roles.Policies.StandardRead">
                 <MudNavGroup Title="生产标准" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/standard-registers">标准号列表</MudNavLink>
+                    <MudNavLink Href="/sub-standard-quick-views">子标准速览</MudNavLink>
                     <MudNavLink Href="/grade-mappings">牌号对照</MudNavLink>
                     <MudNavLink Href="/grade-chemical-compositions">牌号化学成分</MudNavLink>
                     <MudNavLink Href="/grade-physical-properties">牌号物理性能</MudNavLink>
+                    <MudNavLink Href="/sub-standard-quick-views">子标准速览</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
 

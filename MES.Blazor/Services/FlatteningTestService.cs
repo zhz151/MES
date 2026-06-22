@@ -1,0 +1,69 @@
+using MES.Core.DTOs;
+using MES.Shared.Constants;
+using MES.Core.Models;
+
+namespace MES.Blazor.Services;
+
+public class FlatteningTestService
+{
+    private readonly AuthHttpClient _http;
+    private const string BaseUrl = ApiEndpoints.FlatteningTest;
+
+    public FlatteningTestService(AuthHttpClient http) => _http = http;
+
+    public async Task<ApiResponse<PagedResult<FlatteningTestDto>>> GetAllAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null, string? filters = null)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/all?pageIndex={pageIndex}&pageSize={pageSize}&isDescending={isDescending.ToString().ToLower()}";
+            if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
+            if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
+            if (inspectionDateFrom.HasValue) url += $"&inspectionDateFrom={inspectionDateFrom.Value:yyyy-MM-dd}";
+            if (inspectionDateTo.HasValue) url += $"&inspectionDateTo={inspectionDateTo.Value:yyyy-MM-dd}";
+            if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
+            return await _http.GetFromJsonAsync<ApiResponse<PagedResult<FlatteningTestDto>>>(url)
+                   ?? ApiResponse<PagedResult<FlatteningTestDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<PagedResult<FlatteningTestDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<FlatteningTestDto>> UpdateAsync(int id, UpdateFlatteningTestRequest request)
+    {
+        try
+        {
+            return await _http.PutAsJsonAsync<UpdateFlatteningTestRequest, ApiResponse<FlatteningTestDto>>($"{BaseUrl}/{id}", request)
+                   ?? ApiResponse<FlatteningTestDto>.Fail("更新失败");
+        }
+        catch (Exception ex) { return ApiResponse<FlatteningTestDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<object>> DeleteAsync(int id)
+    {
+        try
+        {
+            return await _http.DeleteFromJsonAsync<ApiResponse<object>>($"{BaseUrl}/{id}")
+                   ?? ApiResponse<object>.Fail("删除失败");
+        }
+        catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<List<FlatteningTestDto>>> BatchCreateAsync(List<CreateFlatteningTestRequest> requests)
+    {
+        try
+        {
+            return await _http.PostAsJsonAsync<List<CreateFlatteningTestRequest>, ApiResponse<List<FlatteningTestDto>>>($"{BaseUrl}/batch", requests)
+                   ?? ApiResponse<List<FlatteningTestDto>>.Fail("批量创建失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<FlatteningTestDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<Dictionary<string, List<string>>>>($"{BaseUrl}/filter-contexts")
+                   ?? ApiResponse<Dictionary<string, List<string>>>.Fail("获取筛选上下文失败");
+        }
+        catch (Exception ex) { return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}"); }
+    }
+}

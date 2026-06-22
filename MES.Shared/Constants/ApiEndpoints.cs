@@ -35,6 +35,15 @@ public static class ApiEndpoints
     public const string ProcessInspection = "api/process-inspection";
     public const string QualityProcessTracking = "api/quality-process-tracking";
     public const string Ncr = "api/ncr";
+    public const string ChemicalAnalysis = "api/chemical-analysis";
+    public const string HardnessTest = "api/hardness-test";
+    public const string GrainSizeTest = "api/grain-size-test";
+    public const string PittingCorrosionTest = "api/pitting-corrosion-test";
+    public const string IntergranularCorrosionTest = "api/intergranular-corrosion-test";
+    public const string TensileTest = "api/tensile-test";
+    public const string MetallographicTest = "api/metallographic-test";
+    public const string FlatteningTest = "api/flattening-test";
+    public const string FlaringTest = "api/flaring-test";
 
     // ===== Equipment 设备 =====
     public const string Equipment = "api/equipment";
@@ -94,6 +103,7 @@ public const string RawMaterialLockPlan = "api/raw-material-lock-plan";
     public const string StandardRegister = "api/standard-register";
     public const string GradeChemicalComposition = "api/grade-chemical-composition";
     public const string GradePhysicalProperty = "api/grade-physical-property";
+    public const string SubStandardQuickView = "api/sub-standard-quick-view";
 
     // ===== 通用默认排序字段 =====
     public const string DefaultSortBy = "CreatedTime";

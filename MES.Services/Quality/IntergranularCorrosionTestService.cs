@@ -1,0 +1,187 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using MES.Core.DTOs;
+using MES.Core.Exceptions;
+using MES.Core.Interfaces;
+using MES.Core.Models;
+using MES.Data;
+using MES.Data.Entities;
+using MES.Services.Helpers;
+
+namespace MES.Services;
+
+public class IntergranularCorrosionTestService : IIntergranularCorrosionTestService
+{
+    private readonly AppDbContext _context;
+    private readonly ILogger<IntergranularCorrosionTestService> _logger;
+
+    public IntergranularCorrosionTestService(AppDbContext context, ILogger<IntergranularCorrosionTestService> logger)
+    {
+        _context = context;
+        _logger = logger;
+    }
+
+    public async Task<IntergranularCorrosionTestDto?> GetByIdAsync(int id)
+    {
+        return await _context.IntergranularCorrosionTests
+            .AsNoTracking()
+            .Where(r => r.Id == id)
+            .Select(MapToDto())
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<PagedResult<IntergranularCorrosionTestDto>> GetAllAsync(QueryParams query)
+    {
+        var queryable = _context.IntergranularCorrosionTests
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(query.Keyword))
+        {
+            var kw = query.Keyword;
+            queryable = queryable.Where(r =>
+                r.Inspector.Contains(kw) ||
+                r.FurnaceNo.Contains(kw) ||
+                r.Grade.Contains(kw) ||
+                r.Specification.Contains(kw) ||
+                (r.InspectionStandard != null && r.InspectionStandard.Contains(kw)) ||
+                (r.SensitizationTemperature != null && r.SensitizationTemperature.Contains(kw)) ||
+                (r.CorrosionSolution != null && r.CorrosionSolution.Contains(kw)) ||
+                (r.ObservationResult != null && r.ObservationResult.Contains(kw)) ||
+                (r.Judgment != null && r.Judgment.Contains(kw)));
+        }
+
+        if (query.InspectionDateFrom.HasValue)
+            queryable = queryable.Where(r => r.InspectionDate >= query.InspectionDateFrom.Value);
+        if (query.InspectionDateTo.HasValue)
+            queryable = queryable.Where(r => r.InspectionDate <= query.InspectionDateTo.Value);
+
+        queryable = queryable.ApplyFilters(query.Filters);
+        var totalCount = await queryable.CountAsync();
+        queryable = ApplySorting(queryable, query.SortBy ?? "inspectiondate", query.IsDescending);
+
+        var items = await queryable
+            .Skip(query.Skip).Take(query.PageSize)
+            .Select(MapToDto()).ToListAsync();
+
+        return new PagedResult<IntergranularCorrosionTestDto>
+        {
+            Items = items, TotalCount = totalCount,
+            PageIndex = query.PageIndex, PageSize = query.PageSize
+        };
+    }
+
+    public async Task<IntergranularCorrosionTestDto> CreateAsync(CreateIntergranularCorrosionTestRequest request)
+    {
+        var entity = MapToEntity(request);
+        _context.IntergranularCorrosionTests.Add(entity);
+        await _context.SaveChangesAsync();
+        return MapToDto(entity);
+    }
+
+    public async Task<IntergranularCorrosionTestDto> UpdateAsync(int id, UpdateIntergranularCorrosionTestRequest request)
+    {
+        var entity = await _context.IntergranularCorrosionTests.FindAsync(id)
+            ?? throw new BusinessException("晶间腐蚀检验记录不存在");
+
+        entity.InspectionDate = request.InspectionDate;
+        entity.Inspector = request.Inspector ?? entity.Inspector;
+        entity.FurnaceNo = request.FurnaceNo ?? entity.FurnaceNo;
+        entity.Grade = request.Grade ?? entity.Grade;
+        entity.Specification = request.Specification ?? entity.Specification;
+        entity.SampleNo = request.SampleNo ?? entity.SampleNo;
+        entity.SampleSize = request.SampleSize ?? entity.SampleSize;
+        entity.InspectionStandard = request.InspectionStandard ?? entity.InspectionStandard;
+        entity.SensitizationTemperature = request.SensitizationTemperature ?? entity.SensitizationTemperature;
+        entity.SensitizationDuration = request.SensitizationDuration ?? entity.SensitizationDuration;
+        entity.CorrosionSolution = request.CorrosionSolution ?? entity.CorrosionSolution;
+        entity.CorrosionTime = request.CorrosionTime ?? entity.CorrosionTime;
+        entity.BendDegree = request.BendDegree ?? entity.BendDegree;
+        entity.Magnification = request.Magnification ?? entity.Magnification;
+        entity.ObservationResult = request.ObservationResult ?? entity.ObservationResult;
+        entity.Judgment = request.Judgment ?? entity.Judgment;
+
+        await _context.SaveChangesAsync();
+        return MapToDto(entity);
+    }
+
+    public async Task DeleteAsync(int id)
+    {
+        var entity = await _context.IntergranularCorrosionTests.FindAsync(id)
+            ?? throw new BusinessException("晶间腐蚀检验记录不存在");
+        _context.IntergranularCorrosionTests.Remove(entity);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<List<IntergranularCorrosionTestDto>> BatchCreateAsync(List<CreateIntergranularCorrosionTestRequest> requests)
+    {
+        if (requests.Count == 0) return new List<IntergranularCorrosionTestDto>();
+        var entities = requests.Select(MapToEntity).ToList();
+        _context.IntergranularCorrosionTests.AddRange(entities);
+        await _context.SaveChangesAsync();
+        return entities.Select(e => MapToDto(e)).ToList();
+    }
+
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var all = await _context.IntergranularCorrosionTests
+            .AsNoTracking()
+            .Select(r => new { r.Inspector, r.FurnaceNo, r.Grade, r.Specification, r.InspectionStandard, r.Judgment, r.InspectionDate })
+            .ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["Inspector"] = all.Select(x => x.Inspector ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["FurnaceNo"] = all.Select(x => x.FurnaceNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Grade"] = all.Select(x => x.Grade ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Specification"] = all.Select(x => x.Specification ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["InspectionStandard"] = all.Select(x => x.InspectionStandard ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Judgment"] = all.Select(x => x.Judgment ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["InspectionDate"] = all.Select(x => x.InspectionDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList()
+        };
+    }
+
+    private static IQueryable<IntergranularCorrosionTest> ApplySorting(IQueryable<IntergranularCorrosionTest> queryable, string sortBy, bool isDescending)
+        => queryable.ApplySort(sortBy, isDescending);
+
+    private static IntergranularCorrosionTestDto MapToDto(IntergranularCorrosionTest e) => new()
+    {
+        Id = e.Id, InspectionDate = e.InspectionDate, Inspector = e.Inspector,
+        FurnaceNo = e.FurnaceNo, Grade = e.Grade, Specification = e.Specification,
+        SampleNo = e.SampleNo, SampleSize = e.SampleSize,
+        InspectionStandard = e.InspectionStandard,
+        SensitizationTemperature = e.SensitizationTemperature,
+        SensitizationDuration = e.SensitizationDuration,
+        CorrosionSolution = e.CorrosionSolution, CorrosionTime = e.CorrosionTime,
+        BendDegree = e.BendDegree, Magnification = e.Magnification,
+        ObservationResult = e.ObservationResult, Judgment = e.Judgment,
+        CreatedTime = e.CreatedTime, UpdatedTime = e.UpdatedTime
+    };
+
+    private static System.Linq.Expressions.Expression<Func<IntergranularCorrosionTest, IntergranularCorrosionTestDto>> MapToDto() => e => new IntergranularCorrosionTestDto
+    {
+        Id = e.Id, InspectionDate = e.InspectionDate, Inspector = e.Inspector,
+        FurnaceNo = e.FurnaceNo, Grade = e.Grade, Specification = e.Specification,
+        SampleNo = e.SampleNo, SampleSize = e.SampleSize,
+        InspectionStandard = e.InspectionStandard,
+        SensitizationTemperature = e.SensitizationTemperature,
+        SensitizationDuration = e.SensitizationDuration,
+        CorrosionSolution = e.CorrosionSolution, CorrosionTime = e.CorrosionTime,
+        BendDegree = e.BendDegree, Magnification = e.Magnification,
+        ObservationResult = e.ObservationResult, Judgment = e.Judgment,
+        CreatedTime = e.CreatedTime, UpdatedTime = e.UpdatedTime
+    };
+
+    private static IntergranularCorrosionTest MapToEntity(CreateIntergranularCorrosionTestRequest r) => new()
+    {
+        InspectionDate = r.InspectionDate, Inspector = r.Inspector,
+        FurnaceNo = r.FurnaceNo, Grade = r.Grade, Specification = r.Specification,
+        SampleNo = r.SampleNo, SampleSize = r.SampleSize,
+        InspectionStandard = r.InspectionStandard,
+        SensitizationTemperature = r.SensitizationTemperature,
+        SensitizationDuration = r.SensitizationDuration,
+        CorrosionSolution = r.CorrosionSolution, CorrosionTime = r.CorrosionTime,
+        BendDegree = r.BendDegree, Magnification = r.Magnification,
+        ObservationResult = r.ObservationResult, Judgment = r.Judgment
+    };
+}

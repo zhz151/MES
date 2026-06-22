@@ -54,7 +54,7 @@ public class DataExchangeService : IDataExchangeService
     public static readonly Dictionary<string, EntityDef> Registry = new()
     {
         // === 第1批：独立实体（无外部FK依赖） ===
-        ["Warehouse"] = new EntityDef("仓库", "仓库档案", typeof(Warehouse), 1, "Code", new List<ColumnDef>
+        ["Warehouse"] = new EntityDef("仓库-仓库档案", "仓库-仓库档案", typeof(Warehouse), 1, "Code", new List<ColumnDef>
         {
             new("仓库编码", "Code"),
             new("仓库名称", "Name"),
@@ -63,7 +63,7 @@ public class DataExchangeService : IDataExchangeService
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        ["StandardGradeMapping"] = new EntityDef("牌号对照", "牌号对照", typeof(StandardGradeMapping), 1, null, new List<ColumnDef>
+        ["StandardGradeMapping"] = new EntityDef("标准-牌号对照", "标准-牌号对照", typeof(StandardGradeMapping), 1, null, new List<ColumnDef>
         {
             new("标准牌号", "StandardGrade"),
             new("标准牌号类别", "StandardGradeCategory", typeof(string), isRequired: false),
@@ -76,7 +76,7 @@ public class DataExchangeService : IDataExchangeService
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        ["StandardProcessCycle"] = new EntityDef("标准工艺生产周期", "标准工艺生产周期", typeof(StandardProcessCycle), 1, null, new List<ColumnDef>
+        ["StandardProcessCycle"] = new EntityDef("工单-标准工艺生产周期", "工单-标准工艺生产周期", typeof(StandardProcessCycle), 1, null, new List<ColumnDef>
         {
             new("工厂牌号", "PlantGrade"),
             new("原料类型", "RawMaterialType"),
@@ -86,7 +86,7 @@ public class DataExchangeService : IDataExchangeService
             new("标准周期天数", "StandardCycleDays", typeof(int)),
         }),
 
-        ["CustomerProfile"] = new EntityDef("客户档案", "客户档案", typeof(CustomerProfile), 1, "CustomerCode", new List<ColumnDef>
+        ["CustomerProfile"] = new EntityDef("订单-客户档案", "订单-客户档案", typeof(CustomerProfile), 1, "CustomerCode", new List<ColumnDef>
         {
             new("客户编码", "CustomerCode"),
             new("客户单位", "CustomerUnit"),
@@ -99,7 +99,7 @@ public class DataExchangeService : IDataExchangeService
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        ["SupplierProfile"] = new EntityDef("供应商档案", "供应商档案", typeof(SupplierProfile), 1, "SupplierName", new List<ColumnDef>
+        ["SupplierProfile"] = new EntityDef("物料-供应商档案", "物料-供应商档案", typeof(SupplierProfile), 1, "SupplierName", new List<ColumnDef>
         {
             new("供应商编码", "SupplierCode", isSystem: true),
             new("供应商名称", "SupplierName"),
@@ -112,7 +112,7 @@ public class DataExchangeService : IDataExchangeService
         }),
 
         // === 设备台账 ===
-        ["Equipment"] = new EntityDef("设备", "设备台账", typeof(Equipment), 1, "EquipmentCode", new List<ColumnDef>
+        ["Equipment"] = new EntityDef("设备-设备台账", "设备-设备台账", typeof(Equipment), 1, "EquipmentCode", new List<ColumnDef>
         {
             new("设备编号", "EquipmentCode"),
             new("设备名称", "EquipmentName"),
@@ -137,7 +137,7 @@ public class DataExchangeService : IDataExchangeService
         }),
 
         // === 第2批：依赖客户档案 ===
-        ["SalesOrder"] = new EntityDef("销售订单", "销售订单", typeof(SalesOrder), 2, "OrderNumber", new List<ColumnDef>
+        ["SalesOrder"] = new EntityDef("订单-销售订单", "订单-销售订单", typeof(SalesOrder), 2, "OrderNumber", new List<ColumnDef>
         {
             new("订单号", "OrderNumber"),
             new("签订日期", "SignDate", typeof(DateTime)),
@@ -147,7 +147,7 @@ public class DataExchangeService : IDataExchangeService
         }),
 
         // === 设备上下文（依赖设备台账） ===
-        ["RepairOrder"] = new EntityDef("维修工单", "维修工单", typeof(RepairOrder), 2, "RepairOrderNo", new List<ColumnDef>
+        ["RepairOrder"] = new EntityDef("设备-维修工单", "设备-维修工单", typeof(RepairOrder), 2, "RepairOrderNo", new List<ColumnDef>
         {
             new("工单编号", "RepairOrderNo", isSystem: true),
             new("设备编号", null!) { IsFkColumn = true, FkEntityKey = "Equipment", FkLookupProperty = "EquipmentCode", FkTargetProperty = "EquipmentId" },
@@ -164,7 +164,7 @@ public class DataExchangeService : IDataExchangeService
             new("备件更换", "SparePartUsed", typeof(string), isRequired: false),
         }),
 
-        ["MaintenanceOrder"] = new EntityDef("保养工单", "保养工单", typeof(MaintenanceOrder), 2, "MaintOrderNo", new List<ColumnDef>
+        ["MaintenanceOrder"] = new EntityDef("设备-保养工单", "设备-保养工单", typeof(MaintenanceOrder), 2, "MaintOrderNo", new List<ColumnDef>
         {
             new("工单编号", "MaintOrderNo", isSystem: true),
             new("设备编号", null!) { IsFkColumn = true, FkEntityKey = "Equipment", FkLookupProperty = "EquipmentCode", FkTargetProperty = "EquipmentId" },
@@ -174,7 +174,7 @@ public class DataExchangeService : IDataExchangeService
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        ["InspectionRecord"] = new EntityDef("点检记录", "点检记录", typeof(InspectionRecord), 2, "RecordNo", new List<ColumnDef>
+        ["InspectionRecord"] = new EntityDef("设备-点检记录", "设备-点检记录", typeof(InspectionRecord), 2, "RecordNo", new List<ColumnDef>
         {
             new("记录编号", "RecordNo", isSystem: true),
             new("设备编号", null!) { IsFkColumn = true, FkEntityKey = "Equipment", FkLookupProperty = "EquipmentCode", FkTargetProperty = "EquipmentId" },
@@ -185,7 +185,7 @@ public class DataExchangeService : IDataExchangeService
         }),
 
         // === 第3批：依赖销售订单、产品标准、牌号对照 ===
-        ["OrderItem"] = new EntityDef("订单项次", "订单项次", typeof(OrderItem), 3, null, new List<ColumnDef>
+        ["OrderItem"] = new EntityDef("订单-订单项次", "订单-订单项次", typeof(OrderItem), 3, null, new List<ColumnDef>
         {
             new("订单号", "OrderNumber") { IsFkColumn = true, FkEntityKey = "SalesOrder", FkLookupProperty = "OrderNumber", FkTargetProperty = "SalesOrderId" },
             new("项次号", "Sequence", typeof(int)),
@@ -216,7 +216,7 @@ public class DataExchangeService : IDataExchangeService
         }, compositeKeyColumns: new[] { "OrderNumber", "Sequence" }),
 
         // === 第4批：依赖订单项次 ===
-        ["ProductRequirement"] = new EntityDef("技术要求", "技术要求", typeof(ProductRequirement), 4, null, new List<ColumnDef>
+        ["ProductRequirement"] = new EntityDef("订单-技术要求", "订单-技术要求", typeof(ProductRequirement), 4, null, new List<ColumnDef>
         {
             new("订单号", "OrderNo") { IsFkColumn = true, FkEntityKey = "OrderItem", FkLookupProperty = "Id", FkTargetProperty = "OrderItemId", FkRequiresJoin = true },
             new("项次号", "ItemSequence") { IsFkColumn = true, FkEntityKey = "OrderItem", FkLookupProperty = "Sequence", FkTargetProperty = "OrderItemId", FkRequiresJoin = true },
@@ -230,7 +230,7 @@ public class DataExchangeService : IDataExchangeService
         }, compositeKeyColumns: new[] { "OrderNo", "ItemSequence" }),
 
         // === 第5批：工单（字符串引用订单，无FK约束） ===
-        ["WorkOrder"] = new EntityDef("工单", "工单", typeof(Data.Entities.WorkOrder), 5, "WorkOrderNo", new List<ColumnDef>
+        ["WorkOrder"] = new EntityDef("工单-工单", "工单-工单", typeof(Data.Entities.WorkOrder), 5, "WorkOrderNo", new List<ColumnDef>
         {
             new("工单号", "WorkOrderNo"),
             new("订单号", "SalesOrderNo"),
@@ -267,7 +267,7 @@ public class DataExchangeService : IDataExchangeService
         }),
 
         // === 第6批：物料 ===
-        ["Material"] = new EntityDef("物料", "物料", typeof(Material), 6, null, new List<ColumnDef>
+        ["Material"] = new EntityDef("物料-物料", "物料-物料", typeof(Material), 6, null, new List<ColumnDef>
         {
             new("物料编码", "MaterialCode", isSystem: true),
             new("物料分类", "MaterialCategory"),
@@ -278,7 +278,7 @@ public class DataExchangeService : IDataExchangeService
         }, compositeKeyColumns: new[] { "MaterialCategory", "PlantGrade", "Specification" }),
 
         // === 第7批：采购订单、委外订单、生产批次（依赖供应商/工单） ===
-        ["ProductionBatch"] = new EntityDef("生产批次", "生产批次", typeof(ProductionBatch), 7, "BatchNo", new List<ColumnDef>
+        ["ProductionBatch"] = new EntityDef("批次-生产批次", "批次-生产批次", typeof(ProductionBatch), 7, "BatchNo", new List<ColumnDef>
         {
             new("生产编号", "BatchNo"),
             new("状态", "Status", typeof(BatchStatus), isEnum: true),
@@ -352,7 +352,7 @@ public class DataExchangeService : IDataExchangeService
             new("全工量(天)", "TotalWorkDays", typeof(int), isSystem: true),
         }),
 
-        ["PurchaseOrder"] = new EntityDef("采购订单", "采购订单", typeof(PurchaseOrder), 7, "OrderNo", new List<ColumnDef>
+        ["PurchaseOrder"] = new EntityDef("物料-采购订单", "物料-采购订单", typeof(PurchaseOrder), 7, "OrderNo", new List<ColumnDef>
         {
             new("采购单号", "OrderNo"),
             new("供应商名称", null!) { IsFkColumn = true, FkEntityKey = "SupplierProfile", FkLookupProperty = "SupplierName", FkTargetProperty = "SupplierId" },
@@ -377,7 +377,7 @@ public class DataExchangeService : IDataExchangeService
             new("已到货重量(kg)", "ReceivedWeight", typeof(decimal), isSystem: true),
         }),
 
-        ["SubcontractOrder"] = new EntityDef("委外订单", "委外订单", typeof(SubcontractOrder), 7, "OrderNo", new List<ColumnDef>
+        ["SubcontractOrder"] = new EntityDef("物料-委外订单", "物料-委外订单", typeof(SubcontractOrder), 7, "OrderNo", new List<ColumnDef>
         {
             new("委外单号", "OrderNo"),
             new("供应商名称", null!) { IsFkColumn = true, FkEntityKey = "SupplierProfile", FkLookupProperty = "SupplierName", FkTargetProperty = "SupplierId" },
@@ -399,7 +399,7 @@ public class DataExchangeService : IDataExchangeService
             new("已收回重量(kg)", "InWeight", typeof(decimal?), isRequired: false, isSystem: true),
         }),
 
-        ["SubcontractReturnItem"] = new EntityDef("委外子项", "委外子项", typeof(SubcontractReturnItem), 7, null, new List<ColumnDef>
+        ["SubcontractReturnItem"] = new EntityDef("物料-委外子项", "物料-委外子项", typeof(SubcontractReturnItem), 7, null, new List<ColumnDef>
         {
             new("委外单号", "OrderNo") { IsFkColumn = true, FkEntityKey = "SubcontractOrder", FkLookupProperty = "OrderNo", FkTargetProperty = "SubcontractOrderId" },
             new("行号", "Sequence", typeof(int)),
@@ -423,7 +423,7 @@ public class DataExchangeService : IDataExchangeService
         }, compositeKeyColumns: new[] { "OrderNo", "Sequence" }),
 
         // === 第8批：工序组（依赖生产批次）、仓库出入库 ===
-        ["ProcessGroup"] = new EntityDef("工序组", "工序组", typeof(ProcessGroup), 8, null, new List<ColumnDef>
+        ["ProcessGroup"] = new EntityDef("批次-工序组", "批次-工序组", typeof(ProcessGroup), 8, null, new List<ColumnDef>
         {
             new("所属批次号", "BatchNo") { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
             new("组内序号", "SequenceNumber", typeof(int)),
@@ -452,7 +452,7 @@ public class DataExchangeService : IDataExchangeService
             new(SectionDefs.Warehouse, "Warehouse", typeof(int?), isRequired: false),
         }, compositeKeyColumns: new[] { "BatchNo", "SequenceNumber" }),
 
-        ["ProductionRecord"] = new EntityDef("生产记录", "生产记录", typeof(ProductionRecord), 8, null, new List<ColumnDef>
+        ["ProductionRecord"] = new EntityDef("批次-生产记录", "批次-生产记录", typeof(ProductionRecord), 8, null, new List<ColumnDef>
         {
             new("批次号", null!) { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
             new("挂牌号", "TagNo", typeof(string), isRequired: false),
@@ -475,7 +475,7 @@ public class DataExchangeService : IDataExchangeService
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
         }),
 
-        ["SectionOutsource"] = new EntityDef("工段委外", "工段委外", typeof(SectionOutsource), 8, null, new List<ColumnDef>
+        ["SectionOutsource"] = new EntityDef("批次-工段委外", "批次-工段委外", typeof(SectionOutsource), 8, null, new List<ColumnDef>
         {
             new("批次号", null!) { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
             new("挂牌号", "TagNo", typeof(string), isRequired: false),
@@ -496,7 +496,7 @@ public class DataExchangeService : IDataExchangeService
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
         }),
 
-        ["OutsourceRecovery"] = new EntityDef("委外回收", "委外回收", typeof(OutsourceRecovery), 8, null, new List<ColumnDef>
+        ["OutsourceRecovery"] = new EntityDef("批次-委外回收", "批次-委外回收", typeof(OutsourceRecovery), 8, null, new List<ColumnDef>
         {
             new("批次号", null!) { IsFkColumn = true, FkEntityKey = "SectionOutsource", FkLookupProperty = "BatchNo", FkTargetProperty = "SectionOutsourceId", FkRequiresJoin = true },
             new("工段名称", null!) { IsFkColumn = true, FkEntityKey = "SectionOutsource", FkLookupProperty = "SectionName", FkTargetProperty = "SectionOutsourceId", FkRequiresJoin = true },
@@ -510,7 +510,7 @@ public class DataExchangeService : IDataExchangeService
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
         }),
 
-        ["MaterialReceiveCheck"] = new EntityDef("成检到料", "成检到料", typeof(MaterialReceiveCheck), 8, null,
+        ["MaterialReceiveCheck"] = new EntityDef("质量-成检到料", "质量-成检到料", typeof(MaterialReceiveCheck), 8, null,
             new List<ColumnDef>
         {
             new("批次号", "BatchNo") { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
@@ -532,7 +532,7 @@ public class DataExchangeService : IDataExchangeService
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
         }, compositeKeyColumns: new[] { "BatchNo" }),
 
-        ["ProcessInspection"] = new EntityDef("过程检验", "过程检验", typeof(ProcessInspection), 8, null,
+        ["ProcessInspection"] = new EntityDef("质量-过程检验", "质量-过程检验", typeof(ProcessInspection), 8, null,
             new List<ColumnDef>
         {
             new("批次号", "BatchNo") { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
@@ -562,7 +562,7 @@ public class DataExchangeService : IDataExchangeService
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
         }, compositeKeyColumns: new[] { "BatchNo", "ProcessName", "ManufacturingSpec", "SectionName", "InspectionDate" }),
 
-        ["FinalInspection"] = new EntityDef("成品检验", "成品检验", typeof(FinalInspection), 8, null, new List<ColumnDef>
+        ["FinalInspection"] = new EntityDef("质量-成品检验", "质量-成品检验", typeof(FinalInspection), 8, null, new List<ColumnDef>
         {
             new("生产编号", "BatchNo") { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
             new("挂牌号", "TagNo", typeof(string), isRequired: false),
@@ -599,8 +599,174 @@ public class DataExchangeService : IDataExchangeService
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
         }),
 
+        ["HardnessTest"] = new EntityDef("质量-硬度检验", "质量-硬度检验", typeof(HardnessTest), 8, null, new List<ColumnDef>
+        {
+            new("检验日期", "InspectionDate", typeof(DateTime)),
+            new("检验员", "Inspector"),
+            new("炉批号", "FurnaceNo"),
+            new("牌号", "Grade"),
+            new("规格", "Specification"),
+            new("试样编号", "SampleNo", typeof(int?), isRequired: false),
+            new("试样尺寸", "SampleSize", typeof(string), isRequired: false),
+            new("检验标准", "InspectionStandard", typeof(string), isRequired: false),
+            new("硬度模式", "HardnessMode", typeof(string), isRequired: false),
+            new("硬度测定值", "HardnessValue", typeof(string), isRequired: false),
+            new("判定", "Judgment", typeof(string), isRequired: false),
+        }),
+
+        ["GrainSizeTest"] = new EntityDef("质量-晶粒度检验", "质量-晶粒度检验", typeof(GrainSizeTest), 8, null, new List<ColumnDef>
+        {
+            new("检验日期", "InspectionDate", typeof(DateTime)),
+            new("检验员", "Inspector"),
+            new("炉批号", "FurnaceNo"),
+            new("牌号", "Grade"),
+            new("规格", "Specification"),
+            new("试样编号", "SampleNo", typeof(int?), isRequired: false),
+            new("试样尺寸", "SampleSize", typeof(string), isRequired: false),
+            new("检验标准", "InspectionStandard", typeof(string), isRequired: false),
+            new("晶粒度级别", "GrainSizeGrade", typeof(string), isRequired: false),
+            new("晶粒度测定方法", "GrainSizeMethod", typeof(string), isRequired: false),
+            new("观察倍数", "Magnification", typeof(string), isRequired: false),
+            new("判定", "Judgment", typeof(string), isRequired: false),
+        }),
+
+        ["PittingCorrosionTest"] = new EntityDef("质量-点腐蚀检验", "质量-点腐蚀检验", typeof(PittingCorrosionTest), 8, null, new List<ColumnDef>
+        {
+            new("检验日期", "InspectionDate", typeof(DateTime)),
+            new("检验员", "Inspector"),
+            new("生产编号", "FurnaceNo"),
+            new("牌号", "Grade"),
+            new("规格", "Specification"),
+            new("试样编号", "SampleNo", typeof(int?), isRequired: false),
+            new("试样尺寸(mm)", "SampleSize", typeof(string), isRequired: false),
+            new("检验标准", "InspectionStandard", typeof(string), isRequired: false),
+            new("试样研磨粒度", "PolishingGrade", typeof(string), isRequired: false),
+            new("试样原始重量mg", "RawWeight", typeof(decimal?), isRequired: false),
+            new("浸蚀溶液", "CorrosionSolution", typeof(string), isRequired: false),
+            new("浸蚀温度", "CorrosionTemperature", typeof(string), isRequired: false),
+            new("浸蚀时间", "CorrosionTime", typeof(string), isRequired: false),
+            new("浸蚀后试样重量mg", "FinalWeight", typeof(decimal?), isRequired: false),
+            new("腐蚀率g/(m2.h)", "CorrosionRate", typeof(decimal?), isRequired: false),
+            new("腐蚀最大孔深mm", "MaxPitDepth", typeof(decimal?), isRequired: false),
+            new("判定", "Judgment", typeof(string), isRequired: false),
+        }),
+
+        ["IntergranularCorrosionTest"] = new EntityDef("质量-晶间腐蚀检验", "质量-晶间腐蚀检验", typeof(IntergranularCorrosionTest), 8, null, new List<ColumnDef>
+        {
+            new("检验日期", "InspectionDate", typeof(DateTime)),
+            new("检验员", "Inspector"),
+            new("生产编号", "FurnaceNo"),
+            new("牌号", "Grade"),
+            new("规格", "Specification"),
+            new("试样编号", "SampleNo", typeof(int?), isRequired: false),
+            new("试样尺寸", "SampleSize", typeof(string), isRequired: false),
+            new("检验标准", "InspectionStandard", typeof(string), isRequired: false),
+            new("试样敏化温度", "SensitizationTemperature", typeof(string), isRequired: false),
+            new("敏化持续时间", "SensitizationDuration", typeof(string), isRequired: false),
+            new("浸蚀溶液", "CorrosionSolution", typeof(string), isRequired: false),
+            new("浸蚀时间", "CorrosionTime", typeof(string), isRequired: false),
+            new("试样弯曲度数", "BendDegree", typeof(string), isRequired: false),
+            new("观察放大倍数", "Magnification", typeof(string), isRequired: false),
+            new("观察结果", "ObservationResult", typeof(string), isRequired: false),
+            new("判定", "Judgment", typeof(string), isRequired: false),
+        }),
+
+        ["TensileTest"] = new EntityDef("质量-室温拉伸检验", "质量-室温拉伸检验", typeof(TensileTest), 8, null, new List<ColumnDef>
+        {
+            new("检验日期", "InspectionDate", typeof(DateTime)),
+            new("检验员", "Inspector"),
+            new("生产编号", "FurnaceNo"),
+            new("牌号", "Grade"),
+            new("规格", "Specification"),
+            new("试样编号", "SampleNo", typeof(int?), isRequired: false),
+            new("试样尺寸(mm)", "SampleSize", typeof(string), isRequired: false),
+            new("检验标准", "InspectionStandard", typeof(string), isRequired: false),
+            new("原始标距(mm)", "OriginalGaugeLength", typeof(decimal?), isRequired: false),
+            new("断后标距(mm)", "FinalGaugeLength", typeof(decimal?), isRequired: false),
+            new("抗拉强度(MPa)", "TensileStrength", typeof(decimal?), isRequired: false),
+            new("屈服强度Rp0.2", "YieldStrengthRp02", typeof(decimal?), isRequired: false),
+            new("屈服强度Rp1", "YieldStrengthRp1", typeof(decimal?), isRequired: false),
+            new("延伸率(%)", "Elongation", typeof(decimal?), isRequired: false),
+            new("判定", "Judgment", typeof(string), isRequired: false),
+        }),
+
+        ["MetallographicTest"] = new EntityDef("质量-金相检验", "质量-金相检验", typeof(MetallographicTest), 8, null, new List<ColumnDef>
+        {
+            new("检验日期", "InspectionDate", typeof(DateTime)),
+            new("检验员", "Inspector"),
+            new("生产编号", "FurnaceNo"),
+            new("牌号", "Grade"),
+            new("规格", "Specification"),
+            new("试样编号", "SampleNo", typeof(int?), isRequired: false),
+            new("试样尺寸(mm)", "SampleSize", typeof(string), isRequired: false),
+            new("检验标准", "InspectionStandard", typeof(string), isRequired: false),
+            new("浸蚀方式", "EtchingMethod", typeof(string), isRequired: false),
+            new("电解电压", "ElectrolyticVoltage", typeof(string), isRequired: false),
+            new("电解时间", "ElectrolyticTime", typeof(string), isRequired: false),
+            new("检测观察倍数", "Magnification", typeof(string), isRequired: false),
+            new("对照测定铁素体含量(%)", "FerriteContent", typeof(decimal?), isRequired: false),
+            new("判定", "Judgment", typeof(string), isRequired: false),
+        }),
+
+        ["FlatteningTest"] = new EntityDef("质量-压扁检验", "质量-压扁检验", typeof(FlatteningTest), 8, null, new List<ColumnDef>
+        {
+            new("检验日期", "InspectionDate", typeof(DateTime)),
+            new("检验员", "Inspector"),
+            new("生产编号", "FurnaceNo"),
+            new("牌号", "Grade"),
+            new("规格", "Specification"),
+            new("试样编号", "SampleNo", typeof(int?), isRequired: false),
+            new("试样尺寸(mm)", "SampleSize", typeof(string), isRequired: false),
+            new("检验标准", "InspectionStandard", typeof(string), isRequired: false),
+            new("压后平板间距(mm)", "FlatteningGap", typeof(decimal?), isRequired: false),
+            new("观察", "Observation", typeof(string), isRequired: false),
+            new("判定", "Judgment", typeof(string), isRequired: false),
+        }),
+
+        ["FlaringTest"] = new EntityDef("质量-扩口检验", "质量-扩口检验", typeof(FlaringTest), 8, null, new List<ColumnDef>
+        {
+            new("检验日期", "InspectionDate", typeof(DateTime)),
+            new("检验员", "Inspector"),
+            new("生产编号", "FurnaceNo"),
+            new("牌号", "Grade"),
+            new("规格", "Specification"),
+            new("试样编号", "SampleNo", typeof(int?), isRequired: false),
+            new("试样尺寸(mm)", "SampleSize", typeof(string), isRequired: false),
+            new("检验标准", "InspectionStandard", typeof(string), isRequired: false),
+            new("顶心锥度", "MandrelTaper", typeof(string), isRequired: false),
+            new("扩后外径(mm)", "FlaredDiameter", typeof(decimal?), isRequired: false),
+            new("扩口率(%)", "FlaringRate", typeof(decimal?), isRequired: false),
+            new("观察", "Observation", typeof(string), isRequired: false),
+            new("判定", "Judgment", typeof(string), isRequired: false),
+        }),
+
+        ["ChemicalAnalysis"] = new EntityDef("质量-化学分析", "质量-化学分析", typeof(ChemicalAnalysis), 8, null, new List<ColumnDef>
+        {
+            new("分析日期", "AnalysisDate", typeof(DateTime)),
+            new("分析员", "Analyst"),
+            new("炉号", "FurnaceNo"),
+            new("牌号", "Grade"),
+            new("分析次数", "AnalysisCount", typeof(int?), isRequired: false),
+            new("分析标准", "AnalysisStandard", typeof(string), isRequired: false),
+            new("C%", "C", typeof(decimal?), isRequired: false),
+            new("Si%", "Si", typeof(decimal?), isRequired: false),
+            new("Mn%", "Mn", typeof(decimal?), isRequired: false),
+            new("P%", "P", typeof(decimal?), isRequired: false),
+            new("S%", "S", typeof(decimal?), isRequired: false),
+            new("Ni%", "Ni", typeof(decimal?), isRequired: false),
+            new("Cr%", "Cr", typeof(decimal?), isRequired: false),
+            new("Mo%", "Mo", typeof(decimal?), isRequired: false),
+            new("Cu%", "Cu", typeof(decimal?), isRequired: false),
+            new("N%", "N", typeof(decimal?), isRequired: false),
+            new("Nb%", "Nb", typeof(decimal?), isRequired: false),
+            new("Ti%", "Ti", typeof(decimal?), isRequired: false),
+            new("Fe%", "Fe", typeof(decimal?), isRequired: false),
+            new("Al%", "Al", typeof(decimal?), isRequired: false),
+            new("W%", "W", typeof(decimal?), isRequired: false),
+        }),
+
         // === 去油/酸洗入缸记录（依赖 ProductionBatch + ProcessGroup） ===
-        ["PicklingInRecord"] = new EntityDef("去油酸洗入缸记录", "去油酸洗入缸记录", typeof(PicklingInRecord), 8, null, new List<ColumnDef>
+        ["PicklingInRecord"] = new EntityDef("批次-去油酸洗入缸记录", "批次-去油酸洗入缸记录", typeof(PicklingInRecord), 8, null, new List<ColumnDef>
         {
             new("批次号", null!) { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
             new("挂牌号", "TagNo", typeof(string), isRequired: false),
@@ -622,7 +788,7 @@ public class DataExchangeService : IDataExchangeService
         }),
 
         // === 去油/酸洗完工记录（依赖 PicklingInRecord） ===
-        ["PicklingOutRecord"] = new EntityDef("去油酸洗完工记录", "去油酸洗完工记录", typeof(PicklingOutRecord), 8, null, new List<ColumnDef>
+        ["PicklingOutRecord"] = new EntityDef("批次-去油酸洗完工记录", "批次-去油酸洗完工记录", typeof(PicklingOutRecord), 8, null, new List<ColumnDef>
         {
             new("入缸批次号", null!) { IsFkColumn = true, FkEntityKey = "PicklingInRecord", FkLookupProperty = "BatchNo", FkTargetProperty = "PicklingInRecordId", FkRequiresJoin = true },
             new("入缸工段", null!) { IsFkColumn = true, FkEntityKey = "PicklingInRecord", FkLookupProperty = "SectionName", FkTargetProperty = "PicklingInRecordId", FkRequiresJoin = true },
@@ -631,14 +797,14 @@ public class DataExchangeService : IDataExchangeService
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
         }),
 
-        ["BatchOperationLog"] = new EntityDef("批次操作日志", "批次操作日志", typeof(BatchOperationLog), 8, null, new List<ColumnDef>
+        ["BatchOperationLog"] = new EntityDef("批次-批次操作日志", "批次-批次操作日志", typeof(BatchOperationLog), 8, null, new List<ColumnDef>
         {
             new("批次号", null!) { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
             new("操作类型", "OperationType"),
             new("操作详情", "Detail", typeof(string), isRequired: false),
         }),
 
-        ["InventoryBatch"] = new EntityDef("库存批次", "库存批次", typeof(InventoryBatch), 8, "BatchNo", new List<ColumnDef>
+        ["InventoryBatch"] = new EntityDef("仓库-库存批次", "仓库-库存批次", typeof(InventoryBatch), 8, "BatchNo", new List<ColumnDef>
         {
             new("批次号", "BatchNo"),
             new("仓库编码", null!) { IsFkColumn = true, FkEntityKey = "Warehouse", FkLookupProperty = "Code", FkTargetProperty = "WarehouseId" },
@@ -678,7 +844,7 @@ public class DataExchangeService : IDataExchangeService
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        ["OutboundRecord"] = new EntityDef("出库记录", "出库记录", typeof(OutboundRecord), 8, null, new List<ColumnDef>
+        ["OutboundRecord"] = new EntityDef("仓库-出库记录", "仓库-出库记录", typeof(OutboundRecord), 8, null, new List<ColumnDef>
         {
             new("批次号", null!) { IsFkColumn = true, FkEntityKey = "InventoryBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "InventoryBatchId" },
             new("出库类型", "OutboundType", typeof(OutboundType), isEnum: true),
@@ -691,7 +857,7 @@ public class DataExchangeService : IDataExchangeService
         }),
 
         // === 第9批：各类计划 ===
-        ["InventoryPlan"] = new EntityDef("库存计划", "库存计划", typeof(InventoryPlan), 9, null, new List<ColumnDef>
+        ["InventoryPlan"] = new EntityDef("工单-库存计划", "工单-库存计划", typeof(InventoryPlan), 9, null, new List<ColumnDef>
         {
             new("工单号", null!) { IsFkColumn = true, FkEntityKey = "WorkOrder", FkLookupProperty = "WorkOrderNo", FkTargetProperty = "WorkOrderId" },
             new("计划日期", "PlanDate", typeof(DateTime)),
@@ -713,7 +879,7 @@ public class DataExchangeService : IDataExchangeService
             new("工艺周期", "StandardCycle", typeof(int), isRequired: false),
         }),
 
-        ["PurchaseSemiPlan"] = new EntityDef("荒管采购计划", "荒管采购计划", typeof(PurchaseSemiPlan), 9, null, new List<ColumnDef>
+        ["PurchaseSemiPlan"] = new EntityDef("工单-荒管采购计划", "工单-荒管采购计划", typeof(PurchaseSemiPlan), 9, null, new List<ColumnDef>
         {
             new("工单号", null!) { IsFkColumn = true, FkEntityKey = "WorkOrder", FkLookupProperty = "WorkOrderNo", FkTargetProperty = "WorkOrderId" },
             new("计划日期", "PlanDate", typeof(DateTime)),
@@ -732,7 +898,7 @@ public class DataExchangeService : IDataExchangeService
             new("工艺周期", "StandardCycle", typeof(int), isRequired: false),
         }),
 
-        ["PurchaseFinishedPlan"] = new EntityDef("成品采购计划", "成品采购计划", typeof(PurchaseFinishedPlan), 9, null, new List<ColumnDef>
+        ["PurchaseFinishedPlan"] = new EntityDef("工单-成品采购计划", "工单-成品采购计划", typeof(PurchaseFinishedPlan), 9, null, new List<ColumnDef>
         {
             new("工单号", null!) { IsFkColumn = true, FkEntityKey = "WorkOrder", FkLookupProperty = "WorkOrderNo", FkTargetProperty = "WorkOrderId" },
             new("计划日期", "PlanDate", typeof(DateTime)),
@@ -756,7 +922,7 @@ public class DataExchangeService : IDataExchangeService
         }),
 
         // === 独立实体：牌号化学成分 ===
-        ["ChemicalComposition"] = new EntityDef("牌号化学成分", "牌号化学成分", typeof(ChemicalComposition), 1, "PlantGrade", new List<ColumnDef>
+        ["ChemicalComposition"] = new EntityDef("质量-牌号化学成分", "质量-牌号化学成分", typeof(ChemicalComposition), 1, "PlantGrade", new List<ColumnDef>
         {
             new("工厂牌号", "PlantGrade"),
             new("C", "Carbon", typeof(string), isRequired: false),
@@ -778,7 +944,7 @@ public class DataExchangeService : IDataExchangeService
         }),
 
         // === 独立实体：牌号验证规则 ===
-        ["ChemicalValidationRule"] = new EntityDef("牌号验证规则", "牌号验证规则", typeof(ChemicalValidationRule), 1, "PlantGrade", new List<ColumnDef>
+        ["ChemicalValidationRule"] = new EntityDef("质量-牌号验证规则", "质量-牌号验证规则", typeof(ChemicalValidationRule), 1, "PlantGrade", new List<ColumnDef>
         {
             new("工厂牌号", "PlantGrade"),
             new("C-", "CMin", typeof(string), isRequired: false),
@@ -815,7 +981,7 @@ public class DataExchangeService : IDataExchangeService
         }),
 
         // === 独立实体：来料炉号登记 ===
-        ["FurnaceRegistration"] = new EntityDef("来料炉号登记", "来料炉号登记", typeof(FurnaceRegistration), 1, null, new List<ColumnDef>
+        ["FurnaceRegistration"] = new EntityDef("质量-来料炉号登记", "质量-来料炉号登记", typeof(FurnaceRegistration), 1, null, new List<ColumnDef>
         {
             new("来料日期", "IncomingDate", typeof(DateTime)),
             new("原料单位", "RawMaterialUnit"),
@@ -846,7 +1012,7 @@ public class DataExchangeService : IDataExchangeService
         }),
 
         // === NCR 不合格品报告（独立实体，无外部FK依赖）===
-        ["Ncr"] = new EntityDef("不合格报告", "不合格报告", typeof(Ncr), 1, null, new List<ColumnDef>
+        ["Ncr"] = new EntityDef("质量-不合格报告", "质量-不合格报告", typeof(Ncr), 1, null, new List<ColumnDef>
         {
             // G1: 问题反馈
             new("反馈日期", "ReportDate", typeof(DateTime)),
@@ -890,7 +1056,7 @@ public class DataExchangeService : IDataExchangeService
             new("状态", "Status", typeof(NcrStatus), isEnum: true),
         }),
 
-        ["RoundBarPiercingPlan"] = new EntityDef("圆棒穿孔计划", "圆棒穿孔计划", typeof(RoundBarPiercingPlan), 9, null, new List<ColumnDef>
+        ["RoundBarPiercingPlan"] = new EntityDef("工单-圆棒穿孔计划", "工单-圆棒穿孔计划", typeof(RoundBarPiercingPlan), 9, null, new List<ColumnDef>
         {
             new("工单号", null!) { IsFkColumn = true, FkEntityKey = "WorkOrder", FkLookupProperty = "WorkOrderNo", FkTargetProperty = "WorkOrderId" },
             new("计划日期", "PlanDate", typeof(DateTime)),
@@ -911,7 +1077,7 @@ public class DataExchangeService : IDataExchangeService
         }),
 
         // === 用料计划工序组子实体（依赖各自父计划）===
-        ["SemiPlanProcessGroup"] = new EntityDef("荒管采购工序组", "荒管采购工序组", typeof(SemiPlanProcessGroup), 9, null, new List<ColumnDef>
+        ["SemiPlanProcessGroup"] = new EntityDef("工单-荒管采购工序组", "工单-荒管采购工序组", typeof(SemiPlanProcessGroup), 9, null, new List<ColumnDef>
         {
             new("所属荒管计划ID", "PurchaseSemiPlanId", typeof(int)),
             new("组内序号", "SequenceNumber", typeof(int)),
@@ -940,7 +1106,7 @@ public class DataExchangeService : IDataExchangeService
             new(SectionDefs.Warehouse, "Warehouse", typeof(int?), isRequired: false),
         }, compositeKeyColumns: new[] { "PurchaseSemiPlanId", "SequenceNumber" }),
 
-        ["InventoryPlanProcessGroup"] = new EntityDef("库存计划工序组", "库存计划工序组", typeof(InventoryPlanProcessGroup), 9, null, new List<ColumnDef>
+        ["InventoryPlanProcessGroup"] = new EntityDef("工单-库存计划工序组", "工单-库存计划工序组", typeof(InventoryPlanProcessGroup), 9, null, new List<ColumnDef>
         {
             new("所属库存计划ID", "InventoryPlanId", typeof(int)),
             new("组内序号", "SequenceNumber", typeof(int)),
@@ -969,7 +1135,7 @@ public class DataExchangeService : IDataExchangeService
             new(SectionDefs.Warehouse, "Warehouse", typeof(int?), isRequired: false),
         }, compositeKeyColumns: new[] { "InventoryPlanId", "SequenceNumber" }),
 
-        ["PiercingPlanProcessGroup"] = new EntityDef("圆棒穿孔工序组", "圆棒穿孔工序组", typeof(PiercingPlanProcessGroup), 9, null, new List<ColumnDef>
+        ["PiercingPlanProcessGroup"] = new EntityDef("工单-圆棒穿孔工序组", "工单-圆棒穿孔工序组", typeof(PiercingPlanProcessGroup), 9, null, new List<ColumnDef>
         {
             new("所属穿孔计划ID", "RoundBarPiercingPlanId", typeof(int)),
             new("组内序号", "SequenceNumber", typeof(int)),
@@ -998,7 +1164,7 @@ public class DataExchangeService : IDataExchangeService
             new(SectionDefs.Warehouse, "Warehouse", typeof(int?), isRequired: false),
         }, compositeKeyColumns: new[] { "RoundBarPiercingPlanId", "SequenceNumber" }),
 
-        ["Workstation"] = new EntityDef("工位管理", "工位管理", typeof(Workstation), 1, "Code", new List<ColumnDef>
+        ["Workstation"] = new EntityDef("配置-工位管理", "配置-工位管理", typeof(Workstation), 1, "Code", new List<ColumnDef>
         {
             new("工位编码", "Code"),
             new("工位名称", "Name", typeof(string), isRequired: false),
@@ -1008,7 +1174,7 @@ public class DataExchangeService : IDataExchangeService
             new("是否启用", "IsActive", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
         }),
 
-        ["Employee"] = new EntityDef("员工管理", "员工管理", typeof(Employee), 1, "Code", new List<ColumnDef>
+        ["Employee"] = new EntityDef("配置-员工管理", "配置-员工管理", typeof(Employee), 1, "Code", new List<ColumnDef>
         {
             new("工号", "Code"),
             new("姓名", "Name"),
@@ -1021,7 +1187,7 @@ public class DataExchangeService : IDataExchangeService
         }),
 
         // === 标准号（生产标准上下文） ===
-        ["StandardRegister"] = new EntityDef("标准号", "标准号", typeof(Data.Entities.StandardRegister), 1, "StandardNo", new List<ColumnDef>
+        ["StandardRegister"] = new EntityDef("标准-标准号", "标准-标准号", typeof(Data.Entities.StandardRegister), 1, "StandardNo", new List<ColumnDef>
         {
             new("标准号", "StandardNo"),
             new("标准名称", "StandardName"),
@@ -1032,7 +1198,7 @@ public class DataExchangeService : IDataExchangeService
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        ["StandardRegisterItem"] = new EntityDef("标准号子项目", "标准号子项目", typeof(Data.Entities.StandardRegisterItem), 2, null, new List<ColumnDef>
+        ["StandardRegisterItem"] = new EntityDef("标准-标准号子项目", "标准-标准号子项目", typeof(Data.Entities.StandardRegisterItem), 2, null, new List<ColumnDef>
         {
             new("标准号", null!) { IsFkColumn = true, FkEntityKey = "StandardRegister", FkLookupProperty = "StandardNo", FkTargetProperty = "StandardRegisterId" },
             new("序号", "SeqNo", typeof(int)),
@@ -1045,7 +1211,7 @@ public class DataExchangeService : IDataExchangeService
             new("详细要求", "DetailRequirement", typeof(string), isRequired: false),
         }),
 
-        ["GradeChemicalComposition"] = new EntityDef("牌号化学成分", "牌号化学成分", typeof(GradeChemicalComposition), 1, null, new List<ColumnDef>
+        ["GradeChemicalComposition"] = new EntityDef("标准-牌号化学成分", "标准-牌号化学成分", typeof(GradeChemicalComposition), 1, null, new List<ColumnDef>
         {
             new("标准牌号", "StandardGrade"),
             new("标准牌号类别", "StandardGradeCategory", typeof(string), isRequired: false),
@@ -1066,7 +1232,7 @@ public class DataExchangeService : IDataExchangeService
             new("钨(W)", "Tungsten", typeof(string), isRequired: false),
         }),
 
-        ["GradePhysicalProperty"] = new EntityDef("牌号物理性能", "牌号物理性能", typeof(GradePhysicalProperty), 1, null, new List<ColumnDef>
+        ["GradePhysicalProperty"] = new EntityDef("标准-牌号物理性能", "标准-牌号物理性能", typeof(GradePhysicalProperty), 1, null, new List<ColumnDef>
         {
             new("标准牌号", "StandardGrade"),
             new("标准牌号类别", "StandardGradeCategory", typeof(string), isRequired: false),
@@ -1081,6 +1247,34 @@ public class DataExchangeService : IDataExchangeService
             new("延伸率(%)", "Elongation", typeof(string), isRequired: false),
             new("晶粒度", "GrainSize", typeof(string), isRequired: false),
         }),
+
+        ["SubStandardQuickView"] = new EntityDef("标准-子标准速览", "标准-子标准速览", typeof(SubStandardQuickView), 1, null, new List<ColumnDef>
+        {
+            new("标准号", "StandardNo"),
+            new("化学成分", "ChemicalComposition", typeof(string), isRequired: false),
+            new("液密检验", "HydrostaticTest", typeof(string), isRequired: false),
+            new("涡流探伤", "EddyCurrent", typeof(string), isRequired: false),
+            new("超声波检验", "UltrasonicTest", typeof(string), isRequired: false),
+            new("射线探伤", "RadiographicTest", typeof(string), isRequired: false),
+            new("硬度(洛氏)", "HardnessRockwell", typeof(string), isRequired: false),
+            new("硬度(布氏)", "HardnessBrinell", typeof(string), isRequired: false),
+            new("硬度(维氏)", "HardnessVickers", typeof(string), isRequired: false),
+            new("拉伸(室温)", "TensileRoomTemp", typeof(string), isRequired: false),
+            new("拉伸(高温)", "TensileHighTemp", typeof(string), isRequired: false),
+            new("焊接接头拉伸", "WeldJointTensile", typeof(string), isRequired: false),
+            new("冲击试验", "ImpactTest", typeof(string), isRequired: false),
+            new("焊接接头冲击", "WeldJointImpact", typeof(string), isRequired: false),
+            new("压扁试验", "FlatteningTest", typeof(string), isRequired: false),
+            new("卷边试验", "FlaringTest", typeof(string), isRequired: false),
+            new("扩口试验", "ExpandingTest", typeof(string), isRequired: false),
+            new("弯曲试验", "BendTest", typeof(string), isRequired: false),
+            new("焊接接头弯曲", "WeldJointBend", typeof(string), isRequired: false),
+            new("晶粒度", "GrainSize", typeof(string), isRequired: false),
+            new("晶间腐蚀", "IntergranularCorrosion", typeof(string), isRequired: false),
+            new("点腐蚀", "PittingCorrosion", typeof(string), isRequired: false),
+            new("铁素体含量", "FerriteContent", typeof(string), isRequired: false),
+            new("低倍组织", "Macrostructure", typeof(string), isRequired: false),
+        }),
     };
 
     public static readonly List<string> EntityOrder = new()
@@ -1091,13 +1285,13 @@ public class DataExchangeService : IDataExchangeService
         "OrderItem", "ProductRequirement",
         "WorkOrder", "Material",
         "PurchaseOrder", "SubcontractOrder", "SubcontractReturnItem", "ProductionBatch",
-        "ProcessGroup", "ProductionRecord", "SectionOutsource", "OutsourceRecovery", "MaterialReceiveCheck", "ProcessInspection", "FinalInspection", "PicklingInRecord", "PicklingOutRecord", "BatchOperationLog", "InventoryBatch", "OutboundRecord",
+        "ProcessGroup", "ProductionRecord", "SectionOutsource", "OutsourceRecovery", "MaterialReceiveCheck", "ProcessInspection", "FinalInspection", "ChemicalAnalysis", "HardnessTest", "GrainSizeTest", "PittingCorrosionTest", "IntergranularCorrosionTest", "TensileTest", "MetallographicTest", "FlatteningTest", "FlaringTest", "PicklingInRecord", "PicklingOutRecord", "BatchOperationLog", "InventoryBatch", "OutboundRecord",
         "Equipment", "RepairOrder", "MaintenanceOrder", "InspectionRecord",
         "InventoryPlan", "PurchaseSemiPlan", "PurchaseFinishedPlan", "RoundBarPiercingPlan",
         "SemiPlanProcessGroup", "InventoryPlanProcessGroup", "PiercingPlanProcessGroup",
         "Workstation", "Employee",
         "StandardRegister", "StandardRegisterItem",
-        "GradeChemicalComposition", "GradePhysicalProperty",
+        "GradeChemicalComposition", "GradePhysicalProperty", "SubStandardQuickView",
     };
 
     #endregion
@@ -1106,11 +1300,13 @@ public class DataExchangeService : IDataExchangeService
 
     public Task<List<EntityInfo>> GetEntitiesAsync()
     {
-        var result = Registry.Select(kvp => new EntityInfo
-        {
-            Key = kvp.Key,
-            Name = kvp.Value.DisplayName,
-        }).ToList();
+        var result = EntityOrder
+            .Where(k => Registry.ContainsKey(k))
+            .Select(k => new EntityInfo
+            {
+                Key = k,
+                Name = Registry[k].DisplayName,
+            }).ToList();
         return Task.FromResult(result);
     }
 

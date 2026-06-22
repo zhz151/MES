@@ -1,0 +1,168 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using MES.Core.DTOs;
+using MES.Core.Exceptions;
+using MES.Core.Interfaces;
+using MES.Core.Models;
+using MES.Data;
+using MES.Data.Entities;
+using MES.Services.Helpers;
+
+namespace MES.Services;
+
+public class FlatteningTestService : IFlatteningTestService
+{
+    private readonly AppDbContext _context;
+    private readonly ILogger<FlatteningTestService> _logger;
+
+    public FlatteningTestService(AppDbContext context, ILogger<FlatteningTestService> logger)
+    {
+        _context = context;
+        _logger = logger;
+    }
+
+    public async Task<FlatteningTestDto?> GetByIdAsync(int id)
+    {
+        return await _context.FlatteningTests
+            .AsNoTracking()
+            .Where(r => r.Id == id)
+            .Select(MapToDto())
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<PagedResult<FlatteningTestDto>> GetAllAsync(QueryParams query)
+    {
+        var queryable = _context.FlatteningTests
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(query.Keyword))
+        {
+            var kw = query.Keyword;
+            queryable = queryable.Where(r =>
+                r.Inspector.Contains(kw) ||
+                r.FurnaceNo.Contains(kw) ||
+                r.Grade.Contains(kw) ||
+                r.Specification.Contains(kw) ||
+                (r.InspectionStandard != null && r.InspectionStandard.Contains(kw)) ||
+                (r.Observation != null && r.Observation.Contains(kw)) ||
+                (r.Judgment != null && r.Judgment.Contains(kw)));
+        }
+
+        if (query.InspectionDateFrom.HasValue)
+            queryable = queryable.Where(r => r.InspectionDate >= query.InspectionDateFrom.Value);
+        if (query.InspectionDateTo.HasValue)
+            queryable = queryable.Where(r => r.InspectionDate <= query.InspectionDateTo.Value);
+
+        queryable = queryable.ApplyFilters(query.Filters);
+        var totalCount = await queryable.CountAsync();
+        queryable = ApplySorting(queryable, query.SortBy ?? "inspectiondate", query.IsDescending);
+
+        var items = await queryable
+            .Skip(query.Skip).Take(query.PageSize)
+            .Select(MapToDto()).ToListAsync();
+
+        return new PagedResult<FlatteningTestDto>
+        {
+            Items = items, TotalCount = totalCount,
+            PageIndex = query.PageIndex, PageSize = query.PageSize
+        };
+    }
+
+    public async Task<FlatteningTestDto> CreateAsync(CreateFlatteningTestRequest request)
+    {
+        var entity = MapToEntity(request);
+        _context.FlatteningTests.Add(entity);
+        await _context.SaveChangesAsync();
+        return MapToDto(entity);
+    }
+
+    public async Task<FlatteningTestDto> UpdateAsync(int id, UpdateFlatteningTestRequest request)
+    {
+        var entity = await _context.FlatteningTests.FindAsync(id)
+            ?? throw new BusinessException("压扁检验记录不存在");
+
+        entity.InspectionDate = request.InspectionDate;
+        entity.Inspector = request.Inspector ?? entity.Inspector;
+        entity.FurnaceNo = request.FurnaceNo ?? entity.FurnaceNo;
+        entity.Grade = request.Grade ?? entity.Grade;
+        entity.Specification = request.Specification ?? entity.Specification;
+        entity.SampleNo = request.SampleNo ?? entity.SampleNo;
+        entity.SampleSize = request.SampleSize ?? entity.SampleSize;
+        entity.InspectionStandard = request.InspectionStandard ?? entity.InspectionStandard;
+        entity.FlatteningGap = request.FlatteningGap ?? entity.FlatteningGap;
+        entity.Observation = request.Observation ?? entity.Observation;
+        entity.Judgment = request.Judgment ?? entity.Judgment;
+
+        await _context.SaveChangesAsync();
+        return MapToDto(entity);
+    }
+
+    public async Task DeleteAsync(int id)
+    {
+        var entity = await _context.FlatteningTests.FindAsync(id)
+            ?? throw new BusinessException("压扁检验记录不存在");
+        _context.FlatteningTests.Remove(entity);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<List<FlatteningTestDto>> BatchCreateAsync(List<CreateFlatteningTestRequest> requests)
+    {
+        if (requests.Count == 0) return new List<FlatteningTestDto>();
+        var entities = requests.Select(MapToEntity).ToList();
+        _context.FlatteningTests.AddRange(entities);
+        await _context.SaveChangesAsync();
+        return entities.Select(e => MapToDto(e)).ToList();
+    }
+
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var all = await _context.FlatteningTests
+            .AsNoTracking()
+            .Select(r => new { r.Inspector, r.FurnaceNo, r.Grade, r.Specification, r.InspectionStandard, r.Judgment, r.InspectionDate })
+            .ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["Inspector"] = all.Select(x => x.Inspector ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["FurnaceNo"] = all.Select(x => x.FurnaceNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Grade"] = all.Select(x => x.Grade ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Specification"] = all.Select(x => x.Specification ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["InspectionStandard"] = all.Select(x => x.InspectionStandard ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["Judgment"] = all.Select(x => x.Judgment ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+            ["InspectionDate"] = all.Select(x => x.InspectionDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList()
+        };
+    }
+
+    private static IQueryable<FlatteningTest> ApplySorting(IQueryable<FlatteningTest> queryable, string sortBy, bool isDescending)
+        => queryable.ApplySort(sortBy, isDescending);
+
+    private static FlatteningTestDto MapToDto(FlatteningTest e) => new()
+    {
+        Id = e.Id, InspectionDate = e.InspectionDate, Inspector = e.Inspector,
+        FurnaceNo = e.FurnaceNo, Grade = e.Grade, Specification = e.Specification,
+        SampleNo = e.SampleNo, SampleSize = e.SampleSize,
+        InspectionStandard = e.InspectionStandard, FlatteningGap = e.FlatteningGap,
+        Observation = e.Observation, Judgment = e.Judgment,
+        CreatedTime = e.CreatedTime, UpdatedTime = e.UpdatedTime
+    };
+
+    private static System.Linq.Expressions.Expression<Func<FlatteningTest, FlatteningTestDto>> MapToDto() => e => new FlatteningTestDto
+    {
+        Id = e.Id, InspectionDate = e.InspectionDate, Inspector = e.Inspector,
+        FurnaceNo = e.FurnaceNo, Grade = e.Grade, Specification = e.Specification,
+        SampleNo = e.SampleNo, SampleSize = e.SampleSize,
+        InspectionStandard = e.InspectionStandard, FlatteningGap = e.FlatteningGap,
+        Observation = e.Observation, Judgment = e.Judgment,
+        CreatedTime = e.CreatedTime, UpdatedTime = e.UpdatedTime
+    };
+
+    private static FlatteningTest MapToEntity(CreateFlatteningTestRequest r) => new()
+    {
+        InspectionDate = r.InspectionDate, Inspector = r.Inspector,
+        FurnaceNo = r.FurnaceNo, Grade = r.Grade, Specification = r.Specification,
+        SampleNo = r.SampleNo, SampleSize = r.SampleSize,
+        InspectionStandard = r.InspectionStandard, FlatteningGap = r.FlatteningGap,
+        Observation = r.Observation, Judgment = r.Judgment
+    };
+}
