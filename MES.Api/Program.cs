@@ -142,6 +142,7 @@ builder.Services.AddScoped<IGradeMappingService, GradeMappingService>();
 builder.Services.AddScoped<IGradeChemicalCompositionService, GradeChemicalCompositionService>();
 builder.Services.AddScoped<IGradePhysicalPropertyService, GradePhysicalPropertyService>();
 builder.Services.AddScoped<ISubStandardQuickViewService, SubStandardQuickViewService>();
+builder.Services.AddScoped<IStandardInspectionRequirementService, StandardInspectionRequirementService>();
 builder.Services.AddScoped<IStandardProcessCycleService, StandardProcessCycleService>();
 builder.Services.AddScoped<IStandardWorkDayService, StandardWorkDayService>();
 builder.Services.AddScoped<IStandardWorkDayDeliveryStateService, StandardWorkDayDeliveryStateService>();

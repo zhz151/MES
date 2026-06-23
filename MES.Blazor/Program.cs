@@ -35,6 +35,7 @@ builder.Services.AddScoped<GradeMappingService>();
 builder.Services.AddScoped<GradeChemicalCompositionService>();
 builder.Services.AddScoped<GradePhysicalPropertyService>();
 builder.Services.AddScoped<SubStandardQuickViewService>();
+builder.Services.AddScoped<StandardInspectionRequirementService>();
 builder.Services.AddScoped<StandardProcessCycleService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ProductRequirementService>();

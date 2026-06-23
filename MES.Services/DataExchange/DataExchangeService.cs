@@ -74,7 +74,7 @@ public class DataExchangeService : IDataExchangeService
             new("特殊说明", "SpecialNote", typeof(string), isRequired: false),
             new("钢性", "SteelProperty", typeof(string), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
-        }),
+        }, compositeKeyColumns: new[] { "StandardGrade", "StandardGradeCategory" }),
 
         ["StandardProcessCycle"] = new EntityDef("工单-标准工艺生产周期", "工单-标准工艺生产周期", typeof(StandardProcessCycle), 1, null, new List<ColumnDef>
         {
@@ -1230,7 +1230,7 @@ public class DataExchangeService : IDataExchangeService
             new("铁(Fe)", "Iron", typeof(string), isRequired: false),
             new("铝(Al)", "Aluminum", typeof(string), isRequired: false),
             new("钨(W)", "Tungsten", typeof(string), isRequired: false),
-        }),
+        }, compositeKeyColumns: new[] { "StandardGrade", "StandardGradeCategory" }),
 
         ["GradePhysicalProperty"] = new EntityDef("标准-牌号物理性能", "标准-牌号物理性能", typeof(GradePhysicalProperty), 1, null, new List<ColumnDef>
         {
@@ -1246,13 +1246,13 @@ public class DataExchangeService : IDataExchangeService
             new("屈服强度1.0(MPa)", "YieldStrength10", typeof(string), isRequired: false),
             new("延伸率(%)", "Elongation", typeof(string), isRequired: false),
             new("晶粒度", "GrainSize", typeof(string), isRequired: false),
-        }),
+        }, compositeKeyColumns: new[] { "StandardGrade", "StandardGradeCategory" }),
 
-        ["SubStandardQuickView"] = new EntityDef("标准-子标准速览", "标准-子标准速览", typeof(SubStandardQuickView), 1, null, new List<ColumnDef>
+        ["SubStandardQuickView"] = new EntityDef("标准-子标准速览", "标准-子标准速览", typeof(SubStandardQuickView), 1, "StandardNo", new List<ColumnDef>
         {
             new("标准号", "StandardNo"),
-            new("化学成分", "ChemicalComposition", typeof(string), isRequired: false),
-            new("液密检验", "HydrostaticTest", typeof(string), isRequired: false),
+            new("化学分析(成品)", "ChemicalComposition", typeof(string), isRequired: false),
+            new("液压检验", "HydrostaticTest", typeof(string), isRequired: false),
             new("涡流探伤", "EddyCurrent", typeof(string), isRequired: false),
             new("超声波检验", "UltrasonicTest", typeof(string), isRequired: false),
             new("射线探伤", "RadiographicTest", typeof(string), isRequired: false),
@@ -1272,7 +1272,35 @@ public class DataExchangeService : IDataExchangeService
             new("晶粒度", "GrainSize", typeof(string), isRequired: false),
             new("晶间腐蚀", "IntergranularCorrosion", typeof(string), isRequired: false),
             new("点腐蚀", "PittingCorrosion", typeof(string), isRequired: false),
-            new("铁素体含量", "FerriteContent", typeof(string), isRequired: false),
+            new("金相检验", "FerriteContent", typeof(string), isRequired: false),
+            new("低倍组织", "Macrostructure", typeof(string), isRequired: false),
+        }),
+
+        ["StandardInspectionRequirement"] = new EntityDef("标准-标准号检验项要求", "标准-标准号检验项要求", typeof(StandardInspectionRequirement), 1, "StandardNo", new List<ColumnDef>
+        {
+            new("标准号", "StandardNo"),
+            new("化学分析(成品)", "ChemicalComposition", typeof(string), isRequired: false),
+            new("液压检验", "HydrostaticTest", typeof(string), isRequired: false),
+            new("涡流探伤", "EddyCurrent", typeof(string), isRequired: false),
+            new("超声波检验", "UltrasonicTest", typeof(string), isRequired: false),
+            new("射线探伤", "RadiographicTest", typeof(string), isRequired: false),
+            new("硬度(洛氏)", "HardnessRockwell", typeof(string), isRequired: false),
+            new("硬度(布氏)", "HardnessBrinell", typeof(string), isRequired: false),
+            new("硬度(维氏)", "HardnessVickers", typeof(string), isRequired: false),
+            new("拉伸(室温)", "TensileRoomTemp", typeof(string), isRequired: false),
+            new("拉伸(高温)", "TensileHighTemp", typeof(string), isRequired: false),
+            new("焊接接头拉伸", "WeldJointTensile", typeof(string), isRequired: false),
+            new("冲击试验", "ImpactTest", typeof(string), isRequired: false),
+            new("焊接接头冲击", "WeldJointImpact", typeof(string), isRequired: false),
+            new("压扁试验", "FlatteningTest", typeof(string), isRequired: false),
+            new("卷边试验", "FlaringTest", typeof(string), isRequired: false),
+            new("扩口试验", "ExpandingTest", typeof(string), isRequired: false),
+            new("弯曲试验", "BendTest", typeof(string), isRequired: false),
+            new("焊接接头弯曲", "WeldJointBend", typeof(string), isRequired: false),
+            new("晶粒度", "GrainSize", typeof(string), isRequired: false),
+            new("晶间腐蚀", "IntergranularCorrosion", typeof(string), isRequired: false),
+            new("点腐蚀", "PittingCorrosion", typeof(string), isRequired: false),
+            new("金相检验", "FerriteContent", typeof(string), isRequired: false),
             new("低倍组织", "Macrostructure", typeof(string), isRequired: false),
         }),
     };
@@ -1291,7 +1319,7 @@ public class DataExchangeService : IDataExchangeService
         "SemiPlanProcessGroup", "InventoryPlanProcessGroup", "PiercingPlanProcessGroup",
         "Workstation", "Employee",
         "StandardRegister", "StandardRegisterItem",
-        "GradeChemicalComposition", "GradePhysicalProperty", "SubStandardQuickView",
+        "GradeChemicalComposition", "GradePhysicalProperty", "StandardInspectionRequirement", "SubStandardQuickView",
     };
 
     #endregion

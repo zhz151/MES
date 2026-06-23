@@ -39,7 +39,6 @@
                             <MudNavLink Href="/orders" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">订单列表</MudNavLink>
                             <MudNavLink Href="/order-demand-adjustment" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">订单需求调整</MudNavLink>
                             <MudNavLink Href="/customers" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">客户管理</MudNavLink>
-                            <MudNavLink Href="/standards" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">产品标准</MudNavLink>
                             <MudNavLink Href="/grade-mappings" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">牌号对照</MudNavLink>
                         </div>
                     </ChildContent>
@@ -98,10 +97,6 @@
                                 </div>
                             </ChildContent>
                         </MudExpansionPanel>
-                        <!-- 理化检测（二级）-->
-                        <MudNavLink Href="/quality/lab-testing" Style="color: #ccc; padding: 10px 24px;" OnClick="CloseDrawer">理化检测</MudNavLink>
-                        <!-- 质量证明书（二级）-->
-                        <MudNavLink Href="/quality/certificate" Style="color: #ccc; padding: 10px 24px;" OnClick="CloseDrawer">质量证明书</MudNavLink>
                     </ChildContent>
                 </MudExpansionPanel>
 
@@ -162,6 +157,8 @@
                     <ChildContent>
                         <div style="padding-left: 16px;">
                             <MudNavLink Href="/standard-registers" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">标准号列表</MudNavLink>
+                            <MudNavLink Href="/standard-inspection-requirements" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">标准号检验项要求</MudNavLink>
+                            <MudNavLink Href="/sub-standard-quick-views" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">子标准速览</MudNavLink>
                             <MudNavLink Href="/grade-mappings" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">牌号对照</MudNavLink>
                             <MudNavLink Href="/grade-chemical-compositions" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">牌号化学成分</MudNavLink>
                             <MudNavLink Href="/grade-physical-properties" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">牌号物理性能</MudNavLink>
@@ -214,7 +211,6 @@
 @code {
     [Parameter] public RenderFragment? ChildContent { get; set; }
     private bool _drawerOpen;
-    private AuthenticationState? _authenticationState;
 
     private void CloseDrawer()
     {
@@ -224,14 +220,14 @@
     protected override async Task OnInitializedAsync()
     {
         AuthProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
-        _authenticationState = await AuthProvider.GetAuthenticationStateAsync();
+        await AuthProvider.GetAuthenticationStateAsync();
     }
 
     private void OnAuthenticationStateChanged(Task<AuthenticationState> task)
     {
         _ = InvokeAsync(async () =>
         {
-            _authenticationState = await task;
+            await task;
             StateHasChanged();
         });
     }

@@ -104,6 +104,7 @@ public const string RawMaterialLockPlan = "api/raw-material-lock-plan";
     public const string GradeChemicalComposition = "api/grade-chemical-composition";
     public const string GradePhysicalProperty = "api/grade-physical-property";
     public const string SubStandardQuickView = "api/sub-standard-quick-view";
+    public const string StandardInspectionRequirement = "api/standard-inspection-requirement";
 
     // ===== 通用默认排序字段 =====
     public const string DefaultSortBy = "CreatedTime";

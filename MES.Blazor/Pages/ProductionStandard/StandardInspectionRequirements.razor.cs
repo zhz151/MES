@@ -1,23 +1,21 @@
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using MudBlazor;
 using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
-using MES.Core.Enums;
-using MES.Core.Models;
 using MES.Blazor.Shared;
+using MES.Core.DTOs;
+using MES.Core.Models;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.ProductionStandard;
 
-public partial class SubStandardQuickViews
+public partial class StandardInspectionRequirements
 {
-    private MudTable<SubStandardQuickViewDto>? table;
-    private List<SubStandardQuickViewDto> _pageItems = new();
+    private MudTable<StandardInspectionRequirementDto>? table;
+    private List<StandardInspectionRequirementDto> _pageItems = new();
     private int _totalCount;
     private string _searchKeyword = string.Empty;
     private bool _isArrowNavSetup;
@@ -41,35 +39,35 @@ public partial class SubStandardQuickViews
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "StandardNo",             Label = "标准号",         SortKey = "standardno",            FilterType = "string", IsRequired = true },
-        new() { Key = "ChemicalComposition",    Label = "化学分析(成品)", SortKey = "chemicalcomposition",   FilterType = "string" },
-        new() { Key = "HydrostaticTest",        Label = "液压检验",       SortKey = "hydrostatictest",       FilterType = "string" },
-        new() { Key = "EddyCurrent",            Label = "涡流探伤",       SortKey = "eddycurrent",           FilterType = "string" },
-        new() { Key = "UltrasonicTest",         Label = "超声波检验",     SortKey = "ultrasonictest",        FilterType = "string" },
-        new() { Key = "RadiographicTest",       Label = "射线探伤",       SortKey = "radiographictest",      FilterType = "string" },
-        new() { Key = "HardnessRockwell",       Label = "硬度(洛氏)",     SortKey = "hardnessrockwell",      FilterType = "string" },
-        new() { Key = "HardnessBrinell",        Label = "硬度(布氏)",     SortKey = "hardnessbrinell",       FilterType = "string" },
-        new() { Key = "HardnessVickers",        Label = "硬度(维氏)",     SortKey = "hardnessvickers",       FilterType = "string" },
-        new() { Key = "TensileRoomTemp",        Label = "拉伸(室温)",     SortKey = "tensileroomtemp",       FilterType = "string" },
-        new() { Key = "TensileHighTemp",        Label = "拉伸(高温)",     SortKey = "tensilehightemp",       FilterType = "string" },
-        new() { Key = "WeldJointTensile",       Label = "焊接接头拉伸",   SortKey = "weldjointtensile",      FilterType = "string" },
-        new() { Key = "ImpactTest",             Label = "冲击试验",       SortKey = "impacttest",            FilterType = "string" },
-        new() { Key = "WeldJointImpact",        Label = "焊接接头冲击",   SortKey = "weldjointimpact",       FilterType = "string" },
-        new() { Key = "FlatteningTest",         Label = "压扁试验",       SortKey = "flatteningtest",        FilterType = "string" },
-        new() { Key = "FlaringTest",            Label = "卷边试验",       SortKey = "flaringtest",           FilterType = "string" },
-        new() { Key = "ExpandingTest",          Label = "扩口试验",       SortKey = "expandingtest",         FilterType = "string" },
-        new() { Key = "BendTest",               Label = "弯曲试验",       SortKey = "bendtest",              FilterType = "string" },
-        new() { Key = "WeldJointBend",          Label = "焊接接头弯曲",   SortKey = "weldjointbend",         FilterType = "string" },
-        new() { Key = "GrainSize",              Label = "晶粒度",         SortKey = "grainsize",             FilterType = "string" },
-        new() { Key = "IntergranularCorrosion", Label = "晶间腐蚀",       SortKey = "intergranularcorrosion",FilterType = "string" },
-        new() { Key = "PittingCorrosion",       Label = "点腐蚀",         SortKey = "pittingcorrosion",      FilterType = "string" },
-        new() { Key = "FerriteContent",         Label = "金相检验",       SortKey = "ferritecontent",        FilterType = "string" },
-        new() { Key = "Macrostructure",         Label = "低倍组织",       SortKey = "macrostructure",        FilterType = "string" },
+        new() { Key = "StandardNo",             Label = "标准号",              SortKey = "standardno",            FilterType = "string", IsRequired = true },
+        new() { Key = "ChemicalComposition",    Label = "化学分析(成品)",       SortKey = "chemicalcomposition",   FilterType = "string" },
+        new() { Key = "HydrostaticTest",        Label = "液压检验",             SortKey = "hydrostatictest",       FilterType = "string" },
+        new() { Key = "EddyCurrent",            Label = "涡流探伤",             SortKey = "eddycurrent",           FilterType = "string" },
+        new() { Key = "UltrasonicTest",         Label = "超声波检验",           SortKey = "ultrasonictest",        FilterType = "string" },
+        new() { Key = "RadiographicTest",       Label = "射线探伤",             SortKey = "radiographictest",      FilterType = "string" },
+        new() { Key = "HardnessRockwell",       Label = "硬度(洛氏)",           SortKey = "hardnessrockwell",      FilterType = "string" },
+        new() { Key = "HardnessBrinell",        Label = "硬度(布氏)",           SortKey = "hardnessbrinell",       FilterType = "string" },
+        new() { Key = "HardnessVickers",        Label = "硬度(维氏)",           SortKey = "hardnessvickers",       FilterType = "string" },
+        new() { Key = "TensileRoomTemp",        Label = "拉伸(室温)",           SortKey = "tensileroomtemp",       FilterType = "string" },
+        new() { Key = "TensileHighTemp",        Label = "拉伸(高温)",           SortKey = "tensilehightemp",       FilterType = "string" },
+        new() { Key = "WeldJointTensile",       Label = "焊接接头拉伸",         SortKey = "weldjointtensile",      FilterType = "string" },
+        new() { Key = "ImpactTest",             Label = "冲击试验",             SortKey = "impacttest",            FilterType = "string" },
+        new() { Key = "WeldJointImpact",        Label = "焊接接头冲击",         SortKey = "weldjointimpact",       FilterType = "string" },
+        new() { Key = "FlatteningTest",         Label = "压扁试验",             SortKey = "flatteningtest",        FilterType = "string" },
+        new() { Key = "FlaringTest",            Label = "卷边试验",             SortKey = "flaringtest",           FilterType = "string" },
+        new() { Key = "ExpandingTest",          Label = "扩口试验",             SortKey = "expandingtest",         FilterType = "string" },
+        new() { Key = "BendTest",               Label = "弯曲试验",             SortKey = "bendtest",              FilterType = "string" },
+        new() { Key = "WeldJointBend",          Label = "焊接接头弯曲",         SortKey = "weldjointbend",         FilterType = "string" },
+        new() { Key = "GrainSize",              Label = "晶粒度",               SortKey = "grainsize",             FilterType = "string" },
+        new() { Key = "IntergranularCorrosion", Label = "晶间腐蚀",             SortKey = "intergranularcorrosion",FilterType = "string" },
+        new() { Key = "PittingCorrosion",       Label = "点腐蚀",               SortKey = "pittingcorrosion",      FilterType = "string" },
+        new() { Key = "FerriteContent",         Label = "金相检验",             SortKey = "ferritecontent",        FilterType = "string" },
+        new() { Key = "Macrostructure",         Label = "低倍组织",             SortKey = "macrostructure",        FilterType = "string" },
     };
 
     // ========== 服务端数据加载 ==========
 
-    private async Task<TableData<SubStandardQuickViewDto>> LoadDataFromServer(TableState state)
+    private async Task<TableData<StandardInspectionRequirementDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
         try
@@ -93,7 +91,7 @@ public partial class SubStandardQuickViews
                 Filters = filters
             };
 
-            var result = await SubStandardQuickViewService.GetPagedAsync(query);
+            var result = await StandardInspectionRequirementService.GetPagedAsync(query);
 
             if (result.Success && result.Data != null)
             {
@@ -114,7 +112,7 @@ public partial class SubStandardQuickViews
             _totalCount = 0;
         }
 
-        return new TableData<SubStandardQuickViewDto>
+        return new TableData<StandardInspectionRequirementDto>
         {
             Items = _pageItems,
             TotalItems = _totalCount
@@ -144,7 +142,7 @@ public partial class SubStandardQuickViews
     {
         try
         {
-            var result = await SubStandardQuickViewService.GetFilterContextsAsync();
+            var result = await StandardInspectionRequirementService.GetFilterContextsAsync();
             if (result.Success && result.Data != null)
             {
                 BuildFilterContextOptions(result.Data);
@@ -208,7 +206,7 @@ public partial class SubStandardQuickViews
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("sub_standard_quick_views", null, _allColumns);
+        await ColumnPrefs.SaveAsync("standard_inspection_requirements", null, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -233,7 +231,7 @@ public partial class SubStandardQuickViews
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("sub_standard_quick_views", null);
+        var saved = await ColumnPrefs.LoadAsync("standard_inspection_requirements", null);
         if (saved.Count > 0)
         {
             foreach (var s in saved)
@@ -257,7 +255,7 @@ public partial class SubStandardQuickViews
             _allColumns = reordered;
         }
 
-        var savedState = await PageState.LoadAsync("sub_standard_quick_views");
+        var savedState = await PageState.LoadAsync("standard_inspection_requirements");
         if (savedState != null)
         {
             sortColumn = savedState.SortBy ?? "StandardNo";
@@ -288,14 +286,14 @@ public partial class SubStandardQuickViews
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
-            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#sub-standard-quick-views-list-table"))
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#standard-inspection-requirements-list-table"))
                 _isArrowNavSetup = false;
         }
     }
 
     // ========== 单元格渲染 ==========
 
-    private string? GetCellRawValue(SubStandardQuickViewDto item, string key) => key switch
+    private string? GetCellRawValue(StandardInspectionRequirementDto item, string key) => key switch
     {
         "StandardNo" => item.StandardNo,
         "ChemicalComposition" => item.ChemicalComposition,
@@ -358,7 +356,7 @@ public partial class SubStandardQuickViews
         public string? Macrostructure { get; set; }
     }
 
-    private void StartEdit(SubStandardQuickViewDto item)
+    private void StartEdit(StandardInspectionRequirementDto item)
     {
         if (!_editingIds.Add(item.Id)) return;
         _editCache[item.Id] = new EditCache
@@ -390,13 +388,13 @@ public partial class SubStandardQuickViews
         };
     }
 
-    private void CancelEdit(SubStandardQuickViewDto item)
+    private void CancelEdit(StandardInspectionRequirementDto item)
     {
         _editingIds.Remove(item.Id);
         _editCache.Remove(item.Id);
     }
 
-    private async Task SaveEdit(SubStandardQuickViewDto item)
+    private async Task SaveEdit(StandardInspectionRequirementDto item)
     {
         if (!_editCache.TryGetValue(item.Id, out var cache)) return;
 
@@ -409,7 +407,7 @@ public partial class SubStandardQuickViews
 
         try
         {
-            var request = new UpdateSubStandardQuickViewRequest
+            var request = new UpdateStandardInspectionRequirementRequest
             {
                 StandardNo = cache.StandardNo,
                 ChemicalComposition = cache.ChemicalComposition,
@@ -437,7 +435,7 @@ public partial class SubStandardQuickViews
                 Macrostructure = cache.Macrostructure
             };
 
-            var result = await SubStandardQuickViewService.UpdateAsync(item.Id, request);
+            var result = await StandardInspectionRequirementService.UpdateAsync(item.Id, request);
             if (result.Success)
             {
                 item.StandardNo = cache.StandardNo;
@@ -487,11 +485,11 @@ public partial class SubStandardQuickViews
 
     // ========== 删除 ==========
 
-    private async Task DeleteItem(SubStandardQuickViewDto item)
+    private async Task DeleteItem(StandardInspectionRequirementDto item)
     {
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
         {
-            ["ContentText"] = $"确定要删除标准号 \"{item.StandardNo}\" 的子标准速览记录吗？",
+            ["ContentText"] = $"确定要删除标准号 \"{item.StandardNo}\" 的检验项要求记录吗？",
             ["ConfirmText"] = "确认删除",
             ["Color"] = Color.Error
         });
@@ -500,7 +498,7 @@ public partial class SubStandardQuickViews
         {
             try
             {
-                var result = await SubStandardQuickViewService.DeleteAsync(item.Id);
+                var result = await StandardInspectionRequirementService.DeleteAsync(item.Id);
                 if (result.Success)
                 {
                     Snackbar.Add("删除成功", Severity.Success);
@@ -520,7 +518,7 @@ public partial class SubStandardQuickViews
 
     // ========== 单元格渲染 ==========
 
-    private RenderFragment RenderCell(SubStandardQuickViewDto item, ColumnDef col) => builder =>
+    private RenderFragment RenderCell(StandardInspectionRequirementDto item, ColumnDef col) => builder =>
     {
         var isEditing = _editingIds.Contains(item.Id);
         var cache = isEditing && _editCache.TryGetValue(item.Id, out var c) ? c : null;
@@ -549,7 +547,7 @@ public partial class SubStandardQuickViews
         }
     };
 
-    private RenderFragment RenderTextField(SubStandardQuickViewDto item, string key, EditCache? cache) => builder =>
+    private RenderFragment RenderTextField(StandardInspectionRequirementDto item, string key, EditCache? cache) => builder =>
     {
         var val = GetFieldValue(item, key);
         var cacheVal = cache != null ? GetCacheFieldValue(cache, key) : null;
@@ -574,7 +572,7 @@ public partial class SubStandardQuickViews
         }
     };
 
-    private static string? GetFieldValue(SubStandardQuickViewDto item, string key) => key switch
+    private static string? GetFieldValue(StandardInspectionRequirementDto item, string key) => key switch
     {
         "ChemicalComposition" => item.ChemicalComposition,
         "HydrostaticTest" => item.HydrostaticTest,
@@ -675,6 +673,6 @@ public partial class SubStandardQuickViews
             PageIndex = _currentPage,
             Extras = extras
         };
-        await PageState.SaveAsync("sub_standard_quick_views", state);
+        await PageState.SaveAsync("standard_inspection_requirements", state);
     }
 }

@@ -86,7 +86,6 @@
                         <MudNavLink Href="/quality/flattening-test">压扁检验</MudNavLink>
                         <MudNavLink Href="/quality/flaring-test">扩口检验</MudNavLink>
                     </MudNavGroup>
-                    <MudNavLink Href="/quality/certificate">质量证明书</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
 
@@ -145,11 +144,11 @@
             <AuthorizeView Roles="@Roles.Policies.StandardRead">
                 <MudNavGroup Title="生产标准" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/standard-registers">标准号列表</MudNavLink>
+                    <MudNavLink Href="/standard-inspection-requirements">标准号检验项要求</MudNavLink>
                     <MudNavLink Href="/sub-standard-quick-views">子标准速览</MudNavLink>
                     <MudNavLink Href="/grade-mappings">牌号对照</MudNavLink>
                     <MudNavLink Href="/grade-chemical-compositions">牌号化学成分</MudNavLink>
                     <MudNavLink Href="/grade-physical-properties">牌号物理性能</MudNavLink>
-                    <MudNavLink Href="/sub-standard-quick-views">子标准速览</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
 
@@ -181,21 +180,19 @@
 @code {
     [Parameter] public RenderFragment? ChildContent { get; set; }
     private bool _drawerOpen = true;
-    private AuthenticationState? _authenticationState;
-
     private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
 
     protected override async Task OnInitializedAsync()
     {
         AuthProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
-        _authenticationState = await AuthProvider.GetAuthenticationStateAsync();
+        await AuthProvider.GetAuthenticationStateAsync();
     }
 
     private void OnAuthenticationStateChanged(Task<AuthenticationState> task)
     {
         _ = InvokeAsync(async () =>
         {
-            _authenticationState = await task;
+            await task;
             StateHasChanged();
         });
     }

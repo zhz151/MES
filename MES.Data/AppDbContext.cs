@@ -139,6 +139,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<GradeChemicalComposition> GradeChemicalCompositions { get; set; } = null!;
     public DbSet<GradePhysicalProperty> GradePhysicalProperties { get; set; } = null!;
     public DbSet<SubStandardQuickView> SubStandardQuickViews { get; set; } = null!;
+    public DbSet<StandardInspectionRequirement> StandardInspectionRequirements { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -250,6 +251,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureGradeChemicalComposition(builder);
         ConfigureGradePhysicalProperty(builder);
         ConfigureSubStandardQuickView(builder);
+        ConfigureStandardInspectionRequirement(builder);
 
         // 为所有继承 BaseEntity 的实体统一配置审计字段长度
         foreach (var entityType in builder.Model.GetEntityTypes())
@@ -487,6 +489,40 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.FerriteContent).HasMaxLength(200);
             entity.Property(e => e.Macrostructure).HasMaxLength(200);
             entity.HasIndex(e => e.StandardNo).IsUnique().HasDatabaseName("UK_SubStandardQuickView_StandardNo");
+        });
+    }
+
+    private static void ConfigureStandardInspectionRequirement(ModelBuilder builder)
+    {
+        builder.Entity<StandardInspectionRequirement>(entity =>
+        {
+            entity.ToTable("StandardInspectionRequirement");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.StandardNo).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ChemicalComposition).HasMaxLength(200);
+            entity.Property(e => e.HydrostaticTest).HasMaxLength(200);
+            entity.Property(e => e.EddyCurrent).HasMaxLength(200);
+            entity.Property(e => e.UltrasonicTest).HasMaxLength(200);
+            entity.Property(e => e.RadiographicTest).HasMaxLength(200);
+            entity.Property(e => e.HardnessRockwell).HasMaxLength(200);
+            entity.Property(e => e.HardnessBrinell).HasMaxLength(200);
+            entity.Property(e => e.HardnessVickers).HasMaxLength(200);
+            entity.Property(e => e.TensileRoomTemp).HasMaxLength(200);
+            entity.Property(e => e.TensileHighTemp).HasMaxLength(200);
+            entity.Property(e => e.WeldJointTensile).HasMaxLength(200);
+            entity.Property(e => e.ImpactTest).HasMaxLength(200);
+            entity.Property(e => e.WeldJointImpact).HasMaxLength(200);
+            entity.Property(e => e.FlatteningTest).HasMaxLength(200);
+            entity.Property(e => e.FlaringTest).HasMaxLength(200);
+            entity.Property(e => e.ExpandingTest).HasMaxLength(200);
+            entity.Property(e => e.BendTest).HasMaxLength(200);
+            entity.Property(e => e.WeldJointBend).HasMaxLength(200);
+            entity.Property(e => e.GrainSize).HasMaxLength(200);
+            entity.Property(e => e.IntergranularCorrosion).HasMaxLength(200);
+            entity.Property(e => e.PittingCorrosion).HasMaxLength(200);
+            entity.Property(e => e.FerriteContent).HasMaxLength(200);
+            entity.Property(e => e.Macrostructure).HasMaxLength(200);
+            entity.HasIndex(e => e.StandardNo).IsUnique().HasDatabaseName("UK_StandardInspectionRequirement_StandardNo");
         });
     }
 
