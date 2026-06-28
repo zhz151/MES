@@ -273,12 +273,16 @@ public class FinalInspectionPlanService : IFinalInspectionPlanService
             MaxLength = b.MaxLength
         };
 
-        // 从 WorkOrderExecutionSummary 补充排程信息
+        // 从 WorkOrderExecutionSummary 补充排程信息（无可空时标记为「存错-无此工单」）
         if (b.WorkOrderNo != null && summaryMap.TryGetValue(b.WorkOrderNo, out var s))
         {
             dto.ScheduleStage = s.ScheduleStage;
             dto.UrgencyLevel = s.UrgencyLevel;
             dto.Salesman = s.Salesman;
+        }
+        else
+        {
+            dto.ScheduleStage = -1;
         }
 
         return dto;

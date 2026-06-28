@@ -195,7 +195,7 @@ public class BatchPlanService : IBatchPlanService
 
             // G4（COALESCE：工单计划薄表优先，无覆盖则回退系统值）
             UrgencyLevel = x.plan != null && x.plan.UrgencyLevel != null ? x.plan.UrgencyLevel : (x.s != null ? x.s.UrgencyLevel : null),
-            ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : (x.b.WorkOrderNo == "非工单" ? 4 : 0)),
+            ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : (x.b.WorkOrderNo == "非工单" ? 4 : -1)),
             MainNoAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.MainNoAttentionProcess : null),
             ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : null),
 
@@ -521,7 +521,7 @@ public class BatchPlanService : IBatchPlanService
             NextProcess = x.b.NextProcess,
             CorrespondingSpec = x.b.CorrespondingSpec,
             UrgencyLevel = x.plan != null && x.plan.UrgencyLevel != null ? x.plan.UrgencyLevel : (x.s != null ? x.s.UrgencyLevel : null),
-            ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : (x.b.WorkOrderNo == "非工单" ? 4 : 0)),
+            ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : (x.b.WorkOrderNo == "非工单" ? 4 : -1)),
             MainNoAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.MainNoAttentionProcess : null),
             ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : null),
             IsUrging = x.s != null && x.s.IsUrging,

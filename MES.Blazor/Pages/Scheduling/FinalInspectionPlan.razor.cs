@@ -13,11 +13,10 @@ namespace MES.Blazor.Pages.Scheduling;
 public partial class FinalInspectionPlan
 {
     private MudTable<FinalInspectionPlanDto>? table;
-    private List<FinalInspectionPlanDto> _pageItems = new();
+    private List<FinalInspectionPlanDto> _allItems = new();
+    private List<FinalInspectionPlanDto> _filteredItems = new();
+    private List<FinalInspectionPlanDto> _filteredAllItems = new();
     private int _totalCount;
-    private int _restoredPageIndex;
-    private int _currentPageIndex = 1;
-    private bool _isFirstLoad = true;
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
 
@@ -59,8 +58,24 @@ public partial class FinalInspectionPlan
         "DefectScrapQuantity"
     };
 
-    // 全量数据（加载后缓存）
-    private List<FinalInspectionPlanDto> _allItems = new();
+    // 选中行
+    private HashSet<FinalInspectionPlanDto> _selectedItems = new();
+
+    private void SelectAllItems(bool selected)
+    {
+        if (selected)
+            _selectedItems = new HashSet<FinalInspectionPlanDto>(_filteredAllItems);
+        else
+            _selectedItems.Clear();
+    }
+
+    private void ToggleSelection(FinalInspectionPlanDto item, bool selected)
+    {
+        if (selected)
+            _selectedItems.Add(item);
+        else
+            _selectedItems.Remove(item);
+    }
 
     // ========== 列定义 ==========
 
@@ -81,7 +96,7 @@ public partial class FinalInspectionPlan
             new() { Key = "WorkOrderNo",           Label = "工单号",     SortKey = "WorkOrderNo",           FilterType = "string", Width = "130", GroupKey = 2, GroupName = "关联工单" },
             new() { Key = "Salesman",              Label = "业务员",     SortKey = "Salesman",              FilterType = "string", Width = "100", GroupKey = 2, GroupName = "关联工单" },
             new() { Key = "Specification",         Label = "成品规格",   SortKey = "Specification",         FilterType = "string", Width = "130", GroupKey = 2, GroupName = "关联工单" },
-            new() { Key = "LengthStatus",          Label = "长度状态",   SortKey = "LengthStatus",          FilterType = "enum", Width = "100", EnumOptions = new() { new("Fixed","定尺"), new("Range","范围尺"), new("NonFixed","非定尺") }, GroupKey = 2, GroupName = "关联工单" },
+            new() { Key = "LengthStatus",          Label = "长度状态",   SortKey = "LengthStatus",          FilterType = "enum", Width = "100", EnumOptions = new() { new("Fixed","定尺"), new("Range","范围尺"), new("NonFixed","非定尺") }, DisplayConverter = v => DisplayHelper.GetLengthStatusText(v as string), GroupKey = 2, GroupName = "关联工单" },
             new() { Key = "MinLength",             Label = "最小长度",   SortKey = "MinLength",             Width = "80",  GroupKey = 2, GroupName = "关联工单" },
             new() { Key = "MaxLength",             Label = "最大长度",   SortKey = "MaxLength",             Width = "80",  GroupKey = 2, GroupName = "关联工单" },
         };
@@ -89,7 +104,7 @@ public partial class FinalInspectionPlan
         // G3: 排程信息
         var g3 = new List<ColumnDef>
         {
-            new() { Key = "ScheduleStage",         Label = "排程阶段",   SortKey = "ScheduleStage",         FilterType = "enum", Width = "110", EnumOptions = new() { new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 3, GroupName = "排程信息" },
+            new() { Key = "ScheduleStage",         Label = "计划状态",   SortKey = "ScheduleStage",         FilterType = "enum", Width = "110", EnumOptions = new() { new("-1","存错-无此工单"), new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, DisplayConverter = v => v is int s ? s switch { -1 => "存错-无此工单", 0 => "工单完成", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => "未知" } : null, GroupKey = 3, GroupName = "排程信息" },
             new() { Key = "UrgencyLevel",          Label = "紧急程度",   SortKey = "UrgencyLevel",          FilterType = "enum", Width = "90",  EnumOptions = new() { new("A+急","A+急"), new("A急","A急"), new("B顺","B顺"), new("C缓","C缓"), new("D缓","D缓") }, GroupKey = 3, GroupName = "排程信息" },
         };
 
@@ -141,7 +156,7 @@ public partial class FinalInspectionPlan
     private void ComputePageSums()
     {
         _pageSums.Clear();
-        if (_pageItems.Count == 0) return;
+        if (_filteredItems.Count == 0) return;
 
         var props = typeof(FinalInspectionPlanDto)
             .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
@@ -156,12 +171,12 @@ public partial class FinalInspectionPlan
             {
                 if (type == typeof(decimal?))
                 {
-                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    var sum = _filteredItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
                     _pageSums[col.Key] = ((int)sum).ToString();
                 }
                 else if (type == typeof(int?))
                 {
-                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    var sum = _filteredItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
                     _pageSums[col.Key] = sum.ToString();
                 }
             }
@@ -188,7 +203,6 @@ public partial class FinalInspectionPlan
             sortColumn = savedState.SortBy ?? "BatchNo";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
-            _restoredPageIndex = savedState.PageIndex;
 
             if (savedState.Extras?.ContainsKey("columnVisibility") == true)
             {
@@ -226,13 +240,21 @@ public partial class FinalInspectionPlan
         }
 
         await LoadDataAsync();
-
-        if (savedState != null && table != null)
-            await table.ReloadServerData();
     }
+
+    private void OnRowsPerPageChanged(int size)
+    {
+        _pageSize = size;
+        ApplyFiltersAndSort();
+        StateHasChanged();
+        _ = SavePageStateAsync();
+    }
+
+    // ========== 分组标题栏同步 ==========
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        // 分组标题栏：测量实际列宽 + 同步滚动
         await JS.InvokeVoidAsync("initGroupHeaders", "#final-inspection-plan-table");
     }
 
@@ -243,7 +265,8 @@ public partial class FinalInspectionPlan
             _allItems = await KanbanSvc.GetKanbanAsync();
             UpdateTabSummary();
             BuildFilterOptionsFromData();
-            if (table != null) await table.ReloadServerData();
+            ApplyFiltersAndSort();
+            StateHasChanged();
         }
         catch (Exception ex)
         {
@@ -305,7 +328,8 @@ public partial class FinalInspectionPlan
         _selectedTab = tab == "全部" ? null : tab;
         UpdateTabSummary();
         await SavePageStateAsync();
-        if (table != null) await table.ReloadServerData();
+        ApplyFiltersAndSort();
+        StateHasChanged();
     }
 
     private void UpdateTabSummary()
@@ -331,41 +355,34 @@ public partial class FinalInspectionPlan
         else
             _columnFilters.Remove(fieldKey);
         await SavePageStateAsync();
-        if (table != null) await table.ReloadServerData();
+        ApplyFiltersAndSort();
+        StateHasChanged();
     }
 
-    // ========== 数据加载 ==========
+    // ========== 数据加载（从 _allItems 中筛选+排序） ==========
 
-    private async Task<TableData<FinalInspectionPlanDto>> LoadDataFromServer(TableState state)
+    private void ApplyFiltersAndSort()
     {
-        _pageSize = state.PageSize;
-
-        if (_isFirstLoad)
-        {
-            state.Page = _restoredPageIndex;
-            _isFirstLoad = false;
-        }
-
-        // 1. Tab 筛选
+        // 从 _allItems 中过滤
         var filtered = _selectedTab == null
-            ? _allItems
+            ? _allItems.ToList()
             : _allItems.Where(x => x.KanbanStage == _selectedTab).ToList();
 
-        // 2. 关键词搜索
+        // 1. 关键词搜索
         if (!string.IsNullOrWhiteSpace(_searchKeyword))
         {
             var kw = _searchKeyword;
             filtered = filtered.Where(x =>
-                (x.BatchNo != null && x.BatchNo.Contains(kw)) ||
-                (x.TagNo != null && x.TagNo.Contains(kw)) ||
-                (x.PlantGrade != null && x.PlantGrade.Contains(kw)) ||
-                (x.WorkOrderNo != null && x.WorkOrderNo.Contains(kw)) ||
-                (x.Specification != null && x.Specification.Contains(kw)) ||
-                (x.Salesman != null && x.Salesman.Contains(kw))
+                (x.BatchNo != null && x.BatchNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.TagNo != null && x.TagNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.PlantGrade != null && x.PlantGrade.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.WorkOrderNo != null && x.WorkOrderNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.Specification != null && x.Specification.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.Salesman != null && x.Salesman.Contains(kw, StringComparison.OrdinalIgnoreCase))
             ).ToList();
         }
 
-        // 3. ExcelFilter 列筛选
+        // 2. ExcelFilter 列筛选
         if (_columnFilters.Count > 0)
         {
             filtered = filtered.Where(x => _columnFilters.All(f =>
@@ -375,26 +392,14 @@ public partial class FinalInspectionPlan
             })).ToList();
         }
 
-        _totalCount = filtered.Count;
-        _currentPageIndex = state.Page + 1;
-
-        // 4. 排序
+        // 3. 排序
         filtered = ApplySorting(filtered, sortColumn, sortDescending);
 
-        // 5. 分页
-        var items = filtered
-            .Skip(state.Page * state.PageSize)
-            .Take(state.PageSize)
-            .ToList();
-
-        _pageItems = items;
+        // 4. 赋全量数据（MudTable Items 模式自动分页）
+        _filteredAllItems = filtered.ToList();
+        _filteredItems = _filteredAllItems;
+        _totalCount = _filteredItems.Count;
         ComputePageSums();
-        await SavePageStateAsync();
-        return new TableData<FinalInspectionPlanDto>
-        {
-            Items = items,
-            TotalItems = _totalCount
-        };
     }
 
     private static List<FinalInspectionPlanDto> ApplySorting(List<FinalInspectionPlanDto> items, string sortBy, bool desc)
@@ -446,7 +451,8 @@ public partial class FinalInspectionPlan
             sortDescending = false;
         }
         await SavePageStateAsync();
-        if (table != null) await table.ReloadServerData();
+        ApplyFiltersAndSort();
+        StateHasChanged();
     }
 
     // ========== 搜索 ==========
@@ -455,7 +461,8 @@ public partial class FinalInspectionPlan
     {
         _searchKeyword = value ?? string.Empty;
         await SavePageStateAsync();
-        if (table != null) await table.ReloadServerData();
+        ApplyFiltersAndSort();
+        StateHasChanged();
     }
 
     // ========== 列显隐 ==========
@@ -541,6 +548,17 @@ public partial class FinalInspectionPlan
     private List<GroupHeaderInfo> GetGroupHeaders()
     {
         var result = new List<GroupHeaderInfo>();
+
+        // 选择列占位（40px），对齐表格最左侧的 checkbox 列
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
         int? lastKey = null;
         int totalWidth = 0;
         var groupKey = 0;
@@ -623,14 +641,17 @@ public partial class FinalInspectionPlan
             case "ScheduleStage":
                 var stageColor = item.ScheduleStage switch
                 {
+                    -1 => Color.Error,
                     0 => Color.Default,
                     1 => Color.Warning,
                     2 => Color.Success,
                     3 => Color.Info,
+                    4 => Color.Secondary,
                     _ => Color.Default
                 };
                 var stageText = item.ScheduleStage switch
                 {
+                    -1 => "存错-无此工单",
                     0 => "工单完成",
                     1 => "原料锁定",
                     2 => "生产执行",
@@ -747,9 +768,86 @@ public partial class FinalInspectionPlan
             SortBy = sortColumn,
             IsDescending = sortDescending,
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            PageIndex = _currentPageIndex,
+            PageIndex = 1,
             Extras = extras
         };
         await PageState.SaveAsync("final-inspection-plan", state);
     }
+
+    // ========== 打印 ==========
+
+    private async Task PrintSelected()
+    {
+        if (_selectedItems.Count == 0) return;
+
+        var printItems = _selectedItems.Select(item =>
+        {
+            var dict = new Dictionary<string, object>();
+            foreach (var col in _visibleColumns)
+                dict[col.Key] = ResolvePrintValue(item, col);
+            return dict;
+        }).ToList();
+
+        var request = new FinalInspectionPlanPrintRequest
+        {
+            Title = "成检计划",
+            Items = printItems,
+            Columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList()
+        };
+
+        var apiUrl = $"{Http.BaseAddress}api/final-inspection-plan/print-file";
+        var json = JsonSerializer.Serialize(request);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+    }
+
+    private static object ResolvePrintValue(FinalInspectionPlanDto item, ColumnDef col)
+    {
+        if (col.DisplayConverter != null)
+            return col.DisplayConverter(GetRawPropertyValue(item, col.Key)) ?? "";
+
+        if (col.FilterType == "boolean")
+        {
+            var raw = GetRawPropertyValue(item, col.Key);
+            if (raw is bool b) return b ? col.BoolTrueLabel : col.BoolFalseLabel;
+            return raw?.ToString() ?? "-";
+        }
+
+        return GetRawPropertyValue(item, col.Key);
+    }
+
+    private static object GetRawPropertyValue(FinalInspectionPlanDto item, string key) => key switch
+    {
+        "BatchNo" => item.BatchNo ?? "",
+        "TagNo" => item.TagNo ?? "",
+        "PlantGrade" => item.PlantGrade ?? "",
+        "CurrentValidWeight" => item.CurrentValidWeight,
+        "WorkOrderNo" => item.WorkOrderNo ?? "",
+        "Salesman" => item.Salesman ?? "",
+        "Specification" => item.Specification ?? "",
+        "LengthStatus" => item.LengthStatus,
+        "MinLength" => item.MinLength,
+        "MaxLength" => item.MaxLength,
+        "ScheduleStage" => item.ScheduleStage,
+        "UrgencyLevel" => item.UrgencyLevel ?? "",
+        "DeliveryDate" => item.DeliveryDate,
+        "KanbanStage" => item.KanbanStage,
+        "ReceiveDate" => item.ReceiveDate,
+        "MaxInspectionDate" => item.MaxInspectionDate,
+        "InspectionCount" => item.InspectionCount,
+        "PmiDate" => item.PmiDate,
+        "VisualDate" => item.VisualDate,
+        "DimensionDate" => item.DimensionDate,
+        "EndoscopyDate" => item.EndoscopyDate,
+        "HydroDate" => item.HydroDate,
+        "UnderwaterPneumaticDate" => item.UnderwaterPneumaticDate,
+        "EddyCurrentDate" => item.EddyCurrentDate,
+        "UltrasonicDate" => item.UltrasonicDate,
+        "PortColoringDate" => item.PortColoringDate,
+        "TotalQuantity" => item.TotalQuantity,
+        "QualifiedQuantity" => item.QualifiedQuantity,
+        "DefectReworkQuantity" => item.DefectReworkQuantity,
+        "DefectWarehouseQuantity" => item.DefectWarehouseQuantity,
+        "DefectScrapQuantity" => item.DefectScrapQuantity,
+        _ => ""
+    };
 }

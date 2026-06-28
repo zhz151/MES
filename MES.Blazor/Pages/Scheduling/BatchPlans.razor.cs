@@ -6,6 +6,7 @@ using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Core.DTOs;
+using MES.Core.Models;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Scheduling;
@@ -13,14 +14,31 @@ namespace MES.Blazor.Pages.Scheduling;
 public partial class BatchPlans
 {
     private MudTable<BatchPlanDto>? table;
-    private List<BatchPlanDto> _pageItems = new();
+    [Obsolete("不再使用，由 _filteredItems 替代")] private List<BatchPlanDto> _pageItems = new();
+    private List<BatchPlanDto> _filteredItems = new();
     private int _totalCount;
-    private int _restoredPageIndex;
-    private int _currentPageIndex = 1;
-    private bool _isFirstLoad = true;
+    [Obsolete("Items 模式下 MudTable 自动管理分页")] private int _currentPageIndex = 0;
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
     private bool _isPlanning;
+    private HashSet<BatchPlanDto> _selectedItems = new();
+    private List<BatchPlanDto> _filteredAllItems = new();
+
+    private void SelectAllItems(bool selected)
+    {
+        if (selected)
+            _selectedItems = new HashSet<BatchPlanDto>(_filteredAllItems);
+        else
+            _selectedItems.Clear();
+    }
+
+    private void ToggleSelection(BatchPlanDto item, bool selected)
+    {
+        if (selected)
+            _selectedItems.Add(item);
+        else
+            _selectedItems.Remove(item);
+    }
 
     // 排序状态
     private string sortColumn = "BatchNo";
@@ -98,12 +116,29 @@ public partial class BatchPlans
     // 全量数据缓存
     private List<BatchPlanDto> _allItems = new();
 
+    // 永久隐藏字段（不在列显隐选择器中显示）
+    private static readonly HashSet<string> _permanentlyHiddenColumnKeys = new()
+    {
+        // G5: 冷轧排程维度明细（12列）
+        "CurrentCR_ProcessType", "CurrentCR_BilletSpec", "CurrentCR_RollingSpec", "CurrentCR_IsFinished",
+        "NextCR_ProcessType", "NextCR_BilletSpec", "NextCR_RollingSpec", "NextCR_IsFinished",
+        "NextNextCR_ProcessType", "NextNextCR_BilletSpec", "NextNextCR_RollingSpec", "NextNextCR_IsFinished",
+        // G10: 工单需求调整（4列）
+        "IsUrging", "IsBatchDelivery", "IsPaused", "AdjustmentRemark",
+    };
+
     // B33: 分页汇总
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
         "CurrentValidWeight", "MinLength", "MaxLength",
     };
+
+    /// <summary>
+    /// 获取可在列显隐选择器中切换的列（排除永久隐藏字段）
+    /// </summary>
+    private List<ColumnDef> GetToggleableColumns() =>
+        _allColumns.Where(c => !_permanentlyHiddenColumnKeys.Contains(c.Key)).ToList();
 
     private static List<ColumnDef> GetAllColumnDefs()
     {
@@ -122,9 +157,9 @@ public partial class BatchPlans
             new() { Key = "WorkOrderNo",           Label = "工单号",     SortKey = "WorkOrderNo",           FilterType = "string", Width = "120", GroupKey = 2, GroupName = "关联工单" },
             new() { Key = "Salesman",              Label = "业务员",     SortKey = "Salesman",              FilterType = "string", Width = "100", GroupKey = 2, GroupName = "关联工单" },
             new() { Key = "DeliveryDate",          Label = "交货日期",   SortKey = "DeliveryDate",          Width = "110", GroupKey = 2, GroupName = "关联工单" },
-            new() { Key = "DeliveryState",         Label = "交货状态",   SortKey = "DeliveryState",         FilterType = "enum", Width = "120", EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态") }, GroupKey = 2, GroupName = "关联工单" },
+            new() { Key = "DeliveryState",         Label = "交货状态",   SortKey = "DeliveryState",         FilterType = "enum", Width = "120", EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态") }, GroupKey = 2, GroupName = "关联工单", DisplayConverter = v => DisplayHelper.GetDeliveryStateText(v as string) },
             new() { Key = "Specification",         Label = "成品规格",   SortKey = "Specification",         FilterType = "string", Width = "120", GroupKey = 2, GroupName = "关联工单" },
-            new() { Key = "LengthStatus",          Label = "长度状态",   SortKey = "LengthStatus",          FilterType = "enum", Width = "100", EnumOptions = new() { new("Fixed","定尺"), new("Range","范围尺"), new("NonFixed","非定尺") }, GroupKey = 2, GroupName = "关联工单" },
+            new() { Key = "LengthStatus",          Label = "长度状态",   SortKey = "LengthStatus",          FilterType = "enum", Width = "100", EnumOptions = new() { new("Fixed","定尺"), new("Range","范围尺"), new("NonFixed","非定尺") }, GroupKey = 2, GroupName = "关联工单", DisplayConverter = v => DisplayHelper.GetLengthStatusText(v as string) },
             new() { Key = "MinLength",             Label = "最小长度",   SortKey = "MinLength",             Width = "80",  GroupKey = 2, GroupName = "关联工单" },
             new() { Key = "MaxLength",             Label = "最大长度",   SortKey = "MaxLength",             Width = "80",  GroupKey = 2, GroupName = "关联工单" },
         };
@@ -141,23 +176,23 @@ public partial class BatchPlans
             new() { Key = "ExecutionSequence",      Label = "执行序",        Width = "70",                       GroupKey = 3, GroupName = "状态跟踪" },
         };
 
-        // G5: 冷轧排程
+        // G5: 冷轧排程（维度明细默认隐藏，仅保留匹配结果列）
         var g5 = new List<ColumnDef>
         {
-            new() { Key = "CurrentCR_ProcessType",  Label = "本层冷轧工序", FilterType = "string",  Width = "110", GroupKey = 5, GroupName = "冷轧排程(本层)" },
-            new() { Key = "CurrentCR_BilletSpec",   Label = "本层来料规格", FilterType = "string",  Width = "110", GroupKey = 5, GroupName = "冷轧排程(本层)" },
-            new() { Key = "CurrentCR_RollingSpec",  Label = "本层在轧规格", FilterType = "string",  Width = "110", GroupKey = 5, GroupName = "冷轧排程(本层)" },
-            new() { Key = "CurrentCR_IsFinished",   Label = "本层末道",    FilterType = "boolean", Width = "80",  GroupKey = 5, GroupName = "冷轧排程(本层)" },
-            new() { Key = "NextCR_ProcessType",     Label = "下层冷轧工序", FilterType = "string",  Width = "110", GroupKey = 6, GroupName = "冷轧排程(下层)" },
-            new() { Key = "NextCR_BilletSpec",      Label = "下层来料规格", FilterType = "string",  Width = "110", GroupKey = 6, GroupName = "冷轧排程(下层)" },
-            new() { Key = "NextCR_RollingSpec",     Label = "下层在轧规格", FilterType = "string",  Width = "110", GroupKey = 6, GroupName = "冷轧排程(下层)" },
-            new() { Key = "NextCR_IsFinished",      Label = "下层末道",    FilterType = "boolean", Width = "80",  GroupKey = 6, GroupName = "冷轧排程(下层)" },
-            new() { Key = "NextNextCR_ProcessType", Label = "下下层冷轧工序", FilterType = "string", Width = "110", GroupKey = 9, GroupName = "冷轧排程(下下层)" },
-            new() { Key = "NextNextCR_BilletSpec",  Label = "下下层来料规格", FilterType = "string", Width = "110", GroupKey = 9, GroupName = "冷轧排程(下下层)" },
-            new() { Key = "NextNextCR_RollingSpec", Label = "下下层在轧规格", FilterType = "string", Width = "110", GroupKey = 9, GroupName = "冷轧排程(下下层)" },
-            new() { Key = "NextNextCR_IsFinished",  Label = "下下层末道",    FilterType = "boolean", Width = "80",  GroupKey = 9, GroupName = "冷轧排程(下下层)" },
-            new() { Key = "CR_CompletionType",      Label = "在轧要求",    FilterType = "string",  Width = "90",  GroupKey = 7, GroupName = "冷轧排程(本层匹配)" },
-            new() { Key = "CR_RollType",            Label = "待轧要求",    FilterType = "string",  Width = "90",  GroupKey = 8, GroupName = "冷轧排程(下层匹配)" },
+            new() { Key = "CurrentCR_ProcessType",  Label = "本层冷轧工序", FilterType = "string",  Width = "110", GroupKey = 5, GroupName = "冷轧排程(本层)", Visible = false },
+            new() { Key = "CurrentCR_BilletSpec",   Label = "本层来料规格", FilterType = "string",  Width = "110", GroupKey = 5, GroupName = "冷轧排程(本层)", Visible = false },
+            new() { Key = "CurrentCR_RollingSpec",  Label = "本层在轧规格", FilterType = "string",  Width = "110", GroupKey = 5, GroupName = "冷轧排程(本层)", Visible = false },
+            new() { Key = "CurrentCR_IsFinished",   Label = "本层末道",    FilterType = "boolean", Width = "80",  GroupKey = 5, GroupName = "冷轧排程(本层)", Visible = false },
+            new() { Key = "NextCR_ProcessType",     Label = "下层冷轧工序", FilterType = "string",  Width = "110", GroupKey = 6, GroupName = "冷轧排程(下层)", Visible = false },
+            new() { Key = "NextCR_BilletSpec",      Label = "下层来料规格", FilterType = "string",  Width = "110", GroupKey = 6, GroupName = "冷轧排程(下层)", Visible = false },
+            new() { Key = "NextCR_RollingSpec",     Label = "下层在轧规格", FilterType = "string",  Width = "110", GroupKey = 6, GroupName = "冷轧排程(下层)", Visible = false },
+            new() { Key = "NextCR_IsFinished",      Label = "下层末道",    FilterType = "boolean", Width = "80",  GroupKey = 6, GroupName = "冷轧排程(下层)", Visible = false },
+            new() { Key = "NextNextCR_ProcessType", Label = "下下层冷轧工序", FilterType = "string", Width = "110", GroupKey = 9, GroupName = "冷轧排程(下下层)", Visible = false },
+            new() { Key = "NextNextCR_BilletSpec",  Label = "下下层来料规格", FilterType = "string", Width = "110", GroupKey = 9, GroupName = "冷轧排程(下下层)", Visible = false },
+            new() { Key = "NextNextCR_RollingSpec", Label = "下下层在轧规格", FilterType = "string", Width = "110", GroupKey = 9, GroupName = "冷轧排程(下下层)", Visible = false },
+            new() { Key = "NextNextCR_IsFinished",  Label = "下下层末道",    FilterType = "boolean", Width = "80",  GroupKey = 9, GroupName = "冷轧排程(下下层)", Visible = false },
+            new() { Key = "CR_CompletionType",      Label = "在轧要求",    FilterType = "enum",   Width = "90",  GroupKey = 7, GroupName = "冷轧排程(本层匹配)", EnumOptions = new() { new("All","全量"), new("Urgent","急单"), new("Partial1","部分(1)"), new("Partial2","部分(2)"), new("Partial3","部分(3)") }, DisplayConverter = v => DisplayHelper.GetCompletionTypeText(v as string) },
+            new() { Key = "CR_RollType",            Label = "待轧要求",    FilterType = "enum",   Width = "90",  GroupKey = 8, GroupName = "冷轧排程(下层匹配)", EnumOptions = new() { new("All","全量"), new("Urgent","急单"), new("Partial1","部分(1)"), new("Partial2","部分(2)"), new("Partial3","部分(3)"), new("Subsequent","后续") }, DisplayConverter = v => DisplayHelper.GetRollTypeText(v as string) },
             new() { Key = "CR_SchedMachineNo",      Label = "待轧设备号",   FilterType = "string", Width = "100", GroupKey = 8, GroupName = "冷轧排程(下层匹配)" },
         };
 
@@ -165,18 +200,18 @@ public partial class BatchPlans
         var g4 = new List<ColumnDef>
         {
             new() { Key = "UrgencyLevel",               Label = "工单紧急性",    SortKey = "UrgencyLevel",               FilterType = "string", Width = "110", GroupKey = 4, GroupName = "批次关注" },
-            new() { Key = "ScheduleStage",               Label = "计划状态",     SortKey = "ScheduleStage",               FilterType = "enum", Width = "110", EnumOptions = new() { new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验"), new("4","非工单批次") }, GroupKey = 4, GroupName = "批次关注" },
+            new() { Key = "ScheduleStage",               Label = "计划状态",     SortKey = "ScheduleStage",               FilterType = "enum", Width = "110", EnumOptions = new() { new("-1","存错-无此工单"), new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验"), new("4","非工单批次") }, GroupKey = 4, GroupName = "批次关注", DisplayConverter = v => v is int s ? s switch { -1 => "存错-无此工单", 0 => "工单完成", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", 4 => "非工单批次", _ => null } : null },
             new() { Key = "MainNoAttentionProcess",     Label = "主号关注工序",   SortKey = "MainNoAttentionProcess",    FilterType = "string", Width = "130", GroupKey = 4, GroupName = "批次关注" },
             new() { Key = "IsKeyBatch",                  Label = "重点生产批次",  FilterType = "boolean", Width = "120", GroupKey = 4, GroupName = "批次关注" },
         };
 
-        // G10：工单需求调整
+        // G10：工单需求调整（默认隐藏，在工单管理页面编辑）
         var g10 = new List<ColumnDef>
         {
-            new() { Key = "IsUrging",              Label = "催单",         FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 10, GroupName = "工单需求调整" },
-            new() { Key = "IsBatchDelivery",       Label = "分批交货",     FilterType = "boolean", Width = "90",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 10, GroupName = "工单需求调整" },
-            new() { Key = "IsPaused",              Label = "工单暂停",     FilterType = "boolean", Width = "90",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 10, GroupName = "工单需求调整" },
-            new() { Key = "AdjustmentRemark",      Label = "调整备注",     FilterType = "string",  Width = "130", GroupKey = 10, GroupName = "工单需求调整" },
+            new() { Key = "IsUrging",              Label = "催单",         FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 10, GroupName = "工单需求调整", Visible = false },
+            new() { Key = "IsBatchDelivery",       Label = "分批交货",     FilterType = "boolean", Width = "90",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 10, GroupName = "工单需求调整", Visible = false },
+            new() { Key = "IsPaused",              Label = "工单暂停",     FilterType = "boolean", Width = "90",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 10, GroupName = "工单需求调整", Visible = false },
+            new() { Key = "AdjustmentRemark",      Label = "调整备注",     FilterType = "string",  Width = "130", GroupKey = 10, GroupName = "工单需求调整", Visible = false },
         };
 
         // G11：批次流转
@@ -196,7 +231,7 @@ public partial class BatchPlans
             new() { Key = "OriginalDiff",        Label = "原工量差",   Width = "80",  GroupKey = 12, GroupName = "执行反馈" },
             new() { Key = "CurrentDiff",         Label = "现工量差",   Width = "80",  GroupKey = 12, GroupName = "执行反馈" },
             new() { Key = "IsExecuted",          Label = "是否执行",   FilterType = "boolean", Width = "80",  GroupKey = 12, GroupName = "执行反馈" },
-            new() { Key = "IsCompliant",         Label = "达标",       FilterType = "enum", Width = "70",  EnumOptions = new() { new("达标","达标"), new("半达标","半达标"), new("未达标","未达标") }, GroupKey = 12, GroupName = "执行反馈" },
+            new() { Key = "IsCompliant",         Label = "达标",       FilterType = "enum", Width = "70",  EnumOptions = new() { new("达标","达标"), new("半达标","半达标"), new("未达标","未达标") }, GroupKey = 12, GroupName = "执行反馈", DisplayConverter = v => v as string },
         };
 
         // G13：批次计划（持久化，内联编辑）
@@ -231,7 +266,7 @@ public partial class BatchPlans
     private void ComputePageSums()
     {
         _pageSums.Clear();
-        if (_pageItems.Count == 0) return;
+        if (_filteredItems.Count == 0) return;
 
         var props = typeof(BatchPlanDto)
             .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
@@ -246,22 +281,22 @@ public partial class BatchPlans
             {
                 if (type == typeof(int))
                 {
-                    var sum = _pageItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
+                    var sum = _filteredItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
                     _pageSums[col.Key] = sum.ToString();
                 }
                 else if (type == typeof(decimal))
                 {
-                    var sum = _pageItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
+                    var sum = _filteredItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
                     _pageSums[col.Key] = ((int)sum).ToString();
                 }
                 else if (type == typeof(int?))
                 {
-                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    var sum = _filteredItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
                     _pageSums[col.Key] = sum.ToString();
                 }
                 else if (type == typeof(decimal?))
                 {
-                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    var sum = _filteredItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
                     _pageSums[col.Key] = ((int)sum).ToString();
                 }
             }
@@ -294,7 +329,7 @@ public partial class BatchPlans
             _allItems = await BatchPlanSvc.GetAllAsync(_selectedSection);
             UpdateTabSummary();
             BuildFilterOptionsFromData();
-            if (table != null) await table.ReloadServerData();
+            if (table != null) { ApplyFiltersAndSort(); StateHasChanged(); }
         }
         catch (Exception ex)
         {
@@ -425,7 +460,7 @@ public partial class BatchPlans
         else
             _columnFilters.Remove(fieldKey);
         await SavePageStateAsync();
-        if (table != null) await table.ReloadServerData();
+        if (table != null) { ApplyFiltersAndSort(); StateHasChanged(); }
     }
 
     // ========== 列显隐事件 ==========
@@ -433,6 +468,7 @@ public partial class BatchPlans
     private async Task OnColumnToggle(ColumnDef col)
     {
         await SavePageStateAsync();
+        await SaveColumnPrefs();
     }
 
     private async Task MoveColumnUp(ColumnDef col)
@@ -444,6 +480,7 @@ public partial class BatchPlans
             _allColumns.Insert(idx - 1, col);
         }
         await SavePageStateAsync();
+        await SaveColumnPrefs();
     }
 
     private async Task MoveColumnDown(ColumnDef col)
@@ -455,6 +492,7 @@ public partial class BatchPlans
             _allColumns.Insert(idx + 1, col);
         }
         await SavePageStateAsync();
+        await SaveColumnPrefs();
     }
 
     private async Task ToggleSort(string sortKey)
@@ -467,14 +505,14 @@ public partial class BatchPlans
             sortDescending = false;
         }
         await SavePageStateAsync();
-        if (table != null) await table.ReloadServerData();
+        if (table != null) { ApplyFiltersAndSort(); StateHasChanged(); }
     }
 
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
         await SavePageStateAsync();
-        if (table != null) await table.ReloadServerData();
+        if (table != null) { ApplyFiltersAndSort(); StateHasChanged(); }
     }
 
     // ========== 分组 CSS ==========
@@ -539,6 +577,17 @@ public partial class BatchPlans
     private List<GroupHeaderInfo> GetGroupHeaders()
     {
         var result = new List<GroupHeaderInfo>();
+
+        // 选择列占位（40px），对齐表格最左侧的 checkbox 列
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
         int? lastKey = null;
         int totalWidth = 0;
         var groupKey = 0;
@@ -587,36 +636,45 @@ public partial class BatchPlans
     {
         _allColumns = GetAllColumnDefs();
 
+        // 从 ColumnPrefsService 恢复列顺序和显隐
+        var savedPrefs = await ColumnPrefs.LoadAsync("batchplans", null);
+        if (savedPrefs.Count > 0)
+        {
+            foreach (var s in savedPrefs)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
+            }
+            var reordered = new List<ColumnDef>();
+            foreach (var s in savedPrefs)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
+        }
+
+        // 确保新字段始终可见（兼容旧保存状态不包含这些列）
+        foreach (var col in _allColumns)
+        {
+            if (col.Key is "MaxBatchRemainingWorkDays" or "MainNoAttentionProcess")
+                col.Visible = true;
+        }
+
+        // 从 PageState 恢复排序/筛选状态（列显隐/顺序由 ColumnPrefs 管理）
         var savedState = await PageState.LoadAsync("batchplans");
         if (savedState != null)
         {
             sortColumn = savedState.SortBy ?? "BatchNo";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
-            _restoredPageIndex = savedState.PageIndex;
-
-            if (savedState.Extras?.ContainsKey("columnVisibility") == true)
-            {
-                try
-                {
-                    var raw = savedState.Extras["columnVisibility"];
-                    var visibleKeys = JsonSerializer.Deserialize<List<string>>(raw);
-                    if (visibleKeys != null)
-                    {
-                        var visibleSet = new HashSet<string>(visibleKeys);
-                        foreach (var col in _allColumns)
-                            col.Visible = visibleSet.Contains(col.Key);
-                    }
-                }
-                catch { }
-            }
-
-            // 确保新字段始终可见（兼容旧保存状态不包含这些列）
-            foreach (var col in _allColumns)
-            {
-                if (col.Key is "MaxBatchRemainingWorkDays" or "MainNoAttentionProcess")
-                    col.Visible = true;
-            }
 
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
@@ -646,9 +704,6 @@ public partial class BatchPlans
         await LoadDailyTargetsAsync();
 
         await LoadDataAsync();
-
-        if (savedState != null && table != null)
-            await table.ReloadServerData();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -674,16 +729,8 @@ public partial class BatchPlans
 
     // ========== 数据加载（从 _allItems 中筛选+排序+分页） ==========
 
-    private async Task<TableData<BatchPlanDto>> LoadDataFromServer(TableState state)
+    private void ApplyFiltersAndSort()
     {
-        _pageSize = state.PageSize;
-
-        if (_isFirstLoad)
-        {
-            state.Page = _restoredPageIndex;
-            _isFirstLoad = false;
-        }
-
         // 从 _allItems 中过滤
         var filtered = _allItems.ToList();
 
@@ -712,7 +759,23 @@ public partial class BatchPlans
                 (x.PlanRemark != null && x.PlanRemark.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.CR_CompletionType != null && x.CR_CompletionType.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.CR_RollType != null && x.CR_RollType.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
-                (x.CR_SchedMachineNo != null && x.CR_SchedMachineNo.Contains(kw, StringComparison.OrdinalIgnoreCase))
+                (x.CR_SchedMachineNo != null && x.CR_SchedMachineNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.DeliveryState != null && x.DeliveryState.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.LengthStatus != null && x.LengthStatus.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.CurrentSectionName != null && x.CurrentSectionName.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.PendingSpec != null && x.PendingSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.PendingEquipment != null && x.PendingEquipment.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.FlowExecSpec != null && x.FlowExecSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.CurrentCR_ProcessType != null && x.CurrentCR_ProcessType.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.CurrentCR_BilletSpec != null && x.CurrentCR_BilletSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.CurrentCR_RollingSpec != null && x.CurrentCR_RollingSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.NextCR_ProcessType != null && x.NextCR_ProcessType.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.NextCR_BilletSpec != null && x.NextCR_BilletSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.NextCR_RollingSpec != null && x.NextCR_RollingSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.NextNextCR_ProcessType != null && x.NextNextCR_ProcessType.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.NextNextCR_BilletSpec != null && x.NextNextCR_BilletSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.NextNextCR_RollingSpec != null && x.NextNextCR_RollingSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.IsCompliant != null && x.IsCompliant.Contains(kw, StringComparison.OrdinalIgnoreCase))
             ).ToList();
         }
 
@@ -726,26 +789,22 @@ public partial class BatchPlans
             })).ToList();
         }
 
-        _totalCount = filtered.Count;
-        _currentPageIndex = state.Page + 1;
-
         // 3. 排序
         filtered = ApplySorting(filtered, sortColumn, sortDescending);
 
-        // 4. 分页
-        var items = filtered
-            .Skip(state.Page * state.PageSize)
-            .Take(state.PageSize)
-            .ToList();
-
-        _pageItems = items;
+        // 4. 赋全量数据给 _filteredItems（MudTable Items 模式自动分页）
+        _filteredAllItems = filtered.ToList();
+        _filteredItems = _filteredAllItems;
+        _totalCount = _filteredItems.Count;
         ComputePageSums();
-        await SavePageStateAsync();
-        return new TableData<BatchPlanDto>
-        {
-            Items = items,
-            TotalItems = _totalCount
-        };
+    }
+
+    private void OnRowsPerPageChanged(int size)
+    {
+        _pageSize = size;
+        ApplyFiltersAndSort();
+        StateHasChanged();
+        _ = SavePageStateAsync();
     }
 
     private static List<BatchPlanDto> ApplySorting(List<BatchPlanDto> items, string sortBy, bool desc)
@@ -851,13 +910,13 @@ public partial class BatchPlans
                 builder.AddContent(0, item.DeliveryDate.ToString("yyyy-MM-dd"));
                 break;
             case "DeliveryState":
-                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
+                builder.AddContent(0, col.DisplayConverter?.Invoke(item.DeliveryState) ?? item.DeliveryState ?? "-");
                 break;
             case "Specification":
                 builder.AddContent(0, item.Specification);
                 break;
             case "LengthStatus":
-                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                builder.AddContent(0, col.DisplayConverter?.Invoke(item.LengthStatus) ?? item.LengthStatus ?? "-");
                 break;
             case "MinLength":
                 builder.AddContent(0, item.MinLength.HasValue ? ((int)item.MinLength.Value).ToString() : "-");
@@ -917,6 +976,7 @@ public partial class BatchPlans
             case "ScheduleStage":
                 var stageColor = item.ScheduleStage switch
                 {
+                    -1 => Color.Error,
                     0 => Color.Default,
                     1 => Color.Warning,
                     2 => Color.Success,
@@ -926,6 +986,7 @@ public partial class BatchPlans
                 };
                 var stageText = item.ScheduleStage switch
                 {
+                    -1 => "存错-无此工单",
                     0 => "工单完成",
                     1 => "原料锁定",
                     2 => "生产执行",
@@ -1078,11 +1139,11 @@ public partial class BatchPlans
                 break;
             case "CR_CompletionType":
                 builder.AddContent(0, string.IsNullOrEmpty(item.CR_CompletionType) || item.CR_CompletionType == "None"
-                    ? "-" : DisplayHelper.GetCompletionTypeText(item.CR_CompletionType));
+                    ? "-" : col.DisplayConverter?.Invoke(item.CR_CompletionType) ?? item.CR_CompletionType);
                 break;
             case "CR_RollType":
                 builder.AddContent(0, string.IsNullOrEmpty(item.CR_RollType) || item.CR_RollType == "None"
-                    ? "-" : DisplayHelper.GetRollTypeText(item.CR_RollType));
+                    ? "-" : col.DisplayConverter?.Invoke(item.CR_RollType) ?? item.CR_RollType);
                 break;
             case "CR_SchedMachineNo":
                 builder.AddContent(0, item.CR_SchedMachineNo ?? "-");
@@ -1163,6 +1224,26 @@ public partial class BatchPlans
                 builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<bool>(this, async v =>
                 {
                     item.PlanIsFlow = v;
+                    if (v)
+                    {
+                        // 切到"是"：从系统推荐值自动填充（FlowLevel/FlowTarget/FlowCRType/FlowExecSpec及执行序/目标序）
+                        item.PlanFlowLevel = item.FlowLevel;
+                        item.PlanFlowTarget = item.FlowTarget;
+                        item.PlanFlowCRType = item.FlowCRType;
+                        item.PlanFlowExecSpec = item.FlowExecSpec;
+                        item.PlanTargetSequence = item.TargetSequence;
+                        item.PlanExecutionSequence = item.ExecutionSequence;
+                    }
+                    else
+                    {
+                        // 切到"否"：清空所有流转相关字段（含执行序/目标序，使 G12 执行反馈全部显示"-"）
+                        item.PlanFlowLevel = 5;
+                        item.PlanFlowTarget = null;
+                        item.PlanFlowCRType = null;
+                        item.PlanFlowExecSpec = null;
+                        item.PlanTargetSequence = null;
+                        item.PlanExecutionSequence = null;
+                    }
                     await SavePlanFieldAsync(item);
                 }));
                 builder.AddAttribute(3, "Color", Color.Primary);
@@ -1178,11 +1259,12 @@ public partial class BatchPlans
                     await SavePlanFieldAsync(item);
                 }));
                 builder.AddAttribute(3, "Dense", true);
-                builder.AddAttribute(4, "Variant", Variant.Text);
-                builder.AddAttribute(5, "Min", 1);
-                builder.AddAttribute(6, "Max", 5);
-                builder.AddAttribute(7, "HideSpinButtons", true);
-                builder.AddAttribute(8, "Class", $"compact-select flow-level-{item.PlanFlowLevel}");
+                builder.AddAttribute(4, "Variant", Variant.Outlined);
+                builder.AddAttribute(5, "Size", Size.Small);
+                builder.AddAttribute(6, "Min", 1);
+                builder.AddAttribute(7, "Max", 5);
+                builder.AddAttribute(8, "HideSpinButtons", true);
+                builder.AddAttribute(9, "Class", $"compact-select flow-level-{item.PlanFlowLevel}");
                 builder.CloseComponent();
                 break;
             case "PlanFlowTarget":
@@ -1194,8 +1276,9 @@ public partial class BatchPlans
                     await SavePlanFieldAsync(item);
                 }));
                 builder.AddAttribute(3, "Dense", true);
-                builder.AddAttribute(4, "Variant", Variant.Text);
-                builder.AddAttribute(5, "Class", "compact-select");
+                builder.AddAttribute(4, "Variant", Variant.Outlined);
+                builder.AddAttribute(5, "Size", Size.Small);
+                builder.AddAttribute(6, "Class", "compact-select");
                 builder.CloseComponent();
                 break;
             case "PlanFlowCRType":
@@ -1207,8 +1290,9 @@ public partial class BatchPlans
                     await SavePlanFieldAsync(item);
                 }));
                 builder.AddAttribute(3, "Dense", true);
-                builder.AddAttribute(4, "Variant", Variant.Text);
-                builder.AddAttribute(5, "Class", "compact-select");
+                builder.AddAttribute(4, "Variant", Variant.Outlined);
+                builder.AddAttribute(5, "Size", Size.Small);
+                builder.AddAttribute(6, "Class", "compact-select");
                 builder.CloseComponent();
                 break;
             case "PlanFlowExecSpec":
@@ -1220,8 +1304,9 @@ public partial class BatchPlans
                     await SavePlanFieldAsync(item);
                 }));
                 builder.AddAttribute(3, "Dense", true);
-                builder.AddAttribute(4, "Variant", Variant.Text);
-                builder.AddAttribute(5, "Class", "compact-select");
+                builder.AddAttribute(4, "Variant", Variant.Outlined);
+                builder.AddAttribute(5, "Size", Size.Small);
+                builder.AddAttribute(6, "Class", "compact-select");
                 builder.CloseComponent();
                 break;
             case "PlanExecutionSequence":
@@ -1233,9 +1318,10 @@ public partial class BatchPlans
                     await SavePlanFieldAsync(item);
                 }));
                 builder.AddAttribute(3, "Dense", true);
-                builder.AddAttribute(4, "Variant", Variant.Text);
-                builder.AddAttribute(5, "HideSpinButtons", true);
-                builder.AddAttribute(6, "Class", "compact-select");
+                builder.AddAttribute(4, "Variant", Variant.Outlined);
+                builder.AddAttribute(5, "Size", Size.Small);
+                builder.AddAttribute(6, "HideSpinButtons", true);
+                builder.AddAttribute(7, "Class", "compact-select");
                 builder.CloseComponent();
                 break;
             case "PlanTargetSequence":
@@ -1247,9 +1333,10 @@ public partial class BatchPlans
                     await SavePlanFieldAsync(item);
                 }));
                 builder.AddAttribute(3, "Dense", true);
-                builder.AddAttribute(4, "Variant", Variant.Text);
-                builder.AddAttribute(5, "HideSpinButtons", true);
-                builder.AddAttribute(6, "Class", "compact-select");
+                builder.AddAttribute(4, "Variant", Variant.Outlined);
+                builder.AddAttribute(5, "Size", Size.Small);
+                builder.AddAttribute(6, "HideSpinButtons", true);
+                builder.AddAttribute(7, "Class", "compact-select");
                 builder.CloseComponent();
                 break;
             case "IsGrabOrder":
@@ -1273,8 +1360,9 @@ public partial class BatchPlans
                     await SavePlanFieldAsync(item);
                 }));
                 builder.AddAttribute(3, "Dense", true);
-                builder.AddAttribute(4, "Variant", Variant.Text);
-                builder.AddAttribute(5, "Class", "compact-select");
+                builder.AddAttribute(4, "Variant", Variant.Outlined);
+                builder.AddAttribute(5, "Size", Size.Small);
+                builder.AddAttribute(6, "Class", "compact-select");
                 builder.CloseComponent();
                 break;
         }
@@ -1321,6 +1409,11 @@ public partial class BatchPlans
                 PlanRemark = item.PlanRemark,
             };
             await BatchPlanScheduleSvc.SaveAsync(dto);
+            // 保存成功后刷新顶部汇总（流转批次/重点批次计数及重量）
+            UpdateTabSummary();
+            // 强制 MudTable 重新渲染 RowTemplate，确保 G12 执行反馈重算
+            ApplyFiltersAndSort();
+            StateHasChanged();
         }
         catch (Exception ex)
         {
@@ -1336,8 +1429,6 @@ public partial class BatchPlans
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
 
-        extras["columnVisibility"] = JsonSerializer.Serialize(_allColumns.Where(c => c.Visible).Select(c => c.Key).ToList());
-
         extras["selectedSection"] = _selectedSection ?? "全部";
 
         var state = new PageState
@@ -1345,9 +1436,146 @@ public partial class BatchPlans
             SortBy = sortColumn,
             IsDescending = sortDescending,
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            PageIndex = _currentPageIndex,
+            PageIndex = 1,
             Extras = extras
         };
         await PageState.SaveAsync("batchplans", state);
+    }
+
+    // ========== ColumnPrefs 持久化 ==========
+
+    private async Task SaveColumnPrefs()
+    {
+        await ColumnPrefs.SaveAsync("batchplans", null, _allColumns);
+    }
+
+    // ========== 打印 ==========
+
+    private async Task PrintSelected()
+    {
+        if (_selectedItems.Count == 0)
+        {
+            Snackbar.Add("请先选择要打印的行", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var printColumns = _visibleColumns
+                .Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label })
+                .ToList();
+
+            // 将 DTO 转为字典，枚举字段预先解析为中文显示文本
+            var printItems = _selectedItems.Select(item =>
+            {
+                var dict = new Dictionary<string, object>();
+                foreach (var col in _visibleColumns)
+                {
+                    dict[col.Key] = ResolvePrintValue(item, col);
+                }
+                return dict;
+            }).ToList();
+
+            var request = new BatchPlanPrintRequest
+            {
+                Title = "批次计划",
+                Items = printItems,
+                Columns = printColumns
+            };
+
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/batch-plan/print-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static object ResolvePrintValue(BatchPlanDto item, ColumnDef col)
+    {
+        // 枚举列：使用 DisplayConverter
+        if (col.DisplayConverter != null)
+            return col.DisplayConverter(GetRawPropertyValue(item, col.Key)) ?? "";
+
+        // 布尔列：用 BoolTrueLabel/BoolFalseLabel
+        if (col.FilterType == "boolean")
+        {
+            var raw = GetRawPropertyValue(item, col.Key);
+            if (raw is bool b)
+                return b ? col.BoolTrueLabel : col.BoolFalseLabel;
+            return raw?.ToString() ?? "-";
+        }
+
+        return GetRawPropertyValue(item, col.Key);
+    }
+
+    private static object GetRawPropertyValue(BatchPlanDto item, string key)
+    {
+        return key switch
+        {
+            "BatchNo" => item.BatchNo ?? "",
+            "TagNo" => item.TagNo ?? "",
+            "PlantGrade" => item.PlantGrade ?? "",
+            "CurrentValidWeight" => item.CurrentValidWeight,
+            "WorkOrderNo" => item.WorkOrderNo ?? "",
+            "Salesman" => item.Salesman ?? "",
+            "DeliveryDate" => item.DeliveryDate,
+            "Specification" => item.Specification ?? "",
+            "MinLength" => item.MinLength,
+            "MaxLength" => item.MaxLength,
+            "CurrentExecDate" => item.CurrentExecDate,
+            "CurrentSectionName" => item.CurrentSectionName ?? "",
+            "PendingProcess" => item.PendingProcess ?? "",
+            "PendingSectionName" => item.PendingSectionName ?? "",
+            "PendingSpec" => item.PendingSpec ?? "",
+            "PendingEquipment" => item.PendingEquipment ?? "",
+            "ExecutionSequence" => item.ExecutionSequence,
+            "UrgencyLevel" => item.UrgencyLevel ?? "",
+            "MainNoAttentionProcess" => item.MainNoAttentionProcess ?? "",
+            "IsKeyBatch" => item.IsKeyBatch,
+            "IsUrging" => item.IsUrging,
+            "IsBatchDelivery" => item.IsBatchDelivery,
+            "IsPaused" => item.IsPaused,
+            "AdjustmentRemark" => item.AdjustmentRemark ?? "",
+            "IsFlow" => item.IsFlow,
+            "FlowLevel" => item.FlowLevel,
+            "FlowTarget" => item.FlowTarget ?? "",
+            "FlowCRType" => item.FlowCRType ?? "",
+            "FlowExecSpec" => item.FlowExecSpec ?? "",
+            "TargetSequence" => item.TargetSequence,
+            "OriginalDiff" => item.OriginalDiff,
+            "CurrentDiff" => item.CurrentDiff,
+            "IsExecuted" => item.IsExecuted,
+            "CurrentCR_ProcessType" => item.CurrentCR_ProcessType ?? "",
+            "CurrentCR_BilletSpec" => item.CurrentCR_BilletSpec ?? "",
+            "CurrentCR_RollingSpec" => item.CurrentCR_RollingSpec ?? "",
+            "CurrentCR_IsFinished" => item.CurrentCR_IsFinished,
+            "NextCR_ProcessType" => item.NextCR_ProcessType ?? "",
+            "NextCR_BilletSpec" => item.NextCR_BilletSpec ?? "",
+            "NextCR_RollingSpec" => item.NextCR_RollingSpec ?? "",
+            "NextCR_IsFinished" => item.NextCR_IsFinished,
+            "NextNextCR_ProcessType" => item.NextNextCR_ProcessType ?? "",
+            "NextNextCR_BilletSpec" => item.NextNextCR_BilletSpec ?? "",
+            "NextNextCR_RollingSpec" => item.NextNextCR_RollingSpec ?? "",
+            "NextNextCR_IsFinished" => item.NextNextCR_IsFinished,
+            "CR_CompletionType" => item.CR_CompletionType ?? "",
+            "CR_RollType" => item.CR_RollType ?? "",
+            "CR_SchedMachineNo" => item.CR_SchedMachineNo ?? "",
+            "PlanIsFlow" => item.PlanIsFlow,
+            "PlanFlowLevel" => item.PlanFlowLevel,
+            "PlanFlowTarget" => item.PlanFlowTarget ?? "",
+            "PlanFlowCRType" => item.PlanFlowCRType ?? "",
+            "PlanFlowExecSpec" => item.PlanFlowExecSpec ?? "",
+            "PlanExecutionSequence" => item.PlanExecutionSequence,
+            "PlanTargetSequence" => item.PlanTargetSequence,
+            "IsGrabOrder" => item.IsGrabOrder,
+            "PlanRemark" => item.PlanRemark ?? "",
+            "ProductionFlowProperty" => item.ProductionFlowProperty ?? "",
+            "MaxBatchRemainingWorkDays" => item.MaxBatchRemainingWorkDays,
+            _ => ""
+        };
     }
 }

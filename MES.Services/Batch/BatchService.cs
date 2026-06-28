@@ -411,8 +411,6 @@ public class BatchService : IBatchService
             throw new BusinessException("仓库工厂牌号不能为空");
         if (string.IsNullOrWhiteSpace(request.SourceSpecification))
             throw new BusinessException("仓库规格不能为空");
-        if (string.IsNullOrWhiteSpace(request.SourceLengthStatus))
-            throw new BusinessException("来源长度状态不能为空");
         if (request.InputWeight == null || request.InputWeight <= 0)
             throw new BusinessException("领料重量必须大于0");
         if (request.InputQuantity == null || request.InputQuantity <= 0)
@@ -619,38 +617,73 @@ public class BatchService : IBatchService
         if (request.IsForceCompleted.HasValue) entity.IsForceCompleted = request.IsForceCompleted.Value;
         if (request.ProductionRatio.HasValue) entity.ProductionRatio = request.ProductionRatio.Value;
 
-        // 工单冗余字段（non-nullable 保留守卫防崩溃；nullable 用 ?? 防止空值覆盖）
-        if (request.WorkOrderNo != null) entity.WorkOrderNo = request.WorkOrderNo;
-        if (request.SalesOrderNo != null) entity.SalesOrderNo = request.SalesOrderNo;
-        if (request.ProductionMainNo != null) entity.ProductionMainNo = request.ProductionMainNo;
-        entity.ProductionSubNo = request.ProductionSubNo ?? entity.ProductionSubNo;
-        if (request.OrderItemIds != null) entity.OrderItemIds = request.OrderItemIds;
-        if (request.SignDate.HasValue) entity.SignDate = request.SignDate.Value;
-        if (request.Salesman != null) entity.Salesman = request.Salesman;
-        entity.EndCustomer = request.EndCustomer ?? entity.EndCustomer;
-        if (request.DeliveryDate.HasValue) entity.DeliveryDate = request.DeliveryDate.Value;
-        if (request.DelayPenalty.HasValue) entity.DelayPenalty = request.DelayPenalty.Value;
-        if (request.MaterialName != null) entity.MaterialName = request.MaterialName;
-        if (request.SettlementMethod != null) entity.SettlementMethod = request.SettlementMethod;
-        if (request.StandardCode != null) entity.StandardCode = request.StandardCode;
-        if (request.DeliveryState != null) entity.DeliveryState = request.DeliveryState;
-        if (request.PlantGrade != null) entity.PlantGrade = request.PlantGrade;
-        if (request.Specification != null) entity.Specification = request.Specification;
-        if (request.OuterDiameterNegative.HasValue) entity.OuterDiameterNegative = request.OuterDiameterNegative.Value;
-        if (request.OuterDiameterPositive.HasValue) entity.OuterDiameterPositive = request.OuterDiameterPositive.Value;
-        if (request.WallThicknessNegative.HasValue) entity.WallThicknessNegative = request.WallThicknessNegative.Value;
-        if (request.WallThicknessPositive.HasValue) entity.WallThicknessPositive = request.WallThicknessPositive.Value;
-        if (request.LengthStatus != null) entity.LengthStatus = request.LengthStatus;
-        entity.MinLength = request.MinLength ?? entity.MinLength;
-        entity.MaxLength = request.MaxLength ?? entity.MaxLength;
-        if (request.TotalQuantity.HasValue) entity.TotalQuantity = request.TotalQuantity.Value;
-        if (request.TotalMeters.HasValue) entity.TotalMeters = request.TotalMeters.Value;
-        if (request.TotalWeight.HasValue) entity.TotalWeight = request.TotalWeight.Value;
-        if (request.TotalItemCount.HasValue) entity.TotalItemCount = request.TotalItemCount.Value;
-        entity.ItemDetails = request.ItemDetails ?? entity.ItemDetails;
-        if (request.TechnicalRequirements != null) entity.TechnicalRequirements = request.TechnicalRequirements;
+        var oldWorkOrderNo = entity.WorkOrderNo;
+
+        // 工单冗余字段（「非工单」时允许清空；正常时保留守卫防覆盖）
+        var isNonWorkOrder = request.WorkOrderNo == NotWorkOrder;
+        entity.WorkOrderNo = request.WorkOrderNo ?? (isNonWorkOrder ? "" : entity.WorkOrderNo);
+        entity.SalesOrderNo = request.SalesOrderNo ?? (isNonWorkOrder ? "" : entity.SalesOrderNo);
+        entity.ProductionMainNo = request.ProductionMainNo ?? (isNonWorkOrder ? "" : entity.ProductionMainNo);
+        entity.ProductionSubNo = isNonWorkOrder ? request.ProductionSubNo : (request.ProductionSubNo ?? entity.ProductionSubNo);
+        entity.OrderItemIds = request.OrderItemIds ?? (isNonWorkOrder ? "" : entity.OrderItemIds);
+        entity.SignDate = request.SignDate ?? (isNonWorkOrder ? default : entity.SignDate);
+        entity.Salesman = request.Salesman ?? (isNonWorkOrder ? "" : entity.Salesman);
+        entity.EndCustomer = isNonWorkOrder ? request.EndCustomer : (request.EndCustomer ?? entity.EndCustomer);
+        entity.DeliveryDate = request.DeliveryDate ?? (isNonWorkOrder ? default : entity.DeliveryDate);
+        entity.DelayPenalty = request.DelayPenalty ?? (isNonWorkOrder ? default : entity.DelayPenalty);
+        entity.MaterialName = request.MaterialName ?? (isNonWorkOrder ? "" : entity.MaterialName);
+        entity.SettlementMethod = request.SettlementMethod ?? (isNonWorkOrder ? "" : entity.SettlementMethod);
+        entity.StandardCode = request.StandardCode ?? (isNonWorkOrder ? "" : entity.StandardCode);
+        entity.DeliveryState = request.DeliveryState ?? (isNonWorkOrder ? "" : entity.DeliveryState);
+        entity.PlantGrade = request.PlantGrade ?? (isNonWorkOrder ? "" : entity.PlantGrade);
+        entity.Specification = request.Specification ?? (isNonWorkOrder ? "" : entity.Specification);
+        entity.OuterDiameterNegative = request.OuterDiameterNegative ?? (isNonWorkOrder ? default : entity.OuterDiameterNegative);
+        entity.OuterDiameterPositive = request.OuterDiameterPositive ?? (isNonWorkOrder ? default : entity.OuterDiameterPositive);
+        entity.WallThicknessNegative = request.WallThicknessNegative ?? (isNonWorkOrder ? default : entity.WallThicknessNegative);
+        entity.WallThicknessPositive = request.WallThicknessPositive ?? (isNonWorkOrder ? default : entity.WallThicknessPositive);
+        entity.LengthStatus = request.LengthStatus ?? (isNonWorkOrder ? "" : entity.LengthStatus);
+        entity.MinLength = isNonWorkOrder ? request.MinLength : (request.MinLength ?? entity.MinLength);
+        entity.MaxLength = isNonWorkOrder ? request.MaxLength : (request.MaxLength ?? entity.MaxLength);
+        entity.TotalQuantity = request.TotalQuantity ?? (isNonWorkOrder ? default : entity.TotalQuantity);
+        entity.TotalMeters = request.TotalMeters ?? (isNonWorkOrder ? default : entity.TotalMeters);
+        entity.TotalWeight = request.TotalWeight ?? (isNonWorkOrder ? default : entity.TotalWeight);
+        entity.TotalItemCount = request.TotalItemCount ?? (isNonWorkOrder ? default : entity.TotalItemCount);
+        entity.ItemDetails = isNonWorkOrder ? request.ItemDetails : (request.ItemDetails ?? entity.ItemDetails);
+        entity.TechnicalRequirements = request.TechnicalRequirements ?? (isNonWorkOrder ? "" : entity.TechnicalRequirements);
 
         await _context.SaveChangesAsync();
+
+        // 工单号变更时，同步更新相关记录的全部冗余字段
+        if (entity.WorkOrderNo != oldWorkOrderNo)
+        {
+            await _context.MaterialReceiveChecks
+                .Where(r => r.ProductionBatchId == id)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(r => r.WorkOrderNo, entity.WorkOrderNo)
+                    .SetProperty(r => r.SalesOrderNo, entity.SalesOrderNo)
+                    .SetProperty(r => r.ManufacturingItem, entity.ManufacturingItem)
+                    .SetProperty(r => r.PlantGrade, entity.PlantGrade)
+                    .SetProperty(r => r.Specification, entity.Specification)
+                    .SetProperty(r => r.ProductionType, entity.ProductionType)
+                    .SetProperty(r => r.LengthStatus, entity.LengthStatus)
+                    .SetProperty(r => r.Salesman, entity.Salesman)
+                    .SetProperty(r => r.DeliveryState, entity.DeliveryState));
+            await _context.FinalInspections
+                .Where(f => f.ProductionBatchId == id)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(f => f.WorkOrderNo, entity.WorkOrderNo)
+                    .SetProperty(f => f.SalesOrderNo, entity.SalesOrderNo)
+                    .SetProperty(f => f.MaterialName, entity.MaterialName)
+                    .SetProperty(f => f.PlantGrade, entity.PlantGrade)
+                    .SetProperty(f => f.Specification, entity.Specification)
+                    .SetProperty(f => f.ProductionType, entity.ProductionType));
+            await _context.Ncrs
+                .Where(n => n.BatchNo == entity.BatchNo)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(n => n.WorkOrderNo, entity.WorkOrderNo)
+                    .SetProperty(n => n.PlantGrade, entity.PlantGrade)
+                    .SetProperty(n => n.Specification, entity.Specification));
+        }
 
         // 刷新批次跟踪字段（包括有效投料疑问等计算字段）
         await _productionRecordService.RefreshBatchTrackingFieldsAsync(entity.Id);
@@ -735,7 +768,7 @@ public class BatchService : IBatchService
 
         if (processGroupIds.Count != 0)
         {
-            // 以下三个表的 FK → ProcessGroup 为 NoAction，会阻塞 Cascade 删除，
+            // 以下四个表的 FK → ProcessGroup 为 NoAction，会阻塞 Cascade 删除，
             // 必须在此手动删除它们
             var productionRecords = await _context.ProductionRecords
                 .Where(r => processGroupIds.Contains(r.ProcessGroupId))
@@ -752,6 +785,11 @@ public class BatchService : IBatchService
                 .Where(p => processGroupIds.Contains(p.ProcessGroupId))
                 .ToListAsync();
             _context.ProcessInspections.RemoveRange(processInspections);
+
+            var picklingInRecords = await _context.PicklingInRecords
+                .Where(p => processGroupIds.Contains(p.ProcessGroupId))
+                .ToListAsync();
+            _context.PicklingInRecords.RemoveRange(picklingInRecords);
         }
 
         // 删除批次（ProcessGroup 通过 Cascade 自动删除，
@@ -798,7 +836,6 @@ public class BatchService : IBatchService
         var effectiveTotalQuantity = request.TotalQuantity ?? entity.TotalQuantity;
         var effectiveSourceGrade = request.SourcePlantGrade ?? entity.SourcePlantGrade;
         var effectiveSourceSpec = request.SourceSpecification ?? entity.SourceSpecification;
-        var effectiveSourceLengthStatus = request.SourceLengthStatus ?? entity.SourceLengthStatus;
         var effectiveInputWeight = request.InputWeight ?? entity.InputWeight;
         var effectiveInputQuantity = request.InputQuantity ?? entity.InputQuantity;
 
@@ -824,8 +861,6 @@ public class BatchService : IBatchService
             throw new BusinessException("仓库工厂牌号不能为空");
         if (string.IsNullOrWhiteSpace(effectiveSourceSpec))
             throw new BusinessException("仓库规格不能为空");
-        if (string.IsNullOrWhiteSpace(effectiveSourceLengthStatus))
-            throw new BusinessException("来源长度状态不能为空");
         if (effectiveInputWeight == null || effectiveInputWeight <= 0)
             throw new BusinessException("领料重量必须大于0");
         if (effectiveInputQuantity == null || effectiveInputQuantity <= 0)
@@ -888,36 +923,39 @@ public class BatchService : IBatchService
         if (request.IsForceCompleted.HasValue) entity.IsForceCompleted = request.IsForceCompleted.Value;
         if (request.ProductionRatio.HasValue) entity.ProductionRatio = request.ProductionRatio.Value;
 
-        // 工单冗余字段（non-nullable 保留守卫防崩溃；nullable 用 ?? 防止空值覆盖）
-        if (request.WorkOrderNo != null) entity.WorkOrderNo = request.WorkOrderNo;
-        if (request.SalesOrderNo != null) entity.SalesOrderNo = request.SalesOrderNo;
-        if (request.ProductionMainNo != null) entity.ProductionMainNo = request.ProductionMainNo;
-        entity.ProductionSubNo = request.ProductionSubNo ?? entity.ProductionSubNo;
-        if (request.OrderItemIds != null) entity.OrderItemIds = request.OrderItemIds;
-        if (request.SignDate.HasValue) entity.SignDate = request.SignDate.Value;
-        if (request.Salesman != null) entity.Salesman = request.Salesman;
-        entity.EndCustomer = request.EndCustomer ?? entity.EndCustomer;
-        if (request.DeliveryDate.HasValue) entity.DeliveryDate = request.DeliveryDate.Value;
-        if (request.DelayPenalty.HasValue) entity.DelayPenalty = request.DelayPenalty.Value;
-        if (request.MaterialName != null) entity.MaterialName = request.MaterialName;
-        if (request.SettlementMethod != null) entity.SettlementMethod = request.SettlementMethod;
-        if (request.StandardCode != null) entity.StandardCode = request.StandardCode;
-        if (request.DeliveryState != null) entity.DeliveryState = request.DeliveryState;
-        if (request.PlantGrade != null) entity.PlantGrade = request.PlantGrade;
-        if (request.Specification != null) entity.Specification = request.Specification;
-        if (request.OuterDiameterNegative.HasValue) entity.OuterDiameterNegative = request.OuterDiameterNegative.Value;
-        if (request.OuterDiameterPositive.HasValue) entity.OuterDiameterPositive = request.OuterDiameterPositive.Value;
-        if (request.WallThicknessNegative.HasValue) entity.WallThicknessNegative = request.WallThicknessNegative.Value;
-        if (request.WallThicknessPositive.HasValue) entity.WallThicknessPositive = request.WallThicknessPositive.Value;
-        if (request.LengthStatus != null) entity.LengthStatus = request.LengthStatus;
-        entity.MinLength = request.MinLength ?? entity.MinLength;
-        entity.MaxLength = request.MaxLength ?? entity.MaxLength;
-        if (request.TotalQuantity.HasValue) entity.TotalQuantity = request.TotalQuantity.Value;
-        if (request.TotalMeters.HasValue) entity.TotalMeters = request.TotalMeters.Value;
-        if (request.TotalWeight.HasValue) entity.TotalWeight = request.TotalWeight.Value;
-        if (request.TotalItemCount.HasValue) entity.TotalItemCount = request.TotalItemCount.Value;
-        entity.ItemDetails = request.ItemDetails ?? entity.ItemDetails;
-        if (request.TechnicalRequirements != null) entity.TechnicalRequirements = request.TechnicalRequirements;
+        var oldWorkOrderNo = entity.WorkOrderNo;
+
+        // 工单冗余字段（「非工单」时允许清空；正常时保留守卫防覆盖）
+        var isNonWorkOrder = request.WorkOrderNo == NotWorkOrder;
+        entity.WorkOrderNo = request.WorkOrderNo ?? (isNonWorkOrder ? "" : entity.WorkOrderNo);
+        entity.SalesOrderNo = request.SalesOrderNo ?? (isNonWorkOrder ? "" : entity.SalesOrderNo);
+        entity.ProductionMainNo = request.ProductionMainNo ?? (isNonWorkOrder ? "" : entity.ProductionMainNo);
+        entity.ProductionSubNo = isNonWorkOrder ? request.ProductionSubNo : (request.ProductionSubNo ?? entity.ProductionSubNo);
+        entity.OrderItemIds = request.OrderItemIds ?? (isNonWorkOrder ? "" : entity.OrderItemIds);
+        entity.SignDate = request.SignDate ?? (isNonWorkOrder ? default : entity.SignDate);
+        entity.Salesman = request.Salesman ?? (isNonWorkOrder ? "" : entity.Salesman);
+        entity.EndCustomer = isNonWorkOrder ? request.EndCustomer : (request.EndCustomer ?? entity.EndCustomer);
+        entity.DeliveryDate = request.DeliveryDate ?? (isNonWorkOrder ? default : entity.DeliveryDate);
+        entity.DelayPenalty = request.DelayPenalty ?? (isNonWorkOrder ? default : entity.DelayPenalty);
+        entity.MaterialName = request.MaterialName ?? (isNonWorkOrder ? "" : entity.MaterialName);
+        entity.SettlementMethod = request.SettlementMethod ?? (isNonWorkOrder ? "" : entity.SettlementMethod);
+        entity.StandardCode = request.StandardCode ?? (isNonWorkOrder ? "" : entity.StandardCode);
+        entity.DeliveryState = request.DeliveryState ?? (isNonWorkOrder ? "" : entity.DeliveryState);
+        entity.PlantGrade = request.PlantGrade ?? (isNonWorkOrder ? "" : entity.PlantGrade);
+        entity.Specification = request.Specification ?? (isNonWorkOrder ? "" : entity.Specification);
+        entity.OuterDiameterNegative = request.OuterDiameterNegative ?? (isNonWorkOrder ? default : entity.OuterDiameterNegative);
+        entity.OuterDiameterPositive = request.OuterDiameterPositive ?? (isNonWorkOrder ? default : entity.OuterDiameterPositive);
+        entity.WallThicknessNegative = request.WallThicknessNegative ?? (isNonWorkOrder ? default : entity.WallThicknessNegative);
+        entity.WallThicknessPositive = request.WallThicknessPositive ?? (isNonWorkOrder ? default : entity.WallThicknessPositive);
+        entity.LengthStatus = request.LengthStatus ?? (isNonWorkOrder ? "" : entity.LengthStatus);
+        entity.MinLength = isNonWorkOrder ? request.MinLength : (request.MinLength ?? entity.MinLength);
+        entity.MaxLength = isNonWorkOrder ? request.MaxLength : (request.MaxLength ?? entity.MaxLength);
+        entity.TotalQuantity = request.TotalQuantity ?? (isNonWorkOrder ? default : entity.TotalQuantity);
+        entity.TotalMeters = request.TotalMeters ?? (isNonWorkOrder ? default : entity.TotalMeters);
+        entity.TotalWeight = request.TotalWeight ?? (isNonWorkOrder ? default : entity.TotalWeight);
+        entity.TotalItemCount = request.TotalItemCount ?? (isNonWorkOrder ? default : entity.TotalItemCount);
+        entity.ItemDetails = isNonWorkOrder ? request.ItemDetails : (request.ItemDetails ?? entity.ItemDetails);
+        entity.TechnicalRequirements = request.TechnicalRequirements ?? (isNonWorkOrder ? "" : entity.TechnicalRequirements);
 
         // ===== 2. 更新状态（如有） =====
         if (!string.IsNullOrEmpty(request.Status) && request.Status != entity.Status.ToString())
@@ -932,7 +970,7 @@ public class BatchService : IBatchService
         }
 
         // ===== 3. 全量替换工序组 =====
-        // 3a. 删除旧工序组（跳过有生产记录或委外记录引用的）
+        // 3a. 删除旧工序组（跳过有生产记录、委外记录或工序检验引用的）
         HashSet<int> referencedIds = new();
         if (entity.ProcessGroups.Any())
         {
@@ -950,7 +988,22 @@ public class BatchService : IBatchService
                 .Distinct()
                 .ToListAsync();
 
-            referencedIds = new HashSet<int>(referencedByRecord.Concat(referencedByOutsource));
+            var referencedByPicklingRecord = await _context.PicklingInRecords
+                .Where(p => oldIds.Contains(p.ProcessGroupId))
+                .Select(p => p.ProcessGroupId)
+                .Distinct()
+                .ToListAsync();
+
+            var referencedByProcessInspection = await _context.ProcessInspections
+                .Where(p => oldIds.Contains(p.ProcessGroupId))
+                .Select(p => p.ProcessGroupId)
+                .Distinct()
+                .ToListAsync();
+
+            referencedIds = new HashSet<int>(referencedByRecord
+                .Concat(referencedByOutsource)
+                .Concat(referencedByPicklingRecord)
+                .Concat(referencedByProcessInspection));
             var toRemove = entity.ProcessGroups.Where(pg => !referencedIds.Contains(pg.Id)).ToList();
 
             if (toRemove.Count > 0)
@@ -1043,6 +1096,38 @@ public class BatchService : IBatchService
 
         // ===== 4. 提交新增工序组（此时仅有 INSERT，无冲突） =====
         await _context.SaveChangesAsync();
+
+        // 工单号变更时，同步更新相关记录的全部冗余字段
+        if (entity.WorkOrderNo != oldWorkOrderNo)
+        {
+            await _context.MaterialReceiveChecks
+                .Where(r => r.ProductionBatchId == id)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(r => r.WorkOrderNo, entity.WorkOrderNo)
+                    .SetProperty(r => r.SalesOrderNo, entity.SalesOrderNo)
+                    .SetProperty(r => r.ManufacturingItem, entity.ManufacturingItem)
+                    .SetProperty(r => r.PlantGrade, entity.PlantGrade)
+                    .SetProperty(r => r.Specification, entity.Specification)
+                    .SetProperty(r => r.ProductionType, entity.ProductionType)
+                    .SetProperty(r => r.LengthStatus, entity.LengthStatus)
+                    .SetProperty(r => r.Salesman, entity.Salesman)
+                    .SetProperty(r => r.DeliveryState, entity.DeliveryState));
+            await _context.FinalInspections
+                .Where(f => f.ProductionBatchId == id)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(f => f.WorkOrderNo, entity.WorkOrderNo)
+                    .SetProperty(f => f.SalesOrderNo, entity.SalesOrderNo)
+                    .SetProperty(f => f.MaterialName, entity.MaterialName)
+                    .SetProperty(f => f.PlantGrade, entity.PlantGrade)
+                    .SetProperty(f => f.Specification, entity.Specification)
+                    .SetProperty(f => f.ProductionType, entity.ProductionType));
+            await _context.Ncrs
+                .Where(n => n.BatchNo == entity.BatchNo)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(n => n.WorkOrderNo, entity.WorkOrderNo)
+                    .SetProperty(n => n.PlantGrade, entity.PlantGrade)
+                    .SetProperty(n => n.Specification, entity.Specification));
+        }
 
         // 记录有效数量变更日志
         if (oldValidQty != request.CurrentValidQty || oldValidWeight != request.CurrentValidWeight)
@@ -1146,6 +1231,10 @@ public class BatchService : IBatchService
         var hasOutsource = await _context.SectionOutsources.AnyAsync(s => s.ProcessGroupId == groupId);
         if (hasOutsource)
             throw new BusinessException($"工序组 (Id={groupId}) 已被委外发出记录引用，无法删除。请先删除相关委外记录后再试。");
+
+        var hasPicklingInRecord = await _context.PicklingInRecords.AnyAsync(p => p.ProcessGroupId == groupId);
+        if (hasPicklingInRecord)
+            throw new BusinessException($"工序组 (Id={groupId}) 已被酸洗记录引用，无法删除。请先删除相关酸洗记录后再试。");
 
         _context.ProcessGroups.Remove(entity);
         await _context.SaveChangesAsync();
