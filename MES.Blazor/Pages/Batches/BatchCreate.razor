@@ -56,8 +56,12 @@
                     <MudText Typo="Typo.subtitle2" Class="mb-2">
                         <MudIcon Icon="@Icons.Material.Filled.Inventory" Class="mr-1" Size="Size.Small" />
                         可用库存批次
-                        <MudTextField T="string" @bind-Value="searchText" Label="筛选" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Immediate="true" DebounceInterval="500" Style="width:160px; margin-left:12px;" />
                     </MudText>
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudTextField T="string" @bind-Value="searchText" Label="筛选" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Immediate="true" DebounceInterval="500" />
+                        </MudItem>
+                    </MudGrid>
                     @if (availableBatchesLoading)
                     {
                         <MudProgressCircular Indeterminate Size="Size.Small" Class="my-2" />
@@ -1230,8 +1234,6 @@
             errors.Add("仓库工厂牌号不能为空");
         if (string.IsNullOrWhiteSpace(request.SourceSpecification))
             errors.Add("仓库规格不能为空");
-        if (string.IsNullOrWhiteSpace(request.SourceLengthStatus))
-            errors.Add("来源长度状态不能为空");
         if (request.InputWeight == null || request.InputWeight <= 0)
             errors.Add("领料重量必须大于0");
         if (request.InputQuantity == null || request.InputQuantity <= 0)
@@ -1240,6 +1242,8 @@
         // ========== 有工单路径额外验证 ==========
         if (request.WorkOrderNo != "非工单")
         {
+            if (string.IsNullOrWhiteSpace(request.SourceLengthStatus))
+                errors.Add("来源长度状态不能为空");
             if (string.IsNullOrWhiteSpace(request.SettlementMethod))
                 errors.Add("结算方式不能为空");
             if (string.IsNullOrWhiteSpace(request.StandardCode))

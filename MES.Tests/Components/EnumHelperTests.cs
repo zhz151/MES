@@ -14,7 +14,6 @@ public class EnumHelperTests
     [InlineData(WorkOrderStatus.NotGenerated, "未编制")]
     [InlineData(WorkOrderStatus.Confirmed, "已确定")]
     [InlineData(WorkOrderStatus.Pending, "待修正")]
-    [InlineData(WorkOrderStatus.Cancelled, "已取消")]
     public void WorkOrderStatus_GetDisplayName(WorkOrderStatus value, string expected)
     {
         EnumHelper.GetDisplayName(value).Should().Be(expected);
@@ -24,7 +23,6 @@ public class EnumHelperTests
     [InlineData("未编制", WorkOrderStatus.NotGenerated)]
     [InlineData("已确定", WorkOrderStatus.Confirmed)]
     [InlineData("待修正", WorkOrderStatus.Pending)]
-    [InlineData("已取消", WorkOrderStatus.Cancelled)]
     public void WorkOrderStatus_Parse_Chinese(string chinese, WorkOrderStatus expected)
     {
         EnumHelper.Parse<WorkOrderStatus>(chinese).Should().Be(expected);

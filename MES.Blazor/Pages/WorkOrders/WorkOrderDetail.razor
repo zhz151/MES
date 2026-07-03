@@ -58,7 +58,7 @@
     [Parameter] public int Id { get; set; }
     private WorkOrderDetailDto? workOrder;
     private bool isLoading = true;
-    private List<WorkOrderListDto> siblingWorkOrders = new();
+    private List<WorkOrderListItemDto> siblingWorkOrders = new();
     private int currentIndex = -1;
 
     private bool hasPrevious => currentIndex > 0;
@@ -116,7 +116,7 @@
                 currentIndex = siblingWorkOrders.FindIndex(wo => wo.Id == Id);
                 if (currentIndex == -1)
                 {
-                    var currentWorkOrder = new WorkOrderListDto
+                    var currentWorkOrder = new WorkOrderListItemDto
                     {
                         Id = Id,
                         WorkOrderNo = workOrder?.WorkOrderNo ?? string.Empty,
@@ -128,14 +128,14 @@
             }
             else
             {
-                siblingWorkOrders = new List<WorkOrderListDto>();
+                siblingWorkOrders = new List<WorkOrderListItemDto>();
                 currentIndex = -1;
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"加载工单列表异常: {ex.Message}");
-            siblingWorkOrders = new List<WorkOrderListDto>();
+            siblingWorkOrders = new List<WorkOrderListItemDto>();
             currentIndex = -1;
         }
     }

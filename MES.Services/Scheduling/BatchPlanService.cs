@@ -197,7 +197,7 @@ public class BatchPlanService : IBatchPlanService
             UrgencyLevel = x.plan != null && x.plan.UrgencyLevel != null ? x.plan.UrgencyLevel : (x.s != null ? x.s.UrgencyLevel : null),
             ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : (x.b.WorkOrderNo == "非工单" ? 4 : -1)),
             MainNoAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.MainNoAttentionProcess : null),
-            ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : null),
+            ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : (x.b.WorkOrderNo == "非工单" ? "略" : "疑问")),
 
             // G6（直接从 WorkOrderExecutionSummary 实体读取，无需额外 JOIN）
             IsUrging = x.s != null && x.s.IsUrging,
@@ -223,7 +223,9 @@ public class BatchPlanService : IBatchPlanService
             x.ProductionFlowProperty,
             x.CurrentSectionCompleted,
             x.CurrentGroupName,
+            x.CurrentSectionName,
             x.NextProcess,
+            x.NextSectionName,
             x.IsUrging,
             x.IsBatchDelivery,
         });
@@ -232,24 +234,11 @@ public class BatchPlanService : IBatchPlanService
         var batchCount = aggData.Count;
         var totalWeight = aggData.Sum(x => x.CurrentValidWeight ?? 0m);
 
-        var pProcess = (bool? completed, string? groupName, string? nextProcess) =>
-            completed == false ? groupName : nextProcess;
-
         var keyBatches = aggData.Where(x =>
-            // Tier 1：生产执行 + 紧急 + pending条件
-            (x.ScheduleStage == 2 &&
-             (x.UrgencyLevel == "A+急" || x.UrgencyLevel == "A急") &&
-             (pProcess(x.CurrentSectionCompleted, x.CurrentGroupName, x.NextProcess) == "荒管处理" ||
-              pProcess(x.CurrentSectionCompleted, x.CurrentGroupName, x.NextProcess) == x.MainNoAttentionProcess ||
-              x.MainNoAttentionProcess is null or "收尾-成检"))
-            ||
-            // Tier 2：原料锁定 + 催单/分批交货 + 紧急 + pending条件
-            (x.ScheduleStage == 1 &&
-             (x.IsUrging || x.IsBatchDelivery) &&
-             (x.UrgencyLevel == "A+急" || x.UrgencyLevel == "A急") &&
-             (pProcess(x.CurrentSectionCompleted, x.CurrentGroupName, x.NextProcess) == "荒管处理" ||
-              pProcess(x.CurrentSectionCompleted, x.CurrentGroupName, x.NextProcess) == x.MainNoAttentionProcess ||
-              x.MainNoAttentionProcess is null or "收尾-成检"))).ToList();
+            (x.UrgencyLevel == "A+急" || x.UrgencyLevel == "A急") &&
+            x.ProductionFlowProperty == "正常" &&
+            !string.IsNullOrEmpty(x.MainNoAttentionProcess)
+        ).ToList();
         var keyBatchCount = keyBatches.Count;
         var keyBatchWeight = keyBatches.Sum(x => x.CurrentValidWeight ?? 0m);
 
@@ -297,6 +286,10 @@ public class BatchPlanService : IBatchPlanService
 
                 var pendingIdx = pgs.IndexOf(pendingPg);
                 var maxSeq = pgs.Max(pg => pg.SequenceNumber);
+
+                // ====== 执行序（始终取当前工段在当前工序组中的序号） ======
+                var currentPgForSeq = pgs.FirstOrDefault(pg => pg.ProcessName == item.CurrentGroupName);
+                item.ExecutionSequence = currentPgForSeq?.GetSectionSequence(item.CurrentSectionName);
 
                 // 本层 — 是否冷轧
                 if (!string.IsNullOrEmpty(pendingProcess) && ProcessNames.IsColdRollOrDraw(pendingProcess))
@@ -374,6 +367,47 @@ public class BatchPlanService : IBatchPlanService
                         item.CR_RollType = nextNextSched.RollType;
                         item.CR_SchedMachineNo = nextNextSched.MachineNo;
                     }
+                }
+
+                // 相应工段序：根据主号关注工序从 ProcessGroups 推导
+                if (!string.IsNullOrEmpty(item.MainNoAttentionProcess))
+                {
+                    if (pgLookup.TryGetValue(item.BatchId, out var pgs2) && pgs2.Count > 0)
+                    {
+                        ProcessGroup? targetPg = null;
+                        if (item.MainNoAttentionProcess == "收尾-成检")
+                        {
+                            targetPg = pgs2.MaxBy(pg => pg.SequenceNumber);
+                        }
+                        else if (item.MainNoAttentionProcess is "荒管处理" or "在制修检")
+                        {
+                            targetPg = pgs2.FirstOrDefault(pg => pg.ProcessName == item.MainNoAttentionProcess);
+                        }
+                        else if (ProcessNames.IsColdRollOrDraw(item.MainNoAttentionProcess))
+                        {
+                            targetPg = pgs2.FirstOrDefault(pg => pg.ProcessName == item.MainNoAttentionProcess);
+                        }
+
+                        if (targetPg != null)
+                        {
+                            item.AttentionProcessSectionSequence = ProcessNames.IsColdRollOrDraw(item.MainNoAttentionProcess)
+                                ? targetPg.ColdRollDraw
+                                : targetPg.Inspection;
+                        }
+                    }
+                }
+
+                // ====== 重点生产批次（新逻辑） ======
+                if (!string.IsNullOrEmpty(item.MainNoAttentionProcess)
+                    && item.UrgencyLevel is "A+急" or "A急"
+                    && item.ProductionFlowProperty == "正常"
+                    && item.AttentionProcessSectionSequence.HasValue
+                    && item.ExecutionSequence.HasValue)
+                {
+                    if (ProcessNames.IsColdRollOrDraw(item.MainNoAttentionProcess))
+                        item.IsKeyBatch = item.ExecutionSequence < item.AttentionProcessSectionSequence + 1;
+                    else
+                        item.IsKeyBatch = item.ExecutionSequence < item.AttentionProcessSectionSequence;
                 }
             }
         }
@@ -523,7 +557,7 @@ public class BatchPlanService : IBatchPlanService
             UrgencyLevel = x.plan != null && x.plan.UrgencyLevel != null ? x.plan.UrgencyLevel : (x.s != null ? x.s.UrgencyLevel : null),
             ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : (x.b.WorkOrderNo == "非工单" ? 4 : -1)),
             MainNoAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.MainNoAttentionProcess : null),
-            ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : null),
+            ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : (x.b.WorkOrderNo == "非工单" ? "略" : "疑问")),
             IsUrging = x.s != null && x.s.IsUrging,
             IsBatchDelivery = x.s != null && x.s.IsBatchDelivery,
             IsPaused = x.s != null && x.s.IsPaused,
@@ -535,6 +569,7 @@ public class BatchPlanService : IBatchPlanService
             PlanFlowLevel = x.bp != null ? x.bp.FlowLevel : 5,
             PlanFlowTarget = x.bp != null ? x.bp.FlowTarget : null,
             PlanFlowCRType = x.bp != null ? x.bp.FlowCRType : null,
+            PlanOuterDiameterSpan = x.bp != null ? x.bp.PlanOuterDiameterSpan : null,
             PlanFlowExecSpec = x.bp != null ? x.bp.FlowExecSpec : null,
             PlanExecutionSequence = x.bp != null ? x.bp.ExecutionSequence : null,
             PlanTargetSequence = x.bp != null ? x.bp.TargetSequence : null,
@@ -655,11 +690,59 @@ public class BatchPlanService : IBatchPlanService
                     }
                 }
 
-                // ====== 执行序（取工序组中对应工段的字段值） ======
-                item.ExecutionSequence = pendingPg.GetSectionSequence(item.PendingSectionName);
+                // ====== 执行序（始终取当前工段在当前工序组中的序号） ======
+                var currentPgForSeq = pgs.FirstOrDefault(pg => pg.ProcessName == item.CurrentGroupName);
+                item.ExecutionSequence = currentPgForSeq?.GetSectionSequence(item.CurrentSectionName);
 
-                // ====== 目标序（取工序组中对应工段的字段值） ======
+                // 相应工段序：根据主号关注工序从 ProcessGroups 推导
+                if (!string.IsNullOrEmpty(item.MainNoAttentionProcess) && pgLookup.TryGetValue(item.BatchId, out var pgs2) && pgs2.Count > 0)
+                {
+                    ProcessGroup? targetPg = null;
+                    if (item.MainNoAttentionProcess == "收尾-成检")
+                    {
+                        targetPg = pgs2.MaxBy(pg => pg.SequenceNumber);
+                    }
+                    else if (item.MainNoAttentionProcess is "荒管处理" or "在制修检")
+                    {
+                        targetPg = pgs2.FirstOrDefault(pg => pg.ProcessName == item.MainNoAttentionProcess);
+                    }
+                    else if (ProcessNames.IsColdRollOrDraw(item.MainNoAttentionProcess))
+                    {
+                        targetPg = pgs2.FirstOrDefault(pg => pg.ProcessName == item.MainNoAttentionProcess);
+                    }
+
+                    if (targetPg != null)
+                    {
+                        item.AttentionProcessSectionSequence = ProcessNames.IsColdRollOrDraw(item.MainNoAttentionProcess)
+                            ? targetPg.ColdRollDraw
+                            : targetPg.Inspection;
+                    }
+                }
+
+                // ====== 重点生产批次（必须位于 TargetSequence 之前，因为 _trigger 依赖 IsKeyBatch） ======
+                if (!string.IsNullOrEmpty(item.MainNoAttentionProcess)
+                    && item.UrgencyLevel is "A+急" or "A急"
+                    && item.ProductionFlowProperty == "正常"
+                    && item.AttentionProcessSectionSequence.HasValue
+                    && item.ExecutionSequence.HasValue)
+                {
+                    if (ProcessNames.IsColdRollOrDraw(item.MainNoAttentionProcess))
+                        item.IsKeyBatch = item.ExecutionSequence < item.AttentionProcessSectionSequence + 1;
+                    else
+                        item.IsKeyBatch = item.ExecutionSequence < item.AttentionProcessSectionSequence;
+                }
+
+                // ====== 目标序（必须在 IsKeyBatch 之后，因为 FlowTarget 的 _trigger 依赖 IsKeyBatch） ======
                 item.TargetSequence = ComputeTargetSequence(pgs, item.FlowTarget, item.FlowCRType);
+
+                // TEMP-DEBUG
+                var dbgUrgent = item.UrgencyLevel is "A+急" or "A急";
+                var dbgNormal = item.ProductionFlowProperty == "正常";
+                var dbgSeq = item.AttentionProcessSectionSequence;
+                var dbgExec = item.ExecutionSequence;
+                var dbgKey = item.IsKeyBatch;
+                var wo = item.WorkOrderNo ?? "";
+                item.DebugInfo = $"WO={wo}|Urgent={dbgUrgent}|Normal={dbgNormal}|AttnProc={item.MainNoAttentionProcess}|AttnSeq={dbgSeq}|ExecSeq={dbgExec}|Key={dbgKey}";
             }
         }
 
@@ -667,78 +750,56 @@ public class BatchPlanService : IBatchPlanService
     }
 
     /// <summary>
-    /// 获取冷轧排程流转汇总 — 基于批次计划薄表 PlanIsFlow（含手工调整），按(FlowCRType, 外径跨度)聚合
+    /// 获取冷轧排程流转汇总 — 基于 G7 实时值（IsFlow/FlowTarget/FlowCRType），按(冷轧类型, 外径跨度)聚合
+    /// maxDiff 基于 G7 实时工量差（TargetSequence - ExecutionSequence），不受批次计划薄表影响
     /// </summary>
     public async Task<List<ColdRollScheduleSummaryDto>> GetFlowSummaryAsync(string? sectionTab, int? maxDiff = null)
     {
-        // 1. 加载全量批次计划数据（复用 GetAllAsync 的完整逻辑，含 IsFlow 判定）
+        // 1. 加载全量批次计划数据（实时计算 G7 IsFlow/FlowTarget/FlowCRType/TargetSequence）
         var allItems = await GetAllAsync(sectionTab);
 
-        // 2. 按原工量差筛选（PlanTargetSequence - PlanExecutionSequence）
-        if (maxDiff.HasValue)
-        {
-            allItems = allItems.Where(x =>
-                !x.OriginalDiff.HasValue ||
-                x.OriginalDiff.Value <= maxDiff.Value).ToList();
-        }
-
-        // 3. 仅取流转批次
-        var flowItems = allItems.Where(x => x.PlanIsFlow).ToList();
+        // 2. 仅取流转批次（使用 G7 实时值）
+        var flowItems = allItems.Where(x => x.IsFlow).ToList();
         if (flowItems.Count == 0) return new List<ColdRollScheduleSummaryDto>();
 
-        // 3. 为每个流转批次确定(PlanFlowCRType, 外径跨度)用于聚合
-        var raw = new List<(string FlowCRType, string ShortDisplay, decimal Weight, string FlowTarget)>();
-
-        foreach (var item in flowItems)
+        // 3. 按 G7 实时工量差筛选（近3天/近5天），数据源为 TargetSequence(实时) - ExecutionSequence(实时)
+        // null → 全部（不过滤）；有值 → 仅保留 CurrentFlowDiff 有效且 <= 阈值的批次
+        if (maxDiff.HasValue)
         {
-            if (string.IsNullOrEmpty(item.PlanFlowCRType)) continue;
-
-            // 根据批次计划组中的流转目标和冷轧类型，匹配实时冷轧层维度推导→外径跨度
-            string? billetSpec = null;
-            string? rollingSpec = null;
-
-            if (item.PlanFlowTarget == "完工冷轧")
-            {
-                // CompletionType 流转：使用当前冷轧层维度
-                billetSpec = item.CurrentCR_BilletSpec;
-                rollingSpec = item.CurrentCR_RollingSpec;
-            }
-            else if (item.PlanFlowTarget == "冷轧")
-            {
-                // RollType 流转：匹配 PlanFlowCRType 找到对应的冷轧层
-                if (item.PlanFlowCRType == item.CurrentCR_ProcessType)
-                { billetSpec = item.CurrentCR_BilletSpec; rollingSpec = item.CurrentCR_RollingSpec; }
-                else if (item.PlanFlowCRType == item.NextCR_ProcessType)
-                { billetSpec = item.NextCR_BilletSpec; rollingSpec = item.NextCR_RollingSpec; }
-                else if (item.PlanFlowCRType == item.NextNextCR_ProcessType)
-                { billetSpec = item.NextNextCR_BilletSpec; rollingSpec = item.NextNextCR_RollingSpec; }
-            }
-
-            if (string.IsNullOrEmpty(billetSpec) || string.IsNullOrEmpty(rollingSpec)) continue;
-
-            // 从规格提取外径跨度
-            var outer1 = billetSpec.Split('*', '×').FirstOrDefault()?.Trim() ?? "";
-            var outer2 = rollingSpec.Split('*', '×').FirstOrDefault()?.Trim() ?? "";
-            var shortDisplay = string.IsNullOrEmpty(outer1) || string.IsNullOrEmpty(outer2)
-                ? ""
-                : $"{outer1}-{outer2}";
-
-            raw.Add((item.PlanFlowCRType, shortDisplay, item.CurrentValidWeight ?? 0m, item.PlanFlowTarget ?? ""));
+            flowItems = flowItems.Where(x =>
+                x.CurrentFlowDiff.HasValue &&
+                x.CurrentFlowDiff.Value <= maxDiff.Value).ToList();
         }
+        if (flowItems.Count == 0) return new List<ColdRollScheduleSummaryDto>();
 
-        // 4. 按 (PlanFlowCRType, ShortDisplay) 聚合，区分流转目标
-        var result = raw
-            .GroupBy(r => new { r.FlowCRType, r.ShortDisplay })
+        // 4. 按 (FlowCRType, OuterDiameterSpan) 聚合
+        var result = flowItems
+            .Where(x => !string.IsNullOrEmpty(x.FlowCRType))
+            .GroupBy(x => new { Type = x.FlowCRType ?? "", Span = x.OuterDiameterSpan ?? "" })
             .Select(g => new ColdRollScheduleSummaryDto
             {
-                ShortDisplay = g.Key.ShortDisplay,
-                ProcessType = g.Key.FlowCRType,
-                TotalBatchCount = g.Count(),
-                TotalWeight = g.Sum(x => x.Weight),
+                ProcessType = g.Key.Type,
+                ShortDisplay = g.Key.Span,
                 FlowBatchCount = g.Count(),
-                FlowWeight = g.Sum(x => x.Weight),
-                CompletionWeight = g.Where(x => x.FlowTarget == "完工冷轧").Sum(x => x.Weight),
-                RollWeight = g.Where(x => x.FlowTarget == "冷轧").Sum(x => x.Weight),
+                TotalFlowWeight = g.Sum(x => x.CurrentValidWeight ?? 0m),
+
+                ProdKeyWeight = g.Where(x => x.FlowTarget == "完工冷轧" && x.IsFlowLevel1A)
+                                .Sum(x => x.CurrentValidWeight ?? 0m),
+                ProdLevel1BWeight = g.Where(x => x.FlowTarget == "完工冷轧" && x.IsFlowLevel1B)
+                                    .Sum(x => x.CurrentValidWeight ?? 0m),
+                ProdNonKeyWeight = g.Where(x => x.FlowTarget == "完工冷轧" && !x.IsKeyBatch)
+                                   .Sum(x => x.CurrentValidWeight ?? 0m),
+                ProdTotalWeight = g.Where(x => x.FlowTarget == "完工冷轧")
+                                  .Sum(x => x.CurrentValidWeight ?? 0m),
+
+                WaitKeyWeight = g.Where(x => x.FlowTarget == "冷轧" && x.IsFlowLevel1A)
+                                .Sum(x => x.CurrentValidWeight ?? 0m),
+                WaitLevel1BWeight = g.Where(x => x.FlowTarget == "冷轧" && x.IsFlowLevel1B)
+                                    .Sum(x => x.CurrentValidWeight ?? 0m),
+                WaitNonKeyWeight = g.Where(x => x.FlowTarget == "冷轧" && !x.IsKeyBatch)
+                                   .Sum(x => x.CurrentValidWeight ?? 0m),
+                WaitTotalWeight = g.Where(x => x.FlowTarget == "冷轧")
+                                  .Sum(x => x.CurrentValidWeight ?? 0m),
             })
             .OrderBy(r => r.ProcessType)
             .ThenBy(r => r.ShortDisplay)
@@ -800,7 +861,7 @@ public class BatchPlanService : IBatchPlanService
                     UrgencyLevel = s != null ? s.UrgencyLevel : null,
                     ScheduleStage = s != null ? s.ScheduleStage : (int?)null,
                     MainNoAttentionProcess = s != null ? s.MainNoAttentionProcess : null,
-                    ProductionFlowProperty = s != null ? s.ProductionFlowProperty : null,
+                    ProductionFlowProperty = s != null ? s.ProductionFlowProperty : (b.WorkOrderNo == "非工单" ? "略" : "疑问"),
                 };
 
         var all = await q.ToListAsync();

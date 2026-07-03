@@ -1,8 +1,10 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
@@ -17,7 +19,12 @@ namespace MES.Tests.Services;
 public class NcrServiceTests : TestBase
 {
     private NcrService CreateService(AppDbContext ctx)
-        => new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<NcrService>.Instance);
+    {
+        var configMock = new Mock<IConfigParameterService>();
+        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
+        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<NcrService>.Instance, configMock.Object);
+    }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")
     {

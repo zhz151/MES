@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
 using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Services.Printing;
 using System.Text.Json;
 
 namespace MES.Api.Controllers.Scheduling;
@@ -37,18 +38,25 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
         return Ok(ApiResponse<PagedResult<Core.DTOs.RawMaterialLockPlanAndExecutionDto>>.Ok(result));
     }
 
-    [HttpGet("filter-contexts")]
-    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
-    {
-        var result = await _service.GetFilterContextsAsync();
-        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
-    }
-
     [HttpPost("set-pre-execute-flags")]
     public async Task<ActionResult<ApiResponse<SetPreExecuteFlagsResult>>> SetPreExecuteFlags([FromBody] SetPreExecuteFlagsRequest request)
     {
-        var result = await _service.SetPreExecuteFlagsAsync(request.WorkOrderIds, request.IsPreInput, request.IsMainNoMaterialComplete, request.BudgetInputDate);
+        var result = await _service.SetPreExecuteFlagsAsync(request.WorkOrderIds, request.IsPreInput, request.IsMainNoMaterialComplete, request.BudgetInputDate, request.IsBudgetComplete);
         return Ok(ApiResponse<SetPreExecuteFlagsResult>.Ok(result, result.Message));
+    }
+
+    [HttpPost("print")]
+    public ActionResult<ApiResponse<string>> Print([FromBody] RawMaterialLockPlanPrintRequest request)
+    {
+        var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes)));
+    }
+
+    [HttpPost("print-file")]
+    public IActionResult PrintFile([FromBody] RawMaterialLockPlanPrintRequest request)
+    {
+        var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        return File(pdfBytes, "application/pdf", "原锁计划.pdf");
     }
 }
 
@@ -58,4 +66,5 @@ public class SetPreExecuteFlagsRequest
     public bool? IsPreInput { get; set; }
     public bool? IsMainNoMaterialComplete { get; set; }
     public DateTime? BudgetInputDate { get; set; }
+    public bool? IsBudgetComplete { get; set; }
 }

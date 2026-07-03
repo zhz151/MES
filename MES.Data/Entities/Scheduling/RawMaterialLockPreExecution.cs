@@ -17,4 +17,7 @@ public class RawMaterialLockPreExecution : BaseEntity
 
     /// <summary>主号齐全：系统计算（同主号+同备注全部执行 或 质量影响执行）</summary>
     public bool IsMainNoMaterialComplete { get; set; }
+
+    /// <summary>预算主号齐全：用户手动强制标记，设为是则同主号工单全部主号齐全，覆盖系统计算</summary>
+    public bool IsBudgetComplete { get; set; }
 }

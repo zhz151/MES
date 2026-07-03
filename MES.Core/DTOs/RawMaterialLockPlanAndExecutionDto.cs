@@ -105,6 +105,9 @@ public class RawMaterialLockPlanAndExecutionDto
     /// <summary>执行：近几日会投料</summary>
     public bool IsPreInput { get; set; }
 
+    /// <summary>预算主号齐全：用户手动强制标记</summary>
+    public bool IsBudgetComplete { get; set; }
+
     /// <summary>预算投料日</summary>
     public DateTime? BudgetInputDate { get; set; }
 

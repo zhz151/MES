@@ -77,7 +77,7 @@ public static class PurchaseOrderPrintHelper
                 columns.ConstantColumn(65);   // 规格
                 columns.ConstantColumn(38);   // 单支重量
                 columns.ConstantColumn(30);   // 支数
-                columns.ConstantColumn(38);   // 投料倍率
+                columns.ConstantColumn(38);   // 投料制成倍
                 columns.ConstantColumn(50);   // 采购重量
                 columns.ConstantColumn(55);   // 要求到货日
                 columns.RelativeColumn();     // 供应商
@@ -88,7 +88,7 @@ public static class PurchaseOrderPrintHelper
             table.Header(header =>
             {
                 string[] headers = { "序号", "采购单号", "下单日期", "来源工单号", "物料分类", "厂内钢种", "规格",
-                    "单支重量", "支数", "投料倍率", "采购重量", "要求到货日", "供应商", "状态", "已到货" };
+                    "单支重量", "支数", "投料制成倍", "采购重量", "要求到货日", "供应商", "状态", "已到货" };
                 foreach (var h in headers)
                     header.Cell().Element(CellHeaderStyle).Text(h).FontSize(7).AlignCenter();
             });

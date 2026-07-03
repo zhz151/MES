@@ -44,7 +44,7 @@
                 <MudNavGroup Title="工单管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/workorders">工单首页</MudNavLink>
                     <MudNavLink Href="/material-plan-overview">用料计划总览</MudNavLink>
-                    <MudNavLink Href="/standard-process-cycles">标准工艺生产周期</MudNavLink>
+                    <MudNavLink Href="/workorder-overview">工单总览</MudNavLink>
                     <MudNavLink Href="/workorder-execution">工单执行状况</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
@@ -121,7 +121,7 @@
 
             <!-- 计划排程 -->
             <MudNavGroup Title="计划排程" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
-                <MudNavLink Href="/order-overview">订单总览</MudNavLink>
+                <MudNavLink Href="/order-overview">工单总览</MudNavLink>
                 <MudNavLink Href="/section-production-status">工段待产量</MudNavLink>
                 <MudNavLink Href="/section-flow-analysis">工段流转分析</MudNavLink>
                 <MudNavLink Href="/raw-material-lock-plan">原锁计划</MudNavLink>
@@ -155,11 +155,12 @@
             <!-- 参数表 -->
             <AuthorizeView Roles="@Roles.Policies.ConfigurationRead">
                 <MudNavGroup Title="参数表" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
-                    <MudNavLink Href="/standard-work-days">交期排程-标准工量天数</MudNavLink>
-                    <MudNavLink Href="/standard-work-day-delivery-states">交期排程-交货状态附加天数</MudNavLink>
-                    <MudNavLink Href="/daily-output-estimates">产量排程-日产能预估</MudNavLink>
-                    <MudNavLink Href="/section-flow-category-settings">产量排程-日流转量配置</MudNavLink>
-                    <MudNavLink Href="/config-parameters">全局-参数配置</MudNavLink>
+                    <MudNavLink Href="/section-flow-category-settings">生产-工段日流转量</MudNavLink>
+                    <MudNavLink Href="/daily-production-capacities">生产-重点工段日产</MudNavLink>
+                    <MudNavLink Href="/daily-output-estimates">生产-规格日产预估</MudNavLink>
+                    <MudNavLink Href="/standard-work-days">生产-工段工量天数</MudNavLink>
+                    <MudNavLink Href="/standard-work-day-delivery-states">生产-交态附加天数</MudNavLink>
+                    <MudNavLink Href="/config-parameters">默认配置-系统参数</MudNavLink>
                     <MudNavLink Href="/workstations">扫码-工位管理</MudNavLink>
                     <MudNavLink Href="/employees">扫码-员工管理</MudNavLink>
                 </MudNavGroup>

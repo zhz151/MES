@@ -82,6 +82,22 @@ public class WorkOrderService
         }
     }
 
+    /// <summary>
+    /// 获取已确认但无工单的订单列表（待生成工单）
+    /// </summary>
+    public async Task<ApiResponse<List<WorkOrderListItemDto>>> GetPendingOrdersAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<WorkOrderListItemDto>>>($"{BaseUrl}/pending-orders");
+            return response ?? ApiResponse<List<WorkOrderListItemDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<WorkOrderListItemDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
     #endregion
 
     #region 工单生成
@@ -124,9 +140,9 @@ public class WorkOrderService
     #region 工单管理
 
     /// <summary>
-    /// 分页查询工单列表
+    /// 分页查询工单列表（精简版，不含用料计划聚合数据）
     /// </summary>
-    public async Task<ApiResponse<PagedResult<WorkOrderListDto>>> GetPagedAsync(WorkOrderQueryParams query)
+    public async Task<ApiResponse<PagedResult<WorkOrderListItemDto>>> GetPagedAsync(WorkOrderQueryParams query)
     {
         try
         {
@@ -141,30 +157,20 @@ public class WorkOrderService
                 url += $"&productionSubNo={Uri.EscapeDataString(query.ProductionSubNo)}";
             if (query.Status.HasValue)
                 url += $"&status={query.Status.Value}";
-            if (!string.IsNullOrEmpty(query.MaterialName))
-                url += $"&materialName={Uri.EscapeDataString(query.MaterialName)}";
             if (!string.IsNullOrEmpty(query.Specification))
                 url += $"&specification={Uri.EscapeDataString(query.Specification)}";
             if (query.DeliveryDateStart.HasValue)
                 url += $"&deliveryDateStart={query.DeliveryDateStart.Value:yyyy-MM-dd}";
             if (query.DeliveryDateEnd.HasValue)
                 url += $"&deliveryDateEnd={query.DeliveryDateEnd.Value:yyyy-MM-dd}";
-            if (query.MaterialPlanStatus.HasValue)
-                url += $"&materialPlanStatus={query.MaterialPlanStatus.Value}";
-            if (query.MainNoMaterialPlanStatus.HasValue)
-                url += $"&mainNoMaterialPlanStatus={query.MainNoMaterialPlanStatus.Value}";
-            if (query.OrderMaterialPlanStatus.HasValue)
-                url += $"&orderMaterialPlanStatus={query.OrderMaterialPlanStatus.Value}";
-            if (!string.IsNullOrEmpty(query.PlanTypeFilter))
-                url += $"&planTypeFilter={Uri.EscapeDataString(query.PlanTypeFilter)}";
             if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
 
-            var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<WorkOrderListDto>>>(url);
-            return response ?? ApiResponse<PagedResult<WorkOrderListDto>>.Fail("获取数据失败");
+            var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<WorkOrderListItemDto>>>(url);
+            return response ?? ApiResponse<PagedResult<WorkOrderListItemDto>>.Fail("获取数据失败");
         }
         catch (Exception ex)
         {
-            return ApiResponse<PagedResult<WorkOrderListDto>>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<PagedResult<WorkOrderListItemDto>>.Fail($"网络错误: {ex.Message}");
         }
     }
 
@@ -201,18 +207,18 @@ public class WorkOrderService
     }
 
     /// <summary>
-    /// 根据订单号获取工单列表
+    /// 根据订单号获取工单列表（精简 DTO，仅含 Id/工单号等基础字段）
     /// </summary>
-    public async Task<ApiResponse<List<WorkOrderListDto>>> GetBySalesOrderNoAsync(string salesOrderNo)
+    public async Task<ApiResponse<List<WorkOrderListItemDto>>> GetBySalesOrderNoAsync(string salesOrderNo)
     {
         try
         {
-            var response = await _http.GetFromJsonAsync<ApiResponse<List<WorkOrderListDto>>>($"{BaseUrl}/by-order/{Uri.EscapeDataString(salesOrderNo)}");
-            return response ?? ApiResponse<List<WorkOrderListDto>>.Fail("获取数据失败");
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<WorkOrderListItemDto>>>($"{BaseUrl}/by-order/{Uri.EscapeDataString(salesOrderNo)}");
+            return response ?? ApiResponse<List<WorkOrderListItemDto>>.Fail("获取数据失败");
         }
         catch (Exception ex)
         {
-            return ApiResponse<List<WorkOrderListDto>>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<List<WorkOrderListItemDto>>.Fail($"网络错误: {ex.Message}");
         }
     }
 
@@ -394,16 +400,38 @@ public async Task<ApiResponse<OrderWorkOrderRelationDto>> GetOrderWorkOrderRelat
     }
 
     /// <summary>
-    /// 分页查询工单列表（简化参数版本，用于 ServerData 模式）
+    /// 分页查询工单列表（简化参数版本，用于 ServerData 模式，不含用料计划数据）
     /// </summary>
-    public async Task<ApiResponse<PagedResult<WorkOrderListDto>>> GetPagedAsync(
+    public async Task<ApiResponse<PagedResult<WorkOrderListItemDto>>> GetPagedAsync(
+        int pageIndex = 1, int pageSize = 20, string? keyword = null,
+        string? sortBy = null, bool isDescending = true, string? filters = null)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/list?pageIndex={pageIndex}&pageSize={pageSize}&isDescending={isDescending.ToString().ToLower()}";
+            if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
+            if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
+            if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
+            var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<WorkOrderListItemDto>>>(url);
+            return response ?? ApiResponse<PagedResult<WorkOrderListItemDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<PagedResult<WorkOrderListItemDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 分页查询工单列表（含用料计划聚合数据，供用料计划总览页使用）
+    /// </summary>
+    public async Task<ApiResponse<PagedResult<WorkOrderListDto>>> GetPagedWithPlansAsync(
         int pageIndex = 1, int pageSize = 20, string? keyword = null,
         string? sortBy = null, bool isDescending = true, string? filters = null,
         string? planTypeFilter = null)
     {
         try
         {
-            var url = $"{BaseUrl}/list?pageIndex={pageIndex}&pageSize={pageSize}&isDescending={isDescending.ToString().ToLower()}";
+            var url = $"{BaseUrl}/list-with-plans?pageIndex={pageIndex}&pageSize={pageSize}&isDescending={isDescending.ToString().ToLower()}";
             if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
             if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
             if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";

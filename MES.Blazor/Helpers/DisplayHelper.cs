@@ -178,7 +178,6 @@ public static class DisplayHelper
         {
             SalesOrderStatus.Pending => "待处理",
             SalesOrderStatus.Confirmed => "已确认",
-            SalesOrderStatus.Cancelled => "已取消",
             _ => "未知"
         };
     }
@@ -192,7 +191,6 @@ public static class DisplayHelper
         {
             SalesOrderStatus.Pending => Color.Warning,
             SalesOrderStatus.Confirmed => Color.Success,
-            SalesOrderStatus.Cancelled => Color.Default,
             _ => Color.Default
         };
     }
@@ -237,7 +235,6 @@ public static class DisplayHelper
             WorkOrderStatus.NotGenerated => Color.Default,
             WorkOrderStatus.Confirmed => Color.Success,
             WorkOrderStatus.Pending => Color.Warning,
-            WorkOrderStatus.Cancelled => Color.Error,
             _ => Color.Default
         };
     }
@@ -252,7 +249,6 @@ public static class DisplayHelper
             WorkOrderStatus.NotGenerated => "未编制",
             WorkOrderStatus.Confirmed => "已确定",
             WorkOrderStatus.Pending => "待修正",
-            WorkOrderStatus.Cancelled => "已取消",
             _ => "未知"
         };
     }
@@ -1000,6 +996,36 @@ public static class DisplayHelper
         };
     }
 
+    // ========== 有效流转状态 ==========
+
+    /// <summary>
+    /// 获取有效流转状态中文文本
+    /// </summary>
+    public static string GetFlowStatusText(int status)
+    {
+        return status switch
+        {
+            0 => "未投料",
+            1 => "部分",
+            2 => "满足",
+            _ => "未知"
+        };
+    }
+
+    /// <summary>
+    /// 获取有效主号状态中文文本
+    /// </summary>
+    public static string GetMainNoFlowStatusText(int status)
+    {
+        return status switch
+        {
+            0 => "未计划",
+            1 => "部分",
+            2 => "满足",
+            _ => "未知"
+        };
+    }
+
     // ========== 原料类型 ==========
 
     /// <summary>
@@ -1089,22 +1115,19 @@ public static class DisplayHelper
     public static string GetCompletionTypeText(string? ct) => ct switch
     {
         "All" => "全量",
-        "Urgent" => "急单",
-        "Partial1" => "部分(1)",
-        "Partial2" => "部分(2)",
-        "Partial3" => "部分(3)",
+        "Urgent" or "Partial1" => "特急单",
+        "Partial2" => "急单",
+        "Partial3" => "含B顺",
         _ => "",
     };
 
     /// <summary>冷轧排程类型中文显示</summary>
     public static string GetRollTypeText(string? rollType) => rollType switch
     {
-        "All" => "全量",
-        "Urgent" => "急单",
-        "Partial1" => "部分(1)",
-        "Partial2" => "部分(2)",
-        "Partial3" => "部分(3)",
-        "Subsequent" => "后续",
+        "All" or "Subsequent" => "全量",
+        "Urgent" or "Partial1" => "特急单",
+        "Partial2" => "急单",
+        "Partial3" => "含B顺",
         _ => "",
     };
 }

@@ -192,7 +192,7 @@ public partial class SectionFlowAnalysis
 
     private static string? GetStringValue(SectionFlowAnalysisDto item, string key) => key switch
     {
-        "Category" => item.CategoryCode ?? item.CategoryName,
+        "Category" => $"{item.CategoryCode} {item.CategoryName}".Trim(),
         "StatusJudgment" => item.StatusJudgment,
         _ => null
     };
@@ -394,4 +394,44 @@ public partial class SectionFlowAnalysis
             _ => Color.Default
         };
     }
+
+    // ========== 打印 ==========
+
+    private async Task PrintAll()
+    {
+        var printItems = _filteredItems.Select(item =>
+        {
+            var dict = new Dictionary<string, object>();
+            foreach (var col in _visibleColumns)
+                dict[col.Key] = ResolvePrintValue(item, col);
+            return dict;
+        }).ToList();
+
+        var request = new SectionFlowAnalysisPrintRequest
+        {
+            Title = "工段流转分析",
+            Items = printItems,
+            Columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList()
+        };
+
+        var apiUrl = $"{Http.BaseAddress}api/section-flow-analysis/print-file";
+        var json = JsonSerializer.Serialize(request);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+    }
+
+    private static object ResolvePrintValue(SectionFlowAnalysisDto item, ColumnDef col)
+    {
+        if (col.DisplayConverter != null)
+            return col.DisplayConverter(GetRawPropertyValue(item, col.Key)) ?? "";
+        return GetRawPropertyValue(item, col.Key);
+    }
+
+    private static object GetRawPropertyValue(SectionFlowAnalysisDto item, string key) => key switch
+    {
+        "Category" => $"{item.CategoryCode} {item.CategoryName}".Trim(),
+        "PendingTotal" => item.PendingTotal.HasValue ? ((int)item.PendingTotal.Value).ToString() : "-",
+        "SustainableDays" => item.SustainableDays.HasValue ? item.SustainableDays.Value.ToString("F1") : "-",
+        "StatusJudgment" => item.StatusJudgment ?? "-",
+        _ => ""
+    };
 }

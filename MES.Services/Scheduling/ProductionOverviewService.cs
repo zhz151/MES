@@ -15,12 +15,17 @@ public class ProductionOverviewService
 {
     private readonly AppDbContext _context;
     private readonly IConfigParameterService _configService;
+    private readonly IDailyProductionCapacityService _dailyCapacityService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
-    public ProductionOverviewService(AppDbContext context, IConfigParameterService configService)
+    public ProductionOverviewService(
+        AppDbContext context,
+        IConfigParameterService configService,
+        IDailyProductionCapacityService dailyCapacityService)
     {
         _context = context;
         _configService = configService;
+        _dailyCapacityService = dailyCapacityService;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -174,11 +179,13 @@ public class ProductionOverviewService
         });
 
         // ========== 行 3-7: 各生产工段 ==========
-        var dailyPolish = await GetConfigAsync("ProductionCapacity", "Polish", 12m);
-        var dailyMill50_60 = await GetConfigAsync("ProductionCapacity", "Mill50_60", 11m);
-        var dailyMill20_30 = await GetConfigAsync("ProductionCapacity", "Mill20_30", 9m);
-        var dailyThreeRoll = await GetConfigAsync("ProductionCapacity", "ThreeRoll", 0.5m);
-        var dailyDrawBench = await GetConfigAsync("ProductionCapacity", "DrawBench", 3m);
+        var capacities = await _dailyCapacityService.GetAllAsync();
+        var capacityMap = capacities.ToDictionary(c => c.ProcessName, c => c.DailyCapacity);
+        var dailyPolish = capacityMap.GetValueOrDefault("荒管抛光", 12m);
+        var dailyMill50_60 = capacityMap.GetValueOrDefault("50,60轧机", 11m);
+        var dailyMill20_30 = capacityMap.GetValueOrDefault("20,30轧机", 9m);
+        var dailyThreeRoll = capacityMap.GetValueOrDefault("三辊轧机", 0.5m);
+        var dailyDrawBench = capacityMap.GetValueOrDefault("拉机", 3m);
         var sections = new[]
         {
             (Seq: 3, Section: "荒管抛光", DailyCapacity: dailyPolish),
@@ -187,6 +194,8 @@ public class ProductionOverviewService
             (Seq: 6, Section: "三辊轧机", DailyCapacity: dailyThreeRoll),
             (Seq: 7, Section: "拉机", DailyCapacity: dailyDrawBench),
         };
+
+        int maxProdEstDays = 0;
 
         foreach (var (seq, sectionName, dailyCapacity) in sections)
         {
@@ -229,6 +238,8 @@ public class ProductionOverviewService
                 ? (int)Math.Ceiling(totalPending / (dailyCapacity * 1000))
                 : 0;
 
+            if (estDays > maxProdEstDays) maxProdEstDays = estDays;
+
             var rowBucketTons = new List<decimal>();
             foreach (var bucket in buckets)
             {
@@ -250,6 +261,82 @@ public class ProductionOverviewService
                 DateBucketTons = rowBucketTons
             });
         }
+
+        // ========== 行 8: 成品检验（成检计划中 待检验+检验中 的重量汇总） ==========
+        var rcBatchIds = await _context.MaterialReceiveChecks
+            .AsNoTracking()
+            .Where(rc => !rc.IsForceCompleted)
+            .Select(rc => rc.ProductionBatchId)
+            .ToListAsync();
+        var receivedIds = rcBatchIds.ToHashSet();
+
+        var inspectedBatchIds = await _context.FinalInspections
+            .AsNoTracking()
+            .Select(fi => fi.ProductionBatchId)
+            .Distinct()
+            .ToListAsync();
+        var inspectedIds = inspectedBatchIds.ToHashSet();
+
+        var warehouseBatchNos = await _context.InventoryBatches
+            .AsNoTracking()
+            .Where(ib => ib.ProductionBatchNo != null)
+            .Select(ib => ib.ProductionBatchNo!)
+            .Distinct()
+            .ToListAsync();
+        var warehousedNos = warehouseBatchNos.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var fiBatches = await _context.ProductionBatches
+            .AsNoTracking()
+            .Where(b => receivedIds.Contains(b.Id))
+            .Select(b => new { b.Id, b.CurrentValidWeight, b.BatchNo })
+            .ToListAsync();
+
+        decimal fiPendingWeight = 0;
+        foreach (var b in fiBatches)
+        {
+            var isInspected = inspectedIds.Contains(b.Id);
+            var isWarehoused = b.BatchNo != null && warehousedNos.Contains(b.BatchNo);
+            // 待检验：未检验；检验中：已检验但未入库
+            if (!isInspected || (isInspected && !isWarehoused))
+            {
+                fiPendingWeight += (b.CurrentValidWeight ?? 0);
+            }
+        }
+
+        var row8BucketTons = buckets.Select(_ => 0m).ToList();
+        rows.Add(new OverviewRowDto
+        {
+            Seq = 8,
+            Category = "成品检验",
+            Section = "",
+            InProcurementTons = null,
+            TotalRemainingTons = ConvertToTons(fiPendingWeight),
+            EstDays = null,
+            EstDeadline = null,
+            DateBucketTons = row8BucketTons
+        });
+
+        // ========== 行 9: 总估算 ==========
+        // 预计天数 = Max(生产工段天数) + 原料待产量(吨) / 20,30轧机日产(吨/天)
+        var rawPendingTons = row1Remaining > 0
+            ? row1Remaining / 1000m
+            : 0m;
+        var extraDays = dailyMill20_30 > 0
+            ? (int)Math.Ceiling(rawPendingTons / dailyMill20_30)
+            : 0;
+        var totalEstDays = maxProdEstDays + extraDays;
+
+        rows.Add(new OverviewRowDto
+        {
+            Seq = 9,
+            Category = "总估算",
+            Section = "",
+            InProcurementTons = null,
+            TotalRemainingTons = null,
+            EstDays = totalEstDays > 0 ? totalEstDays : null,
+            EstDeadline = totalEstDays > 0 ? now.AddDays(totalEstDays) : null,
+            DateBucketTons = buckets.Select(_ => 0m).ToList()
+        });
 
         return new ProductionOverviewDto
         {

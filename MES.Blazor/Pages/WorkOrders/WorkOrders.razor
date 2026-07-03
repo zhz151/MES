@@ -28,15 +28,6 @@
             工单管理
         </MudText>
         <div class="d-flex align-center">
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Info"
-                       StartIcon="@Icons.Material.Filled.Sync"
-                       OnClick="CheckAllOrderChange"
-                       Loading="@isSyncing"
-                       Disabled="@isSyncing"
-                       Class="ml-2">
-                即时更新
-            </MudButton>
         </div>
     </div>
 
@@ -114,6 +105,48 @@
         </MudCard>
     }
 
+    <!-- 待生成工单区域 -->
+    @if (_pendingOrders is { Count: > 0 })
+    {
+        <MudCard Class="mb-4" Style="border-left: 4px solid var(--mud-palette-info);">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.subtitle1" Color="Color.Info">
+                        <MudIcon Icon="@Icons.Material.Filled.AddCircleOutline" Class="mr-2" Size="Size.Small" />
+                        待生成工单
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        以下订单已确认但尚未生成工单，请点击"生成工单"进行处理
+                    </MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudGrid>
+                    @foreach (var item in _pendingOrders)
+                    {
+                        <MudItem xs="12" md="6" lg="4">
+                            <MudPaper Class="pa-3 d-flex justify-space-between align-center" Elevation="0" Style="background-color: #f0f7ff;">
+                                <div>
+                                    <MudText Typo="Typo.body2">
+                                        <strong>订单号：</strong>@item.SalesOrderNo
+                                    </MudText>
+                                    <MudText Typo="Typo.body2">签订日期：@item.SignDate.ToString("yyyy-MM-dd")</MudText>
+                                    <MudText Typo="Typo.body2">业务员：@item.Salesman</MudText>
+                                    <MudText Typo="Typo.body2">最终客户：@item.EndCustomer</MudText>
+                                </div>
+                                <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Info"
+                                           StartIcon="@Icons.Material.Filled.Add"
+                                           OnClick="() => NavigateToGenerate(item.SalesOrderNo, nameof(WorkOrderStatus.NotGenerated))">
+                                    生成工单
+                                </MudButton>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudCardContent>
+        </MudCard>
+    }
+
     <MudCard>
         <MudCardContent>
             <!-- 筛选栏 -->
@@ -135,7 +168,7 @@
             <!-- 数据表格 -->
             <div id="workorders-list-table">
             <MudTable @ref="table"
-                      T="WorkOrderListDto"
+                      T="WorkOrderListItemDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"
                       Hover="true"
@@ -159,9 +192,9 @@
                                Size="Size.Small"
                                Color="Color.Info"
                                StartIcon="@Icons.Material.Filled.Print"
-                               Disabled="@(!selectedWorkOrderNos.Any())"
+                               Disabled="@(!selectedSalesOrderNos.Any())"
                                OnClick="PrintSelected">
-                        打印选中 (@selectedWorkOrderNos.Count)
+                        打印选中 (@selectedSalesOrderNos.Count)
                     </MudButton>
                     <MudButton Variant="Variant.Text"
                                Size="Size.Small"
@@ -176,7 +209,7 @@
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh Style="width: 40px;">
-                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
+                        <MudCheckBox T="bool" @bind-Value="_allSelected" Dense="true" />
                     </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
@@ -185,7 +218,7 @@
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
                                 @if (col.FilterType != null)
                                 {
-                                    <ExcelFilter T="WorkOrderListDto"
+                                    <ExcelFilter T="WorkOrderListItemDto"
                                                  Label="@col.Label"
                                                  FieldKey="@col.Key"
                                                  FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"
@@ -201,8 +234,8 @@
                 <RowTemplate Context="item">
                     <MudTd Style="width: 40px;">
                         <MudCheckBox T="bool"
-                                     Value="@selectedWorkOrderNos.Contains(item.WorkOrderNo)"
-                                     ValueChanged="@((v) => { if(v) selectedWorkOrderNos.Add(item.WorkOrderNo); else selectedWorkOrderNos.Remove(item.WorkOrderNo); _allSelected = _pageItems.Any() && _pageItems.All(i => selectedWorkOrderNos.Contains(i.WorkOrderNo)); StateHasChanged(); })"
+                                     Value="@selectedSalesOrderNos.Contains(item.SalesOrderNo)"
+                                     ValueChanged="@((v) => { if(v) selectedSalesOrderNos.Add(item.SalesOrderNo); else selectedSalesOrderNos.Remove(item.SalesOrderNo); _allSelected = _pageItems.Any() && _pageItems.All(i => selectedSalesOrderNos.Contains(i.SalesOrderNo)); StateHasChanged(); })"
                                      Dense="true" />
                     </MudTd>
                     @foreach (var col in _visibleColumns)
@@ -212,84 +245,57 @@
                     <MudTd>
 @if (item.Status == WorkOrderStatus.NotGenerated)
 {
-    <MudButton Variant="Variant.Text"
-               Color="Color.Primary"
-               Size="Size.Small"
-               StartIcon="@Icons.Material.Filled.Add"
-               OnClick="() => NavigateToGenerate(item.SalesOrderNo, item.Status.ToString())">
-        生成工单
-    </MudButton>
+    <MudIconButton Icon="@Icons.Material.Filled.Add"
+                   Color="Color.Primary"
+                   Size="Size.Small"
+                   Title="生成工单"
+                   OnClick="() => NavigateToGenerate(item.SalesOrderNo, item.Status.ToString())" />
 }
 else if (item.Status == WorkOrderStatus.Confirmed)
 {
-    <div class="d-flex flex-nowrap" style="gap: 4px;">
-        <MudButton Variant="Variant.Text"
-                   Color="Color.Warning"
-                   Size="Size.Small"
-                   StartIcon="@Icons.Material.Filled.Refresh"
-                   OnClick="() => NavigateToRegenerate(item.SalesOrderNo, item.Status.ToString())">
-            重新生成
-        </MudButton>
-        <MudButton Variant="Variant.Text"
-                   Color="Color.Info"
-                   Size="Size.Small"
-                   StartIcon="@Icons.Material.Filled.Edit"
-                   OnClick="() => NavigateToUpdate(item.SalesOrderNo, item.Status.ToString())">
-            更新修改
-        </MudButton>
+    <div class="d-flex flex-nowrap" style="gap: 2px;">
+        <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                       Color="Color.Warning"
+                       Size="Size.Small"
+                       Title="重新生成"
+                       OnClick="() => NavigateToRegenerate(item.SalesOrderNo, item.Status.ToString())" />
+        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                       Color="Color.Info"
+                       Size="Size.Small"
+                       Title="更新修改"
+                       OnClick="() => NavigateToUpdate(item.SalesOrderNo, item.Status.ToString())" />
         @if (_isAdmin)
         {
-            <MudButton Variant="Variant.Text"
-                       Color="Color.Error"
-                       Size="Size.Small"
-                       StartIcon="@Icons.Material.Filled.Delete"
-                       OnClick="() => DeleteWorkOrder(item.Id, item.WorkOrderNo)">
-                删除
-            </MudButton>
+            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                           Color="Color.Error"
+                           Size="Size.Small"
+                           Title="删除"
+                           OnClick="() => DeleteWorkOrder(item.Id, item.WorkOrderNo)" />
         }
     </div>
 }
 else if (item.Status == WorkOrderStatus.Pending)
 {
-    <div class="d-flex flex-nowrap" style="gap: 4px;">
-        <MudButton Variant="Variant.Text"
-                   Color="Color.Primary"
-                   Size="Size.Small"
-                   StartIcon="@Icons.Material.Filled.Refresh"
-                   OnClick="() => NavigateToRegenerate(item.SalesOrderNo, item.Status.ToString())">
-            重新生成
-        </MudButton>
-        <MudButton Variant="Variant.Text"
-                   Color="Color.Info"
-                   Size="Size.Small"
-                   StartIcon="@Icons.Material.Filled.Edit"
-                   OnClick="() => NavigateToUpdate(item.SalesOrderNo, item.Status.ToString())">
-            更新修改
-        </MudButton>
+    <div class="d-flex flex-nowrap" style="gap: 2px;">
+        <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       Title="重新生成"
+                       OnClick="() => NavigateToRegenerate(item.SalesOrderNo, item.Status.ToString())" />
+        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                       Color="Color.Info"
+                       Size="Size.Small"
+                       Title="更新修改"
+                       OnClick="() => NavigateToUpdate(item.SalesOrderNo, item.Status.ToString())" />
         @if (_isAdmin)
         {
-            <MudButton Variant="Variant.Text"
-                       Color="Color.Error"
-                       Size="Size.Small"
-                       StartIcon="@Icons.Material.Filled.Delete"
-                       OnClick="() => DeleteWorkOrder(item.Id, item.WorkOrderNo)">
-                删除
-            </MudButton>
+            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                           Color="Color.Error"
+                           Size="Size.Small"
+                           Title="删除"
+                           OnClick="() => DeleteWorkOrder(item.Id, item.WorkOrderNo)" />
         }
     </div>
-}
-else if (item.Status == WorkOrderStatus.Cancelled)
-{
-    @if (_isAdmin)
-    {
-        <MudButton Variant="Variant.Text"
-                   Color="Color.Error"
-                   Size="Size.Small"
-                   StartIcon="@Icons.Material.Filled.Delete"
-                   OnClick="() => DeleteWorkOrder(item.Id, item.WorkOrderNo)">
-            删除
-        </MudButton>
-    }
 }
                     </MudTd>
                 </RowTemplate>

@@ -76,16 +76,6 @@ public class DataExchangeService : IDataExchangeService
             new("备注", "Remark", typeof(string), isRequired: false),
         }, compositeKeyColumns: new[] { "StandardGrade", "StandardGradeCategory" }),
 
-        ["StandardProcessCycle"] = new EntityDef("工单-标准工艺生产周期", "工单-标准工艺生产周期", typeof(StandardProcessCycle), 1, null, new List<ColumnDef>
-        {
-            new("工厂牌号", "PlantGrade"),
-            new("原料类型", "RawMaterialType"),
-            new("原料规格", "RawSpec"),
-            new("成品规格", "ProductSpec"),
-            new("交货状态", "DeliveryState"),
-            new("标准周期天数", "StandardCycleDays", typeof(int)),
-        }),
-
         ["CustomerProfile"] = new EntityDef("订单-客户档案", "订单-客户档案", typeof(CustomerProfile), 1, "CustomerCode", new List<ColumnDef>
         {
             new("客户编码", "CustomerCode"),
@@ -266,6 +256,17 @@ public class DataExchangeService : IDataExchangeService
             new("关联项次(订单号|项次号)", "OrderItemIds", typeof(string), isRequired: false),
         }),
 
+        // === 第5批：工单-需求调整（依赖工单） ===
+        ["OrderDemandAdjustment"] = new EntityDef("订单-需求调整", "订单-需求调整",
+            typeof(Data.Entities.Scheduling.OrderDemandAdjustment), 5, null, new List<ColumnDef>
+        {
+            new("工单号", null!) { IsFkColumn = true, FkEntityKey = "WorkOrder", FkLookupProperty = "WorkOrderNo", FkTargetProperty = "WorkOrderId" },
+            new("催单", "IsUrging", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("分批交货", "IsBatchDelivery", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("暂停", "IsPaused", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("调整备注", "AdjustmentRemark", typeof(string), isRequired: false),
+        }),
+
         // === 第6批：物料 ===
         ["Material"] = new EntityDef("物料-物料", "物料-物料", typeof(Material), 6, null, new List<ColumnDef>
         {
@@ -365,7 +366,7 @@ public class DataExchangeService : IDataExchangeService
             new("单支重量(kg)", "UnitWeight", typeof(decimal?), isRequired: false),
             new("采购支数", "Quantity", typeof(int?), isRequired: false),
             new("采购重量(kg)", "Weight", typeof(decimal)),
-            new("投料倍率", "InputMultiple", typeof(int?), isRequired: false),
+            new("投料制成倍", "InputMultiple", typeof(int?), isRequired: false),
             new("要求到货日期", "RequiredDate", typeof(DateTime)),
             new("单价", "UnitPrice", typeof(decimal?), isRequired: false),
             new("总金额", "TotalAmount", typeof(decimal?), isRequired: false),
@@ -409,7 +410,7 @@ public class DataExchangeService : IDataExchangeService
             new("单重(kg)", "UnitWeight", typeof(decimal?), isRequired: false),
             new("需求支数", "RequiredQuantity", typeof(int?), isRequired: false),
             new("需求重量(kg)", "RequiredWeight", typeof(decimal?), isRequired: false),
-            new("投料倍率", "InputMultiple", typeof(int?), isRequired: false),
+            new("投料制成倍", "InputMultiple", typeof(int?), isRequired: false),
             new("状态备注", "ProcessStatusRemark", typeof(string), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
             new("加工单价", "ProcessUnitPrice", typeof(decimal?), isRequired: false),
@@ -868,7 +869,7 @@ public class DataExchangeService : IDataExchangeService
             new("规格", "Specification"),
             new("放置区域", "LocationArea", typeof(string), isRequired: false),
             new("放置架号", "LocationRack", typeof(string), isRequired: false),
-            new("投料倍率", "InputMultiple", typeof(int)),
+            new("投料制成倍", "InputMultiple", typeof(int)),
             new("使用模式", "UsageMode"),
             new("出库支数", "UsedQuantity", typeof(int?), isRequired: false),
             new("出库重量(kg)", "UsedWeight", typeof(decimal)),
@@ -885,7 +886,7 @@ public class DataExchangeService : IDataExchangeService
             new("计划日期", "PlanDate", typeof(DateTime)),
             new("调整成品壁厚(mm)", "AdjustedWallThickness", typeof(decimal)),
             new("成材率(%)", "YieldRate", typeof(decimal)),
-            new("投料倍率", "InputMultiple", typeof(int)),
+            new("投料制成倍", "InputMultiple", typeof(int)),
             new("正品率(%)", "QualifiedRate", typeof(decimal)),
             new("原料类型", "RawMaterialType", typeof(RawMaterialType), isEnum: true),
             new("工厂牌号", "PlantGrade"),
@@ -915,7 +916,7 @@ public class DataExchangeService : IDataExchangeService
             new("交货状态", "DeliveryState", typeof(DeliveryState), isEnum: true),
             new("采购支数", "RequiredPiece", typeof(int?), isRequired: false),
             new("采购重量(kg)", "RequiredWeight", typeof(decimal)),
-            new("投料倍率", "InputMultiple", typeof(int?), isRequired: false),
+            new("投料制成倍", "InputMultiple", typeof(int?), isRequired: false),
             new("要求到货日期", "RequiredDate", typeof(DateTime?), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
             new("工艺周期", "StandardCycle", typeof(int), isRequired: false),
@@ -1062,7 +1063,7 @@ public class DataExchangeService : IDataExchangeService
             new("计划日期", "PlanDate", typeof(DateTime)),
             new("调整成品壁厚(mm)", "AdjustedWallThickness", typeof(decimal)),
             new("成材率(%)", "YieldRate", typeof(decimal)),
-            new("投料倍率", "InputMultiple", typeof(int)),
+            new("投料制成倍", "InputMultiple", typeof(int)),
             new("正品率(%)", "QualifiedRate", typeof(decimal)),
             new("原料类型", "RawMaterialType", typeof(RawMaterialType), isEnum: true),
             new("工厂牌号", "PlantGrade"),
@@ -1186,6 +1187,17 @@ public class DataExchangeService : IDataExchangeService
             new("是否启用", "IsActive", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
         }),
 
+        // === 配置-参数配置（独立配置表） ===
+        ["ConfigParameter"] = new EntityDef("配置-参数配置", "配置-参数配置", typeof(ConfigParameter), 1, null, new List<ColumnDef>
+        {
+            new("英文分类代码", "Category"),
+            new("分类及用途", "CategoryDisplay", typeof(string), isRequired: false),
+            new("所属上下文", "Context", typeof(string), isRequired: false),
+            new("参数键", "ParamKey"),
+            new("参数值", "ParamValue", typeof(decimal)),
+            new("用途说明", "Remark", typeof(string), isRequired: false),
+        }, compositeKeyColumns: new[] { "Category", "ParamKey" }),
+
         // === 标准号（生产标准上下文） ===
         ["StandardRegister"] = new EntityDef("标准-标准号", "标准-标准号", typeof(Data.Entities.StandardRegister), 1, "StandardNo", new List<ColumnDef>
         {
@@ -1303,23 +1315,80 @@ public class DataExchangeService : IDataExchangeService
             new("金相检验", "FerriteContent", typeof(string), isRequired: false),
             new("低倍组织", "Macrostructure", typeof(string), isRequired: false),
         }),
+
+        // === 生产-工段工量天数（独立配置表） ===
+        ["StandardWorkDay"] = new EntityDef("生产-工段工量天数", "生产-工段工量天数", typeof(StandardWorkDay), 1, null, new List<ColumnDef>
+        {
+            new("工段名称", "SectionName"),
+            new("牌号前缀", "PlantGradePrefix", typeof(string), isRequired: false),
+            new("标准天数", "StandardDays", typeof(double)),
+            new("备注", "Remark", typeof(string), isRequired: false),
+        }),
+
+        // === 生产-交态附加天数（独立配置表） ===
+        ["StandardWorkDayDeliveryState"] = new EntityDef("生产-交态附加天数", "生产-交态附加天数", typeof(StandardWorkDayDeliveryState), 1, null, new List<ColumnDef>
+        {
+            new("交货状态", "DeliveryState"),
+            new("附加天数", "ExtraDays", typeof(double)),
+            new("牌号前缀", "PlantGradePrefix", typeof(string), isRequired: false),
+            new("备注", "Remark", typeof(string), isRequired: false),
+        }),
+
+        // === 生产-规格日产预估（独立配置表） ===
+        ["DailyOutputEstimate"] = new EntityDef("生产-规格日产预估", "生产-规格日产预估", typeof(DailyOutputEstimate), 1, null, new List<ColumnDef>
+        {
+            new("最小外径(mm)", "MinOuterDiameter", typeof(decimal)),
+            new("日产能力(吨)", "DailyOutputTons", typeof(decimal)),
+            new("备注", "Remark", typeof(string), isRequired: false),
+        }),
+
+        // === 生产-重点工段日产（独立配置表） ===
+        ["DailyProductionCapacity"] = new EntityDef("生产-重点工段日产", "生产-重点工段日产", typeof(Data.Entities.Configuration.DailyProductionCapacity), 1, null, new List<ColumnDef>
+        {
+            new("工序名称", "ProcessName"),
+            new("日产能力(吨/天)", "DailyCapacity", typeof(decimal)),
+            new("说明", "Remark", typeof(string), isRequired: false),
+        }),
+
+        // === 生产-工段日流转量（独立配置表，CategoryCode 唯一） ===
+        ["SectionFlowCategorySetting"] = new EntityDef("生产-工段日流转量", "生产-工段日流转量", typeof(Data.Entities.Scheduling.SectionFlowCategorySetting), 1, "CategoryCode", new List<ColumnDef>
+        {
+            new("类别编码", "CategoryCode"),
+            new("类别名称", "CategoryName"),
+            new("变异量预算日产", "DailyProductionTarget", typeof(decimal), isRequired: false),
+            new("偏少天数值", "LowerLimitDays", typeof(decimal), isRequired: false),
+            new("过多天数值", "UpperLimitDays", typeof(decimal), isRequired: false),
+            new("备注", "Remark", typeof(string), isRequired: false),
+        }),
+
+        // === 生产-工段日流转量子项（依赖 SectionFlowCategorySetting） ===
+        ["SectionFlowCategoryItem"] = new EntityDef("生产-工段日流转量子项", "生产-工段日流转量子项", typeof(Data.Entities.Scheduling.SectionFlowCategoryItem), 2, null, new List<ColumnDef>
+        {
+            new("类别编码", null!) { IsFkColumn = true, FkEntityKey = "SectionFlowCategorySetting", FkLookupProperty = "CategoryCode", FkTargetProperty = "SettingId" },
+            new("工序组名称", "ProcessGroupName"),
+            new("工段名称", "SectionName"),
+            new("变异量系数", "Coefficient", typeof(decimal)),
+            new("排序号", "DisplayOrder", typeof(int)),
+        }),
     };
 
     public static readonly List<string> EntityOrder = new()
     {
-        "Warehouse", "StandardGradeMapping", "StandardProcessCycle", "CustomerProfile", "SupplierProfile",
+        "Warehouse", "StandardGradeMapping", "CustomerProfile", "SupplierProfile",
         "FurnaceRegistration", "ChemicalComposition", "ChemicalValidationRule", "Ncr",
         "SalesOrder",
         "OrderItem", "ProductRequirement",
-        "WorkOrder", "Material",
+        "WorkOrder", "OrderDemandAdjustment", "Material",
         "PurchaseOrder", "SubcontractOrder", "SubcontractReturnItem", "ProductionBatch",
         "ProcessGroup", "ProductionRecord", "SectionOutsource", "OutsourceRecovery", "MaterialReceiveCheck", "ProcessInspection", "FinalInspection", "ChemicalAnalysis", "HardnessTest", "GrainSizeTest", "PittingCorrosionTest", "IntergranularCorrosionTest", "TensileTest", "MetallographicTest", "FlatteningTest", "FlaringTest", "PicklingInRecord", "PicklingOutRecord", "BatchOperationLog", "InventoryBatch", "OutboundRecord",
         "Equipment", "RepairOrder", "MaintenanceOrder", "InspectionRecord",
         "InventoryPlan", "PurchaseSemiPlan", "PurchaseFinishedPlan", "RoundBarPiercingPlan",
         "SemiPlanProcessGroup", "InventoryPlanProcessGroup", "PiercingPlanProcessGroup",
         "Workstation", "Employee",
+        "ConfigParameter",
         "StandardRegister", "StandardRegisterItem",
         "GradeChemicalComposition", "GradePhysicalProperty", "StandardInspectionRequirement", "SubStandardQuickView",
+        "StandardWorkDay", "StandardWorkDayDeliveryState", "DailyOutputEstimate", "DailyProductionCapacity", "SectionFlowCategorySetting", "SectionFlowCategoryItem",
     };
 
     #endregion
@@ -1867,8 +1936,12 @@ public class DataExchangeService : IDataExchangeService
                     }
                     else
                     {
-                        // append: 跳过已存在的技术要求
-                        var existingSet = new HashSet<int>(orderItemIds);
+                        // skip/append: 查询数据库中已存在的技术要求，只跳过匹配的行
+                        var existing = await _context.Set<ProductRequirement>()
+                            .Where(pr => orderItemIds.Contains(pr.OrderItemId))
+                            .Select(pr => pr.OrderItemId)
+                            .ToListAsync();
+                        var existingOrderItemIds = existing.ToHashSet();
                         var beforeCount = rows.Count;
                         rows.RemoveAll(r =>
                         {
@@ -1877,7 +1950,7 @@ public class DataExchangeService : IDataExchangeService
                             if (string.IsNullOrWhiteSpace(orderNo) || string.IsNullOrWhiteSpace(seq)) return false;
                             var key = $"{orderNo}|{seq}";
                             if (!oiCache.TryGetValue(key, out var oiId)) return false;
-                            return existingSet.Contains(oiId);
+                            return existingOrderItemIds.Contains(oiId);
                         });
                         var skipped = beforeCount - rows.Count;
                         if (skipped > 0)
@@ -2717,18 +2790,25 @@ public class DataExchangeService : IDataExchangeService
 
     private async Task<HashSet<string>> LoadExistingKeysAsync(EntityDef def)
     {
-        if (def.KeyColumn == null) return new HashSet<string>();
-
-        var keyProp = def.Type.GetProperty(def.KeyColumn);
-        if (keyProp == null) return new HashSet<string>();
+        var keyProps = GetKeyProperties(def);
+        if (keyProps.Count == 0) return new HashSet<string>();
 
         var data = await QueryAllAsync(def.Type);
         var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in data)
         {
-            var val = keyProp.GetValue(item)?.ToString();
-            if (val != null)
-                keys.Add(val);
+            if (keyProps.Count == 1)
+            {
+                var val = keyProps[0].GetValue(item)?.ToString();
+                if (val != null)
+                    keys.Add(val);
+            }
+            else
+            {
+                var key = BuildEntityKey(item, keyProps);
+                if (key != null)
+                    keys.Add(key);
+            }
         }
         return keys;
     }
@@ -3064,7 +3144,10 @@ public class DataExchangeService : IDataExchangeService
                 }
                 // FK列同时有属性名时，将源文本值也写入实体属性（用于覆盖导入匹配）
                 if (colDef.Property != null && propertyCache.TryGetValue(colDef.Property, out var valProp))
-                    valProp.SetValue(entity, cellValue);
+                {
+                    var convertedValue = ConvertValue(cellValue, valProp.PropertyType, colDef);
+                    valProp.SetValue(entity, convertedValue);
+                }
                 continue;
             }
 
@@ -3163,7 +3246,10 @@ public class DataExchangeService : IDataExchangeService
                     fkProp.SetValue(entity, fkId);
                 // FK列同时有属性名时，将源文本值也写入实体属性
                 if (colDef.Property != null && propertyCache.TryGetValue(colDef.Property, out var valProp))
-                    valProp.SetValue(entity, cellValue);
+                {
+                    var convertedValue = ConvertValue(cellValue, valProp.PropertyType, colDef);
+                    valProp.SetValue(entity, convertedValue);
+                }
             }
         }
     }

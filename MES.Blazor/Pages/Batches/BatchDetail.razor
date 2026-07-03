@@ -297,10 +297,10 @@
             </div>
         </MudPaper>
 
-        <!-- ===== 区块六：工单信息（只读快照） ===== -->
+        <!-- ===== 区块六：工单信息 ===== -->
         <MudPaper Class="detail-card-bg pa-4 mb-3" Elevation="0">
             <MudText Typo="Typo.subtitle2" Class="detail-label font-weight-bold mb-3">
-                <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-1" Size="Size.Small" />工单信息（创建时快照，只读）
+                <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-1" Size="Size.Small" />工单信息
             </MudText>
             <!-- 第1组 -->
             <MudText Typo="Typo.caption" Class="detail-subsection font-weight-bold mb-2">基本信息</MudText>
@@ -317,38 +317,45 @@
                         </MudLink>
                     }</div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">源订单号</MudText>
-                    <MudLink Typo="Typo.body2" Class="detail-link" OnClick="() => NavigateToSalesOrder(batch.SalesOrderNo)">
-                        @batch.SalesOrderNo
-                    </MudLink></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">主号</MudText><MudText Typo="Typo.body2">@batch.ProductionMainNo</MudText></div>
+                    @if (string.IsNullOrEmpty(batch.SalesOrderNo))
+                    {
+                        <MudText Typo="Typo.body2">-</MudText>
+                    }
+                    else
+                    {
+                        <MudLink Typo="Typo.body2" Class="detail-link" OnClick="() => NavigateToSalesOrder(batch.SalesOrderNo)">
+                            @batch.SalesOrderNo
+                        </MudLink>
+                    }</div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">主号</MudText><MudText Typo="Typo.body2">@FmtStr(batch.ProductionMainNo)</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">次号</MudText><MudText Typo="Typo.body2">@(batch.ProductionSubNo ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">项次ID</MudText><MudText Typo="Typo.body2">@batch.OrderItemIds</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">签订日期</MudText><MudText Typo="Typo.body2">@batch.SignDate.ToString("yyyy-MM-dd")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">业务员</MudText><MudText Typo="Typo.body2">@batch.Salesman</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">项次ID</MudText><MudText Typo="Typo.body2">@FmtStr(batch.OrderItemIds)</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">签订日期</MudText><MudText Typo="Typo.body2">@FmtDate(batch.SignDate)</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">业务员</MudText><MudText Typo="Typo.body2">@FmtStr(batch.Salesman)</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">最终用户</MudText><MudText Typo="Typo.body2">@(batch.EndCustomer ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">交货日期</MudText><MudText Typo="Typo.body2">@batch.DeliveryDate.ToString("yyyy-MM-dd")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">延期罚款</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetYesNoText(batch.DelayPenalty))</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">物料名称</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetMaterialNameText(Enum.TryParse<MaterialName>(batch.MaterialName, ignoreCase: true, out var mn) ? mn : default)</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">结算方式</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetSettlementMethodText(Enum.TryParse<SettlementMethod>(batch.SettlementMethod, ignoreCase: true, out var sm) ? sm : default)</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">标准编码</MudText><MudText Typo="Typo.body2">@batch.StandardCode</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">交货日期</MudText><MudText Typo="Typo.body2">@FmtDate(batch.DeliveryDate)</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">延期罚款</MudText><MudText Typo="Typo.body2">@(batch.DelayPenalty ? "是" : "否")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">物料名称</MudText><MudText Typo="Typo.body2">@FmtStr(DisplayHelper.GetMaterialNameText(batch.MaterialName))</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">结算方式</MudText><MudText Typo="Typo.body2">@FmtStr(DisplayHelper.GetSettlementMethodText(batch.SettlementMethod))</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">标准编码</MudText><MudText Typo="Typo.body2">@FmtStr(batch.StandardCode)</MudText></div>
             </div>
 
             <MudDivider Class="my-3" />
             <!-- 第2组 -->
             <MudText Typo="Typo.caption" Class="detail-subsection font-weight-bold mb-2">工艺参数及汇总</MudText>
             <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">交货状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetDeliveryStateText(Enum.TryParse<DeliveryState>(batch.DeliveryState, ignoreCase: true, out var ds) ? ds : default)</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">工厂牌号</MudText><MudText Typo="Typo.body2">@batch.PlantGrade</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">规格</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatSpecification(batch.Specification)</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">交货状态</MudText><MudText Typo="Typo.body2">@FmtStr(DisplayHelper.GetDeliveryStateText(batch.DeliveryState))</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">工厂牌号</MudText><MudText Typo="Typo.body2">@FmtStr(batch.PlantGrade)</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">规格</MudText><MudText Typo="Typo.body2">@FmtStr(DisplayHelper.FormatSpecification(batch.Specification))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">外径公差</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatTolerance(batch.OuterDiameterNegative, batch.OuterDiameterPositive)</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">壁厚公差</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatTolerance(batch.WallThicknessNegative, batch.WallThicknessPositive)</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">长度状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(batch.LengthStatus)</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">长度状态</MudText><MudText Typo="Typo.body2">@FmtStr(DisplayHelper.GetLengthStatusText(batch.LengthStatus))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">最小长度</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.MinLength) mm</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">最大长度</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.MaxLength) mm</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">总支数</MudText><MudText Typo="Typo.body2">@batch.TotalQuantity 支</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">总米数</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(batch.TotalMeters) m</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">总重量</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(batch.TotalWeight) kg</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">技术要求</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetTechnicalRequirementsText(batch.TechnicalRequirements)</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">技术要求</MudText><MudText Typo="Typo.body2">@FmtStr(DisplayHelper.GetTechnicalRequirementsText(batch.TechnicalRequirements))</MudText></div>
             </div>
 
             <MudDivider Class="my-3" />
@@ -507,6 +514,10 @@
 
     private bool CanEdit => IsInRole(Roles.Policies.BatchWrite);
     private bool CanDelete => IsInRole(Roles.Admin);
+
+    // 工单字段空值显示辅助
+    private static string FmtDate(DateTime dt) => dt.Year <= 1900 ? "-" : dt.ToString("yyyy-MM-dd");
+    private static string FmtStr(string? value) => string.IsNullOrEmpty(value) ? "-" : value;
 
     private static bool IsInRole(string roles)
     {

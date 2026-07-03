@@ -141,6 +141,8 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
             .Take(query.PageSize)
             .ToListAsync();
 
+        ApplyConsistencyStatus(items);
+
         return new PagedResult<WorkOrderScheduleDto>
         {
             Items = items,
@@ -234,7 +236,11 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
 
         q = q.Where(x => x.ProductionFlowProperty != null && x.ProductionFlowProperty != "略");
 
-        return await q.OrderByDescending(x => x.DaysDiffFromDelivery).ToListAsync();
+        var items = await q.OrderByDescending(x => x.DaysDiffFromDelivery).ToListAsync();
+
+        ApplyConsistencyStatus(items);
+
+        return items;
     }
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
@@ -394,6 +400,141 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
 
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<bool> PlanScheduleKeepAttentionAsync(QueryParams query)
+    {
+        var q = _context.Set<WorkOrderExecutionSummary>().AsNoTracking()
+            .Where(e => e.ProductionFlowProperty != null && e.ProductionFlowProperty != "略");
+
+        if (!string.IsNullOrEmpty(query.Keyword))
+        {
+            var kw = query.Keyword;
+            q = q.Where(e =>
+                e.WorkOrderNo.Contains(kw) ||
+                e.SalesOrderNo.Contains(kw) ||
+                e.Salesman.Contains(kw) ||
+                e.CustomerName.Contains(kw) ||
+                (e.ProductionSubNo != null && e.ProductionSubNo.Contains(kw)) ||
+                e.PlantGrade.Contains(kw) ||
+                e.Specification.Contains(kw) ||
+                e.ProductionMainNo.Contains(kw) ||
+                e.SettlementMethod.Contains(kw) ||
+                e.MaterialName.Contains(kw) ||
+                e.DeliveryState.Contains(kw) ||
+                e.LengthStatus.Contains(kw) ||
+                (e.UrgencyLevel != null && e.UrgencyLevel.Contains(kw)) ||
+                (e.RawMaterialLockRemark != null && e.RawMaterialLockRemark.Contains(kw)) ||
+                (e.AdjustmentRemark != null && e.AdjustmentRemark.Contains(kw)) ||
+                (e.ProductionAttentionProcess != null && e.ProductionAttentionProcess.Contains(kw)));
+        }
+
+        q = q.ApplyFilters(query.Filters);
+
+        var matchingData = await q.Select(e => new
+        {
+            e.WorkOrderId,
+            e.ScheduleStage,
+            e.UrgencyLevel,
+            e.ProductionFlowProperty,
+        }).ToListAsync();
+
+        var matchingIds = matchingData.Select(x => x.WorkOrderId).ToHashSet();
+        var matchingIdList = matchingIds.ToList();
+
+        var existingPlans = new List<WorkOrderPlan>();
+        if (matchingIdList.Count > 0)
+        {
+            existingPlans = await _context.Set<WorkOrderPlan>()
+                .Where(p => matchingIdList.Contains(p.WorkOrderId))
+                .ToListAsync();
+        }
+
+        // Upsert: 只设置工单状态/紧急性/流转性为系统值，保留生产关注的手工调整
+        foreach (var data in matchingData)
+        {
+            var plan = existingPlans.FirstOrDefault(p => p.WorkOrderId == data.WorkOrderId);
+            if (plan == null)
+            {
+                plan = new WorkOrderPlan { WorkOrderId = data.WorkOrderId };
+                _context.Set<WorkOrderPlan>().Add(plan);
+            }
+            plan.ScheduleStage = data.ScheduleStage;
+            plan.UrgencyLevel = data.UrgencyLevel;
+            plan.ProductionFlowProperty = data.ProductionFlowProperty;
+            // ProductionAttentionProcess 保持不变
+        }
+
+        // 删除不匹配查询的 Plan 行
+        var orphanPlans = await _context.Set<WorkOrderPlan>()
+            .Where(p => !matchingIds.Contains(p.WorkOrderId))
+            .ToListAsync();
+        _context.Set<WorkOrderPlan>().RemoveRange(orphanPlans);
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    /// <summary>
+    /// 设置 ConsistencyStatus 四值：
+    /// - "一致"：4 个 Plan 字段均匹配系统值
+    /// - "进度调整"：仅 ProductionAttentionProcess 不一致（人为调进度，合理）
+    /// - "值存疑"：工单状态/紧急性/流转性 任一不一致（存在疑问）
+    /// - "错误"：同主号下不同工单的计划值不一致（应保持主号级一致）
+    /// </summary>
+    private static void ApplyConsistencyStatus(List<WorkOrderScheduleDto> items)
+    {
+        // 先计算每行的个体一致性
+        foreach (var item in items)
+        {
+            bool stageMatch = item.PlanScheduleStage != null && item.PlanScheduleStage == item.ScheduleStage;
+            bool urgencyMatch = string.IsNullOrEmpty(item.PlanUrgencyLevel)
+                ? string.IsNullOrEmpty(item.UrgencyLevel)
+                : item.PlanUrgencyLevel == item.UrgencyLevel;
+            bool attentionMatch = string.IsNullOrEmpty(item.PlanProductionAttentionProcess)
+                ? string.IsNullOrEmpty(item.MainNoAttentionProcess)
+                : item.PlanProductionAttentionProcess == item.MainNoAttentionProcess;
+            bool flowMatch = string.IsNullOrEmpty(item.PlanProductionFlowProperty)
+                ? string.IsNullOrEmpty(item.ProductionFlowProperty)
+                : item.PlanProductionFlowProperty == item.ProductionFlowProperty;
+
+            if (stageMatch && urgencyMatch && attentionMatch && flowMatch)
+                item.ConsistencyStatus = "一致";
+            else if (stageMatch && urgencyMatch && flowMatch && !attentionMatch)
+                item.ConsistencyStatus = "进度调整";
+            else
+                item.ConsistencyStatus = "值存疑";
+        }
+
+        // 再检查跨主号一致性：同主号下所有工单的计划值应当一致
+        var mainOrderGroups = items
+            .GroupBy(x => new { x.SalesOrderNo, x.ProductionMainNo })
+            .Where(g => g.Count() > 1);
+
+        foreach (var group in mainOrderGroups)
+        {
+            var groupList = group.ToList();
+
+            // 取第一个非 null 值作为"期望值"，检查组内是否有不一致
+            var expectedStage = groupList.Select(x => x.PlanScheduleStage).FirstOrDefault(x => x != null);
+            var expectedUrgency = groupList.Select(x => x.PlanUrgencyLevel).FirstOrDefault(x => x != null);
+            var expectedAttention = groupList.Select(x => x.PlanProductionAttentionProcess).FirstOrDefault(x => x != null);
+            var expectedFlow = groupList.Select(x => x.PlanProductionFlowProperty).FirstOrDefault(x => x != null);
+
+            bool hasCrossInconsistency = groupList.Any(x =>
+                (expectedStage != null && x.PlanScheduleStage != expectedStage) ||
+                (expectedUrgency != null && x.PlanUrgencyLevel != expectedUrgency) ||
+                (expectedAttention != null && x.PlanProductionAttentionProcess != expectedAttention) ||
+                (expectedFlow != null && x.PlanProductionFlowProperty != expectedFlow));
+
+            if (hasCrossInconsistency)
+            {
+                foreach (var item in groupList)
+                {
+                    item.ConsistencyStatus = "错误";
+                }
+            }
+        }
     }
 
     private static IQueryable<WorkOrderScheduleDto> ApplySorting(

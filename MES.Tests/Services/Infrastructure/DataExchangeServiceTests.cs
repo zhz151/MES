@@ -29,9 +29,9 @@ public class DataExchangeServiceTests : TestBase
     // ========== Registry 验证 ==========
 
     [Fact]
-    public void Registry_包含所有46个实体()
+    public void Registry_包含所有65个实体()
     {
-        DataExchangeService.Registry.Should().HaveCount(46);
+        DataExchangeService.Registry.Should().HaveCount(65);
     }
 
     [Fact]

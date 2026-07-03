@@ -39,11 +39,12 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
 
         if (existing != null)
         {
-            // 保存全部 9 个计划字段（手动编辑覆盖自动计算值）
+            // 保存全部 10 个计划字段（手动编辑覆盖自动计算值）
             existing.IsFlow = dto.IsFlow;
             existing.FlowLevel = dto.FlowLevel;
             existing.FlowTarget = dto.FlowTarget;
             existing.FlowCRType = dto.FlowCRType;
+            existing.PlanOuterDiameterSpan = dto.PlanOuterDiameterSpan;
             existing.FlowExecSpec = dto.FlowExecSpec;
             existing.TargetSequence = dto.TargetSequence;
             existing.ExecutionSequence = dto.ExecutionSequence;
@@ -59,6 +60,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                 FlowLevel = dto.FlowLevel,
                 FlowTarget = dto.FlowTarget,
                 FlowCRType = dto.FlowCRType,
+                PlanOuterDiameterSpan = dto.PlanOuterDiameterSpan,
                 FlowExecSpec = dto.FlowExecSpec,
                 TargetSequence = dto.TargetSequence,
                 ExecutionSequence = dto.ExecutionSequence,
@@ -324,12 +326,14 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             var isUrgent = b.UrgencyLevel == "A+急" || b.UrgencyLevel == "A急";
             var isKeyBatch = (b.ScheduleStage == 2 && isUrgent &&
                               (pendingProcess == "荒管处理" ||
-                               pendingProcess == b.MainNoAttentionProcess ||
-                               b.MainNoAttentionProcess is null or "收尾-成检")) ||
+                               (b.MainNoAttentionProcess != null && pendingProcess == b.MainNoAttentionProcess
+                                   && (!ProcessNames.IsColdRollOrDraw(pendingProcess) || pendingSectionName == SectionDefs.ColdRollDraw)) ||
+                               pendingProcess == "收尾-成检")) ||
                              (b.ScheduleStage == 1 && (b.IsUrging || b.IsBatchDelivery) && isUrgent &&
                               (pendingProcess == "荒管处理" ||
-                               pendingProcess == b.MainNoAttentionProcess ||
-                               b.MainNoAttentionProcess is null or "收尾-成检"));
+                               (b.MainNoAttentionProcess != null && pendingProcess == b.MainNoAttentionProcess
+                                   && (!ProcessNames.IsColdRollOrDraw(pendingProcess) || pendingSectionName == SectionDefs.ColdRollDraw)) ||
+                               pendingProcess == "收尾-成检"));
 
             if (b.MainNoAttentionProcess == "收尾-成检")
             {
@@ -343,8 +347,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                 var isPartial1 = isUrgent && (b.ScheduleStage == 2 || (b.ScheduleStage == 1 && (b.IsUrging || b.IsBatchDelivery)));
                 var isPartial3 = isUrgent || b.UrgencyLevel == "B顺";
                 if (crCompletionType == "All" ||
-                    (crCompletionType == "Urgent" && isKeyBatch) ||
-                    (crCompletionType == "Partial1" && isPartial1) ||
+                    (crCompletionType == "Urgent" && (isKeyBatch || isPartial1)) ||
                     (crCompletionType == "Partial2" && isUrgent) ||
                     (crCompletionType == "Partial3" && isPartial3))
                 {
@@ -359,9 +362,8 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             {
                 var isPartial1 = isUrgent && (b.ScheduleStage == 2 || (b.ScheduleStage == 1 && (b.IsUrging || b.IsBatchDelivery)));
                 var isPartial3 = isUrgent || b.UrgencyLevel == "B顺";
-                if (crRollType == "All" || crRollType == "Subsequent" ||
-                    (crRollType == "Urgent" && isKeyBatch) ||
-                    (crRollType == "Partial1" && isPartial1) ||
+                if (crRollType == "All" ||
+                    (crRollType == "Urgent" && (isKeyBatch || isPartial1)) ||
                     (crRollType == "Partial2" && isUrgent) ||
                     (crRollType == "Partial3" && isPartial3))
                 {
@@ -381,25 +383,42 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             {
                 if (isKeyBatch)
                     flowLevel = 1;
+                else if (isUrgent)
+                    flowLevel = 2;
+                else if (b.UrgencyLevel == "B顺")
+                    flowLevel = 3;
                 else
-                {
-                    var triggerValue = crCompletionType;
-                    if (string.IsNullOrEmpty(triggerValue) || triggerValue == "None")
-                        triggerValue = crRollType;
-
-                    flowLevel = triggerValue switch
-                    {
-                        "Partial1" => 2,
-                        "Partial2" => 3,
-                        "Partial3" => 4,
-                        _ => 2, // All, Urgent, Subsequent
-                    };
-                }
+                    flowLevel = 4;
             }
             else
                 flowLevel = 5;
-            var execSeq = pendingPg.GetSectionSequence(pendingSectionName);
+            var currentPg = pgs.FirstOrDefault(pg => pg.ProcessName == b.CurrentGroupName);
+            var execSeq = currentPg?.GetSectionSequence(b.CurrentSectionName);
             var targetSeq = BatchPlanService.ComputeTargetSequence(pgs, flowTarget, flowCRType);
+
+            // 外径跨度计算（与 G7 同一逻辑）
+            string? outerDiameterSpan = null;
+            if (b.MainNoAttentionProcess == "收尾-成检")
+            {
+                outerDiameterSpan = null;
+            }
+            else if (!string.IsNullOrEmpty(crCompletionType) && crCompletionType != "None")
+            {
+                outerDiameterSpan = GetShortDisplay(currentCR_BilletSpec, currentCR_RollingSpec);
+            }
+            else if (!string.IsNullOrEmpty(crRollType) && crRollType != "None")
+            {
+                var billetSpec = currentCR_BilletSpec;
+                var rollingSpec = currentCR_RollingSpec;
+                if (string.IsNullOrEmpty(pendingEquipment))
+                {
+                    if (!string.IsNullOrEmpty(nextCR_ProcessType))
+                    { billetSpec = nextCR_BilletSpec; rollingSpec = nextCR_RollingSpec; }
+                    else if (!string.IsNullOrEmpty(nextNextCR_ProcessType))
+                    { billetSpec = nextNextCR_BilletSpec; rollingSpec = nextNextCR_RollingSpec; }
+                }
+                outerDiameterSpan = GetShortDisplay(billetSpec, rollingSpec);
+            }
 
             // Upsert
             if (existingLookup.TryGetValue(b.Id, out var existing))
@@ -408,6 +427,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                 existing.FlowLevel = flowLevel;
                 existing.FlowTarget = flowTarget;
                 existing.FlowCRType = flowCRType;
+                existing.PlanOuterDiameterSpan = outerDiameterSpan;
                 existing.FlowExecSpec = flowExecSpec;
                 existing.TargetSequence = targetSeq;
                 existing.ExecutionSequence = execSeq;
@@ -422,6 +442,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                     FlowLevel = flowLevel,
                     FlowTarget = flowTarget,
                     FlowCRType = flowCRType,
+                    PlanOuterDiameterSpan = outerDiameterSpan,
                     FlowExecSpec = flowExecSpec,
                     TargetSequence = targetSeq,
                     ExecutionSequence = execSeq,
@@ -445,11 +466,22 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             FlowLevel = entity.FlowLevel,
             FlowTarget = entity.FlowTarget,
             FlowCRType = entity.FlowCRType,
+            PlanOuterDiameterSpan = entity.PlanOuterDiameterSpan,
             FlowExecSpec = entity.FlowExecSpec,
             TargetSequence = entity.TargetSequence,
             ExecutionSequence = entity.ExecutionSequence,
             IsGrabOrder = entity.IsGrabOrder,
             PlanRemark = entity.PlanRemark,
         };
+    }
+
+    /// <summary>
+    /// 外径跨度计算：坯料规格外径-轧制规格外径，如"110-89"
+    /// </summary>
+    private static string? GetShortDisplay(string? billetSpec, string? rollingSpec)
+    {
+        var outer1 = billetSpec?.Split('*', '×').FirstOrDefault()?.Trim() ?? "";
+        var outer2 = rollingSpec?.Split('*', '×').FirstOrDefault()?.Trim() ?? "";
+        return string.IsNullOrEmpty(outer1) || string.IsNullOrEmpty(outer2) ? null : $"{outer1}-{outer2}";
     }
 }

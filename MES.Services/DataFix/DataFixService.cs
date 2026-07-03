@@ -67,7 +67,6 @@ public class DataFixService : IDataFixService
             await FixPurchaseOrdersAsync();
             await FixSubcontractOrdersAsync();
             report.EquipmentFixed = await FixEquipmentTrackingAsync();
-            report.StandardCycleFixed = await FixStandardCycleAsync();
             await FixWorkOrderSummariesAsync();
 
             await transaction.CommitAsync();
@@ -328,87 +327,6 @@ public class DataFixService : IDataFixService
 
         _logger.LogInformation("设备日期字段修复完成: {Count} 台", fixedCount);
         return fixedCount;
-    }
-
-    // ==================== 7. 回填工艺周期 ====================
-
-    private async Task<int> FixStandardCycleAsync()
-    {
-        // 加载基础数据
-        var workOrders = await _context.WorkOrders.ToDictionaryAsync(w => w.Id);
-        var cycles = await _context.StandardProcessCycles.ToListAsync();
-
-        int totalFixed = 0;
-
-        // ---- 7a. 荒管采购 ----
-        var semiPlans = await _context.PurchaseSemiPlans.ToListAsync();
-        foreach (var plan in semiPlans)
-        {
-            if (!workOrders.TryGetValue(plan.WorkOrderId, out var wo)) continue;
-            var deliveryText = GetDeliveryStateChinese(wo.DeliveryState);
-            var materialText = GetRawMaterialTypeChinese(plan.RawMaterialType);
-            var match = cycles.FirstOrDefault(c =>
-                c.PlantGrade == wo.PlantGrade &&
-                c.ProductSpec == wo.Specification &&
-                c.DeliveryState == deliveryText &&
-                c.RawMaterialType == materialText &&
-                c.RawSpec == plan.RawMaterialSpec);
-            plan.StandardCycle = match?.StandardCycleDays ?? 25;
-            totalFixed++;
-        }
-
-        // ---- 7b. 圆棒穿孔 ----
-        var piercingPlans = await _context.RoundBarPiercingPlans.ToListAsync();
-        foreach (var plan in piercingPlans)
-        {
-            if (!workOrders.TryGetValue(plan.WorkOrderId, out var wo)) continue;
-            var deliveryText = GetDeliveryStateChinese(wo.DeliveryState);
-            var match = cycles.FirstOrDefault(c =>
-                c.PlantGrade == wo.PlantGrade &&
-                c.ProductSpec == wo.Specification &&
-                c.DeliveryState == deliveryText &&
-                c.RawMaterialType == "荒管" &&
-                c.RawSpec == plan.PiercingSpec);
-            plan.StandardCycle = match?.StandardCycleDays ?? 25;
-            totalFixed++;
-        }
-
-        // ---- 7c. 成品采购 ----
-        var finishedPlans = await _context.PurchaseFinishedPlans.ToListAsync();
-        var defaultStandardCycle = (int)await GetConfigAsync("DefaultValue", "StandardCycle", 3m);
-        foreach (var plan in finishedPlans)
-        {
-            plan.StandardCycle = defaultStandardCycle;
-            totalFixed++;
-        }
-
-        // ---- 7d. 库存使用/库料改制 ----
-        var inventoryPlans = await _context.InventoryPlans.ToListAsync();
-        foreach (var plan in inventoryPlans)
-        {
-            if (plan.ReworkType != null && workOrders.TryGetValue(plan.WorkOrderId, out var wo))
-            {
-                var deliveryText = GetDeliveryStateChinese(wo.DeliveryState);
-                var match = cycles.FirstOrDefault(c =>
-                    c.PlantGrade == wo.PlantGrade &&
-                    c.ProductSpec == wo.Specification &&
-                    c.DeliveryState == deliveryText &&
-                    c.RawMaterialType == plan.MaterialType &&
-                    c.RawSpec == plan.Specification);
-                plan.StandardCycle = match?.StandardCycleDays ?? 25;
-            }
-            else
-            {
-                plan.StandardCycle = defaultStandardCycle;
-            }
-            totalFixed++;
-        }
-
-        if (totalFixed > 0)
-            await _context.SaveChangesAsync();
-
-        _logger.LogInformation("工艺周期回填完成: {Count} 条", totalFixed);
-        return totalFixed;
     }
 
     private static string GetDeliveryStateChinese(DeliveryState state)

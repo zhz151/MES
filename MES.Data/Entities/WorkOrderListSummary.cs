@@ -150,6 +150,15 @@ public class WorkOrderListSummary : BaseEntity
     /// <summary>最大工艺周期（天）：4种用料计划中 StandardCycle 的最大值</summary>
     public int MaxStandardCycle { get; set; }
 
+    /// <summary>主号最大工艺周期（天）：同主号下所有工单 MaxStandardCycle 的最大值</summary>
+    public int MainNoMaxStandardCycle { get; set; }
+
+    /// <summary>产能工量（天）：(主号总重量 - 成品采购重量) / 1000 / 日产估算(吨/天)，向上取整</summary>
+    public int CapacityWorkDays { get; set; }
+
+    /// <summary>理论截止投料日：交货日期 - 主号最大工艺周期 - 产能工量。仅含需要产能的用料计划时计算</summary>
+    public DateTime? TheoreticalCutoffDate { get; set; }
+
     /// <summary>用料占比：有做计划的料态种数(0-4)</summary>
     public int MaterialPlanCoveredCount { get; set; }
 

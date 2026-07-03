@@ -77,6 +77,33 @@ public static class DtoMapper
         CreatedTime = entity.CreatedTime
     };
 
+    public static WorkOrderListItemDto ToListItemDto(this WorkOrderEntity entity) => new()
+    {
+        Id = entity.Id,
+        WorkOrderNo = entity.WorkOrderNo,
+        SalesOrderNo = entity.SalesOrderNo,
+        ProductionMainNo = entity.ProductionMainNo,
+        ProductionSubNo = entity.ProductionSubNo,
+        SignDate = entity.SignDate,
+        Salesman = entity.Salesman,
+        EndCustomer = entity.EndCustomer,
+        DeliveryDate = entity.DeliveryDate,
+        DelayPenalty = entity.DelayPenalty,
+        SettlementMethod = entity.SettlementMethod,
+        PlantGrade = entity.PlantGrade,
+        MaterialName = entity.MaterialName,
+        Specification = entity.Specification,
+        LengthStatus = entity.LengthStatus,
+        MinLength = entity.MinLength,
+        MaxLength = entity.MaxLength,
+        TotalQuantity = entity.TotalQuantity,
+        TotalWeight = entity.TotalWeight,
+        DeliveryState = entity.DeliveryState,
+        TotalItemCount = entity.TotalItemCount,
+        Status = entity.Status,
+        CreatedTime = entity.CreatedTime
+    };
+
     public static WorkOrderDetailDto ToDetailDto(this WorkOrderEntity entity) => new()
     {
         Id = entity.Id,
@@ -305,18 +332,6 @@ public static class DtoMapper
         RowVersion = entity.RowVersion,
         ProcessGroups = entity.ProcessGroups?.Select(ToGroupDto).ToList() ?? new()
     };
-
-    public static StandardProcessCycleDto ToDto(this StandardProcessCycle entity) => new()
-    {
-        Id = entity.Id,
-        PlantGrade = entity.PlantGrade,
-        RawMaterialType = entity.RawMaterialType,
-        RawSpec = entity.RawSpec,
-        ProductSpec = entity.ProductSpec,
-        DeliveryState = entity.DeliveryState,
-        StandardCycleDays = entity.StandardCycleDays
-    };
-
     public static ProcessGroupDto ToGroupDto(this ProcessGroup entity) => new()
     {
         Id = entity.Id,

@@ -87,7 +87,7 @@
                                 <MudTh>需求单重(kg/支)</MudTh>
                                 <MudTh>需求支数</MudTh>
                                 <MudTh>需求重量(kg)</MudTh>
-                                <MudTh>投料倍率</MudTh>
+                                <MudTh>投料制成倍</MudTh>
                                 <MudTh>要求到货日</MudTh>
                                 <MudTh>备注</MudTh>
                                 <MudTh>操作</MudTh>
@@ -141,7 +141,7 @@
                                 <MudTh>需求单重(kg/支)</MudTh>
                                 <MudTh>需求支数</MudTh>
                                 <MudTh>需求重量(kg)</MudTh>
-                                <MudTh>投料倍率</MudTh>
+                                <MudTh>投料制成倍</MudTh>
                                 <MudTh>要求到货日</MudTh>
                                 <MudTh>备注</MudTh>
                                 <MudTh>操作</MudTh>
@@ -198,7 +198,7 @@
                                 <MudTh>交货状态</MudTh>
                                 <MudTh>需用支数</MudTh>
                                 <MudTh>需用重量(kg)</MudTh>
-                                <MudTh>投料倍率</MudTh>
+                                <MudTh>投料制成倍</MudTh>
                                 <MudTh>要求到货日</MudTh>
                                 <MudTh>备注</MudTh>
                                 <MudTh>操作</MudTh>
@@ -366,7 +366,7 @@
     [Parameter] public int WorkOrderId { get; set; }
 
     private WorkOrderDetailDto? workOrder;
-    private List<WorkOrderListDto> siblingWorkOrders = new();
+    private List<WorkOrderListItemDto> siblingWorkOrders = new();
     private int currentWorkOrderIndex = -1;
     private bool isLoading = true;
     private bool hasPrevWorkOrder => currentWorkOrderIndex > 0;

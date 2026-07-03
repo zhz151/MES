@@ -1359,7 +1359,7 @@ public class ProductionRecordService : IProductionRecordService
                     Quantity = record?.Quantity,
                     Weight = record?.Weight,
                     Operator = record?.Operator,
-                    OutsourceVendor = hasOutsource ? outsource!.OutsourceVendor : null,
+                    OutsourceVendor = hasOutsource && outsource!.Status != SectionOutsourceStatus.Recovered ? outsource.OutsourceVendor : null,
                     OutsourceProgress = hasOutsource
                         ? (outsource!.SendWeight > 0
                             ? (decimal)outsource.TotalRecoveredWeight / outsource.SendWeight.Value * 100

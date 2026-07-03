@@ -254,36 +254,6 @@ public class OrderControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task PrintOrderAll_ReturnsBadRequest_WhenModelInvalid()
-    {
-        // Arrange
-        AddModelError(_controller);
-
-        // Act
-        var result = await _controller.PrintOrderAll(new OrderPrintAllRequest());
-
-        // Assert
-        var (_, response) = AssertBadRequest<ApiResponse<string>>(result);
-        Assert.False(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintOrderAll_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintOrderAllAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>()))
-            .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-
-        // Act
-        var result = await _controller.PrintOrderAll(new OrderPrintAllRequest { Keyword = "SO001" });
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
-    }
-
-    [Fact]
     public async Task PrintOrderRequirements_ReturnsOk()
     {
         // Arrange

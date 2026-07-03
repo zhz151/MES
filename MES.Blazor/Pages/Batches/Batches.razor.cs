@@ -411,6 +411,9 @@ public partial class Batches
 
     protected override async Task OnInitializedAsync()
     {
+        // 清除上次的工单号校验结果，避免跨导航残留旧警告
+        _workOrderMismatches.Clear();
+
         _allColumns = GetAllColumnDefs();
         var saved = await ColumnPrefs.LoadAsync("batches", null);
         if (saved.Count > 0)

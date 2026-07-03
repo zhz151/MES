@@ -107,7 +107,7 @@ public partial class PurchaseOrders
         new() { Key = "Specification",       Label = "规格",         SortKey = "specification", FilterType = "string", Width = "120" },
         new() { Key = "UnitWeight",          Label = "单支重量",     SortKey = "unitweight", Width = "80" },
         new() { Key = "Quantity",            Label = "支数",         SortKey = "quantity", Width = "80" },
-        new() { Key = "InputMultiple",       Label = "投料倍率",     SortKey = "inputmultiple", Width = "80" },
+        new() { Key = "InputMultiple",       Label = "投料制成倍",     SortKey = "inputmultiple", Width = "80" },
         new() { Key = "Weight",              Label = "采购重量",     SortKey = "weight", Width = "80" },
         new() { Key = "RequiredDate",        Label = "要求到货日",   SortKey = "requireddate", FilterType = "date", Width = "120" },
         new() { Key = "SupplierName",        Label = "供应商",       SortKey = "suppliername", FilterType = "string", Width = "120" },

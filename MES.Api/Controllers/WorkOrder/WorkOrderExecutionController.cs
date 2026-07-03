@@ -14,10 +14,13 @@ namespace MES.Api.Controllers;
 public class WorkOrderExecutionController : ControllerBase
 {
     private readonly IWorkOrderExecutionService _service;
+    private readonly IWorkOrderListSummaryRefreshService _listSummaryService;
 
-    public WorkOrderExecutionController(IWorkOrderExecutionService service)
+    public WorkOrderExecutionController(IWorkOrderExecutionService service,
+        IWorkOrderListSummaryRefreshService listSummaryService)
     {
         _service = service;
+        _listSummaryService = listSummaryService;
     }
 
     /// <summary>
@@ -57,6 +60,17 @@ public class WorkOrderExecutionController : ControllerBase
     {
         var result = await _service.RefreshAllAsync();
         return Ok(Core.Models.ApiResponse<WorkOrderExecutionRefreshResultDto>.Ok(result, $"刷新完成，共{result.RefreshedCount}条"));
+    }
+
+    /// <summary>
+    /// 全量刷新用料计划总览读模型
+    /// </summary>
+    [HttpPost("refresh-list-summary")]
+    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse>> RefreshListSummary()
+    {
+        await _listSummaryService.RefreshAllAsync();
+        return Ok(ApiResponse.Ok("用料计划总览读模型刷新完成"));
     }
 
     /// <summary>

@@ -21,6 +21,24 @@ public partial class WorkOrderSchedules
     private string sortColumn = "WorkOrderNo";
     private bool sortDescending = true;
 
+    private HashSet<WorkOrderScheduleDto> _selectedItems = new();
+
+    private void SelectAllItems(bool selected)
+    {
+        if (selected)
+            _selectedItems = new HashSet<WorkOrderScheduleDto>(_filteredItems);
+        else
+            _selectedItems.Clear();
+    }
+
+    private void ToggleSelection(WorkOrderScheduleDto item, bool selected)
+    {
+        if (selected)
+            _selectedItems.Add(item);
+        else
+            _selectedItems.Remove(item);
+    }
+
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
 
@@ -136,10 +154,10 @@ public partial class WorkOrderSchedules
         // G15: 工单计划（薄表 — 手工可编辑）
         var g15 = new List<ColumnDef>
         {
-            new() { Key = "ConsistencyStatus",              Label = "实时一致性",  SortKey = "ConsistencyStatus",          FilterType = "boolean", Width = "100", BoolTrueLabel = "一致", BoolFalseLabel = "不一致", GroupKey = 15, GroupName = "工单计划" },
-            new() { Key = "PlanScheduleStage",               Label = "工单状态",     SortKey = "PlanScheduleStage",          FilterType = "string", Width = "100", GroupKey = 15, GroupName = "工单计划" },
-            new() { Key = "PlanUrgencyLevel",                Label = "紧急性",       SortKey = "PlanUrgencyLevel",           FilterType = "string", Width = "100", GroupKey = 15, GroupName = "工单计划" },
-            new() { Key = "PlanProductionAttentionProcess",  Label = "生产关注",     SortKey = "PlanProductionAttentionProcess", FilterType = "string", Width = "120", GroupKey = 15, GroupName = "工单计划" },
+            new() { Key = "ConsistencyStatus",              Label = "实时一致性",  SortKey = "ConsistencyStatus",          FilterType = "enum", Width = "100", EnumOptions = new() { new("一致","一致"), new("进度调整","进度调整"), new("值存疑","值存疑"), new("错误","错误") }, GroupKey = 15, GroupName = "工单计划" },
+            new() { Key = "PlanScheduleStage",               Label = "工单状态",     SortKey = "PlanScheduleStage",          FilterType = "enum", Width = "100", EnumOptions = new() { new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 15, GroupName = "工单计划" },
+            new() { Key = "PlanUrgencyLevel",                Label = "紧急性",       SortKey = "PlanUrgencyLevel",           FilterType = "enum", Width = "100", EnumOptions = new() { new("A+急","A+急"), new("A急","A急"), new("B急","B急"), new("C急","C急"), new("B顺","B顺"), new("普通","普通") }, GroupKey = 15, GroupName = "工单计划" },
+            new() { Key = "PlanProductionAttentionProcess",  Label = "生产关注",     SortKey = "PlanProductionAttentionProcess", FilterType = "enum", Width = "120", EnumOptions = new() { new("荒管处理","荒管处理"), new("在制修检","在制修检"), new("60冷轧","60冷轧"), new("50冷轧","50冷轧"), new("30冷轧","30冷轧"), new("20冷轧","20冷轧"), new("三辊冷轧","三辊冷轧"), new("冷拔","冷拔"), new("收尾-成检","收尾-成检") }, GroupKey = 15, GroupName = "工单计划" },
             new() { Key = "PlanProductionFlowProperty",      Label = "流转性",       SortKey = "PlanProductionFlowProperty",  FilterType = "string", Width = "100", GroupKey = 15, GroupName = "工单计划" },
         };
 
@@ -289,12 +307,26 @@ public partial class WorkOrderSchedules
             {
                 if (col.EnumOptions != null)
                 {
-                    _filterContextOptions[col.Key] = col.EnumOptions.Select(e => new ExcelFilterOption
+                    var options = col.EnumOptions.Select(e => new ExcelFilterOption
                     {
                         Value = e.Value,
                         Display = e.Display,
                         Count = _allItems.Count(x => string.Equals(GetFilterValue(x, col.Key), e.Value, StringComparison.OrdinalIgnoreCase))
                     }).ToList();
+
+                    // Plan 字段增加"空值"筛选选项
+                    if (_planFieldKeys.Contains(col.Key))
+                    {
+                        var nullCount = _allItems.Count(x => GetFilterValue(x, col.Key) == FilterNull);
+                        options.Insert(0, new ExcelFilterOption
+                        {
+                            Value = FilterNull,
+                            Display = "空值",
+                            Count = nullCount
+                        });
+                    }
+
+                    _filterContextOptions[col.Key] = options;
                 }
             }
             else if (col.FilterType == "boolean")
@@ -337,7 +369,7 @@ public partial class WorkOrderSchedules
         "ProductionFlowProperty" => item.ProductionFlowProperty,
         "MaxBatchRemainingWorkDays" => item.MaxBatchRemainingWorkDays?.ToString(),
         "MainNoAttentionProcess" => item.MainNoAttentionProcess,
-        "ConsistencyStatus" => item.ConsistencyStatus.ToString(),
+        "ConsistencyStatus" => item.ConsistencyStatus,
         "PlanScheduleStage" => item.PlanScheduleStage?.ToString() ?? FilterNull,
         "PlanUrgencyLevel" => item.PlanUrgencyLevel ?? FilterNull,
         "PlanProductionAttentionProcess" => item.PlanProductionAttentionProcess ?? FilterNull,
@@ -362,7 +394,18 @@ public partial class WorkOrderSchedules
                 (x.CustomerName?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.PlantGrade?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.Specification?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
-                (x.ProductionMainNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true));
+                (x.ProductionMainNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.ProductionSubNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.SettlementMethod?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.MaterialName?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.DeliveryState?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.LengthStatus?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.UrgencyLevel?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.RawMaterialLockRemark?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.AdjustmentRemark?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.ProductionAttentionProcess?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.ProductionFlowProperty?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.MainNoAttentionProcess?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true));
         }
 
         // 列筛选
@@ -473,6 +516,7 @@ public partial class WorkOrderSchedules
     private async Task OnColumnToggle(ColumnDef col)
     {
         await SavePageStateAsync();
+        await SaveColumnPrefs();
     }
 
     private async Task MoveColumnUp(ColumnDef col)
@@ -484,6 +528,7 @@ public partial class WorkOrderSchedules
             _allColumns.Insert(idx - 1, col);
         }
         await SavePageStateAsync();
+        await SaveColumnPrefs();
     }
 
     private async Task MoveColumnDown(ColumnDef col)
@@ -495,6 +540,7 @@ public partial class WorkOrderSchedules
             _allColumns.Insert(idx + 1, col);
         }
         await SavePageStateAsync();
+        await SaveColumnPrefs();
     }
 
     private async Task ToggleSort(string sortKey)
@@ -565,6 +611,17 @@ public partial class WorkOrderSchedules
     private List<GroupHeaderInfo> GetGroupHeaders()
     {
         var result = new List<GroupHeaderInfo>();
+
+        // 选择列占位（40px），对齐表格最左侧的 checkbox 列
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
         int? lastKey = null;
         int totalWidth = 0;
         var groupKey = 0;
@@ -613,35 +670,38 @@ public partial class WorkOrderSchedules
     {
         _allColumns = GetAllColumnDefs();
 
+        // 从 ColumnPrefsService 恢复列顺序和显隐
+        var savedPrefs = await ColumnPrefs.LoadAsync("workorderschedules", null);
+        if (savedPrefs.Count > 0)
+        {
+            foreach (var s in savedPrefs)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
+            }
+            var reordered = new List<ColumnDef>();
+            foreach (var s in savedPrefs)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
+        }
+
+        // 从 PageState 恢复排序/筛选状态（列显隐/顺序由 ColumnPrefs 管理）
         var savedState = await PageState.LoadAsync("workorderschedules");
         if (savedState != null)
         {
             sortColumn = savedState.SortBy ?? "WorkOrderNo";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
-
-            if (savedState.Extras?.ContainsKey("columnVisibility") == true)
-            {
-                try
-                {
-                    var raw = savedState.Extras["columnVisibility"];
-                    var visibleKeys = JsonSerializer.Deserialize<List<string>>(raw);
-                    if (visibleKeys != null)
-                    {
-                        var visibleSet = new HashSet<string>(visibleKeys);
-                        foreach (var col in _allColumns)
-                            col.Visible = visibleSet.Contains(col.Key);
-                    }
-                }
-                catch { }
-            }
-
-            // 确保新字段始终可见（兼容旧保存状态不包含这些列）
-            foreach (var col in _allColumns)
-            {
-                if (col.Key is "MaxBatchRemainingWorkDays" or "MainNoAttentionProcess")
-                    col.Visible = true;
-            }
 
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
@@ -654,6 +714,13 @@ public partial class WorkOrderSchedules
                 }
                 catch { }
             }
+        }
+
+        // 确保新字段始终可见
+        foreach (var col in _allColumns)
+        {
+            if (col.Key is "MaxBatchRemainingWorkDays" or "MainNoAttentionProcess")
+                col.Visible = true;
         }
 
         await LoadDataAsync();
@@ -862,11 +929,19 @@ public partial class WorkOrderSchedules
 
             // ========== G15: 工单计划（内联编辑） ==========
             case "ConsistencyStatus":
-                var isConsistent = item.ConsistencyStatus;
+                var cs = item.ConsistencyStatus;
+                var csColor = cs switch
+                {
+                    "一致" => Color.Success,
+                    "进度调整" => Color.Info,
+                    "值存疑" => Color.Warning,
+                    "错误" => Color.Error,
+                    _ => Color.Default
+                };
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", isConsistent ? Color.Success : Color.Error);
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, isConsistent ? "一致" : "不一致")));
+                builder.AddAttribute(2, "Color", csColor);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, cs ?? "-")));
                 builder.CloseComponent();
                 break;
 
@@ -876,7 +951,7 @@ public partial class WorkOrderSchedules
                 builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
                 {
                     item.PlanScheduleStage = string.IsNullOrEmpty(v) ? null : int.Parse(v);
-                    await SavePlanAsync(item, "PlanScheduleStage", item.PlanScheduleStage);
+                    await SavePlanAsync(item);
                 }));
                 builder.AddAttribute(3, "Dense", true);
                 builder.AddAttribute(4, "Variant", Variant.Text);
@@ -899,45 +974,77 @@ public partial class WorkOrderSchedules
                 break;
 
             case "PlanUrgencyLevel":
-                builder.OpenComponent<MudTextField<string>>(0);
+                builder.OpenComponent<MudSelect<string>>(0);
                 builder.AddAttribute(1, "Value", item.PlanUrgencyLevel ?? "");
                 builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
                 {
                     item.PlanUrgencyLevel = string.IsNullOrEmpty(v) ? null : v;
-                    await SavePlanAsync(item, "PlanUrgencyLevel", item.PlanUrgencyLevel);
-                }));
-                builder.AddAttribute(3, "Dense", true);
-                builder.AddAttribute(4, "Variant", Variant.Text);
-                builder.AddAttribute(5, "Class", "compact-select");
-                builder.CloseComponent();
-                break;
-
-            case "PlanProductionAttentionProcess":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Value", item.PlanProductionAttentionProcess ?? "");
-                builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
-                {
-                    item.PlanProductionAttentionProcess = string.IsNullOrEmpty(v) ? null : v;
-                    await SavePlanAsync(item, "PlanProductionAttentionProcess", item.PlanProductionAttentionProcess);
-                }));
-                builder.AddAttribute(3, "Dense", true);
-                builder.AddAttribute(4, "Variant", Variant.Text);
-                builder.AddAttribute(5, "Class", "compact-select");
-                builder.CloseComponent();
-                break;
-
-            case "PlanProductionFlowProperty":
-                builder.OpenComponent<MudSelect<string>>(0);
-                builder.AddAttribute(1, "Value", item.PlanProductionFlowProperty ?? "");
-                builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
-                {
-                    item.PlanProductionFlowProperty = string.IsNullOrEmpty(v) ? null : v;
-                    await SavePlanAsync(item, "PlanProductionFlowProperty", item.PlanProductionFlowProperty);
+                    await SavePlanAsync(item);
                 }));
                 builder.AddAttribute(3, "Dense", true);
                 builder.AddAttribute(4, "Variant", Variant.Text);
                 builder.AddAttribute(5, "Class", "compact-select");
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(b2 =>
+                {
+                    b2.OpenComponent<MudSelectItem<string>>(0);
+                    b2.AddAttribute(1, "Value", "");
+                    b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "空值")));
+                    b2.CloseComponent();
+                    foreach (var opt in new[] { "A+急", "A急", "B急", "C急", "B顺", "普通" })
+                    {
+                        b2.OpenComponent<MudSelectItem<string>>(0);
+                        b2.AddAttribute(1, "Value", opt);
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt)));
+                        b2.CloseComponent();
+                    }
+                }));
+                builder.CloseComponent();
+                break;
+
+            case "PlanProductionAttentionProcess":
+                builder.OpenComponent<MudSelect<string>>(0);
+                builder.AddAttribute(1, "Value", item.PlanProductionAttentionProcess ?? "");
+                builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
+                {
+                    item.PlanProductionAttentionProcess = string.IsNullOrEmpty(v) ? null : v;
+                    await SavePlanAsync(item);
+                }));
+                builder.AddAttribute(3, "Dense", true);
+                builder.AddAttribute(4, "Variant", Variant.Text);
+                builder.AddAttribute(5, "Class", "compact-select");
+                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b2 =>
+                {
+                    b2.OpenComponent<MudSelectItem<string>>(0);
+                    b2.AddAttribute(1, "Value", "");
+                    b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "空值")));
+                    b2.CloseComponent();
+                    foreach (var opt in new[] { "荒管处理", "在制修检", "60冷轧", "50冷轧", "30冷轧", "20冷轧", "三辊冷轧", "冷拔", "收尾-成检" })
+                    {
+                        b2.OpenComponent<MudSelectItem<string>>(0);
+                        b2.AddAttribute(1, "Value", opt);
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt)));
+                        b2.CloseComponent();
+                    }
+                }));
+                builder.CloseComponent();
+                break;
+
+            case "PlanProductionFlowProperty":
+                builder.OpenElement(0, "div");
+                builder.AddAttribute(1, "style", item.PlanProductionFlowProperty == "疑问"
+                    ? "background-color:#ffebee;border-radius:4px;padding:2px;"
+                    : "");
+                builder.OpenComponent<MudSelect<string>>(2);
+                builder.AddAttribute(3, "Value", item.PlanProductionFlowProperty ?? "");
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
+                {
+                    item.PlanProductionFlowProperty = string.IsNullOrEmpty(v) ? null : v;
+                    await SavePlanAsync(item);
+                }));
+                builder.AddAttribute(5, "Dense", true);
+                builder.AddAttribute(6, "Variant", Variant.Text);
+                builder.AddAttribute(7, "Class", "compact-select");
+                builder.AddAttribute(8, "ChildContent", (RenderFragment)(b2 =>
                 {
                     b2.OpenComponent<MudSelectItem<string>>(0);
                     b2.AddAttribute(1, "Value", "");
@@ -952,6 +1059,7 @@ public partial class WorkOrderSchedules
                     }
                 }));
                 builder.CloseComponent();
+                builder.CloseElement();
                 break;
         }
     };
@@ -1031,6 +1139,48 @@ public partial class WorkOrderSchedules
         }
     }
 
+    private async Task OnPlanKeepAttentionAsync()
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            "进度保留计划",
+            "确认将当前查询范围内所有工单的工单状态/紧急性/流转性设为系统值，并保留生产关注的手工调整？",
+            yesText: "确认",
+            cancelText: "取消");
+        if (confirmed != true) return;
+
+        try
+        {
+            var filtersJson = SerializeFilters();
+
+            var query = new QueryParams
+            {
+                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                SortBy = sortColumn,
+                IsDescending = sortDescending,
+                PageSize = 5000,
+            };
+            if (filtersJson != null)
+            {
+                query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filtersJson);
+            }
+
+            var result = await WorkOrderScheduleSvc.PlanScheduleKeepAttentionAsync(query);
+            if (result.Success)
+            {
+                Snackbar.Add("进度保留计划成功，已同步系统值并保留生产关注", Severity.Success);
+                await LoadDataAsync();
+            }
+            else
+            {
+                Snackbar.Add($"进度保留计划失败: {result.Message}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"进度保留计划失败: {ex.Message}", Severity.Error);
+        }
+    }
+
     private string? SerializeFilters()
     {
         if (_columnFilters.Count == 0) return null;
@@ -1050,38 +1200,165 @@ public partial class WorkOrderSchedules
 
     // ========== 工单计划保存 ==========
 
-    private async Task SavePlanAsync(WorkOrderScheduleDto item, string fieldName, object? value)
+    private async Task SavePlanAsync(WorkOrderScheduleDto item)
     {
         var request = new SaveWorkOrderPlanRequest
         {
             WorkOrderId = item.WorkOrderId,
+            ScheduleStage = item.PlanScheduleStage,
+            UrgencyLevel = item.PlanUrgencyLevel,
+            ProductionAttentionProcess = item.PlanProductionAttentionProcess,
+            ProductionFlowProperty = item.PlanProductionFlowProperty,
         };
-
-        switch (fieldName)
-        {
-            case "PlanScheduleStage":
-                request.ScheduleStage = (int?)value;
-                break;
-            case "PlanUrgencyLevel":
-                request.UrgencyLevel = (string?)value;
-                break;
-            case "PlanProductionAttentionProcess":
-                request.ProductionAttentionProcess = (string?)value;
-                break;
-            case "PlanProductionFlowProperty":
-                request.ProductionFlowProperty = (string?)value;
-                break;
-        }
 
         var result = await WorkOrderScheduleSvc.SavePlanAsync(request);
         if (result.Success)
         {
             Snackbar.Add("保存成功", Severity.Success);
+            await LoadDataAsync();
         }
         else
         {
             Snackbar.Add($"保存失败: {result.Message}", Severity.Error);
         }
+    }
+
+    // ========== 打印 ==========
+
+    private async Task PrintSelected()
+    {
+        if (_selectedItems.Count == 0)
+        {
+            Snackbar.Add("请先选择要打印的行", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var printColumns = _visibleColumns
+                .Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label })
+                .ToList();
+
+            // 将 DTO 转为字典，枚举字段预先解析为中文显示文本
+            var printItems = _selectedItems.Select(item =>
+            {
+                var dict = new Dictionary<string, object>();
+                foreach (var col in _visibleColumns)
+                {
+                    dict[col.Key] = ResolvePrintValue(item, col.Key);
+                }
+                return dict;
+            }).ToList();
+
+            var request = new WorkOrderSchedulePrintRequest
+            {
+                Title = "工单计划",
+                Items = printItems,
+                Columns = printColumns
+            };
+
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/workorder-schedule/print-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static object ResolvePrintValue(WorkOrderScheduleDto item, string key) => key switch
+    {
+        // G1: 枚举→中文
+        "MaterialName" => DisplayHelper.GetMaterialNameText(item.MaterialName) ?? "",
+        "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState) ?? "",
+        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus) ?? "",
+        "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod) ?? "",
+        // G7: 流转状态
+        "FlowStatus" => item.FlowStatus switch { 0 => "未投料", 1 => "部分", 2 => "满足", _ => "未知" },
+        "MainNoFlowStatus" => item.MainNoFlowStatus switch { 0 => "未计划", 1 => "部分", 2 => "满足", _ => "未知" },
+        // G12: 关注状态
+        "ScheduleStage" => item.ScheduleStage switch { 0 => "工单完成", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => "未知" },
+        // G15: 覆盖字段
+        "PlanScheduleStage" => item.PlanScheduleStage switch { 0 => "工单完成", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => item.PlanScheduleStage?.ToString() ?? "" },
+        "ConsistencyStatus" => item.ConsistencyStatus ?? "",
+        // 非枚举字段原样输出
+        _ => GetRawPropertyValue(item, key)
+    };
+
+    private static object GetRawPropertyValue(WorkOrderScheduleDto item, string key)
+    {
+        return key switch
+        {
+            "WorkOrderNo" => item.WorkOrderNo ?? "",
+            "Salesman" => item.Salesman ?? "",
+            "CustomerName" => item.CustomerName ?? "",
+            "SignDate" => item.SignDate,
+            "DeliveryDate" => item.DeliveryDate,
+            "DelayPenalty" => item.DelayPenalty,
+            "SalesOrderNo" => item.SalesOrderNo ?? "",
+            "ProductionMainNo" => item.ProductionMainNo ?? "",
+            "ProductionSubNo" => item.ProductionSubNo ?? "",
+            "PlantGrade" => item.PlantGrade ?? "",
+            "Specification" => item.Specification ?? "",
+            "MinLength" => item.MinLength,
+            "MaxLength" => item.MaxLength,
+            "TotalItemCount" => item.TotalItemCount,
+            "TotalQuantity" => item.TotalQuantity,
+            "TotalMeters" => item.TotalMeters,
+            "TotalWeight" => item.TotalWeight,
+            "FlowOutputRatio" => item.FlowOutputRatio,
+            "FlowTotalBatchCount" => item.FlowTotalBatchCount,
+            "FlowIncompleteBatchCount" => item.FlowIncompleteBatchCount,
+            "FlowMaxRemainingWorkDays" => item.FlowMaxRemainingWorkDays,
+            "MainNoFlowOutputRatio" => item.MainNoFlowOutputRatio,
+            "TotalRemainingWorkDays" => item.TotalRemainingWorkDays,
+            "CapacityWorkDays" => item.CapacityWorkDays,
+            "UrgencyLevel" => item.UrgencyLevel ?? "",
+            "EstimatedProcessCompletionDate" => item.EstimatedProcessCompletionDate,
+            "DaysDiffFromDelivery" => item.DaysDiffFromDelivery,
+            "RawMaterialLockRemark" => item.RawMaterialLockRemark ?? "",
+            "IsUrging" => item.IsUrging,
+            "IsBatchDelivery" => item.IsBatchDelivery,
+            "IsPaused" => item.IsPaused,
+            "AdjustmentRemark" => item.AdjustmentRemark ?? "",
+            "PendingSectionRoughTube" => item.PendingSectionRoughTube,
+            "PendingSectionWarehouseFix" => item.PendingSectionWarehouseFix,
+            "PendingSection60Roll" => item.PendingSection60Roll,
+            "PendingSection50Roll" => item.PendingSection50Roll,
+            "PendingSection30Roll" => item.PendingSection30Roll,
+            "PendingSection20Roll" => item.PendingSection20Roll,
+            "PendingSectionThreeRoll" => item.PendingSectionThreeRoll,
+            "PendingSectionDrawBench" => item.PendingSectionDrawBench,
+            "DeformedProcessCompleted" => item.DeformedProcessCompleted,
+            "ProductionAttentionProcess" => item.ProductionAttentionProcess ?? "",
+            "ProductionFlowProperty" => item.ProductionFlowProperty ?? "",
+            "MaxBatchRemainingWorkDays" => item.MaxBatchRemainingWorkDays,
+            "MainNoAttentionProcess" => item.MainNoAttentionProcess ?? "",
+            "PlanUrgencyLevel" => item.PlanUrgencyLevel ?? "",
+            "PlanProductionAttentionProcess" => item.PlanProductionAttentionProcess ?? "",
+            "PlanProductionFlowProperty" => item.PlanProductionFlowProperty ?? "",
+            _ => ""
+        };
+    }
+
+    // ========== 重置列显隐 ==========
+
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        await SaveColumnPrefs();
+        await SavePageStateAsync();
+        ApplyFiltersAndSort();
+        StateHasChanged();
+    }
+
+    // ========== ColumnPrefs 持久化 ==========
+
+    private async Task SaveColumnPrefs()
+    {
+        await ColumnPrefs.SaveAsync("workorderschedules", null, _allColumns);
     }
 
     // ========== 持久化 ==========
@@ -1092,7 +1369,7 @@ public partial class WorkOrderSchedules
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
 
-        extras["columnVisibility"] = JsonSerializer.Serialize(_allColumns.Where(c => c.Visible).Select(c => c.Key).ToList());
+
 
         var state = new PageState
         {

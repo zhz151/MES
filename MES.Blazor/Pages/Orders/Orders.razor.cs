@@ -64,20 +64,20 @@ public partial class Orders
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "ordernumber",   Label = "订单号",   SortKey = "ordernumber",   FilterType = "string" },
-        new() { Key = "signdate",      Label = "签订日期", SortKey = "signdate",     FilterType = "date" },
-        new() { Key = "salesman",      Label = "业务员",   SortKey = "salesman",     FilterType = "string" },
-        new() { Key = "customername",  Label = "客户名称", SortKey = "customername", FilterType = "string" },
-        new() { Key = "endcustomer",   Label = "最终客户", SortKey = "endcustomer",  FilterType = "string" },
-        new() { Key = "deliverystart", Label = "交期起始", SortKey = "deliverystart", FilterType = "date" },
-        new() { Key = "deliveryend",   Label = "交期截止", SortKey = "deliveryend",  FilterType = "date" },
-        new() { Key = "hasdelaypenalty", Label = "延期罚款", SortKey = "hasdelaypenalty", FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否" },
-        new() { Key = "totalcontractweight", Label = "订单总重量", SortKey = "totalcontractweight" },
-        new() { Key = "itemcount", Label = "含项次数", SortKey = "itemcount" },
-        new() { Key = "notech",        Label = "技术要求", SortKey = "hastechnicalrequirement", FilterType = "boolean", BoolTrueLabel = "已编辑", BoolFalseLabel = "未编辑" },
-        new() { Key = "status",        Label = "状态",     SortKey = "status", FilterType = "enum",
-               EnumOptions = new List<EnumOption> { new("Pending", "待处理"), new("Confirmed", "已确认"), new("Cancelled", "已取消") } },
-        new() { Key = "lastchangedate",Label = "变更日期", SortKey = "lastchangedate", FilterType = "date" },
+        new() { Key = "ordernumber",   Label = "订单号",   SortKey = "ordernumber",   FilterType = "string", Width = "120" },
+        new() { Key = "signdate",      Label = "签订日期", SortKey = "signdate",     FilterType = "date", Width = "120" },
+        new() { Key = "salesman",      Label = "业务员",   SortKey = "salesman",     FilterType = "string", Width = "120" },
+        new() { Key = "customername",  Label = "客户名称", SortKey = "customername", FilterType = "string", Width = "120" },
+        new() { Key = "endcustomer",   Label = "最终客户", SortKey = "endcustomer",  FilterType = "string", Width = "120" },
+        new() { Key = "deliverystart", Label = "交期起始", SortKey = "deliverystart", FilterType = "date", Width = "120" },
+        new() { Key = "deliveryend",   Label = "交期截止", SortKey = "deliveryend",  FilterType = "date", Width = "120" },
+        new() { Key = "hasdelaypenalty", Label = "延期罚款", SortKey = "hasdelaypenalty", FilterType = "boolean", Width = "60", BoolTrueLabel = "是", BoolFalseLabel = "否" },
+        new() { Key = "totalcontractweight", Label = "订单总重量", SortKey = "totalcontractweight", Width = "80" },
+        new() { Key = "itemcount", Label = "含项次数", SortKey = "itemcount", Width = "80" },
+        new() { Key = "notech",        Label = "技术要求", SortKey = "hastechnicalrequirement", FilterType = "boolean", Width = "120", BoolTrueLabel = "已编辑", BoolFalseLabel = "未编辑" },
+        new() { Key = "status",        Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120",
+               EnumOptions = new List<EnumOption> { new("Pending", "待处理"), new("Confirmed", "已确认") } },
+        new() { Key = "lastchangedate",Label = "变更日期", SortKey = "lastchangedate", FilterType = "date", Width = "120" },
     };
 
     // ========== 分页汇总 ==========
@@ -180,6 +180,7 @@ public partial class Orders
         }
 
         ComputePageSums();
+        await SavePageStateAsync();
 
         return new TableData<SalesOrderListDto>
         {
@@ -243,7 +244,6 @@ public partial class Orders
                 {
                     "Pending" => "待处理",
                     "Confirmed" => "已确认",
-                    "Cancelled" => "已取消",
                     _ => opt.Value
                 };
             }
@@ -572,7 +572,7 @@ public partial class Orders
     {
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
         {
-            ["ContentText"] = $"确定要取消订单 \"{order.OrderNumber}\" 吗？\n\n取消后订单将不可见，数据将保留但不可恢复！",
+            ["ContentText"] = $"确定要取消订单 \"{order.OrderNumber}\" 吗？\n\n取消后订单将被永久删除，不可恢复！",
             ["ConfirmText"] = "确认取消",
             ["Color"] = Color.Error
         });
@@ -632,24 +632,6 @@ public partial class Orders
         {
             var ids = selectedOrderIds.ToArray();
             var result = await OrderService.PrintOrderBatchAsync(ids);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task PrintAll()
-    {
-        try
-        {
-            var result = await OrderService.PrintOrderAllAsync(
-                string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                null, null, sortColumn, sortDescending);
             if (result.Success && result.Data != null)
                 await JS.InvokeVoidAsync("openPdf", result.Data);
             else

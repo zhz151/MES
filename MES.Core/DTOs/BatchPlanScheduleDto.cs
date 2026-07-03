@@ -11,6 +11,7 @@ public class BatchPlanScheduleDto
     public int FlowLevel { get; set; }
     public string? FlowTarget { get; set; }
     public string? FlowCRType { get; set; }
+    public string? PlanOuterDiameterSpan { get; set; }
     public string? FlowExecSpec { get; set; }
     public int? TargetSequence { get; set; }
     public int? ExecutionSequence { get; set; }

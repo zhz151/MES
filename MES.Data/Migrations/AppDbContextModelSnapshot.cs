@@ -528,6 +528,14 @@ namespace MES.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("CategoryDisplay")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Context")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -602,6 +610,47 @@ namespace MES.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("DailyOutputEstimates", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.Configuration.DailyProductionCapacity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("DailyCapacity")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ProcessName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DailyProductionCapacities", (string)null);
                 });
 
             modelBuilder.Entity("MES.Data.Entities.Configuration.Employee", b =>
@@ -5379,6 +5428,9 @@ namespace MES.Data.Migrations
                     b.Property<bool>("IsGrabOrder")
                         .HasColumnType("bit");
 
+                    b.Property<string>("PlanOuterDiameterSpan")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("PlanRemark")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -5594,6 +5646,9 @@ namespace MES.Data.Migrations
 
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsBudgetComplete")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsMainNoMaterialComplete")
                         .ValueGeneratedOnAdd()
@@ -6221,66 +6276,6 @@ namespace MES.Data.Migrations
                         .HasDatabaseName("UK_StandardInspectionRequirement_StandardNo");
 
                     b.ToTable("StandardInspectionRequirement", (string)null);
-                });
-
-            modelBuilder.Entity("MES.Data.Entities.StandardProcessCycle", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTimeOffset>("CreatedTime")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("DeliveryState")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("PlantGrade")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("ProductSpec")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("RawMaterialType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("RawSpec")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("StandardCycleDays")
-                        .HasColumnType("int");
-
-                    b.Property<string>("UpdatedBy")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTimeOffset>("UpdatedTime")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PlantGrade")
-                        .HasDatabaseName("IX_StandardProcessCycle_PlantGrade");
-
-                    b.ToTable("StandardProcessCycle", (string)null);
                 });
 
             modelBuilder.Entity("MES.Data.Entities.StandardRegister", b =>
@@ -7737,6 +7732,9 @@ namespace MES.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("CapacityWorkDays")
+                        .HasColumnType("int");
+
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -7800,6 +7798,9 @@ namespace MES.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
+
+                    b.Property<int>("MainNoMaxStandardCycle")
+                        .HasColumnType("int");
 
                     b.Property<string>("MaterialName")
                         .IsRequired()
@@ -7924,6 +7925,9 @@ namespace MES.Data.Migrations
                         .HasColumnType("nvarchar(20)")
                         .HasDefaultValue("Normal");
 
+                    b.Property<DateTime?>("TheoreticalCutoffDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("TotalItemCount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -7997,125 +8001,6 @@ namespace MES.Data.Migrations
                         .HasDatabaseName("IX_WOLS_WorkOrderNo");
 
                     b.ToTable("WorkOrderListSummary", (string)null);
-                });
-
-            modelBuilder.Entity("MES.Data.Entities.WorkOrderStatusSummary", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTimeOffset>("CreatedTime")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CustomerName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime?>("DeliveryEnd")
-                        .HasColumnType("date");
-
-                    b.Property<DateTime?>("DeliveryStart")
-                        .HasColumnType("date");
-
-                    b.Property<string>("EndCustomer")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<bool>("HasDelayPenalty")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<bool>("HasWorkOrder")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<int>("ItemCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<DateTime?>("LastChangeDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("OrderNumber")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<int>("SalesOrderId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Salesman")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime>("SignDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("TotalContractWeight")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<string>("UpdatedBy")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTimeOffset>("UpdatedTime")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<int>("WorkOrderCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<int?>("WorkOrderId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("WorkOrderStatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("NotGenerated");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CustomerName")
-                        .HasDatabaseName("IX_WOSS_CustomerName");
-
-                    b.HasIndex("OrderNumber")
-                        .HasDatabaseName("IX_WOSS_OrderNumber");
-
-                    b.HasIndex("SalesOrderId")
-                        .IsUnique()
-                        .HasDatabaseName("UK_WOSS_SalesOrderId");
-
-                    b.HasIndex("SignDate")
-                        .HasDatabaseName("IX_WOSS_SignDate");
-
-                    b.HasIndex("WorkOrderStatus")
-                        .HasDatabaseName("IX_WOSS_WorkOrderStatus");
-
-                    b.ToTable("WorkOrderStatusSummary", (string)null);
                 });
 
             modelBuilder.Entity("MES.Data.Entities.Workstation", b =>

@@ -236,30 +236,6 @@ public class OrderService
     }
 
     /// <summary>
-    /// 按筛选条件打印全部订单
-    /// </summary>
-    public async Task<ApiResponse<string>> PrintOrderAllAsync(string? keyword = null, string? technicalStatus = null, string? orderStatus = null, string? sortBy = null, bool isDescending = false)
-    {
-        try
-        {
-            var request = new OrderPrintAllRequest
-            {
-                Keyword = keyword,
-                TechnicalStatus = technicalStatus,
-                OrderStatus = orderStatus,
-                SortBy = sortBy,
-                IsDescending = isDescending
-            };
-            var response = await _http.PostAsJsonAsync<OrderPrintAllRequest, ApiResponse<string>>($"{BaseUrl}/print-all", request);
-            return response ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<string>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// 打印订单技术要求
     /// </summary>
     public async Task<ApiResponse<string>> PrintOrderRequirementsAsync(int orderId)

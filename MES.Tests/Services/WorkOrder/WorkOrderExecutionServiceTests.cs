@@ -300,13 +300,13 @@ public class WorkOrderExecutionServiceTests : TestBase
     }
 
     [Fact]
-    public async Task RefreshAllAsync_跳过未生成和已取消工单()
+    public async Task RefreshAllAsync_跳过未生成工单()
     {
         using var ctx = CreateDbContext();
         // Status = NotGenerated → should be skipped
         ctx.WorkOrders.Add(CreateWorkOrder("WO001", "SO001", WorkOrderStatus.NotGenerated));
-        // Status = Cancelled → should be skipped
-        ctx.WorkOrders.Add(CreateWorkOrder("WO002", "SO002", WorkOrderStatus.Cancelled));
+        // Status = NotGenerated → should be skipped
+        ctx.WorkOrders.Add(CreateWorkOrder("WO002", "SO002", WorkOrderStatus.NotGenerated));
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);

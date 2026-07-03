@@ -36,7 +36,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<CustomerProfile> CustomerProfiles { get; set; } = null!;
     public DbSet<ProductRequirement> ProductRequirements { get; set; } = null!;
     public DbSet<StandardGradeMapping> StandardGradeMappings { get; set; } = null!;
-    public DbSet<StandardProcessCycle> StandardProcessCycles { get; set; } = null!;
     public DbSet<WorkOrder> WorkOrders { get; set; } = null!;
     public DbSet<OrderChangeNotification> OrderChangeNotifications { get; set; } = null!;
     public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
@@ -108,7 +107,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
     public DbSet<WorkOrderExecutionSummary> WorkOrderExecutionSummaries { get; set; } = null!;
     public DbSet<OrderListSummary> OrderListSummaries { get; set; } = null!;
-    public DbSet<WorkOrderStatusSummary> WorkOrderStatusSummaries { get; set; } = null!;
     public DbSet<WorkOrderListSummary> WorkOrderListSummaries { get; set; } = null!;
 
     // ========== Scheduling 上下文 ==========
@@ -126,6 +124,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<StandardWorkDayDeliveryState> StandardWorkDayDeliveryStates { get; set; } = null!;
     public DbSet<ConfigParameter> ConfigParameters { get; set; } = null!;
     public DbSet<DailyOutputEstimate> DailyOutputEstimates { get; set; } = null!;
+    public DbSet<DailyProductionCapacity> DailyProductionCapacities { get; set; } = null!;
 
     // 工位管理
     public DbSet<Workstation> Workstations { get; set; } = null!;
@@ -164,9 +163,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigurePurchaseFinishedPlan(builder);
         ConfigureRoundBarPiercingPlan(builder);
         ConfigureInventoryPlan(builder);
-
-        // ========== 工单上下文 ==========
-        ConfigureStandardProcessCycle(builder);
 
         // ========== 物料上下文 ==========
         ConfigureMaterial(builder);
@@ -224,7 +220,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
         // ========== 读模型上下文 ==========
         ConfigureWorkOrderExecutionSummary(builder);
         ConfigureOrderListSummary(builder);
-        ConfigureWorkOrderStatusSummary(builder);
         ConfigureWorkOrderListSummary(builder);
 
         // ========== Scheduling 上下文 ==========
@@ -242,6 +237,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureStandardWorkDayDeliveryState(builder);
         ConfigureConfigParameter(builder);
         ConfigureDailyOutputEstimate(builder);
+        ConfigureDailyProductionCapacity(builder);
         ConfigureEmployee(builder);
         ConfigureWorkstation(builder);
 
@@ -2498,39 +2494,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
         });
     }
 
-    private static void ConfigureWorkOrderStatusSummary(ModelBuilder builder)
-    {
-        builder.Entity<WorkOrderStatusSummary>(entity =>
-        {
-            entity.ToTable("WorkOrderStatusSummary");
-            entity.HasKey(e => e.Id);
-
-            entity.Property(e => e.SalesOrderId).IsRequired();
-            entity.Property(e => e.OrderNumber).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.SignDate).IsRequired().HasColumnType("datetime2");
-            entity.Property(e => e.CustomerName).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.Salesman).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.EndCustomer).HasMaxLength(200);
-            entity.Property(e => e.DeliveryStart).HasColumnType("date");
-            entity.Property(e => e.DeliveryEnd).HasColumnType("date");
-            entity.Property(e => e.HasDelayPenalty).IsRequired().HasDefaultValue(false);
-            entity.Property(e => e.TotalContractWeight).IsRequired().HasDefaultValue(0);
-            entity.Property(e => e.ItemCount).IsRequired().HasDefaultValue(0);
-            entity.Property(e => e.WorkOrderCount).IsRequired().HasDefaultValue(0);
-            entity.Property(e => e.WorkOrderStatus).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(WorkOrderStatus.NotGenerated);
-            entity.Property(e => e.HasWorkOrder).IsRequired().HasDefaultValue(false);
-            entity.Property(e => e.RowVersion).IsRowVersion().IsRequired(false);
-            entity.Property(e => e.LastChangeDate).HasColumnType("datetime2");
-
-            // 索引
-            entity.HasIndex(e => e.SalesOrderId).IsUnique().HasDatabaseName("UK_WOSS_SalesOrderId");
-            entity.HasIndex(e => e.OrderNumber).HasDatabaseName("IX_WOSS_OrderNumber");
-            entity.HasIndex(e => e.CustomerName).HasDatabaseName("IX_WOSS_CustomerName");
-            entity.HasIndex(e => e.WorkOrderStatus).HasDatabaseName("IX_WOSS_WorkOrderStatus");
-            entity.HasIndex(e => e.SignDate).HasDatabaseName("IX_WOSS_SignDate");
-        });
-    }
-
     private static void ConfigureWorkOrderListSummary(ModelBuilder builder)
     {
         builder.Entity<WorkOrderListSummary>(entity =>
@@ -2611,22 +2574,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
     }
 
     // ========== 工单上下文 ==========
-
-    private static void ConfigureStandardProcessCycle(ModelBuilder builder)
-    {
-        builder.Entity<StandardProcessCycle>(entity =>
-        {
-            entity.ToTable("StandardProcessCycle");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.RawMaterialType).IsRequired().HasConversion<string>().HasMaxLength(50);
-            entity.Property(e => e.RawSpec).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.ProductSpec).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.DeliveryState).IsRequired().HasConversion<string>().HasMaxLength(50);
-            entity.Property(e => e.StandardCycleDays).IsRequired();
-            entity.HasIndex(e => e.PlantGrade).HasDatabaseName("IX_StandardProcessCycle_PlantGrade");
-        });
-    }
 
     // ========== Scheduling 上下文 ==========
 
@@ -2740,6 +2687,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.ToTable("ConfigParameters");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Category).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.CategoryDisplay).HasMaxLength(100);
+            entity.Property(e => e.Context).HasMaxLength(50);
             entity.Property(e => e.ParamKey).IsRequired().HasMaxLength(100);
             entity.Property(e => e.ParamValue).IsRequired().HasColumnType("decimal(18,4)");
             entity.Property(e => e.Remark).HasMaxLength(200);
@@ -2757,6 +2706,18 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasKey(e => e.Id);
             entity.Property(e => e.MinOuterDiameter).IsRequired().HasColumnType("decimal(18,2)");
             entity.Property(e => e.DailyOutputTons).IsRequired().HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Remark).HasMaxLength(200);
+        });
+    }
+
+    private static void ConfigureDailyProductionCapacity(ModelBuilder builder)
+    {
+        builder.Entity<DailyProductionCapacity>(entity =>
+        {
+            entity.ToTable("DailyProductionCapacities");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ProcessName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DailyCapacity).IsRequired().HasColumnType("decimal(18,2)");
             entity.Property(e => e.Remark).HasMaxLength(200);
         });
     }

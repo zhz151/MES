@@ -24,15 +24,18 @@ public class WorkOrderService : IWorkOrderService
     private readonly AppDbContext _context;
     private readonly ILogger<WorkOrderService> _logger;
 private readonly IConfigParameterService _configService;
+    private readonly IWorkOrderListSummaryRefreshService? _listSummaryService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
     private static readonly SemaphoreSlim _workOrderNoSemaphore = new SemaphoreSlim(1, 1);
 
     public WorkOrderService(AppDbContext context, ILogger<WorkOrderService> logger,
-        IConfigParameterService configService)
+        IConfigParameterService configService,
+        IWorkOrderListSummaryRefreshService? listSummaryService = null)
     {
         _context = context;
         _logger = logger;
         _configService = configService;
+        _listSummaryService = listSummaryService;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -49,7 +52,7 @@ private readonly IConfigParameterService _configService;
 
     public async Task<PagedResult<OrderWorkOrderStatusDto>> GetOrderWorkOrderStatusPageAsync(WorkOrderQueryParams query)
     {
-        // 使用实时查询（读模型刷新服务已移除）
+        // 实时查询
         return await GetOrderWorkOrderStatusPageLegacyAsync(query);
     }
 
@@ -58,27 +61,89 @@ private readonly IConfigParameterService _configService;
     /// </summary>
     public async Task<List<OrderWorkOrderStatusDto>> GetAllOrderStatusListAsync()
     {
-        var summaries = await _context.Set<WorkOrderStatusSummary>()
-            .AsNoTracking()
+        // ===== 1. 基础查询：已确认订单 + 客户 =====
+        var orders = await _context.SalesOrders
+            .Where(so => so.Status == SalesOrderStatus.Confirmed)
+            .Join(_context.CustomerProfiles, so => so.CustomerId, c => c.Id, (so, c) => new { SalesOrder = so, Customer = c })
             .ToListAsync();
 
-        return summaries.Select(s => new OrderWorkOrderStatusDto
+        if (!orders.Any()) return new List<OrderWorkOrderStatusDto>();
+
+        var orderIds = orders.Select(x => x.SalesOrder.Id).ToList();
+        var orderNumbers = orders.Select(x => x.SalesOrder.OrderNumber).ToList();
+
+        var orderItemAggs = await _context.OrderItems
+            .Where(oi => orderIds.Contains(oi.SalesOrderId))
+            .GroupBy(oi => oi.SalesOrderId)
+            .Select(g => new
+            {
+                OrderId = g.Key,
+                DeliveryStart = g.Min(oi => (DateTime?)oi.DeliveryDate),
+                DeliveryEnd = g.Max(oi => (DateTime?)oi.DeliveryDate),
+                HasDelayPenalty = g.Any(oi => oi.DelayPenalty),
+                TotalContractWeight = g.Sum(oi => oi.ContractWeight),
+                ItemCount = g.Count()
+            })
+            .ToListAsync();
+        var itemAggDict = orderItemAggs.ToDictionary(x => x.OrderId);
+
+        var workOrderGroups = await _context.WorkOrders
+            .Where(wo => orderNumbers.Contains(wo.SalesOrderNo))
+            .GroupBy(wo => wo.SalesOrderNo)
+            .Select(g => new
+            {
+                SalesOrderNo = g.Key,
+                WorkOrderCount = g.Count(),
+                HasPending = g.Any(wo => wo.Status == WorkOrderStatus.Pending),
+                FirstWorkOrderId = g.OrderBy(wo => wo.Status == WorkOrderStatus.Pending ? 0 : 1).Select(wo => (int?)wo.Id).FirstOrDefault()
+            })
+            .ToListAsync();
+        var workOrderDict = workOrderGroups.ToDictionary(x => x.SalesOrderNo);
+
+        return orders.Select(item =>
         {
-            SalesOrderId = s.SalesOrderId,
-            OrderNumber = s.OrderNumber,
-            SignDate = s.SignDate,
-            Salesman = s.Salesman,
-            CustomerName = s.CustomerName,
-            EndCustomer = s.EndCustomer,
-            DeliveryStart = s.DeliveryStart,
-            DeliveryEnd = s.DeliveryEnd,
-            HasDelayPenalty = s.HasDelayPenalty,
-            TotalContractWeight = s.TotalContractWeight,
-            ItemCount = s.ItemCount,
-            WorkOrderCount = s.WorkOrderCount,
-            WorkOrderStatus = s.WorkOrderStatus,
-            HasWorkOrder = s.HasWorkOrder,
-            WorkOrderId = s.WorkOrderId
+            var order = item.SalesOrder;
+            var customer = item.Customer;
+            var woInfo = workOrderDict.GetValueOrDefault(order.OrderNumber);
+            var agg = itemAggDict.GetValueOrDefault(order.Id);
+
+            var hasWorkOrder = woInfo != null && woInfo.WorkOrderCount > 0;
+            WorkOrderStatus workOrderStatus;
+            int? workOrderId = null;
+
+            if (woInfo == null || woInfo.WorkOrderCount == 0)
+            {
+                workOrderStatus = WorkOrderStatus.NotGenerated;
+            }
+            else if (woInfo.HasPending)
+            {
+                workOrderStatus = WorkOrderStatus.Pending;
+                workOrderId = woInfo.FirstWorkOrderId;
+            }
+            else
+            {
+                workOrderStatus = WorkOrderStatus.Confirmed;
+                workOrderId = woInfo.FirstWorkOrderId;
+            }
+
+            return new OrderWorkOrderStatusDto
+            {
+                SalesOrderId = order.Id,
+                OrderNumber = order.OrderNumber,
+                SignDate = order.SignDate,
+                Salesman = customer.Salesman,
+                CustomerName = customer.CustomerUnit,
+                EndCustomer = customer.EndCustomer,
+                DeliveryStart = agg?.DeliveryStart,
+                DeliveryEnd = agg?.DeliveryEnd,
+                HasDelayPenalty = agg?.HasDelayPenalty ?? false,
+                TotalContractWeight = agg != null ? (int)Math.Round(agg.TotalContractWeight) : 0,
+                ItemCount = agg?.ItemCount ?? 0,
+                WorkOrderCount = woInfo?.WorkOrderCount ?? 0,
+                WorkOrderStatus = workOrderStatus,
+                HasWorkOrder = hasWorkOrder,
+                WorkOrderId = workOrderId
+            };
         }).ToList();
     }
 
@@ -124,7 +189,7 @@ private readonly IConfigParameterService _configService;
             {
                 case WorkOrderStatus.NotGenerated:
                     orderQuery = orderQuery.Where(x =>
-                        !_context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status != WorkOrderStatus.Cancelled));
+                        !_context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber));
                     break;
                 case WorkOrderStatus.Pending:
                     orderQuery = orderQuery.Where(x =>
@@ -132,7 +197,7 @@ private readonly IConfigParameterService _configService;
                     break;
                 case WorkOrderStatus.Confirmed:
                     orderQuery = orderQuery.Where(x =>
-                        _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status != WorkOrderStatus.Cancelled) &&
+                        _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber) &&
                         !_context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status == WorkOrderStatus.Pending));
                     break;
             }
@@ -248,24 +313,24 @@ private readonly IConfigParameterService _configService;
                     break;
                 case "workordercount":
                     orderQuery = sortDesc
-                        ? orderQuery.OrderByDescending(x => _context.WorkOrders.Count(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status != WorkOrderStatus.Cancelled))
-                        : orderQuery.OrderBy(x => _context.WorkOrders.Count(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status != WorkOrderStatus.Cancelled));
+                        ? orderQuery.OrderByDescending(x => _context.WorkOrders.Count(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber))
+                        : orderQuery.OrderBy(x => _context.WorkOrders.Count(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber));
                     break;
                 case "workorderstatus":
                     // 子查询计算状态排序优先级：Pending=1, NotGenerated=2, Confirmed=3
                     orderQuery = sortDesc
                         ? orderQuery.OrderByDescending(x =>
                             _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status == WorkOrderStatus.Pending) ? 1 :
-                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status != WorkOrderStatus.Cancelled) ? 3 : 2)
+                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber) ? 3 : 2)
                         : orderQuery.OrderBy(x =>
                             _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status == WorkOrderStatus.Pending) ? 1 :
-                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status != WorkOrderStatus.Cancelled) ? 3 : 2);
+                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber) ? 3 : 2);
                     break;
                 default:
                     orderQuery = orderQuery
                         .OrderBy(x =>
                             _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status == WorkOrderStatus.Pending) ? 1 :
-                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status != WorkOrderStatus.Cancelled) ? 3 : 2)
+                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber) ? 3 : 2)
                         .ThenByDescending(x => x.SalesOrder.SignDate);
                     break;
             }
@@ -276,7 +341,7 @@ private readonly IConfigParameterService _configService;
             orderQuery = orderQuery
                 .OrderBy(x =>
                     _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status == WorkOrderStatus.Pending) ? 1 :
-                    _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status != WorkOrderStatus.Cancelled) ? 3 : 2)
+                    _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber) ? 3 : 2)
                 .ThenByDescending(x => x.SalesOrder.SignDate);
         }
 
@@ -302,7 +367,7 @@ private readonly IConfigParameterService _configService;
         var pagedOrderNumbers = pagedOrders.Select(x => x.SalesOrder.OrderNumber).ToList();
 
         var workOrderGroups = await _context.WorkOrders
-            .Where(wo => pagedOrderNumbers.Contains(wo.SalesOrderNo) && wo.Status != WorkOrderStatus.Cancelled)
+            .Where(wo => pagedOrderNumbers.Contains(wo.SalesOrderNo))
             .GroupBy(wo => wo.SalesOrderNo)
             .Select(g => new
             {
@@ -391,7 +456,6 @@ private readonly IConfigParameterService _configService;
                     join c in _context.CustomerProfiles on so.CustomerId equals c.Id
                     join wo in _context.WorkOrders on so.OrderNumber equals wo.SalesOrderNo
                     where so.Status == SalesOrderStatus.Cancelled
-                          && wo.Status != WorkOrderStatus.Cancelled
                     select new CancelledOrderDto
                     {
                         SalesOrderId = so.Id,
@@ -404,6 +468,54 @@ private readonly IConfigParameterService _configService;
                     };
 
         return await query.ToListAsync();
+    }
+
+    /// <summary>
+    /// 获取已确认但无工单的订单列表（待生成工单）
+    /// </summary>
+    public async Task<List<WorkOrderListItemDto>> GetPendingOrdersAsync()
+    {
+        var rawData = await _context.SalesOrders
+            .Where(so => so.Status == SalesOrderStatus.Confirmed
+                && !_context.WorkOrders.Any(wo => wo.SalesOrderNo == so.OrderNumber))
+            .OrderByDescending(so => so.SignDate)
+            .Select(so => new
+            {
+                so.Id,
+                so.OrderNumber,
+                so.SignDate,
+                so.CreatedTime,
+                Salesman = so.Customer.Salesman,
+                EndCustomer = so.Customer.EndCustomer
+            })
+            .ToListAsync();
+
+        return rawData.Select(r => new WorkOrderListItemDto
+        {
+            Id = 0,
+            WorkOrderNo = "",
+            SalesOrderNo = r.OrderNumber,
+            ProductionMainNo = "",
+            ProductionSubNo = null,
+            SignDate = r.SignDate,
+            Salesman = r.Salesman,
+            EndCustomer = r.EndCustomer,
+            DeliveryDate = default,
+            DelayPenalty = false,
+            SettlementMethod = default,
+            PlantGrade = "",
+            MaterialName = default,
+            Specification = "",
+            LengthStatus = default,
+            MinLength = null,
+            MaxLength = null,
+            TotalQuantity = 0,
+            TotalWeight = 0,
+            DeliveryState = default,
+            TotalItemCount = 0,
+            Status = WorkOrderStatus.NotGenerated,
+            CreatedTime = r.CreatedTime
+        }).ToList();
     }
 
     #endregion
@@ -421,7 +533,7 @@ private readonly IConfigParameterService _configService;
 
         // 获取该订单下所有状态不为已取消的工单（用于提取原主号/次号）
         var existingWorkOrders = await _context.WorkOrders
-            .Where(wo => wo.SalesOrderNo == salesOrderNo && wo.Status != WorkOrderStatus.Cancelled)
+            .Where(wo => wo.SalesOrderNo == salesOrderNo)
             .ToListAsync();
 
         // 构建 项次ID -> (原主号, 原次号) 映射，同时建立工单ID查询
@@ -724,10 +836,14 @@ private readonly IConfigParameterService _configService;
         if (mergeFieldErrors.Any())
             throw new BusinessException($"工单分组合并规则验证失败:\n\n{string.Join("\n\n", mergeFieldErrors)}");
 
+        var generatedWorkOrders = new List<GeneratedWorkOrderDto>();
+
         // 5. 使用事务
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
         {
+            try
+            {
             // 6. 物理删除现有工单及其关联计划
             var existingWorkOrders = await _context.WorkOrders
                 .Where(wo => wo.SalesOrderNo == request.SalesOrderNo)
@@ -764,7 +880,7 @@ private readonly IConfigParameterService _configService;
             _context.ChangeTracker.Clear();
 
             var workOrdersToAdd = new List<WoEntity>();
-            var generatedWorkOrders = new List<GeneratedWorkOrderDto>();
+            generatedWorkOrders = new List<GeneratedWorkOrderDto>();
 
             foreach (var workOrderGroup in request.WorkOrders)
             {
@@ -846,30 +962,28 @@ private readonly IConfigParameterService _configService;
             }
 
             await transaction.CommitAsync();
-
-            // 刷新读模型
-            // 读模型刷新已移除（原 RefreshByWorkOrderAsync）
-        //if (_statusSummaryService != null) await _statusSummaryService.RefreshByWorkOrderAsync(request.SalesOrderNo);
-            // 读模型刷新已移除（原 RefreshBySalesOrderAsync）
-        //if (_listSummaryService != null) await _listSummaryService.RefreshBySalesOrderAsync(request.SalesOrderNo);
-
-            _logger.LogInformation("生成工单成功: 订单号 {OrderNo}, 生成 {Count} 个工单",
-                request.SalesOrderNo, generatedWorkOrders.Count);
-
-            return generatedWorkOrders;
+            }
+            catch (DbUpdateException ex) when (ex.InnerException?.Message?.Contains("UK_WorkOrder_WorkOrderNo") == true)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "生成工单时发生唯一键冲突，订单号 {OrderNo}", request.SalesOrderNo);
+                throw new BusinessException("生成工单时发生工单号冲突，请稍后重试");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "生成工单失败: 订单号 {OrderNo}", request.SalesOrderNo);
+                throw;
+            }
         }
-        catch (DbUpdateException ex) when (ex.InnerException?.Message?.Contains("UK_WorkOrder_WorkOrderNo") == true)
-        {
-            await transaction.RollbackAsync();
-            _logger.LogError(ex, "生成工单时发生唯一键冲突，订单号 {OrderNo}", request.SalesOrderNo);
-            throw new BusinessException("生成工单时发生工单号冲突，请稍后重试");
-        }
-        catch (Exception ex)
-        {
-            await transaction.RollbackAsync();
-            _logger.LogError(ex, "生成工单失败: 订单号 {OrderNo}", request.SalesOrderNo);
-            throw;
-        }
+
+        // 刷新读模型（事务已提交，在 using 块之外执行）
+        if (_listSummaryService != null) await _listSummaryService.RefreshBySalesOrderAsync(request.SalesOrderNo);
+
+        _logger.LogInformation("生成工单成功: 订单号 {OrderNo}, 生成 {Count} 个工单",
+            request.SalesOrderNo, generatedWorkOrders.Count);
+
+        return generatedWorkOrders;
     }
 
     /// <summary>
@@ -952,12 +1066,15 @@ private readonly IConfigParameterService _configService;
         _logger.LogInformation("订单 {OrderNo} 更新修改: 现有工单 {ExistingCount} 个, 提交分组 {GroupCount} 个",
             request.SalesOrderNo, existingWorkOrders.Count, request.WorkOrders.Count);
 
+        var result = new List<GeneratedWorkOrderDto>();
+        var workOrdersToAdd = new List<WoEntity>();
+
         // 6. 事务处理
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
         {
-            var result = new List<GeneratedWorkOrderDto>();
-            var workOrdersToAdd = new List<WoEntity>();
+            try
+            {
             var matchedKeys = new HashSet<(string mainNo, string? subNo)>();
 
             // 7. 遍历提交的分组：匹配现有工单则更新，否则新建
@@ -987,25 +1104,6 @@ private readonly IConfigParameterService _configService;
 
                     bool changed = !oldItemIds.SetEquals(newItemIds);
 
-                    // 检测合并关键字段是否变化（即使项次ID没变，交货期/规格等字段也可能变了）
-                    var mergeFieldChanged = existingWo.DeliveryDate != firstItem.DeliveryDate
-                        || existingWo.DelayPenalty != firstItem.DelayPenalty
-                        || existingWo.MaterialName != firstItem.MaterialName
-                        || existingWo.SettlementMethod != firstItem.SettlementMethod
-                        || existingWo.StandardCode != (srDict.GetValueOrDefault(firstItem.StandardNo ?? string.Empty)?.StandardNo ?? firstItem.StandardNo ?? string.Empty)
-                        || existingWo.DeliveryState != firstItem.DeliveryState
-                        || existingWo.PlantGrade != firstItem.PlantGrade
-                        || existingWo.Specification != firstItem.Specification
-                        || existingWo.OuterDiameterNegative != firstItem.OuterDiameterNegative
-                        || existingWo.OuterDiameterPositive != firstItem.OuterDiameterPositive
-                        || existingWo.WallThicknessNegative != firstItem.WallThicknessNegative
-                        || existingWo.WallThicknessPositive != firstItem.WallThicknessPositive
-                        || existingWo.LengthStatus != firstItem.LengthStatus;
-                    if (mergeFieldChanged)
-                    {
-                        changed = true;
-                    }
-
                     // 始终同步订单级字段（客户名称/业务员/最终客户等变化时也需要更新）
                     var orderLevelChanged = existingWo.Salesman != (customer?.Salesman ?? string.Empty)
                         || existingWo.EndCustomer != customer?.EndCustomer
@@ -1023,19 +1121,6 @@ private readonly IConfigParameterService _configService;
                         ValidateSubNo(firstItem.LengthStatus, group.ProductionSubNo);
 
                         existingWo.OrderItemIds = string.Join(",", group.OrderItemIds.Distinct());
-                        existingWo.DeliveryDate = firstItem.DeliveryDate;
-                        existingWo.DelayPenalty = firstItem.DelayPenalty;
-                        existingWo.MaterialName = firstItem.MaterialName;
-                        existingWo.SettlementMethod = firstItem.SettlementMethod;
-                        existingWo.StandardCode = srDict.GetValueOrDefault(firstItem.StandardNo ?? string.Empty)?.StandardNo ?? firstItem.StandardNo ?? string.Empty;
-                        existingWo.DeliveryState = firstItem.DeliveryState;
-                        existingWo.PlantGrade = firstItem.PlantGrade;
-                        existingWo.Specification = firstItem.Specification;
-                        existingWo.OuterDiameterNegative = firstItem.OuterDiameterNegative;
-                        existingWo.OuterDiameterPositive = firstItem.OuterDiameterPositive;
-                        existingWo.WallThicknessNegative = firstItem.WallThicknessNegative;
-                        existingWo.WallThicknessPositive = firstItem.WallThicknessPositive;
-                        existingWo.LengthStatus = firstItem.LengthStatus;
 
                         _logger.LogInformation("更新修改工单: {WorkOrderNo}, 项次 {OldCount}→{NewCount}",
                             existingWo.WorkOrderNo, oldItemIds.Count, newItemIds.Count);
@@ -1174,25 +1259,23 @@ private readonly IConfigParameterService _configService;
             }
 
             await transaction.CommitAsync();
-
-            // 刷新读模型
-            // 读模型刷新已移除（原 RefreshByWorkOrderAsync）
-        //if (_statusSummaryService != null) await _statusSummaryService.RefreshByWorkOrderAsync(request.SalesOrderNo);
-            // 读模型刷新已移除（原 RefreshBySalesOrderAsync）
-        //if (_listSummaryService != null) await _listSummaryService.RefreshBySalesOrderAsync(request.SalesOrderNo);
-
-            _logger.LogInformation("更新修改工单成功: 订单号 {OrderNo}, 更新 {UpdatedCount} 个, 新建 {NewCount} 个",
-                request.SalesOrderNo, result.Count(r => !r.IsModified || existingByKey.ContainsKey((r.ProductionMainNo, r.ProductionSubNo))),
-                workOrdersToAdd.Count);
-
-            return result;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "更新修改工单失败: 订单号 {OrderNo}", request.SalesOrderNo);
+                throw;
+            }
         }
-        catch (Exception ex)
-        {
-            await transaction.RollbackAsync();
-            _logger.LogError(ex, "更新修改工单失败: 订单号 {OrderNo}", request.SalesOrderNo);
-            throw;
-        }
+
+        // 刷新读模型（事务已提交，在 using 块之外执行）
+        if (_listSummaryService != null) await _listSummaryService.RefreshBySalesOrderAsync(request.SalesOrderNo);
+
+        _logger.LogInformation("更新修改工单成功: 订单号 {OrderNo}, 更新 {UpdatedCount} 个, 新建 {NewCount} 个",
+            request.SalesOrderNo, result.Count(r => !r.IsModified || existingByKey.ContainsKey((r.ProductionMainNo, r.ProductionSubNo))),
+            workOrdersToAdd.Count);
+
+        return result;
     }
 
     private (decimal? MinLength, decimal? MaxLength, int TotalQuantity, decimal TotalMeters,
@@ -1295,6 +1378,9 @@ private readonly IConfigParameterService _configService;
                 PiercingPlanTotalWeight = s.PiercingPlanTotalWeight,
                 PiercingPlanTotalPieces = s.PiercingPlanTotalPieces,
                 MaxStandardCycle = s.MaxStandardCycle,
+                MainNoMaxStandardCycle = s.MainNoMaxStandardCycle,
+                CapacityWorkDays = s.CapacityWorkDays,
+                TheoreticalCutoffDate = s.TheoreticalCutoffDate,
                 MaterialPlanCoveredCount = s.MaterialPlanCoveredCount,
                 MaterialPlanProportion = s.MaterialPlanProportion,
                 LatestRequiredDate = s.LatestRequiredDate
@@ -1342,18 +1428,23 @@ private readonly IConfigParameterService _configService;
         };
     }
 
-    public async Task<PagedResult<WorkOrderListDto>> GetPagedAsync(WorkOrderQueryParams query)
+    public async Task<PagedResult<WorkOrderListItemDto>> GetPagedAsync(WorkOrderQueryParams query)
     {
-        return await GetPagedLegacyAsync(query);
+        return await GetPagedBasicAsync(query);
+    }
+
+    public async Task<PagedResult<WorkOrderListDto>> GetPagedWithPlansAsync(WorkOrderQueryParams query)
+    {
+        return await GetPagedEnrichedAsync(query);
     }
 
 
-    #region 用料计划三级聚合
+    #region 工单分页查询基础方法
 
     /// <summary>
-    /// 降级回退：读模型未就绪时直接查 WorkOrder 表（不含主号/订单聚合）
+    /// 基础分页查询：直接查 WorkOrder 表，返回精简 DTO（不含用料计划聚合数据）
     /// </summary>
-    private async Task<PagedResult<WorkOrderListDto>> GetPagedLegacyAsync(WorkOrderQueryParams query)
+    private async Task<PagedResult<WorkOrderListItemDto>> GetPagedBasicAsync(WorkOrderQueryParams query)
     {
         var workOrderQuery = _context.WorkOrders.AsNoTracking().AsQueryable();
 
@@ -1378,25 +1469,176 @@ private readonly IConfigParameterService _configService;
         if (query.DeliveryDateEnd.HasValue)
             workOrderQuery = workOrderQuery.Where(wo => wo.DeliveryDate <= query.DeliveryDateEnd.Value);
 
+        // 关键字模糊搜索：工单号/订单号/业务员/牌号/规格
+        if (!string.IsNullOrEmpty(query.Keyword))
+        {
+            var keyword = query.Keyword;
+            workOrderQuery = workOrderQuery.Where(wo =>
+                wo.WorkOrderNo.Contains(keyword) ||
+                wo.SalesOrderNo.Contains(keyword) ||
+                wo.Salesman.Contains(keyword) ||
+                wo.PlantGrade.Contains(keyword) ||
+                wo.Specification.Contains(keyword)
+            );
+        }
+
+        // ===== 应用 ExcelFilter 筛选条件（JSON 筛选器） =====
+        workOrderQuery = workOrderQuery.ApplyFilters(query.Filters);
+
         var totalCount = await workOrderQuery.CountAsync();
+        workOrderQuery = workOrderQuery.ApplySort(query.SortBy ?? "CreatedTime", query.IsDescending);
 
-        var sortDesc = query.IsDescending;
-        workOrderQuery = string.IsNullOrEmpty(query.SortBy)
-            ? (sortDesc ? workOrderQuery.OrderByDescending(wo => wo.CreatedTime) : workOrderQuery.OrderBy(wo => wo.CreatedTime))
-            : query.SortBy.ToLower() switch
+        var workOrders = await workOrderQuery
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .ToListAsync();
+
+        var items = workOrders.Select(wo => wo.ToListItemDto()).ToList();
+
+        return new PagedResult<WorkOrderListItemDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            PageIndex = query.PageIndex,
+            PageSize = query.PageSize
+        };
+    }
+
+    #endregion
+
+    #region 用料计划三级聚合
+
+    /// <summary>
+    /// 含用料计划聚合的分页查询（从 WorkOrderListSummary 读模型查询）
+    /// </summary>
+    private async Task<PagedResult<WorkOrderListDto>> GetPagedEnrichedAsync(WorkOrderQueryParams query)
+    {
+        var summaryQuery = _context.Set<WorkOrderListSummary>().AsNoTracking().AsQueryable();
+
+        // 只查询 WorkOrders 表中仍存在的工单（避免已物理删除的工单脏数据残留）
+        summaryQuery = summaryQuery.Where(s => _context.WorkOrders.Any(wo => wo.Id == s.WorkOrderId));
+
+        if (!string.IsNullOrEmpty(query.SalesOrderNo))
+            summaryQuery = summaryQuery.Where(s => s.SalesOrderNo.Contains(query.SalesOrderNo));
+        if (!string.IsNullOrEmpty(query.ProductionMainNo))
+            summaryQuery = summaryQuery.Where(s => s.ProductionMainNo.Contains(query.ProductionMainNo));
+        if (!string.IsNullOrEmpty(query.ProductionSubNo))
+            summaryQuery = summaryQuery.Where(s => s.ProductionSubNo != null && s.ProductionSubNo.Contains(query.ProductionSubNo));
+        if (query.Status.HasValue)
+            summaryQuery = summaryQuery.Where(s => s.Status == query.Status.Value);
+        if (!string.IsNullOrEmpty(query.Specification))
+            summaryQuery = summaryQuery.Where(s => s.Specification.Contains(query.Specification));
+        if (!string.IsNullOrEmpty(query.PlantGrade))
+            summaryQuery = summaryQuery.Where(s => s.PlantGrade.Contains(query.PlantGrade));
+        if (!string.IsNullOrEmpty(query.Salesman))
+            summaryQuery = summaryQuery.Where(s => s.Salesman.Contains(query.Salesman));
+        if (!string.IsNullOrEmpty(query.EndCustomer))
+            summaryQuery = summaryQuery.Where(s => s.EndCustomer != null && s.EndCustomer.Contains(query.EndCustomer));
+        if (query.DeliveryDateStart.HasValue)
+            summaryQuery = summaryQuery.Where(s => s.DeliveryDate >= query.DeliveryDateStart.Value);
+        if (query.DeliveryDateEnd.HasValue)
+            summaryQuery = summaryQuery.Where(s => s.DeliveryDate <= query.DeliveryDateEnd.Value);
+
+        // 关键字模糊搜索
+        if (!string.IsNullOrEmpty(query.Keyword))
+        {
+            var keyword = query.Keyword;
+            summaryQuery = summaryQuery.Where(s =>
+                s.WorkOrderNo.Contains(keyword) ||
+                s.SalesOrderNo.Contains(keyword) ||
+                s.Salesman.Contains(keyword) ||
+                s.PlantGrade.Contains(keyword) ||
+                s.Specification.Contains(keyword)
+            );
+        }
+
+        // ===== 计划类型筛选（前端复选框：未勾选的计划类型需排除） =====
+        if (!string.IsNullOrEmpty(query.PlanTypeFilter))
+        {
+            var selectedTypes = query.PlanTypeFilter.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(t => t.ToLowerInvariant())
+                .ToHashSet();
+
+            // 未勾选的计划类型：对应重量/支数必须为 0（表示该工单不使用此计划类型）
+            if (!selectedTypes.Contains("piercing"))
+                summaryQuery = summaryQuery.Where(s => (s.PiercingPlanTotalWeight == null || s.PiercingPlanTotalWeight == 0) &&
+                                                       (s.PiercingPlanTotalPieces == null || s.PiercingPlanTotalPieces == 0));
+            if (!selectedTypes.Contains("semi"))
+                summaryQuery = summaryQuery.Where(s => (s.SemiPlanTotalWeight == null || s.SemiPlanTotalWeight == 0) &&
+                                                       (s.SemiPlanTotalPieces == null || s.SemiPlanTotalPieces == 0));
+            if (!selectedTypes.Contains("finish"))
+                summaryQuery = summaryQuery.Where(s => (s.FinishedPlanTotalWeight == null || s.FinishedPlanTotalWeight == 0) &&
+                                                       (s.FinishedPlanTotalPieces == null || s.FinishedPlanTotalPieces == 0));
+            if (!selectedTypes.Contains("inventory"))
+                summaryQuery = summaryQuery.Where(s => (s.InventoryPlanTotalWeight == null || s.InventoryPlanTotalWeight == 0) &&
+                                                       (s.InventoryPlanTotalPieces == null || s.InventoryPlanTotalPieces == 0));
+            if (!selectedTypes.Contains("rework"))
+                summaryQuery = summaryQuery.Where(s => (s.ReworkPlanTotalWeight == null || s.ReworkPlanTotalWeight == 0) &&
+                                                       (s.ReworkPlanTotalPieces == null || s.ReworkPlanTotalPieces == 0));
+        }
+
+        // ===== 应用 ExcelFilter 筛选条件 =====
+        summaryQuery = summaryQuery.ApplyFilters(query.Filters);
+
+        var totalCount = await summaryQuery.CountAsync();
+
+        // ===== 排序 =====
+        summaryQuery = summaryQuery.ApplySort(query.SortBy ?? "CreatedTime", query.IsDescending);
+
+        // ===== 分页 + 投影到 DTO =====
+        var items = await summaryQuery
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .Select(s => new WorkOrderListDto
             {
-                "workorderno" => sortDesc ? workOrderQuery.OrderByDescending(wo => wo.WorkOrderNo) : workOrderQuery.OrderBy(wo => wo.WorkOrderNo),
-                "salesorderno" => sortDesc ? workOrderQuery.OrderByDescending(wo => wo.SalesOrderNo) : workOrderQuery.OrderBy(wo => wo.SalesOrderNo),
-                "deliverydate" => sortDesc ? workOrderQuery.OrderByDescending(wo => wo.DeliveryDate) : workOrderQuery.OrderBy(wo => wo.DeliveryDate),
-                "status" => sortDesc ? workOrderQuery.OrderByDescending(wo => wo.Status) : workOrderQuery.OrderBy(wo => wo.Status),
-                _ => sortDesc ? workOrderQuery.OrderByDescending(wo => wo.CreatedTime) : workOrderQuery.OrderBy(wo => wo.CreatedTime),
-            };
-
-        var workOrders = await workOrderQuery.Skip(query.Skip).Take(query.PageSize).ToListAsync();
-        var items = workOrders.Select(wo => wo.ToListDto()).ToList();
-
-        await EnrichWithAggregatedStatusAsync(items);
-
+                Id = s.WorkOrderId,
+                WorkOrderNo = s.WorkOrderNo,
+                SalesOrderNo = s.SalesOrderNo,
+                ProductionMainNo = s.ProductionMainNo,
+                ProductionSubNo = s.ProductionSubNo,
+                SignDate = s.SignDate,
+                Salesman = s.Salesman,
+                EndCustomer = s.EndCustomer,
+                DeliveryDate = s.DeliveryDate,
+                DelayPenalty = s.DelayPenalty,
+                SettlementMethod = Enum.Parse<SettlementMethod>(s.SettlementMethod),
+                PlantGrade = s.PlantGrade,
+                MaterialName = Enum.Parse<MaterialName>(s.MaterialName),
+                Specification = s.Specification,
+                LengthStatus = Enum.Parse<LengthStatus>(s.LengthStatus),
+                MinLength = s.MinLength,
+                MaxLength = s.MaxLength,
+                TotalQuantity = s.TotalQuantity,
+                TotalWeight = s.TotalWeight,
+                DeliveryState = Enum.Parse<DeliveryState>(s.DeliveryState),
+                TotalItemCount = s.TotalItemCount,
+                Status = (WorkOrderStatus)s.Status,
+                CreatedTime = s.CreatedTime,
+                MaterialPlanStatus = s.MaterialPlanStatus,
+                MaterialPlanRate = s.MaterialPlanRate,
+                MainNoMaterialPlanStatus = s.MainNoMaterialPlanStatus,
+                MainNoMaterialPlanRate = s.MainNoMaterialPlanRate,
+                OrderMaterialPlanStatus = s.OrderMaterialPlanStatus,
+                LatestPlanDate = s.LatestPlanDate,
+                SemiPlanTotalWeight = s.SemiPlanTotalWeight,
+                SemiPlanTotalPieces = s.SemiPlanTotalPieces,
+                FinishedPlanTotalWeight = s.FinishedPlanTotalWeight,
+                FinishedPlanTotalPieces = s.FinishedPlanTotalPieces,
+                InventoryPlanTotalWeight = s.InventoryPlanTotalWeight,
+                InventoryPlanTotalPieces = s.InventoryPlanTotalPieces,
+                ReworkPlanTotalWeight = s.ReworkPlanTotalWeight,
+                ReworkPlanTotalPieces = s.ReworkPlanTotalPieces,
+                PiercingPlanTotalWeight = s.PiercingPlanTotalWeight,
+                PiercingPlanTotalPieces = s.PiercingPlanTotalPieces,
+                MaxStandardCycle = s.MaxStandardCycle,
+                MainNoMaxStandardCycle = s.MainNoMaxStandardCycle,
+                CapacityWorkDays = s.CapacityWorkDays,
+                TheoreticalCutoffDate = s.TheoreticalCutoffDate,
+                MaterialPlanCoveredCount = s.MaterialPlanCoveredCount,
+                MaterialPlanProportion = s.MaterialPlanProportion,
+                LatestRequiredDate = s.LatestRequiredDate
+            })
+            .ToListAsync();
         return new PagedResult<WorkOrderListDto>
         {
             Items = items,
@@ -1746,7 +1988,7 @@ private readonly IConfigParameterService _configService;
         return dto;
     }
 
-    public async Task<List<WorkOrderListDto>> GetBySalesOrderNoAsync(string salesOrderNo)
+    public async Task<List<WorkOrderListItemDto>> GetBySalesOrderNoAsync(string salesOrderNo)
     {
         var workOrders = await _context.WorkOrders
             .AsNoTracking()
@@ -1755,9 +1997,7 @@ private readonly IConfigParameterService _configService;
             .ThenBy(wo => wo.ProductionSubNo)
             .ToListAsync();
 
-        var results = workOrders.Select(wo => wo.ToListDto()).ToList();
-        await PatchCustomerFieldsAsync(results);
-        return results;
+        return workOrders.Select(wo => wo.ToListItemDto()).ToList();
     }
 
     /// <summary>
@@ -1823,10 +2063,18 @@ private readonly IConfigParameterService _configService;
             throw new BusinessException("工单已被其他用户修改，请刷新后重试");
         }
 
+        // 增量更新读模型 Status（只改一个字段，无需全量刷新）
+        var summaryRow = await _context.Set<WorkOrderListSummary>()
+            .FirstOrDefaultAsync(s => s.WorkOrderId == id);
+        if (summaryRow != null)
+        {
+            summaryRow.Status = (int)request.Status;
+            await _context.SaveChangesAsync();
+        }
+
         _logger.LogInformation("更新工单状态成功: 工单号 {WorkOrderNo}, 新状态 {Status}",
             workOrder.WorkOrderNo, request.Status);
 
-        // 刷新读模型
         return new UpdateWorkOrderStatusResponseDto { Id = workOrder.Id, Status = workOrder.Status };
     }
 
@@ -1849,6 +2097,12 @@ private readonly IConfigParameterService _configService;
         if (invPlans.Any()) _context.InventoryPlans.RemoveRange(invPlans);
         if (piercingPlans.Any()) _context.RoundBarPiercingPlans.RemoveRange(piercingPlans);
 
+        // 直接清理该工单的读模型行（双重保险，即使后续完整刷新失败也不会留下脏数据）
+        var summaryRow = await _context.Set<MES.Data.Entities.WorkOrderListSummary>()
+            .FirstOrDefaultAsync(s => s.WorkOrderId == id);
+        if (summaryRow != null)
+            _context.Set<MES.Data.Entities.WorkOrderListSummary>().Remove(summaryRow);
+
         // 扫描引用该工单号的入库批次，生成通知（已执行数据，不级联）
         var affectedBatches = await _context.InventoryBatches
             .Where(b => b.WorkOrderNo == workOrder.WorkOrderNo)
@@ -1868,10 +2122,43 @@ private readonly IConfigParameterService _configService;
             });
         }
 
+        // 先标记剩余工单为待修正（在删除之前做，避免中间状态异常导致脏数据）
+        var remainingWorkOrders = await _context.WorkOrders
+            .Where(wo => wo.SalesOrderNo == workOrder.SalesOrderNo && wo.Status == WorkOrderStatus.Confirmed)
+            .ToListAsync();
+        foreach (var wo in remainingWorkOrders)
+        {
+            wo.Status = WorkOrderStatus.Pending;
+        }
+
+        // 删除工单
         _context.WorkOrders.Remove(workOrder);
         await _context.SaveChangesAsync();
-        _logger.LogInformation("删除工单成功: 工单号 {WorkOrderNo}, 清理计划{PC}+{FC}+{IC}条, 生成入库批次通知{N}条",
-            workOrder.WorkOrderNo, semiPlans.Count, finishPlans.Count, invPlans.Count, affectedBatches.Count);
+
+        _logger.LogInformation("删除工单成功: 工单号 {WorkOrderNo}, 关联订单 {OrderNo} 剩余 {Count} 个工单已标记为待修正",
+            workOrder.WorkOrderNo, workOrder.SalesOrderNo, remainingWorkOrders.Count);
+
+        // 刷新读模型（放在 finally 中确保即使标记待修正失败也能执行，或放在 SaveChanges 后无条件执行）
+        try
+        {
+            if (_listSummaryService != null) await _listSummaryService.RefreshBySalesOrderAsync(workOrder.SalesOrderNo);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "读模型刷新失败: SalesOrderNo={SalesOrderNo}", workOrder.SalesOrderNo);
+        }
+
+        try
+        {
+            var soId = await _context.SalesOrders
+                .Where(so => so.OrderNumber == workOrder.SalesOrderNo)
+                .Select(so => (int?)so.Id)
+                .FirstOrDefaultAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "工单首页读模型刷新失败: SalesOrderId 未知");
+        }
     }
 
     public async Task SoftDeleteAsync(int id)
@@ -1894,10 +2181,7 @@ private readonly IConfigParameterService _configService;
         // 刷新读模型
         if (salesOrder != null)
         {
-            // 读模型刷新已移除（原 RefreshByWorkOrderAsync）
-        //if (_statusSummaryService != null) await _statusSummaryService.RefreshByWorkOrderAsync(salesOrder.OrderNumber);
-            // 读模型刷新已移除（原 RefreshBySalesOrderAsync）
-        //if (_listSummaryService != null) await _listSummaryService.RefreshBySalesOrderAsync(salesOrder.OrderNumber);
+            if (_listSummaryService != null) await _listSummaryService.RefreshBySalesOrderAsync(salesOrder.OrderNumber);
         }
     }
 
@@ -1919,10 +2203,45 @@ private readonly IConfigParameterService _configService;
         _logger.LogInformation("订单变更检测完成，共更新 {Count} 个订单的工单状态", updatedCount);
     }
 
-    public Task RefreshMaterialPlanReadModelAsync()
+    public async Task RefreshMaterialPlanReadModelAsync()
     {
-        _logger.LogInformation("用料计划读模型刷新已移除（使用实时查询模式），跳过");
-        return Task.CompletedTask;
+        _logger.LogInformation("开始全量刷新用料计划读模型");
+
+        // 获取所有有工单的订单号（去重）
+        var salesOrderNos = await _context.WorkOrders
+            .Select(wo => wo.SalesOrderNo)
+            .Distinct()
+            .ToListAsync();
+
+        int successCount = 0;
+        foreach (var salesOrderNo in salesOrderNos)
+        {
+            try
+            {
+                if (_listSummaryService != null)
+                    await _listSummaryService.RefreshBySalesOrderAsync(salesOrderNo);
+                successCount++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "全量刷新时订单 {SalesOrderNo} 刷新失败", salesOrderNo);
+            }
+        }
+
+        _logger.LogInformation("全量刷新完成: 共 {Total} 个订单, 成功 {Success} 个",
+            salesOrderNos.Count, successCount);
+
+        // 清理已物理删除工单的脏数据
+        var staleRows = await _context.Set<WorkOrderListSummary>()
+            .Where(s => !_context.WorkOrders.Any(wo => wo.Id == s.WorkOrderId))
+            .ToListAsync();
+
+        if (staleRows.Count > 0)
+        {
+            _context.Set<WorkOrderListSummary>().RemoveRange(staleRows);
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("清理脏数据 {Count} 行", staleRows.Count);
+        }
     }
 
     private async Task<bool> CheckAndUpdateWorkOrderStatusInternalAsync(int salesOrderId)
@@ -1933,7 +2252,7 @@ private readonly IConfigParameterService _configService;
             return false;
 
         var workOrders = await _context.WorkOrders
-            .Where(wo => wo.SalesOrderNo == salesOrder.OrderNumber && wo.Status != WorkOrderStatus.Cancelled)
+            .Where(wo => wo.SalesOrderNo == salesOrder.OrderNumber)
             .ToListAsync();
 
         if (!workOrders.Any())
@@ -1963,11 +2282,9 @@ private readonly IConfigParameterService _configService;
         {
             await _context.SaveChangesAsync();
 
-            // 刷新读模型
-            // 读模型刷新已移除（原 RefreshByWorkOrderAsync）
-        //if (_statusSummaryService != null) await _statusSummaryService.RefreshByWorkOrderAsync(salesOrder.OrderNumber);
-            // 读模型刷新已移除（原 RefreshBySalesOrderAsync）
-        //if (_listSummaryService != null) await _listSummaryService.RefreshBySalesOrderAsync(salesOrder.OrderNumber);
+            // 工单状态变更后刷新用料计划总览读模型
+            if (_listSummaryService != null)
+                await _listSummaryService.RefreshBySalesOrderAsync(salesOrder.OrderNumber);
 
             return true;
         }
@@ -1998,7 +2315,7 @@ private readonly IConfigParameterService _configService;
         // 2. 获取该订单下的所有工单（状态不为已取消的工单）
         var workOrders = await _context.WorkOrders
             .AsNoTracking()
-            .Where(wo => wo.SalesOrderNo == salesOrderNo && wo.Status != WorkOrderStatus.Cancelled)
+            .Where(wo => wo.SalesOrderNo == salesOrderNo)
             .OrderBy(wo => wo.ProductionMainNo)
             .ThenBy(wo => wo.ProductionSubNo)
             .ToListAsync();
@@ -2101,7 +2418,6 @@ result.WorkOrders.Add(new WorkOrderRelationDto
         var workOrders = await _context.WorkOrders
             .AsNoTracking()
             .Where(wo => wo.SalesOrderNo == salesOrderNo
-                      && wo.Status != WorkOrderStatus.Cancelled
                      )
             .OrderBy(wo => wo.ProductionMainNo)
             .ThenBy(wo => wo.ProductionSubNo)
@@ -2118,7 +2434,6 @@ result.WorkOrders.Add(new WorkOrderRelationDto
         var workOrders = await _context.WorkOrders
             .AsNoTracking()
             .Where(wo => salesOrderNos.Contains(wo.SalesOrderNo)
-                      && wo.Status != WorkOrderStatus.Cancelled
                      )
             .OrderBy(wo => wo.SalesOrderNo)
             .ThenBy(wo => wo.ProductionMainNo)
@@ -2165,8 +2480,7 @@ result.WorkOrders.Add(new WorkOrderRelationDto
         // 获取关联的所有工单
         var allWorkOrders = await _context.WorkOrders
             .AsNoTracking()
-            .Where(wo => allOrderNumbers.Contains(wo.SalesOrderNo)
-                      && wo.Status != WorkOrderStatus.Cancelled)
+            .Where(wo => allOrderNumbers.Contains(wo.SalesOrderNo))
             .ToListAsync();
 
         // 计算每个订单的工单状态并筛选
@@ -2215,10 +2529,9 @@ result.WorkOrders.Add(new WorkOrderRelationDto
     private static bool CanTransitionTo(WorkOrderStatus currentStatus, WorkOrderStatus targetStatus)
     {
         if (currentStatus == targetStatus) return true;
-        if (currentStatus == WorkOrderStatus.Cancelled) return false;
         if (currentStatus == WorkOrderStatus.NotGenerated) return targetStatus == WorkOrderStatus.Confirmed;
-        if (currentStatus == WorkOrderStatus.Confirmed) return targetStatus == WorkOrderStatus.Pending || targetStatus == WorkOrderStatus.Cancelled;
-        if (currentStatus == WorkOrderStatus.Pending) return targetStatus == WorkOrderStatus.Confirmed || targetStatus == WorkOrderStatus.Cancelled;
+        if (currentStatus == WorkOrderStatus.Confirmed) return targetStatus == WorkOrderStatus.Pending;
+        if (currentStatus == WorkOrderStatus.Pending) return targetStatus == WorkOrderStatus.Confirmed;
         return false;
     }
 
@@ -2229,7 +2542,6 @@ result.WorkOrders.Add(new WorkOrderRelationDto
             WorkOrderStatus.NotGenerated => "未编制",
             WorkOrderStatus.Confirmed => "已确定",
             WorkOrderStatus.Pending => "待修正",
-            WorkOrderStatus.Cancelled => "已取消",
             _ => "未知"
         };
     }

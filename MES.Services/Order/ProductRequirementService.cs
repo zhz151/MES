@@ -14,10 +14,12 @@ namespace MES.Services;
 public class ProductRequirementService : IProductRequirementService
 {
     private readonly AppDbContext _context;
+    private readonly IOrderService _orderService;
 
-    public ProductRequirementService(AppDbContext context)
+    public ProductRequirementService(AppDbContext context, IOrderService orderService)
     {
         _context = context;
+        _orderService = orderService;
     }
 
     public async Task<ProductRequirementDto?> GetByOrderItemIdAsync(int orderItemId)
@@ -37,6 +39,11 @@ public class ProductRequirementService : IProductRequirementService
         if (orderItem == null)
             throw new BusinessException("订单项次不存在");
 
+        var orderNo = orderItem.SalesOrder?.OrderNumber ?? await _context.SalesOrders
+            .Where(so => so.Id == orderItem.SalesOrderId)
+            .Select(so => so.OrderNumber)
+            .FirstOrDefaultAsync() ?? "";
+
         var existing = await _context.ProductRequirements
             .FirstOrDefaultAsync(pr => pr.OrderItemId == orderItemId);
 
@@ -50,8 +57,11 @@ public class ProductRequirementService : IProductRequirementService
             existing.SurfaceQuality = request.SurfaceQuality;
             existing.NdtRequirement = request.NdtRequirement;
             existing.OtherRequirement = request.OtherRequirement;
+            existing.OrderNo = orderNo;
+            existing.ItemSequence = orderItem.Sequence;
 
             await _context.SaveChangesAsync();
+            await _orderService.RefreshByOrderIdAsync(orderItem.SalesOrderId);
             return await MapToDtoWithSequenceAsync(existing, orderItem.Sequence);
         }
         else
@@ -60,6 +70,8 @@ public class ProductRequirementService : IProductRequirementService
             var entity = new ProductRequirement
             {
                 OrderItemId = orderItemId,
+                OrderNo = orderNo,
+                ItemSequence = orderItem.Sequence,
                 RequirementType = request.RequirementType,
                 ChemicalComposition = request.ChemicalComposition,
                 MechanicalProperty = request.MechanicalProperty,
@@ -71,6 +83,7 @@ public class ProductRequirementService : IProductRequirementService
 
             _context.ProductRequirements.Add(entity);
             await _context.SaveChangesAsync();
+            await _orderService.RefreshByOrderIdAsync(orderItem.SalesOrderId);
             return await MapToDtoWithSequenceAsync(entity, orderItem.Sequence);
         }
     }

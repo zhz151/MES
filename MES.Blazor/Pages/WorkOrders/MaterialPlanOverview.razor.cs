@@ -22,6 +22,7 @@ public partial class MaterialPlanOverview
     private static readonly HashSet<string> _summableColumnKeys = new() { "TotalWeight", "TotalItemCount", "TotalQuantity" };
     private int _totalCount;
     private string errorMessage = string.Empty;
+    private bool _isRefreshing;
 
 
     // 选中状态
@@ -79,27 +80,27 @@ public partial class MaterialPlanOverview
         new() { Key = "SalesOrderNo",       Label = "订单号",     SortKey = "SalesOrderNo", FilterType = "string", Width = "120" },
         new() { Key = "ProductionMainNo",   Label = "主号",       SortKey = "ProductionMainNo", FilterType = "string", Width = "120" },
         new() { Key = "ProductionSubNo",    Label = "次号",       SortKey = "ProductionSubNo", FilterType = "string", Width = "120" },
-        new() { Key = "SignDate",           Label = "签订日期",   SortKey = "signdate", FilterType = "date", Width = "120" },
-        new() { Key = "Salesman",           Label = "业务员",     SortKey = "salesman", FilterType = "string", Width = "120" },
-        new() { Key = "EndCustomer",        Label = "最终用户",   SortKey = "endcustomer", FilterType = "string", Width = "120" },
-        new() { Key = "DeliveryDate",       Label = "交货日期",   SortKey = "deliverydate", FilterType = "date", Width = "120" },
-        new() { Key = "DelayPenalty",       Label = "延期罚款",   SortKey = "delaypenalty", FilterType = "enum", Width = "120",
+        new() { Key = "SignDate",           Label = "签订日期",   SortKey = "SignDate", FilterType = "date", Width = "120" },
+        new() { Key = "Salesman",           Label = "业务员",     SortKey = "Salesman", FilterType = "string", Width = "120" },
+        new() { Key = "EndCustomer",        Label = "最终用户",   SortKey = "EndCustomer", FilterType = "string", Width = "120" },
+        new() { Key = "DeliveryDate",       Label = "交货日期",   SortKey = "DeliveryDate", FilterType = "date", Width = "120" },
+        new() { Key = "DelayPenalty",       Label = "延期罚款",   SortKey = "DelayPenalty", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("True", "是"), new("False", "否") } },
-        new() { Key = "SettlementMethod",   Label = "结算方式",   SortKey = "settlementmethod", FilterType = "enum", Width = "120",
+        new() { Key = "SettlementMethod",   Label = "结算方式",   SortKey = "SettlementMethod", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("Weighing", "过磅"), new("WeighingNegative", "过磅-负"), new("Theoretical", "理算") } },
-        new() { Key = "PlantGrade",         Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string", Width = "120" },
-        new() { Key = "Specification",      Label = "规格",       SortKey = "specification", FilterType = "string", Width = "120" },
-        new() { Key = "MaterialName",       Label = "物料名称",   SortKey = "materialname", FilterType = "enum", Width = "120",
+        new() { Key = "PlantGrade",         Label = "工厂牌号",   SortKey = "PlantGrade", FilterType = "string", Width = "120" },
+        new() { Key = "Specification",      Label = "规格",       SortKey = "Specification", FilterType = "string", Width = "120" },
+        new() { Key = "MaterialName",       Label = "物料名称",   SortKey = "MaterialName", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("SeamlessPipe", "无缝管"), new("WeldedPipe", "焊管") } },
-        new() { Key = "LengthStatus",       Label = "长度状态",   SortKey = "lengthstatus", FilterType = "enum", Width = "120",
+        new() { Key = "LengthStatus",       Label = "长度状态",   SortKey = "LengthStatus", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("Fixed", "定尺"), new("Range", "范围尺"), new("NonFixed", "非定尺") } },
-        new() { Key = "MaxLength",          Label = "最大长度",   SortKey = "maxlength", Width = "80" },
-        new() { Key = "MinLength",          Label = "最小长度",   SortKey = "minlength", Width = "80" },
-        new() { Key = "TotalQuantity",      Label = "总支数",     SortKey = "totalquantity", Width = "80" },
-        new() { Key = "TotalWeight",        Label = "总重量",     SortKey = "totalweight", Width = "80" },
-        new() { Key = "DeliveryState",      Label = "交货状态",   SortKey = "deliverystate", FilterType = "enum", Width = "120",
+        new() { Key = "MaxLength",          Label = "最大长度",   SortKey = "MaxLength", Width = "80" },
+        new() { Key = "MinLength",          Label = "最小长度",   SortKey = "MinLength", Width = "80" },
+        new() { Key = "TotalQuantity",      Label = "总支数",     SortKey = "TotalQuantity", Width = "80" },
+        new() { Key = "TotalWeight",        Label = "总重量",     SortKey = "TotalWeight", Width = "80" },
+        new() { Key = "DeliveryState",      Label = "交货状态",   SortKey = "DeliveryState", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"), new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"), new("Hard", "硬态") } },
-        new() { Key = "TotalItemCount",     Label = "含项次数",   SortKey = "totalitemcount", Width = "80" },
+        new() { Key = "TotalItemCount",     Label = "含项次数",   SortKey = "TotalItemCount", Width = "80" },
         new() { Key = "LatestPlanDate",          Label = "计划日期",       SortKey = "LatestPlanDate", FilterType = "date", Width = "120" },
         new() { Key = "MaterialPlanStatus",      Label = "工单用料计划",   SortKey = "MaterialPlanStatus", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("0", "未计划"), new("1", "部分"), new("2", "理论满足"), new("3", "满足"), new("4", "超量") } },
@@ -110,6 +111,9 @@ public partial class MaterialPlanOverview
         new() { Key = "OrderMaterialPlanStatus", Label = "关联订单用料",   SortKey = "OrderMaterialPlanStatus", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("0", "未计划"), new("1", "部分"), new("3", "全部满足") } },
         new() { Key = "MaxStandardCycle",       Label = "最大工艺周期",   SortKey = "MaxStandardCycle", Width = "80" },
+        new() { Key = "MainNoMaxStandardCycle",Label = "主号最大工艺周期",SortKey = "MainNoMaxStandardCycle", Width = "80" },
+        new() { Key = "CapacityWorkDays",    Label = "产能工量",       SortKey = "CapacityWorkDays", Width = "80" },
+        new() { Key = "TheoreticalCutoffDate",  Label = "理论截止投料日", SortKey = "TheoreticalCutoffDate", FilterType = "date", Width = "120" },
         new() { Key = "MaterialPlanCoveredCount",Label = "料态种数",      SortKey = "MaterialPlanCoveredCount", Width = "60" },
         new() { Key = "LatestRequiredDate",      Label = "要求到货日",    SortKey = "LatestRequiredDate", FilterType = "date", Width = "120" },
     };
@@ -179,7 +183,7 @@ public partial class MaterialPlanOverview
             var filtersJson = SerializeFilters();
             var planTypeFilter = BuildPlanTypeFilter();
 
-            var result = await WorkOrderService.GetPagedAsync(
+            var result = await WorkOrderService.GetPagedWithPlansAsync(
                 pageIndex: state.Page + 1,
                 pageSize: state.PageSize,
                 keyword: string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
@@ -368,6 +372,35 @@ public partial class MaterialPlanOverview
         await SaveColumnPrefs();
     }
 
+    // ========== 手动刷新读模型 ==========
+
+    private async Task RefreshReadModel()
+    {
+        if (_isRefreshing) return;
+        _isRefreshing = true;
+        try
+        {
+            var result = await WorkOrderService.RefreshMaterialPlanReadModelAsync();
+            if (result.Success)
+            {
+                Snackbar.Add("读模型刷新成功", Severity.Success);
+                if (table != null) await table.ReloadServerData();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "刷新失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"刷新异常: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isRefreshing = false;
+        }
+    }
+
     // ========== 初始化 ==========
 
     protected override async Task OnInitializedAsync()
@@ -525,6 +558,9 @@ public partial class MaterialPlanOverview
         "OrderMaterialPlanStatus" => item.OrderMaterialPlanStatus.ToString(),
         "MaterialPlanCoveredCount" => item.MaterialPlanCoveredCount.ToString(),
         "LatestRequiredDate" => item.LatestRequiredDate?.ToString("yyyy-MM-dd"),
+        "MainNoMaxStandardCycle" => item.MainNoMaxStandardCycle.ToString(),
+        "CapacityWorkDays" => item.CapacityWorkDays.ToString(),
+        "TheoreticalCutoffDate" => item.TheoreticalCutoffDate?.ToString("yyyy-MM-dd"),
         _ => null
     };
 
@@ -664,22 +700,34 @@ public partial class MaterialPlanOverview
             case "MaxStandardCycle":
                 builder.AddContent(0, wo.MaxStandardCycle > 0 ? $"{wo.MaxStandardCycle}天" : "-");
                 break;
-            case "MaterialPlanCoveredCount":
-                builder.AddContent(0, wo.MaterialPlanCoveredCount > 0 ? $"{wo.MaterialPlanCoveredCount}/4" : "-");
+            case "MainNoMaxStandardCycle":
+                builder.AddContent(0, wo.MainNoMaxStandardCycle > 0 ? $"{wo.MainNoMaxStandardCycle}天" : "-");
                 break;
-            case "LatestRequiredDate":
-                if (wo.LatestRequiredDate.HasValue)
+            case "CapacityWorkDays":
+                builder.AddContent(0, wo.CapacityWorkDays > 0 ? $"{wo.CapacityWorkDays}天" : "-");
+                break;
+            case "TheoreticalCutoffDate":
+                if (wo.TheoreticalCutoffDate.HasValue)
                 {
                     builder.OpenComponent<MudChip>(0);
                     builder.AddAttribute(1, "Size", Size.Small);
                     builder.AddAttribute(2, "Color", Color.Warning);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, wo.LatestRequiredDate.Value.ToString("yyyy-MM-dd"))));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, wo.TheoreticalCutoffDate.Value.ToString("yyyy-MM-dd"))));
                     builder.CloseComponent();
                 }
                 else
                 {
                     builder.AddContent(0, "-");
                 }
+                break;
+            case "MaterialPlanCoveredCount":
+                builder.AddContent(0, wo.MaterialPlanCoveredCount > 0 ? $"{wo.MaterialPlanCoveredCount}/4" : "-");
+                break;
+            case "LatestRequiredDate":
+                if (wo.LatestRequiredDate.HasValue)
+                    builder.AddContent(0, wo.LatestRequiredDate.Value.ToString("yyyy-MM-dd"));
+                else
+                    builder.AddContent(0, "-");
                 break;
         }
     };

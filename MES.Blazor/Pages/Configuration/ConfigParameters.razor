@@ -7,7 +7,6 @@
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
 @using System.Text.Json
-@using static MES.Blazor.Pages.Configuration.ConfigParameters
 @inject ConfigParameterService ConfigParameterService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -23,7 +22,7 @@
             <CardHeaderContent>
                 <MudText Typo="Typo.h5" Class="font-weight-bold">
                     <MudIcon Icon="@Icons.Material.Filled.Tune" Class="mr-2" Color="Color.Primary" />
-                    全局-参数配置
+                    默认配置-系统参数
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -39,9 +38,9 @@
         <MudCardContent>
             <!-- 搜索栏 -->
             <MudGrid>
-                <MudItem xs="12" md="12">
+                <MudItem xs="12" md="6">
                     <MudTextField T="string"
-                                  Label="模糊搜索 - 分类/参数键/用途说明"
+                                  Label="模糊搜索 - 上下文/分类/参数键/用途说明"
                                   Value="_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
@@ -99,21 +98,37 @@
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTd>
-                        @if (col.Key == "Category")
+                        @if (col.Key == "Context")
                         {
                             if (rowEditing && rowCache != null)
                             {
                                 <MudTextField T="string"
                                               Dense="true"
                                               Variant="Variant.Outlined"
-                                              Value="@rowCache.Category"
-                                              ValueChanged="@(v => rowCache.Category = v)"
+                                              Value="@rowCache.Context"
+                                              ValueChanged="@(v => rowCache.Context = v)"
+                                              Class="compact-input" />
+                            }
+                            else
+                            {
+                                <span>@item.Context</span>
+                            }
+                        }
+                        else if (col.Key == "CategoryDisplay")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudTextField T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Value="@rowCache.CategoryDisplay"
+                                              ValueChanged="@(v => rowCache.CategoryDisplay = v)"
                                               Class="compact-input"
                                               Required="true" />
                             }
                             else
                             {
-                                <span title="@item.Category">@GetCategoryDisplay(item.Category)</span>
+                                <span title="@item.Category">@item.CategoryDisplay</span>
                             }
                         }
                         else if (col.Key == "ParamKey")

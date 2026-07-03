@@ -170,18 +170,6 @@ public class OrderController : ControllerBase
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
 
-    [HttpPost("print-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<string>>> PrintOrderAll([FromBody] OrderPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _orderService.PrintOrderAllAsync(request.Keyword, request.TechnicalStatus, request.OrderStatus, request.SortBy, request.IsDescending);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
     [HttpGet("{orderId}/requirements/print")]
     [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintOrderRequirements(int orderId)
@@ -189,6 +177,21 @@ public class OrderController : ControllerBase
         var pdfBytes = await _orderService.PrintOrderRequirementsAsync(orderId);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    #endregion
+
+    #region 读模型刷新
+
+    /// <summary>
+    /// 刷新全部订单读模型（从源表重新聚合 OrderListSummary）
+    /// </summary>
+    [HttpPost("refresh")]
+    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse>> Refresh()
+    {
+        await _orderService.RefreshAllAsync();
+        return Ok(ApiResponse.Ok("读模型刷新成功"));
     }
 
     #endregion

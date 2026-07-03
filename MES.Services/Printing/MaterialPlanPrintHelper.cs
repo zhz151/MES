@@ -152,7 +152,7 @@ public static class MaterialPlanPrintHelper
                 header.Cell().Element(CellHeaderStyle).Text("需求单重").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("需求支数").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("需求重量").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("投料倍率").FontSize(8).AlignCenter();
+                header.Cell().Element(CellHeaderStyle).Text("投料制成倍").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("要求到货日").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("备注").FontSize(8).AlignCenter();
             });
@@ -227,7 +227,7 @@ public static class MaterialPlanPrintHelper
 
             table.Header(header =>
             {
-                string[] headers = { "工单号", "计划日期", "成品类型", "工厂牌号", "规格", "外径公差", "壁厚公差", "长度状态", "长度(mm)", "交货状态", "需用支数", "需用重量", "投料倍率", "要求到货日", "备注" };
+                string[] headers = { "工单号", "计划日期", "成品类型", "工厂牌号", "规格", "外径公差", "壁厚公差", "长度状态", "长度(mm)", "交货状态", "需用支数", "需用重量", "投料制成倍", "要求到货日", "备注" };
                 foreach (var h in headers)
                     header.Cell().Element(CellHeaderStyle).Text(h).FontSize(8).AlignCenter();
             });
@@ -414,7 +414,7 @@ public static class MaterialPlanPrintHelper
                 header.Cell().Element(CellHeaderStyle).Text("需求单重").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("需求支数").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("需求重量").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("投料倍率").FontSize(8).AlignCenter();
+                header.Cell().Element(CellHeaderStyle).Text("投料制成倍").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("要求到货日").FontSize(8).AlignCenter();
             });
 

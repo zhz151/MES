@@ -25,6 +25,12 @@
                 </div>
             </CardHeaderContent>
             <CardHeaderActions>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="@(async () => await RefreshReadModel())"
+                           Disabled="_isRefreshing">
+                    @(_isRefreshing ? "刷新中..." : "全量刷新")
+                </MudButton>
             </CardHeaderActions>
         </MudCardHeader>
 
@@ -37,7 +43,7 @@
 
             <!-- 筛选栏 -->
             <MudGrid>
-                <MudItem xs="12" md="3">
+                <MudItem xs="12" md="6">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 工单号/订单号/主号/次号/业务员/最终用户"
                                   Value="@_searchKeyword"

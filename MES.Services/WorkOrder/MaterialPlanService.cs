@@ -27,6 +27,7 @@ public class MaterialPlanService : IMaterialPlanService
     private readonly IStandardWorkDayService _standardWorkDayService;
     private readonly IStandardWorkDayDeliveryStateService _deliveryStateService;
     private readonly IConfigParameterService _configService;
+    private readonly IWorkOrderListSummaryRefreshService _readModelRefreshService;
 
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
@@ -38,13 +39,15 @@ public class MaterialPlanService : IMaterialPlanService
     public MaterialPlanService(AppDbContext context, ILogger<MaterialPlanService> logger,
         IStandardWorkDayService standardWorkDayService,
         IStandardWorkDayDeliveryStateService deliveryStateService,
-        IConfigParameterService configService)
+        IConfigParameterService configService,
+        IWorkOrderListSummaryRefreshService readModelRefreshService)
     {
         _context = context;
         _logger = logger;
         _standardWorkDayService = standardWorkDayService;
         _deliveryStateService = deliveryStateService;
         _configService = configService;
+        _readModelRefreshService = readModelRefreshService;
     }
 
     #region Config cache
@@ -175,9 +178,11 @@ public class MaterialPlanService : IMaterialPlanService
             Remark = request.Remark,
         };
 
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
         {
+            try
+            {
             _context.PurchaseSemiPlans.Add(plan);
             await _context.SaveChangesAsync();
 
@@ -242,26 +247,19 @@ public class MaterialPlanService : IMaterialPlanService
             _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
             await _context.SaveChangesAsync();
 
-            // 同步写入/更新 StandardProcessCycle 引用表
-            await UpsertStandardProcessCycleAsync(
-                plan.PlantGrade,
-                EnumHelper.GetDisplayName(plan.RawMaterialType),
-                plan.RawMaterialSpec,
-                workOrder.Specification,
-                EnumHelper.GetDisplayName(workOrder.DeliveryState),
-                plan.StandardCycle);
-
             // 刷新工单状态（与创建在同一事务中）
             await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
 
             await transaction.CommitAsync();
-            await RefreshReadModelAsync(request.WorkOrderId);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+
+        await RefreshReadModelAsync(request.WorkOrderId);
 
         _logger.LogInformation("创建原料采购计划成功: 工单ID {WorkOrderId}, 原料规格 {Spec}, 重量 {Weight}",
             request.WorkOrderId, request.RawMaterialSpec, request.RequiredWeight);
@@ -276,9 +274,11 @@ public class MaterialPlanService : IMaterialPlanService
             throw new BusinessException("原料采购计划不存在");
 
         var workOrderId = plan.WorkOrderId;
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
         {
+            try
+            {
             _context.PurchaseSemiPlans.Remove(plan);
             await _context.SaveChangesAsync();
 
@@ -286,13 +286,15 @@ public class MaterialPlanService : IMaterialPlanService
             await UpdateMaterialPlanStatusAsync(workOrderId);
 
             await transaction.CommitAsync();
-            await RefreshReadModelAsync(workOrderId);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+
+        await RefreshReadModelAsync(workOrderId);
 
         _logger.LogInformation("删除原料采购计划成功: ID {Id}", id);
     }
@@ -323,9 +325,11 @@ public class MaterialPlanService : IMaterialPlanService
         var workOrder = await _context.WorkOrders.FindAsync(plan.WorkOrderId)
             ?? throw new BusinessException("关联工单不存在");
 
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
         {
+            try
+            {
             // 全量替换工序组
             var existingGroups = await _context.SemiPlanProcessGroups
                 .Where(g => g.PurchaseSemiPlanId == id)
@@ -393,24 +397,17 @@ public class MaterialPlanService : IMaterialPlanService
             _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
             await _context.SaveChangesAsync();
 
-            // 同步写入/更新 StandardProcessCycle 引用表
-            await UpsertStandardProcessCycleAsync(
-                plan.PlantGrade,
-                EnumHelper.GetDisplayName(plan.RawMaterialType),
-                plan.RawMaterialSpec,
-                workOrder.Specification,
-                EnumHelper.GetDisplayName(workOrder.DeliveryState),
-                plan.StandardCycle);
-
             await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
             await transaction.CommitAsync();
-            await RefreshReadModelAsync(plan.WorkOrderId);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+
+        await RefreshReadModelAsync(plan.WorkOrderId);
 
         _logger.LogInformation("更新原料采购计划成功: ID {Id}", id);
         return plan.ToDto();
@@ -478,9 +475,11 @@ public class MaterialPlanService : IMaterialPlanService
             StandardCycle = defaultStandardCycle // 成品采购默认天数
         };
 
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
         {
+            try
+            {
             _context.PurchaseFinishedPlans.Add(plan);
             await _context.SaveChangesAsync();
 
@@ -488,13 +487,15 @@ public class MaterialPlanService : IMaterialPlanService
             await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
 
             await transaction.CommitAsync();
-            await RefreshReadModelAsync(request.WorkOrderId);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+
+        await RefreshReadModelAsync(request.WorkOrderId);
 
         _logger.LogInformation("创建成品采购计划成功: 工单ID {WorkOrderId}, 重量 {Weight}",
             request.WorkOrderId, request.RequiredWeight);
@@ -552,20 +553,24 @@ public class MaterialPlanService : IMaterialPlanService
             });
         }
 
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
         {
+            try
+            {
             _context.PurchaseFinishedPlans.AddRange(plans);
             await _context.SaveChangesAsync();
             await UpdateMaterialPlanStatusAsync(workOrderId);
             await transaction.CommitAsync();
-            await RefreshReadModelAsync(workOrderId);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+
+        await RefreshReadModelAsync(workOrderId);
 
         _logger.LogInformation("批量创建成品采购计划成功: 工单ID {WorkOrderId}, 共 {Count} 条", workOrderId, plans.Count);
         return plans.Select(p => p.ToDto()).ToList();
@@ -610,19 +615,23 @@ public class MaterialPlanService : IMaterialPlanService
             ? ds
             : DeliveryState.SolutionAnnealedAndPickled;
 
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
         {
+            try
+            {
             await _context.SaveChangesAsync();
             await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
             await transaction.CommitAsync();
-            await RefreshReadModelAsync(plan.WorkOrderId);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+
+        await RefreshReadModelAsync(plan.WorkOrderId);
 
         _logger.LogInformation("更新成品采购计划成功: ID {Id}", id);
         return plan.ToDto();
@@ -635,9 +644,11 @@ public class MaterialPlanService : IMaterialPlanService
             throw new BusinessException("成品采购计划不存在");
 
         var workOrderId = plan.WorkOrderId;
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
         {
+            try
+            {
             _context.PurchaseFinishedPlans.Remove(plan);
             await _context.SaveChangesAsync();
 
@@ -645,13 +656,15 @@ public class MaterialPlanService : IMaterialPlanService
             await UpdateMaterialPlanStatusAsync(workOrderId);
 
             await transaction.CommitAsync();
-            await RefreshReadModelAsync(workOrderId);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+
+        await RefreshReadModelAsync(workOrderId);
 
         _logger.LogInformation("删除成品采购计划成功: ID {Id}", id);
     }
@@ -743,22 +756,26 @@ public class MaterialPlanService : IMaterialPlanService
         plan.StandardCycle = defaultStandardCycle;
 
         _context.InventoryPlans.Add(plan);
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
         {
+            try
+            {
             await _context.SaveChangesAsync();
 
             // 刷新工单状态（与创建在同一事务中）
             await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
 
             await transaction.CommitAsync();
-            await RefreshReadModelAsync(request.WorkOrderId);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+
+        await RefreshReadModelAsync(request.WorkOrderId);
 
         _logger.LogInformation("创建库存使用计划成功: 工单ID {WorkOrderId}, 批次号 {BatchNo}, 重量 {Weight}",
             request.WorkOrderId, batch.BatchNo, request.UsedWeight);
@@ -850,19 +867,23 @@ public class MaterialPlanService : IMaterialPlanService
         }
 
         _context.InventoryPlans.AddRange(plans);
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
         {
+            try
+            {
             await _context.SaveChangesAsync();
             await UpdateMaterialPlanStatusAsync(workOrderId);
             await transaction.CommitAsync();
-            await RefreshReadModelAsync(workOrderId);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+
+        await RefreshReadModelAsync(workOrderId);
 
         _logger.LogInformation("批量创建库存使用计划成功: 工单ID {WorkOrderId}, 共 {Count} 条", workOrderId, plans.Count);
         return plans.Select(p => p.ToDto()).ToList();
@@ -876,22 +897,26 @@ public class MaterialPlanService : IMaterialPlanService
 
         var workOrderId = plan.WorkOrderId;
         _context.InventoryPlans.Remove(plan);
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
         {
+            try
+            {
             await _context.SaveChangesAsync();
 
             // 刷新工单状态（与删除在同一事务中）
             await UpdateMaterialPlanStatusAsync(workOrderId);
 
             await transaction.CommitAsync();
-            await RefreshReadModelAsync(workOrderId);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+
+        await RefreshReadModelAsync(workOrderId);
 
         _logger.LogInformation("删除库存使用计划成功: ID {Id}", id);
     }
@@ -1288,19 +1313,23 @@ public class MaterialPlanService : IMaterialPlanService
         plan.RequiredDate = request.RequiredDate;
         plan.Remark = request.Remark;
 
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
         {
+            try
+            {
             await _context.SaveChangesAsync();
             await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
             await transaction.CommitAsync();
-            await RefreshReadModelAsync(plan.WorkOrderId);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+
+        await RefreshReadModelAsync(plan.WorkOrderId);
 
         _logger.LogInformation("更新库存使用计划成功: ID {Id}", id);
         return plan.ToDto();
@@ -1371,9 +1400,11 @@ public class MaterialPlanService : IMaterialPlanService
             Remark = request.Remark,
         };
 
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
         {
+            try
+            {
             _context.RoundBarPiercingPlans.Add(plan);
             await _context.SaveChangesAsync();
 
@@ -1438,26 +1469,19 @@ public class MaterialPlanService : IMaterialPlanService
             _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
             await _context.SaveChangesAsync();
 
-            // 同步写入/更新 StandardProcessCycle 引用表
-            await UpsertStandardProcessCycleAsync(
-                plan.PlantGrade,
-                "荒管",
-                plan.PiercingSpec,
-                workOrder.Specification,
-                EnumHelper.GetDisplayName(workOrder.DeliveryState),
-                plan.StandardCycle);
-
             // 刷新工单状态（与创建在同一事务中）
             await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
 
             await transaction.CommitAsync();
-            await RefreshReadModelAsync(request.WorkOrderId);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+
+        await RefreshReadModelAsync(request.WorkOrderId);
 
         _logger.LogInformation("创建圆棒穿孔计划成功: 工单ID {WorkOrderId}, 圆棒规格 {Spec}, 穿孔规格 {Piercing}, 重量 {Weight}",
             request.WorkOrderId, request.RoundBarSpec, request.PiercingSpec, request.RequiredWeight);
@@ -1509,9 +1533,11 @@ public class MaterialPlanService : IMaterialPlanService
         plan.RequiredDate = request.RequiredDate;
         plan.Remark = request.Remark;
 
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
         {
+            try
+            {
             // 全量替换工序组
             var existingGroups = await _context.PiercingPlanProcessGroups
                 .Where(g => g.RoundBarPiercingPlanId == id)
@@ -1579,24 +1605,17 @@ public class MaterialPlanService : IMaterialPlanService
             _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
             await _context.SaveChangesAsync();
 
-            // 同步写入/更新 StandardProcessCycle 引用表
-            await UpsertStandardProcessCycleAsync(
-                plan.PlantGrade,
-                "荒管",
-                plan.PiercingSpec,
-                workOrder.Specification,
-                EnumHelper.GetDisplayName(workOrder.DeliveryState),
-                plan.StandardCycle);
-
             await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
             await transaction.CommitAsync();
-            await RefreshReadModelAsync(plan.WorkOrderId);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+
+        await RefreshReadModelAsync(plan.WorkOrderId);
 
         _logger.LogInformation("更新圆棒穿孔计划成功: ID {Id}, 工单ID {WorkOrderId}, 圆棒规格 {Spec}",
             id, plan.WorkOrderId, request.RoundBarSpec);
@@ -1611,9 +1630,11 @@ public class MaterialPlanService : IMaterialPlanService
             throw new BusinessException("圆棒穿孔计划不存在");
 
         var workOrderId = plan.WorkOrderId;
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
         {
+            try
+            {
             _context.RoundBarPiercingPlans.Remove(plan);
             await _context.SaveChangesAsync();
 
@@ -1621,13 +1642,15 @@ public class MaterialPlanService : IMaterialPlanService
             await UpdateMaterialPlanStatusAsync(workOrderId);
 
             await transaction.CommitAsync();
-            await RefreshReadModelAsync(workOrderId);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+
+        await RefreshReadModelAsync(workOrderId);
 
         _logger.LogInformation("删除圆棒穿孔计划成功: ID {Id}", id);
     }
@@ -2114,8 +2137,23 @@ public class MaterialPlanService : IMaterialPlanService
 
     private async Task RefreshReadModelAsync(int workOrderId)
     {
-        // 读模型刷新已移除（使用实时查询），忽略
-        await Task.CompletedTask;
+        try
+        {
+            var workOrder = await _context.WorkOrders
+                .AsNoTracking()
+                .Where(wo => wo.Id == workOrderId)
+                .Select(wo => wo.SalesOrderNo)
+                .FirstOrDefaultAsync();
+
+            if (!string.IsNullOrEmpty(workOrder))
+            {
+                await _readModelRefreshService.RefreshBySalesOrderAsync(workOrder);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "读模型刷新失败（不影响主流程）: WorkOrderId={WorkOrderId}", workOrderId);
+        }
     }
 
     #endregion
@@ -2286,42 +2324,6 @@ public class MaterialPlanService : IMaterialPlanService
             return documents[0].GeneratePdf();
 
         return Document.Merge(documents).GeneratePdf();
-    }
-
-    /// <summary>
-    /// 同步写入/更新 StandardProcessCycle 引用表。
-    /// 以 (PlantGrade, RawMaterialType, RawSpec, ProductSpec, DeliveryState) 为唯一键 upsert。
-    /// </summary>
-    private async Task UpsertStandardProcessCycleAsync(
-        string plantGrade, string rawMaterialType, string rawSpec,
-        string productSpec, string deliveryState, int cycle)
-    {
-        var existing = await _context.StandardProcessCycles
-            .FirstOrDefaultAsync(c =>
-                c.PlantGrade == plantGrade &&
-                c.RawMaterialType == rawMaterialType &&
-                c.RawSpec == rawSpec &&
-                c.ProductSpec == productSpec &&
-                c.DeliveryState == deliveryState);
-
-        if (existing != null)
-        {
-            existing.StandardCycleDays = cycle;
-        }
-        else
-        {
-            _context.StandardProcessCycles.Add(new StandardProcessCycle
-            {
-                PlantGrade = plantGrade,
-                RawMaterialType = rawMaterialType,
-                RawSpec = rawSpec,
-                ProductSpec = productSpec,
-                DeliveryState = deliveryState,
-                StandardCycleDays = cycle
-            });
-        }
-
-        await _context.SaveChangesAsync();
     }
 
     #endregion

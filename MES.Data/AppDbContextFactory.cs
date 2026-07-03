@@ -19,12 +19,12 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
         {
             // 从 appsettings.json 读取
             var apiDir = Path.Combine(Directory.GetCurrentDirectory(), "..", "MES.Api");
+            // Development.json 优先（同 ASP.NET Core 配置覆盖惯例）
             var configPaths = new[]
             {
+                Path.Combine(apiDir, "appsettings.Development.json"),
                 Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json"),
                 Path.Combine(apiDir, "appsettings.json"),
-                // appsettings.Development.json 在 .gitignore 中，可存放真实连接串
-                Path.Combine(apiDir, "appsettings.Development.json"),
             };
 
             foreach (var configPath in configPaths)

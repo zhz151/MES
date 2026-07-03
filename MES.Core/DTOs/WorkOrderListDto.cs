@@ -216,6 +216,21 @@ public class WorkOrderListDto
     public int MaxStandardCycle { get; set; }
 
     /// <summary>
+    /// 主号最大工艺周期（天）：同主号下所有工单 MaxStandardCycle 的最大值
+    /// </summary>
+    public int MainNoMaxStandardCycle { get; set; }
+
+    /// <summary>
+    /// 产能工量（天）
+    /// </summary>
+    public int CapacityWorkDays { get; set; }
+
+    /// <summary>
+    /// 理论截止投料日
+    /// </summary>
+    public DateTime? TheoreticalCutoffDate { get; set; }
+
+    /// <summary>
     /// 用料占比：有做计划的料态种数(0-4)
     /// </summary>
     public int MaterialPlanCoveredCount { get; set; }

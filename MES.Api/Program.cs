@@ -143,7 +143,6 @@ builder.Services.AddScoped<IGradeChemicalCompositionService, GradeChemicalCompos
 builder.Services.AddScoped<IGradePhysicalPropertyService, GradePhysicalPropertyService>();
 builder.Services.AddScoped<ISubStandardQuickViewService, SubStandardQuickViewService>();
 builder.Services.AddScoped<IStandardInspectionRequirementService, StandardInspectionRequirementService>();
-builder.Services.AddScoped<IStandardProcessCycleService, StandardProcessCycleService>();
 builder.Services.AddScoped<IStandardWorkDayService, StandardWorkDayService>();
 builder.Services.AddScoped<IStandardWorkDayDeliveryStateService, StandardWorkDayDeliveryStateService>();
 builder.Services.AddScoped<IConfigParameterService, ConfigParameterService>();
@@ -152,6 +151,8 @@ builder.Services.AddScoped<IMaterialPlanProcessGroupService, MaterialPlanProcess
 builder.Services.AddScoped<IProductRequirementService, ProductRequirementService>();
 
 builder.Services.AddScoped<IWorkOrderService, WorkOrderService>();
+builder.Services.AddScoped<IWorkOrderListSummaryRefreshService, WorkOrderListSummaryRefreshService>();
+
 builder.Services.AddScoped<IMaterialPlanService, MaterialPlanService>();
 builder.Services.AddScoped<IWarehouseService, WarehouseService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
@@ -199,6 +200,7 @@ builder.Services.AddScoped<IDataFixService, DataFixService>();
 builder.Services.AddScoped<IScanService, ScanService>();
 builder.Services.AddScoped<IWorkstationService, WorkstationService>();
 builder.Services.AddScoped<IEmployeeService, MES.Services.Configuration.EmployeeService>();
+builder.Services.AddScoped<IDailyProductionCapacityService, MES.Services.Configuration.DailyProductionCapacityService>();
 builder.Services.AddScoped<IStandardRegisterService, MES.Services.StandardRegister.StandardRegisterService>();
 
 // ========== 读模型上下文 ==========
@@ -271,12 +273,7 @@ var jobOptions = new RecurringJobOptions
 // 使用 BackgroundJob 的静态方法需要先确保 JobStorage 已初始化
 // 通过 IApplicationBuilder 的 ApplicationServices 获取服务
 var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
-recurringJobManager.AddOrUpdate<HangfireJobService>(
-    "check-order-change",
-    service => service.CheckOrderChangeJob(),
-    "*/5 * * * *",
-    jobOptions);
-    
+
 recurringJobManager.AddOrUpdate<HangfireJobService>(
     "cleanup-old-notifications",
     service => service.CleanupOldNotificationsJob(),

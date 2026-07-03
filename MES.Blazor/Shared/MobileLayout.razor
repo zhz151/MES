@@ -50,7 +50,7 @@
                         <div style="padding-left: 16px;">
                             <MudNavLink Href="/workorders" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">工单首页</MudNavLink>
                             <MudNavLink Href="/material-plan-overview" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">用料计划总览</MudNavLink>
-                            <MudNavLink Href="/standard-process-cycles" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">标准工艺生产周期</MudNavLink>
+                            <MudNavLink Href="/workorder-overview" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">工单总览</MudNavLink>
                             <MudNavLink Href="/workorder-execution" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">工单执行状况</MudNavLink>
                         </div>
                     </ChildContent>
@@ -140,7 +140,7 @@
                     <TitleContent><div style="padding: 10px 16px; color: #ccc;">计划排程</div></TitleContent>
                     <ChildContent>
                         <div style="padding-left: 16px;">
-                            <MudNavLink Href="/order-overview" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">订单总览</MudNavLink>
+                            <MudNavLink Href="/order-overview" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">工单总览</MudNavLink>
                             <MudNavLink Href="/section-production-status" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">工段待产量</MudNavLink>
                             <MudNavLink Href="/section-flow-analysis" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">工段流转分析</MudNavLink>
                             <MudNavLink Href="/raw-material-lock-plan" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">原锁计划</MudNavLink>
@@ -170,10 +170,12 @@
                     <TitleContent><div style="padding: 10px 16px; color: #ccc;">参数表</div></TitleContent>
                     <ChildContent>
                         <div style="padding-left: 16px;">
-                            <MudNavLink Href="/standard-work-days" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">交期排程-标准工量天数</MudNavLink>
-                            <MudNavLink Href="/daily-output-estimates" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">产量排程-日产能预估</MudNavLink>
-                            <MudNavLink Href="/section-flow-category-settings" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">产量排程-日流转量配置</MudNavLink>
-                            <MudNavLink Href="/config-parameters" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">全局-参数配置</MudNavLink>
+                            <MudNavLink Href="/section-flow-category-settings" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">生产-工段日流转量</MudNavLink>
+                            <MudNavLink Href="/daily-production-capacities" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">生产-重点工段日产</MudNavLink>
+                            <MudNavLink Href="/daily-output-estimates" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">生产-规格日产预估</MudNavLink>
+                            <MudNavLink Href="/standard-work-days" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">生产-工段工量天数</MudNavLink>
+                            <MudNavLink Href="/standard-work-day-delivery-states" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">生产-交态附加天数</MudNavLink>
+                            <MudNavLink Href="/config-parameters" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">默认配置-系统参数</MudNavLink>
                             <MudNavLink Href="/workstations" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">扫码-工位管理</MudNavLink>
                             <MudNavLink Href="/employees" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">扫码-员工管理</MudNavLink>
                         </div>

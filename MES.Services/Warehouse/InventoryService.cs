@@ -371,11 +371,13 @@ public class InventoryService : IInventoryService
         if (warehouse == null)
             throw new BusinessException("仓库不存在");
 
-        using var transaction = await _context.Database.BeginTransactionAsync();
-
+        var results = new List<string>();
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
+        {
         try
         {
-            var results = new List<string>();
+
 
             // 预生成批次号序列（避免每行查询数据库导致重复）
             var batchNos = await GenerateBatchNoSequenceAsync(request.Rows.Count);
@@ -448,27 +450,28 @@ public class InventoryService : IInventoryService
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
-
-            // 自动同步采购单/委外单的收货状态
-            var sourceOrderNos = request.Rows
-                .Select(r => r.SourceOrderNo ?? request.SourceOrderNo)
-                .Where(n => !string.IsNullOrEmpty(n))
-                .Distinct()
-                .Select(n => n!)
-                .ToList();
-            await SyncSourceOrdersAsync(sourceOrderNos);
-
-            return new BatchInboundResult
+            }
+            catch
             {
-                SuccessCount = results.Count,
-                BatchNos = results
-            };
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-        catch
+
+        // 自动同步采购单/委外单的收货状态（事务已提交，在 using 块之外执行）
+        var sourceOrderNos = request.Rows
+            .Select(r => r.SourceOrderNo ?? request.SourceOrderNo)
+            .Where(n => !string.IsNullOrEmpty(n))
+            .Distinct()
+            .Select(n => n!)
+            .ToList();
+        await SyncSourceOrdersAsync(sourceOrderNos);
+
+        return new BatchInboundResult
         {
-            await transaction.RollbackAsync();
-            throw;
-        }
+            SuccessCount = results.Count,
+            BatchNos = results
+        };
     }
 
     public async Task<InventoryBatchDto> GetByIdAsync(int id)

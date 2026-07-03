@@ -191,8 +191,8 @@ public partial class BatchPlans
             new() { Key = "NextNextCR_BilletSpec",  Label = "下下层来料规格", FilterType = "string", Width = "110", GroupKey = 9, GroupName = "冷轧排程(下下层)", Visible = false },
             new() { Key = "NextNextCR_RollingSpec", Label = "下下层在轧规格", FilterType = "string", Width = "110", GroupKey = 9, GroupName = "冷轧排程(下下层)", Visible = false },
             new() { Key = "NextNextCR_IsFinished",  Label = "下下层末道",    FilterType = "boolean", Width = "80",  GroupKey = 9, GroupName = "冷轧排程(下下层)", Visible = false },
-            new() { Key = "CR_CompletionType",      Label = "在轧要求",    FilterType = "enum",   Width = "90",  GroupKey = 7, GroupName = "冷轧排程(本层匹配)", EnumOptions = new() { new("All","全量"), new("Urgent","急单"), new("Partial1","部分(1)"), new("Partial2","部分(2)"), new("Partial3","部分(3)") }, DisplayConverter = v => DisplayHelper.GetCompletionTypeText(v as string) },
-            new() { Key = "CR_RollType",            Label = "待轧要求",    FilterType = "enum",   Width = "90",  GroupKey = 8, GroupName = "冷轧排程(下层匹配)", EnumOptions = new() { new("All","全量"), new("Urgent","急单"), new("Partial1","部分(1)"), new("Partial2","部分(2)"), new("Partial3","部分(3)"), new("Subsequent","后续") }, DisplayConverter = v => DisplayHelper.GetRollTypeText(v as string) },
+            new() { Key = "CR_CompletionType",      Label = "在轧要求",    FilterType = "enum",   Width = "90",  GroupKey = 7, GroupName = "冷轧排程(本层匹配)", EnumOptions = new() { new("All","全量"), new("Urgent","特急单"), new("Partial2","急单"), new("Partial3","含B顺") }, DisplayConverter = v => DisplayHelper.GetCompletionTypeText(v as string) },
+            new() { Key = "CR_RollType",            Label = "待轧要求",    FilterType = "enum",   Width = "90",  GroupKey = 8, GroupName = "冷轧排程(下层匹配)", EnumOptions = new() { new("All","全量"), new("Urgent","特急单"), new("Partial2","急单"), new("Partial3","含B顺") }, DisplayConverter = v => DisplayHelper.GetRollTypeText(v as string) },
             new() { Key = "CR_SchedMachineNo",      Label = "待轧设备号",   FilterType = "string", Width = "100", GroupKey = 8, GroupName = "冷轧排程(下层匹配)" },
         };
 
@@ -201,7 +201,9 @@ public partial class BatchPlans
         {
             new() { Key = "UrgencyLevel",               Label = "工单紧急性",    SortKey = "UrgencyLevel",               FilterType = "string", Width = "110", GroupKey = 4, GroupName = "批次关注" },
             new() { Key = "ScheduleStage",               Label = "计划状态",     SortKey = "ScheduleStage",               FilterType = "enum", Width = "110", EnumOptions = new() { new("-1","存错-无此工单"), new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验"), new("4","非工单批次") }, GroupKey = 4, GroupName = "批次关注", DisplayConverter = v => v is int s ? s switch { -1 => "存错-无此工单", 0 => "工单完成", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", 4 => "非工单批次", _ => null } : null },
-            new() { Key = "MainNoAttentionProcess",     Label = "主号关注工序",   SortKey = "MainNoAttentionProcess",    FilterType = "string", Width = "130", GroupKey = 4, GroupName = "批次关注" },
+            new() { Key = "MainNoAttentionProcess",             Label = "主号关注工序",   SortKey = "MainNoAttentionProcess",          FilterType = "string", Width = "130", GroupKey = 4, GroupName = "批次关注" },
+            new() { Key = "AttentionProcessSectionSequence",    Label = "相应工段序",   SortKey = "AttentionProcessSectionSequence", Width = "100", GroupKey = 4, GroupName = "批次关注" },
+            new() { Key = "ProductionFlowProperty",             Label = "生产流转性",    SortKey = "ProductionFlowProperty",           FilterType = "string", Width = "100", GroupKey = 4, GroupName = "批次关注" },
             new() { Key = "IsKeyBatch",                  Label = "重点生产批次",  FilterType = "boolean", Width = "120", GroupKey = 4, GroupName = "批次关注" },
         };
 
@@ -221,6 +223,7 @@ public partial class BatchPlans
             new() { Key = "FlowLevel",             Label = "等级",        FilterType = "string",  Width = "60",  GroupKey = 11, GroupName = "批次流转" },
             new() { Key = "FlowTarget",            Label = "流转目标",    FilterType = "string",  Width = "90",  GroupKey = 11, GroupName = "批次流转" },
             new() { Key = "FlowCRType",            Label = "冷轧类型",    FilterType = "string",  Width = "100", GroupKey = 11, GroupName = "批次流转" },
+            new() { Key = "OuterDiameterSpan",     Label = "外径跨度",    FilterType = "string",  Width = "90",  GroupKey = 11, GroupName = "批次流转" },
             new() { Key = "FlowExecSpec",          Label = "执行规格",    FilterType = "string",  Width = "120", GroupKey = 11, GroupName = "批次流转" },
             new() { Key = "TargetSequence",        Label = "目标序",      Width = "70",           GroupKey = 11, GroupName = "批次流转" },
         };
@@ -241,6 +244,7 @@ public partial class BatchPlans
             new() { Key = "PlanFlowLevel",           Label = "等级",       FilterType = "string",  Width = "60",  GroupKey = 13, GroupName = "批次计划" },
             new() { Key = "PlanFlowTarget",          Label = "流转目标",   FilterType = "string",  Width = "90",  GroupKey = 13, GroupName = "批次计划" },
             new() { Key = "PlanFlowCRType",          Label = "冷轧类型",   FilterType = "string",  Width = "100", GroupKey = 13, GroupName = "批次计划" },
+            new() { Key = "PlanOuterDiameterSpan",   Label = "外径跨度",   FilterType = "string",  Width = "90",  GroupKey = 13, GroupName = "批次计划" },
             new() { Key = "PlanFlowExecSpec",        Label = "执行规格",   FilterType = "string",  Width = "120", GroupKey = 13, GroupName = "批次计划" },
             new() { Key = "PlanExecutionSequence",   Label = "执行序",     Width = "70",           GroupKey = 13, GroupName = "批次计划" },
             new() { Key = "PlanTargetSequence",      Label = "目标序",     Width = "70",           GroupKey = 13, GroupName = "批次计划" },
@@ -410,10 +414,12 @@ public partial class BatchPlans
         "ProductionFlowProperty" => item.ProductionFlowProperty,
         "MaxBatchRemainingWorkDays" => item.MaxBatchRemainingWorkDays?.ToString(),
         "MainNoAttentionProcess" => item.MainNoAttentionProcess,
+        "AttentionProcessSectionSequence" => item.AttentionProcessSectionSequence?.ToString(),
         "AdjustmentRemark" => item.AdjustmentRemark,
-        "FlowLevel" => item.FlowLevel.ToString(),
+        "FlowLevel" => item.FlowLevelDisplay,
         "FlowTarget" => item.FlowTarget,
         "FlowCRType" => item.FlowCRType,
+        "OuterDiameterSpan" => item.OuterDiameterSpan,
         "FlowExecSpec" => item.FlowExecSpec,
         "IsKeyBatch" => item.IsKeyBatch.ToString(),
         "IsFlow" => item.IsFlow.ToString(),
@@ -423,9 +429,10 @@ public partial class BatchPlans
         "IsGrabOrder" => item.IsGrabOrder.ToString(),
         "PlanRemark" => item.PlanRemark,
         "PlanIsFlow" => item.PlanIsFlow.ToString(),
-        "PlanFlowLevel" => item.PlanFlowLevel.ToString(),
+        "PlanFlowLevel" => item.PlanFlowLevelDisplay,
         "PlanFlowTarget" => item.PlanFlowTarget,
         "PlanFlowCRType" => item.PlanFlowCRType,
+        "PlanOuterDiameterSpan" => item.PlanOuterDiameterSpan,
         "PlanFlowExecSpec" => item.PlanFlowExecSpec,
         "PlanExecutionSequence" => item.PlanExecutionSequence?.ToString(),
         "PlanTargetSequence" => item.PlanTargetSequence?.ToString(),
@@ -481,6 +488,7 @@ public partial class BatchPlans
         }
         await SavePageStateAsync();
         await SaveColumnPrefs();
+        StateHasChanged();
     }
 
     private async Task MoveColumnDown(ColumnDef col)
@@ -493,6 +501,7 @@ public partial class BatchPlans
         }
         await SavePageStateAsync();
         await SaveColumnPrefs();
+        StateHasChanged();
     }
 
     private async Task ToggleSort(string sortKey)
@@ -504,6 +513,14 @@ public partial class BatchPlans
             sortColumn = sortKey;
             sortDescending = false;
         }
+        await SavePageStateAsync();
+        if (table != null) { ApplyFiltersAndSort(); StateHasChanged(); }
+    }
+
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        await SaveColumnPrefs();
         await SavePageStateAsync();
         if (table != null) { ApplyFiltersAndSort(); StateHasChanged(); }
     }
@@ -661,12 +678,18 @@ public partial class BatchPlans
             _allColumns = reordered;
         }
 
-        // 确保新字段始终可见（兼容旧保存状态不包含这些列）
+        // 确保新字段始终可见，并插入到正确位置（兼容旧保存状态不包含这些列）
         foreach (var col in _allColumns)
         {
-            if (col.Key is "MaxBatchRemainingWorkDays" or "MainNoAttentionProcess")
+            if (col.Key is "MaxBatchRemainingWorkDays" or "MainNoAttentionProcess" or "OuterDiameterSpan" or "PlanOuterDiameterSpan" or "ProductionFlowProperty" or "AttentionProcessSectionSequence")
                 col.Visible = true;
         }
+
+        // 将新字段移动到正确的组内位置（追加在末尾会导致组显示错乱）
+        RepositionNewColumn("OuterDiameterSpan", "FlowCRType");
+        RepositionNewColumn("PlanOuterDiameterSpan", "PlanFlowCRType");
+        RepositionNewColumn("ProductionFlowProperty", "MainNoAttentionProcess");
+        RepositionNewColumn("AttentionProcessSectionSequence", "MainNoAttentionProcess");
 
         // 从 PageState 恢复排序/筛选状态（列显隐/顺序由 ColumnPrefs 管理）
         var savedState = await PageState.LoadAsync("batchplans");
@@ -704,6 +727,23 @@ public partial class BatchPlans
         await LoadDailyTargetsAsync();
 
         await LoadDataAsync();
+    }
+
+    /// <summary>
+    /// 将新字段移动到指定锚点字段之后（兼容旧配置不包含此新字段时被追加到末尾）
+    /// </summary>
+    private void RepositionNewColumn(string newKey, string afterKey)
+    {
+        var newCol = _allColumns.FirstOrDefault(c => c.Key == newKey);
+        if (newCol == null) return;
+        var currentIdx = _allColumns.IndexOf(newCol);
+        var anchorIdx = _allColumns.FindLastIndex(c => c.Key == afterKey);
+        if (anchorIdx < 0) return;
+        if (currentIdx == anchorIdx + 1) return; // 已在正确位置
+        _allColumns.RemoveAt(currentIdx);
+        var insertIdx = _allColumns.FindLastIndex(c => c.Key == afterKey);
+        if (insertIdx >= 0)
+            _allColumns.Insert(insertIdx + 1, newCol);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -765,6 +805,8 @@ public partial class BatchPlans
                 (x.CurrentSectionName != null && x.CurrentSectionName.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.PendingSpec != null && x.PendingSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.PendingEquipment != null && x.PendingEquipment.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.OuterDiameterSpan != null && x.OuterDiameterSpan.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.PlanOuterDiameterSpan != null && x.PlanOuterDiameterSpan.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.FlowExecSpec != null && x.FlowExecSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.CurrentCR_ProcessType != null && x.CurrentCR_ProcessType.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.CurrentCR_BilletSpec != null && x.CurrentCR_BilletSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
@@ -849,6 +891,7 @@ public partial class BatchPlans
             "productionflowproperty" => items.OrderBy(x => x.ProductionFlowProperty ?? ""),
             "maxbatchremainingworkdays" => items.OrderBy(x => x.MaxBatchRemainingWorkDays),
             "mainnoattentionprocess" => items.OrderBy(x => x.MainNoAttentionProcess ?? ""),
+            "attentionprocesssectionsequence" => items.OrderBy(x => x.AttentionProcessSectionSequence),
             "iskeybatch" => items.OrderBy(x => x.IsKeyBatch),
             "isurging" => items.OrderBy(x => x.IsUrging),
             "isbatchdelivery" => items.OrderBy(x => x.IsBatchDelivery),
@@ -858,6 +901,7 @@ public partial class BatchPlans
             "flowlevel" => items.OrderBy(x => x.FlowLevel),
             "flowtarget" => items.OrderBy(x => x.FlowTarget ?? ""),
             "flowcrtype" => items.OrderBy(x => x.FlowCRType ?? ""),
+            "outerdiameterspan" => items.OrderBy(x => x.OuterDiameterSpan ?? ""),
             "flowexecspec" => items.OrderBy(x => x.FlowExecSpec ?? ""),
             "executionsequence" => items.OrderBy(x => x.ExecutionSequence),
             "targetsequence" => items.OrderBy(x => x.TargetSequence),
@@ -871,6 +915,7 @@ public partial class BatchPlans
             "planflowlevel" => items.OrderBy(x => x.PlanFlowLevel),
             "planflowtarget" => items.OrderBy(x => x.PlanFlowTarget ?? ""),
             "planflowcrtype" => items.OrderBy(x => x.PlanFlowCRType ?? ""),
+            "planouterdiameterspan" => items.OrderBy(x => x.PlanOuterDiameterSpan ?? ""),
             "planflowexecspec" => items.OrderBy(x => x.PlanFlowExecSpec ?? ""),
             "planexecutionsequence" => items.OrderBy(x => x.PlanExecutionSequence),
             "plantargetsequence" => items.OrderBy(x => x.PlanTargetSequence),
@@ -1001,9 +1046,7 @@ public partial class BatchPlans
                 builder.CloseComponent();
                 break;
             case "MainNoAttentionProcess":
-                builder.AddContent(0, item.ScheduleStage == 2
-                    ? (item.MainNoAttentionProcess ?? "收尾-成检")
-                    : "-");
+                builder.AddContent(0, item.MainNoAttentionProcess ?? "-");
                 break;
             case "IsKeyBatch":
                 if (item.IsKeyBatch)
@@ -1084,7 +1127,7 @@ public partial class BatchPlans
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
                 builder.AddAttribute(2, "Color", levelColor);
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.FlowLevel.ToString())));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.FlowLevelDisplay)));
                 builder.CloseComponent();
                 break;
             case "FlowTarget":
@@ -1092,6 +1135,9 @@ public partial class BatchPlans
                 break;
             case "FlowCRType":
                 builder.AddContent(0, item.FlowCRType ?? "-");
+                break;
+            case "OuterDiameterSpan":
+                builder.AddContent(0, item.OuterDiameterSpan ?? "-");
                 break;
             case "FlowExecSpec":
                 builder.AddContent(0, item.FlowExecSpec ?? "-");
@@ -1152,6 +1198,9 @@ public partial class BatchPlans
             // G4: 生产流转性
             case "ProductionFlowProperty":
                 builder.AddContent(0, item.ProductionFlowProperty ?? "-");
+                break;
+            case "AttentionProcessSectionSequence":
+                builder.AddContent(0, item.AttentionProcessSectionSequence?.ToString() ?? "-");
                 break;
             case "MaxBatchRemainingWorkDays":
                 builder.AddContent(0, item.MaxBatchRemainingWorkDays.HasValue ? $"{item.MaxBatchRemainingWorkDays}天" : "-");
@@ -1226,10 +1275,11 @@ public partial class BatchPlans
                     item.PlanIsFlow = v;
                     if (v)
                     {
-                        // 切到"是"：从系统推荐值自动填充（FlowLevel/FlowTarget/FlowCRType/FlowExecSpec及执行序/目标序）
+                        // 切到"是"：从系统推荐值自动填充（FlowLevel/FlowTarget/FlowCRType/外径跨度/FlowExecSpec及执行序/目标序）
                         item.PlanFlowLevel = item.FlowLevel;
                         item.PlanFlowTarget = item.FlowTarget;
                         item.PlanFlowCRType = item.FlowCRType;
+                        item.PlanOuterDiameterSpan = item.OuterDiameterSpan;
                         item.PlanFlowExecSpec = item.FlowExecSpec;
                         item.PlanTargetSequence = item.TargetSequence;
                         item.PlanExecutionSequence = item.ExecutionSequence;
@@ -1240,6 +1290,7 @@ public partial class BatchPlans
                         item.PlanFlowLevel = 5;
                         item.PlanFlowTarget = null;
                         item.PlanFlowCRType = null;
+                        item.PlanOuterDiameterSpan = null;
                         item.PlanFlowExecSpec = null;
                         item.PlanTargetSequence = null;
                         item.PlanExecutionSequence = null;
@@ -1251,21 +1302,34 @@ public partial class BatchPlans
                 builder.CloseComponent();
                 break;
             case "PlanFlowLevel":
-                builder.OpenComponent<MudNumericField<int>>(0);
-                builder.AddAttribute(1, "Value", item.PlanFlowLevel);
-                builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int>(this, async v =>
+                if (item.PlanFlowLevel == 1)
                 {
-                    item.PlanFlowLevel = v;
-                    await SavePlanFieldAsync(item);
-                }));
-                builder.AddAttribute(3, "Dense", true);
-                builder.AddAttribute(4, "Variant", Variant.Outlined);
-                builder.AddAttribute(5, "Size", Size.Small);
-                builder.AddAttribute(6, "Min", 1);
-                builder.AddAttribute(7, "Max", 5);
-                builder.AddAttribute(8, "HideSpinButtons", true);
-                builder.AddAttribute(9, "Class", $"compact-select flow-level-{item.PlanFlowLevel}");
-                builder.CloseComponent();
+                    // 等级1时显示彩色 MudChip + 1A/1B 标识
+                    var planLevelColor = Color.Error;
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", planLevelColor);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.PlanFlowLevelDisplay)));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.OpenComponent<MudNumericField<int>>(0);
+                    builder.AddAttribute(1, "Value", item.PlanFlowLevel);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int>(this, async v =>
+                    {
+                        item.PlanFlowLevel = v;
+                        await SavePlanFieldAsync(item);
+                    }));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.AddAttribute(6, "Min", 1);
+                    builder.AddAttribute(7, "Max", 5);
+                    builder.AddAttribute(8, "HideSpinButtons", true);
+                    builder.AddAttribute(9, "Class", $"compact-select flow-level-{item.PlanFlowLevel}");
+                    builder.CloseComponent();
+                }
                 break;
             case "PlanFlowTarget":
                 builder.OpenComponent<MudTextField<string>>(0);
@@ -1287,6 +1351,20 @@ public partial class BatchPlans
                 builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
                 {
                     item.PlanFlowCRType = string.IsNullOrEmpty(v) ? null : v;
+                    await SavePlanFieldAsync(item);
+                }));
+                builder.AddAttribute(3, "Dense", true);
+                builder.AddAttribute(4, "Variant", Variant.Outlined);
+                builder.AddAttribute(5, "Size", Size.Small);
+                builder.AddAttribute(6, "Class", "compact-select");
+                builder.CloseComponent();
+                break;
+            case "PlanOuterDiameterSpan":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Value", item.PlanOuterDiameterSpan ?? "");
+                builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
+                {
+                    item.PlanOuterDiameterSpan = string.IsNullOrEmpty(v) ? null : v;
                     await SavePlanFieldAsync(item);
                 }));
                 builder.AddAttribute(3, "Dense", true);
@@ -1402,6 +1480,7 @@ public partial class BatchPlans
                 FlowLevel = item.PlanFlowLevel,
                 FlowTarget = item.PlanFlowTarget,
                 FlowCRType = item.PlanFlowCRType,
+                PlanOuterDiameterSpan = item.PlanOuterDiameterSpan,
                 FlowExecSpec = item.PlanFlowExecSpec,
                 ExecutionSequence = item.PlanExecutionSequence,
                 TargetSequence = item.PlanTargetSequence,
@@ -1535,6 +1614,7 @@ public partial class BatchPlans
             "ExecutionSequence" => item.ExecutionSequence,
             "UrgencyLevel" => item.UrgencyLevel ?? "",
             "MainNoAttentionProcess" => item.MainNoAttentionProcess ?? "",
+            "AttentionProcessSectionSequence" => item.AttentionProcessSectionSequence,
             "IsKeyBatch" => item.IsKeyBatch,
             "IsUrging" => item.IsUrging,
             "IsBatchDelivery" => item.IsBatchDelivery,
@@ -1544,6 +1624,7 @@ public partial class BatchPlans
             "FlowLevel" => item.FlowLevel,
             "FlowTarget" => item.FlowTarget ?? "",
             "FlowCRType" => item.FlowCRType ?? "",
+            "OuterDiameterSpan" => item.OuterDiameterSpan ?? "",
             "FlowExecSpec" => item.FlowExecSpec ?? "",
             "TargetSequence" => item.TargetSequence,
             "OriginalDiff" => item.OriginalDiff,
@@ -1568,6 +1649,7 @@ public partial class BatchPlans
             "PlanFlowLevel" => item.PlanFlowLevel,
             "PlanFlowTarget" => item.PlanFlowTarget ?? "",
             "PlanFlowCRType" => item.PlanFlowCRType ?? "",
+            "PlanOuterDiameterSpan" => item.PlanOuterDiameterSpan ?? "",
             "PlanFlowExecSpec" => item.PlanFlowExecSpec ?? "",
             "PlanExecutionSequence" => item.PlanExecutionSequence,
             "PlanTargetSequence" => item.PlanTargetSequence,

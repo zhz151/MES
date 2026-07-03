@@ -170,8 +170,6 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
                 if (sql != null)
                     await _context.Database.ExecuteSqlRawAsync(sql, cycle, planId);
 
-                // 同步写入/更新 StandardProcessCycle 引用表
-                await UpsertStandardProcessCycleAsync(planType, planId, cycle);
             }
 
             await transaction.CommitAsync();
@@ -240,84 +238,4 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
         return cycle > 0 ? cycle : defaultCycle;
     }
 
-    /// <summary>
-    /// 同步写入/更新 StandardProcessCycle 引用表。
-    /// 以 (PlantGrade, RawMaterialType, RawSpec, ProductSpec, DeliveryState) 为唯一键 upsert。
-    /// </summary>
-    private async Task UpsertStandardProcessCycleAsync(int planType, int planId, int cycle)
-    {
-        string plantGrade, rawMaterialType, rawSpec, productSpec, deliveryState;
-
-        if (planType == 1)
-        {
-            var plan = await _context.PurchaseSemiPlans.FindAsync(planId);
-            if (plan == null) return;
-            var wo = await _context.WorkOrders.FindAsync(plan.WorkOrderId);
-            if (wo == null) return;
-
-            plantGrade = plan.PlantGrade;
-            rawMaterialType = EnumHelper.GetDisplayName(plan.RawMaterialType);
-            rawSpec = plan.RawMaterialSpec;
-            productSpec = wo.Specification;
-            deliveryState = EnumHelper.GetDisplayName(wo.DeliveryState);
-        }
-        else if (planType == 3)
-        {
-            var plan = await _context.InventoryPlans.FindAsync(planId);
-            if (plan == null || plan.ReworkType == null) return;
-            var wo = await _context.WorkOrders.FindAsync(plan.WorkOrderId);
-            if (wo == null) return;
-
-            plantGrade = plan.PlantGrade;
-            rawMaterialType = plan.MaterialType; // 物料名称已是中文（余库料/备料成品/半成品）
-            rawSpec = plan.Specification;
-            productSpec = wo.Specification;
-            deliveryState = EnumHelper.GetDisplayName(wo.DeliveryState);
-        }
-        else if (planType == 4)
-        {
-            var plan = await _context.RoundBarPiercingPlans.FindAsync(planId);
-            if (plan == null) return;
-            var wo = await _context.WorkOrders.FindAsync(plan.WorkOrderId);
-            if (wo == null) return;
-
-            plantGrade = plan.PlantGrade;
-            rawMaterialType = "荒管";
-            rawSpec = plan.PiercingSpec;
-            productSpec = wo.Specification;
-            deliveryState = EnumHelper.GetDisplayName(wo.DeliveryState);
-        }
-        else
-        {
-            return;
-        }
-
-        // 查找是否已有匹配的记录（5字段联合键）
-        var existing = await _context.StandardProcessCycles
-            .FirstOrDefaultAsync(c =>
-                c.PlantGrade == plantGrade &&
-                c.RawMaterialType == rawMaterialType &&
-                c.RawSpec == rawSpec &&
-                c.ProductSpec == productSpec &&
-                c.DeliveryState == deliveryState);
-
-        if (existing != null)
-        {
-            existing.StandardCycleDays = cycle;
-        }
-        else
-        {
-            _context.StandardProcessCycles.Add(new StandardProcessCycle
-            {
-                PlantGrade = plantGrade,
-                RawMaterialType = rawMaterialType,
-                RawSpec = rawSpec,
-                ProductSpec = productSpec,
-                DeliveryState = deliveryState,
-                StandardCycleDays = cycle
-            });
-        }
-
-        await _context.SaveChangesAsync();
-    }
 }

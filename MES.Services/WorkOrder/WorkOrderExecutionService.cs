@@ -263,8 +263,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
         var workOrders = await _context.WorkOrders
             .AsNoTracking()
-            .Where(wo => wo.Status != Core.Enums.WorkOrderStatus.NotGenerated
-                      && wo.Status != Core.Enums.WorkOrderStatus.Cancelled)
+            .Where(wo => wo.Status != Core.Enums.WorkOrderStatus.NotGenerated)
             .ToListAsync();
 
         if (workOrders.Count == 0)
@@ -386,7 +385,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var inspectionStartDate = fiDates?.Count > 0 ? fiDates.Min() : (DateTime?)null;
             var inspectionEndDate = fiDates?.Count > 0 ? fiDates.Max() : (DateTime?)null;
 
-            var summary = ComputeSummary(wo, customerNameByWo.TryGetValue(wo.Id, out var cn) ? cn : "", customerSalesmanByWo.TryGetValue(wo.Id, out var sm) ? sm : "", woBatches, totalInspectionQty, totalQualifiedQty, totalScrapQty, inspectionStartDate, inspectionEndDate);
+            var summary = ComputeSummary(wo, customerNameByWo.TryGetValue(wo.Id, out var cn) ? cn : "", customerSalesmanByWo.TryGetValue(wo.Id, out var sm) ? sm : "", woBatches, totalInspectionQty, totalQualifiedQty, totalScrapQty, inspectionStartDate, inspectionEndDate, completeRatio, completeDeviation, groupDiscountRate, supplySatisfiedRate);
 
             // G2: 从用料计划总览读预计算值（避免重算 4 张原始计划表）
             if (execSummaryByWoId.TryGetValue(wo.Id, out var listSummary))
@@ -394,6 +393,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.LatestPlanDate = listSummary.LatestPlanDate;
                 summary.MaterialPlanRate = listSummary.MaterialPlanRate;
                 summary.MaterialPlanStatus = listSummary.MaterialPlanStatus;
+                summary.MainNoMaterialPlanRate = listSummary.MainNoMaterialPlanRate;
+                summary.MainNoMaterialPlanStatus = listSummary.MainNoMaterialPlanStatus;
                 summary.ProcessCycle = listSummary.MaxStandardCycle;
                 summary.MaterialPlanCoveredCount = listSummary.MaterialPlanCoveredCount;
                 summary.MaterialPlanProportion = listSummary.MaterialPlanProportion;
@@ -482,9 +483,21 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             summaries.Add(summary);
         }
 
+        // 主号级 ProcessCycle 兜底：同主号所有工单均无计划时默认 25 天
+        var mainNoProcessCycleGroups = summaries
+            .GroupBy(s => new { s.SalesOrderNo, s.ProductionMainNo })
+            .ToList();
+        foreach (var group in mainNoProcessCycleGroups)
+        {
+            if (group.All(s => s.ProcessCycle == 0))
+            {
+                foreach (var s in group)
+                    s.ProcessCycle = 22;
+            }
+        }
+
         // 计算主号级投料聚合
-        ComputeMainNoInputAggregation(summaries, workOrders, supplySatisfiedRate,
-            fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
+        ComputeMainNoInputAggregation(summaries, workOrders, supplySatisfiedRate);
 
         // 计算主号/订单级入库状态聚合
         ComputeWarehousingAggregation(summaries, workOrders);
@@ -538,7 +551,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .Where(a => workOrderIds.Contains(a.WorkOrderId))
             .ToDictionaryAsync(a => a.WorkOrderId);
 
-        // ========== 填充 G13 字段 & 计算生产流转性 ==========
+        // ========== 填充 G13 字段 ==========
         foreach (var summary in summaries)
         {
             if (adjustments.TryGetValue(summary.WorkOrderId, out var adj))
@@ -555,11 +568,23 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.IsPaused = false;
                 summary.AdjustmentRemark = null;
             }
+        }
 
-            // 生产流转性
-            if (summary.IsPaused)
+        // 主号级聚合：主号下任一工单催单/分批交货/暂停，整主号标记（用于生产流转性判定）
+        var mainNoUrgencyFlags = summaries
+            .GroupBy(s => new { s.SalesOrderNo, s.ProductionMainNo })
+            .ToDictionary(
+                g => g.Key,
+                g => new { MainNoUrging = g.Any(s => s.IsUrging), MainNoBatchDelivery = g.Any(s => s.IsBatchDelivery), MainNoPaused = g.Any(s => s.IsPaused) });
+
+        // ========== 计算生产流转性 ==========
+        foreach (var summary in summaries)
+        {
+            var flags = mainNoUrgencyFlags[new { summary.SalesOrderNo, summary.ProductionMainNo }];
+
+            if (flags.MainNoPaused)
                 summary.ProductionFlowProperty = "暂停";
-            else if (summary.ScheduleStage == 2 || (summary.ScheduleStage == 1 && summary.IsUrging && summary.IsBatchDelivery))
+            else if (summary.ScheduleStage == 2 || (summary.ScheduleStage == 1 && (flags.MainNoUrging || flags.MainNoBatchDelivery)))
                 summary.ProductionFlowProperty = "正常";
             else if (summary.ScheduleStage == 1)
                 summary.ProductionFlowProperty = "待料";
@@ -801,10 +826,10 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         int totalScrapQty = 0,
         DateTime? inspectionStartDate = null,
         DateTime? inspectionEndDate = null,
-        decimal completeRatio = 0.95m,
-        decimal completeDeviation = 100m,
-        decimal groupDiscountRate = 0.025m,
-        decimal supplySatisfiedRate = 100m)
+        decimal completeRatio = 0m,
+        decimal completeDeviation = 0m,
+        decimal groupDiscountRate = 0m,
+        decimal supplySatisfiedRate = 0m)
     {
         // Group 1: 直接从工单复制（Salesman 从 CustomerProfile 取最新值，已由调用方传入）
         var summary = new WorkOrderExecutionSummary
@@ -1213,13 +1238,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     }
 
     private static void ComputeMainNoInputAggregation(
-        List<WorkOrderExecutionSummary> summaries, List<WoEntity> workOrders, decimal supplySatisfiedRate,
-        decimal fixedPartial = 102m, decimal fixedSatisfied = 110m,
-        decimal nonFixedPartial = 105m, decimal nonFixedSatisfied = 120m)
+        List<WorkOrderExecutionSummary> summaries, List<WoEntity> workOrders, decimal supplySatisfiedRate)
     {
         var woDict = workOrders.ToDictionary(wo => wo.Id);
-        // 使用 summary 中已算好的满足率（来自计划数据实时计算）
-        var summaryRateByWoId = summaries.ToDictionary(s => s.WorkOrderId, s => s.MaterialPlanRate);
 
         // 按 (SalesOrderNo, ProductionMainNo) 分组
         var mainNoGroups = summaries
@@ -1228,43 +1249,12 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .GroupBy(x => new { x.WorkOrder.SalesOrderNo, MainNo = x.Summary.ProductionMainNo })
             .ToList();
 
-        // 先计算 Group 2 的 MainNo 级用料计划
-        // 再用同组所有工单的 WorkOrder 聚合 Group 3 & 4 的 MainNo 投料比
-
         foreach (var group in mainNoGroups)
         {
             var groupWorkOrders = group.Select(g => g.WorkOrder).ToList();
             var groupSummaries = group.Select(g => g.Summary).ToList();
 
-            // Group 2: MainNo 级用料计划 — 率取加权平均，状态从率重新计算
-            if (groupWorkOrders.Count > 0)
-            {
-                var isFixed = groupSummaries.First().LengthStatus == LengthStatus.Fixed.ToString();
-                decimal avgRate;
-                if (isFixed)
-                {
-                    // Fixed: 按总支数加权（使用 summary 已算好的满足率）
-                    var fixedTotalQty = groupWorkOrders.Sum(wo => wo.TotalQuantity);
-                    avgRate = fixedTotalQty > 0
-                        ? Math.Round(groupWorkOrders.Sum(wo => summaryRateByWoId.GetValueOrDefault(wo.Id, 0) * wo.TotalQuantity) / fixedTotalQty, 2)
-                        : 0;
-                }
-                else
-                {
-                    // 非 Fixed: 按总重量加权（使用 summary 已算好的满足率）
-                    var nonFixedTotalWeight = groupWorkOrders.Sum(wo => wo.TotalWeight);
-                    avgRate = nonFixedTotalWeight > 0
-                        ? Math.Round(groupWorkOrders.Sum(wo => summaryRateByWoId.GetValueOrDefault(wo.Id, 0) * wo.TotalWeight) / nonFixedTotalWeight, 2)
-                        : 0;
-                }
-                var mainStatus = CalculateMainNoStatusFromRate(avgRate, isFixed,
-                    fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
-                foreach (var s in groupSummaries)
-                {
-                    s.MainNoMaterialPlanRate = avgRate;
-                    s.MainNoMaterialPlanStatus = (int)mainStatus;
-                }
-            }
+            // Group 2 的 MainNo 级用料计划（满足率/状态）已从 WorkOrderListSummary 预读，不再重算
 
             // Group 3: MainNo 级投料聚合（使用已修正的理论成品值）
             var totalQty = groupWorkOrders.Sum(wo => wo.TotalQuantity);
@@ -1340,29 +1330,6 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                     s.MainNoFlowStatus = mainFlowStatus;
                 }
             }
-        }
-    }
-
-    /// <summary>
-    /// 从聚合率计算主号级用料计划状态（与 WorkOrderService.CalculateMainNoStatus 阈值一致）
-    /// </summary>
-    private static MaterialPlanStatus CalculateMainNoStatusFromRate(decimal rate, bool isFixed,
-        decimal fixedPartial = 102m, decimal fixedSatisfied = 110m,
-        decimal nonFixedPartial = 105m, decimal nonFixedSatisfied = 120m)
-    {
-        if (rate <= 0) return MaterialPlanStatus.NotPlanned;
-
-        if (isFixed)
-        {
-            if (rate < fixedPartial) return MaterialPlanStatus.Partial;
-            if (rate <= fixedSatisfied) return MaterialPlanStatus.Satisfied;
-            return MaterialPlanStatus.Excess;
-        }
-        else
-        {
-            if (rate < nonFixedPartial) return MaterialPlanStatus.Partial;
-            if (rate <= nonFixedSatisfied) return MaterialPlanStatus.Satisfied;
-            return MaterialPlanStatus.Excess;
         }
     }
 
@@ -1576,15 +1543,16 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         var result = new List<WorkOrderExecutionDashboardItem>();
 
         // ========== Stage 1: 原料锁定 ==========
-        // 待投料 = (TotalWeight - PendingOutsourceFinishWeight) × 1.1 - InputWeight
+        // 待投料 = (TotalWeight - PendingOutsourceFinishWeight) × RawMaterialRatio - InputWeight
         // 参考 RawMaterialLockPlanAndExecution.RecalculateSummary()
+        var rawMaterialRatio = await GetConfigAsync("ProcessingDiscount", "RawMaterialRatio", 1.1m);
         var stage1Data = await _context.Set<WorkOrderExecutionSummary>()
             .AsNoTracking()
             .Where(x => x.ScheduleStage == 1 && x.UrgencyLevel != null)
             .Select(x => new
             {
                 UrgencyLevel = x.UrgencyLevel ?? "",
-                PendingWeight = (x.TotalWeight - x.PendingOutsourceFinishWeight) * 1.1m - x.InputWeight
+                PendingWeight = (x.TotalWeight - x.PendingOutsourceFinishWeight) * rawMaterialRatio - x.InputWeight
             })
             .ToListAsync();
 

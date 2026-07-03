@@ -88,6 +88,14 @@ public class WorkOrderController : ControllerBase
         return Ok(ApiResponse<List<CancelledOrderDto>>.Ok(result, "查询成功"));
     }
 
+    [HttpGet("pending-orders")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<WorkOrderListItemDto>>>> GetPendingOrders()
+    {
+        var result = await _workOrderService.GetPendingOrdersAsync();
+        return Ok(ApiResponse<List<WorkOrderListItemDto>>.Ok(result, "查询成功"));
+    }
+
     #endregion
 
     #region 工单生成
@@ -122,7 +130,7 @@ public class WorkOrderController : ControllerBase
 
     [HttpGet("list")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<PagedResult<WorkOrderListDto>>>> GetList(
+    public async Task<ActionResult<ApiResponse<PagedResult<WorkOrderListItemDto>>>> GetList(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] string? keyword = null,
@@ -132,18 +140,51 @@ public class WorkOrderController : ControllerBase
         [FromQuery] string? productionMainNo = null,
         [FromQuery] string? productionSubNo = null,
         [FromQuery] int? status = null,
-        [FromQuery] string? workOrderStatus = null,
-        [FromQuery] string? materialName = null,
         [FromQuery] string? specification = null,
-        [FromQuery] DateTime? deliveryDateStart = null,
-        [FromQuery] DateTime? deliveryDateEnd = null,
         [FromQuery] string? salesman = null,
         [FromQuery] string? endCustomer = null,
         [FromQuery] string? plantGrade = null,
-        [FromQuery] bool includeCancelled = false,
-        [FromQuery] int? materialPlanStatus = null,
-        [FromQuery] int? mainNoMaterialPlanStatus = null,
-        [FromQuery] int? orderMaterialPlanStatus = null,
+        [FromQuery] DateTime? deliveryDateStart = null,
+        [FromQuery] DateTime? deliveryDateEnd = null,
+        [FromQuery] string? filters = null)
+    {
+        if (pageSize > 5000) pageSize = 5000;
+        WorkOrderQueryParams query = new()
+        {
+            PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending,
+            SalesOrderNo = salesOrderNo, ProductionMainNo = productionMainNo, ProductionSubNo = productionSubNo,
+            Status = status, Specification = specification,
+            DeliveryDateStart = deliveryDateStart, DeliveryDateEnd = deliveryDateEnd,
+            Salesman = salesman, EndCustomer = endCustomer, PlantGrade = plantGrade
+        };
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        }
+        var result = await _workOrderService.GetPagedAsync(query);
+        return Ok(ApiResponse<PagedResult<WorkOrderListItemDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("list-with-plans")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<PagedResult<WorkOrderListDto>>>> GetListWithPlans(
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? keyword = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool isDescending = true,
+        [FromQuery] string? salesOrderNo = null,
+        [FromQuery] string? productionMainNo = null,
+        [FromQuery] string? productionSubNo = null,
+        [FromQuery] int? status = null,
+        [FromQuery] string? specification = null,
+        [FromQuery] string? salesman = null,
+        [FromQuery] string? endCustomer = null,
+        [FromQuery] string? plantGrade = null,
+        [FromQuery] DateTime? deliveryDateStart = null,
+        [FromQuery] DateTime? deliveryDateEnd = null,
         [FromQuery] string? planTypeFilter = null,
         [FromQuery] string? filters = null)
     {
@@ -153,11 +194,9 @@ public class WorkOrderController : ControllerBase
             PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword,
             SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending,
             SalesOrderNo = salesOrderNo, ProductionMainNo = productionMainNo, ProductionSubNo = productionSubNo,
-            Status = status, WorkOrderStatus = workOrderStatus, MaterialName = materialName,
-            Specification = specification, DeliveryDateStart = deliveryDateStart, DeliveryDateEnd = deliveryDateEnd,
+            Status = status, Specification = specification,
+            DeliveryDateStart = deliveryDateStart, DeliveryDateEnd = deliveryDateEnd,
             Salesman = salesman, EndCustomer = endCustomer, PlantGrade = plantGrade,
-            IncludeCancelled = includeCancelled, MaterialPlanStatus = materialPlanStatus,
-            MainNoMaterialPlanStatus = mainNoMaterialPlanStatus, OrderMaterialPlanStatus = orderMaterialPlanStatus,
             PlanTypeFilter = planTypeFilter
         };
         if (!string.IsNullOrEmpty(filters))
@@ -165,7 +204,7 @@ public class WorkOrderController : ControllerBase
             try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
             catch { }
         }
-        var result = await _workOrderService.GetPagedAsync(query);
+        var result = await _workOrderService.GetPagedWithPlansAsync(query);
         return Ok(ApiResponse<PagedResult<WorkOrderListDto>>.Ok(result, "查询成功"));
     }
 
@@ -189,13 +228,13 @@ public class WorkOrderController : ControllerBase
 
     [HttpGet("by-order/{salesOrderNo}")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<List<WorkOrderListDto>>>> GetBySalesOrderNo(string salesOrderNo)
+    public async Task<ActionResult<ApiResponse<List<WorkOrderListItemDto>>>> GetBySalesOrderNo(string salesOrderNo)
     {
         if (string.IsNullOrWhiteSpace(salesOrderNo))
-            return BadRequest(ApiResponse<List<WorkOrderListDto>>.Fail("订单号不能为空"));
+            return BadRequest(ApiResponse<List<WorkOrderListItemDto>>.Fail("订单号不能为空"));
 
         var result = await _workOrderService.GetBySalesOrderNoAsync(salesOrderNo);
-        return Ok(ApiResponse<List<WorkOrderListDto>>.Ok(result, "查询成功"));
+        return Ok(ApiResponse<List<WorkOrderListItemDto>>.Ok(result, "查询成功"));
     }
 
     [HttpPut("{id}/status")]

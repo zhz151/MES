@@ -88,6 +88,13 @@ public class ColumnDef
     /// </summary>
     [JsonIgnore]
     public string? GroupName { get; set; }
+
+    /// <summary>
+    /// 显示转换器：原始值→中文显示文本
+    /// 三处统一调用：RenderCell / ResolvePrintValue / BuildFilterOptionsFromData
+    /// </summary>
+    [JsonIgnore]
+    public Func<object?, string?>? DisplayConverter { get; set; }
 }
 
 /// <summary>

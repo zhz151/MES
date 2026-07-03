@@ -33,6 +33,7 @@ public class ConfigParameterService : IConfigParameterService
             var kw = query.Keyword.Trim();
             queryable = queryable.Where(c =>
                 c.Category.Contains(kw) ||
+                (c.CategoryDisplay != null && c.CategoryDisplay.Contains(kw)) ||
                 c.ParamKey.Contains(kw) ||
                 (c.Remark != null && c.Remark.Contains(kw)));
         }
@@ -54,6 +55,8 @@ public class ConfigParameterService : IConfigParameterService
             {
                 Id = c.Id,
                 Category = c.Category,
+                CategoryDisplay = c.CategoryDisplay,
+                Context = c.Context,
                 ParamKey = c.ParamKey,
                 ParamValue = c.ParamValue,
                 Remark = c.Remark
@@ -80,6 +83,8 @@ public class ConfigParameterService : IConfigParameterService
         {
             Id = entity.Id,
             Category = entity.Category,
+            CategoryDisplay = entity.CategoryDisplay,
+            Context = entity.Context,
             ParamKey = entity.ParamKey,
             ParamValue = entity.ParamValue,
             Remark = entity.Remark
@@ -96,6 +101,8 @@ public class ConfigParameterService : IConfigParameterService
                 throw new BusinessException("参数配置不存在");
 
             entity.Category = dto.Category;
+            entity.CategoryDisplay = dto.CategoryDisplay;
+            entity.Context = dto.Context;
             entity.ParamKey = dto.ParamKey;
             entity.ParamValue = dto.ParamValue;
             entity.Remark = dto.Remark;
@@ -105,6 +112,8 @@ public class ConfigParameterService : IConfigParameterService
             var entity = new ConfigParameter
             {
                 Category = dto.Category,
+                CategoryDisplay = dto.CategoryDisplay,
+                Context = dto.Context,
                 ParamKey = dto.ParamKey,
                 ParamValue = dto.ParamValue,
                 Remark = dto.Remark

@@ -1,12 +1,16 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 using MudBlazor;
 using MES.Core.DTOs;
 
-namespace MES.Blazor.Pages.Scheduling;
+namespace MES.Blazor.Shared;
 
-public partial class OrderOverview
+public partial class WorkOrderLoadOverview : ComponentBase
 {
     [Inject] private Services.ProductionOverviewService OverviewService { get; set; } = null!;
+    [Inject] private IJSRuntime JS { get; set; } = null!;
+
+    [Parameter] public string Title { get; set; } = "工单总览";
 
     private ProductionOverviewDto? _data;
     private bool _loading;
@@ -43,6 +47,11 @@ public partial class OrderOverview
         {
             _loading = false;
         }
+    }
+
+    private async Task PrintTable()
+    {
+        await JS.InvokeVoidAsync("printTable", "#workorder-overview-table", Title);
     }
 
     private static string FormatTons(decimal? tons)

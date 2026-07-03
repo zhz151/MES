@@ -168,28 +168,33 @@ public class ColdRollPlanService : IColdRollPlanService
                 var billetSpec = GetBilletSpec(sortedPgs, crPg, batch.SourceSpecification);
                 var isFinished = crPg.SequenceNumber == sortedPgs.Max(pg => pg.SequenceNumber);
 
-                // IsKeyBatch（COALESCE：WorkOrderPlan 优先，和批次看板统一）
+                // IsKeyBatch（新逻辑，与批次计划 V5.10 同步）
                 var plan = summary != null ? planDict.GetValueOrDefault(summary.WorkOrderId) : null;
                 var urgency = plan?.UrgencyLevel ?? summary?.UrgencyLevel;
-                int scheduleStage = plan?.ScheduleStage ?? (summary?.ScheduleStage ?? 0);
+                var productionFlowProperty = plan?.ProductionFlowProperty ?? summary?.ProductionFlowProperty;
                 var attentionProcess = plan?.ProductionAttentionProcess ?? summary?.MainNoAttentionProcess;
-                var pendingProcess = batch.CurrentSectionCompleted == false ? batch.CurrentGroupName : batch.NextProcess;
 
-                bool isKeyBatch =
-                    // Tier 1：生产执行 + 紧急 + pending条件（原始逻辑）
-                    (scheduleStage == 2 &&
-                     (urgency == "A+急" || urgency == "A急") &&
-                     (pendingProcess == "荒管处理" ||
-                      pendingProcess == attentionProcess ||
-                      attentionProcess is null or "收尾-成检"))
-                    ||
-                    // Tier 2：原料锁定 + 催单/分批交货 + 紧急 + pending条件
-                    (scheduleStage == 1 &&
-                     (summary?.IsUrging == true || summary?.IsBatchDelivery == true) &&
-                     (urgency == "A+急" || urgency == "A急") &&
-                     (pendingProcess == "荒管处理" ||
-                      pendingProcess == attentionProcess ||
-                      attentionProcess is null or "收尾-成检"));
+                bool isKeyBatch = false;
+                bool isGeneralKeyBatch = false; // 总的特急（不区分冷轧/非冷轧）
+                if ((urgency == "A+急" || urgency == "A急")
+                    && productionFlowProperty == "正常")
+                {
+                    if (ProcessNames.IsColdRollOrDraw(attentionProcess))
+                    {
+                        var attentionPg = sortedPgs.FirstOrDefault(pg => pg.ProcessName == attentionProcess);
+                        var attentionSectionSeq = attentionPg?.GetSectionSequence(SectionDefs.ColdRollDraw);
+                        if (attentionSectionSeq.HasValue)
+                        {
+                            isKeyBatch = currentGlobalSeq < attentionSectionSeq.Value + 1;
+                            isGeneralKeyBatch = isKeyBatch;
+                        }
+                    }
+                    else
+                    {
+                        // 非冷轧类(荒管处理/在制修检/收尾-成检)：满足 Urgent+正常 即视为总的特急
+                        isGeneralKeyBatch = true;
+                    }
+                }
 
                 intermediate.Add(new BatchAllocation
                 {
@@ -199,6 +204,9 @@ public class ColdRollPlanService : IColdRollPlanService
                     RollingSpec = rollingSpec,
                     IsFinished = isFinished,
                     IsKeyBatch = isKeyBatch,
+                    IsGeneralKeyBatch = isGeneralKeyBatch,
+                    IsUrgent = urgency == "A+急" || urgency == "A急",
+                    IsAttentionColdRoll = ProcessNames.IsColdRollOrDraw(attentionProcess),
                     PositionDiff = positionDiff,
                     Weight = batch.CurrentValidWeight ?? 0m,
                     MachineNo = isProducing ? (batch.CurrentEquipmentName ?? batch.CurrentOutsource) : null,
@@ -227,42 +235,38 @@ public class ColdRollPlanService : IColdRollPlanService
                         row.WeightProd += item.Weight;
                         if (item.IsKeyBatch)
                             row.WeightProdUrgent += item.Weight;
+                        else if (item.IsUrgent)
+                            row.WeightProdUrgentOther += item.Weight;
                     }
                     else if (item.PositionDiff == 1)
                     {
                         row.WeightToday += item.Weight;
-                        if (item.IsKeyBatch)
-                            row.WeightWaitNearUrgent += item.Weight;
+                        AccumulateWaitUrgent(row, item);
                     }
                     else if (item.PositionDiff == 2)
                     {
                         row.WeightTomorrow += item.Weight;
-                        if (item.IsKeyBatch)
-                            row.WeightWaitNearUrgent += item.Weight;
+                        AccumulateWaitUrgent(row, item);
                     }
                     else if (item.PositionDiff == 3)
                     {
                         row.WeightDayAfter += item.Weight;
-                        if (item.IsKeyBatch)
-                            row.WeightWaitNearUrgent += item.Weight;
+                        AccumulateWaitUrgent(row, item);
                     }
                     else if (item.PositionDiff == 4)
                     {
                         row.WeightExt3 += item.Weight;
-                        if (item.IsKeyBatch)
-                            row.WeightWaitNearUrgent += item.Weight;
+                        AccumulateWaitUrgent(row, item);
                     }
                     else if (item.PositionDiff == 5)
                     {
                         row.WeightExt4 += item.Weight;
-                        if (item.IsKeyBatch)
-                            row.WeightWaitNearUrgent += item.Weight;
+                        AccumulateWaitUrgent(row, item);
                     }
                     else if (item.PositionDiff == 6)
                     {
                         row.WeightExt5 += item.Weight;
-                        if (item.IsKeyBatch)
-                            row.WeightWaitNearUrgent += item.Weight;
+                        AccumulateWaitUrgent(row, item);
                     }
                     else if (item.PositionDiff > 6)
                     {
@@ -327,6 +331,24 @@ public class ColdRollPlanService : IColdRollPlanService
     }
 
     /// <summary>
+    /// 待轧紧急批次三层拆分累加：
+    /// 特急管 = 总的特急 ∩ 冷轧类关注工序（IsGeneralKeyBatch + IsAttentionColdRoll）
+    /// 后特急 = 总的特急 ∩ 非冷轧类关注工序（荒管处理/在制修检/收尾-成检）
+    /// 其它急管 = 紧急(A+急/A急) - 总的特急
+    /// </summary>
+    private static void AccumulateWaitUrgent(ColdRollPlanRowDto row, BatchAllocation item)
+    {
+        if (!item.IsUrgent) return;
+
+        if (item.IsGeneralKeyBatch && item.IsAttentionColdRoll)
+            row.WeightWaitNearUrgent += item.Weight;
+        else if (item.IsGeneralKeyBatch && !item.IsAttentionColdRoll)
+            row.WeightWaitNearBackUrgent += item.Weight;
+        else
+            row.WeightWaitNearOtherUrgent += item.Weight;
+    }
+
+    /// <summary>
     /// 批次分配中间结构（分组前）
     /// </summary>
     private class BatchAllocation
@@ -337,6 +359,9 @@ public class ColdRollPlanService : IColdRollPlanService
         public string RollingSpec { get; set; } = "";
         public bool IsFinished { get; set; }
         public bool IsKeyBatch { get; set; }
+        public bool IsGeneralKeyBatch { get; set; } // 总的特急（不区分冷轧/非冷轧）
+        public bool IsUrgent { get; set; }          // (A+急/A急)
+        public bool IsAttentionColdRoll { get; set; } // IsColdRollOrDraw(attentionProcess)
         public int PositionDiff { get; set; }
         public decimal Weight { get; set; }
         /// <summary>在产设备的设备名（仅 PositionDiff==0 时有值）</summary>

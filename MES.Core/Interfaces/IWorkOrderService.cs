@@ -19,6 +19,11 @@ public interface IWorkOrderService
     Task<List<CancelledOrderDto>> GetCancelledOrdersAsync();
 
     /// <summary>
+    /// 获取已确认但无工单的订单列表（待生成工单）
+    /// </summary>
+    Task<List<WorkOrderListItemDto>> GetPendingOrdersAsync();
+
+    /// <summary>
     /// 获取待生成工单的订单项次列表
     /// </summary>
     Task<List<OrderItemForWorkOrderDto>> GetOrderItemsForWorkOrderAsync(string salesOrderNo);
@@ -29,9 +34,14 @@ public interface IWorkOrderService
     Task<List<GeneratedWorkOrderDto>> GenerateWorkOrdersAsync(CreateWorkOrderRequest request);
 
     /// <summary>
-    /// 分页查询工单列表
+    /// 分页查询工单列表（精简版，不含用料计划聚合数据）
     /// </summary>
-    Task<PagedResult<WorkOrderListDto>> GetPagedAsync(WorkOrderQueryParams query);
+    Task<PagedResult<WorkOrderListItemDto>> GetPagedAsync(WorkOrderQueryParams query);
+
+    /// <summary>
+    /// 分页查询工单列表（含用料计划聚合数据，供用料计划总览页使用）
+    /// </summary>
+    Task<PagedResult<WorkOrderListDto>> GetPagedWithPlansAsync(WorkOrderQueryParams query);
 
     /// <summary>
     /// 根据ID获取工单详情
@@ -44,9 +54,9 @@ public interface IWorkOrderService
     Task<WorkOrderDetailDto> GetByWorkOrderNoAsync(string workOrderNo);
 
     /// <summary>
-    /// 根据订单号获取工单列表
+    /// 根据订单号获取工单列表（返回精简 DTO，仅含 Id/工单号等基础字段）
     /// </summary>
-    Task<List<WorkOrderListDto>> GetBySalesOrderNoAsync(string salesOrderNo);
+    Task<List<WorkOrderListItemDto>> GetBySalesOrderNoAsync(string salesOrderNo);
 
     /// <summary>
     /// 更新工单状态

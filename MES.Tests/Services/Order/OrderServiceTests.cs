@@ -26,10 +26,8 @@ public class OrderServiceTests : TestBase
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        return new OrderService(ctx, loggerMock.Object, notificationMock, configMock.Object);
+        return new OrderService(ctx, loggerMock.Object, notificationMock, configMock.Object, null);
     }
-
-    // ========== 创建订单 ==========
 
     [Fact]
     public async Task CreateAsync_重复订单号_抛出BusinessException()
@@ -156,52 +154,7 @@ public class OrderServiceTests : TestBase
             .WithMessage("*不允许从*已确认*变更为*待处理*");
     }
 
-    [Fact]
-    public async Task UpdateAsync_取消的订单不能修改()
-    {
-        var ctx = CreateDbContext();
-        var cust = await SeedCustomerAsync(ctx);
-        var sr = await SeedRegisterAsync(ctx);
-        var gm = await SeedGradeMappingAsync(ctx);
-        var svc = CreateService(ctx);
-
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
-        await svc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
-        {
-            Status = SalesOrderStatus.Cancelled.ToString(),
-            RowVersion = new byte[8]
-        });
-
-        var act = () => svc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
-        {
-            OrderNumber = "SHOULD-FAIL",
-            RowVersion = new byte[8]
-        });
-
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("已取消的订单不能修改");
-    }
-
     // ========== 删除 ==========
-
-    [Fact]
-    public async Task DeleteAsync_取消的订单不能删除()
-    {
-        var ctx = CreateDbContext();
-        var cust = await SeedCustomerAsync(ctx);
-        var sr = await SeedRegisterAsync(ctx);
-        var gm = await SeedGradeMappingAsync(ctx);
-        var svc = CreateService(ctx);
-
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
-        await svc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
-        {
-            Status = SalesOrderStatus.Cancelled.ToString(),
-            RowVersion = new byte[8]
-        });
-
-        var act = () => svc.DeleteAsync(order.Id);
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("已取消的订单不能删除");
-    }
 
     [Fact]
     public async Task DeleteAsync_成功删除_物理删除订单和项次()
@@ -522,27 +475,6 @@ public class OrderServiceTests : TestBase
         var act = () => svc.DeleteItemAsync(order.Id, 999);
 
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
-    }
-
-    [Fact]
-    public async Task DeleteItemAsync_取消的订单不能删除项次()
-    {
-        var ctx = CreateDbContext();
-        var cust = await SeedCustomerAsync(ctx);
-        var sr = await SeedRegisterAsync(ctx);
-        var gm = await SeedGradeMappingAsync(ctx);
-        var svc = CreateService(ctx);
-
-        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
-        await svc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
-        {
-            Status = SalesOrderStatus.Cancelled.ToString(),
-            RowVersion = new byte[8]
-        });
-
-        var act = () => svc.DeleteItemAsync(order.Id, 999);
-
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不能删除项次*");
     }
 
     // ========== SaveAllAsync ==========

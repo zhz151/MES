@@ -56,13 +56,16 @@ function openPrintWindow(html, title) {
         '<html><head>' +
         '<title>' + (title || '打印') + '</title>' +
         '<style>' +
-        '@page{size:landscape;margin:15mm;}' +
-        'body{font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;padding:30px;}' +
-        'h2{text-align:center;margin-bottom:20px;font-size:18px;}' +
-        'table{width:100%;border-collapse:collapse;font-size:12px;}' +
-        'th,td{border:1px solid #333;padding:5px 6px;text-align:left;}' +
+        '@page{size:landscape;margin:5mm 8mm;}' +
+        'body{font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;padding:0;margin:0;}' +
+        'h2{text-align:center;margin:6px 0 12px;font-size:16px;}' +
+        'table{width:100%;border-collapse:collapse;font-size:11px;table-layout:auto;}' +
+        'th,td{border:1px solid #333;padding:3px 5px;text-align:left;word-break:break-all;}' +
         'th{background-color:#e0e0e0;font-weight:600;}' +
-        '.mud-table-cell{border:1px solid #333;padding:5px 6px;}' +
+        '.mud-table-cell{border:1px solid #333;padding:3px 5px;}' +
+        '.mud-table-cell--right{text-align:right;}' +
+        '.col-header-cell .mud-icon-root,.col-header-cell .th-label svg{display:none;}' +
+        'tr{page-break-inside:avoid;}' +
         '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}' +
         '[style*=\"display:none\"],[style*=\"display: none\"]{display:none!important;}' +
         '</style></head><body>' +
@@ -91,19 +94,100 @@ window.printRawHtml = function (htmlContent, title) {
     openPrintWindow(htmlContent, title);
 };
 
-// 打开 Base64 PDF（通过 Blob URL 避免浏览器安全限制）
+// ===== PDF 打印（Base64 兼容版——旧页面用，Blob URL + iframe 覆盖层）=====
+
 window.openPdf = function (base64) {
     try {
-        const byteCharacters = atob(base64);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        var byteChars = atob(base64);
+        var byteNums = new Array(byteChars.length);
+        for (var i = 0; i < byteChars.length; i++) {
+            byteNums[i] = byteChars.charCodeAt(i);
         }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
+        var byteArr = new Uint8Array(byteNums);
+        var blob = new Blob([byteArr], { type: 'application/pdf' });
+        var url = URL.createObjectURL(blob);
+        showPdfOverlay(url);
     } catch (e) {
-        console.error('打印失败:', e);
+        console.error('PDF打开失败:', e);
+        alert('PDF打开失败: ' + e.message);
     }
 };
+
+// ===== PDF 打印（fetch + Blob URL + iframe 同页覆盖层——标准做法）=====
+// C# 传入 API 地址和 JSON 请求体，JS 直接 fetch 获取二进制 PDF
+
+window.openPdfFromApi = function (apiUrl, jsonBody) {
+    // 读取 JWT 令牌（与 AuthHttpClient 共用 localStorage，Blazored.LocalStorage 存的是 JSON 格式需 parse）
+    var raw = localStorage.getItem('authToken');
+    var token = null;
+    if (raw) {
+        try { token = JSON.parse(raw); } catch (e) { token = raw; }
+    }
+    var headers = { 'Content-Type': 'application/json' };
+    if (token) {
+        headers['Authorization'] = 'Bearer ' + token;
+    }
+
+    fetch(apiUrl, {
+        method: 'POST',
+        headers: headers,
+        body: jsonBody
+    })
+    .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.arrayBuffer();
+    })
+    .then(function (buffer) {
+        var blob = new Blob([buffer], { type: 'application/pdf' });
+        var url = URL.createObjectURL(blob);
+        showPdfOverlay(url);
+    })
+    .catch(function (e) {
+        console.error('PDF加载失败:', e);
+        alert('PDF加载失败: ' + e.message + '\n请按 F12 查看详细错误');
+    });
+};
+
+function showPdfOverlay(url) {
+    var existing = document.getElementById('pdf-overlay');
+    if (existing) existing.remove();
+
+    // 覆盖层
+    var overlay = document.createElement('div');
+    overlay.id = 'pdf-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;background:#fff;display:flex;flex-direction:column;';
+
+    // 工具栏
+    var toolbar = document.createElement('div');
+    toolbar.style.cssText = 'background:#f0f0f0;padding:6px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #ccc;flex-shrink:0;';
+
+    var closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕ 关闭';
+    closeBtn.style.cssText = 'padding:4px 16px;cursor:pointer;font-size:13px;background:#f44336;color:#fff;border:none;border-radius:3px;';
+    closeBtn.onclick = function () {
+        overlay.remove();
+        URL.revokeObjectURL(url);
+    };
+
+    var printBtn = document.createElement('button');
+    printBtn.textContent = '打印';
+    printBtn.style.cssText = 'padding:4px 16px;cursor:pointer;font-size:13px;background:#1565C0;color:#fff;border:none;border-radius:3px;';
+    printBtn.onclick = function () {
+        var iframe = document.getElementById('pdf-viewer-frame');
+        if (iframe) try { iframe.contentWindow.print(); } catch (ex) { }
+    };
+
+    toolbar.appendChild(closeBtn);
+    toolbar.appendChild(document.createTextNode(' '));
+    toolbar.appendChild(printBtn);
+
+    // iframe
+    var iframe = document.createElement('iframe');
+    iframe.id = 'pdf-viewer-frame';
+    iframe.src = url;
+    iframe.style.cssText = 'flex:1;border:none;width:100%;';
+
+    overlay.appendChild(toolbar);
+    overlay.appendChild(iframe);
+    document.body.appendChild(overlay);
+}

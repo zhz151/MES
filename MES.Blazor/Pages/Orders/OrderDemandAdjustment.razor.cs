@@ -22,6 +22,12 @@ public partial class OrderDemandAdjustment
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
 
+    // 选中行（WorkOrderId）
+    private HashSet<int> _selectedIds = new();
+
+    // 方向键导航
+    private bool _isArrowNavSetup;
+
     // B33 分页汇总
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
@@ -34,6 +40,29 @@ public partial class OrderDemandAdjustment
     // 排序状态
     private string sortColumn = "ScheduleStage";
     private bool sortDescending = true;
+
+    // ========== 行选中 ==========
+
+    private void SelectAllItems(bool selected)
+    {
+        if (selected)
+        {
+            foreach (var item in _pageItems)
+                _selectedIds.Add(item.WorkOrderId);
+        }
+        else
+        {
+            _selectedIds.Clear();
+        }
+    }
+
+    private void ToggleSelection(OrderDemandAdjustmentDto item, bool selected)
+    {
+        if (selected)
+            _selectedIds.Add(item.WorkOrderId);
+        else
+            _selectedIds.Remove(item.WorkOrderId);
+    }
 
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
@@ -80,6 +109,18 @@ public partial class OrderDemandAdjustment
             new() { Key = "RawMaterialLockRemark",   Label = "原锁备注",     SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                             GroupKey = 12, GroupName = "实时关注" },
         };
 
+        // G7: 有效流转
+        var g7 = new List<ColumnDef>
+        {
+            new() { Key = "FlowOutputRatio",          Label = "流转成品比(%)",          SortKey = "FlowOutputRatio",          Width = "100", GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "FlowStatus",               Label = "有效流转状态",           SortKey = "FlowStatus",               FilterType = "enum", Width = "120", EnumOptions = new() { new("0","未投料"), new("1","部分"), new("2","满足") }, GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "MainNoFlowOutputRatio",    Label = "有效主号流转比(%)",     SortKey = "MainNoFlowOutputRatio",    Width = "100", GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "MainNoFlowStatus",          Label = "有效主号状态",          SortKey = "MainNoFlowStatus",          FilterType = "enum", Width = "120", EnumOptions = new() { new("0","未计划"), new("1","部分"), new("2","满足") }, GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "FlowTotalBatchCount",       Label = "总批次数",              SortKey = "FlowTotalBatchCount",       Width = "80", GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "FlowIncompleteBatchCount",  Label = "未完成批数",            SortKey = "FlowIncompleteBatchCount",  Width = "80", GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "FlowMaxRemainingWorkDays",  Label = "最大剩余工量(天)",      SortKey = "FlowMaxRemainingWorkDays",  Width = "100", GroupKey = 7, GroupName = "有效流转" },
+        };
+
         // G13: 工单需求调整（手工编辑）
         var g13 = new List<ColumnDef>
         {
@@ -92,6 +133,7 @@ public partial class OrderDemandAdjustment
         var all = new List<ColumnDef>();
         all.AddRange(g1);
         all.AddRange(g12);
+        all.AddRange(g7);
         all.AddRange(g13);
         return all;
     }
@@ -258,6 +300,13 @@ public partial class OrderDemandAdjustment
         await SavePageStateAsync();
     }
 
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
     private async Task MoveColumnUp(ColumnDef col)
     {
         await SavePageStateAsync();
@@ -327,7 +376,18 @@ public partial class OrderDemandAdjustment
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         // 分组标题栏：测量实际列宽 + 同步滚动
-        await JS.InvokeVoidAsync("initGroupHeaders", "#order-demand-adjustment-list-table");
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#order-demand-adjustment-list-table");
+        }
+        catch { }
+
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#order-demand-adjustment-list-table"))
+                _isArrowNavSetup = false;
+        }
     }
 
     // ========== 分组标题栏 ==========
@@ -344,6 +404,17 @@ public partial class OrderDemandAdjustment
     private List<GroupHeaderInfo> GetGroupHeaders()
     {
         var result = new List<GroupHeaderInfo>();
+
+        // 选择列占位（40px），对齐表格最左侧的 checkbox 列
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
         int? lastKey = null;
         int totalWidth = 0;
         var groupKey = 0;
@@ -393,6 +464,7 @@ public partial class OrderDemandAdjustment
         var cls = groupKey switch
         {
             1 => "col-g1",
+            7 => "col-g7",
             12 => "col-g12",
             13 => "col-g13",
             _ => ""
@@ -406,6 +478,7 @@ public partial class OrderDemandAdjustment
         var cls = groupKey switch
         {
             1 => "col-g1-cell",
+            7 => "col-g7-cell",
             12 => "col-g12-cell",
             13 => "col-g13-cell",
             _ => ""
@@ -550,6 +623,35 @@ public partial class OrderDemandAdjustment
             case "RawMaterialLockRemark":
                 builder.AddContent(0, item.RawMaterialLockRemark ?? "-");
                 break;
+            case "FlowOutputRatio":
+                builder.AddContent(0, $"{item.FlowOutputRatio.ToString("G29")}%");
+                break;
+            case "FlowStatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetFlowStatusColor(item.FlowStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetFlowStatusText(item.FlowStatus))));
+                builder.CloseComponent();
+                break;
+            case "MainNoFlowOutputRatio":
+                builder.AddContent(0, $"{item.MainNoFlowOutputRatio.ToString("G29")}%");
+                break;
+            case "MainNoFlowStatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetMainNoFlowStatusColor(item.MainNoFlowStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetMainNoFlowStatusText(item.MainNoFlowStatus))));
+                builder.CloseComponent();
+                break;
+            case "FlowTotalBatchCount":
+                builder.AddContent(0, item.FlowTotalBatchCount);
+                break;
+            case "FlowIncompleteBatchCount":
+                builder.AddContent(0, item.FlowIncompleteBatchCount);
+                break;
+            case "FlowMaxRemainingWorkDays":
+                builder.AddContent(0, $"{item.FlowMaxRemainingWorkDays}天");
+                break;
             case "IsUrging":
                 // 内联编辑：Switch 切换催单状态
                 builder.OpenElement(0, "div");
@@ -621,6 +723,22 @@ public partial class OrderDemandAdjustment
 
     // ========== 颜色 ==========
 
+    private static Color GetFlowStatusColor(int status) => status switch
+    {
+        0 => Color.Default,
+        1 => Color.Warning,
+        2 => Color.Success,
+        _ => Color.Default
+    };
+
+    private static Color GetMainNoFlowStatusColor(int status) => status switch
+    {
+        0 => Color.Default,
+        1 => Color.Warning,
+        2 => Color.Success,
+        _ => Color.Default
+    };
+
     private static Color GetScheduleStageColor(int stage) => stage switch
     {
         0 => Color.Default,
@@ -628,6 +746,99 @@ public partial class OrderDemandAdjustment
         2 => Color.Success,
         3 => Color.Info,
         _ => Color.Default
+    };
+
+    // ========== 打印选中 ==========
+
+    private async Task PrintSelected()
+    {
+        if (_selectedIds.Count == 0)
+        {
+            Snackbar.Add("请先选择要打印的行", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var printColumns = _visibleColumns
+                .Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label })
+                .ToList();
+
+            // 只打印当前页面选中的行
+            var selectedItems = _pageItems.Where(i => _selectedIds.Contains(i.WorkOrderId)).ToList();
+
+            var printItems = selectedItems.Select(item =>
+            {
+                var dict = new Dictionary<string, object>();
+                foreach (var col in _visibleColumns)
+                {
+                    dict[col.Key] = ResolvePrintValue(item, col.Key);
+                }
+                return dict;
+            }).ToList();
+
+            var request = new OrderDemandAdjustmentPrintRequest
+            {
+                Title = "订单需求调整",
+                Items = printItems,
+                Columns = printColumns
+            };
+
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/order-demand-adjustment/print-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static object ResolvePrintValue(OrderDemandAdjustmentDto item, string key) => key switch
+    {
+        // 枚举→中文
+        "MaterialName" => DisplayHelper.GetMaterialNameText(item.MaterialName) ?? "",
+        "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState) ?? "",
+        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus) ?? "",
+        "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod) ?? "",
+        "DelayPenalty" => item.DelayPenaltyText,
+        "ScheduleStage" => item.ScheduleStageText,
+        "FlowStatus" => item.FlowStatus switch { 0 => "未投料", 1 => "部分", 2 => "满足", _ => "未知" },
+        "MainNoFlowStatus" => item.MainNoFlowStatus switch { 0 => "未计划", 1 => "部分", 2 => "满足", _ => "未知" },
+        "IsUrging" => item.IsUrging ? "是" : "否",
+        "IsBatchDelivery" => item.IsBatchDelivery ? "是" : "否",
+        "IsPaused" => item.IsPaused ? "是" : "否",
+        "AdjustmentRemark" => item.AdjustmentRemark ?? "",
+        _ => GetRawPropertyValue(item, key)
+    };
+
+    private static object GetRawPropertyValue(OrderDemandAdjustmentDto item, string key) => key switch
+    {
+        "WorkOrderNo" => item.WorkOrderNo ?? "",
+        "Salesman" => item.Salesman ?? "",
+        "CustomerName" => item.CustomerName ?? "",
+        "SignDate" => item.SignDate,
+        "DeliveryDate" => item.DeliveryDate,
+        "SalesOrderNo" => item.SalesOrderNo ?? "",
+        "ProductionMainNo" => item.ProductionMainNo ?? "",
+        "ProductionSubNo" => item.ProductionSubNo ?? "",
+        "PlantGrade" => item.PlantGrade ?? "",
+        "Specification" => item.Specification ?? "",
+        "TotalQuantity" => item.TotalQuantity,
+        "TotalWeight" => item.TotalWeight,
+        "TotalRemainingWorkDays" => item.TotalRemainingWorkDays,
+        "CapacityWorkDays" => item.CapacityWorkDays,
+        "UrgencyLevel" => item.UrgencyLevel ?? "",
+        "EstimatedProcessCompletionDate" => item.EstimatedProcessCompletionDate,
+        "DaysDiffFromDelivery" => item.DaysDiffFromDelivery,
+        "RawMaterialLockRemark" => item.RawMaterialLockRemark ?? "",
+        "FlowOutputRatio" => item.FlowOutputRatio,
+        "MainNoFlowOutputRatio" => item.MainNoFlowOutputRatio,
+        "FlowTotalBatchCount" => item.FlowTotalBatchCount,
+        "FlowIncompleteBatchCount" => item.FlowIncompleteBatchCount,
+        "FlowMaxRemainingWorkDays" => item.FlowMaxRemainingWorkDays,
+        _ => ""
     };
 
     // ========== 持久化 ==========

@@ -51,7 +51,7 @@ public class WorkOrderExecutionSummary : BaseEntity
     /// <summary>关联主号用料状态</summary>
     public int MainNoMaterialPlanStatus { get; set; }
 
-    /// <summary>工艺周期（天）：4种用料计划中 StandardCycle 的最大值，未计划时默认25</summary>
+    /// <summary>工艺周期（天）：4种用料计划中 StandardCycle 的最大值，同主号均无计划时默认22</summary>
     public int ProcessCycle { get; set; }
 
     /// <summary>用料占比：4种料态中有做计划的种数(0-4)</summary>

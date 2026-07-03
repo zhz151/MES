@@ -426,12 +426,15 @@ public class PurchaseOrderService : IPurchaseOrderService
     public async Task<PurchaseOrderDto> CreateAsync(CreatePurchaseOrderRequest request)
     {
         // Serializable事务：防止并发读取到相同maxSeq导致唯一键冲突
-        using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
-        try
+        PurchaseOrder entity = null!;
+        var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+        using (transaction)
         {
+            try
+            {
             var orderNo = await GenerateOrderNoAsync();
 
-            var entity = new PurchaseOrder
+            entity = new PurchaseOrder
             {
                 OrderNo = orderNo,
                 SupplierId = request.SupplierId,
@@ -456,17 +459,18 @@ public class PurchaseOrderService : IPurchaseOrderService
             _context.PurchaseOrders.Add(entity);
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
 
-            var dto = ToDto(entity);
-            var supplier = await _context.SupplierProfiles.FindAsync(entity.SupplierId);
-            if (supplier != null) dto.SupplierName = supplier.SupplierName;
-            return dto;
-        }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+        var dto = ToDto(entity);
+        var supplier = await _context.SupplierProfiles.FindAsync(entity.SupplierId);
+        if (supplier != null) dto.SupplierName = supplier.SupplierName;
+        return dto;
     }
 
     public async Task<List<PurchaseOrderDto>> CreateBatchAsync(List<CreatePurchaseOrderRequest> requests)
@@ -475,9 +479,12 @@ public class PurchaseOrderService : IPurchaseOrderService
             throw new BusinessException("请求列表不能为空");
 
         // Serializable事务：防止并发读取到相同maxSeq导致唯一键冲突
-        using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
-        try
+        var entities = new List<PurchaseOrder>();
+        var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+        using (transaction)
         {
+            try
+            {
             // 一次查询，批量生成所有唯一单号（基于数值计算，避免字符串排序的009>010问题）
             var today = DateTime.Now.ToString("yyMMdd");
             var prefix = $"CG{today}";
@@ -494,7 +501,6 @@ public class PurchaseOrderService : IPurchaseOrderService
             }
             int seq = maxSeq + 1;
 
-            var entities = new List<PurchaseOrder>();
             foreach (var request in requests)
             {
                 var orderNo = $"{prefix}{seq:D3}";
@@ -527,26 +533,27 @@ public class PurchaseOrderService : IPurchaseOrderService
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
-
-            // 批量查询供应商名
-            var supplierIds = entities.Select(e => e.SupplierId).Distinct().ToList();
-            var suppliers = await _context.SupplierProfiles
-                .Where(s => supplierIds.Contains(s.Id))
-                .ToDictionaryAsync(s => s.Id, s => s.SupplierName);
-
-            return entities.Select(e =>
+            }
+            catch
             {
-                var dto = ToDto(e);
-                if (suppliers.TryGetValue(e.SupplierId, out var name))
-                    dto.SupplierName = name;
-                return dto;
-            }).ToList();
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-        catch
+
+        // 批量查询供应商名（事务已提交，在 using 块之外执行）
+        var supplierIds = entities.Select(e => e.SupplierId).Distinct().ToList();
+        var suppliers = await _context.SupplierProfiles
+            .Where(s => supplierIds.Contains(s.Id))
+            .ToDictionaryAsync(s => s.Id, s => s.SupplierName);
+
+        return entities.Select(e =>
         {
-            await transaction.RollbackAsync();
-            throw;
-        }
+            var dto = ToDto(e);
+            if (suppliers.TryGetValue(e.SupplierId, out var name))
+                dto.SupplierName = name;
+            return dto;
+        }).ToList();
     }
 
     public async Task<PurchaseOrderDto> UpdateAsync(int id, UpdatePurchaseOrderRequest request, bool isAdmin = false)

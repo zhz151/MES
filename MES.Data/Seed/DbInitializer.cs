@@ -262,181 +262,6 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
-        // ========== 7. Initialize Standard Process Cycles ==========
-        if (!context.StandardProcessCycles.Any())
-        {
-            var cycles = new List<StandardProcessCycle>
-            {
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "余库料", RawSpec = "10*1.5", ProductSpec = "8*1.5", DeliveryState = "固溶酸洗", StandardCycleDays = 7 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*12", ProductSpec = "60.3*8.74", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*11", ProductSpec = "60.3*8.74", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
-                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "荒管", RawSpec = "76*9", ProductSpec = "60.3*5.6", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "31000", RawMaterialType = "余库料", RawSpec = "71*8", ProductSpec = "60.3*5.6", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*9", ProductSpec = "60.3*5.54", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*8.5", ProductSpec = "60.3*5.54", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "78*8.5", ProductSpec = "60.3*5.54", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "76*9", ProductSpec = "60.3*5.54", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "76*8.5", ProductSpec = "60.3*5.54", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "余库料", RawSpec = "90*8", ProductSpec = "60.3*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*7.5", ProductSpec = "60.3*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
-                new StandardProcessCycle { PlantGrade = "25073", RawMaterialType = "余库料", RawSpec = "89*6", ProductSpec = "60.3*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 14 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*7.5", ProductSpec = "60.3*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "荒管", RawSpec = "76*7.5", ProductSpec = "60.3*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "76*7", ProductSpec = "60.3*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "76*6.5", ProductSpec = "60.3*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "荒管", RawSpec = "76*5.5", ProductSpec = "60.3*2.9", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*7.5", ProductSpec = "60.3*2.77", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "71*16", ProductSpec = "60.3*12.5", DeliveryState = "固溶酸洗", StandardCycleDays = 15 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*14", ProductSpec = "60.3*11.07", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "76*6.5", ProductSpec = "60*4", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "余库料", RawSpec = "76*5.5", ProductSpec = "60*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*5.5", ProductSpec = "60*3", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "8*1.5", ProductSpec = "6*1.5", DeliveryState = "固溶酸洗", StandardCycleDays = 7 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "76*9", ProductSpec = "57*4", DeliveryState = "固溶酸洗", StandardCycleDays = 11 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "76*7", ProductSpec = "57*4", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*5.5", ProductSpec = "57*4", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*7", ProductSpec = "57*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*6.5", ProductSpec = "57*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*6", ProductSpec = "57*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "60*5", ProductSpec = "54*5", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*5.5", ProductSpec = "51*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "76*7.5", ProductSpec = "50*4", DeliveryState = "固溶酸洗-外抛光", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*7.5", ProductSpec = "50*4", DeliveryState = "固溶酸洗-外抛光", StandardCycleDays = 20 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "76*6.5", ProductSpec = "50*4", DeliveryState = "固溶酸洗-外抛光", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*5.5", ProductSpec = "50*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "76*8.5", ProductSpec = "48.3*5.08", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*8", ProductSpec = "48.3*5.08", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "荒管", RawSpec = "76*8", ProductSpec = "48.3*5.08", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*7.5", ProductSpec = "48.3*5.08", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "67*8.5", ProductSpec = "48.3*5.08", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*8.5", ProductSpec = "48.3*5.08", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*7.5", ProductSpec = "48.3*5.08", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "余库料", RawSpec = "67*7", ProductSpec = "48.3*5.08", DeliveryState = "固溶酸洗", StandardCycleDays = 15 },
-                new StandardProcessCycle { PlantGrade = "31000", RawMaterialType = "余库料", RawSpec = "71*8", ProductSpec = "48.3*5", DeliveryState = "固溶酸洗", StandardCycleDays = 12 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*8", ProductSpec = "48.3*5", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*5.5", ProductSpec = "48.3*3.68", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "48.3*3.68", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "48.3*3.68", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
-                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "48.3*3.68", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5.2", ProductSpec = "48.3*3.68", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "48.3*3.68", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "荒管", RawSpec = "76*5.5", ProductSpec = "48.3*2.77", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*14", ProductSpec = "48.3*10.16", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "76*5.5", ProductSpec = "48*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "57*3.5", ProductSpec = "45*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "316H0", RawMaterialType = "余库料", RawSpec = "50.8*8", ProductSpec = "42*8", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "45*3", ProductSpec = "42*3", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "67*5", ProductSpec = "38*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 13 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "38*3", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "34*4.5", DeliveryState = "固溶酸洗", StandardCycleDays = 20 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "34*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "34*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "荒管", RawSpec = "67*7.5", ProductSpec = "33.7*4.5", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "34*3.1", ProductSpec = "33.7*2.6", DeliveryState = "固溶酸洗", StandardCycleDays = 7 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*12", ProductSpec = "33.4*9.09", DeliveryState = "固溶酸洗", StandardCycleDays = 30 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "78*13", ProductSpec = "33.4*9.09", DeliveryState = "固溶酸洗", StandardCycleDays = 20 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "67*8.5", ProductSpec = "33.4*6.35", DeliveryState = "固溶酸洗", StandardCycleDays = 23 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "67*7.5", ProductSpec = "33.4*4.55", DeliveryState = "固溶酸洗", StandardCycleDays = 20 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*7.5", ProductSpec = "33.4*4.55", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "67*7", ProductSpec = "33.4*4.55", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*7", ProductSpec = "33.4*4.55", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
-                new StandardProcessCycle { PlantGrade = "25073", RawMaterialType = "余库料", RawSpec = "48.3*5.08", ProductSpec = "33.4*4.55", DeliveryState = "固溶酸洗", StandardCycleDays = 13 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*7", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "31600", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "余库料", RawSpec = "67*6", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 13 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
-                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "余库料", RawSpec = "67*6", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 13 },
-                new StandardProcessCycle { PlantGrade = "31600", RawMaterialType = "余库料", RawSpec = "67*5.5", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 13 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "余库料", RawSpec = "67*5", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 13 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "余库料", RawSpec = "42*3.4", ProductSpec = "33.4*3.38", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "余库料", RawSpec = "35*2.5", ProductSpec = "33.4*2.77", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "35*2.5", ProductSpec = "33.4*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "33.4*5.3", ProductSpec = "32*5.5", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "32*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 16 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "67*5", ProductSpec = "32*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 14 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5.2", ProductSpec = "32*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "32*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "316H0", RawMaterialType = "余库料", RawSpec = "67*6.5", ProductSpec = "28*4", DeliveryState = "固溶酸洗", StandardCycleDays = 19 },
-                new StandardProcessCycle { PlantGrade = "31600", RawMaterialType = "余库料", RawSpec = "32*3.5", ProductSpec = "27*3.5", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "27*3", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "28*2", ProductSpec = "26.9*2", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "78*11", ProductSpec = "26.7*7.82", DeliveryState = "固溶酸洗", StandardCycleDays = 23 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "76*13", ProductSpec = "26.7*7.82", DeliveryState = "固溶酸洗", StandardCycleDays = 23 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "67*7.5", ProductSpec = "26.7*5.56", DeliveryState = "固溶酸洗", StandardCycleDays = 24 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*8", ProductSpec = "26.7*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "26.7*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 24 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "26.7*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "26.7*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "余库料", RawSpec = "67*6", ProductSpec = "26.7*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "26.7*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "余库料", RawSpec = "67*5.5", ProductSpec = "26.7*3.91", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "26.7*2.87", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
-                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "26.7*2.87", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5.2", ProductSpec = "26.7*2.87", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
-                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "余库料", RawSpec = "48*3.6", ProductSpec = "26.7*2.87", DeliveryState = "固溶酸洗", StandardCycleDays = 17 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "28*2", ProductSpec = "26.7*2.11", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "25*3", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
-                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "余库料", RawSpec = "27*3", ProductSpec = "25*3", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "余库料", RawSpec = "26.7*2.87", ProductSpec = "25*3", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5.5", ProductSpec = "25*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
-                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "荒管", RawSpec = "67*5.5", ProductSpec = "25*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5.2", ProductSpec = "25*2", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
-                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "荒管", RawSpec = "67*5.2", ProductSpec = "25*2", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5.2", ProductSpec = "25*2", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
-                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "荒管", RawSpec = "67*5.2", ProductSpec = "25*2", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "25*2", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
-                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "余库料", RawSpec = "67*5", ProductSpec = "25*2", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "28*2", ProductSpec = "24*2", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "余库料", RawSpec = "25*3", ProductSpec = "22*3", DeliveryState = "固溶酸洗", StandardCycleDays = 7 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "90*12", ProductSpec = "21.3*7.47", DeliveryState = "固溶酸洗", StandardCycleDays = 26 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "78*11", ProductSpec = "21.3*7.47", DeliveryState = "固溶酸洗", StandardCycleDays = 23 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "76*13", ProductSpec = "21.3*7.47", DeliveryState = "固溶酸洗", StandardCycleDays = 23 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*7.5", ProductSpec = "21.3*4.78", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "67*7", ProductSpec = "21.3*4.78", DeliveryState = "固溶酸洗", StandardCycleDays = 24 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "荒管", RawSpec = "67*7", ProductSpec = "21.3*3.73", DeliveryState = "固溶酸洗", StandardCycleDays = 24 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "21.3*3.73", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*6.5", ProductSpec = "21.3*3.73", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
-                new StandardProcessCycle { PlantGrade = "304L0", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "21.3*3.73", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
-                new StandardProcessCycle { PlantGrade = "22051", RawMaterialType = "余库料", RawSpec = "67*5.5", ProductSpec = "21.3*3.73", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
-                new StandardProcessCycle { PlantGrade = "25073", RawMaterialType = "余库料", RawSpec = "26.7*3.5", ProductSpec = "21.3*3.73", DeliveryState = "固溶酸洗", StandardCycleDays = 11 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "25*3.5", ProductSpec = "21.3*3.73", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "67*4.8", ProductSpec = "21.3*2.9", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*6", ProductSpec = "21.3*2.77", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5.5", ProductSpec = "21.3*2.77", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "67*5", ProductSpec = "21.3*2.77", DeliveryState = "固溶酸洗", StandardCycleDays = 18 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "21.3*2.77", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
-                new StandardProcessCycle { PlantGrade = "3160T", RawMaterialType = "余库料", RawSpec = "25*3", ProductSpec = "21.3*2.77", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "31600", RawMaterialType = "余库料", RawSpec = "22*3", ProductSpec = "21*3", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "20*2", DeliveryState = "固溶酸洗-外抛光", StandardCycleDays = 26 },
-                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "余库料", RawSpec = "22*2.5", ProductSpec = "19*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 7 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5.5", ProductSpec = "19*2", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5.2", ProductSpec = "19*2", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "19*2", DeliveryState = "光亮", StandardCycleDays = 26 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "19*2", DeliveryState = "固溶酸洗", StandardCycleDays = 22 },
-                new StandardProcessCycle { PlantGrade = "316L0", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "19*2", DeliveryState = "固溶酸洗-U型管", StandardCycleDays = 26 },
-                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "荒管", RawSpec = "67*5", ProductSpec = "19*2", DeliveryState = "固溶酸洗", StandardCycleDays = 21 },
-                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "余库料", RawSpec = "38*3", ProductSpec = "19*2", DeliveryState = "固溶酸洗", StandardCycleDays = 12 },
-                new StandardProcessCycle { PlantGrade = "22052", RawMaterialType = "余库料", RawSpec = "38*2.7", ProductSpec = "19*2", DeliveryState = "固溶酸洗", StandardCycleDays = 15 },
-                new StandardProcessCycle { PlantGrade = "22052", RawMaterialType = "余库料", RawSpec = "32*2", ProductSpec = "19*2", DeliveryState = "固溶酸洗", StandardCycleDays = 11 },
-                new StandardProcessCycle { PlantGrade = "22052", RawMaterialType = "余库料", RawSpec = "25*2", ProductSpec = "19*2", DeliveryState = "固溶酸洗", StandardCycleDays = 11 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "38*2.7", ProductSpec = "18*1.5", DeliveryState = "固溶酸洗-外抛光", StandardCycleDays = 15 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "22*2", ProductSpec = "18*1.5", DeliveryState = "固溶酸洗", StandardCycleDays = 12 },
-                new StandardProcessCycle { PlantGrade = "316H0", RawMaterialType = "余库料", RawSpec = "21.3*2.9", ProductSpec = "16*3", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "20*0.95", ProductSpec = "15*1", DeliveryState = "固溶酸洗", StandardCycleDays = 7 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "18*1.9", ProductSpec = "15*1", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "32100", RawMaterialType = "余库料", RawSpec = "18*2.5", ProductSpec = "14*2.5", DeliveryState = "固溶酸洗", StandardCycleDays = 7 },
-                new StandardProcessCycle { PlantGrade = "31600", RawMaterialType = "余库料", RawSpec = "14*3", ProductSpec = "12*3", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "14*2", ProductSpec = "10*2", DeliveryState = "固溶酸洗", StandardCycleDays = 7 },
-                new StandardProcessCycle { PlantGrade = "30400", RawMaterialType = "余库料", RawSpec = "12*2", ProductSpec = "10*2", DeliveryState = "固溶酸洗", StandardCycleDays = 10 },
-            };
-
-            await context.StandardProcessCycles.AddRangeAsync(cycles);
-            await context.SaveChangesAsync();
-        }
-
         // ========== 8. Initialize Standard Work Days ==========
         if (!context.StandardWorkDays.Any())
         {
@@ -498,93 +323,93 @@ public static class DbInitializer
             var configParams = new List<ConfigParameter>
             {
                 // ===== WarehouseThreshold 仓库完工阈值 =====
-                new() { Category = "WarehouseThreshold", ParamKey = "CompleteRatio", ParamValue = 0.95m, Remark = "入库完工比率阈值" },
-                new() { Category = "WarehouseThreshold", ParamKey = "CompleteDeviation", ParamValue = 100m, Remark = "入库完工绝对偏差(kg)" },
-                new() { Category = "WarehouseThreshold", ParamKey = "SubcontractCompleteRatio", ParamValue = 0.95m, Remark = "委外完工比率阈值" },
-                new() { Category = "WarehouseThreshold", ParamKey = "PurchaseCompleteRatio", ParamValue = 0.965m, Remark = "采购完工比率阈值" },
-                new() { Category = "WarehouseThreshold", ParamKey = "PurchaseCompleteDeviation", ParamValue = 200m, Remark = "采购完工绝对偏差(kg)" },
-                new() { Category = "WarehouseThreshold", ParamKey = "OutsourceRecoveryRatio", ParamValue = 0.99m, Remark = "委外回收比率阈值" },
+                new() { Category = "WarehouseThreshold", CategoryDisplay = "工单-入库完结比率", Context = "工单", ParamKey = "CompleteRatio", ParamValue = 0.95m, Remark = "入库完工比率阈值" },
+                new() { Category = "WarehouseThreshold", CategoryDisplay = "工单-入库完结偏差", Context = "工单", ParamKey = "CompleteDeviation", ParamValue = 100m, Remark = "入库完工绝对偏差(kg)" },
+                new() { Category = "WarehouseThreshold", CategoryDisplay = "委外-回收比率", Context = "物料", ParamKey = "SubcontractCompleteRatio", ParamValue = 0.95m, Remark = "委外完工比率阈值" },
+                new() { Category = "WarehouseThreshold", CategoryDisplay = "采购-完工比率", Context = "物料", ParamKey = "PurchaseCompleteRatio", ParamValue = 0.965m, Remark = "采购完工比率阈值" },
+                new() { Category = "WarehouseThreshold", CategoryDisplay = "采购-完工偏差", Context = "物料", ParamKey = "PurchaseCompleteDeviation", ParamValue = 200m, Remark = "采购完工绝对偏差(kg)" },
+                new() { Category = "WarehouseThreshold", CategoryDisplay = "仓库-完工阈值", Context = "批次", ParamKey = "OutsourceRecoveryRatio", ParamValue = 0.99m, Remark = "委外回收比率阈值" },
 
                 // ===== ProductionThreshold 生产阈值 =====
-                new() { Category = "ProductionThreshold", ParamKey = "ColdRollCompleteRatio", ParamValue = 0.95m, Remark = "冷轧拔完工比率" },
-                new() { Category = "ProductionThreshold", ParamKey = "ValidInputUpper", ParamValue = 1.03m, Remark = "有效投料比率上限" },
-                new() { Category = "ProductionThreshold", ParamKey = "ValidInputLower", ParamValue = 0.97m, Remark = "有效投料比率下限" },
+                new() { Category = "ProductionThreshold", CategoryDisplay = "批次-生产阈值", Context = "批次", ParamKey = "ColdRollCompleteRatio", ParamValue = 0.95m, Remark = "冷轧拔完工比率" },
+                new() { Category = "ProductionThreshold", CategoryDisplay = "批次-生产阈值", Context = "批次", ParamKey = "ValidInputUpper", ParamValue = 1.03m, Remark = "有效投料比率上限" },
+                new() { Category = "ProductionThreshold", CategoryDisplay = "批次-生产阈值", Context = "批次", ParamKey = "ValidInputLower", ParamValue = 0.97m, Remark = "有效投料比率下限" },
 
                 // ===== MaterialPlanRatio 物料计划系数 =====
-                new() { Category = "MaterialPlanRatio", ParamKey = "FixedFinishRatio", ParamValue = 1.02m, Remark = "定尺成品采购系数" },
-                new() { Category = "MaterialPlanRatio", ParamKey = "FixedInventoryRatio", ParamValue = 1.02m, Remark = "定尺库存使用系数" },
-                new() { Category = "MaterialPlanRatio", ParamKey = "NonFixedFinishRatio", ParamValue = 1.05m, Remark = "非定尺成品采购系数" },
-                new() { Category = "MaterialPlanRatio", ParamKey = "NonFixedInventoryRatio", ParamValue = 1.05m, Remark = "非定尺库存使用系数" },
+                new() { Category = "MaterialPlanRatio", CategoryDisplay = "工单-用料计划比率", Context = "工单", ParamKey = "FixedFinishRatio", ParamValue = 1.02m, Remark = "定尺成品采购系数" },
+                new() { Category = "MaterialPlanRatio", CategoryDisplay = "工单-用料计划比率", Context = "工单", ParamKey = "FixedInventoryRatio", ParamValue = 1.02m, Remark = "定尺库存使用系数" },
+                new() { Category = "MaterialPlanRatio", CategoryDisplay = "工单-用料计划比率", Context = "工单", ParamKey = "NonFixedFinishRatio", ParamValue = 1.05m, Remark = "非定尺成品采购系数" },
+                new() { Category = "MaterialPlanRatio", CategoryDisplay = "工单-用料计划比率", Context = "工单", ParamKey = "NonFixedInventoryRatio", ParamValue = 1.05m, Remark = "非定尺库存使用系数" },
 
                 // ===== DimensionTolerance 尺寸公差系数 =====
-                new() { Category = "DimensionTolerance", ParamKey = "OdLower", ParamValue = 1.002m, Remark = "外径下限系数" },
-                new() { Category = "DimensionTolerance", ParamKey = "OdUpper", ParamValue = 0.998m, Remark = "外径上限系数" },
-                new() { Category = "DimensionTolerance", ParamKey = "WtLower", ParamValue = 1.02m, Remark = "壁厚下限系数" },
-                new() { Category = "DimensionTolerance", ParamKey = "WtUpper", ParamValue = 0.98m, Remark = "壁厚上限系数" },
+                new() { Category = "DimensionTolerance", CategoryDisplay = "工单-尺寸公差", Context = "工单", ParamKey = "OdLower", ParamValue = 1.002m, Remark = "外径下限系数" },
+                new() { Category = "DimensionTolerance", CategoryDisplay = "工单-尺寸公差", Context = "工单", ParamKey = "OdUpper", ParamValue = 0.998m, Remark = "外径上限系数" },
+                new() { Category = "DimensionTolerance", CategoryDisplay = "工单-尺寸公差", Context = "工单", ParamKey = "WtLower", ParamValue = 1.02m, Remark = "壁厚下限系数" },
+                new() { Category = "DimensionTolerance", CategoryDisplay = "工单-尺寸公差", Context = "工单", ParamKey = "WtUpper", ParamValue = 0.98m, Remark = "壁厚上限系数" },
 
                 // ===== ReworkRatio 改制系数 =====
-                new() { Category = "ReworkRatio", ParamKey = "EmptyDrawingOdLower", ParamValue = 1.05m, Remark = "空拔外径下限" },
-                new() { Category = "ReworkRatio", ParamKey = "FewerPassOdLower", ParamValue = 1.1m, Remark = "少道次外径下限" },
-                new() { Category = "ReworkRatio", ParamKey = "OdUpper", ParamValue = 2.0m, Remark = "改制外径上限" },
-                new() { Category = "ReworkRatio", ParamKey = "EmptyDrawingWtLower", ParamValue = 0.95m, Remark = "空拔壁厚下限" },
-                new() { Category = "ReworkRatio", ParamKey = "FewerPassWtLower", ParamValue = 1.05m, Remark = "少道次壁厚下限" },
-                new() { Category = "ReworkRatio", ParamKey = "EmptyDrawingWtUpper", ParamValue = 1.05m, Remark = "空拔壁厚上限" },
-                new() { Category = "ReworkRatio", ParamKey = "FewerPassWtUpper", ParamValue = 2.0m, Remark = "少道次壁厚上限" },
-                new() { Category = "ReworkRatio", ParamKey = "MinUnitWeightRatio", ParamValue = 1.05m, Remark = "改制最小单重系数" },
+                new() { Category = "ReworkRatio", CategoryDisplay = "工单-改制系数", Context = "工单", ParamKey = "EmptyDrawingOdLower", ParamValue = 1.05m, Remark = "空拔外径下限" },
+                new() { Category = "ReworkRatio", CategoryDisplay = "工单-改制系数", Context = "工单", ParamKey = "FewerPassOdLower", ParamValue = 1.1m, Remark = "少道次外径下限" },
+                new() { Category = "ReworkRatio", CategoryDisplay = "工单-改制系数", Context = "工单", ParamKey = "OdUpper", ParamValue = 2.0m, Remark = "改制外径上限" },
+                new() { Category = "ReworkRatio", CategoryDisplay = "工单-改制系数", Context = "工单", ParamKey = "EmptyDrawingWtLower", ParamValue = 0.95m, Remark = "空拔壁厚下限" },
+                new() { Category = "ReworkRatio", CategoryDisplay = "工单-改制系数", Context = "工单", ParamKey = "FewerPassWtLower", ParamValue = 1.05m, Remark = "少道次壁厚下限" },
+                new() { Category = "ReworkRatio", CategoryDisplay = "工单-改制系数", Context = "工单", ParamKey = "EmptyDrawingWtUpper", ParamValue = 1.05m, Remark = "空拔壁厚上限" },
+                new() { Category = "ReworkRatio", CategoryDisplay = "工单-改制系数", Context = "工单", ParamKey = "FewerPassWtUpper", ParamValue = 2.0m, Remark = "少道次壁厚上限" },
+                new() { Category = "ReworkRatio", CategoryDisplay = "工单-改制系数", Context = "工单", ParamKey = "MinUnitWeightRatio", ParamValue = 1.05m, Remark = "改制最小单重系数" },
 
                 // ===== LengthDefault 长度默认值 =====
-                new() { Category = "LengthDefault", ParamKey = "PipeLength", ParamValue = 6000m, Remark = "默认管长(mm)" },
-                new() { Category = "LengthDefault", ParamKey = "UnitWeightLength", ParamValue = 4500m, Remark = "默认单重计算长度(mm)" },
+                new() { Category = "LengthDefault", CategoryDisplay = "工单-长度默认值", Context = "工单", ParamKey = "PipeLength", ParamValue = 6000m, Remark = "默认管长(mm)" },
+                new() { Category = "LengthDefault", CategoryDisplay = "工单-长度默认值", Context = "工单", ParamKey = "UnitWeightLength", ParamValue = 4500m, Remark = "默认单重计算长度(mm)" },
 
                 // ===== MaterialPlanStatus 物料计划状态阈值 =====
-                new() { Category = "MaterialPlanStatus", ParamKey = "FixedPartial", ParamValue = 102m, Remark = "定尺部分阈值(%)" },
-                new() { Category = "MaterialPlanStatus", ParamKey = "FixedSatisfied", ParamValue = 110m, Remark = "定尺满足阈值(%)" },
-                new() { Category = "MaterialPlanStatus", ParamKey = "NonFixedPartial", ParamValue = 105m, Remark = "非定尺部分阈值(%)" },
-                new() { Category = "MaterialPlanStatus", ParamKey = "NonFixedSatisfied", ParamValue = 120m, Remark = "非定尺满足阈值(%)" },
-                new() { Category = "MaterialPlanStatus", ParamKey = "SmallBatchMaxQty", ParamValue = 20m, Remark = "小批量最大支数" },
-                new() { Category = "MaterialPlanStatus", ParamKey = "SmallBatchSatisfiedRate", ParamValue = 100m, Remark = "小批量满足率(%)" },
-                new() { Category = "MaterialPlanStatus", ParamKey = "SupplySatisfiedRate", ParamValue = 100m, Remark = "投料满足率(%)" },
+                new() { Category = "MaterialPlanStatus", CategoryDisplay = "工单-用料计划状态阈值", Context = "工单", ParamKey = "FixedPartial", ParamValue = 102m, Remark = "定尺部分阈值(%)" },
+                new() { Category = "MaterialPlanStatus", CategoryDisplay = "工单-用料计划状态阈值", Context = "工单", ParamKey = "FixedSatisfied", ParamValue = 110m, Remark = "定尺满足阈值(%)" },
+                new() { Category = "MaterialPlanStatus", CategoryDisplay = "工单-用料计划状态阈值", Context = "工单", ParamKey = "NonFixedPartial", ParamValue = 105m, Remark = "非定尺部分阈值(%)" },
+                new() { Category = "MaterialPlanStatus", CategoryDisplay = "工单-用料计划状态阈值", Context = "工单", ParamKey = "NonFixedSatisfied", ParamValue = 120m, Remark = "非定尺满足阈值(%)" },
+                new() { Category = "MaterialPlanStatus", CategoryDisplay = "工单-用料计划状态阈值", Context = "工单", ParamKey = "SmallBatchMaxQty", ParamValue = 20m, Remark = "小批量最大支数" },
+                new() { Category = "MaterialPlanStatus", CategoryDisplay = "工单-用料计划状态阈值", Context = "工单", ParamKey = "SmallBatchSatisfiedRate", ParamValue = 100m, Remark = "小批量满足率(%)" },
+                new() { Category = "MaterialPlanStatus", CategoryDisplay = "工单-用料计划状态阈值", Context = "工单", ParamKey = "SupplySatisfiedRate", ParamValue = 100m, Remark = "投料满足率(%)" },
 
                 // ===== ProcessingDiscount 加工折扣率 =====
-                new() { Category = "ProcessingDiscount", ParamKey = "GroupDiscountRate", ParamValue = 0.025m, Remark = "每工序组加工损耗率" },
-                new() { Category = "ProcessingDiscount", ParamKey = "RawMaterialRatio", ParamValue = 1.1m, Remark = "原料换算系数" },
+                new() { Category = "ProcessingDiscount", CategoryDisplay = "批次-加工损耗率", Context = "批次", ParamKey = "GroupDiscountRate", ParamValue = 0.025m, Remark = "每工序组加工损耗率" },
+                new() { Category = "ProcessingDiscount", CategoryDisplay = "批次-加工损耗率", Context = "批次", ParamKey = "RawMaterialRatio", ParamValue = 1.1m, Remark = "原料换算系数" },
 
                 // ===== WorkOrderDays 工单天数 =====
-                new() { Category = "WorkOrderDays", ParamKey = "BufferDays", ParamValue = 3m, Remark = "缓冲天数" },
-                new() { Category = "WorkOrderDays", ParamKey = "InspectionFixedDays", ParamValue = 3m, Remark = "检验固定天数" },
+                new() { Category = "WorkOrderDays", CategoryDisplay = "工单-交期排程天数", Context = "工单", ParamKey = "BufferDays", ParamValue = 3m, Remark = "缓冲天数" },
+                new() { Category = "WorkOrderDays", CategoryDisplay = "工单-交期排程天数", Context = "工单", ParamKey = "InspectionFixedDays", ParamValue = 3m, Remark = "检验固定天数" },
 
                 // ===== UrgencyThreshold 紧急程度阈值 =====
-                new() { Category = "UrgencyThreshold", ParamKey = "APlus", ParamValue = 7m, Remark = "A+急阈值(天)" },
-                new() { Category = "UrgencyThreshold", ParamKey = "A", ParamValue = -3m, Remark = "A急阈值(天)" },
-                new() { Category = "UrgencyThreshold", ParamKey = "B", ParamValue = -10m, Remark = "B顺阈值(天)" },
-                new() { Category = "UrgencyThreshold", ParamKey = "C", ParamValue = -17m, Remark = "C缓阈值(天)" },
+                new() { Category = "UrgencyThreshold", CategoryDisplay = "工单-紧急度阈值", Context = "工单", ParamKey = "APlus", ParamValue = 7m, Remark = "A+急阈值(天)" },
+                new() { Category = "UrgencyThreshold", CategoryDisplay = "工单-紧急度阈值", Context = "工单", ParamKey = "A", ParamValue = -3m, Remark = "A急阈值(天)" },
+                new() { Category = "UrgencyThreshold", CategoryDisplay = "工单-紧急度阈值", Context = "工单", ParamKey = "B", ParamValue = -10m, Remark = "B顺阈值(天)" },
+                new() { Category = "UrgencyThreshold", CategoryDisplay = "工单-紧急度阈值", Context = "工单", ParamKey = "C", ParamValue = -17m, Remark = "C缓阈值(天)" },
 
                 // ===== DateBucket 日期桶边界 =====
-                new() { Category = "DateBucket", ParamKey = "Bucket1", ParamValue = 15m, Remark = "日期桶1(天)" },
-                new() { Category = "DateBucket", ParamKey = "Bucket2", ParamValue = 30m, Remark = "日期桶2(天)" },
-                new() { Category = "DateBucket", ParamKey = "Bucket3", ParamValue = 45m, Remark = "日期桶3(天)" },
-                new() { Category = "DateBucket", ParamKey = "Bucket4", ParamValue = 60m, Remark = "日期桶4(天)" },
-                new() { Category = "DateBucket", ParamKey = "Bucket5", ParamValue = 90m, Remark = "日期桶5(天)" },
-
-                // ===== ProductionCapacity 产能负荷 =====
-                new() { Category = "ProductionCapacity", ParamKey = "Polish", ParamValue = 12m, Remark = "荒管抛光日产能(吨)" },
-                new() { Category = "ProductionCapacity", ParamKey = "Mill50_60", ParamValue = 11m, Remark = "50/60轧机日产能(吨)" },
-                new() { Category = "ProductionCapacity", ParamKey = "Mill20_30", ParamValue = 9m, Remark = "20/30轧机日产能(吨)" },
-                new() { Category = "ProductionCapacity", ParamKey = "ThreeRoll", ParamValue = 0.5m, Remark = "三辊轧机日产能(吨)" },
-                new() { Category = "ProductionCapacity", ParamKey = "DrawBench", ParamValue = 3m, Remark = "拉机日产能(吨)" },
+                new() { Category = "DateBucket", CategoryDisplay = "排程-日期桶", Context = "排程", ParamKey = "Bucket1", ParamValue = 15m, Remark = "日期桶1(天)" },
+                new() { Category = "DateBucket", CategoryDisplay = "排程-日期桶", Context = "排程", ParamKey = "Bucket2", ParamValue = 30m, Remark = "日期桶2(天)" },
+                new() { Category = "DateBucket", CategoryDisplay = "排程-日期桶", Context = "排程", ParamKey = "Bucket3", ParamValue = 45m, Remark = "日期桶3(天)" },
+                new() { Category = "DateBucket", CategoryDisplay = "排程-日期桶", Context = "排程", ParamKey = "Bucket4", ParamValue = 60m, Remark = "日期桶4(天)" },
+                new() { Category = "DateBucket", CategoryDisplay = "排程-日期桶", Context = "排程", ParamKey = "Bucket5", ParamValue = 90m, Remark = "日期桶5(天)" },
 
                 // ===== SequenceJump 序号跳跃 =====
-                new() { Category = "SequenceJump", ParamKey = "MaxJump", ParamValue = 7m, Remark = "最大序号跳跃值" },
+                new() { Category = "SequenceJump", CategoryDisplay = "批次-工序跳号", Context = "批次", ParamKey = "MaxJump", ParamValue = 7m, Remark = "最大序号跳跃值" },
 
                 // ===== ContractWeight 合同重量验证 =====
-                new() { Category = "ContractWeight", ParamKey = "LowerBound", ParamValue = 0.94m, Remark = "合同重量验证下限" },
-                new() { Category = "ContractWeight", ParamKey = "UpperBound", ParamValue = 1.06m, Remark = "合同重量验证上限" },
+                new() { Category = "ContractWeight", CategoryDisplay = "订单-合同重量校验", Context = "订单", ParamKey = "LowerBound", ParamValue = 0.94m, Remark = "合同重量验证下限" },
+                new() { Category = "ContractWeight", CategoryDisplay = "订单-合同重量校验", Context = "订单", ParamKey = "UpperBound", ParamValue = 1.06m, Remark = "合同重量验证上限" },
+
+                // ===== NcrThreshold NCR 触发阈值 =====
+                new() { Category = "NcrThreshold", CategoryDisplay = "质量-NCR触发阈值", Context = "质量", ParamKey = "ReworkCount", ParamValue = 5m, Remark = "返工触发绝对支数" },
+                new() { Category = "NcrThreshold", CategoryDisplay = "质量-NCR触发阈值", Context = "质量", ParamKey = "ReworkPercent", ParamValue = 0.05m, Remark = "返工触发百分比" },
+                new() { Category = "NcrThreshold", CategoryDisplay = "质量-NCR触发阈值", Context = "质量", ParamKey = "WarehouseCount", ParamValue = 5m, Remark = "让步接收触发绝对支数" },
+                new() { Category = "NcrThreshold", CategoryDisplay = "质量-NCR触发阈值", Context = "质量", ParamKey = "WarehousePercent", ParamValue = 0.05m, Remark = "让步接收触发百分比" },
+                new() { Category = "NcrThreshold", CategoryDisplay = "质量-NCR触发阈值", Context = "质量", ParamKey = "ScrapCount", ParamValue = 3m, Remark = "报废触发绝对支数" },
+                new() { Category = "NcrThreshold", CategoryDisplay = "质量-NCR触发阈值", Context = "质量", ParamKey = "ScrapPercent", ParamValue = 0.05m, Remark = "报废触发百分比" },
 
                 // ===== DefaultValue 默认值 =====
-                new() { Category = "DefaultValue", ParamKey = "ProcessCycle", ParamValue = 25m, Remark = "默认工序周期(天)" },
-                new() { Category = "DefaultValue", ParamKey = "StandardCycle", ParamValue = 3m, Remark = "默认标准周期(天)" },
-                new() { Category = "DefaultValue", ParamKey = "BatchMaxSequence", ParamValue = 9999m, Remark = "批次号最大序号" },
-                new() { Category = "DefaultValue", ParamKey = "RoughTubeFinishRatio", ParamValue = 0.92m, Remark = "荒管转成品系数" },
+                new() { Category = "DefaultValue", CategoryDisplay = "工单-标准周期", Context = "工单", ParamKey = "StandardCycle", ParamValue = 3m, Remark = "默认标准周期(天)" },
+                new() { Category = "DefaultValue", CategoryDisplay = "批次-最大序号", Context = "批次", ParamKey = "BatchMaxSequence", ParamValue = 9999m, Remark = "批次号最大序号" },
+                new() { Category = "DefaultValue", CategoryDisplay = "工单-荒管成品系数", Context = "工单", ParamKey = "RoughTubeFinishRatio", ParamValue = 0.92m, Remark = "荒管转成品系数" },
             };
 
             await context.ConfigParameters.AddRangeAsync(configParams);
@@ -718,7 +543,22 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
-        // ========== 12. Initialize Daily Output Estimates ==========
+        // ========== 12. Initialize Daily Production Capacities ==========
+        if (!context.DailyProductionCapacities.Any())
+        {
+            var capacities = new List<DailyProductionCapacity>
+            {
+                new() { ProcessName = "荒管抛光", DailyCapacity = 15m, Remark = "荒管抛光日产能(吨)" },
+                new() { ProcessName = "50,60轧机", DailyCapacity = 11m, Remark = "50,60轧机日产能(吨)" },
+                new() { ProcessName = "20,30轧机", DailyCapacity = 9m, Remark = "20,30轧机日产能(吨)" },
+                new() { ProcessName = "三辊轧机", DailyCapacity = 0.5m, Remark = "三辊轧机日产能(吨)" },
+                new() { ProcessName = "拉机", DailyCapacity = 3m, Remark = "拉机日产能(吨)" },
+            };
+            context.DailyProductionCapacities.AddRange(capacities);
+            await context.SaveChangesAsync();
+        }
+
+        // ========== 13. Initialize Daily Output Estimates ==========
         if (!context.DailyOutputEstimates.Any())
         {
             var estimates = new List<DailyOutputEstimate>

@@ -346,7 +346,6 @@ public static class WorkOrderPrintHelper
         WorkOrderStatus.NotGenerated => "未编制",
         WorkOrderStatus.Confirmed => "已确定",
         WorkOrderStatus.Pending => "待修正",
-        WorkOrderStatus.Cancelled => "已取消",
         _ => status.ToString()
     };
 
@@ -354,7 +353,6 @@ public static class WorkOrderPrintHelper
     {
         WorkOrderStatus.Confirmed => Colors.Green.Darken1,
         WorkOrderStatus.Pending => Colors.Orange.Darken1,
-        WorkOrderStatus.Cancelled => Colors.Red.Darken1,
         _ => Colors.Grey.Darken1
     };
 

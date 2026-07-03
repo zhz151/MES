@@ -24,18 +24,6 @@
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
-                <MudButton Variant="Variant.Filled" Color="Color.Info"
-                           StartIcon="@Icons.Material.Filled.Print"
-                           Disabled="@(!selectedIds.Any())"
-                           OnClick="PrintSelected"
-                           Class="mr-2">
-                    打印选中 (@selectedIds.Count)
-                </MudButton>
-                <MudButton Variant="Variant.Text" Color="Color.Info"
-                           StartIcon="@Icons.Material.Filled.Print"
-                           OnClick="PrintAll">
-                    打印全部
-                </MudButton>
                 <MudButton Variant="Variant.Text" Color="Color.Default"
                            StartIcon="@Icons.Material.Filled.ArrowBack"
                            OnClick='() => Navigation.NavigateTo("/batches")'>
@@ -115,9 +103,6 @@
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
-                <MudItem xs="6" md="3" Class="d-flex align-center">
-                    <MudText Typo="Typo.body2">共 @_totalCount 条记录</MudText>
-                </MudItem>
             </MudGrid>
 
             <!-- 数据表格 -->
@@ -144,7 +129,21 @@
                         重置
                     </MudButton>
                     <MudSpacer />
-                    <MudText Typo="Typo.body2" Class="ml-auto">
+                    <MudButton Variant="Variant.Filled" Color="Color.Info"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               Disabled="@(!selectedIds.Any())"
+                               OnClick="PrintSelected"
+                               Class="mr-2">
+                        打印选中 (@selectedIds.Count)
+                    </MudButton>
+                    <MudButton Variant="Variant.Text" Color="Color.Info"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll">
+                        打印全部
+                    </MudButton>
+                    <MudText Typo="Typo.body2" Class="ml-4">
                         共 @_totalCount 条记录
                     </MudText>
                 </ToolBarContent>

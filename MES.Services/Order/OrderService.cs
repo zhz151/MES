@@ -19,14 +19,16 @@ public class OrderService : IOrderService
     private readonly ILogger<OrderService> _logger;
     private readonly INotificationService _notificationService;
     private readonly IConfigParameterService _configService;
+    private readonly IWorkOrderService? _workOrderService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
-    public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService, IConfigParameterService configService)
+    public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService, IConfigParameterService configService, IWorkOrderService? workOrderService = null)
     {
         _context = context;
         _logger = logger;
         _notificationService = notificationService;
         _configService = configService;
+        _workOrderService = workOrderService;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -67,7 +69,7 @@ public class OrderService : IOrderService
         // 订单状态筛选
         if (statuses == null || !statuses.Any())
         {
-            statuses = new List<SalesOrderStatus> { SalesOrderStatus.Pending, SalesOrderStatus.Confirmed, SalesOrderStatus.Cancelled };
+            statuses = new List<SalesOrderStatus> { SalesOrderStatus.Pending, SalesOrderStatus.Confirmed };
         }
         queryable = queryable.Where(s => statuses.Contains(s.Status));
 
@@ -332,8 +334,7 @@ public class OrderService : IOrderService
         _context.SalesOrders.Add(salesOrder);
         await _context.SaveChangesAsync();
 
-        // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
-        // if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(salesOrder.Id);
+        await RefreshByOrderIdAsync(salesOrder.Id);
 
         _logger.LogInformation("创建订单成功: {OrderNumber}", salesOrder.OrderNumber);
 
@@ -358,9 +359,6 @@ public class OrderService : IOrderService
 
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
-
-        if (salesOrder.Status == SalesOrderStatus.Cancelled)
-            throw new BusinessException("已取消的订单不能修改");
 
         if (!string.IsNullOrEmpty(request.OrderNumber) && request.OrderNumber != salesOrder.OrderNumber)
         {
@@ -402,8 +400,7 @@ public class OrderService : IOrderService
             throw new BusinessException("订单已被其他用户修改，请刷新后重试");
         }
 
-        // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
-        // if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(salesOrder.Id);
+        await RefreshByOrderIdAsync(salesOrder.Id);
 
         var updatedCustomer = await _context.CustomerProfiles.FirstOrDefaultAsync(c => c.Id == salesOrder.CustomerId);
 
@@ -430,13 +427,13 @@ public async Task DeleteAsync(int id)
     if (salesOrder == null)
         throw new BusinessException("订单不存在");
 
-    if (salesOrder.Status == SalesOrderStatus.Cancelled)
-        throw new BusinessException("已取消的订单不能删除");
-
     // 1. 使用事务确保数据一致性（包含查询和写入）
-    using var transaction = await _context.Database.BeginTransactionAsync();
-    try
+    int workOrderCount = 0;
+    var transaction = await _context.Database.BeginTransactionAsync();
+    using (transaction)
     {
+        try
+        {
         // 2. 物理删除订单（级联删除订单项次和产品要求）
         _context.SalesOrders.Remove(salesOrder);
 
@@ -445,7 +442,7 @@ public async Task DeleteAsync(int id)
             .Where(wo => wo.SalesOrderNo == salesOrder.OrderNumber)
             .ToListAsync();
 
-        var workOrderCount = workOrders.Count;
+        workOrderCount = workOrders.Count;
 
         if (workOrderCount > 0)
         {
@@ -500,20 +497,20 @@ public async Task DeleteAsync(int id)
         }
 
         await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
 
-        // 6. 刷新读模型（订单已删除，读模型自动移除）
-        // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
-        // if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(salesOrder.Id);
+        // 6. 刷新读模型（事务已提交，在 using 块之外执行）
+        await RefreshByOrderIdAsync(salesOrder.Id);
 
         _logger.LogInformation("订单 {OrderNumber} 已被删除，同时自动清理了 {Count} 个关联工单",
             salesOrder.OrderNumber, workOrderCount);
     }
-    catch
-    {
-        await transaction.RollbackAsync();
-        throw;
-    }
-}
 
     #endregion
 
@@ -568,8 +565,7 @@ public async Task DeleteAsync(int id)
             throw;
         }
 
-        // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
-        // if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(orderId);
+        await RefreshByOrderIdAsync(orderId);
 
         return await MapToOrderItemDto(orderItem);
     }
@@ -581,9 +577,6 @@ public async Task DeleteAsync(int id)
 
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
-
-        if (salesOrder.Status == SalesOrderStatus.Cancelled)
-            throw new BusinessException("已取消的订单不能修改项次");
 
         var orderItem = await _context.OrderItems
             .FirstOrDefaultAsync(oi => oi.Id == itemId && oi.SalesOrderId == orderId);
@@ -670,7 +663,10 @@ public async Task DeleteAsync(int id)
         }
 
         // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
-        // if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(orderId);
+        // 项次变更后先标记工单为"待修正"，再刷新读模型
+        await MarkWorkOrdersPendingAsync(salesOrder.OrderNumber);
+
+        await RefreshByOrderIdAsync(orderId);
 
         return await MapToOrderItemDto(orderItem);
     }
@@ -682,9 +678,6 @@ public async Task DeleteAsync(int id)
 
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
-
-        if (salesOrder.Status == SalesOrderStatus.Cancelled)
-            throw new BusinessException("已取消的订单不能删除项次");
 
         var orderItem = await _context.OrderItems
             .Include(oi => oi.ProductRequirement)
@@ -712,8 +705,11 @@ public async Task DeleteAsync(int id)
             throw;
         }
 
+        // 项次变更后先标记工单为"待修正"，再刷新读模型
+        await MarkWorkOrdersPendingAsync(salesOrder.OrderNumber);
+
         // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
-        // if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(orderId);
+        await RefreshByOrderIdAsync(orderId);
     }
 
     public async Task<SaveAllOrderResponse> SaveAllAsync(int id, SaveAllOrderRequest request)
@@ -724,9 +720,6 @@ public async Task DeleteAsync(int id)
             .FirstOrDefaultAsync(so => so.Id == id);
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
-        if (salesOrder.Status == SalesOrderStatus.Cancelled)
-            throw new BusinessException("已取消的订单不能修改");
-
         // 2. RowVersion 乐观并发检查
         _context.Entry(salesOrder).Property(x => x.RowVersion).OriginalValue = request.RowVersion;
 
@@ -768,10 +761,13 @@ public async Task DeleteAsync(int id)
         }
 
         // 5. 单事务处理
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var newItemIdMap = new Dictionary<int, int>();
+        var transaction = await _context.Database.BeginTransactionAsync();
+        using (transaction)
         {
-            // 5a. 删除项次
+            try
+            {
+                // 5a. 删除项次
             foreach (var deleteId in request.DeletedItemIds)
                 _context.OrderItems.Remove(existingItems[deleteId]);
 
@@ -837,7 +833,6 @@ public async Task DeleteAsync(int id)
             }
 
             // 5c. 新增项次
-            var newItemIdMap = new Dictionary<int, int>();
             var allNewItems = new List<(int Index, OrderItem Entity)>();
             var nextSequence = existingSequences.Any() ? existingSequences.Max() + 1 : 1;
             // 考虑更新后的 Sequence 可能占用更大的值
@@ -927,33 +922,6 @@ public async Task DeleteAsync(int id)
             await CreateItemChangedNotificationIfNeededAsync(salesOrder.Id);
 
             await transaction.CommitAsync();
-
-            // 6. 构建响应
-            _logger.LogInformation("批量保存订单成功: {OrderNumber}, 新增={NewCount}, 更新={UpdateCount}, 删除={DeleteCount}",
-                salesOrder.OrderNumber, request.NewItems.Count, request.UpdatedItems.Count, request.DeletedItemIds.Count);
-
-            var resultItems = salesOrder.OrderItems
-                .Where(oi => !request.DeletedItemIds.Contains(oi.Id))
-                .Select(oi => new OrderItemSaveResult
-                {
-                    Id = oi.Id,
-                    Sequence = oi.Sequence,
-                    Meters = oi.Meters ?? 0m,
-                    TheoreticalWeight = oi.TheoreticalWeight
-                })
-                .OrderBy(r => r.Sequence)
-                .ToList();
-
-            // 刷新读模型
-            // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
-        // if (_orderListSummaryService != null) await _orderListSummaryService.RefreshByOrderAsync(salesOrder.Id);
-
-            return new SaveAllOrderResponse
-            {
-                RowVersion = salesOrder.RowVersion,
-                NewItemIdMap = newItemIdMap,
-                Items = resultItems
-            };
         }
         catch
         {
@@ -961,6 +929,38 @@ public async Task DeleteAsync(int id)
             throw;
         }
     }
+
+    // 6. 构建响应（在事务 using 块外执行，避免已提交事务不可用）
+    _logger.LogInformation("批量保存订单成功: {OrderNumber}, 新增={NewCount}, 更新={UpdateCount}, 删除={DeleteCount}",
+        salesOrder.OrderNumber, request.NewItems.Count, request.UpdatedItems.Count, request.DeletedItemIds.Count);
+
+    var resultItems = salesOrder.OrderItems
+        .Where(oi => !request.DeletedItemIds.Contains(oi.Id))
+        .Select(oi => new OrderItemSaveResult
+        {
+            Id = oi.Id,
+            Sequence = oi.Sequence,
+            Meters = oi.Meters ?? 0m,
+            TheoreticalWeight = oi.TheoreticalWeight
+        })
+        .OrderBy(r => r.Sequence)
+        .ToList();
+
+    // 刷新读模型
+    await RefreshByOrderIdAsync(salesOrder.Id);
+
+    // 自动触发工单状态检测
+    if (_workOrderService != null)
+        await _workOrderService.CheckAndUpdateWorkOrderStatusAsync(salesOrder.Id);
+
+    return new SaveAllOrderResponse
+    {
+        RowVersion = salesOrder.RowVersion,
+        NewItemIdMap = newItemIdMap,
+        Items = resultItems
+    };
+
+}
 
     #endregion
 
@@ -999,6 +999,108 @@ public async Task DeleteAsync(int id)
             FirstOrderItemId = s.FirstOrderItemId,
             LastChangeDate = s.LastChangeDate
         }).ToList();
+    }
+
+    // ========== 读模型刷新 ==========
+
+    public async Task RefreshAllAsync()
+    {
+        // 全量删除后重新插入
+        _context.Set<OrderListSummary>().RemoveRange(await _context.Set<OrderListSummary>().ToListAsync());
+
+        var orderIds = await _context.SalesOrders.Select(so => so.Id).ToListAsync();
+        foreach (var orderId in orderIds)
+        {
+            await RefreshByOrderIdAsync(orderId);
+        }
+    }
+
+    /// <summary>
+    /// 标记指定订单号下所有已确定工单为"待修正"
+    /// 在订单项次变更后调用，替代定时任务的检测逻辑
+    /// </summary>
+    private async Task MarkWorkOrdersPendingAsync(string orderNumber)
+    {
+        var pendingWorkOrders = await _context.WorkOrders
+            .Where(wo => wo.SalesOrderNo == orderNumber
+                      && wo.Status == WorkOrderStatus.Confirmed)
+            .ToListAsync();
+        if (pendingWorkOrders.Count > 0)
+        {
+            foreach (var wo in pendingWorkOrders)
+                wo.Status = WorkOrderStatus.Pending;
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task RefreshByOrderIdAsync(int orderId)
+    {
+        var salesOrder = await _context.SalesOrders
+            .AsNoTracking()
+            .Include(so => so.Customer)
+            .Include(so => so.OrderItems)
+                .ThenInclude(oi => oi.ProductRequirement)
+            .FirstOrDefaultAsync(so => so.Id == orderId);
+
+        if (salesOrder == null)
+        {
+            var existing = await _context.Set<OrderListSummary>()
+                .FirstOrDefaultAsync(s => s.OrderId == orderId);
+            if (existing != null)
+            {
+                _context.Set<OrderListSummary>().Remove(existing);
+                await _context.SaveChangesAsync();
+            }
+            return;
+        }
+
+        var items = salesOrder.OrderItems.ToList();
+        var deliveryStart = items.MinBy(oi => oi.DeliveryDate)?.DeliveryDate;
+        var deliveryEnd = items.MaxBy(oi => oi.DeliveryDate)?.DeliveryDate;
+
+        var existingSummary = await _context.Set<OrderListSummary>()
+            .FirstOrDefaultAsync(s => s.OrderId == orderId);
+
+        if (existingSummary != null)
+        {
+            existingSummary.OrderNumber = salesOrder.OrderNumber;
+            existingSummary.SignDate = salesOrder.SignDate;
+            existingSummary.CustomerName = salesOrder.Customer?.CustomerUnit ?? string.Empty;
+            existingSummary.Salesman = salesOrder.Customer?.Salesman ?? string.Empty;
+            existingSummary.EndCustomer = salesOrder.Customer?.EndCustomer;
+            existingSummary.DeliveryStart = deliveryStart;
+            existingSummary.DeliveryEnd = deliveryEnd;
+            existingSummary.HasDelayPenalty = items.Any(oi => oi.DelayPenalty);
+            existingSummary.TotalContractWeight = (int)items.Sum(oi => oi.ContractWeight);
+            existingSummary.ItemCount = items.Count;
+            existingSummary.HasTechReqCount = items.Count(oi => oi.ProductRequirement != null);
+            existingSummary.Status = salesOrder.Status;
+            existingSummary.LastChangeDate = salesOrder.LastItemChangeTime?.DateTime;
+            existingSummary.FirstOrderItemId = items.MinBy(oi => oi.Id)?.Id;
+        }
+        else
+        {
+            _context.Set<OrderListSummary>().Add(new OrderListSummary
+            {
+                OrderId = salesOrder.Id,
+                OrderNumber = salesOrder.OrderNumber,
+                SignDate = salesOrder.SignDate,
+                CustomerName = salesOrder.Customer?.CustomerUnit ?? string.Empty,
+                Salesman = salesOrder.Customer?.Salesman ?? string.Empty,
+                EndCustomer = salesOrder.Customer?.EndCustomer,
+                DeliveryStart = deliveryStart,
+                DeliveryEnd = deliveryEnd,
+                HasDelayPenalty = items.Any(oi => oi.DelayPenalty),
+                TotalContractWeight = (int)items.Sum(oi => oi.ContractWeight),
+                ItemCount = items.Count,
+                HasTechReqCount = items.Count(oi => oi.ProductRequirement != null),
+                Status = salesOrder.Status,
+                LastChangeDate = salesOrder.LastItemChangeTime?.DateTime,
+                FirstOrderItemId = items.MinBy(oi => oi.Id)?.Id
+            });
+        }
+
+        await _context.SaveChangesAsync();
     }
 
     #region Private Methods
@@ -1321,11 +1423,10 @@ public async Task DeleteAsync(int id)
     private static bool CanTransitionTo(SalesOrderStatus current, SalesOrderStatus target)
     {
         if (current == target) return true;
-        if (current == SalesOrderStatus.Cancelled) return false;
         if (current == SalesOrderStatus.Pending)
-            return target == SalesOrderStatus.Confirmed || target == SalesOrderStatus.Cancelled;
+            return target == SalesOrderStatus.Confirmed;
         if (current == SalesOrderStatus.Confirmed)
-            return target == SalesOrderStatus.Cancelled;
+            return false;
         return false;
     }
 
@@ -1333,7 +1434,6 @@ public async Task DeleteAsync(int id)
     {
         SalesOrderStatus.Pending => "待处理",
         SalesOrderStatus.Confirmed => "已确认",
-        SalesOrderStatus.Cancelled => "已取消",
         _ => status.ToString()
     };
 
@@ -1453,22 +1553,6 @@ public async Task DeleteAsync(int id)
         }).ToList();
     }
 
-    public async Task<List<SalesOrderDetailDto>> GetAllByFilterForPrintAsync(string? keyword, string? technicalStatus, string? orderStatus, string? sortBy = null, bool isDescending = false)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = sortBy ?? "CreatedTime",
-            IsDescending = isDescending
-        };
-
-        var paged = await GetPagedAsync(query, technicalStatus, orderStatus);
-        var ids = paged.Items.Select(i => i.Id).ToArray();
-        return await GetByIdsAsync(ids);
-    }
-
     public async Task<byte[]> PrintOrderAsync(int id)
     {
         var order = await GetByIdForPrintAsync(id);
@@ -1478,12 +1562,6 @@ public async Task DeleteAsync(int id)
     public async Task<byte[]> PrintOrderBatchAsync(int[] ids)
     {
         var orders = await GetByIdsForPrintAsync(ids);
-        return SalesOrderPrintHelper.GenerateBatchOrderPdf(orders);
-    }
-
-    public async Task<byte[]> PrintOrderAllAsync(string? keyword, string? technicalStatus, string? orderStatus, string? sortBy = null, bool isDescending = false)
-    {
-        var orders = await GetAllByFilterForPrintAsync(keyword, technicalStatus, orderStatus, sortBy, isDescending);
         return SalesOrderPrintHelper.GenerateBatchOrderPdf(orders);
     }
 

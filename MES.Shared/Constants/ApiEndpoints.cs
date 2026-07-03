@@ -24,7 +24,6 @@ public static class ApiEndpoints
     public const string WorkOrder = "api/workorder";
     public const string WorkOrderExecution = "api/workorder-execution";
     public const string MaterialPlan = "api/material-plan";
-    public const string StandardProcessCycle = "api/standard-process-cycle";
 
     // ===== Quality 质量 =====
     public const string ChemicalComposition = "api/chemical-composition";
@@ -98,6 +97,7 @@ public const string RawMaterialLockPlan = "api/raw-material-lock-plan";
     public const string StandardWorkDayDeliveryState = "api/standard-work-day-delivery-state";
     public const string ConfigParameter = "api/config-parameter";
     public const string DailyOutputEstimate = "api/daily-output-estimate";
+    public const string DailyProductionCapacity = "api/daily-production-capacity";
 
     // ===== StandardRegister 标准号 =====
     public const string StandardRegister = "api/standard-register";

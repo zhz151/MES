@@ -907,6 +907,11 @@ input[type="number"]::-webkit-outer-spin-button {
 .col-g12 .col-group-badge { color: #F57F17; background: #FFECB3; }
 .col-g12-cell { background: #FFF8E1 !important; }
 
+/* G7: 有效流转 — 青绿系 */
+.col-g7 { background: #E0F2F1 !important; }
+.col-g7 .col-group-badge { color: #00695C; background: #B2DFDB; }
+.col-g7-cell { background: #E0F2F1 !important; }
+
 .col-g13 { background: #F3E5F5 !important; }
 .col-g13 .col-group-badge { color: #7B1FA2; background: #E1BEE7; }
 .col-g13-cell { background: #F3E5F5 !important; }
@@ -1251,3 +1256,15 @@ input[type="number"]::-webkit-outer-spin-button {
    - 列宽总和 > 视口 → mud-table-container(overflow-x:auto) 自动滚动
    未设宽度的列由内容决定宽度（如操作列按钮）。
    详见 04_开发规范.md §6.29 */
+
+/* ========== 参数配置-所属上下文标签 ========== */
+.context-badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 3px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #1565C0;
+    background: #E3F2FD;
+    white-space: nowrap;
+}

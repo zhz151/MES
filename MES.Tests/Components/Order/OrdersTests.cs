@@ -35,7 +35,6 @@ public class OrdersTests : TestBase
     [Theory]
     [InlineData(SalesOrderStatus.Pending, "待处理")]
     [InlineData(SalesOrderStatus.Confirmed, "已确认")]
-    [InlineData(SalesOrderStatus.Cancelled, "已取消")]
     public void StatusColumn_DisplaysCorrectText(SalesOrderStatus status, string expectedText)
     {
         ConfigureListResponse(status);

@@ -14,29 +14,15 @@
 @inject IJSRuntime JS
 @inject PageStateService PageState
 @inject ColumnPrefsService ColumnPrefs
+@inject HttpClient Http
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
-    <!-- 搜索栏 -->
-    <MudGrid>
-        <MudItem xs="12" md="12">
-            <MudTextField T="string" Label="模糊搜索 - 段落类别"
-                          Value="@_searchKeyword" ValueChanged="@OnSearchChanged"
-                          Immediate="true" DebounceInterval="500"
-                          Dense="true" Variant="Variant.Outlined" Class="mb-4" />
-        </MudItem>
-    </MudGrid>
-
     <!-- 页面顶部工具栏 -->
-    <div class="d-flex justify-space-between align-center mb-4">
+    <div class="d-flex align-center mb-4">
         <MudText Typo="Typo.h5" Class="font-weight-bold">
             <MudIcon Icon="@Icons.Material.Filled.Analytics" Class="mr-2" Color="Color.Primary" />
             工段流转分析
         </MudText>
-        <div class="d-flex align-center">
-            <MudText Typo="Typo.body2" Class="mr-4">
-                共 @_filteredItems.Count 条记录
-            </MudText>
-        </div>
     </div>
 
     <!-- 数据表格 -->
@@ -56,7 +42,12 @@
                 重置
             </MudButton>
             <MudSpacer />
-            <MudText Typo="Typo.body2" Class="ml-auto">
+            <MudButton Variant="Variant.Filled" Size="Size.Small" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Print"
+                       OnClick="PrintAll" Class="mr-4">
+                打印
+            </MudButton>
+            <MudText Typo="Typo.body2">
                 共 @_filteredItems.Count 条记录
             </MudText>
         </ToolBarContent>

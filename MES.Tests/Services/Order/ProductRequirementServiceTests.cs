@@ -21,7 +21,8 @@ public class ProductRequirementServiceTests : TestBase
 {
     private ProductRequirementService CreateService(AppDbContext ctx)
     {
-        return new ProductRequirementService(ctx);
+        var orderSvcMock = new Mock<IOrderService>();
+        return new ProductRequirementService(ctx, orderSvcMock.Object);
     }
 
     private async Task<(int OrderId, int ItemId)> SeedOrderItemAsync(AppDbContext ctx)
@@ -34,7 +35,7 @@ public class ProductRequirementServiceTests : TestBase
         var orderConfigMock = new Mock<IConfigParameterService>();
         orderConfigMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object);
+        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, null);
 
         var order = await orderSvc.CreateAsync(new CreateSalesOrderRequest
         {

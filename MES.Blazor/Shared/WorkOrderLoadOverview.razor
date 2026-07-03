@@ -1,0 +1,67 @@
+@using MES.Core.DTOs
+
+<MudContainer MaxWidth="MaxWidth.False">
+    <div class="d-flex align-center mt-4 mb-4">
+        <MudText Typo="Typo.h5">@Title</MudText>
+        <div class="d-flex align-center" style="margin-left:auto;">
+            <MudButton Variant="Variant.Text" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Print"
+                       OnClick="@PrintTable" Size="Size.Small">
+                打印
+            </MudButton>
+        </div>
+    </div>
+
+    @if (_loading)
+    {
+        <MudProgressCircular Indeterminate="true" Class="mt-8" />
+    }
+    else if (_errorMessage != null)
+    {
+        <MudAlert Severity="Severity.Error" Class="mt-4">@_errorMessage</MudAlert>
+    }
+    else if (_data != null)
+    {
+        <div id="workorder-overview-table">
+        <MudTable Items="@_data.Rows"
+                 Dense="true"
+                 Hover="true"
+                 Bordered="true"
+                 Striped="false"
+                 Class="auto-table mt-2">
+            <HeaderContent>
+                <MudTh Class="text-center" Style="min-width:40px;width:40px;">序号</MudTh>
+                <MudTh>类别</MudTh>
+                <MudTh>工段</MudTh>
+                <MudTh Class="text-right">在购量(吨)</MudTh>
+                <MudTh Class="text-right">待产量(吨)</MudTh>
+                <MudTh Class="text-right">预计天数</MudTh>
+                <MudTh Class="text-center">预计完成</MudTh>
+                @foreach (var bucket in _data.DateBuckets)
+                {
+                    <MudTh Class="text-right" Style="min-width:70px;">
+                        <div>@bucket.Label</div>
+                        <div Style="font-size:0.75em;color:#888;">
+                            @bucket.StartDate.ToString("M/d")-@bucket.EndDate.ToString("M/d")
+                        </div>
+                    </MudTh>
+                }
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd Class="text-center">@context.Seq</MudTd>
+                <MudTd>@context.Category</MudTd>
+                <MudTd>@context.Section</MudTd>
+                <MudTd Class="text-right">@FormatTons(context.InProcurementTons)</MudTd>
+                <MudTd Class="text-right">@FormatTons(context.TotalRemainingTons)</MudTd>
+                <MudTd Class="text-right">@FormatDays(context.EstDays)</MudTd>
+                <MudTd Class="text-center">@FormatDate(context.EstDeadline)</MudTd>
+                @for (int i = 0; i < _data.DateBuckets.Count; i++)
+                {
+                    var tons = context.DateBucketTons.Count > i ? context.DateBucketTons[i] : 0;
+                    <MudTd Class="text-right">@FormatBucketTons(tons)</MudTd>
+                }
+            </RowTemplate>
+        </MudTable>
+        </div>
+    }
+</MudContainer>

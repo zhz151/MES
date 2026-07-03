@@ -46,7 +46,7 @@ public class WorkOrderServiceTests : TestBase
         var orderConfigMock = new Mock<IConfigParameterService>();
         orderConfigMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object);
+        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, null);
 
         var order = await orderSvc.CreateAsync(new CreateSalesOrderRequest
         {
@@ -308,30 +308,28 @@ public class WorkOrderServiceTests : TestBase
             }
         });
 
-        // NotGenerated 直接跳 Cancelled —> 不应该允许
-        // 实际上工单创建后是 Confirmed，Confirmed -> Cancelled 是允许的
-        // 但 Cancelled -> Pending 不允许
+        // Confirmed -> Pending （合法）
         var wo = generated[0];
         var dto = await svc.GetByIdAsync(wo.Id);
-
-        // Confirmed -> Pending -> Cancelled （合法）
         await svc.UpdateStatusAsync(wo.Id, new UpdateWorkOrderStatusRequest
         {
             Status = WorkOrderStatus.Pending,
             RowVersion = dto.RowVersion
         });
+
+        // Pending -> Confirmed （合法）
         var dto2 = await svc.GetByIdAsync(wo.Id);
         await svc.UpdateStatusAsync(wo.Id, new UpdateWorkOrderStatusRequest
         {
-            Status = WorkOrderStatus.Cancelled,
+            Status = WorkOrderStatus.Confirmed,
             RowVersion = dto2.RowVersion
         });
 
-        // Cancelled -> Confirmed （非法）
+        // Confirmed -> NotGenerated （非法）
         var dto3 = await svc.GetByIdAsync(wo.Id);
         var act = () => svc.UpdateStatusAsync(wo.Id, new UpdateWorkOrderStatusRequest
         {
-            Status = WorkOrderStatus.Confirmed,
+            Status = WorkOrderStatus.NotGenerated,
             RowVersion = dto3.RowVersion
         });
 
@@ -467,8 +465,44 @@ public class WorkOrderServiceTests : TestBase
         ctx.RoundBarPiercingPlans.Add(piercing);
         await ctx.SaveChangesAsync();
 
-        // 查询列表
-        var result = await svc.GetPagedAsync(new WorkOrderQueryParams
+        // 插入读模型数据（因为 GetPagedWithPlansAsync 现在查询 WorkOrderListSummary 表）
+        var wo = await ctx.WorkOrders.FindAsync(generated[0].Id);
+        var salesOrder = await ctx.SalesOrders.FirstAsync(so => so.OrderNumber == wo!.SalesOrderNo);
+        var orderItem = await ctx.OrderItems.FirstAsync(oi => oi.SalesOrderId == salesOrder.Id);
+        var customer = await ctx.CustomerProfiles.FindAsync(salesOrder.CustomerId);
+        ctx.Set<WorkOrderListSummary>().Add(new WorkOrderListSummary
+        {
+            WorkOrderId = wo!.Id,
+            WorkOrderNo = wo.WorkOrderNo,
+            SalesOrderNo = wo.SalesOrderNo,
+            ProductionMainNo = wo.ProductionMainNo,
+            ProductionSubNo = wo.ProductionSubNo,
+            SignDate = salesOrder?.SignDate ?? DateTime.Today,
+            Salesman = customer?.Salesman ?? "",
+            EndCustomer = customer?.EndCustomer,
+            DeliveryDate = orderItem.DeliveryDate,
+            DelayPenalty = orderItem.DelayPenalty,
+            SettlementMethod = orderItem.SettlementMethod.ToString(),
+            MaterialName = orderItem.MaterialName.ToString(),
+            PlantGrade = orderItem.PlantGrade ?? "",
+            Specification = $"{orderItem.OuterDiameter}*{orderItem.WallThickness}",
+            LengthStatus = orderItem.LengthStatus.ToString(),
+            MinLength = orderItem.MinLength,
+            MaxLength = orderItem.MaxLength,
+            TotalQuantity = orderItem.Quantity ?? 0,
+            TotalWeight = orderItem.ContractWeight,
+            TotalItemCount = 1,
+            TechnicalRequirements = "Normal",
+            Status = (int)wo.Status,
+            CreatedTime = DateTimeOffset.UtcNow,
+            DeliveryState = orderItem.DeliveryState.ToString(),
+            PiercingPlanTotalWeight = 3000m,
+            PiercingPlanTotalPieces = 10
+        });
+        await ctx.SaveChangesAsync();
+
+        // 查询列表（含用料计划数据）
+        var result = await svc.GetPagedWithPlansAsync(new WorkOrderQueryParams
         {
             PageIndex = 1,
             PageSize = 20

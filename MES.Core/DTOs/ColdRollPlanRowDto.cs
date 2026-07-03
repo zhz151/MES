@@ -16,8 +16,11 @@ public class ColdRollPlanRowDto
     // ===== 时间桶重量 (Kg) =====
     public decimal WeightProd { get; set; }               // 近日在轧
     public decimal WeightProdUrgent { get; set; }         // 近日在轧(急管)
+    public decimal WeightProdUrgentOther { get; set; }    // 近日在轧(急管)
     public decimal WeightWaitNear { get; set; }           // 近日待轧
-    public decimal WeightWaitNearUrgent { get; set; }     // 近日待轧(急管)
+    public decimal WeightWaitNearUrgent { get; set; }     // 近日待轧(特急管)
+    public decimal WeightWaitNearBackUrgent { get; set; } // 近日待轧(后特急)
+    public decimal WeightWaitNearOtherUrgent { get; set; } // 近日待轧(其它急管)
     public decimal WeightToday { get; set; }              // 待轧今日(diff=1)
     public decimal WeightTomorrow { get; set; }           // 待轧明日(diff=2)
     public decimal WeightDayAfter { get; set; }           // 待轧后日(diff=3)

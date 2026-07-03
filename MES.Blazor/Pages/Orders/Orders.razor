@@ -86,13 +86,6 @@
                                OnClick="PrintSelected">
                         打印选中 (@selectedOrderIds.Count)
                     </MudButton>
-                    <MudButton Variant="Variant.Text"
-                               Size="Size.Small"
-                               Color="Color.Info"
-                               StartIcon="@Icons.Material.Filled.Print"
-                               OnClick="PrintAll">
-                        打印全部
-                    </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-2">
                         共 @_totalCount 条记录
                     </MudText>
@@ -103,7 +96,7 @@
                     </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTh>
+                        <MudTh Style="@($"width:{col.Width}px")">
                             <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
                                 @if (col.FilterType != null)

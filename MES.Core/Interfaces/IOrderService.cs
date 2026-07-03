@@ -81,11 +81,6 @@ public interface IOrderService
     Task<List<SalesOrderListDto>> GetAllListAsync();
 
     /// <summary>
-    /// 按筛选条件获取全部订单详情列表（用于打印全部）
-    /// </summary>
-    Task<List<SalesOrderDetailDto>> GetAllByFilterForPrintAsync(string? keyword, string? technicalStatus, string? orderStatus, string? sortBy = null, bool isDescending = false);
-
-    /// <summary>
     /// 打印单个订单PDF
     /// </summary>
     Task<byte[]> PrintOrderAsync(int id);
@@ -96,11 +91,6 @@ public interface IOrderService
     Task<byte[]> PrintOrderBatchAsync(int[] ids);
 
     /// <summary>
-    /// 打印全部筛选订单PDF
-    /// </summary>
-    Task<byte[]> PrintOrderAllAsync(string? keyword, string? technicalStatus, string? orderStatus, string? sortBy = null, bool isDescending = false);
-
-    /// <summary>
     /// 打印订单技术要求PDF
     /// </summary>
     Task<byte[]> PrintOrderRequirementsAsync(int orderId);
@@ -109,4 +99,14 @@ public interface IOrderService
     /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     Task<Dictionary<string, List<string>>> GetOrderFilterContextsAsync();
+
+    /// <summary>
+    /// 刷新全部订单读模型（从源表重新聚合 OrderListSummary）
+    /// </summary>
+    Task RefreshAllAsync();
+
+    /// <summary>
+    /// 刷新指定订单的读模型
+    /// </summary>
+    Task RefreshByOrderIdAsync(int orderId);
 }

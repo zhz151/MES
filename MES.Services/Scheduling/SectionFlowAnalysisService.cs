@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using MES.Core.Constants;
 using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Interfaces;
@@ -189,15 +190,17 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
                 (b.ScheduleStage == 2 &&
                  (uLevel == "A+急" || uLevel == "A急") &&
                  (pendingProcess == "荒管处理" ||
-                  pendingProcess == b.MainNoAttentionProcess ||
-                  b.MainNoAttentionProcess is null or "收尾-成检"))
+                  (b.MainNoAttentionProcess != null && pendingProcess == b.MainNoAttentionProcess
+                      && (!ProcessNames.IsColdRollOrDraw(pendingProcess) || pendingSection == SectionDefs.ColdRollDraw)) ||
+                  pendingProcess == "收尾-成检"))
                 ||
                 (b.ScheduleStage == 1 &&
                  (b.IsUrging || b.IsBatchDelivery) &&
                  (uLevel == "A+急" || uLevel == "A急") &&
                  (pendingProcess == "荒管处理" ||
-                  pendingProcess == b.MainNoAttentionProcess ||
-                  b.MainNoAttentionProcess is null or "收尾-成检"));
+                  (b.MainNoAttentionProcess != null && pendingProcess == b.MainNoAttentionProcess
+                      && (!ProcessNames.IsColdRollOrDraw(pendingProcess) || pendingSection == SectionDefs.ColdRollDraw)) ||
+                  pendingProcess == "收尾-成检"));
 
             if (!isKeyBatch) continue;
 

@@ -18,11 +18,25 @@ public class NcrService : INcrService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<NcrService> _logger;
+    private readonly IConfigParameterService _configService;
+    private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
-    public NcrService(AppDbContext context, ILogger<NcrService> logger)
+    public NcrService(AppDbContext context, ILogger<NcrService> logger,
+        IConfigParameterService configService)
     {
         _context = context;
         _logger = logger;
+        _configService = configService;
+    }
+
+    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
+    {
+        if (!_configMaps.TryGetValue(category, out var map))
+        {
+            map = await _configService.GetConfigMapAsync(category);
+            _configMaps[category] = map;
+        }
+        return map.GetValueOrDefault(key, defaultValue);
     }
 
     public async Task<NcrDto?> GetByIdAsync(int id)
@@ -352,6 +366,13 @@ public class NcrService : INcrService
     {
         var results = new List<NcrPendingCheckDto>();
 
+        var ncrReworkCount = await GetConfigAsync("NcrThreshold", "ReworkCount", 5m);
+        var ncrReworkPercent = await GetConfigAsync("NcrThreshold", "ReworkPercent", 0.05m);
+        var ncrWarehouseCount = await GetConfigAsync("NcrThreshold", "WarehouseCount", 5m);
+        var ncrWarehousePercent = await GetConfigAsync("NcrThreshold", "WarehousePercent", 0.05m);
+        var ncrScrapCount = await GetConfigAsync("NcrThreshold", "ScrapCount", 3m);
+        var ncrScrapPercent = await GetConfigAsync("NcrThreshold", "ScrapPercent", 0.05m);
+
         // ======== 1. 过程检验分析 ========
         var processAggs = await _context.ProcessInspections
             .AsNoTracking()
@@ -384,7 +405,7 @@ public class NcrService : INcrService
             var batch = procBatchLookup.GetValueOrDefault(a.ProductionBatchId);
             var totalQty = a.TotalQuantity;
 
-            if (a.TotalRework >= 5 && (decimal)a.TotalRework / totalQty >= 0.05m)
+            if (a.TotalRework >= (int)ncrReworkCount && (decimal)a.TotalRework / totalQty >= ncrReworkPercent)
             {
                 results.Add(new NcrPendingCheckDto
                 {
@@ -405,7 +426,7 @@ public class NcrService : INcrService
                 });
             }
 
-            if (a.TotalWarehouse >= 5 && (decimal)a.TotalWarehouse / totalQty >= 0.05m)
+            if (a.TotalWarehouse >= (int)ncrWarehouseCount && (decimal)a.TotalWarehouse / totalQty >= ncrWarehousePercent)
             {
                 results.Add(new NcrPendingCheckDto
                 {
@@ -426,7 +447,7 @@ public class NcrService : INcrService
                 });
             }
 
-            if (a.TotalScrap >= 3 && (decimal)a.TotalScrap / totalQty >= 0.05m)
+            if (a.TotalScrap >= (int)ncrScrapCount && (decimal)a.TotalScrap / totalQty >= ncrScrapPercent)
             {
                 results.Add(new NcrPendingCheckDto
                 {
@@ -479,7 +500,7 @@ public class NcrService : INcrService
             var totalQty = a.TotalQuantity;
             var inspectionItem = a.InspectionItem.ToString();
 
-            if (a.TotalRework >= 5 && (decimal)a.TotalRework / totalQty >= 0.05m)
+            if (a.TotalRework >= (int)ncrReworkCount && (decimal)a.TotalRework / totalQty >= ncrReworkPercent)
             {
                 results.Add(new NcrPendingCheckDto
                 {
@@ -500,7 +521,7 @@ public class NcrService : INcrService
                 });
             }
 
-            if (a.TotalWarehouse >= 5 && (decimal)a.TotalWarehouse / totalQty >= 0.05m)
+            if (a.TotalWarehouse >= (int)ncrWarehouseCount && (decimal)a.TotalWarehouse / totalQty >= ncrWarehousePercent)
             {
                 results.Add(new NcrPendingCheckDto
                 {
@@ -521,7 +542,7 @@ public class NcrService : INcrService
                 });
             }
 
-            if (a.TotalScrap >= 3 && (decimal)a.TotalScrap / totalQty >= 0.05m)
+            if (a.TotalScrap >= (int)ncrScrapCount && (decimal)a.TotalScrap / totalQty >= ncrScrapPercent)
             {
                 results.Add(new NcrPendingCheckDto
                 {

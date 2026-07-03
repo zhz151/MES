@@ -128,6 +128,7 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                     // G15: 实时 LEFT JOIN RawMaterialLockPreExecution
                     IsPreInput = p != null && p.IsPreInput,
                     BudgetInputDate = p != null ? p.BudgetInputDate : null,
+                    IsBudgetComplete = p != null && p.IsBudgetComplete,
                     IsMainNoMaterialComplete = p != null && p.IsMainNoMaterialComplete,
 
                     // 看板筛选 - 异常标记
@@ -188,7 +189,7 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
         };
     }
 
-    public async Task<SetPreExecuteFlagsResult> SetPreExecuteFlagsAsync(List<int> workOrderIds, bool? isPreInput, bool? isMainNoMaterialComplete, DateTime? budgetInputDate = null)
+    public async Task<SetPreExecuteFlagsResult> SetPreExecuteFlagsAsync(List<int> workOrderIds, bool? isPreInput, bool? isMainNoMaterialComplete, DateTime? budgetInputDate = null, bool? isBudgetComplete = null)
     {
         // Upsert G15 记录（一个工单一条）
         var existingRecords = await _context.Set<RawMaterialLockPreExecution>()
@@ -212,15 +213,31 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                 record.BudgetInputDate = budgetInputDate.Value;
             else if (isPreInput == false)
                 record.BudgetInputDate = null;
+            if (isBudgetComplete.HasValue)
+                record.IsBudgetComplete = isBudgetComplete.Value;
         }
 
         var count = await _context.SaveChangesAsync();
 
-        // 无论设置或取消"执行"，均触发主号齐全重算
         if (isPreInput.HasValue)
         {
             await RecalculateMainNoCompleteAsync(workOrderIds);
             await _context.SaveChangesAsync();
+        }
+        else if (isBudgetComplete.HasValue)
+        {
+            if (isBudgetComplete.Value)
+            {
+                // IsBudgetComplete=true：保存标记 + 系统自动计算 + 覆盖强制 true
+                await RecalculateMainNoCompleteAsync(workOrderIds);
+                await _context.SaveChangesAsync();
+            }
+            else
+            {
+                // IsBudgetComplete=false：手工判定，直接强制整组 IsMainNoMaterialComplete=false
+                await ForceGroupMainNoIncompleteAsync(workOrderIds);
+                await _context.SaveChangesAsync();
+            }
         }
 
         var parts = new List<string>();
@@ -230,6 +247,8 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
             parts.Add("预算投料日");
         if (isMainNoMaterialComplete.HasValue)
             parts.Add(isMainNoMaterialComplete.Value ? "主号齐全" : "取消主号");
+        if (isBudgetComplete.HasValue)
+            parts.Add(isBudgetComplete.Value ? "预算主号齐全" : "取消预算主号齐全");
         var msg = $"标记完成（{string.Join(",", parts)}），共{count}条";
 
         return new SetPreExecuteFlagsResult { Count = count, Message = msg };
@@ -266,6 +285,19 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                         .Select(s => s.WorkOrderId)
                         .ToListAsync();
                     foreach (var id in sameGroupIds)
+                        allAffectedIds.Add(id);
+                    break;
+
+                default:
+                    // null/无备注工单（ScheduleStage!=1 或 MainNoMaterialPlanStatus=2 等）
+                    // 按 (订单号, 主号) 扩展同组工单（IsBudgetComplete 覆盖按此分组）
+                    var otherGroupIds = await _context.Set<WorkOrderExecutionSummary>()
+                        .Where(s => s.SalesOrderNo == summary.SalesOrderNo
+                                 && s.ProductionMainNo == summary.ProductionMainNo
+                                 && s.ScheduleStage == 1)
+                        .Select(s => s.WorkOrderId)
+                        .ToListAsync();
+                    foreach (var id in otherGroupIds)
                         allAffectedIds.Add(id);
                     break;
             }
@@ -357,54 +389,189 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
             }
         }
 
-        // ---- 其他备注：false ----
+        // ---- 无备注(null)：强制 false ----
         foreach (var pre in allPreExecs)
         {
             if (!summaryDict.TryGetValue(pre.WorkOrderId, out var s)) continue;
             if (s.RawMaterialLockRemark == "A质量影响") continue;
             if (groupCases.Contains(s.RawMaterialLockRemark)) continue;
 
-            if (pre.IsMainNoMaterialComplete != false)
+            // 非 A/B/C/D（ScheduleStage!=1 或无需锁料）：默认 false
                 pre.IsMainNoMaterialComplete = false;
+        }
+
+        // ---- IsBudgetComplete 覆盖：组内任一工单预算主号齐全 → 全部主号齐全 ----
+        var budgetCompleteIds = allPreExecs
+            .Where(r => r.IsBudgetComplete)
+            .Select(r => r.WorkOrderId)
+            .ToHashSet();
+        if (budgetCompleteIds.Count > 0)
+        {
+            var processedOverrideGroups = new HashSet<(string SalesOrderNo, string MainNo, string Remark)>();
+            foreach (var pre in allPreExecs)
+            {
+                if (!summaryDict.TryGetValue(pre.WorkOrderId, out var s)) continue;
+
+                // A质量影响：单工单维度
+                if (s.RawMaterialLockRemark == "A质量影响")
+                {
+                    if (budgetCompleteIds.Contains(pre.WorkOrderId) && !pre.IsMainNoMaterialComplete)
+                        pre.IsMainNoMaterialComplete = true;
+                    continue;
+                }
+
+                // B/C/D：按 (订单号, 主号, 原锁备注) 组维度
+                if (!groupCases.Contains(s.RawMaterialLockRemark)) continue;
+                var groupKey = (s.SalesOrderNo, s.ProductionMainNo, s.RawMaterialLockRemark!);
+                if (!processedOverrideGroups.Add(groupKey)) continue;
+
+                var groupIds = allSummaries
+                    .Where(x => x.SalesOrderNo == s.SalesOrderNo
+                             && x.ProductionMainNo == s.ProductionMainNo
+                             && x.RawMaterialLockRemark == s.RawMaterialLockRemark
+                             && x.ScheduleStage == 1)
+                    .Select(x => x.WorkOrderId)
+                    .ToHashSet();
+
+                // 组内任一工单 IsBudgetComplete=true → 整组 IsMainNoMaterialComplete=true
+                if (groupIds.Any(id => budgetCompleteIds.Contains(id)))
+                {
+                    foreach (var memberPre in allPreExecs.Where(r => groupIds.Contains(r.WorkOrderId)))
+                    {
+                        if (!memberPre.IsMainNoMaterialComplete)
+                            memberPre.IsMainNoMaterialComplete = true;
+                    }
+
+                    // 补漏：为组内缺失 PreExecution 记录的成员创建记录
+                    var existingIds = allPreExecs
+                        .Where(r => groupIds.Contains(r.WorkOrderId))
+                        .Select(r => r.WorkOrderId)
+                        .ToHashSet();
+                    foreach (var missingId in groupIds.Except(existingIds))
+                    {
+                        _context.Set<RawMaterialLockPreExecution>().Add(
+                            new RawMaterialLockPreExecution
+                            {
+                                WorkOrderId = missingId,
+                                IsMainNoMaterialComplete = true
+                            });
+                    }
+                }
+            }
+
+            // ---- IsBudgetComplete 覆盖：无备注工单按 (订单号, 主号) 分组 ----
+            var handledRemarks = new HashSet<string> { "A质量影响", "B已购未回", "C计划未执行", "D未完善计划" };
+            var otherBudgetIds = budgetCompleteIds
+                .Where(id => summaryDict.TryGetValue(id, out var s) && !handledRemarks.Contains(s.RawMaterialLockRemark ?? ""))
+                .ToHashSet();
+            if (otherBudgetIds.Count > 0)
+            {
+                var processedOtherGroups = new HashSet<(string SalesOrderNo, string MainNo)>();
+                foreach (var sum in allSummaries.Where(s => otherBudgetIds.Contains(s.WorkOrderId)))
+                {
+                    var groupKey = (sum.SalesOrderNo, sum.ProductionMainNo);
+                    if (!processedOtherGroups.Add(groupKey)) continue;
+
+                    var groupIds = allSummaries
+                        .Where(x => x.SalesOrderNo == sum.SalesOrderNo
+                                 && x.ProductionMainNo == sum.ProductionMainNo
+                                 && x.ScheduleStage == 1)
+                        .Select(x => x.WorkOrderId)
+                        .ToHashSet();
+
+                    foreach (var memberPre in allPreExecs.Where(r => groupIds.Contains(r.WorkOrderId)))
+                    {
+                        if (!memberPre.IsMainNoMaterialComplete)
+                            memberPre.IsMainNoMaterialComplete = true;
+                    }
+
+                    var existingIds = allPreExecs
+                        .Where(r => groupIds.Contains(r.WorkOrderId))
+                        .Select(r => r.WorkOrderId)
+                        .ToHashSet();
+                    foreach (var missingId in groupIds.Except(existingIds))
+                    {
+                        _context.Set<RawMaterialLockPreExecution>().Add(
+                            new RawMaterialLockPreExecution
+                            {
+                                WorkOrderId = missingId,
+                                IsMainNoMaterialComplete = true
+                            });
+                    }
+                }
+            }
         }
     }
 
-    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    /// <summary>
+    /// IsBudgetComplete=false：手工判定，直接强制同组全部工单 IsMainNoMaterialComplete=false
+    /// </summary>
+    private async Task ForceGroupMainNoIncompleteAsync(List<int> workOrderIds)
     {
-        var query = _context.Set<WorkOrderExecutionSummary>().AsNoTracking()
-            .Where(e => e.ScheduleStage == 1);
+        var summaries = await _context.Set<WorkOrderExecutionSummary>()
+            .Where(s => workOrderIds.Contains(s.WorkOrderId))
+            .ToListAsync();
+        if (summaries.Count == 0) return;
 
-        var all = await query
-            .Select(s => new
+        var allTargetIds = new HashSet<int>();
+        var groupCases = new[] { "B已购未回", "C计划未执行", "D未完善计划" };
+
+        foreach (var summary in summaries)
+        {
+            switch (summary.RawMaterialLockRemark)
             {
-                s.WorkOrderNo,
-                s.Salesman,
-                s.CustomerName,
-                s.SalesOrderNo,
-                s.ProductionMainNo,
-                s.ProductionSubNo,
-                s.PlantGrade,
-                s.Specification,
-                s.UrgencyLevel,
-                s.RawMaterialLockRemark,
-                s.AdjustmentRemark,
-            })
+                case "A质量影响":
+                    allTargetIds.Add(summary.WorkOrderId);
+                    break;
+
+                case "B已购未回":
+                case "C计划未执行":
+                case "D未完善计划":
+                    var groupIds = await _context.Set<WorkOrderExecutionSummary>()
+                        .Where(s => s.SalesOrderNo == summary.SalesOrderNo
+                                 && s.ProductionMainNo == summary.ProductionMainNo
+                                 && s.RawMaterialLockRemark == summary.RawMaterialLockRemark
+                                 && s.ScheduleStage == 1)
+                        .Select(s => s.WorkOrderId)
+                        .ToListAsync();
+                    foreach (var id in groupIds)
+                        allTargetIds.Add(id);
+                    break;
+
+                default:
+                    // null/无备注：按 (订单号, 主号) 扩展
+                    var otherIds = await _context.Set<WorkOrderExecutionSummary>()
+                        .Where(s => s.SalesOrderNo == summary.SalesOrderNo
+                                 && s.ProductionMainNo == summary.ProductionMainNo
+                                 && s.ScheduleStage == 1)
+                        .Select(s => s.WorkOrderId)
+                        .ToListAsync();
+                    foreach (var id in otherIds)
+                        allTargetIds.Add(id);
+                    break;
+            }
+        }
+
+        // 加载现有 PreExecution 记录并设为 false
+        var existingPreExecs = await _context.Set<RawMaterialLockPreExecution>()
+            .Where(r => allTargetIds.Contains(r.WorkOrderId))
             .ToListAsync();
 
-        return new Dictionary<string, List<string>>
+        foreach (var pre in existingPreExecs)
+            pre.IsMainNoMaterialComplete = false;
+
+        // 为缺失 PreExecution 记录的成员创建一条
+        var existingIds = existingPreExecs.Select(r => r.WorkOrderId).ToHashSet();
+        foreach (var missingId in allTargetIds.Except(existingIds))
         {
-            ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo).Distinct().OrderBy(x => x).ToList(),
-            ["Salesman"] = all.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
-            ["CustomerName"] = all.Select(x => x.CustomerName).Distinct().OrderBy(x => x).ToList(),
-            ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo).Distinct().OrderBy(x => x).ToList(),
-            ["ProductionMainNo"] = all.Select(x => x.ProductionMainNo).Distinct().OrderBy(x => x).ToList(),
-            ["ProductionSubNo"] = all.Where(x => x.ProductionSubNo != null).Select(x => x.ProductionSubNo!).Distinct().OrderBy(x => x).ToList(),
-            ["PlantGrade"] = all.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
-            ["Specification"] = all.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
-            ["UrgencyLevel"] = all.Where(x => x.UrgencyLevel != null).Select(x => x.UrgencyLevel!).Distinct().OrderBy(x => x).ToList(),
-            ["RawMaterialLockRemark"] = all.Where(x => x.RawMaterialLockRemark != null).Select(x => x.RawMaterialLockRemark!).Distinct().OrderBy(x => x).ToList(),
-            ["AdjustmentRemark"] = all.Where(x => x.AdjustmentRemark != null).Select(x => x.AdjustmentRemark!).Distinct().OrderBy(x => x).ToList(),
-        };
+            _context.Set<RawMaterialLockPreExecution>().Add(
+                new RawMaterialLockPreExecution
+                {
+                    WorkOrderId = missingId,
+                    IsPreInput = false,
+                    IsMainNoMaterialComplete = false
+                });
+        }
     }
 
     private static IQueryable<RawMaterialLockPlanAndExecutionDto> ApplySorting(

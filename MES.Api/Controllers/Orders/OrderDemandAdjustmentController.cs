@@ -1,3 +1,5 @@
+using MES.Core.DTOs;
+using MES.Services.Printing;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.Interfaces;
@@ -49,6 +51,13 @@ public class OrderDemandAdjustmentController : ControllerBase
     {
         var result = await _service.GetFilterContextsAsync();
         return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
+
+    [HttpPost("print-file")]
+    public IActionResult PrintFile([FromBody] OrderDemandAdjustmentPrintRequest request)
+    {
+        var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        return File(pdfBytes, "application/pdf", "订单需求调整.pdf");
     }
 }
 

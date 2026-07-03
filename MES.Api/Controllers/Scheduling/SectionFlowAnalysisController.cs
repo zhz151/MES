@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
 using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Services.Printing;
 using MES.Shared.Constants;
 
 namespace MES.Api.Controllers.Scheduling;
@@ -25,6 +26,13 @@ public class SectionFlowAnalysisController : ControllerBase
     {
         var result = await _service.GetAnalysisAsync();
         return Ok(ApiResponse<List<SectionFlowAnalysisDto>>.Ok(result));
+    }
+
+    [HttpPost("print-file")]
+    public IActionResult PrintFile([FromBody] SectionFlowAnalysisPrintRequest request)
+    {
+        var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        return File(pdfBytes, "application/pdf", "工段流转分析.pdf");
     }
 
     /// <summary>更新段落分类设置</summary>

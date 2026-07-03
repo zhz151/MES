@@ -18,13 +18,13 @@ namespace MES.Blazor.Pages.WorkOrders;
 
 public partial class WorkOrders
 {
-    private MudTable<WorkOrderListDto>? table;
-    private List<WorkOrderListDto> _pageItems = new();
+    private MudTable<WorkOrderListItemDto>? table;
+    private List<WorkOrderListItemDto> _pageItems = new();
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new() { "TotalQuantity", "TotalWeight", "TotalItemCount" };
     private int _totalCount;
     private List<CancelledOrderDto> cancelledOrders = new();
-    private bool isSyncing = false;
+    private List<WorkOrderListItemDto>? _pendingOrders;
     private string _searchKeyword = string.Empty;
     private bool _isArrowNavSetup;
     private int _currentPage = 1;
@@ -49,16 +49,16 @@ public partial class WorkOrders
             if (value)
             {
                 foreach (var item in _pageItems)
-                    selectedWorkOrderNos.Add(item.WorkOrderNo);
+                    selectedSalesOrderNos.Add(item.SalesOrderNo);
             }
             else
             {
-                selectedWorkOrderNos.Clear();
+                selectedSalesOrderNos.Clear();
             }
             StateHasChanged();
         }
     }
-    private HashSet<string> selectedWorkOrderNos = new();
+    private HashSet<string> selectedSalesOrderNos = new();
 
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
@@ -92,13 +92,11 @@ public partial class WorkOrders
         new() { Key = "MaxLength",         Label = "最大长度", SortKey = "MaxLength", Width = "80" },
         new() { Key = "TotalQuantity",     Label = "总支数",   SortKey = "TotalQuantity", Width = "80" },
         new() { Key = "TotalWeight",       Label = "总重量",   SortKey = "TotalWeight", Width = "80" },
-        new() { Key = "DeliveryState",     Label = "交货状态", SortKey = "DeliveryState",    FilterType = "string", Width = "120" },
+        new() { Key = "DeliveryState",     Label = "交货状态", SortKey = "DeliveryState",    FilterType = "enum", Width = "120",
+               EnumOptions = new List<EnumOption> { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"), new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"), new("Hard", "硬态") } },
         new() { Key = "TotalItemCount",    Label = "含项次数", SortKey = "TotalItemCount", Width = "80" },
         new() { Key = "Status",            Label = "状态",     SortKey = "Status",            FilterType = "enum", Width = "120",
-               EnumOptions = new List<EnumOption> { new("0", "未编制"), new("1", "已确定"), new("2", "待修正"), new("3", "已取消") } },
-        new() { Key = "MaterialPlanStatus", Label = "用料计划状态", Width = "80" },
-        new() { Key = "MaterialPlanRate",  Label = "满足率(%)", SortKey = "MaterialPlanRate", Width = "80" },
-        new() { Key = "LatestPlanDate",    Label = "最新计划日期", SortKey = "LatestPlanDate", FilterType = "date", Width = "120" },
+               EnumOptions = new List<EnumOption> { new("1", "已确定"), new("2", "待修正") } },
     };
 
     // ========== 分页汇总 ==========
@@ -107,7 +105,7 @@ public partial class WorkOrders
     {
         _pageSums.Clear();
         if (_pageItems.Count == 0) return;
-        var props = typeof(WorkOrderListDto)
+        var props = typeof(WorkOrderListItemDto)
             .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
             .ToDictionary(p => p.Name, p => p);
         foreach (var col in _visibleColumns.Where(c => _summableColumnKeys.Contains(c.Key)))
@@ -149,7 +147,7 @@ public partial class WorkOrders
 
     // ========== 服务端数据加载 ==========
 
-    private async Task<TableData<WorkOrderListDto>> LoadDataFromServer(TableState state)
+    private async Task<TableData<WorkOrderListItemDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
         try
@@ -192,8 +190,9 @@ public partial class WorkOrders
         }
 
         ComputePageSums();
+        await SavePageStateAsync();
 
-        return new TableData<WorkOrderListDto>
+        return new TableData<WorkOrderListItemDto>
         {
             Items = _pageItems,
             TotalItems = _totalCount
@@ -252,10 +251,8 @@ public partial class WorkOrders
             {
                 opt.Display = opt.Value switch
                 {
-                    "0" => "未编制",
                     "1" => "已确定",
                     "2" => "待修正",
-                    "3" => "已取消",
                     _ => opt.Value
                 };
             }
@@ -406,14 +403,14 @@ public partial class WorkOrders
 
     // ========== 单元格渲染 ==========
 
-    private RenderFragment RenderCell(WorkOrderListDto item, ColumnDef col) => builder =>
+    private RenderFragment RenderCell(WorkOrderListItemDto item, ColumnDef col) => builder =>
     {
         switch (col.Key)
         {
             case "WorkOrderNo":
                 builder.OpenComponent<MudLink>(0);
                 builder.AddAttribute(1, "Typo", Typo.body2);
-                builder.AddAttribute(2, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => NavigateToTrace(item.SalesOrderNo)));
+                builder.AddAttribute(2, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => NavigateToTrace(item.WorkOrderNo)));
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.WorkOrderNo)));
                 builder.CloseComponent();
                 break;
@@ -480,19 +477,6 @@ public partial class WorkOrders
                 builder.AddAttribute(2, "Color", DisplayHelper.GetWorkOrderStatusColor(item.Status));
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetWorkOrderStatusText(item.Status))));
                 builder.CloseComponent();
-                break;
-            case "MaterialPlanStatus":
-                builder.OpenComponent<MudChip>(0);
-                builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", GetPlanStatusColor(item.MaterialPlanStatus));
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetPlanStatusText(item.MaterialPlanStatus))));
-                builder.CloseComponent();
-                break;
-            case "MaterialPlanRate":
-                builder.AddContent(0, item.MaterialPlanRate > 0 ? $"{item.MaterialPlanRate:F1}%" : "-");
-                break;
-            case "LatestPlanDate":
-                builder.AddContent(0, item.LatestPlanDate?.ToString("yyyy-MM-dd") ?? "-");
                 break;
         }
     };
@@ -562,6 +546,7 @@ public partial class WorkOrders
 
         await CheckNotifications();
         await LoadCancelledOrders();
+        await LoadPendingOrders();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -628,6 +613,26 @@ public partial class WorkOrders
 
     // ========== 已取消订单 ==========
 
+    private async Task LoadPendingOrders()
+    {
+        try
+        {
+            var result = await WorkOrderService.GetPendingOrdersAsync();
+            if (result.Success && result.Data != null)
+            {
+                _pendingOrders = result.Data;
+            }
+            else
+            {
+                _pendingOrders = null;
+            }
+        }
+        catch
+        {
+            _pendingOrders = null;
+        }
+    }
+
     private async Task LoadCancelledOrders()
     {
         try
@@ -642,36 +647,6 @@ public partial class WorkOrders
         {
             Console.WriteLine($"加载待删除订单失败: {ex.Message}");
         }
-    }
-
-    // ========== 即时更新 ==========
-
-    private async Task CheckAllOrderChange()
-    {
-        isSyncing = true;
-        try
-        {
-            var result = await WorkOrderService.CheckAllOrderChangeAsync();
-            if (result.Success)
-            {
-                Snackbar.Add("订单变更检测完成，工单状态已同步", Severity.Success);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "同步失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"同步失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            isSyncing = false;
-        }
-        await CheckNotifications();
-        if (table != null) await table.ReloadServerData();
-        await LoadCancelledOrders();
     }
 
     // ========== 状态筛选 ==========
@@ -696,26 +671,6 @@ public partial class WorkOrders
             _ => Color.Default
         };
     }
-
-    private static Color GetPlanStatusColor(int status) => status switch
-    {
-        0 => Color.Default,
-        1 => Color.Warning,
-        2 => Color.Info,
-        3 => Color.Success,
-        4 => Color.Error,
-        _ => Color.Default
-    };
-
-    private static string GetPlanStatusText(int status) => status switch
-    {
-        0 => "未计划",
-        1 => "部分",
-        2 => "理论满足",
-        3 => "满足",
-        4 => "超量",
-        _ => "未知"
-    };
 
     // ========== 导航 ==========
 
@@ -808,10 +763,10 @@ public partial class WorkOrders
 
     private async Task PrintSelected()
     {
-        if (!selectedWorkOrderNos.Any()) return;
+        if (!selectedSalesOrderNos.Any()) return;
         try
         {
-            var result = await WorkOrderService.PrintOrderWorkOrdersBatchAsync(selectedWorkOrderNos.ToArray());
+            var result = await WorkOrderService.PrintOrderWorkOrdersBatchAsync(selectedSalesOrderNos.ToArray());
             if (result.Success && result.Data != null)
             {
                 await JS.InvokeVoidAsync("openPdf", result.Data);

@@ -13,6 +13,8 @@
 @inject IDialogService DialogService
 @inject IJSRuntime JS
 @inject PageStateService PageState
+@inject ColumnPrefsService ColumnPrefs
+@inject HttpClient Http
 @attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
@@ -24,7 +26,11 @@
         </MudText>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@OnPlanAllAsync" Class="mr-6">
             <MudIcon Icon="@Icons.Material.Filled.PlaylistAdd" Class="mr-1" />
-            计划安排
+            全量计划
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="@OnPlanKeepAttentionAsync" Class="mr-6">
+            <MudIcon Icon="@Icons.Material.Filled.PlaylistAddCheck" Class="mr-1" />
+            进度保留计划
         </MudButton>
     </div>
 
@@ -34,7 +40,7 @@
             <MudGrid>
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
-                                  Label="工单号/订单号/业务员/客户/牌号/规格/主号"
+                                  Label=""
                                   Value="@_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
@@ -50,17 +56,36 @@
             <div id="workorder-schedule-list-table">
             @{
                 var _groupHeaders = GetGroupHeaders();
-                var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100);
+                var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40;
             }
-            @* 工具栏：列显隐 + 记录数（置于组字段上方） *@
-            <div class="woe-toolbar">
-                <ColumnDisplaySelect Columns="_allColumns"
-                                     OnColumnToggle="OnColumnToggle"
-                                     OnMoveUp="MoveColumnUp"
-                                     OnMoveDown="MoveColumnDown" />
-                <MudText Typo="Typo.body2" Class="ml-4">
-                    共 @_filteredItems.Count 条记录
-                </MudText>
+            @* 工具栏：列显隐（左）+ 打印按钮（右）*@
+            <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
+                <div class="d-flex align-center">
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                </div>
+                <div class="d-flex align-center" style="margin-left:auto;">
+                    <MudButton Variant="Variant.Filled"
+                               Size="Size.Small"
+                               Color="Color.Primary"
+                               Class="ml-2"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintSelected"
+                               Disabled="@(_selectedItems.Count == 0)">
+                        打印选中 (@_selectedItems.Count)
+                    </MudButton>
+                    <MudText Typo="Typo.body2" Class="ml-4">
+                        共 @_filteredItems.Count 条记录
+                    </MudText>
+                </div>
             </div>
             @* 分组标题栏（flex bar，JS 测量宽度后精确定位） *@
             <div class="col-group-header-scroll" id="woe-group-header-scroll">
@@ -86,6 +111,13 @@
                     @{
                         int? _prevGk = null;
                     }
+                    <MudTh Class="col-selection-th" Style="width:40px;min-width:40px;max-width:40px;padding:0 4px;">
+                        <MudCheckBox T="bool"
+                                     Value="@(_selectedItems.Count > 0 && _selectedItems.Count == _filteredItems.Count)"
+                                     ValueChanged="@((bool v) => SelectAllItems(v))"
+                                     Dense="true"
+                                     TriState="false" />
+                    </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
                         var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
@@ -111,6 +143,12 @@
                     @{
                         int? _prevGk2 = null;
                     }
+                    <MudTd Class="col-selection-td" Style="width:40px;min-width:40px;max-width:40px;padding:0 4px;">
+                        <MudCheckBox T="bool"
+                                     Value="@(_selectedItems.Contains(item))"
+                                     ValueChanged="@((bool v) => ToggleSelection(item, v))"
+                                     Dense="true" />
+                    </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
                         var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
@@ -123,6 +161,7 @@
                     @{
                         int? _prevGk3 = null;
                     }
+                    <MudTd Style="width:40px;min-width:40px;max-width:40px;"></MudTd>
                     @foreach (var col in _visibleColumns)
                     {
                         var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;

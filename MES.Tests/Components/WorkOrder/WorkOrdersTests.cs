@@ -54,7 +54,6 @@ public class WorkOrdersTests : TestBase
     [InlineData(WorkOrderStatus.NotGenerated, "未编制")]
     [InlineData(WorkOrderStatus.Confirmed, "已确定")]
     [InlineData(WorkOrderStatus.Pending, "待修正")]
-    [InlineData(WorkOrderStatus.Cancelled, "已取消")]
     public void StatusColumn_DisplaysCorrectText(WorkOrderStatus status, string expectedText)
     {
         ConfigureListResponse(status);

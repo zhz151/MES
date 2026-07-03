@@ -291,6 +291,15 @@ public partial class SectionProductionStatus
         await SavePageStateAsync();
     }
 
+    private async Task ResetColumnDisplay()
+    {
+        foreach (var col in _allColumns)
+            col.Visible = true;
+        await SavePageStateAsync();
+        ApplyFiltersAndSort();
+        StateHasChanged();
+    }
+
     private async Task MoveColumnUp(ColumnDef col)
     {
         var idx = _allColumns.IndexOf(col);
@@ -406,5 +415,55 @@ public partial class SectionProductionStatus
             return sum;
         return "-";
     }
+
+    // ========== 打印 ==========
+
+    private async Task PrintAll()
+    {
+        var printItems = _filteredItems.Select(item =>
+        {
+            var dict = new Dictionary<string, object>();
+            foreach (var col in _visibleColumns)
+                dict[col.Key] = ResolvePrintValue(item, col);
+            return dict;
+        }).ToList();
+
+        var request = new SectionProductionStatusPrintRequest
+        {
+            Title = "工段待产量",
+            Items = printItems,
+            Columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList()
+        };
+
+        var apiUrl = $"{Http.BaseAddress}api/section-production-status/print-file";
+        var json = JsonSerializer.Serialize(request);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+    }
+
+    private static object ResolvePrintValue(SectionProductionStatusDto item, ColumnDef col)
+    {
+        if (col.DisplayConverter != null)
+            return col.DisplayConverter(GetRawPropertyValue(item, col.Key)) ?? "";
+
+        if (col.FilterType == "boolean")
+        {
+            var raw = GetRawPropertyValue(item, col.Key);
+            if (raw is bool b) return b ? col.BoolTrueLabel : col.BoolFalseLabel;
+            return raw?.ToString() ?? "-";
+        }
+
+        return GetRawPropertyValue(item, col.Key);
+    }
+
+    private static object GetRawPropertyValue(SectionProductionStatusDto item, string key) => key switch
+    {
+        "ProcessGroupName" => item.ProcessGroupName,
+        "SectionName" => item.SectionName,
+        "InProduction" => item.InProduction.HasValue ? ((int)item.InProduction.Value).ToString() : "-",
+        "PendingProduction" => item.PendingProduction.HasValue ? ((int)item.PendingProduction.Value).ToString() : "-",
+        "Total" => item.Total.HasValue ? ((int)item.Total.Value).ToString() : "-",
+        "FinalProcessTotal" => item.FinalProcessTotal.HasValue ? ((int)item.FinalProcessTotal.Value).ToString() : "-",
+        _ => ""
+    };
 
 }

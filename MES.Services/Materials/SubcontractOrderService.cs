@@ -273,12 +273,15 @@ public class SubcontractOrderService : ISubcontractOrderService
             throw new BusinessException("至少需要一条委外明细要求");
 
         // Serializable事务：防止并发读取到相同maxSeq导致唯一键冲突
-        using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
-        try
+        SubcontractOrder entity = null!;
+        var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+        using (transaction)
         {
+            try
+            {
             var orderNo = await GenerateOrderNoAsync();
 
-            var entity = new SubcontractOrder
+            entity = new SubcontractOrder
             {
                 OrderNo = orderNo,
                 SupplierId = request.SupplierId,
@@ -318,40 +321,41 @@ public class SubcontractOrderService : ISubcontractOrderService
             _context.SubcontractOrders.Add(entity);
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
-
-            var dto = ToDto(entity);
-            var supplier = await _context.SupplierProfiles.FindAsync(entity.SupplierId);
-            if (supplier != null) dto.SupplierName = supplier.SupplierName;
-            dto.ReturnItems = entity.ReturnItems.Select(r => new SubcontractReturnItemDto
+            }
+            catch
             {
-                Id = r.Id,
-                SubcontractOrderId = r.SubcontractOrderId,
-                Sequence = r.Sequence,
-                MaterialCategory = r.MaterialCategory,
-                PlantGrade = r.PlantGrade,
-                ProcessSpecification = r.ProcessSpecification,
-                UnitWeight = r.UnitWeight,
-                RequiredQuantity = r.RequiredQuantity,
-                RequiredWeight = r.RequiredWeight,
-                InputMultiple = r.InputMultiple,
-                ProcessStatusRemark = r.ProcessStatusRemark,
-                Remark = r.Remark,
-                ProcessUnitPrice = r.ProcessUnitPrice,
-                ProcessTotalAmount = r.ProcessTotalAmount,
-                SourceWorkOrderNo = r.SourceWorkOrderNo,
-                ReturnedQuantity = r.ReturnedQuantity,
-                ReturnedWeight = r.ReturnedWeight,
-                ProcessStatus = r.ProcessStatus,
-                IsForceCompleted = r.IsForceCompleted
-            }).ToList();
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
 
-            return dto;
-        }
-        catch
+        var dto = ToDto(entity);
+        var supplier = await _context.SupplierProfiles.FindAsync(entity.SupplierId);
+        if (supplier != null) dto.SupplierName = supplier.SupplierName;
+        dto.ReturnItems = entity.ReturnItems.Select(r => new SubcontractReturnItemDto
         {
-            await transaction.RollbackAsync();
-            throw;
-        }
+            Id = r.Id,
+            SubcontractOrderId = r.SubcontractOrderId,
+            Sequence = r.Sequence,
+            MaterialCategory = r.MaterialCategory,
+            PlantGrade = r.PlantGrade,
+            ProcessSpecification = r.ProcessSpecification,
+            UnitWeight = r.UnitWeight,
+            RequiredQuantity = r.RequiredQuantity,
+            RequiredWeight = r.RequiredWeight,
+            InputMultiple = r.InputMultiple,
+            ProcessStatusRemark = r.ProcessStatusRemark,
+            Remark = r.Remark,
+            ProcessUnitPrice = r.ProcessUnitPrice,
+            ProcessTotalAmount = r.ProcessTotalAmount,
+            SourceWorkOrderNo = r.SourceWorkOrderNo,
+            ReturnedQuantity = r.ReturnedQuantity,
+            ReturnedWeight = r.ReturnedWeight,
+            ProcessStatus = r.ProcessStatus,
+            IsForceCompleted = r.IsForceCompleted
+        }).ToList();
+
+        return dto;
     }
 
     public async Task<SubcontractOrderDto> UpdateAsync(int id, UpdateSubcontractOrderRequest request)

@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MES.Core.DTOs;
 using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Services.Printing;
 using System.Text.Json;
 
 namespace MES.Api.Controllers.Scheduling;
@@ -55,5 +57,19 @@ public class WorkOrderScheduleController : ControllerBase
     {
         var result = await _service.PlanScheduleAllAsync(query);
         return Ok(ApiResponse<bool>.Ok(result));
+    }
+
+    [HttpPost("plan-keep-attention")]
+    public async Task<ActionResult<ApiResponse<bool>>> PlanKeepAttention([FromBody] QueryParams query)
+    {
+        var result = await _service.PlanScheduleKeepAttentionAsync(query);
+        return Ok(ApiResponse<bool>.Ok(result));
+    }
+
+    [HttpPost("print-file")]
+    public IActionResult PrintFile([FromBody] WorkOrderSchedulePrintRequest request)
+    {
+        var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        return File(pdfBytes, "application/pdf", "工单计划.pdf");
     }
 }

@@ -169,6 +169,8 @@ public partial class Customers
             _totalCount = 0;
         }
 
+        await SavePageStateAsync();
+
         return new TableData<CustomerProfileDto>
         {
             Items = _pageItems,

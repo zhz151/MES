@@ -104,7 +104,7 @@ else
             <MudCardContent>
                 <!-- 顶部：模糊搜索 + 出库筛选切换 -->
                 <MudGrid Class="mb-2">
-                    <MudItem xs="12" md="5">
+                    <MudItem xs="12" md="6">
                         <MudTextField T="string"
                                       Value="_searchKeyword"
                                       ValueChanged="@OnSearchChanged"
@@ -191,6 +191,9 @@ else
                                 已选 @_selectedItems.Count 项
                             </MudText>
                         }
+                        <MudText Typo="Typo.body2" Class="d-flex align-center ml-4">
+                            共 @_totalCount 条记录
+                        </MudText>
                     </ToolBarContent>
                     <HeaderContent>
                         <MudTh Style="width: 40px;">
@@ -238,7 +241,6 @@ else
                         }
                     </FooterContent>
                     <PagerContent>
-                        <MudText Typo="Typo.body2" Class="d-flex align-center mr-auto">共 @_totalCount 条记录</MudText>
                         <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                     </PagerContent>
                     <NoRecordsContent>

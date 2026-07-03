@@ -16,6 +16,23 @@ public partial class RawMaterialLockPlanAndExecution
     private MudTable<RawMaterialLockPlanAndExecutionDto>? table;
     private List<RawMaterialLockPlanAndExecutionDto> _allItems = new();
     private List<RawMaterialLockPlanAndExecutionDto> _filteredItems = new();
+    private HashSet<RawMaterialLockPlanAndExecutionDto> _selectedItems = new();
+
+    private void SelectAllItems(bool selected)
+    {
+        if (selected)
+            _selectedItems = new HashSet<RawMaterialLockPlanAndExecutionDto>(_filteredItems);
+        else
+            _selectedItems.Clear();
+    }
+
+    private void ToggleSelection(RawMaterialLockPlanAndExecutionDto item, bool selected)
+    {
+        if (selected)
+            _selectedItems.Add(item);
+        else
+            _selectedItems.Remove(item);
+    }
 
     // 汇总数据
     private int _totalOrderCount;
@@ -188,6 +205,7 @@ public partial class RawMaterialLockPlanAndExecution
         var g15 = new List<ColumnDef>
         {
             new() { Key = "IsPreInput",                  Label = "执行",          SortKey = "IsPreInput",                    FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 15, GroupName = "预执行" },
+            new() { Key = "IsBudgetComplete",            Label = "预算主号齐全",  SortKey = "IsBudgetComplete",              FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 15, GroupName = "预执行" },
             new() { Key = "BudgetInputDate",             Label = "预算投料日",    SortKey = "BudgetInputDate",               Width = "130", GroupKey = 15, GroupName = "预执行" },
             new() { Key = "ExecutionError",              Label = "执行错误",      SortKey = "ExecutionError",                FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 15, GroupName = "预执行" },
             new() { Key = "IsMainNoMaterialComplete",    Label = "主号齐全",      SortKey = "IsMainNoMaterialComplete",      FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 15, GroupName = "预执行" },
@@ -421,6 +439,7 @@ public partial class RawMaterialLockPlanAndExecution
         "IsBatchDelivery" => item.IsBatchDelivery.ToString(),
         "IsPaused" => item.IsPaused.ToString(),
         "IsPreInput" => item.IsPreInput.ToString(),
+        "IsBudgetComplete" => item.IsBudgetComplete.ToString(),
         "ExecutionError" => item.ExecutionError.ToString(),
         "IsMainNoMaterialComplete" => item.IsMainNoMaterialComplete.ToString(),
         _ => null
@@ -443,7 +462,16 @@ public partial class RawMaterialLockPlanAndExecution
                 (x.CustomerName?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.PlantGrade?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.Specification?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
-                (x.ProductionMainNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true));
+                (x.ProductionMainNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.ProductionSubNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.SettlementMethod?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.MaterialName?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.DeliveryState?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.LengthStatus?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.MaterialPlanProportion?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.UrgencyLevel?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.RawMaterialLockRemark?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.AdjustmentRemark?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true));
         }
 
         // 列筛选
@@ -546,6 +574,7 @@ public partial class RawMaterialLockPlanAndExecution
             "IsPaused" => sortDescending ? query.OrderByDescending(x => x.IsPaused) : query.OrderBy(x => x.IsPaused),
             "AdjustmentRemark" => sortDescending ? query.OrderByDescending(x => x.AdjustmentRemark) : query.OrderBy(x => x.AdjustmentRemark),
             "IsPreInput" => sortDescending ? query.OrderByDescending(x => x.IsPreInput) : query.OrderBy(x => x.IsPreInput),
+            "IsBudgetComplete" => sortDescending ? query.OrderByDescending(x => x.IsBudgetComplete) : query.OrderBy(x => x.IsBudgetComplete),
             "BudgetInputDate" => sortDescending ? query.OrderByDescending(x => x.BudgetInputDate) : query.OrderBy(x => x.BudgetInputDate),
             "ExecutionError" => sortDescending ? query.OrderByDescending(x => x.ExecutionError) : query.OrderBy(x => x.ExecutionError),
             "IsMainNoMaterialComplete" => sortDescending ? query.OrderByDescending(x => x.IsMainNoMaterialComplete) : query.OrderBy(x => x.IsMainNoMaterialComplete),
@@ -573,6 +602,7 @@ public partial class RawMaterialLockPlanAndExecution
     private async Task OnColumnToggle(ColumnDef col)
     {
         await SavePageStateAsync();
+        await SaveColumnPrefs();
     }
 
     private async Task MoveColumnUp(ColumnDef col)
@@ -584,6 +614,7 @@ public partial class RawMaterialLockPlanAndExecution
             _allColumns.Insert(idx - 1, col);
         }
         await SavePageStateAsync();
+        await SaveColumnPrefs();
     }
 
     private async Task MoveColumnDown(ColumnDef col)
@@ -595,6 +626,12 @@ public partial class RawMaterialLockPlanAndExecution
             _allColumns.Insert(idx + 1, col);
         }
         await SavePageStateAsync();
+        await SaveColumnPrefs();
+    }
+
+    private async Task SaveColumnPrefs()
+    {
+        await ColumnPrefs.SaveAsync("rawmateriallockplan", null, _allColumns);
     }
 
     private async Task ToggleSort(string sortKey)
@@ -608,6 +645,15 @@ public partial class RawMaterialLockPlanAndExecution
         }
         ApplyFiltersAndSort();
         await SavePageStateAsync();
+    }
+
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        await SaveColumnPrefs();
+        await SavePageStateAsync();
+        ApplyFiltersAndSort();
+        StateHasChanged();
     }
 
     private async Task OnSearchChanged(string value)
@@ -636,6 +682,143 @@ public partial class RawMaterialLockPlanAndExecution
         }
     }
 
+    private async Task PrintSelected()
+    {
+        if (_selectedItems.Count == 0)
+        {
+            Snackbar.Add("请先选择要打印的行", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var printColumns = _visibleColumns
+                .Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label })
+                .ToList();
+
+            // 将 DTO 转为字典，枚举字段预先解析为中文显示文本
+            var printItems = _selectedItems.Select(item =>
+            {
+                var dict = new Dictionary<string, object>();
+                foreach (var col in _visibleColumns)
+                {
+                    dict[col.Key] = ResolvePrintValue(item, col.Key);
+                }
+                return dict;
+            }).ToList();
+
+            var request = new RawMaterialLockPlanPrintRequest
+            {
+                Title = "原锁计划",
+                Items = printItems,
+                Columns = printColumns
+            };
+
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/raw-material-lock-plan/print-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static object ResolvePrintValue(RawMaterialLockPlanAndExecutionDto item, string key) => key switch
+    {
+        // G1: 枚举→中文
+        "MaterialName" => DisplayHelper.GetMaterialNameText(item.MaterialName) ?? "",
+        "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState) ?? "",
+        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus) ?? "",
+        "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod) ?? "",
+        // G2: 状态枚举
+        "MaterialPlanStatus" => item.MaterialPlanStatus switch { 0 => "未计划", 1 => "部分", 2 => "理论满足", 3 => "满足", 4 => "超量", _ => "未知" },
+        "MainNoMaterialPlanStatus" => item.MainNoMaterialPlanStatus switch { 0 => "未计划", 1 => "部分", 2 => "理论满足", 3 => "满足", 4 => "超量", _ => "未知" },
+        // G3: 投料状态
+        "InputStatus" => item.InputStatus switch { 0 => "未投料", 1 => "部分", 2 => "满足", _ => "未知" },
+        "MainNoInputStatus" => item.MainNoInputStatus switch { 0 => "未投料", 1 => "部分", 2 => "满足", _ => "未知" },
+        // G7: 流转状态
+        "FlowStatus" => item.FlowStatus switch { 0 => "未投料", 1 => "部分", 2 => "满足", _ => "未知" },
+        "MainNoFlowStatus" => item.MainNoFlowStatus switch { 0 => "未计划", 1 => "部分", 2 => "满足", _ => "未知" },
+        // G12: 关注状态
+        "ScheduleStage" => item.ScheduleStageText,
+        // 非枚举字段原样输出（TablePrintHelper 自动处理 bool→"是/否"、DateTime→"yyyy-MM-dd" 等）
+        _ => GetRawPropertyValue(item, key)
+    };
+
+    private static object GetRawPropertyValue(RawMaterialLockPlanAndExecutionDto item, string key)
+    {
+        // 大多数字段可直接通过 DTO 属性读取
+        return key switch
+        {
+            "WorkOrderNo" => item.WorkOrderNo ?? "",
+            "Salesman" => item.Salesman ?? "",
+            "CustomerName" => item.CustomerName ?? "",
+            "SignDate" => item.SignDate,
+            "DeliveryDate" => item.DeliveryDate,
+            "DelayPenalty" => item.DelayPenalty,
+            "SalesOrderNo" => item.SalesOrderNo ?? "",
+            "ProductionMainNo" => item.ProductionMainNo ?? "",
+            "ProductionSubNo" => item.ProductionSubNo ?? "",
+            "PlantGrade" => item.PlantGrade ?? "",
+            "Specification" => item.Specification ?? "",
+            "MinLength" => item.MinLength,
+            "MaxLength" => item.MaxLength,
+            "TotalItemCount" => item.TotalItemCount,
+            "TotalQuantity" => item.TotalQuantity,
+            "TotalMeters" => item.TotalMeters,
+            "TotalWeight" => item.TotalWeight,
+            "LatestPlanDate" => item.LatestPlanDate,
+            "MaterialPlanRate" => item.MaterialPlanRate,
+            "MainNoMaterialPlanRate" => item.MainNoMaterialPlanRate,
+            "ProcessCycle" => item.ProcessCycle,
+            "MaterialPlanProportion" => item.MaterialPlanProportion ?? "",
+            "LatestRequiredDate" => item.LatestRequiredDate,
+            "PendingRoughTubeQty" => item.PendingRoughTubeQty,
+            "PendingRoughTubeWeight" => item.PendingRoughTubeWeight,
+            "PendingOutsourceFinishQty" => item.PendingOutsourceFinishQty,
+            "PendingOutsourceFinishWeight" => item.PendingOutsourceFinishWeight,
+            "TheoreticalFinishQty" => item.TheoreticalFinishQty,
+            "TheoreticalFinishWeight" => item.TheoreticalFinishWeight,
+            "InputStartDate" => item.InputStartDate,
+            "InputEndDate" => item.InputEndDate,
+            "TotalBatchCount" => item.TotalBatchCount,
+            "InputQuantity" => item.InputQuantity,
+            "InputWeight" => item.InputWeight,
+            "TheoreticalOutputQty" => item.TheoreticalOutputQty,
+            "TheoreticalOutputWeight" => item.TheoreticalOutputWeight,
+            "InputOutputRatio" => item.InputOutputRatio,
+            "MainNoInputOutputRatio" => item.MainNoInputOutputRatio,
+            "FlowOutputRatio" => item.FlowOutputRatio,
+            "FlowMaxRemainingWorkDays" => item.FlowMaxRemainingWorkDays,
+            "FlowTotalBatchCount" => item.FlowTotalBatchCount,
+            "FlowIncompleteBatchCount" => item.FlowIncompleteBatchCount,
+            "GeneralDefectWeight" => item.GeneralDefectWeight,
+            "GeneralDefectRatio" => item.GeneralDefectRatio,
+            "SeriousDefectWeight" => item.SeriousDefectWeight,
+            "SeriousDefectRatio" => item.SeriousDefectRatio,
+            "ScrapWeight" => item.ScrapWeight,
+            "ScrapRatio" => item.ScrapRatio,
+            "TotalRemainingWorkDays" => item.TotalRemainingWorkDays,
+            "CapacityWorkDays" => item.CapacityWorkDays,
+            "UrgencyLevel" => item.UrgencyLevel ?? "",
+            "EstimatedProcessCompletionDate" => item.EstimatedProcessCompletionDate,
+            "DaysDiffFromDelivery" => item.DaysDiffFromDelivery,
+            "RawMaterialLockRemark" => item.RawMaterialLockRemark ?? "",
+            "IsUrging" => item.IsUrging,
+            "IsBatchDelivery" => item.IsBatchDelivery,
+            "IsPaused" => item.IsPaused,
+            "AdjustmentRemark" => item.AdjustmentRemark ?? "",
+            "IsPreInput" => item.IsPreInput,
+            "BudgetInputDate" => item.BudgetInputDate,
+            "IsBudgetComplete" => item.IsBudgetComplete,
+            "ExecutionError" => item.ExecutionError,
+            "IsMainNoMaterialComplete" => item.IsMainNoMaterialComplete,
+            _ => ""
+        };
+    }
+
     private async Task OnBudgetInputDateChanged(RawMaterialLockPlanAndExecutionDto item, DateTime newDate)
     {
         var ids = new List<int> { item.WorkOrderId };
@@ -649,6 +832,22 @@ public partial class RawMaterialLockPlanAndExecution
         else
         {
             Snackbar.Add(result.Message ?? "保存预算投料日失败", Severity.Error);
+        }
+    }
+
+    private async Task ToggleBudgetComplete(RawMaterialLockPlanAndExecutionDto item, bool newValue)
+    {
+        var ids = new List<int> { item.WorkOrderId };
+        var result = await RawMaterialLockPlanService.SetPreExecuteFlagsAsync(ids, null, null, null, newValue);
+        if (result.Success)
+        {
+            // 重新加载数据以反映后端级联更新后的主号齐全状态
+            await LoadDataAsync();
+            await SavePageStateAsync();
+        }
+        else
+        {
+            Snackbar.Add(result.Message ?? "操作失败", Severity.Error);
         }
     }
 
@@ -706,6 +905,17 @@ public partial class RawMaterialLockPlanAndExecution
     private List<GroupHeaderInfo> GetGroupHeaders()
     {
         var result = new List<GroupHeaderInfo>();
+
+        // 选择列占位（40px），对齐表格最左侧的 checkbox 列
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
         int? lastKey = null;
         int totalWidth = 0;
         var groupKey = 0;
@@ -754,28 +964,38 @@ public partial class RawMaterialLockPlanAndExecution
     {
         _allColumns = GetAllColumnDefs();
 
+        // 从 ColumnPrefsService 恢复列顺序和显隐
+        var savedPrefs = await ColumnPrefs.LoadAsync("rawmateriallockplan", null);
+        if (savedPrefs.Count > 0)
+        {
+            foreach (var s in savedPrefs)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
+            }
+            var reordered = new List<ColumnDef>();
+            foreach (var s in savedPrefs)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
+        }
+
+        // 从 PageState 恢复排序/筛选状态（列显隐/顺序由 ColumnPrefs 管理）
         var savedState = await PageState.LoadAsync("rawmateriallockplan");
         if (savedState != null)
         {
             sortColumn = savedState.SortBy ?? "ScheduleStage";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
-
-            if (savedState.Extras?.ContainsKey("columnVisibility") == true)
-            {
-                try
-                {
-                    var raw = savedState.Extras["columnVisibility"];
-                    var visibleKeys = JsonSerializer.Deserialize<List<string>>(raw);
-                    if (visibleKeys != null)
-                    {
-                        var visibleSet = new HashSet<string>(visibleKeys);
-                        foreach (var col in _allColumns)
-                            col.Visible = visibleSet.Contains(col.Key);
-                    }
-                }
-                catch { }
-            }
 
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
@@ -1075,6 +1295,21 @@ public partial class RawMaterialLockPlanAndExecution
                 builder.AddContent(7, item.IsPreInput ? "是" : "否");
                 builder.CloseElement();
                 break;
+            case "IsBudgetComplete":
+                builder.OpenElement(0, "div");
+                builder.AddAttribute(1, "style", "display:flex; align-items:center; gap:4px;");
+                builder.OpenComponent<MudSwitch<bool>>(2);
+                builder.AddAttribute(3, "Value", item.IsBudgetComplete);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, async v =>
+                {
+                    await ToggleBudgetComplete(item, v);
+                }));
+                builder.AddAttribute(5, "Color", Color.Secondary);
+                builder.AddAttribute(6, "Dense", true);
+                builder.CloseComponent();
+                builder.AddContent(7, item.IsBudgetComplete ? "是" : "否");
+                builder.CloseElement();
+                break;
             case "BudgetInputDate":
                 if (item.IsPreInput)
                 {
@@ -1178,8 +1413,6 @@ public partial class RawMaterialLockPlanAndExecution
         var extras = new Dictionary<string, string>();
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
-
-        extras["columnVisibility"] = JsonSerializer.Serialize(_allColumns.Where(c => c.Visible).Select(c => c.Key).ToList());
 
         var state = new PageState
         {

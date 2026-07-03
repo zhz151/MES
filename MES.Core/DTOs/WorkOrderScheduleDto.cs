@@ -122,15 +122,13 @@ public class WorkOrderScheduleDto
 
     // ========== 实时一致性 ==========
     /// <summary>
-    /// 实时一致性：计划值必须已覆盖 且 与系统值一致
-    /// - ScheduleStage（int）：Plan 非 null 且相等
-    /// - 字符串字段：Plan 和系统值均为空/ null 时等价，视为一致
+    /// 实时一致性（由 Service 在查询后设置）：
+    /// - "一致"：4 个 Plan 字段均匹配系统值
+    /// - "进度调整"：仅 ProductionAttentionProcess 不一致（人为调进度，合理）
+    /// - "值存疑"：工单状态/紧急性/流转性 任一不一致（存在疑问）
+    /// - "错误"：同主号下不同工单的计划值不一致（应保持主号级一致）
     /// </summary>
-    public bool ConsistencyStatus =>
-        PlanScheduleStage != null && PlanScheduleStage == ScheduleStage &&
-        (string.IsNullOrEmpty(PlanUrgencyLevel) ? string.IsNullOrEmpty(UrgencyLevel) : PlanUrgencyLevel == UrgencyLevel) &&
-        (string.IsNullOrEmpty(PlanProductionAttentionProcess) ? string.IsNullOrEmpty(MainNoAttentionProcess) : PlanProductionAttentionProcess == MainNoAttentionProcess) &&
-        (string.IsNullOrEmpty(PlanProductionFlowProperty) ? string.IsNullOrEmpty(ProductionFlowProperty) : PlanProductionFlowProperty == ProductionFlowProperty);
+    public string? ConsistencyStatus { get; set; }
 
     // ========== 显示文本 ==========
     public string DelayPenaltyText => DelayPenalty ? "是" : "否";

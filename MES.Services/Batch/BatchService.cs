@@ -1831,6 +1831,7 @@ public class BatchService : IBatchService
             CurrentSectionName = entity.CurrentSectionName,
             CurrentEquipmentName = entity.CurrentEquipmentName,
             CurrentOutsource = entity.CurrentOutsource,
+            CurrentSectionCompleted = entity.CurrentSectionCompleted,
             CurrentSpec = entity.CurrentSpec,
             NextSectionName = entity.NextSectionName,
             CorrespondingSpec = entity.CorrespondingSpec,

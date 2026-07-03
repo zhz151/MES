@@ -21,6 +21,9 @@ public class BatchPlanSchedule : BaseEntity
     /// <summary>冷轧类型</summary>
     public string? FlowCRType { get; set; }
 
+    /// <summary>外径跨度（持久化，可手动优化）</summary>
+    public string? PlanOuterDiameterSpan { get; set; }
+
     /// <summary>执行规格</summary>
     public string? FlowExecSpec { get; set; }
 

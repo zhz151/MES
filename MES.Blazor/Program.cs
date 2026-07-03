@@ -36,7 +36,6 @@ builder.Services.AddScoped<GradeChemicalCompositionService>();
 builder.Services.AddScoped<GradePhysicalPropertyService>();
 builder.Services.AddScoped<SubStandardQuickViewService>();
 builder.Services.AddScoped<StandardInspectionRequirementService>();
-builder.Services.AddScoped<StandardProcessCycleService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ProductRequirementService>();
 builder.Services.AddScoped<WorkOrderService>();
@@ -109,6 +108,7 @@ builder.Services.AddScoped<StandardWorkDayService>();
 builder.Services.AddScoped<StandardWorkDayDeliveryStateService>();
 builder.Services.AddScoped<ConfigParameterService>();
 builder.Services.AddScoped<DailyOutputEstimateService>();
+builder.Services.AddScoped<DailyProductionCapacityService>();
 builder.Services.AddScoped<StandardRegisterService>();
 
 await builder.Build().RunAsync();

@@ -86,7 +86,6 @@ public class OrderWorkOrderStatusDto
                 WorkOrderStatus.NotGenerated => "未编制",
                 WorkOrderStatus.Pending => "待修正",
                 WorkOrderStatus.Confirmed => "已确定",
-                WorkOrderStatus.Cancelled => "已取消",
                 _ => "未知"
             };
         }

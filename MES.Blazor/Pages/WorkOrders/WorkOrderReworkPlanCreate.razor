@@ -262,7 +262,7 @@
                                         @SortIcon("ActualWallThickness") 实际壁厚
                                     </span>
                                 </MudTh>
-                                <MudTh Style="width:48px; background-color: rgba(255, 152, 0, 0.08);">投料倍率</MudTh>
+                                <MudTh Style="width:48px; background-color: rgba(255, 152, 0, 0.08);">投料制成倍</MudTh>
                                 <MudTh Style="width:48px; background-color: rgba(255, 152, 0, 0.08);">使用模式</MudTh>
                                 <MudTh Style="width:48px; background-color: rgba(255, 152, 0, 0.08);">出库支数</MudTh>
                                 <MudTh Style="width:48px; background-color: rgba(255, 152, 0, 0.08);">出库重量</MudTh>
@@ -286,7 +286,7 @@
                                 <MudTd DataLabel="放置框架">@GetLocation(context)</MudTd>
                                 <MudTd DataLabel="实际外径">@DisplayHelper.FormatNullableDecimal(context.ActualOuterDiameter)</MudTd>
                                 <MudTd DataLabel="实际壁厚">@DisplayHelper.FormatNullableDecimal(context.ActualWallThickness)</MudTd>
-                                <MudTd DataLabel="投料倍率" Style="background-color: rgba(255, 152, 0, 0.08);">
+                                <MudTd DataLabel="投料制成倍" Style="background-color: rgba(255, 152, 0, 0.08);">
                                     @if (GetSelection(context.Id))
                                     {
                                         <MudNumericField HideSpinButtons="true" Value="@GetInputMultiple(context.Id)"
