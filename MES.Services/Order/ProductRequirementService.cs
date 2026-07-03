@@ -9,7 +9,7 @@ using MES.Data.Entities;
 using MES.Services.Mapping;
 using MES.Services.Order;
 
-namespace MES.Services;
+namespace MES.Services.Order;
 
 public class ProductRequirementService : IProductRequirementService
 {

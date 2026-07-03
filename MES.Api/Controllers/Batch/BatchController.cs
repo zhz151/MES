@@ -7,7 +7,7 @@ using MES.Core.Models;
 using MES.Core.Exceptions;
 using MES.Shared.Constants;
 
-namespace MES.Api.Controllers;
+namespace MES.Api.Controllers.Batch;
 
 [ApiController]
 [Route("api/batch")]

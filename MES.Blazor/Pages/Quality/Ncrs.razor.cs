@@ -213,9 +213,11 @@ public partial class Ncrs
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && table != null)
+        if (firstRender)
         {
-            await table.ReloadServerData();
+            if (table != null)
+                await table.ReloadServerData();
+            await JS.InvokeVoidAsync("initGroupHeaders", "#ncrs-list-table");
         }
     }
 
@@ -388,6 +390,11 @@ public partial class Ncrs
     private void EditItem(int id)
     {
         Navigation.NavigateTo($"/quality/ncr/{id}");
+    }
+
+    private void PrintItem(int id)
+    {
+        Navigation.NavigateTo($"/quality/ncr/print/{id}");
     }
 
     private async Task DeleteItem(int id)
@@ -592,6 +599,94 @@ public partial class Ncrs
         _ => Color.Default
     };
 
+    // ========== 列显示重置 ==========
+
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        await ColumnPrefs.SaveAsync(PageType, null, _allColumns);
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+        StateHasChanged();
+    }
+
+    // ========== 分组 CSS ==========
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+        int? lastKey = null;
+        int totalWidth = 0;
+        var groupKey = 0;
+        var groupName = "";
+        var count = 0;
+
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo
+                {
+                    GroupKey = groupKey,
+                    GroupName = groupName,
+                    TotalWidth = totalWidth,
+                    ColumnCount = count,
+                    CssClass = GetHeaderGroupCss(groupKey, true)
+                });
+                totalWidth = 0;
+                count = 0;
+            }
+            groupKey = gk;
+            groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++;
+            lastKey = gk;
+        }
+        if (count > 0)
+        {
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        }
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1",
+            2 => "col-g2",
+            3 => "col-g3",
+            4 => "col-g4",
+            5 => "col-g5",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1-cell",
+            2 => "col-g2-cell",
+            3 => "col-g3-cell",
+            4 => "col-g4-cell",
+            5 => "col-g5-cell",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
+
     // ========== 显示格式化 ==========
 
     // ========== 单元格渲染 ==========
@@ -739,4 +834,15 @@ public partial class Ncrs
         SeverityLevel.General => Color.Warning,
         _ => Color.Default
     };
+
+    // ========== 分组标题信息 ==========
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; set; }
+        public string GroupName { get; set; } = "";
+        public int TotalWidth { get; set; }
+        public int ColumnCount { get; set; }
+        public string CssClass { get; set; } = "";
+    }
 }

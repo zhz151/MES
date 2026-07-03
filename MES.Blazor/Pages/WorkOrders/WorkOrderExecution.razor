@@ -59,19 +59,29 @@
                 var _groupHeaders = GetGroupHeaders();
                 var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100);
             }
-            @* 工具栏：列显隐 + 记录数（置于组字段上方） *@
+            @* 工具栏：列显隐 + 重置（左）+ 记录数（右） *@
             <div class="woe-toolbar">
-                <ColumnDisplaySelect Columns="_allColumns"
-                                     OnColumnToggle="OnColumnToggle"
-                                     OnMoveUp="MoveColumnUp"
-                                     OnMoveDown="MoveColumnDown" />
-                <MudText Typo="Typo.body2" Class="ml-4">
-                    共 @_totalCount 条记录
-                    @if (lastRefreshTime.HasValue)
-                    {
-                        <span class="ml-4">最后更新：@lastRefreshTime.Value.ToString("yyyy-MM-dd HH:mm:ss")</span>
-                    }
-                </MudText>
+                <div class="d-flex align-center">
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                </div>
+                <div class="d-flex align-center" style="margin-left:auto;">
+                    <MudText Typo="Typo.body2" Class="ml-4">
+                        共 @_totalCount 条记录
+                        @if (lastRefreshTime.HasValue)
+                        {
+                            <span class="ml-4">最后更新：@lastRefreshTime.Value.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                        }
+                    </MudText>
+                </div>
             </div>
             @* 分组标题栏（flex bar，JS 测量宽度后精确定位） *@
             <div class="col-group-header-scroll" id="woe-group-header-scroll">

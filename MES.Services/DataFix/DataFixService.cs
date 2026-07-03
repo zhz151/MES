@@ -270,7 +270,7 @@ public class DataFixService : IDataFixService
 
     private async Task<int> FixEquipmentTrackingAsync()
     {
-        var equipments = await _context.Set<Equipment>().ToListAsync();
+        var equipments = await _context.Set<MES.Data.Entities.Equipment>().ToListAsync();
 
         // 一次查询所有点检记录的最大日期（按设备分组）
         var maxInsDates = await _context.Set<InspectionRecord>()

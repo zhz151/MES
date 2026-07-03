@@ -11,7 +11,7 @@ using MES.Data.Entities.Scheduling;
 using MES.Services.Helpers;
 using WoEntity = MES.Data.Entities.WorkOrder;
 
-namespace MES.Services;
+namespace MES.Services.WorkOrder;
 
 /// <summary>
 /// 工单执行状况服务（只读查询 + 手动刷新）

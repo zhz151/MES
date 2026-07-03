@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
-using MES.Api.Controllers;
+using MES.Api.Controllers.Materials;
 using MES.Core.DTOs;
 using MES.Core.Interfaces;
 using MES.Core.Models;

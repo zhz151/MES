@@ -8,7 +8,7 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Helpers;
 
-namespace MES.Services;
+namespace MES.Services.Quality;
 
 /// <summary>
 /// 化学分析服务实现

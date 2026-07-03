@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.JSInterop;
 using MudBlazor;
 using MES.Blazor.Components;
 using MES.Blazor.Helpers;
@@ -25,6 +26,9 @@ public partial class QualityProcessTracking
 
     private string sortColumn = "receivedate";
     private bool sortDescending = true;
+
+    // 选中状态（打印选中用）
+    private HashSet<int> _selectedIds = new();
 
     // ExcelFilter 筛选
     private Dictionary<string, HashSet<string>> _columnFilters = new();
@@ -620,6 +624,84 @@ public partial class QualityProcessTracking
                 builder.AddContent(0, "");
                 break;
         }
+    };
+
+    // ========== 打印 ==========
+
+    private async Task PrintSelected()
+    {
+        if (!_selectedIds.Any()) return;
+        var items = _pageItems.Where(i => _selectedIds.Contains(i.Id)).ToList();
+        var html = BuildPrintHtml(items);
+        await JS.InvokeVoidAsync("printRawHtml", html, "成检追踪（选中记录）");
+    }
+
+    private async Task PrintAll()
+    {
+        var html = BuildPrintHtml(_pageItems);
+        await JS.InvokeVoidAsync("printRawHtml", html, "成检追踪");
+    }
+
+    private string BuildPrintHtml(IEnumerable<QualityProcessTrackingDto> items)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("<table border='1' cellpadding='4' cellspacing='0' style='border-collapse:collapse;width:100%;font-size:12px;'>");
+        sb.Append("<thead><tr>");
+        foreach (var col in _visibleColumns)
+            sb.Append($"<th style='background:#f0f0f0;font-weight:bold;'>{System.Net.WebUtility.HtmlEncode(col.Label)}</th>");
+        sb.Append("</tr></thead><tbody>");
+        foreach (var item in items)
+        {
+            sb.Append("<tr>");
+            foreach (var col in _visibleColumns)
+                sb.Append($"<td>{System.Net.WebUtility.HtmlEncode(GetCellPrintValue(item, col))}</td>");
+            sb.Append("</tr>");
+        }
+        sb.Append("</tbody></table>");
+        return sb.ToString();
+    }
+
+    private string GetCellPrintValue(QualityProcessTrackingDto item, ColumnDef col) => col.Key switch
+    {
+        "BatchNo" => item.BatchNo ?? "",
+        "ManufacturingItem" => DisplayHelper.GetManufacturingItemText(item.ManufacturingItem),
+        "PlantGrade" => item.PlantGrade ?? "",
+        "Specification" => item.Specification ?? "",
+        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
+        "TagNo" => item.TagNo ?? "",
+        "WorkOrderNo" => item.WorkOrderNo ?? "",
+        "SalesOrderNo" => item.SalesOrderNo ?? "",
+        "FurnaceNo" => item.FurnaceNo ?? "",
+        "SourceUnit" => item.SourceUnit ?? "",
+        "ProductionType" => DisplayHelper.GetProductionTypeText(item.ProductionType),
+        "Salesman" => item.Salesman ?? "",
+        "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState),
+        "ProductionWeight" => item.ProductionWeight?.ToString("G29") ?? "",
+        "ProductionCutQuantity" => item.ProductionCutQuantity.ToString(),
+        "ReceiveDate" => item.ReceiveDate.ToString("yyyy-MM-dd"),
+        "Shift" => item.Shift ?? "",
+        "Checker" => item.Checker ?? "",
+        "IsForceCompleted" => item.IsForceCompleted ? "是" : "否",
+        "InspectionCount" => item.InspectionCount.ToString(),
+        "PmiDate" => item.PmiDate?.ToString("yyyy-MM-dd") ?? "",
+        "VisualDate" => item.VisualDate?.ToString("yyyy-MM-dd") ?? "",
+        "DimensionDate" => item.DimensionDate?.ToString("yyyy-MM-dd") ?? "",
+        "EndoscopyDate" => item.EndoscopyDate?.ToString("yyyy-MM-dd") ?? "",
+        "HydroDate" => item.HydroDate?.ToString("yyyy-MM-dd") ?? "",
+        "UnderwaterPneumaticDate" => item.UnderwaterPneumaticDate?.ToString("yyyy-MM-dd") ?? "",
+        "EddyCurrentDate" => item.EddyCurrentDate?.ToString("yyyy-MM-dd") ?? "",
+        "UltrasonicDate" => item.UltrasonicDate?.ToString("yyyy-MM-dd") ?? "",
+        "PortColoringDate" => item.PortColoringDate?.ToString("yyyy-MM-dd") ?? "",
+        "TotalQuantity" => item.TotalQuantity.ToString(),
+        "QualifiedQuantity" => item.QualifiedQuantity.ToString(),
+        "DefectReworkQuantity" => item.DefectReworkQuantity.ToString(),
+        "DefectWarehouseQuantity" => item.DefectWarehouseQuantity.ToString(),
+        "DefectScrapQuantity" => item.DefectScrapQuantity.ToString(),
+        "InboundDate" => item.InboundDate?.ToString("yyyy-MM-dd") ?? "",
+        "InboundQuantity" => item.InboundQuantity.ToString(),
+        "InboundWeight" => item.InboundWeight?.ToString("G29") ?? "",
+        "QualityStatus" => item.IsForceCompleted ? "异常完成" : item.QualityStatus ?? "",
+        _ => ""
     };
 
     // ========== 持久化 ==========

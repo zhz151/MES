@@ -10,7 +10,7 @@ using MES.Data.Entities;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
-namespace MES.Services;
+namespace MES.Services.Equipment;
 
 public class EquipmentService : IEquipmentService
 {
@@ -139,7 +139,7 @@ public class EquipmentService : IEquipmentService
             .FirstOrDefaultAsync(e => e.Id == id);
         if (entity == null) throw new BusinessException("设备不存在");
 
-        var list = await ComputeStatusesAsync(new List<Equipment> { entity });
+        var list = await ComputeStatusesAsync(new List<MES.Data.Entities.Equipment> { entity });
         return ToDetailDto(list[0]);
     }
 
@@ -149,7 +149,7 @@ public class EquipmentService : IEquipmentService
             .AnyAsync(e => e.EquipmentCode == request.EquipmentCode);
         if (exists) throw new BusinessException($"设备编号 {request.EquipmentCode} 已存在");
 
-        var entity = new Equipment
+        var entity = new MES.Data.Entities.Equipment
         {
             EquipmentCode = request.EquipmentCode,
             EquipmentName = request.EquipmentName,
@@ -175,7 +175,7 @@ public class EquipmentService : IEquipmentService
         _context.Equipment.Add(entity);
         await _context.SaveChangesAsync();
 
-        var list = await ComputeStatusesAsync(new List<Equipment> { entity });
+        var list = await ComputeStatusesAsync(new List<MES.Data.Entities.Equipment> { entity });
         return ToDetailDto(list[0]);
     }
 
@@ -217,7 +217,7 @@ public class EquipmentService : IEquipmentService
 
         await _context.SaveChangesAsync();
 
-        var list = await ComputeStatusesAsync(new List<Equipment> { entity });
+        var list = await ComputeStatusesAsync(new List<MES.Data.Entities.Equipment> { entity });
         return ToDetailDto(list[0]);
     }
 
@@ -231,7 +231,7 @@ public class EquipmentService : IEquipmentService
         await _context.SaveChangesAsync();
     }
 
-    private async Task<List<EquipmentListDto>> ComputeStatusesAsync(List<Equipment> entities)
+    private async Task<List<EquipmentListDto>> ComputeStatusesAsync(List<MES.Data.Entities.Equipment> entities)
     {
         if (entities.Count == 0) return new List<EquipmentListDto>();
 
@@ -350,7 +350,7 @@ public class EquipmentService : IEquipmentService
         return nameof(RunningStatus.Pending);
     }
 
-    private static EquipmentListDto ToListDto(Equipment e) => new()
+    private static EquipmentListDto ToListDto(MES.Data.Entities.Equipment e) => new()
     {
         Id = e.Id,
         EquipmentCode = e.EquipmentCode,

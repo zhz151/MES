@@ -7,7 +7,7 @@ using MES.Core.Exceptions;
 using MES.Core.Models;
 using MES.Shared.Constants;
 
-namespace MES.Api.Controllers;
+namespace MES.Api.Controllers.WorkOrder;
 
 [ApiController]
 [Route("api/material-plan")]

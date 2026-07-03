@@ -12,7 +12,7 @@ using WoEntity = MES.Data.Entities.WorkOrder;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
-namespace MES.Services;
+namespace MES.Services.Batch;
 
 public class BatchService : IBatchService
 {

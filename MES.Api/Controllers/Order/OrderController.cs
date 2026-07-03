@@ -7,7 +7,7 @@ using MES.Services.Order;
 using MES.Shared.Constants;
 using System.Text.Json;
 
-namespace MES.Api.Controllers;
+namespace MES.Api.Controllers.Order;
 
 [ApiController]
 [Route("api/order")]

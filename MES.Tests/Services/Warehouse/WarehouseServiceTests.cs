@@ -5,7 +5,7 @@ using MES.Core.Exceptions;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
-using MES.Services;
+using MES.Services.Warehouse;
 using MES.Tests.Tests;
 
 namespace MES.Tests.Services;

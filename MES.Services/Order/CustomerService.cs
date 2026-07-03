@@ -12,7 +12,7 @@ using MES.Services.Helpers;
 using MES.Services.Printing;
 using MES.Services.Order;
 
-namespace MES.Services;
+namespace MES.Services.Order;
 
 /// <summary>
 /// Customer profile service implementation

@@ -4,12 +4,11 @@ using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Data.Entities;
-using MES.Services;
+using MES.Services.Order;
 using MES.Tests.Tests;
 using Moq;
 using MES.Data;
 using Microsoft.Extensions.Logging;
-using MES.Services.Order;
 using MES.Core.Interfaces;
 
 namespace MES.Tests.Services;

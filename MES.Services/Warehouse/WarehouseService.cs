@@ -8,7 +8,7 @@ using MES.Data.Entities;
 using MES.Services.Helpers;
 using MES.Services.Mapping;
 
-namespace MES.Services;
+namespace MES.Services.Warehouse;
 
 public class WarehouseService : IWarehouseService
 {
@@ -97,7 +97,7 @@ public class WarehouseService : IWarehouseService
         if (exists)
             throw new BusinessException($"仓库代码 '{request.Code}' 已存在");
 
-        var entity = new Warehouse
+        var entity = new MES.Data.Entities.Warehouse
         {
             Code = request.Code,
             Name = request.Name,

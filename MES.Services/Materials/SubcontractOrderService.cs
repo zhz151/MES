@@ -10,7 +10,7 @@ using WoEntity = MES.Data.Entities.WorkOrder;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
-namespace MES.Services;
+namespace MES.Services.Materials;
 
 public class SubcontractOrderService : ISubcontractOrderService
 {

@@ -6,7 +6,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Shared.Constants;
 
-namespace MES.Api.Controllers;
+namespace MES.Api.Controllers.Quality;
 
 /// <summary>
 /// 来料炉号登记控制器

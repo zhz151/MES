@@ -5,7 +5,7 @@ using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
-using MES.Services;
+using MES.Services.Infrastructure;
 using MES.Tests.Tests;
 
 namespace MES.Tests.Services;

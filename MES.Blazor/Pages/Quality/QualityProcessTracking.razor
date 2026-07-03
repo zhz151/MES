@@ -39,26 +39,50 @@
             <div id="quality-process-tracking-list-table">
             @{
                 var _groupHeaders = GetGroupHeaders();
-                var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100);
+                var _checkboxWidth = 40;
+                var _checkboxWidthStr = "40";
+                var _totalTableWidth = _checkboxWidth + _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100);
             }
+            @* 工具栏：列显隐 + 重置（左）+ 打印 + 记录数（右） *@
             <div class="woe-toolbar">
-                <ColumnDisplaySelect Columns="_allColumns"
-                                     OnColumnToggle="OnColumnToggle"
-                                     OnMoveUp="MoveColumnUp"
-                                     OnMoveDown="MoveColumnDown" />
-                <MudText Typo="Typo.body2">
-                    共 @_totalCount 条记录
-                </MudText>
-                <MudButton Variant="Variant.Text" Size="Size.Small"
-                           Color="Color.Default"
-                           StartIcon="@Icons.Material.Filled.RestartAlt"
-                           OnClick="ResetColumnDisplay" Class="ml-2">
-                    重置
-                </MudButton>
+                <div class="d-flex align-center">
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                </div>
+                <div class="d-flex align-center" style="margin-left:auto;">
+                    <MudButton Variant="Variant.Outlined"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               Disabled="@(!_selectedIds.Any())"
+                               OnClick="PrintSelected">
+                        打印选中 (@_selectedIds.Count)
+                    </MudButton>
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll"
+                               Class="ml-2">
+                        打印全部
+                    </MudButton>
+                    <MudText Typo="Typo.body2" Class="ml-4">
+                        共 @_totalCount 条记录
+                    </MudText>
+                </div>
             </div>
             @* 分组标题栏 *@
             <div class="col-group-header-scroll" id="qpt-group-header-scroll">
-                <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                <div class="col-group-header-bar" style="@("width: " + _totalTableWidth + "px")">
+                    <div class="col-group-header-item" style="@("width: " + _checkboxWidthStr + "px; min-width: " + _checkboxWidthStr + "px")"></div>
                     @foreach (var gh in _groupHeaders)
                     {
                         <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
@@ -73,6 +97,12 @@
                       Elevation="0" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
 
                 <HeaderContent>
+                    <MudTh Style="@("width: 40px")">
+                        <MudCheckBox T="bool"
+                                     Value="@(_pageItems.Any() && _pageItems.All(i => _selectedIds.Contains(i.Id)))"
+                                     ValueChanged="@((v) => { if(v) { foreach(var i in _pageItems) _selectedIds.Add(i.Id); } else { foreach(var i in _pageItems) _selectedIds.Remove(i.Id); } StateHasChanged(); })"
+                                     Dense="true" />
+                    </MudTh>
                     @{
                         int? _prevGk = null;
                     }
@@ -102,6 +132,12 @@
                 </HeaderContent>
 
                 <RowTemplate Context="item">
+                    <MudTd Style="@("width: 40px")">
+                        <MudCheckBox T="bool"
+                                     Value="@_selectedIds.Contains(item.Id)"
+                                     ValueChanged="@(v => { if(v) _selectedIds.Add(item.Id); else _selectedIds.Remove(item.Id); StateHasChanged(); })"
+                                     Dense="true" />
+                    </MudTd>
                     @{
                         int? _prevGk2 = null;
                     }
@@ -115,6 +151,7 @@
                 </RowTemplate>
 
                 <FooterContent>
+                    <MudTd Style="@("width: 40px")" Class="col-footer-cell"></MudTd>
                     @{
                         int? _prevGk3 = null;
                     }

@@ -77,8 +77,13 @@
                                          OnMoveUp="MoveColumnUp"
                                          OnMoveDown="MoveColumnDown" />
                     <MudButton Variant="Variant.Text" Size="Size.Small"
-                               OnClick="ResetColumnDisplay">重置列</MudButton>
-                    <MudText Class="ml-2" Typo="Typo.body2">共 @_totalCount 条记录</MudText>
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                    <MudSpacer />
+                    <MudText Typo="Typo.body2">共 @_totalCount 条记录</MudText>
                 </ToolBarContent>
 
                 <HeaderContent>

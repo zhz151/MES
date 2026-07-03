@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
-using MES.Api.Controllers;
+using MES.Api.Controllers.Quality;
 using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Interfaces;

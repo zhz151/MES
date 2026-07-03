@@ -10,7 +10,7 @@ using MES.Core.Enums;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
-namespace MES.Services;
+namespace MES.Services.Materials;
 
 public class PurchaseOrderService : IPurchaseOrderService
 {

@@ -13,7 +13,7 @@ using MES.Services.Mapping;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
-namespace MES.Services;
+namespace MES.Services.Warehouse;
 
 public class InventoryService : IInventoryService
 {

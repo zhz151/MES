@@ -8,7 +8,7 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Helpers;
 
-namespace MES.Services;
+namespace MES.Services.Quality;
 
 /// <summary>
 /// 来料炉号登记服务实现

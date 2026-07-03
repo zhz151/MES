@@ -7,7 +7,7 @@ using MES.Core.Constants;
 using MES.Data;
 using MES.Data.Entities;
 
-namespace MES.Services;
+namespace MES.Services.Infrastructure;
 
 /// <summary>
 /// 扫码执行服务实现

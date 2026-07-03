@@ -12,7 +12,7 @@ using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
-namespace MES.Services;
+namespace MES.Services.Batch;
 
 /// <summary>
 /// 生产记录服务实现

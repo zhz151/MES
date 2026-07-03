@@ -9,7 +9,7 @@ using MES.Data.Entities;
 using MES.Services.Extensions;
 using MES.Services.Helpers;
 
-namespace MES.Services;
+namespace MES.Services.Quality;
 
 /// <summary>
 /// 过程检验服务实现

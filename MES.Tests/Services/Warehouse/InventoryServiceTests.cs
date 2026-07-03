@@ -6,7 +6,7 @@ using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Interfaces;
 using MES.Core.Models;
-using MES.Services;
+using MES.Services.Warehouse;
 using MES.Tests.Tests;
 using MES.Data;
 using MES.Data.Entities;

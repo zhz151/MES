@@ -4,7 +4,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 
-namespace MES.Services;
+namespace MES.Services.WorkOrder;
 
 /// <summary>
 /// 通知服务实现（统一使用 Notifications 表）

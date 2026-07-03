@@ -15,7 +15,7 @@ using QuestPDF.Infrastructure;
 
 using WoEntity = MES.Data.Entities.WorkOrder;
 
-namespace MES.Services;
+namespace MES.Services.WorkOrder;
 
 /// <summary>
 /// 用料计划服务实现

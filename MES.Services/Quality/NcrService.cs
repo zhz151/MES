@@ -9,7 +9,7 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Helpers;
 
-namespace MES.Services;
+namespace MES.Services.Quality;
 
 /// <summary>
 /// NCR 不合格品报告服务实现

@@ -492,6 +492,14 @@ public partial class WorkOrderExecution
         if (table != null) await table.ReloadServerData();
     }
 
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+        StateHasChanged();
+    }
+
     private async Task MoveColumnUp(ColumnDef col)
     {
         await SavePageStateAsync();

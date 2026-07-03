@@ -8,7 +8,7 @@ using MES.Data.Entities;
 using MES.Core.Exceptions;
 using MES.Services.Mapping;
 
-namespace MES.Services;
+namespace MES.Services.WorkOrder;
 
 public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
 {

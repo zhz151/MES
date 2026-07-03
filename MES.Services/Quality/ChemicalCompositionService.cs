@@ -9,7 +9,7 @@ using MES.Data.Entities;
 using MES.Services.Helpers;
 using OfficeOpenXml;
 
-namespace MES.Services;
+namespace MES.Services.Quality;
 
 /// <summary>
 /// 牌号化学成分服务实现

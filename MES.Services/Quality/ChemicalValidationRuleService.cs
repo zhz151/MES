@@ -8,7 +8,7 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Helpers;
 
-namespace MES.Services;
+namespace MES.Services.Quality;
 
 /// <summary>
 /// 牌号验证服务实现

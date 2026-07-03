@@ -54,7 +54,7 @@ public class DataExchangeService : IDataExchangeService
     public static readonly Dictionary<string, EntityDef> Registry = new()
     {
         // === 第1批：独立实体（无外部FK依赖） ===
-        ["Warehouse"] = new EntityDef("仓库-仓库档案", "仓库-仓库档案", typeof(Warehouse), 1, "Code", new List<ColumnDef>
+        ["Warehouse"] = new EntityDef("仓库-仓库档案", "仓库-仓库档案", typeof(MES.Data.Entities.Warehouse), 1, "Code", new List<ColumnDef>
         {
             new("仓库编码", "Code"),
             new("仓库名称", "Name"),
@@ -102,7 +102,7 @@ public class DataExchangeService : IDataExchangeService
         }),
 
         // === 设备台账 ===
-        ["Equipment"] = new EntityDef("设备-设备台账", "设备-设备台账", typeof(Equipment), 1, "EquipmentCode", new List<ColumnDef>
+        ["Equipment"] = new EntityDef("设备-设备台账", "设备-设备台账", typeof(MES.Data.Entities.Equipment), 1, "EquipmentCode", new List<ColumnDef>
         {
             new("设备编号", "EquipmentCode"),
             new("设备名称", "EquipmentName"),

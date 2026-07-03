@@ -8,7 +8,7 @@ using MES.Data.Entities;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
-namespace MES.Services;
+namespace MES.Services.Materials;
 
 public class MaterialService : IMaterialService
 {

@@ -7,6 +7,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services;
+using MES.Services.Batch;
 using MES.Tests.Tests;
 
 namespace MES.Tests.Services;

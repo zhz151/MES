@@ -9,7 +9,7 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Helpers;
 
-namespace MES.Services;
+namespace MES.Services.Quality;
 
 /// <summary>
 /// 质量过程跟踪服务（成检到料 → 成品检验 → 成品入库 联通表）

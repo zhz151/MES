@@ -6,7 +6,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Shared.Constants;
 
-namespace MES.Api.Controllers;
+namespace MES.Api.Controllers.Batch;
 
 /// <summary>
 /// 生产记录控制器（内部生产记录/工段委外/委外回收/检验到料）

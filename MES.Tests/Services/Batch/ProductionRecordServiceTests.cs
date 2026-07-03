@@ -8,6 +8,7 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Core.Interfaces;
 using MES.Services;
+using MES.Services.Batch;
 using MES.Tests.Tests;
 using Moq;
 

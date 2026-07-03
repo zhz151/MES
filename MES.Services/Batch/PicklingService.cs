@@ -11,7 +11,7 @@ using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
-namespace MES.Services;
+namespace MES.Services.Batch;
 
 public class PicklingService : IPicklingService
 {

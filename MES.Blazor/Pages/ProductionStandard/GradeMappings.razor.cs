@@ -12,7 +12,7 @@ using MES.Core.Models;
 using MES.Blazor.Shared;
 using System.Text.Json;
 
-namespace MES.Blazor.Pages.Orders;
+namespace MES.Blazor.Pages.ProductionStandard;
 
 public partial class GradeMappings
 {

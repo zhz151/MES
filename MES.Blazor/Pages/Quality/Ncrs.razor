@@ -93,27 +93,63 @@
             </MudGrid>
 
             <!-- 数据表格 -->
+            <div id="ncrs-list-table">
+            @{
+                var _groupHeaders = GetGroupHeaders();
+                var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 160;
+            }
+            @* 工具栏：列显隐 + 重置（左）+ 记录数（右） *@
+            <div class="woe-toolbar">
+                <div class="d-flex align-center">
+                    <ColumnDisplaySelect Columns="@_allColumns"
+                                         OnColumnToggle="@OnColumnToggle"
+                                         OnMoveUp="@MoveColumnUp"
+                                         OnMoveDown="@MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                </div>
+                <div class="d-flex align-center" style="margin-left:auto;">
+                    <MudText Typo="Typo.body2" Class="ml-4">
+                        共 @_totalCount 条记录
+                    </MudText>
+                </div>
+            </div>
+            @* 分组标题栏 *@
+            <div class="col-group-header-scroll" id="ncrs-group-header-scroll">
+                <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                    @foreach (var gh in _groupHeaders)
+                    {
+                        <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                            <span class="col-group-badge">@gh.GroupName</span>
+                        </div>
+                    }
+                    <div class="col-group-header-item" style="width: 160px; min-width: 160px"></div>
+                </div>
+            </div>
             <MudTable @ref="table"
                       T="NcrDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true" Hover="true"
                       Elevation="0" RowsPerPage="@_pageSize"
-                      Class="auto-table">
-                <ToolBarContent>
-                    <ColumnDisplaySelect Columns="@_allColumns"
-                                         OnColumnToggle="@OnColumnToggle"
-                                         OnMoveUp="@MoveColumnUp"
-                                         OnMoveDown="@MoveColumnDown" />
-                    <MudSpacer />
-                    <MudText Typo="Typo.body2" Class="ml-auto">共 @_totalCount 条记录</MudText>
-                </ToolBarContent>
+                      Class="mt-0 auto-table compact-table">
                 <HeaderContent>
+                    @{
+                        int? _prevGk = null;
+                    }
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTh Style="@($"width: {col.Width}")">
-                            <div style="display: flex; align-items: center; gap: 2px;">
+                        var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
+                        _prevGk = col.GroupKey;
+                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
+                        <MudTh Class="@_headerClass" Style="@($"width: {col.Width}")">
+                            <div class="col-header-cell">
                                 <span @onclick='() => ToggleSort(col.SortKey ?? col.Key)'
-                                      style="cursor: pointer; white-space: nowrap; user-select: none;">
+                                      style="cursor: pointer; white-space: nowrap; user-select: none;"
+                                      class="th-label">
                                     @col.Label
                                     @if (sortColumn == (col.SortKey ?? col.Key))
                                     {
@@ -133,17 +169,26 @@
                             </div>
                         </MudTh>
                     }
-                    <MudTh Style="width: 140px;">操作</MudTh>
+                    <MudTh Style="width: 160px;" Class="@GetHeaderGroupCss(null, false)">操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
+                    @{
+                        int? _prevGk2 = null;
+                    }
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>
+                        var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
+                        _prevGk2 = col.GroupKey;
+                        var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
+                        <MudTd Class="@_cellClass">
                             @RenderCell(item, col)
                         </MudTd>
                     }
-                    <MudTd>
+                    <MudTd Class="@GetCellGroupCss(null, false)">
                         <AuthorizeView Roles="@Roles.Policies.QualityWrite">
+                            <MudIconButton Icon="@Icons.Material.Filled.Print"
+                                           Size="Size.Small" Color="Color.Default"
+                                           OnClick='() => PrintItem(item.Id)' />
                             <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                            Size="Size.Small" Color="Color.Primary"
                                            OnClick='() => EditItem(item.Id)' />
@@ -154,9 +199,17 @@
                     </MudTd>
                 </RowTemplate>
                 <FooterContent>
+                    @{
+                        int? _prevGk3 = null;
+                    }
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd Class="col-footer-cell"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
+                        var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
+                        _prevGk3 = col.GroupKey;
+                        var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell";
+                        <MudTd Class="@_footerClass">
+                            <span class="col-footer-sum">@RenderFooterCell(col)</span>
+                        </MudTd>
                     }
                     <MudTd Class="col-footer-cell"></MudTd>
                 </FooterContent>
@@ -164,6 +217,7 @@
                     <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
             </MudTable>
+            </div>
         </MudCardContent>
     </MudCard>
 </MudContainer>

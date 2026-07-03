@@ -187,7 +187,7 @@ public static class DtoMapper
 
     // ========== 仓库上下文 Mapping ==========
 
-    public static WarehouseDto ToDto(this Warehouse entity) => new()
+    public static WarehouseDto ToDto(this MES.Data.Entities.Warehouse entity) => new()
     {
         Id = entity.Id,
         Code = entity.Code,
