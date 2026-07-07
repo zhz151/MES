@@ -45,9 +45,16 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
                 .Select(e => e.ToDto())
                 .ToListAsync(),
 
-3 => await _context.InventoryPlanProcessGroups
+            3 => await _context.InventoryPlanProcessGroups
                 .AsNoTracking()
                 .Where(e => e.InventoryPlanId == planId)
+                .OrderBy(e => e.SequenceNumber)
+                .Select(e => e.ToDto())
+                .ToListAsync(),
+
+            6 => await _context.InProcessReworkPlanProcessGroups
+                .AsNoTracking()
+                .Where(e => e.InProcessReworkPlanId == planId)
                 .OrderBy(e => e.SequenceNumber)
                 .Select(e => e.ToDto())
                 .ToListAsync(),
@@ -146,6 +153,32 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
                     });
                 }
             }
+            else if (planType == 6)
+            {
+                var existing = await _context.InProcessReworkPlanProcessGroups
+                    .Where(e => e.InProcessReworkPlanId == planId).ToListAsync();
+                _context.InProcessReworkPlanProcessGroups.RemoveRange(existing);
+                int seq = 1;
+                foreach (var item in items)
+                {
+                    _context.InProcessReworkPlanProcessGroups.Add(new InProcessReworkPlanProcessGroup
+                    {
+                        InProcessReworkPlanId = planId, SequenceNumber = seq++,
+                        ProcessName = item.ProcessName, ManufacturingSpec = item.ManufacturingSpec,
+                        OuterDiameterTolerance = item.OuterDiameterTolerance, WallThicknessTolerance = item.WallThicknessTolerance,
+                        ManufacturingLength = item.ManufacturingLength, CuttingTreatment = item.CuttingTreatment,
+                        ManufacturingMultiple = item.ManufacturingMultiple, Remark = item.Remark,
+                        ColdRollDraw = item.ColdRollDraw, OilPipeCut = item.OilPipeCut,
+                        Degrease = item.Degrease, Solution = item.Solution,
+                        Straighten = item.Straighten, Cut = item.Cut,
+                        ThicknessMeasure = item.ThicknessMeasure, Pickle = item.Pickle,
+                        OuterPolish = item.OuterPolish, InnerGrinding = item.InnerGrinding,
+                        OuterSpotGrinding = item.OuterSpotGrinding, Inspection = item.Inspection,
+                        WeldingHead = item.WeldingHead, Lubrication = item.Lubrication,
+                        Warehouse = item.Warehouse
+                    });
+                }
+            }
             else
             {
                 throw new BusinessException($"暂不支持该计划类型的工序组保存: {planType}");
@@ -165,6 +198,7 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
                     1 => "UPDATE PurchaseSemiPlan SET StandardCycle = {0} WHERE Id = {1}",
                     3 => "UPDATE InventoryPlan SET StandardCycle = {0} WHERE Id = {1}",
                     4 => "UPDATE RoundBarPiercingPlan SET StandardCycle = {0} WHERE Id = {1}",
+                    6 => "UPDATE InProcessReworkPlan SET StandardCycle = {0} WHERE Id = {1}",
                     _ => null
                 };
                 if (sql != null)
@@ -208,6 +242,12 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
         else if (planType == 4)
         {
             var plan = await _context.RoundBarPiercingPlans.FindAsync(planId);
+            if (plan == null) return defaultCycle;
+            workOrderId = plan.WorkOrderId;
+        }
+        else if (planType == 6)
+        {
+            var plan = await _context.InProcessReworkPlans.FindAsync(planId);
             if (plan == null) return defaultCycle;
             workOrderId = plan.WorkOrderId;
         }

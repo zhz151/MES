@@ -365,6 +365,96 @@ public class MaterialPlanService
 
     #endregion
 
+    #region 在产改制计划
+
+    public async Task<ApiResponse<List<InProcessReworkPlanDto>>> GetInProcessReworkPlansAsync(int workOrderId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<InProcessReworkPlanDto>>>($"{BaseUrl}/in-process-rework/{workOrderId}");
+            return response ?? ApiResponse<List<InProcessReworkPlanDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<InProcessReworkPlanDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<InProcessReworkPlanDto>> GetInProcessReworkPlanByIdAsync(int id)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<InProcessReworkPlanDto>>($"{BaseUrl}/in-process-rework/detail/{id}");
+            return response ?? ApiResponse<InProcessReworkPlanDto>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<InProcessReworkPlanDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<InProcessReworkPlanDto>> CreateInProcessReworkPlanAsync(CreateInProcessReworkPlanRequest request)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<CreateInProcessReworkPlanRequest, ApiResponse<InProcessReworkPlanDto>>($"{BaseUrl}/in-process-rework", request);
+            return response ?? ApiResponse<InProcessReworkPlanDto>.Fail("创建失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<InProcessReworkPlanDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<InProcessReworkPlanDto>> UpdateInProcessReworkPlanAsync(int id, CreateInProcessReworkPlanRequest request)
+    {
+        try
+        {
+            var response = await _http.PutAsJsonAsync<CreateInProcessReworkPlanRequest, ApiResponse<InProcessReworkPlanDto>>($"{BaseUrl}/in-process-rework/{id}", request);
+            return response ?? ApiResponse<InProcessReworkPlanDto>.Fail("更新失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<InProcessReworkPlanDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse> DeleteInProcessReworkPlanAsync(int id)
+    {
+        try
+        {
+            var response = await _http.DeleteFromJsonAsync<ApiResponse>($"{BaseUrl}/in-process-rework/{id}");
+            return response ?? ApiResponse.Fail("删除失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<List<AvailableInProcessBatchDto>>> GetAvailableInProcessBatchesAsync(int workOrderId, ReworkType? reworkType = null, int? excludePlanId = null)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/in-process-batches/{workOrderId}";
+            var queryParams = new List<string>();
+            if (reworkType.HasValue)
+                queryParams.Add($"reworkType={reworkType.Value}");
+            if (excludePlanId.HasValue)
+                queryParams.Add($"excludePlanId={excludePlanId.Value}");
+            if (queryParams.Any())
+                url += "?" + string.Join("&", queryParams);
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<AvailableInProcessBatchDto>>>(url);
+            return response ?? ApiResponse<List<AvailableInProcessBatchDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<AvailableInProcessBatchDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    #endregion
+
     #region 测算
 
     public async Task<ApiResponse<MaterialCalculateResult>> CalculateAsync(MaterialCalculateRequest request)
@@ -479,6 +569,19 @@ public class MaterialPlanService
         }
     }
 
+    public async Task<ApiResponse<string>> PrintInProcessReworkPlanAsync(int planId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<string>>($"{BaseUrl}/print/in-process-rework/{planId}");
+            return response ?? ApiResponse<string>.Fail("打印生成失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<string>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
     public async Task<ApiResponse<string>> PrintSelectedPlansAsync(MaterialPlanBatchPrintRequest request)
     {
         try
@@ -489,6 +592,46 @@ public class MaterialPlanService
         catch (Exception ex)
         {
             return ApiResponse<string>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    #endregion
+
+    #region 仓库通知
+
+    /// <summary>
+    /// 获取指定仓库中存在未出库用料计划的批次列表
+    /// </summary>
+    public async Task<ApiResponse<List<PendingPlanBatchDto>>> GetPendingPlanBatchesAsync(int warehouseId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<PendingPlanBatchDto>>>($"{BaseUrl}/pending-batches/{warehouseId}");
+            return response ?? ApiResponse<List<PendingPlanBatchDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<PendingPlanBatchDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    #endregion
+
+    #region 批次通知
+
+    /// <summary>
+    /// 获取所有待处理的在产改制计划列表
+    /// </summary>
+    public async Task<ApiResponse<List<PendingPlanBatchDto>>> GetPendingInProcessReworkPlansAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<PendingPlanBatchDto>>>($"{BaseUrl}/pending-inprocess-rework");
+            return response ?? ApiResponse<List<PendingPlanBatchDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<PendingPlanBatchDto>>.Fail($"网络错误: {ex.Message}");
         }
     }
 

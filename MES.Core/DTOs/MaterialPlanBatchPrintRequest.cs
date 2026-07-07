@@ -34,4 +34,9 @@ public class MaterialPlanBatchPrintRequest
     /// 是否包含圆棒穿孔计划
     /// </summary>
     public bool IncludeRoundBarPiercing { get; set; }
+
+    /// <summary>
+    /// 是否包含在产改制计划
+    /// </summary>
+    public bool IncludeInProcessRework { get; set; }
 }

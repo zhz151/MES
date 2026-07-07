@@ -61,7 +61,6 @@ public class InboundHistoryTests : TestBase
                 {
                     Id = 1,
                     BatchNo = "BATCH-IB-001",
-                    WarehouseName = "主仓库",
                     PlantGrade = "304",
                     Specification = "219*8",
                     InboundDate = DateTime.Today,

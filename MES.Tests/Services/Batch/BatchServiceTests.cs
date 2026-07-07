@@ -34,7 +34,9 @@ public class BatchServiceTests : TestBase
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, configMock.Object);
+        var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
+        var materialPlanMock = new Mock<IMaterialPlanService>();
+        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, configMock.Object, workOrderExecMock.Object, materialPlanMock.Object);
     }
 
     // ========== 种子数据辅助方法 ==========

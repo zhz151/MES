@@ -1,6 +1,8 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using MES.Core.DTOs;
+using MES.Core.Interfaces;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Models;
@@ -17,7 +19,10 @@ namespace MES.Tests.Services;
 public class FinalInspectionServiceTests : TestBase
 {
     private FinalInspectionService CreateService(AppDbContext ctx)
-        => new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FinalInspectionService>.Instance);
+    {
+        var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
+        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FinalInspectionService>.Instance, workOrderExecMock.Object);
+    }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")
     {

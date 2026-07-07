@@ -919,7 +919,7 @@
                 int newIdx = 0;
                 for (int i = 0; i < _editItems.Count; i++)
                 {
-                    if (!_editItems[i].Id.HasValue || _editItems[i].Id.Value == 0)
+                    if (_editItems[i].Id is null or 0)
                     {
                         if (response.NewItemIdMap.TryGetValue(newIdx, out var realId))
                             _editItems[i].Id = realId;

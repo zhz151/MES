@@ -189,7 +189,63 @@ public interface IMaterialPlanService
     Task<byte[]> PrintPiercingPlanAsync(int planId);
 
     /// <summary>
+    /// 生成在产改制计划PDF（返回byte[]）
+    /// </summary>
+    Task<byte[]> PrintInProcessReworkPlanAsync(int planId);
+
+    /// <summary>
     /// 批量打印选中工单的指定类型用料计划
     /// </summary>
     Task<byte[]> PrintSelectedPlansAsync(MaterialPlanBatchPrintRequest request);
+
+    /// <summary>
+    /// 重新计算库料改制计划的工艺周期（工序组变更后调用）
+    /// </summary>
+    Task RecalculateStandardCycleForBatchAsync(string batchNo);
+
+    // ========== 在产改制计划 ==========
+
+    /// <summary>
+    /// 获取工单的在产改制计划列表
+    /// </summary>
+    Task<List<InProcessReworkPlanDto>> GetInProcessReworkPlansAsync(int workOrderId);
+
+    /// <summary>
+    /// 获取单个在产改制计划详情
+    /// </summary>
+    Task<InProcessReworkPlanDto> GetInProcessReworkPlanByIdAsync(int id);
+
+    /// <summary>
+    /// 创建在产改制计划
+    /// </summary>
+    Task<InProcessReworkPlanDto> CreateInProcessReworkPlanAsync(CreateInProcessReworkPlanRequest request);
+
+    /// <summary>
+    /// 更新在产改制计划
+    /// </summary>
+    Task<InProcessReworkPlanDto> UpdateInProcessReworkPlanAsync(int id, CreateInProcessReworkPlanRequest request);
+
+    /// <summary>
+    /// 删除在产改制计划
+    /// </summary>
+    Task DeleteInProcessReworkPlanAsync(int id);
+
+    /// <summary>
+    /// 获取工单可用的在产批次（非工单 + 未产/在产）
+    /// </summary>
+    Task<List<AvailableInProcessBatchDto>> GetAvailableInProcessBatchesAsync(int workOrderId, ReworkType? reworkType = null, int? excludePlanId = null);
+
+    // ========== 批次通知 ==========
+
+    /// <summary>
+    /// 获取所有待处理（Planned状态）的在产改制计划列表
+    /// </summary>
+    Task<List<PendingPlanBatchDto>> GetPendingInProcessReworkPlansAsync();
+
+    // ========== 仓库通知 ==========
+
+    /// <summary>
+    /// 获取指定仓库中存在未出库用料计划的批次列表
+    /// </summary>
+    Task<List<PendingPlanBatchDto>> GetPendingPlanBatchesByWarehouseAsync(int warehouseId);
 }

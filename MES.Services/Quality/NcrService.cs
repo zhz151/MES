@@ -305,19 +305,19 @@ public class NcrService : INcrService
             .Distinct().ToListAsync();
         results["disposalmethod"] = await queryable
             .Where(r => r.DisposalMethod != null)
-            .Select(r => r.DisposalMethod!.ToString())
+            .Select(r => r.DisposalMethod!.ToString()!)
             .Distinct().ToListAsync();
         results["severity"] = await queryable
             .Where(r => r.Severity != null)
-            .Select(r => r.Severity!.ToString())
+            .Select(r => r.Severity!.ToString()!)
             .Distinct().ToListAsync();
         results["responsibilitycategory"] = await queryable
             .Where(r => r.ResponsibilityCategory != null)
-            .Select(r => r.ResponsibilityCategory!.ToString())
+            .Select(r => r.ResponsibilityCategory!.ToString()!)
             .Distinct().ToListAsync();
         results["verifyresult"] = await queryable
             .Where(r => r.VerifyResult != null)
-            .Select(r => r.VerifyResult!.ToString())
+            .Select(r => r.VerifyResult!.ToString()!)
             .Distinct().ToListAsync();
         results["status"] = await queryable
             .Select(r => r.Status.ToString())

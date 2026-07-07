@@ -225,6 +225,78 @@ public class MaterialPlanController : ControllerBase
 
     #endregion
 
+    #region 在产改制计划
+
+    [HttpGet("in-process-rework/{workOrderId}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<InProcessReworkPlanDto>>>> GetInProcessReworkPlans(int workOrderId)
+    {
+        var result = await _materialPlanService.GetInProcessReworkPlansAsync(workOrderId);
+        return Ok(ApiResponse<List<InProcessReworkPlanDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("in-process-rework/detail/{id}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<InProcessReworkPlanDto>>> GetInProcessReworkPlanById(int id)
+    {
+        var result = await _materialPlanService.GetInProcessReworkPlanByIdAsync(id);
+        return Ok(ApiResponse<InProcessReworkPlanDto>.Ok(result, "查询成功"));
+    }
+
+    [HttpPost("in-process-rework")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<InProcessReworkPlanDto>>> CreateInProcessReworkPlan(
+        [FromBody] CreateInProcessReworkPlanRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<InProcessReworkPlanDto>.Fail("请求参数无效"));
+
+        var result = await _materialPlanService.CreateInProcessReworkPlanAsync(request);
+        return Ok(ApiResponse<InProcessReworkPlanDto>.Ok(result, "创建成功"));
+    }
+
+    [HttpPut("in-process-rework/{id}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<InProcessReworkPlanDto>>> UpdateInProcessReworkPlan(
+        int id, [FromBody] CreateInProcessReworkPlanRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<InProcessReworkPlanDto>.Fail("请求参数无效"));
+
+        var result = await _materialPlanService.UpdateInProcessReworkPlanAsync(id, request);
+        return Ok(ApiResponse<InProcessReworkPlanDto>.Ok(result, "更新成功"));
+    }
+
+    [HttpDelete("in-process-rework/{id}")]
+    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse>> DeleteInProcessReworkPlan(int id)
+    {
+        await _materialPlanService.DeleteInProcessReworkPlanAsync(id);
+        return Ok(ApiResponse.Ok("删除成功"));
+    }
+
+    [HttpGet("in-process-batches/{workOrderId}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<AvailableInProcessBatchDto>>>> GetAvailableInProcessBatches(
+        int workOrderId, [FromQuery] ReworkType? reworkType = null, [FromQuery] int? excludePlanId = null)
+    {
+        var result = await _materialPlanService.GetAvailableInProcessBatchesAsync(workOrderId, reworkType, excludePlanId);
+        return Ok(ApiResponse<List<AvailableInProcessBatchDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 获取所有待处理的在产改制计划（批次上下文通知使用）
+    /// </summary>
+    [HttpGet("pending-inprocess-rework")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<PendingPlanBatchDto>>>> GetPendingInProcessReworkPlans()
+    {
+        var result = await _materialPlanService.GetPendingInProcessReworkPlansAsync();
+        return Ok(ApiResponse<List<PendingPlanBatchDto>>.Ok(result, "查询成功"));
+    }
+
+    #endregion
+
     #region 圆棒穿孔计划
 
     [HttpGet("piercing/{workOrderId}")]
@@ -360,6 +432,15 @@ public class MaterialPlanController : ControllerBase
         return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
     }
 
+    [HttpGet("print/in-process-rework/{id}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintInProcessReworkPlan(int id)
+    {
+        var bytes = await _materialPlanService.PrintInProcessReworkPlanAsync(id);
+        var base64 = Convert.ToBase64String(bytes);
+        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
+    }
+
     [HttpPost("print/batch")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintBatch([FromBody] MaterialPlanBatchPrintRequest request)
@@ -368,7 +449,7 @@ public class MaterialPlanController : ControllerBase
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
         if (request.WorkOrderIds.Length == 0)
             return BadRequest(ApiResponse<string>.Fail("请选择工单"));
-        if (!request.IncludeSemi && !request.IncludeFinish && !request.IncludeInventory && !request.IncludeRework && !request.IncludeRoundBarPiercing)
+        if (!request.IncludeSemi && !request.IncludeFinish && !request.IncludeInventory && !request.IncludeRework && !request.IncludeRoundBarPiercing && !request.IncludeInProcessRework)
             return BadRequest(ApiResponse<string>.Fail("请至少选择一种计划类型"));
 
         try
@@ -381,6 +462,21 @@ public class MaterialPlanController : ControllerBase
         {
             return BadRequest(ApiResponse<string>.Fail(ex.Message));
         }
+    }
+
+    #endregion
+
+    #region 仓库通知
+
+    /// <summary>
+    /// 获取指定仓库中存在未出库用料计划的批次列表
+    /// </summary>
+    [HttpGet("pending-batches/{warehouseId}")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<PendingPlanBatchDto>>>> GetPendingPlanBatches(int warehouseId)
+    {
+        var result = await _materialPlanService.GetPendingPlanBatchesByWarehouseAsync(warehouseId);
+        return Ok(ApiResponse<List<PendingPlanBatchDto>>.Ok(result, "查询成功"));
     }
 
     #endregion

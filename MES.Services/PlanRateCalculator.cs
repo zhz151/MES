@@ -9,7 +9,7 @@ namespace MES.Services;
 internal static class PlanRateCalculator
 {
     /// <summary>
-    /// 从 5 种用料计划数据计算工单级满足率 + 状态
+    /// 从 6 种用料计划数据计算工单级满足率 + 状态
     /// </summary>
     public static (decimal rate, int status) ComputeWorkOrderRate(
         Data.Entities.WorkOrder wo,
@@ -17,6 +17,7 @@ internal static class PlanRateCalculator
         List<PurchaseFinishedPlan> finishPlans,
         List<InventoryPlan> inventoryPlans,
         List<RoundBarPiercingPlan> piercingPlans,
+        List<InProcessReworkPlan>? inProcessReworkPlans = null,
         decimal fixedTheoretical = 102m, decimal fixedSatisfied = 110m,
         decimal nonFixedTheoretical = 105m, decimal nonFixedSatisfied = 120m)
     {
@@ -38,6 +39,9 @@ internal static class PlanRateCalculator
 
         if (piercingPlans.Count > 0)
             rates.Add(CalculatePlanRate(wo, piercingPlans.Cast<object>().ToList(), isSemi: false, isPiercing: true));
+
+        if (inProcessReworkPlans is { Count: > 0 })
+            rates.Add(CalculateInProcessReworkPlanRate(wo, inProcessReworkPlans));
 
         if (rates.Count == 0)
             return (0, 0);
@@ -99,6 +103,22 @@ internal static class PlanRateCalculator
     }
 
     private static decimal CalculateInventoryPlanRate(Data.Entities.WorkOrder wo, List<InventoryPlan> plans)
+    {
+        if (wo.LengthStatus == LengthStatus.Fixed)
+        {
+            var effectivePieces = (int)plans.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple);
+            if (wo.TotalQuantity <= 0) return 0;
+            return Math.Round((decimal)effectivePieces / wo.TotalQuantity * 100m, 0);
+        }
+        else
+        {
+            var effectiveWeight = plans.Sum(p => p.UsedWeight);
+            if (wo.TotalWeight <= 0) return 0;
+            return Math.Round(effectiveWeight / wo.TotalWeight * 100m, 0);
+        }
+    }
+
+    private static decimal CalculateInProcessReworkPlanRate(Data.Entities.WorkOrder wo, List<InProcessReworkPlan> plans)
     {
         if (wo.LengthStatus == LengthStatus.Fixed)
         {

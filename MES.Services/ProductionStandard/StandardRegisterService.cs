@@ -5,7 +5,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 
-namespace MES.Services.StandardRegister;
+namespace MES.Services.ProductionStandard;
 
 public class StandardRegisterService : IStandardRegisterService
 {
@@ -106,7 +106,7 @@ public class StandardRegisterService : IStandardRegisterService
         }
         else
         {
-            var entity = new Data.Entities.StandardRegister
+            var entity = new StandardRegister
             {
                 StandardNo = dto.StandardNo,
                 StandardName = dto.StandardName,
@@ -176,7 +176,7 @@ public class StandardRegisterService : IStandardRegisterService
         return dict;
     }
 
-    private static IQueryable<Data.Entities.StandardRegister> ApplySorting(IQueryable<Data.Entities.StandardRegister> query, string sortField, bool isDescending)
+    private static IQueryable<StandardRegister> ApplySorting(IQueryable<StandardRegister> query, string sortField, bool isDescending)
     {
         return (sortField, isDescending) switch
         {

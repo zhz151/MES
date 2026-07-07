@@ -61,7 +61,8 @@
                     <MudChip Size="Size.Small" Color="Color.Primary" Class="mr-1">荒:@GetSemiPct()</MudChip>
                     <MudChip Size="Size.Small" Color="Color.Primary" Class="mr-1">成:@GetFinishPct()</MudChip>
                     <MudChip Size="Size.Small" Color="Color.Primary" Class="mr-1">库:@GetInvPct()</MudChip>
-                    <MudChip Size="Size.Small" Color="Color.Primary">改:@GetReworkPct()</MudChip>
+                    <MudChip Size="Size.Small" Color="Color.Primary" Class="mr-1">改:@GetReworkPct()</MudChip>
+                    <MudChip Size="Size.Small" Color="Color.Primary">在:@GetInProcessReworkPct()</MudChip>
                 </div>
 
                 <!-- Tab页 -->
@@ -356,6 +357,55 @@
                             </NoRecordsContent>
                         </MudTable>
                     </MudTabPanel>
+
+                    <!-- Tab 6: 在产改制计划 -->
+                    <MudTabPanel Text="在产改制计划" Icon="@Icons.Material.Filled.Autorenew">
+                        <MudPaper Class="pa-3 mb-4 d-flex justify-start" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Add"
+                                       OnClick="() => NavigateToCreate(6)">
+                                新增计划
+                            </MudButton>
+                        </MudPaper>
+
+                        <MudTable Items="@inProcessReworkPlans" Dense="true" Hover="true" Elevation="0" Striped="true" Class="auto-table"
+                                  Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                            <HeaderContent>
+                                <MudTh>计划日期</MudTh>
+                                <MudTh>生产编号</MudTh>
+                                <MudTh>挂牌号</MudTh>
+                                <MudTh>工厂牌号</MudTh>
+                                <MudTh>规格</MudTh>
+                                <MudTh>使用支数</MudTh>
+                                <MudTh>使用重量(kg)</MudTh>
+                                <MudTh>改制类型</MudTh>
+                                <MudTh>操作</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="plan">
+                                <MudTd>@plan.PlanDate.ToString("yyyy-MM-dd")</MudTd>
+                                <MudTd>@plan.BatchNo</MudTd>
+                                <MudTd>@(plan.BatchTagNo ?? "-")</MudTd>
+                                <MudTd>@plan.PlantGrade</MudTd>
+                                <MudTd>@plan.Specification</MudTd>
+                                <MudTd>@(plan.UsedQuantity?.ToString() ?? "-")</MudTd>
+                                <MudTd>@(((int)plan.UsedWeight).ToString())</MudTd>
+                                <MudTd>@plan.ReworkTypeText</MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                                   Color="Color.Warning" OnClick="() => EditInProcessReworkPlan(plan.Id)"
+                                                   Title="编辑" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
+                                                   Color="Color.Info" OnClick="() => PrintInProcessReworkPlan(plan.Id)"
+                                                   Title="打印" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
+                                                   Color="Color.Error" OnClick="() => DeleteInProcessReworkPlan(plan.Id)"
+                                                   Title="取消" />
+                                </MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent>
+                            </NoRecordsContent>
+                        </MudTable>
+                    </MudTabPanel>
                 </MudTabs>
             }
         </MudCardContent>
@@ -393,6 +443,10 @@
     private List<RoundBarPiercingPlanDto> piercingPlans = new();
     private WorkOrderMaterialPlanDto? piercingSummary;
 
+    // 在产改制计划
+    private List<InProcessReworkPlanDto> inProcessReworkPlans = new();
+    private WorkOrderMaterialPlanDto? inProcessReworkSummary;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
@@ -419,14 +473,15 @@
                 await LoadSiblingWorkOrders();
             }
 
-            // 加载5种计划
+            // 加载6种计划
             var tasks = new Task[]
             {
                 LoadSemiPlansAsync(),
                 LoadFinishPlansAsync(),
                 LoadInventoryPlansAsync(),
                 LoadReworkPlansAsync(),
-                LoadPiercingPlansAsync()
+                LoadPiercingPlansAsync(),
+                LoadInProcessReworkPlansAsync()
             };
             await Task.WhenAll(tasks);
         }
@@ -757,6 +812,70 @@
         Navigation.NavigateTo($"/workorders/{WorkOrderId}/piercing-plan/edit/{id}");
     }
 
+    // ===== 在产改制计划 =====
+
+    private async Task LoadInProcessReworkPlansAsync()
+    {
+        var listResult = await MaterialPlanService.GetInProcessReworkPlansAsync(WorkOrderId);
+        if (listResult.Success && listResult.Data != null)
+            inProcessReworkPlans = listResult.Data;
+
+        var summaryResult = await MaterialPlanService.GetSummaryAsync(WorkOrderId);
+        if (summaryResult.Success && summaryResult.Data != null)
+            inProcessReworkSummary = summaryResult.Data;
+    }
+
+    private async Task DeleteInProcessReworkPlan(int id)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认取消", new DialogParameters
+        {
+            ["ContentText"] = "确定要取消此在产改制计划吗？\n\n取消后数据将不可恢复！",
+            ["ConfirmText"] = "确认取消",
+            ["Color"] = Color.Error
+        });
+        var dialogResult = await dialog.Result;
+        if (dialogResult.Canceled) return;
+
+        try
+        {
+            var result = await MaterialPlanService.DeleteInProcessReworkPlanAsync(id);
+            if (result.Success)
+            {
+                Snackbar.Add("取消成功", Severity.Success);
+                await LoadInProcessReworkPlansAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "取消失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"取消失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PrintInProcessReworkPlan(int planId)
+    {
+        try
+        {
+            var result = await MaterialPlanService.PrintInProcessReworkPlanAsync(planId);
+            if (result.Success && !string.IsNullOrEmpty(result.Data))
+                await JS.InvokeVoidAsync("openPdf", result.Data);
+            else
+                Snackbar.Add(result.Message ?? "打印生成失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void EditInProcessReworkPlan(int planId)
+    {
+        Navigation.NavigateTo($"/workorders/{WorkOrderId}/in-process-rework-plan/edit/{planId}");
+    }
+
     private void EditReworkPlan(int planId)
     {
         Navigation.NavigateTo($"/workorders/{WorkOrderId}/rework-plan/edit/{planId}");
@@ -769,6 +888,7 @@
     private string GetInvPct() => CalcPct(workOrder?.LengthStatus, inventoryPlans.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple), inventoryPlans.Sum(p => p.UsedWeight));
     private string GetReworkPct() => CalcPct(workOrder?.LengthStatus, reworkPlans.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple), reworkPlans.Sum(p => p.UsedWeight));
     private string GetPiercingPct() => CalcPct(workOrder?.LengthStatus, piercingPlans.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple), piercingPlans.Sum(p => p.RequiredWeight));
+    private string GetInProcessReworkPct() => CalcPct(workOrder?.LengthStatus, inProcessReworkPlans.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple), inProcessReworkPlans.Sum(p => p.UsedWeight));
 
     private string CalcPct(LengthStatus? lengthStatus, decimal qtySum, decimal wtSum)
     {
@@ -797,6 +917,7 @@
             3 => $"/workorders/{WorkOrderId}/inventory-plan/create",
             4 => $"/workorders/{WorkOrderId}/rework-plan/create",
             5 => $"/workorders/{WorkOrderId}/piercing-plan/create",
+            6 => $"/workorders/{WorkOrderId}/in-process-rework-plan/create",
             _ => $"/workorders/{WorkOrderId}/material-plan/create"
         };
         Navigation.NavigateTo(path);

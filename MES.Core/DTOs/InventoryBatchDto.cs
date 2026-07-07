@@ -10,7 +10,6 @@ public class InventoryBatchDto
 
     // 仓库
     public int WarehouseId { get; set; }
-    public string? WarehouseName { get; set; }
 
     // 物料
     public string MaterialType { get; set; } = string.Empty;

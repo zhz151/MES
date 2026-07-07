@@ -135,10 +135,11 @@ code {
     font-size: 0.875rem !important;
 }
 
-/* 全局表头统一字重 600 */
+/* 全局表头统一字重 600 + 左对齐 */
 th.mud-table-cell,
 .auto-table th {
     font-weight: 600 !important;
+    text-align: left !important;
 }
 
 /* ============================================================
@@ -452,9 +453,9 @@ input[type="number"]::-webkit-outer-spin-button {
     width: 100%;
 }
 
-/* 数据值居中显示（仅数据行，不包括表头） */
+/* 数据值左对齐（仅数据行） */
 .compact-table.mud-table tbody .mud-table-cell {
-    text-align: center !important;
+    text-align: left !important;
 }
 
 /* 输入框填满所在单元格宽度 */

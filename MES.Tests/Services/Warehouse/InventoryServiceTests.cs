@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
@@ -26,7 +27,9 @@ public class InventoryServiceTests : TestBase
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        return new InventoryService(ctx, httpMock.Object, configMock.Object);
+        var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
+        var loggerMock = new Mock<ILogger<InventoryService>>();
+        return new InventoryService(ctx, httpMock.Object, configMock.Object, workOrderExecMock.Object, loggerMock.Object);
     }
 
     // ========== 入库 ==========
@@ -76,7 +79,6 @@ public class InventoryServiceTests : TestBase
         result.BatchNo.Should().StartWith("CK");
         result.RemainingQuantity.Should().Be(10);
         result.RemainingWeight.Should().Be(1000m);
-        result.WarehouseName.Should().Be("测试仓库");
     }
 
     // ========== 出库 ==========

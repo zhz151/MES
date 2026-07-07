@@ -16,6 +16,8 @@ public partial class Materials
     private MudTable<MaterialDto>? table;
     private List<MaterialDto> _pageItems = new();
     private int _totalCount;
+    private int _restoredPageIndex;
+    private bool _isFirstLoad = true;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
     private bool _allSelected;
@@ -45,6 +47,13 @@ public partial class Materials
     private string sortColumn = "MaterialCode";
     private bool sortDescending = true;
 
+    // B33: 分页汇总
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        // Materials 无非数值汇总字段，保留空集合
+    };
+
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -57,12 +66,12 @@ public partial class Materials
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "MaterialCode",     Label = "物料编码", SortKey = "materialcode",     FilterType = "string" },
-        new() { Key = "MaterialCategory", Label = "物料分类", SortKey = "materialcategory", FilterType = "string" },
-        new() { Key = "PlantGrade",       Label = "厂内钢种", SortKey = "plantgrade",       FilterType = "string" },
-        new() { Key = "Specification",    Label = "名义规格", SortKey = "specification",    FilterType = "string" },
-        new() { Key = "Remark",           Label = "备注",           SortKey = "remark",      FilterType = "string" },
-        new() { Key = "IsActive",         Label = "状态",     SortKey = "isactive",         FilterType = "boolean" },
+        new() { Key = "MaterialCode",     Label = "物料编码", SortKey = "materialcode",     FilterType = "string",  Width = "150" },
+        new() { Key = "MaterialCategory", Label = "物料分类", SortKey = "materialcategory", FilterType = "string",  Width = "100" },
+        new() { Key = "PlantGrade",       Label = "厂内钢种", SortKey = "plantgrade",       FilterType = "string",  Width = "100" },
+        new() { Key = "Specification",    Label = "名义规格", SortKey = "specification",    FilterType = "string",  Width = "120" },
+        new() { Key = "Remark",           Label = "备注",           SortKey = "remark",      FilterType = "string",  Width = "200" },
+        new() { Key = "IsActive",         Label = "状态",     SortKey = "isactive",         FilterType = "boolean", Width = "80" },
     };
 
     // ========== 服务端数据加载 ==========
@@ -74,6 +83,13 @@ public partial class Materials
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "materialcode";
             var filtersJson = SerializeFilters();
+
+            // 恢复持久化的页码（MudTable 初始化时始终传 page=0）
+            if (_isFirstLoad)
+            {
+                state.Page = _restoredPageIndex;
+                _isFirstLoad = false;
+            }
 
             var query = new QueryParams
             {
@@ -93,6 +109,7 @@ public partial class Materials
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
                 _currentPage = state.Page + 1;
+                ComputePageSums();
             }
             else
             {
@@ -229,6 +246,22 @@ public partial class Materials
         if (table != null) await table.ReloadServerData();
     }
 
+    // ========== 分页汇总 ==========
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+        // Materials 无非数值汇总字段，保持空
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        if (_pageSums.TryGetValue(col.Key, out var sum))
+            return sum;
+        return "-";
+    }
+
     // ========== 列选择操作 ==========
 
     private async Task OnColumnToggle(ColumnDef col)
@@ -245,6 +278,7 @@ public partial class Materials
     {
         _allColumns = GetAllColumnDefs();
         await SaveColumnPrefs();
+        if (table != null) await table.ReloadServerData();
     }
 
     private async Task MoveColumnUp(ColumnDef col)
@@ -293,6 +327,7 @@ public partial class Materials
             sortColumn = savedState.SortBy ?? "MaterialCode";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
+            _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try

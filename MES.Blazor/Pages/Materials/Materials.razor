@@ -49,18 +49,9 @@
                 </MudItem>
             </MudGrid>
 
-            <!-- 数据表格 -->
-            <div id="materials-list-table">
-            <MudTable @ref="table"
-                      T="MaterialDto"
-                      ServerData="@LoadDataFromServer"
-                      Dense="true"
-                      Hover="true"
-                      Class="mt-4 auto-table"
-                      Elevation="0"
-                      RowsPerPage="@_pageSize"
-                      RowsPerPageLabel="每页行数:">
-                <ToolBarContent>
+            <!-- 工具栏 -->
+            <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
+                <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="_allColumns"
                                          OnColumnToggle="OnColumnToggle"
                                          OnMoveUp="MoveColumnUp"
@@ -71,7 +62,8 @@
                                OnClick="ResetColumnDisplay" Class="ml-2">
                         重置
                     </MudButton>
-                    <MudSpacer />
+                </div>
+                <div class="d-flex align-center" style="margin-left:auto;">
                     <MudButton Variant="Variant.Outlined"
                                Size="Size.Small"
                                Color="Color.Info"
@@ -90,14 +82,27 @@
                     <MudText Typo="Typo.body2" Class="ml-4">
                         共 @_totalCount 条记录
                     </MudText>
-                </ToolBarContent>
+                </div>
+            </div>
+
+            <!-- 数据表格 -->
+            <div id="materials-list-table">
+            <MudTable @ref="table"
+                      T="MaterialDto"
+                      ServerData="@LoadDataFromServer"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-0 auto-table"
+                      Elevation="0"
+                      RowsPerPage="@_pageSize"
+                      RowsPerPageLabel="每页行数:">
                 <HeaderContent>
                     <MudTh Style="width: 40px;">
                         <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
                     </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTh>
+                        <MudTh Style="@($"width:{col.Width}px")">
                             <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
                                 @if (col.FilterType != null)

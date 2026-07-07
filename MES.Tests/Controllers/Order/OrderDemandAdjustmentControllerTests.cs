@@ -1,12 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Moq;
-using MES.Api.Controllers.Orders;
+using MES.Api.Controllers.Order;
 using MES.Core.DTOs;
 using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Tests.Tests;
 
-namespace MES.Tests.Controllers.Orders;
+namespace MES.Tests.Controllers.Order;
 
 public class OrderDemandAdjustmentControllerTests : ControllerTestBase
 {

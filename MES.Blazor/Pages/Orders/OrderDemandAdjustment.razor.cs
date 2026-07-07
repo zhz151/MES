@@ -500,7 +500,7 @@ public partial class OrderDemandAdjustment
             sortColumn = savedState.SortBy ?? "ScheduleStage";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
-            _restoredPageIndex = savedState.PageIndex;
+            _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
 
             // 恢复列显隐
             if (savedState.Extras?.ContainsKey("columnVisibility") == true)
@@ -624,7 +624,7 @@ public partial class OrderDemandAdjustment
                 builder.AddContent(0, item.RawMaterialLockRemark ?? "-");
                 break;
             case "FlowOutputRatio":
-                builder.AddContent(0, $"{item.FlowOutputRatio.ToString("G29")}%");
+                builder.AddContent(0, $"{item.FlowOutputRatio.ToString("F1")}%");
                 break;
             case "FlowStatus":
                 builder.OpenComponent<MudChip>(0);
@@ -634,7 +634,7 @@ public partial class OrderDemandAdjustment
                 builder.CloseComponent();
                 break;
             case "MainNoFlowOutputRatio":
-                builder.AddContent(0, $"{item.MainNoFlowOutputRatio.ToString("G29")}%");
+                builder.AddContent(0, $"{item.MainNoFlowOutputRatio.ToString("F1")}%");
                 break;
             case "MainNoFlowStatus":
                 builder.OpenComponent<MudChip>(0);
@@ -813,7 +813,7 @@ public partial class OrderDemandAdjustment
         _ => GetRawPropertyValue(item, key)
     };
 
-    private static object GetRawPropertyValue(OrderDemandAdjustmentDto item, string key) => key switch
+    private static object GetRawPropertyValue(OrderDemandAdjustmentDto item, string key) => (key switch
     {
         "WorkOrderNo" => item.WorkOrderNo ?? "",
         "Salesman" => item.Salesman ?? "",
@@ -839,7 +839,7 @@ public partial class OrderDemandAdjustment
         "FlowIncompleteBatchCount" => item.FlowIncompleteBatchCount,
         "FlowMaxRemainingWorkDays" => item.FlowMaxRemainingWorkDays,
         _ => ""
-    };
+    })!;
 
     // ========== 持久化 ==========
 

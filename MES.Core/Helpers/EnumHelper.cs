@@ -213,7 +213,7 @@ public static class EnumHelper
     public static string GetDisplayName(Type enumType, object value)
     {
         var name = Enum.GetName(enumType, value);
-        if (name == null) return value.ToString();
+        if (name == null) return value.ToString() ?? "";
 
         return _enumToDisplay.TryGetValue(enumType, out var dict) && dict.TryGetValue(name, out var display)
             ? display

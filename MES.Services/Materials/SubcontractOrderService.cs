@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
@@ -17,13 +18,32 @@ public class SubcontractOrderService : ISubcontractOrderService
     private readonly AppDbContext _context;
     private readonly IPurchaseOrderService _purchaseService;
     private readonly IConfigParameterService _configService;
+    private readonly IWorkOrderExecutionService _workOrderExecutionService;
+    private readonly ILogger<SubcontractOrderService> _logger;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
-    public SubcontractOrderService(AppDbContext context, IPurchaseOrderService purchaseService, IConfigParameterService configService)
+    public SubcontractOrderService(AppDbContext context, IPurchaseOrderService purchaseService,
+        IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService,
+        ILogger<SubcontractOrderService> logger)
     {
         _context = context;
         _purchaseService = purchaseService;
         _configService = configService;
+        _workOrderExecutionService = workOrderExecutionService;
+        _logger = logger;
+    }
+
+    private async Task TryRefreshExecutionSummaryAsync(string? sourceWorkOrderNo)
+    {
+        if (string.IsNullOrWhiteSpace(sourceWorkOrderNo)) return;
+        try
+        {
+            await _workOrderExecutionService.RefreshByWorkOrderNosAsync(new List<string> { sourceWorkOrderNo });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "工单执行状况刷新失败（不影响主流程）: SourceWorkOrderNo={SourceWorkOrderNo}", sourceWorkOrderNo);
+        }
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -46,20 +66,13 @@ public class SubcontractOrderService : ISubcontractOrderService
         {
             var kw = query.Keyword;
 
-            // 搜索供应商名称
-            var matchedSupplierIds = await _context.SupplierProfiles
-                .AsNoTracking()
-                .Where(s => s.SupplierName.Contains(kw))
-                .Select(s => s.Id)
-                .ToListAsync();
-
             queryable = queryable.Where(s =>
                 s.OrderNo.Contains(kw) ||
                 s.ProcessType.Contains(kw) ||
                 s.OutMaterialCategory.Contains(kw) ||
                 s.OutPlantGrade.Contains(kw) ||
                 s.OutSpecification.Contains(kw) ||
-                matchedSupplierIds.Contains(s.SupplierId) ||
+                (s.SupplierName != null && s.SupplierName.Contains(kw)) ||
                 (s.FurnaceNumber != null && s.FurnaceNumber.Contains(kw)) ||
                 (s.Remark != null && s.Remark.Contains(kw)));
         }
@@ -68,22 +81,6 @@ public class SubcontractOrderService : ISubcontractOrderService
         if (!string.IsNullOrEmpty(query.Status) && Enum.TryParse<SubcontractOrderStatus>(query.Status, out var parsedStatus))
         {
             queryable = queryable.Where(s => s.Status == parsedStatus);
-        }
-
-        // 跨表计算字段筛选（非 SubcontractOrder 直接属性，ApplyFilters 无法处理）
-        // 需提前处理并从 Filters 中移除
-        if (query.Filters != null)
-        {
-            var supplierFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("SupplierName", StringComparison.OrdinalIgnoreCase));
-            if (supplierFilter != null)
-            {
-                var op = supplierFilter.Operator?.ToLowerInvariant() ?? "contains";
-                if (op == "in" && supplierFilter.Values?.Count > 0)
-                    queryable = queryable.Where(s => _context.SupplierProfiles.Any(sp => sp.Id == s.SupplierId && supplierFilter.Values.Contains(sp.SupplierName)));
-                else if (!string.IsNullOrEmpty(supplierFilter.Value))
-                    queryable = queryable.Where(s => _context.SupplierProfiles.Any(sp => sp.Id == s.SupplierId && sp.SupplierName.Contains(supplierFilter.Value)));
-                query.Filters.Remove(supplierFilter);
-            }
         }
 
         queryable = queryable.ApplyFilters(query.Filters);
@@ -119,8 +116,8 @@ public class SubcontractOrderService : ISubcontractOrderService
                 ? queryable.OrderByDescending(s => s.ReturnDeadline)
                 : queryable.OrderBy(s => s.ReturnDeadline),
             "suppliername" => query.IsDescending
-                ? queryable.Join(_context.SupplierProfiles, s => s.SupplierId, sp => sp.Id, (s, sp) => new { s, sp.SupplierName }).OrderByDescending(x => x.SupplierName).Select(x => x.s)
-                : queryable.Join(_context.SupplierProfiles, s => s.SupplierId, sp => sp.Id, (s, sp) => new { s, sp.SupplierName }).OrderBy(x => x.SupplierName).Select(x => x.s),
+                ? queryable.OrderByDescending(s => s.SupplierName ?? "")
+                : queryable.OrderBy(s => s.SupplierName ?? ""),
             "status" => query.IsDescending
                 ? queryable.OrderByDescending(s => s.Status)
                 : queryable.OrderBy(s => s.Status),
@@ -151,20 +148,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             .Take(query.PageSize)
             .ToListAsync();
 
-        // 填充供应商名称
-        var supplierIds = entityList.Where(i => i.SupplierId > 0).Select(i => i.SupplierId).Distinct().ToList();
-        var suppliers = await _context.SupplierProfiles
-            .AsNoTracking()
-            .Where(s => supplierIds.Contains(s.Id))
-            .ToDictionaryAsync(s => s.Id, s => s.SupplierName);
-
-        var items = entityList.Select(s =>
-        {
-            var dto = ToDto(s);
-            if (suppliers.TryGetValue(s.SupplierId, out var name))
-                dto.SupplierName = name;
-            return dto;
-        }).ToList();
+        var items = entityList.Select(ToDto).ToList();
 
         return new PagedResult<SubcontractOrderDto>
         {
@@ -184,20 +168,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             .ThenBy(s => s.OrderNo)
             .ToListAsync();
 
-        // 填充供应商名称
-        var supplierIds = entityList.Where(i => i.SupplierId > 0).Select(i => i.SupplierId).Distinct().ToList();
-        var suppliers = await _context.SupplierProfiles
-            .AsNoTracking()
-            .Where(s => supplierIds.Contains(s.Id))
-            .ToDictionaryAsync(s => s.Id, s => s.SupplierName);
-
-        return entityList.Select(s =>
-        {
-            var dto = ToDto(s);
-            if (suppliers.TryGetValue(s.SupplierId, out var name))
-                dto.SupplierName = name;
-            return dto;
-        }).ToList();
+        return entityList.Select(ToDto).ToList();
     }
 
     public async Task<SubcontractOrderDto> GetByIdAsync(int id)
@@ -209,10 +180,6 @@ public class SubcontractOrderService : ISubcontractOrderService
         if (entity == null) throw new BusinessException("委外单不存在");
 
         var dto = ToDto(entity);
-        var supplier = await _context.SupplierProfiles
-            .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == entity.SupplierId);
-        if (supplier != null) dto.SupplierName = supplier.SupplierName;
 
         // 收集所有 ReturnItem 的 SourceWorkOrderNo，批量查询 WorkOrder
         var woNos = entity.ReturnItems
@@ -280,11 +247,16 @@ public class SubcontractOrderService : ISubcontractOrderService
             try
             {
             var orderNo = await GenerateOrderNoAsync();
+            var supplierName = await _context.SupplierProfiles
+                .Where(s => s.Id == request.SupplierId)
+                .Select(s => s.SupplierName)
+                .FirstOrDefaultAsync();
 
             entity = new SubcontractOrder
             {
                 OrderNo = orderNo,
                 SupplierId = request.SupplierId,
+                SupplierName = supplierName,
                 OrderDate = request.OrderDate,
                 ProcessType = request.ProcessType,
                 FurnaceNumber = request.FurnaceNumber,
@@ -330,8 +302,10 @@ public class SubcontractOrderService : ISubcontractOrderService
         }
 
         var dto = ToDto(entity);
-        var supplier = await _context.SupplierProfiles.FindAsync(entity.SupplierId);
-        if (supplier != null) dto.SupplierName = supplier.SupplierName;
+
+        foreach (var ri in entity.ReturnItems)
+            _ = TryRefreshExecutionSummaryAsync(ri.SourceWorkOrderNo);
+
         dto.ReturnItems = entity.ReturnItems.Select(r => new SubcontractReturnItemDto
         {
             Id = r.Id,
@@ -380,6 +354,10 @@ public class SubcontractOrderService : ISubcontractOrderService
         else
         {
             entity.SupplierId = request.SupplierId;
+            entity.SupplierName = await _context.SupplierProfiles
+                .Where(s => s.Id == request.SupplierId)
+                .Select(s => s.SupplierName)
+                .FirstOrDefaultAsync();
             entity.ProcessType = request.ProcessType;
             entity.FurnaceNumber = request.FurnaceNumber ?? entity.FurnaceNumber;
             entity.OutMaterialCategory = request.OutMaterialCategory;
@@ -419,8 +397,6 @@ public class SubcontractOrderService : ISubcontractOrderService
         await _context.SaveChangesAsync();
 
         var dto = ToDto(entity);
-        var supplier = await _context.SupplierProfiles.FindAsync(entity.SupplierId);
-        if (supplier != null) dto.SupplierName = supplier.SupplierName;
         dto.ReturnItems = entity.ReturnItems.OrderBy(r => r.Sequence).Select(r => new SubcontractReturnItemDto
         {
             Id = r.Id,
@@ -442,6 +418,9 @@ public class SubcontractOrderService : ISubcontractOrderService
             ProcessStatus = r.ProcessStatus,
             IsForceCompleted = r.IsForceCompleted
         }).ToList();
+
+        foreach (var ri in entity.ReturnItems)
+            _ = TryRefreshExecutionSummaryAsync(ri.SourceWorkOrderNo);
 
         return dto;
     }
@@ -479,6 +458,10 @@ public class SubcontractOrderService : ISubcontractOrderService
         }
 
         await _context.SaveChangesAsync();
+
+        foreach (var order in orders)
+            foreach (var item in order.ReturnItems)
+                _ = TryRefreshExecutionSummaryAsync(item.SourceWorkOrderNo);
     }
 
     public async Task SyncSingleAsync(int id)
@@ -509,6 +492,9 @@ public class SubcontractOrderService : ISubcontractOrderService
             await RecalcSubcontractStatusAsync(order);
 
         await _context.SaveChangesAsync();
+
+        foreach (var item in order.ReturnItems)
+            _ = TryRefreshExecutionSummaryAsync(item.SourceWorkOrderNo);
     }
 
     private static void SyncReturnItemFromBatches(SubcontractReturnItem item, List<InventoryBatch> batches)
@@ -573,6 +559,9 @@ public class SubcontractOrderService : ISubcontractOrderService
         }
 
         await _context.SaveChangesAsync();
+
+        foreach (var item in entity.ReturnItems)
+            _ = TryRefreshExecutionSummaryAsync(item.SourceWorkOrderNo);
     }
 
     private static void ForceCompleteAllReturnItems(SubcontractOrder order)
@@ -587,12 +576,19 @@ public class SubcontractOrderService : ISubcontractOrderService
     public async Task DeleteAsync(int id)
     {
         var entity = await _context.SubcontractOrders
+            .Include(s => s.ReturnItems)
             .FirstOrDefaultAsync(s => s.Id == id);
         if (entity == null) throw new BusinessException("委外单不存在");
         if (entity.Status == SubcontractOrderStatus.Completed) throw new BusinessException("已完成的委外单无法删除");
 
+        var woNos = entity.ReturnItems
+            .Select(r => r.SourceWorkOrderNo)
+            .Where(w => !string.IsNullOrWhiteSpace(w))
+            .Distinct()
+            .ToList();
         _context.SubcontractOrders.Remove(entity);
         await _context.SaveChangesAsync();
+        foreach (var woNo in woNos) _ = TryRefreshExecutionSummaryAsync(woNo);
     }
 
     // ========== 用料计划执行状态 ==========
@@ -668,8 +664,6 @@ public class SubcontractOrderService : ISubcontractOrderService
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
         var query = from s in _context.SubcontractOrders.AsNoTracking()
-                    join sp in _context.SupplierProfiles.AsNoTracking() on s.SupplierId equals sp.Id into sj
-                    from sp in sj.DefaultIfEmpty()
                     select new
                     {
                         s.OrderNo,
@@ -679,7 +673,7 @@ public class SubcontractOrderService : ISubcontractOrderService
                         s.OutPlantGrade,
                         s.OutSpecification,
                         s.ReturnDeadline,
-                        SupplierName = sp.SupplierName
+                        s.SupplierName
                     };
 
         var all = await query.ToListAsync();
@@ -719,12 +713,6 @@ public class SubcontractOrderService : ISubcontractOrderService
             .Where(s => ids.Contains(s.Id))
             .ToListAsync();
 
-        var supplierIds = entities.Where(e => e.SupplierId > 0).Select(e => e.SupplierId).Distinct().ToList();
-        var suppliers = await _context.SupplierProfiles
-            .AsNoTracking()
-            .Where(s => supplierIds.Contains(s.Id))
-            .ToDictionaryAsync(s => s.Id, s => s.SupplierName);
-
         var woNos = entities.SelectMany(e => e.ReturnItems)
             .Where(r => !string.IsNullOrEmpty(r.SourceWorkOrderNo))
             .Select(r => r.SourceWorkOrderNo!)
@@ -742,8 +730,6 @@ public class SubcontractOrderService : ISubcontractOrderService
         return entities.Select(e =>
         {
             var dto = ToDto(e);
-            if (suppliers.TryGetValue(e.SupplierId, out var name))
-                dto.SupplierName = name;
 
             dto.ReturnItems = e.ReturnItems.Select(r =>
             {
@@ -830,7 +816,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         Id = entity.Id,
         OrderNo = entity.OrderNo,
         SupplierId = entity.SupplierId,
-        SupplierName = "",
+        SupplierName = entity.SupplierName,
         OrderDate = entity.OrderDate,
         Status = entity.Status,
         IsForceCompleted = entity.IsForceCompleted,

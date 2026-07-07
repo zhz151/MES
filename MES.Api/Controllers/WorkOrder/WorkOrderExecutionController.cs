@@ -59,7 +59,7 @@ public class WorkOrderExecutionController : ControllerBase
     public async Task<ActionResult<ApiResponse<WorkOrderExecutionRefreshResultDto>>> RefreshAll()
     {
         var result = await _service.RefreshAllAsync();
-        return Ok(Core.Models.ApiResponse<WorkOrderExecutionRefreshResultDto>.Ok(result, $"刷新完成，共{result.RefreshedCount}条"));
+        return Ok(ApiResponse<WorkOrderExecutionRefreshResultDto>.Ok(result, $"刷新完成，共{result.RefreshedCount}条"));
     }
 
     /// <summary>

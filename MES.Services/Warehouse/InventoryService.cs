@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
@@ -20,14 +21,31 @@ public class InventoryService : IInventoryService
     private readonly AppDbContext _context;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IConfigParameterService _configService;
+    private readonly IWorkOrderExecutionService _workOrderExecutionService;
+    private readonly ILogger<InventoryService> _logger;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
     private static readonly SemaphoreSlim _batchNoLock = new(1, 1);
 
-    public InventoryService(AppDbContext context, IHttpContextAccessor httpContextAccessor, IConfigParameterService configService)
+    public InventoryService(AppDbContext context, IHttpContextAccessor httpContextAccessor, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, ILogger<InventoryService> logger)
     {
         _context = context;
         _httpContextAccessor = httpContextAccessor;
         _configService = configService;
+        _workOrderExecutionService = workOrderExecutionService;
+        _logger = logger;
+    }
+
+    private async Task TryRefreshExecutionSummaryAsync(string? workOrderNo)
+    {
+        if (string.IsNullOrWhiteSpace(workOrderNo)) return;
+        try
+        {
+            await _workOrderExecutionService.RefreshByWorkOrderNosAsync(new List<string> { workOrderNo });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "工单执行状况刷新失败（不影响主流程）: WorkOrderNo={WorkOrderNo}", workOrderNo);
+        }
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -79,9 +97,6 @@ public class InventoryService : IInventoryService
             .Select(b => b.ToDto())
             .ToListAsync();
 
-        // 填充仓库名称
-        await FillWarehouseNamesAsync(items);
-
         return new PagedResult<InventoryBatchDto>
         {
             Items = items,
@@ -101,9 +116,6 @@ public class InventoryService : IInventoryService
         var items = await queryable
             .Select(b => b.ToDto())
             .ToListAsync();
-
-        // 填充仓库名称
-        await FillWarehouseNamesAsync(items);
 
         return items;
     }
@@ -208,21 +220,6 @@ public class InventoryService : IInventoryService
 
         if (!string.IsNullOrEmpty(query.OriginalSupplier))
             queryable = queryable.Where(b => b.OriginalSupplier != null && b.OriginalSupplier.Contains(query.OriginalSupplier));
-
-        // 处理 WarehouseName 筛选（由 FillWarehouseNamesAsync 后处理填充，非 InventoryBatch 直接属性）
-        if (query.Filters != null)
-        {
-            var whFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("WarehouseName", StringComparison.OrdinalIgnoreCase));
-            if (whFilter != null)
-            {
-                var op = whFilter.Operator?.ToLowerInvariant() ?? "contains";
-                if (op == "in" && whFilter.Values?.Count > 0)
-                    queryable = queryable.Where(b => _context.Warehouses.Any(w => w.Id == b.WarehouseId && whFilter.Values.Contains(w.Name)));
-                else if (!string.IsNullOrEmpty(whFilter.Value))
-                    queryable = queryable.Where(b => _context.Warehouses.Any(w => w.Id == b.WarehouseId && w.Name.Contains(whFilter.Value)));
-                query.Filters.Remove(whFilter);
-            }
-        }
 
         queryable = queryable.ApplyFilters(query.Filters);
 
@@ -334,32 +331,12 @@ public class InventoryService : IInventoryService
             "islinkedtoworkorder" => query.IsDescending
                 ? queryable.OrderByDescending(b => b.IsLinkedToWorkOrder)
                 : queryable.OrderBy(b => b.IsLinkedToWorkOrder),
-            "warehousename" => query.IsDescending
-                ? queryable.Join(_context.Warehouses, b => b.WarehouseId, w => w.Id, (b, w) => new { b, w.Name }).OrderByDescending(x => x.Name).Select(x => x.b)
-                : queryable.Join(_context.Warehouses, b => b.WarehouseId, w => w.Id, (b, w) => new { b, w.Name }).OrderBy(x => x.Name).Select(x => x.b),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(b => b.CreatedTime)
                 : queryable.OrderBy(b => b.CreatedTime)
         };
 
         return queryable;
-    }
-
-    /// <summary>
-    /// 填充批次列表的仓库名称
-    /// </summary>
-    private async Task FillWarehouseNamesAsync(List<InventoryBatchDto> items)
-    {
-        var warehouseIds = items.Select(i => i.WarehouseId).Distinct();
-        var warehouses = await _context.Warehouses
-            .Where(w => warehouseIds.Contains(w.Id))
-            .ToDictionaryAsync(w => w.Id, w => w.Name);
-
-        foreach (var item in items)
-        {
-            if (warehouses.TryGetValue(item.WarehouseId, out var name))
-                item.WarehouseName = name;
-        }
     }
 
     public async Task<BatchInboundResult> BatchInboundAsync(BatchInboundRequest request)
@@ -467,6 +444,15 @@ public class InventoryService : IInventoryService
             .ToList();
         await SyncSourceOrdersAsync(sourceOrderNos);
 
+        // 自动刷新工单执行状态读模型
+        var workOrderNos = request.Rows
+            .Select(r => r.WorkOrderNo ?? request.WorkOrderNo)
+            .Where(n => !string.IsNullOrEmpty(n))
+            .Distinct()
+            .ToList();
+        foreach (var woNo in workOrderNos)
+            _ = TryRefreshExecutionSummaryAsync(woNo);
+
         return new BatchInboundResult
         {
             SuccessCount = results.Count,
@@ -484,13 +470,6 @@ public class InventoryService : IInventoryService
             throw new BusinessException("批次不存在");
 
         var dto = entity.ToDto();
-
-        var warehouse = await _context.Warehouses
-            .AsNoTracking()
-            .FirstOrDefaultAsync(w => w.Id == entity.WarehouseId);
-        if (warehouse != null)
-            dto.WarehouseName = warehouse.Name;
-
         return dto;
     }
 
@@ -564,7 +543,6 @@ public class InventoryService : IInventoryService
         await _context.SaveChangesAsync();
 
         var dto = entity.ToDto();
-        dto.WarehouseName = warehouse.Name;
         return dto;
     }
 
@@ -589,6 +567,7 @@ public class InventoryService : IInventoryService
         var record = new OutboundRecord
         {
             InventoryBatchId = request.InventoryBatchId,
+            BatchNo = batch.BatchNo,
             OutboundType = Enum.Parse<OutboundType>(request.OutboundType),
             SourceOrderNo = request.SourceOrderNo,
             TargetCompany = request.TargetCompany,
@@ -602,7 +581,6 @@ public class InventoryService : IInventoryService
         await _context.SaveChangesAsync();
 
         var dto = record.ToDto();
-        dto.BatchNo = batch.BatchNo;
         return dto;
     }
 
@@ -638,6 +616,7 @@ public class InventoryService : IInventoryService
                 var record = new OutboundRecord
                 {
                     InventoryBatchId = item.InventoryBatchId,
+                    BatchNo = batch.BatchNo,
                     OutboundType = Enum.Parse<OutboundType>(item.OutboundType ?? request.OutboundType),
                     SourceOrderNo = item.SourceOrderNo ?? request.SourceOrderNo,
                     TargetCompany = item.TargetCompany ?? request.TargetCompany,
@@ -650,7 +629,6 @@ public class InventoryService : IInventoryService
                 _context.OutboundRecords.Add(record);
 
                 var dto = record.ToDto();
-                dto.BatchNo = batch.BatchNo;
                 results.Add(dto);
             }
 
@@ -705,23 +683,7 @@ public class InventoryService : IInventoryService
                     (r.CreatedBy != null && r.CreatedBy.Contains(keyword)) ||
                     (r.SourceOrderNo != null && r.SourceOrderNo.Contains(keyword)) ||
                     (r.Remark != null && r.Remark.Contains(keyword)) ||
-                    (r.OutboundType.ToString().Contains(keyword)) ||
-                    _context.InventoryBatches.Any(b => b.Id == r.InventoryBatchId && b.BatchNo.Contains(keyword)));
-            }
-        }
-
-        // 跨表计算字段筛选（非 OutboundRecord 直接属性，ApplyFilters 无法处理）
-        if (query.Filters != null)
-        {
-            var batchNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("BatchNo", StringComparison.OrdinalIgnoreCase));
-            if (batchNoFilter != null)
-            {
-                var op = batchNoFilter.Operator?.ToLowerInvariant() ?? "contains";
-                if (op == "in" && batchNoFilter.Values?.Count > 0)
-                    queryable = queryable.Where(r => _context.InventoryBatches.Any(b => b.Id == r.InventoryBatchId && batchNoFilter.Values.Contains(b.BatchNo)));
-                else if (!string.IsNullOrEmpty(batchNoFilter.Value))
-                    queryable = queryable.Where(r => _context.InventoryBatches.Any(b => b.Id == r.InventoryBatchId && b.BatchNo.Contains(batchNoFilter.Value)));
-                query.Filters.Remove(batchNoFilter);
+                    (r.BatchNo != null && r.BatchNo.Contains(keyword)));
             }
         }
 
@@ -730,14 +692,8 @@ public class InventoryService : IInventoryService
         queryable = query.SortBy?.ToLower() switch
         {
             "batchno" => query.IsDescending
-                ? queryable.OrderByDescending(r => _context.InventoryBatches
-                    .Where(b => b.Id == r.InventoryBatchId)
-                    .Select(b => b.BatchNo)
-                    .FirstOrDefault() ?? "")
-                : queryable.OrderBy(r => _context.InventoryBatches
-                    .Where(b => b.Id == r.InventoryBatchId)
-                    .Select(b => b.BatchNo)
-                    .FirstOrDefault() ?? ""),
+                ? queryable.OrderByDescending(r => r.BatchNo ?? "")
+                : queryable.OrderBy(r => r.BatchNo ?? ""),
             "outbounddate" => query.IsDescending
                 ? queryable.OrderByDescending(r => r.OutboundDate)
                 : queryable.OrderBy(r => r.OutboundDate),
@@ -773,29 +729,6 @@ public class InventoryService : IInventoryService
             .Take(query.PageSize)
             .Select(r => r.ToDto())
             .ToListAsync();
-
-        // 填充批次号和仓库名称
-        var batchIds = items.Select(i => i.InventoryBatchId).Distinct();
-        var batchDict = await _context.InventoryBatches
-            .Where(b => batchIds.Contains(b.Id))
-            .Select(b => new { b.Id, b.BatchNo, b.WarehouseId })
-            .ToDictionaryAsync(b => b.Id);
-
-        var whIds = batchDict.Values.Select(b => b.WarehouseId).Distinct();
-        var warehouseNames = await _context.Warehouses
-            .Where(w => whIds.Contains(w.Id))
-            .ToDictionaryAsync(w => w.Id, w => w.Name);
-
-        foreach (var item in items)
-        {
-            if (batchDict.TryGetValue(item.InventoryBatchId, out var batchInfo))
-            {
-                item.BatchNo = batchInfo.BatchNo;
-                // 填充仓库名称
-                if (warehouseNames.TryGetValue(batchInfo.WarehouseId, out var whName))
-                    item.WarehouseName = whName;
-            }
-        }
 
         return new PagedResult<OutboundRecordDto>
         {
@@ -889,13 +822,9 @@ public class InventoryService : IInventoryService
 
         await _context.SaveChangesAsync();
 
-        var dto = entity.ToDto();
+        _ = TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
 
-        var warehouse = await _context.Warehouses
-            .AsNoTracking()
-            .FirstOrDefaultAsync(w => w.Id == entity.WarehouseId);
-        if (warehouse != null)
-            dto.WarehouseName = warehouse.Name;
+        var dto = entity.ToDto();
 
         // 数量/重量或来源单号变更时，自动同步采购单/委外单的收货状态
         var sourceChanged = request.SourceOrderNo != oldSourceOrderNo;
@@ -930,8 +859,11 @@ public class InventoryService : IInventoryService
 
         // 物理删除批次
         var sourceOrderNo = entity.SourceOrderNo;
+        var workOrderNo = entity.WorkOrderNo;
         _context.InventoryBatches.Remove(entity);
         await _context.SaveChangesAsync();
+
+        _ = TryRefreshExecutionSummaryAsync(workOrderNo);
 
         // 自动同步采购单/委外单的收货状态
         if (!string.IsNullOrEmpty(sourceOrderNo))
@@ -978,21 +910,6 @@ public class InventoryService : IInventoryService
         await _context.SaveChangesAsync();
 
         var dto = entity.ToDto();
-
-        // 填充批次号
-        var batchDto = await _context.InventoryBatches
-            .AsNoTracking()
-            .FirstOrDefaultAsync(b => b.Id == entity.InventoryBatchId);
-        if (batchDto != null)
-        {
-            dto.BatchNo = batchDto.BatchNo;
-            var wh = await _context.Warehouses
-                .AsNoTracking()
-                .FirstOrDefaultAsync(w => w.Id == batchDto.WarehouseId);
-            if (wh != null)
-                dto.WarehouseName = wh.Name;
-        }
-
         return dto;
     }
 
@@ -1234,17 +1151,6 @@ public class InventoryService : IInventoryService
             .Select(b => b.ToDto())
             .ToListAsync();
 
-        // 填充仓库名称
-        var whIds = items.Select(i => i.WarehouseId).Distinct();
-        var warehouseNames = await _context.Warehouses
-            .Where(w => whIds.Contains(w.Id))
-            .ToDictionaryAsync(w => w.Id, w => w.Name);
-        foreach (var item in items)
-        {
-            if (warehouseNames.TryGetValue(item.WarehouseId, out var wn))
-                item.WarehouseName = wn;
-        }
-
         return TablePrintHelper.GeneratePdf("入 库 批 次 打 印", items, request.Columns);
     }
 
@@ -1271,26 +1177,6 @@ public class InventoryService : IInventoryService
             .Select(r => r.ToDto())
             .ToListAsync();
 
-        // 填充批次号和仓库名称
-        var batchIds = items.Select(i => i.InventoryBatchId).Distinct();
-        var batchDict = await _context.InventoryBatches
-            .Where(b => batchIds.Contains(b.Id))
-            .Select(b => new { b.Id, b.BatchNo, b.WarehouseId })
-            .ToDictionaryAsync(b => b.Id);
-        var whIds = batchDict.Values.Select(b => b.WarehouseId).Distinct();
-        var warehouseNames = await _context.Warehouses
-            .Where(w => whIds.Contains(w.Id))
-            .ToDictionaryAsync(w => w.Id, w => w.Name);
-        foreach (var item in items)
-        {
-            if (batchDict.TryGetValue(item.InventoryBatchId, out var batchInfo))
-            {
-                item.BatchNo = batchInfo.BatchNo;
-                if (warehouseNames.TryGetValue(batchInfo.WarehouseId, out var wn))
-                    item.WarehouseName = wn;
-            }
-        }
-
         return TablePrintHelper.GeneratePdf("出 库 记 录 打 印", items, request.Columns);
     }
 
@@ -1300,10 +1186,8 @@ public class InventoryService : IInventoryService
 
         return new Dictionary<string, List<string>>
         {
-            ["BatchNo"] = await _context.InventoryBatches.AsNoTracking()
-                .Where(b => _context.OutboundRecords.Select(r => r.InventoryBatchId).Contains(b.Id))
-                .Select(b => b.BatchNo).Distinct().OrderBy(x => x).ToListAsync(),
-            ["OutboundType"] = await records.Select(r => r.OutboundType.ToString()).Distinct().OrderBy(x => x).ToListAsync(),
+            ["BatchNo"] = await records.Where(r => r.BatchNo != null).Select(r => r.BatchNo!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["OutboundType"] = (await records.Select(r => r.OutboundType).Distinct().ToListAsync()).Select(e => e.ToString()).OrderBy(x => x).ToList(),
             ["SourceOrderNo"] = await records.Where(r => r.SourceOrderNo != null).Select(r => r.SourceOrderNo!).Distinct().OrderBy(x => x).ToListAsync(),
             ["TargetCompany"] = await records.Where(r => r.TargetCompany != null).Select(r => r.TargetCompany!).Distinct().OrderBy(x => x).ToListAsync(),
             ["Remark"] = await records.Where(r => r.Remark != null).Select(r => r.Remark!).Distinct().OrderBy(x => x).ToListAsync(),
@@ -1421,33 +1305,40 @@ public class InventoryService : IInventoryService
             }
         }
 
-        // 同步委外单
+        // 同步委外单（含 ReturnItem 子表）
         var subcontractOrders = await _context.SubcontractOrders
+            .Include(s => s.ReturnItems)
             .Where(s => sourceOrderNos.Contains(s.OrderNo))
             .ToListAsync();
         if (subcontractOrders.Count > 0)
         {
             var subcontractCompleteRatio = await GetConfigAsync("WarehouseThreshold", "SubcontractCompleteRatio", 0.95m);
-            var allBatchData = await _context.InventoryBatches
+            var allBatches = await _context.InventoryBatches
                 .AsNoTracking()
                 .Where(b => b.SourceOrderNo != null && sourceOrderNos.Contains(b.SourceOrderNo))
-                .GroupBy(b => b.SourceOrderNo)
-                .Select(g => new
-                {
-                    OrderNo = g.Key!,
-                    TotalQty = g.Sum(b => b.InitialQuantity),
-                    TotalWt = g.Sum(b => b.InitialWeight)
-                })
                 .ToListAsync();
 
-            var batchDict = allBatchData.ToDictionary(x => x.OrderNo, x => x, StringComparer.OrdinalIgnoreCase);
             foreach (var order in subcontractOrders)
             {
-                if (!batchDict.TryGetValue(order.OrderNo, out var data)) continue;
-                order.InQuantity = data.TotalQty;
-                order.InWeight = data.TotalWt;
+                var orderBatches = allBatches.Where(b => b.SourceOrderNo == order.OrderNo).ToList();
+                order.InQuantity = orderBatches.Sum(b => b.InitialQuantity);
+                order.InWeight = orderBatches.Sum(b => b.InitialWeight);
 
-                if (!order.IsForceCompleted)
+                // 同步每个 ReturnItem 的回收数据
+                foreach (var item in order.ReturnItems)
+                    SyncReturnItemFromBatches(item, orderBatches);
+
+                // 主表强制完成 → 子表全部强制完成
+                if (order.IsForceCompleted)
+                {
+                    order.Status = SubcontractOrderStatus.Completed;
+                    foreach (var item in order.ReturnItems)
+                    {
+                        item.IsForceCompleted = true;
+                        item.ProcessStatus = SubcontractProcessStatus.Completed;
+                    }
+                }
+                else
                 {
                     if (order.InWeight == null || order.InWeight == 0)
                         order.Status = SubcontractOrderStatus.Sent;
@@ -1461,6 +1352,37 @@ public class InventoryService : IInventoryService
         }
 
         if (changed)
+        {
             await _context.SaveChangesAsync();
+
+            // 刷新关联工单的执行状态
+            foreach (var order in subcontractOrders)
+                foreach (var item in order.ReturnItems)
+                    _ = TryRefreshExecutionSummaryAsync(item.SourceWorkOrderNo);
+        }
+    }
+
+    private static void SyncReturnItemFromBatches(SubcontractReturnItem item, List<InventoryBatch> batches)
+    {
+        if (string.IsNullOrEmpty(item.SourceWorkOrderNo)) return;
+
+        var itemBatches = batches
+            .Where(b => b.WorkOrderNo == item.SourceWorkOrderNo)
+            .ToList();
+
+        item.ReturnedQuantity = itemBatches.Sum(b => b.InitialQuantity);
+        item.ReturnedWeight = itemBatches.Sum(b => b.InitialWeight);
+
+        if (!item.IsForceCompleted)
+        {
+            if (item.ReturnedQuantity <= 0 && item.ReturnedWeight <= 0)
+                item.ProcessStatus = SubcontractProcessStatus.Pending;
+            else if (item.RequiredQuantity.HasValue && item.ReturnedQuantity >= item.RequiredQuantity.Value)
+                item.ProcessStatus = SubcontractProcessStatus.Completed;
+            else if (item.RequiredWeight.HasValue && item.ReturnedWeight >= item.RequiredWeight.Value)
+                item.ProcessStatus = SubcontractProcessStatus.Completed;
+            else
+                item.ProcessStatus = SubcontractProcessStatus.PartialReturned;
+        }
     }
 }

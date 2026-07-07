@@ -20,15 +20,17 @@ public class OrderService : IOrderService
     private readonly INotificationService _notificationService;
     private readonly IConfigParameterService _configService;
     private readonly IWorkOrderService? _workOrderService;
+    private readonly IWorkOrderListSummaryRefreshService? _listSummaryService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
-    public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService, IConfigParameterService configService, IWorkOrderService? workOrderService = null)
+    public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService, IConfigParameterService configService, IWorkOrderService? workOrderService = null, IWorkOrderListSummaryRefreshService? listSummaryService = null)
     {
         _context = context;
         _logger = logger;
         _notificationService = notificationService;
         _configService = configService;
         _workOrderService = workOrderService;
+        _listSummaryService = listSummaryService;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -668,6 +670,10 @@ public async Task DeleteAsync(int id)
 
         await RefreshByOrderIdAsync(orderId);
 
+        // 刷新用料计划总览读模型（工单状态变更后同步）
+        if (_listSummaryService != null)
+            await _listSummaryService.RefreshBySalesOrderAsync(salesOrder.OrderNumber);
+
         return await MapToOrderItemDto(orderItem);
     }
 
@@ -710,6 +716,10 @@ public async Task DeleteAsync(int id)
 
         // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
         await RefreshByOrderIdAsync(orderId);
+
+        // 刷新用料计划总览读模型（工单状态变更后同步）
+        if (_listSummaryService != null)
+            await _listSummaryService.RefreshBySalesOrderAsync(salesOrder.OrderNumber);
     }
 
     public async Task<SaveAllOrderResponse> SaveAllAsync(int id, SaveAllOrderRequest request)
@@ -1369,9 +1379,9 @@ public async Task DeleteAsync(int id)
         item.Remark = remark ?? item.Remark;
     }
 
-    private async Task<OrderItemDto> MapToOrderItemDto(OrderItem orderItem)
+    private Task<OrderItemDto> MapToOrderItemDto(OrderItem orderItem)
     {
-        return new OrderItemDto
+        return Task.FromResult(new OrderItemDto
         {
             Id = orderItem.Id,
             Sequence = orderItem.Sequence,
@@ -1401,7 +1411,7 @@ public async Task DeleteAsync(int id)
             Remark = orderItem.Remark,
             CreatedTime = orderItem.CreatedTime,
             UpdatedTime = orderItem.UpdatedTime
-        };
+        });
     }
 
     /// <summary>

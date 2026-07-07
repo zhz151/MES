@@ -33,6 +33,7 @@ public partial class InboundHistory
     private int _currentPage = 1;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
+    private bool _isArrowNavSetup;
     private int _pageSize = 10;
     // B33 分页汇总
     private Dictionary<string, string> _pageSums = new();
@@ -774,7 +775,7 @@ public partial class InboundHistory
             sortColumn = savedState.SortBy ?? "InboundDate";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
-            _restoredPageIndex = savedState.PageIndex;
+            _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try
@@ -796,6 +797,16 @@ public partial class InboundHistory
         await LoadFilterContextsAsync();
 
         await CheckWorkOrderNotices();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#inbound-history-list-table"))
+                _isArrowNavSetup = false;
+        }
     }
 
     protected override async Task OnParametersSetAsync()
@@ -1014,15 +1025,15 @@ public partial class InboundHistory
         {
             var columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
             var ids = _selectedItems.Select(i => i.Id).ToArray();
-            var result = await InventoryService.PrintInventorySelectedAsync(new InventoryPrintSelectedRequest
+            var request = new InventoryPrintSelectedRequest
             {
                 Ids = ids,
                 Columns = columns
-            });
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            };
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/inventory/print-inventory-selected";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
     }
@@ -1032,7 +1043,7 @@ public partial class InboundHistory
         try
         {
             var columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
-            var result = await InventoryService.PrintInventoryAllAsync(new InventoryPrintAllRequest
+            var request = new InventoryPrintAllRequest
             {
                 Keyword = string.IsNullOrEmpty(_searchKeyword) ? null : _searchKeyword,
                 SortBy = sortColumn,
@@ -1040,11 +1051,11 @@ public partial class InboundHistory
                 WarehouseId = _warehouseId ?? 0,
                 OnlyWithStock = false,
                 Columns = columns
-            });
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            };
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/inventory/print-inventory-all";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
     }

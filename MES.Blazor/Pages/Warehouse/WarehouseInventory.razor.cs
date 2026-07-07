@@ -26,6 +26,7 @@ public partial class WarehouseInventory
     private int _currentPage = 1;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
+    private bool _isArrowNavSetup;
     private int _pageSize = 10;
     private string _lastResolvedWarehouseCode = string.Empty;
     private List<WarehouseDto> warehouses = new();
@@ -335,7 +336,6 @@ public partial class WarehouseInventory
             if (_isFirstLoad)
             {
                 state.Page = _restoredPageIndex;
-                _isFirstLoad = false;
             }
 
             var query = new InventoryQueryParams
@@ -356,6 +356,23 @@ public partial class WarehouseInventory
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
                 _currentPage = state.Page + 1;
+
+                // 如果持久化的页码超出实际数据页，回退到第1页
+                if (_isFirstLoad && _pageItems.Count == 0 && _totalCount > 0 && _restoredPageIndex > 0)
+                {
+                    _restoredPageIndex = 0;
+                    _currentPage = 1;
+                    state.Page = 0;
+                    query.PageIndex = 1;
+                    var retryResult = await InventoryService.GetPagedAsync(query, filtersJson);
+                    if (retryResult.Success && retryResult.Data != null)
+                    {
+                        _pageItems = retryResult.Data.Items;
+                        _totalCount = retryResult.Data.TotalCount;
+                    }
+                }
+
+                _isFirstLoad = false;
                 ComputePageSums();
 
                 _selectedItems.RemoveWhere(i => !_pageItems.Any(x => x.Id == i.Id));
@@ -552,6 +569,8 @@ public partial class WarehouseInventory
 
     // ========== 初始化 ==========
 
+    private bool _initialized;
+
     protected override async Task OnInitializedAsync()
     {
         var result = await WarehouseService.GetAllAsync(true);
@@ -583,12 +602,28 @@ public partial class WarehouseInventory
                 }
             }
 
-            // 状态恢复后重新加载表格数据（首次渲染时 ServerData 可能已用默认值加载）
-            if (savedState != null && table != null)
-                await table.ReloadServerData();
+            // 注意：筛选上下文已在 ResolveWarehouse() 中加载
+            await LoadWarehouseMismatches(); // 自动检查工单号有效性
+            _ = LoadPendingPlanBatches(); // 自动检查待出库用料计划
+            _initialized = true;
+        }
+    }
 
-            // 加载筛选上下文
-            await LoadFilterContextsAsync();
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // 方向键导航
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#warehouse-inventory-list-table"))
+                _isArrowNavSetup = false;
+        }
+
+        // 首次初始化完成后，table 引用已建立，重新加载数据确保 warehouseId 已正确设置
+        if (_initialized && table != null)
+        {
+            _initialized = false;
+            await table.ReloadServerData();
         }
     }
 
@@ -598,7 +633,7 @@ public partial class WarehouseInventory
         {
             var prevCode = warehouseCode;
             await ResolveWarehouse();
-            // 仅在仓库代码实际变更时重新加载数据（OnInitializedAsync 已完成首次加载）
+            // 仅在仓库代码实际变更时重新加载数据
             if (!string.Equals(prevCode, warehouseCode, StringComparison.OrdinalIgnoreCase))
             {
                 if (table != null) await table.ReloadServerData();
@@ -723,15 +758,15 @@ public partial class WarehouseInventory
         {
             var columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
             var ids = _selectedItems.Select(i => i.Id).ToArray();
-            var result = await InventoryService.PrintInventorySelectedAsync(new InventoryPrintSelectedRequest
+            var request = new InventoryPrintSelectedRequest
             {
                 Ids = ids,
                 Columns = columns
-            });
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            };
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/inventory/print-inventory-selected";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
     }
@@ -741,7 +776,7 @@ public partial class WarehouseInventory
         try
         {
             var columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
-            var result = await InventoryService.PrintInventoryAllAsync(new InventoryPrintAllRequest
+            var request = new InventoryPrintAllRequest
             {
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 SortBy = sortColumn,
@@ -749,11 +784,11 @@ public partial class WarehouseInventory
                 WarehouseId = warehouseId,
                 OnlyWithStock = true,
                 Columns = columns
-            });
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            };
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/inventory/print-inventory-all";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
     }
@@ -779,9 +814,7 @@ public partial class WarehouseInventory
         _ => Icons.Material.Filled.Warehouse
     };
 
-    // ========== 工单号即时更新验证 ==========
-
-    private bool _mismatchLoaded;
+    // ========== 工单号自动验证（页面加载时执行） ==========
 
     private async Task LoadWarehouseMismatches()
     {
@@ -800,22 +833,39 @@ public partial class WarehouseInventory
                         config.Action = "忽略";
                     });
             }
-            else if (_mismatchLoaded)
-            {
-                Snackbar.Add("工单号验证通过，所有工单号均有效", Severity.Success, config =>
-                {
-                    config.VisibleStateDuration = 3000;
-                    config.Action = "忽略";
-                });
-            }
         }
         catch (Exception ex)
         {
             Snackbar.Add($"工单号验证失败: {ex.Message}", Severity.Error);
         }
-        finally
+    }
+
+    // ========== 待出库用料计划通知（页面加载时执行） ==========
+
+    private async Task LoadPendingPlanBatches()
+    {
+        if (warehouseId <= 0) return;
+
+        try
         {
-            _mismatchLoaded = true;
+            var result = await MaterialPlanService.GetPendingPlanBatchesAsync(warehouseId);
+            if (result.Success && result.Data != null && result.Data.Count > 0)
+            {
+                var items = result.Data
+                    .Select(d => $"{d.BatchNo}（{d.WorkOrderNo}，{d.PlanType}）")
+                    .ToList();
+                var batchInfo = string.Join("\u3001", items);
+                Snackbar.Add($"以下批次存在库存使用/库料改制计划，请及时出库：{batchInfo}",
+                    Severity.Warning, config =>
+                    {
+                        config.VisibleStateDuration = 20000;
+                        config.Action = "忽略";
+                    });
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"查询待出库计划失败: {ex.Message}", Severity.Error);
         }
     }
 
@@ -831,7 +881,7 @@ public partial class WarehouseInventory
             SortBy = sortColumn,
             IsDescending = sortDescending,
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            PageIndex = _currentPage,
+            PageIndex = Math.Max(0, _currentPage - 1), // 保存 0-indexed，与 MudTable state.Page 对齐
             Extras = extras
         };
         await PageState.SaveAsync("warehouseinventory", state);

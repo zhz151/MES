@@ -14,12 +14,10 @@ namespace MES.Api.Controllers.Scheduling;
 public class BatchPlanController : ControllerBase
 {
     private readonly IBatchPlanService _service;
-    private readonly IProductionRecordService _prodRecordService;
 
-    public BatchPlanController(IBatchPlanService service, IProductionRecordService prodRecordService)
+    public BatchPlanController(IBatchPlanService service)
     {
         _service = service;
-        _prodRecordService = prodRecordService;
     }
 
     [HttpGet("list")]
@@ -69,26 +67,6 @@ public class BatchPlanController : ControllerBase
         return File(pdfBytes, "application/pdf", "批次计划.pdf");
     }
 
-    [HttpGet("debug-iskeybatch")]
-    public async Task<ActionResult> DebugIsKeyBatch()
-    {
-        // 先触发批次跟踪重算
-        var result = await _service.GetAllAsync(null);
-        var target = result.Where(x => x.WorkOrderNo == "D26Z6409003").ToList();
-        foreach (var item in target)
-            await _prodRecordService.RefreshBatchTrackingFieldsAsync(item.BatchId);
-
-        // 重算后重新获取
-        result = await _service.GetAllAsync(null);
-        target = result.Where(x => x.WorkOrderNo == "D26Z6409003").ToList();
-        var html = "<table border='1'><tr><th>WorkOrderNo</th><th>Stage</th><th>Urgency</th><th>Completed</th><th>GroupName</th><th>NextProc</th><th>MainNoAttn</th><th>IsUrging</th><th>IsBatchDel</th><th>IsKeyBatch</th><th>DebugInfo</th></tr>";
-        foreach (var item in target)
-        {
-            html += $"<tr><td>{item.WorkOrderNo}</td><td>{item.ScheduleStage}</td><td>{item.UrgencyLevel}</td><td>{item.CurrentSectionCompleted}</td><td>{item.CurrentGroupName}</td><td>{item.NextProcess}</td><td>{item.MainNoAttentionProcess}</td><td>{item.IsUrging}</td><td>{item.IsBatchDelivery}</td><td>{item.IsKeyBatch}</td><td>{item.DebugInfo}</td></tr>";
-        }
-        html += "</table>";
-        return Content(html, "text/html");
-    }
     [HttpGet("flow-summary")]
     public async Task<ActionResult<ApiResponse<List<ColdRollScheduleSummaryDto>>>> GetFlowSummary(
         [FromQuery] string? sectionTab = null,

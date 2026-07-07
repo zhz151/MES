@@ -14,6 +14,7 @@
 @inject IDialogService DialogService
 @inject ColumnPrefsService ColumnPrefs
 @inject IJSRuntime JS
+@inject HttpClient Http
 @inject NotificationService NotificationService
 @inject PageStateService PageState
 @attribute [Authorize]
@@ -73,25 +74,19 @@
                     <MudTextField T="string"
                                   Value="_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
-                                  Label="模糊搜索"
-                                  Variant="Variant.Outlined"
-                                  Dense="true"
+                                  Label="模糊搜索（批次/炉号/工单号/来料单位）"
                                   Immediate="true"
                                   DebounceInterval="500"
                                   Clearable="true"
                                   ClearButton="true"
-                                  Adornment="Adornment.Start"
+                                  Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
             </MudGrid>
 
-            <!-- 数据表格（内联编辑） -->
-            <div id="inbound-history-list-table" style="overflow-x:auto; max-width:100%;">
-            <MudTable @ref="_table" T="InventoryBatchDto" ServerData="@LoadDataFromServer"
-                      Dense="true" Hover="true"
-                      Elevation="0" Striped="true" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:"
-                      Class="auto-table inbound-history-edit-table compact-table">
-                <ToolBarContent>
+            <!-- 工具栏 -->
+            <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
+                <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="_allColumns"
                                          OnColumnToggle="OnColumnToggle"
                                          OnMoveUp="MoveColumnUp"
@@ -102,7 +97,8 @@
                                OnClick="ResetColumnDisplay" Class="ml-2">
                         重置
                     </MudButton>
-                    <MudSpacer />
+                </div>
+                <div class="d-flex align-center" style="margin-left:auto;">
                     <MudButton Variant="Variant.Outlined" Size="Size.Small"
                                Color="Color.Info"
                                StartIcon="@Icons.Material.Filled.Print"
@@ -119,7 +115,14 @@
                     <MudText Typo="Typo.body2" Class="ml-4">
                         共 @_totalCount 条记录
                     </MudText>
-                </ToolBarContent>
+                </div>
+            </div>
+            <!-- 数据表格（内联编辑） -->
+            <div id="inbound-history-list-table" style="overflow-x:auto; max-width:100%;">
+            <MudTable @ref="_table" T="InventoryBatchDto" ServerData="@LoadDataFromServer"
+                      Dense="true" Hover="true"
+                      Elevation="0" Striped="true" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:"
+                      Class="mt-0 auto-table inbound-history-edit-table compact-table">
                 <HeaderContent>
                     <MudTh Style="width: 40px;">
                         <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />

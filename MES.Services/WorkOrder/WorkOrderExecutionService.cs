@@ -816,6 +816,401 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         };
     }
 
+    public async Task RefreshByWorkOrderNosAsync(List<string> workOrderNos)
+    {
+        if (workOrderNos == null || workOrderNos.Count == 0) return;
+
+        _logger.LogInformation("开始增量刷新工单执行状况: {Count} 个工单", workOrderNos.Count);
+
+        // ===== 加载配置参数 =====
+        var warehouseConfig = await _configService.GetConfigMapAsync("WarehouseThreshold");
+        var workOrderDaysConfig = await _configService.GetConfigMapAsync("WorkOrderDays");
+        var urgencyConfig = await _configService.GetConfigMapAsync("UrgencyThreshold");
+        var processingDiscountConfig = await _configService.GetConfigMapAsync("ProcessingDiscount");
+        var materialPlanStatusConfig = await _configService.GetConfigMapAsync("MaterialPlanStatus");
+        var completeRatio = warehouseConfig.GetValueOrDefault("CompleteRatio", 0.95m);
+        var completeDeviation = warehouseConfig.GetValueOrDefault("CompleteDeviation", 100m);
+        var bufferDays = workOrderDaysConfig.GetValueOrDefault("BufferDays", 3m);
+        var inspectionFixedDays = workOrderDaysConfig.GetValueOrDefault("InspectionFixedDays", 3m);
+        var urgencyAPlus = urgencyConfig.GetValueOrDefault("APlus", 7m);
+        var urgencyA = urgencyConfig.GetValueOrDefault("A", -3m);
+        var urgencyB = urgencyConfig.GetValueOrDefault("B", -10m);
+        var urgencyC = urgencyConfig.GetValueOrDefault("C", -17m);
+        var groupDiscountRate = processingDiscountConfig.GetValueOrDefault("GroupDiscountRate", 0.025m);
+        var supplySatisfiedRate = materialPlanStatusConfig.GetValueOrDefault("SupplySatisfiedRate", 100m);
+        var fixedPartial = materialPlanStatusConfig.GetValueOrDefault("FixedPartial", 102m);
+        var fixedSatisfied = materialPlanStatusConfig.GetValueOrDefault("FixedSatisfied", 110m);
+        var nonFixedPartial = materialPlanStatusConfig.GetValueOrDefault("NonFixedPartial", 105m);
+        var nonFixedSatisfied = materialPlanStatusConfig.GetValueOrDefault("NonFixedSatisfied", 120m);
+        var defaultValueConfig = await _configService.GetConfigMapAsync("DefaultValue");
+        var roughTubeFinishRatio = defaultValueConfig.GetValueOrDefault("RoughTubeFinishRatio", 0.92m);
+
+        // 1. 查找目标工单及同订单的家族工单（用于主号级聚合）
+        var targetWoList = await _context.WorkOrders
+            .AsNoTracking()
+            .Where(wo => workOrderNos.Contains(wo.WorkOrderNo) && wo.Status != WorkOrderStatus.NotGenerated)
+            .ToListAsync();
+
+        if (targetWoList.Count == 0) return;
+
+        var targetWoIds = targetWoList.Select(wo => wo.Id).ToHashSet();
+        var targetWoNos = targetWoList.Select(wo => wo.WorkOrderNo).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var salesOrderNos = targetWoList.Select(wo => wo.SalesOrderNo).Distinct().ToList();
+
+        // 2. 加载同订单所有工单（用于正确的聚合计算）
+        var workOrders = await _context.WorkOrders
+            .AsNoTracking()
+            .Where(wo => salesOrderNos.Contains(wo.SalesOrderNo) && wo.Status != WorkOrderStatus.NotGenerated)
+            .ToListAsync();
+
+        var allWoIds = workOrders.Select(wo => wo.Id).ToHashSet();
+        var allWoNos = workOrders.Select(wo => wo.WorkOrderNo).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        _logger.LogInformation("增量刷新: 目标 {TargetCount} 个, 同订单家族 {FamilyCount} 个",
+            targetWoList.Count, workOrders.Count);
+
+        // 3. 批量加载关联数据（按家族工单范围）
+        var batches = await _context.ProductionBatches
+            .AsNoTracking()
+            .Include(b => b.ProcessGroups)
+            .Where(b => allWoNos.Contains(b.WorkOrderNo))
+            .ToListAsync();
+        var batchesByWo = batches
+            .GroupBy(b => b.WorkOrderNo, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+        var salesOrders = await _context.SalesOrders
+            .AsNoTracking()
+            .Where(so => salesOrderNos.Contains(so.OrderNumber))
+            .ToListAsync();
+        var customerIds = salesOrders.Select(so => so.CustomerId).Distinct().ToList();
+        var customerProfiles = await _context.CustomerProfiles
+            .AsNoTracking()
+            .Where(c => customerIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id);
+        var customerNameByWo = new Dictionary<int, string>();
+        var customerSalesmanByWo = new Dictionary<int, string>();
+        foreach (var wo in workOrders)
+        {
+            var so = salesOrders.FirstOrDefault(s => s.OrderNumber.Equals(wo.SalesOrderNo, StringComparison.OrdinalIgnoreCase));
+            if (so != null && customerProfiles.TryGetValue(so.CustomerId, out var cp))
+            {
+                customerNameByWo[wo.Id] = cp.CustomerUnit;
+                customerSalesmanByWo[wo.Id] = cp.Salesman;
+            }
+            else
+            {
+                customerNameByWo[wo.Id] = "";
+                customerSalesmanByWo[wo.Id] = "";
+            }
+        }
+
+        var purchaseOrders = await _context.PurchaseOrders
+            .AsNoTracking()
+            .Where(po => po.SourceWorkOrderNo != null && allWoNos.Contains(po.SourceWorkOrderNo)
+                      && po.Status != PurchaseOrderStatus.Completed)
+            .ToListAsync();
+        var poByWoNo = purchaseOrders
+            .GroupBy(po => po.SourceWorkOrderNo!)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+        var returnItems = await _context.SubcontractReturnItems
+            .AsNoTracking()
+            .Where(ri => ri.SourceWorkOrderNo != null && allWoNos.Contains(ri.SourceWorkOrderNo))
+            .ToListAsync();
+        var riByWoNo = returnItems
+            .GroupBy(ri => ri.SourceWorkOrderNo!)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+        var workOrderListSummaries = await _context.Set<WorkOrderListSummary>()
+            .AsNoTracking()
+            .Where(s => allWoIds.Contains(s.WorkOrderId))
+            .ToListAsync();
+        var execSummaryByWoId = workOrderListSummaries.ToDictionary(s => s.WorkOrderId);
+
+        var finalInspections = await _context.FinalInspections
+            .AsNoTracking()
+            .Where(fi => fi.MaterialName == "订单成品" && fi.WorkOrderNo != null && allWoNos.Contains(fi.WorkOrderNo))
+            .ToListAsync();
+        var fiByWoNo = finalInspections
+            .GroupBy(fi => fi.WorkOrderNo!)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+        var inventoryBatches = await _context.InventoryBatches
+            .AsNoTracking()
+            .Where(ib => ib.MaterialType == "订单成品" && ib.WorkOrderNo != null && allWoNos.Contains(ib.WorkOrderNo))
+            .ToListAsync();
+        var ibByWoNo = inventoryBatches
+            .GroupBy(ib => ib.WorkOrderNo!)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+        // 4. 逐工单计算
+        var now = DateTime.Now;
+        var summaries = new List<WorkOrderExecutionSummary>();
+        foreach (var wo in workOrders)
+        {
+            var woBatches = batchesByWo.TryGetValue(wo.WorkOrderNo, out var b) ? b : new List<ProductionBatch>();
+            fiByWoNo.TryGetValue(wo.WorkOrderNo, out var woFiList);
+            var totalInspectionQty = woFiList?.Sum(fi => fi.Quantity ?? 0) ?? 0;
+            var totalQualifiedQty = woFiList?.Sum(fi => fi.QualifiedQuantity ?? 0) ?? 0;
+            var totalScrapQty = woFiList?.Sum(fi => fi.DefectScrapQuantity ?? 0) ?? 0;
+            var fiDates = woFiList?.Select(fi => fi.InspectionDate).ToList();
+            var inspectionStartDate = fiDates?.Count > 0 ? fiDates.Min() : (DateTime?)null;
+            var inspectionEndDate = fiDates?.Count > 0 ? fiDates.Max() : (DateTime?)null;
+
+            var summary = ComputeSummary(wo,
+                customerNameByWo.TryGetValue(wo.Id, out var cn) ? cn : "",
+                customerSalesmanByWo.TryGetValue(wo.Id, out var sm) ? sm : "",
+                woBatches, totalInspectionQty, totalQualifiedQty, totalScrapQty,
+                inspectionStartDate, inspectionEndDate,
+                completeRatio, completeDeviation, groupDiscountRate, supplySatisfiedRate);
+
+            // G2: 从用料计划读模型取值
+            if (execSummaryByWoId.TryGetValue(wo.Id, out var ls))
+            {
+                summary.LatestPlanDate = ls.LatestPlanDate;
+                summary.MaterialPlanRate = ls.MaterialPlanRate;
+                summary.MaterialPlanStatus = ls.MaterialPlanStatus;
+                summary.MainNoMaterialPlanRate = ls.MainNoMaterialPlanRate;
+                summary.MainNoMaterialPlanStatus = ls.MainNoMaterialPlanStatus;
+                summary.ProcessCycle = ls.MaxStandardCycle;
+                summary.MaterialPlanCoveredCount = ls.MaterialPlanCoveredCount;
+                summary.MaterialPlanProportion = ls.MaterialPlanProportion;
+                summary.LatestRequiredDate = ls.LatestRequiredDate;
+            }
+
+            // Group 5: 物料执行
+            poByWoNo.TryGetValue(wo.WorkOrderNo, out var woPos);
+            riByWoNo.TryGetValue(wo.WorkOrderNo, out var woRis);
+            if ((woPos?.Count ?? 0) > 0 || (woRis?.Count ?? 0) > 0)
+            {
+                var safePos = woPos ?? new List<PurchaseOrder>();
+                var safeRis = woRis ?? new List<SubcontractReturnItem>();
+                var roughTubePos = safePos.Where(po => po.MaterialCategory == "荒管" || po.MaterialCategory == "半成品").ToList();
+                var roughTubeRis = safeRis.Where(ri => ri.MaterialCategory == "荒管" || ri.MaterialCategory == "半成品").ToList();
+                summary.PendingRoughTubeQty = roughTubePos.Sum(po => (po.Quantity ?? 0) - po.ReceivedQuantity)
+                    + roughTubeRis.Sum(ri => (ri.RequiredQuantity ?? 0) - ri.ReturnedQuantity);
+                summary.PendingRoughTubeWeight = roughTubePos.Sum(po => po.Weight - po.ReceivedWeight)
+                    + roughTubeRis.Sum(ri => (ri.RequiredWeight ?? 0) - ri.ReturnedWeight);
+                var finishPos = safePos.Where(po => po.MaterialCategory == "临界成品" || po.MaterialCategory == "订单成品").ToList();
+                var finishRis = safeRis.Where(ri => ri.MaterialCategory == "临界成品" || ri.MaterialCategory == "订单成品").ToList();
+                summary.PendingOutsourceFinishQty = finishPos.Sum(po => (po.Quantity ?? 0) - po.ReceivedQuantity)
+                    + finishRis.Sum(ri => (ri.RequiredQuantity ?? 0) - ri.ReturnedQuantity);
+                summary.PendingOutsourceFinishWeight = finishPos.Sum(po => po.Weight - po.ReceivedWeight)
+                    + finishRis.Sum(ri => (ri.RequiredWeight ?? 0) - ri.ReturnedWeight);
+                summary.TheoreticalFinishQty = roughTubePos.Concat(finishPos)
+                    .Sum(po => ((po.Quantity ?? 0) - po.ReceivedQuantity) * (po.InputMultiple ?? 1))
+                    + roughTubeRis.Concat(finishRis)
+                    .Sum(ri => ((ri.RequiredQuantity ?? 0) - ri.ReturnedQuantity) * (ri.InputMultiple ?? 1));
+                summary.TheoreticalFinishWeight = Math.Round(
+                    summary.PendingRoughTubeWeight * roughTubeFinishRatio + summary.PendingOutsourceFinishWeight, 2);
+            }
+
+            // Group 11: 成品入库
+            ibByWoNo.TryGetValue(wo.WorkOrderNo, out var woIbList);
+            if (woIbList?.Count > 0)
+            {
+                summary.WarehousingStartDate = woIbList.Min(ib => ib.InboundDate);
+                summary.WarehousingEndDate = woIbList.Max(ib => ib.InboundDate);
+                summary.WarehousingTotalQty = woIbList.Sum(ib => ib.InitialQuantity);
+                summary.WarehousingTotalWeight = woIbList.Sum(ib => ib.InitialWeight);
+                var isFixed = summary.LengthStatus == LengthStatus.Fixed.ToString();
+                var isComplete = isFixed
+                    ? summary.WarehousingTotalQty >= wo.TotalQuantity
+                    : summary.WarehousingTotalWeight >= wo.TotalWeight * completeRatio
+                      && summary.WarehousingTotalWeight >= wo.TotalWeight - completeDeviation;
+                summary.WoWarehousingStatus = (summary.WarehousingTotalQty == 0 && summary.WarehousingTotalWeight == 0)
+                    ? 0 : isComplete ? 2 : 1;
+            }
+            else
+            {
+                summary.WarehousingTotalQty = 0;
+                summary.WarehousingTotalWeight = 0;
+                summary.WoWarehousingStatus = 0;
+            }
+
+            summary.LastRefreshTime = now;
+            summaries.Add(summary);
+        }
+
+        // 5. 主号级聚合计算（使用全家族数据，确保聚合正确）
+        ComputeMainNoInputAggregation(summaries, workOrders, supplySatisfiedRate);
+        ComputeWarehousingAggregation(summaries, workOrders);
+
+        // G12: 关注状态
+        foreach (var summary in summaries)
+        {
+            summary.ScheduleStage = summary.WoWarehousingStatus == 2 ? 0
+                : summary.MainNoFlowStatus != 2 ? 1
+                : summary.FlowIncompleteBatchCount > 0 ? 2 : 3;
+        }
+        foreach (var summary in summaries)
+        {
+            if (summary.ProductionAttentionProcess == null && summary.ScheduleStage == 2)
+                summary.ProductionAttentionProcess = "收尾-成检";
+        }
+
+        // G12/G13: 加载暂停和需求调整数据
+        var pausedIdList = await _context.Set<OrderDemandAdjustment>()
+            .AsNoTracking()
+            .Where(u => allWoIds.Contains(u.WorkOrderId) && u.IsPaused)
+            .Select(u => u.WorkOrderId)
+            .ToListAsync();
+        var pausedIds = pausedIdList.ToHashSet();
+        var adjustments = await _context.Set<OrderDemandAdjustment>()
+            .AsNoTracking()
+            .Where(a => allWoIds.Contains(a.WorkOrderId))
+            .ToDictionaryAsync(a => a.WorkOrderId);
+        foreach (var summary in summaries)
+        {
+            if (adjustments.TryGetValue(summary.WorkOrderId, out var adj))
+            {
+                summary.IsUrging = adj.IsUrging;
+                summary.IsBatchDelivery = adj.IsBatchDelivery;
+                summary.IsPaused = adj.IsPaused;
+                summary.AdjustmentRemark = adj.AdjustmentRemark;
+            }
+        }
+
+        // 生产流转性
+        var mainNoUrgencyFlags = summaries
+            .GroupBy(s => new { s.SalesOrderNo, s.ProductionMainNo })
+            .ToDictionary(g => g.Key,
+                g => new {
+                    MainNoUrging = g.Any(s => s.IsUrging),
+                    MainNoBatchDelivery = g.Any(s => s.IsBatchDelivery),
+                    MainNoPaused = g.Any(s => s.IsPaused)
+                });
+        foreach (var summary in summaries)
+        {
+            var flags = mainNoUrgencyFlags[new { summary.SalesOrderNo, summary.ProductionMainNo }];
+            summary.ProductionFlowProperty = flags.MainNoPaused ? "暂停"
+                : (summary.ScheduleStage == 2 || (summary.ScheduleStage == 1 && (flags.MainNoUrging || flags.MainNoBatchDelivery))) ? "正常"
+                : summary.ScheduleStage == 1 ? "待料"
+                : (summary.ScheduleStage == 0 || summary.ScheduleStage == 3) ? (summary.FlowIncompleteBatchCount == 0 ? "略" : "疑问")
+                : null;
+        }
+
+        // G12: 计算剩余工量 & 工单计划性
+        var dailyEstimates = await _dailyOutputService.GetAllAsync();
+        var completedBatchOutputByMainNo = batchesByWo.Values
+            .SelectMany(b => b)
+            .Where(b => b.Status == BatchStatus.Completed && b.ProductionType != "Rework" && b.ManufacturingItem == "OrderFinishedProduct")
+            .GroupBy(b => new { b.SalesOrderNo, b.ProductionMainNo })
+            .ToDictionary(g => g.Key, g =>
+            {
+                decimal total = 0;
+                foreach (var batch in g)
+                {
+                    var inputWeight = batch.CurrentValidWeight ?? 0m;
+                    var effectiveGroups = batch.ProcessGroups?.Count(pg => HasAnySection(pg)) ?? 0;
+                    var discount = 1.0m - effectiveGroups * groupDiscountRate;
+                    if (discount < 0) discount = 0;
+                    total += Math.Round(inputWeight * discount, 3);
+                }
+                return Math.Round(total, 3);
+            });
+
+        foreach (var summary in summaries)
+        {
+            if (summary.ScheduleStage == 0) continue;
+            var key = new { summary.SalesOrderNo, summary.ProductionMainNo };
+            // ...剩余工量计算
+            var agg = summaries
+                .GroupBy(s => new { s.SalesOrderNo, s.ProductionMainNo })
+                .Where(g => g.Key.Equals(key))
+                .Select(g => new { MaxProcessCycle = g.Max(s => s.ProcessCycle), MaxRemainingDays = g.Max(s => s.FlowMaxRemainingWorkDays), MainNoTotalWeight = g.Sum(s => s.TotalWeight) })
+                .FirstOrDefault();
+
+            summary.TotalRemainingWorkDays = summary.ScheduleStage switch
+            {
+                1 => (agg?.MaxProcessCycle ?? 0) + (int)bufferDays,
+                2 => agg?.MaxRemainingDays ?? 0,
+                3 => (int)inspectionFixedDays,
+                _ => null
+            };
+
+            if (summary.TotalRemainingWorkDays.HasValue && agg?.MainNoTotalWeight > 0)
+            {
+                var completedOutput = completedBatchOutputByMainNo.TryGetValue(key, out var co) ? co : 0m;
+                var remainingWeight = agg.MainNoTotalWeight - completedOutput;
+                if (remainingWeight > 0)
+                {
+                    var od = ParseOuterDiameter(summary.Specification);
+                    if (od.HasValue)
+                    {
+                        var match = dailyEstimates
+                            .Where(e => e.MinOuterDiameter <= od.Value)
+                            .OrderByDescending(e => e.MinOuterDiameter)
+                            .FirstOrDefault();
+                        if (match != null && match.DailyOutputTons > 0)
+                            summary.CapacityWorkDays = (int)Math.Ceiling(remainingWeight / 1000m / match.DailyOutputTons);
+                    }
+                }
+                else
+                    summary.CapacityWorkDays = 0;
+            }
+
+            var totalDays = (summary.TotalRemainingWorkDays ?? 0) + (summary.CapacityWorkDays ?? 0);
+            var todayDays = DateOnly.FromDateTime(DateTime.Today).DayNumber;
+            var deliveryDays = DateOnly.FromDateTime(summary.DeliveryDate).DayNumber;
+            var diff = totalDays + todayDays - deliveryDays;
+            summary.UrgencyLevel = diff > urgencyAPlus ? "A+急"
+                : diff > urgencyA ? "A急" : diff > urgencyB ? "B顺" : diff > urgencyC ? "C缓" : "D缓";
+            if (pausedIds.Contains(summary.WorkOrderId)) summary.UrgencyLevel = "E停";
+            summary.EstimatedProcessCompletionDate = DateTime.Today.AddDays(totalDays);
+            summary.DaysDiffFromDelivery = (summary.EstimatedProcessCompletionDate.Value.Date - summary.DeliveryDate.Date).Days;
+        }
+
+        // G12: 原锁备注
+        foreach (var summary in summaries.Where(s => s.ScheduleStage == 1))
+        {
+            if (summary.MainNoInputStatus == 2 && summary.MainNoFlowStatus != 2)
+                summary.RawMaterialLockRemark = "A质量影响";
+            else
+            {
+                var isFixed = summary.LengthStatus == LengthStatus.Fixed.ToString();
+                var totalTheorFinishQty = summaries.Where(s => s.SalesOrderNo == summary.SalesOrderNo && s.ProductionMainNo == summary.ProductionMainNo).Sum(s => s.TheoreticalFinishQty);
+                var totalQty = summaries.Where(s => s.SalesOrderNo == summary.SalesOrderNo && s.ProductionMainNo == summary.ProductionMainNo).Sum(s => s.TotalQuantity);
+                var totalTheorFinishWeight = summaries.Where(s => s.SalesOrderNo == summary.SalesOrderNo && s.ProductionMainNo == summary.ProductionMainNo).Sum(s => s.TheoreticalFinishWeight);
+                var totalWeight = summaries.Where(s => s.SalesOrderNo == summary.SalesOrderNo && s.ProductionMainNo == summary.ProductionMainNo).Sum(s => s.TotalWeight);
+                var g5Ratio = isFixed ? (totalQty > 0 ? totalTheorFinishQty / totalQty * 100 : 0)
+                    : (totalWeight > 0 ? totalTheorFinishWeight / totalWeight * 100 : 0);
+                var mainNoFlowRatio = summaries.Where(s => s.SalesOrderNo == summary.SalesOrderNo && s.ProductionMainNo == summary.ProductionMainNo).First().MainNoFlowOutputRatio;
+                var isTypeB = (g5Ratio + mainNoFlowRatio) >= supplySatisfiedRate;
+                if (isTypeB)
+                    summary.RawMaterialLockRemark = "B已购未回";
+                else if (summary.MainNoMaterialPlanStatus == 3 || summary.MainNoMaterialPlanStatus == 4)
+                    summary.RawMaterialLockRemark = "C计划未执行";
+                else if (summary.MainNoMaterialPlanStatus == 0 || summary.MainNoMaterialPlanStatus == 1)
+                    summary.RawMaterialLockRemark = "D未完善计划";
+            }
+        }
+
+        // 6. 仅 upsert 目标工单
+        var existingRecords = await _context.Set<WorkOrderExecutionSummary>()
+            .Where(e => targetWoIds.Contains(e.WorkOrderId))
+            .ToListAsync();
+        var existingByWoId = existingRecords.ToDictionary(e => e.WorkOrderId);
+
+        foreach (var summary in summaries.Where(s => targetWoIds.Contains(s.WorkOrderId)))
+        {
+            if (existingByWoId.TryGetValue(summary.WorkOrderId, out var existing))
+            {
+                CopySummaryToExisting(summary, existing);
+                _context.Entry(existing).State = EntityState.Modified;
+            }
+            else
+            {
+                _context.Set<WorkOrderExecutionSummary>().Add(summary);
+            }
+        }
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("增量刷新完成: 目标 {TargetCount} 个工单", targetWoList.Count);
+    }
+
     private static WorkOrderExecutionSummary ComputeSummary(
         WoEntity wo,
         string customerName,

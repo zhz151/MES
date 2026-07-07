@@ -17,7 +17,6 @@ public partial class BatchPlans
     [Obsolete("不再使用，由 _filteredItems 替代")] private List<BatchPlanDto> _pageItems = new();
     private List<BatchPlanDto> _filteredItems = new();
     private int _totalCount;
-    [Obsolete("Items 模式下 MudTable 自动管理分页")] private int _currentPageIndex = 0;
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
     private bool _isPlanning;
@@ -1593,7 +1592,7 @@ public partial class BatchPlans
 
     private static object GetRawPropertyValue(BatchPlanDto item, string key)
     {
-        return key switch
+        return (key switch
         {
             "BatchNo" => item.BatchNo ?? "",
             "TagNo" => item.TagNo ?? "",
@@ -1658,6 +1657,6 @@ public partial class BatchPlans
             "ProductionFlowProperty" => item.ProductionFlowProperty ?? "",
             "MaxBatchRemainingWorkDays" => item.MaxBatchRemainingWorkDays,
             _ => ""
-        };
+        })!;
     }
 }

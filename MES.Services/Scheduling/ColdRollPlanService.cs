@@ -91,7 +91,7 @@ public class ColdRollPlanService : IColdRollPlanService
 
         foreach (var batch in batchProjections)
         {
-            var summary = summaryDict.GetValueOrDefault(batch.WorkOrderNo);
+            var summary = summaryDict.GetValueOrDefault(batch.WorkOrderNo!);
 
             var sortedPgs = batch.ProcessGroups
                 .OrderBy(pg => pg.SequenceNumber)

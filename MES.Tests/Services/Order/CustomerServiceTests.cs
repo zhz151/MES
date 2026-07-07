@@ -3,11 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Order;
 using MES.Tests.Tests;
+using Moq;
 
 namespace MES.Tests.Services;
 
@@ -16,7 +18,11 @@ namespace MES.Tests.Services;
 /// </summary>
 public class CustomerServiceTests : TestBase
 {
-    private CustomerService CreateService(AppDbContext ctx) => new(ctx);
+    private CustomerService CreateService(AppDbContext ctx)
+    {
+        var orderServiceMock = new Mock<IOrderService>();
+        return new(ctx, orderServiceMock.Object);
+    }
 
     private async Task SeedCustomerAsync(AppDbContext ctx, string code = "C001", string unit = "测试客户",
         string salesman = "张三", CustomerStatus status = CustomerStatus.Active)

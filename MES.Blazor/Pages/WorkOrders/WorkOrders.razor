@@ -17,6 +17,7 @@
 @inject IDialogService DialogService
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
+@inject HttpClient Http
 @inject PageStateService PageState
 @attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
 
@@ -167,16 +168,9 @@
 
             <!-- 数据表格 -->
             <div id="workorders-list-table">
-            <MudTable @ref="table"
-                      T="WorkOrderListItemDto"
-                      ServerData="@LoadDataFromServer"
-                      Dense="true"
-                      Hover="true"
-                      Class="mt-4 auto-table compact-table"
-                      Elevation="0"
-                      RowsPerPage="@_pageSize"
-                      RowsPerPageLabel="每页行数:">
-                <ToolBarContent>
+            <!-- 工具栏 -->
+            <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
+                <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="_allColumns"
                                          OnColumnToggle="OnColumnToggle"
                                          OnMoveUp="MoveColumnUp"
@@ -187,7 +181,8 @@
                                OnClick="ResetColumnDisplay" Class="ml-2">
                         重置
                     </MudButton>
-                    <MudSpacer />
+                </div>
+                <div class="d-flex align-center" style="margin-left:auto;">
                     <MudButton Variant="Variant.Outlined"
                                Size="Size.Small"
                                Color="Color.Info"
@@ -203,10 +198,20 @@
                                OnClick="PrintAll">
                         打印全部
                     </MudButton>
-                    <MudText Typo="Typo.body2" Class="ml-2">
+                    <MudText Typo="Typo.body2" Class="ml-4">
                         共 @_totalCount 条记录
                     </MudText>
-                </ToolBarContent>
+                </div>
+            </div>
+            <MudTable @ref="table"
+                      T="WorkOrderListItemDto"
+                      ServerData="@LoadDataFromServer"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-0 auto-table compact-table"
+                      Elevation="0"
+                      RowsPerPage="@_pageSize"
+                      RowsPerPageLabel="每页行数:">
                 <HeaderContent>
                     <MudTh Style="width: 40px;">
                         <MudCheckBox T="bool" @bind-Value="_allSelected" Dense="true" />
@@ -229,7 +234,7 @@
                             </div>
                         </MudTh>
                     }
-                    <MudTh>操作</MudTh>
+                    <MudTh Style="width:120px;">操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
                     <MudTd Style="width: 40px;">

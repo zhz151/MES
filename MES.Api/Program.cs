@@ -27,7 +27,6 @@ using MES.Services.Equipment;
 using MES.Services.DataExchange;
 using MES.Services.DataFix;
 using MES.Services.Order;
-using MES.Services.Orders;
 using MES.Services.Configuration;
 using MES.Services.ProductionStandard;
 using MES.Services.Scheduling;
@@ -208,7 +207,7 @@ builder.Services.AddScoped<IScanService, ScanService>();
 builder.Services.AddScoped<IWorkstationService, WorkstationService>();
 builder.Services.AddScoped<IEmployeeService, MES.Services.Configuration.EmployeeService>();
 builder.Services.AddScoped<IDailyProductionCapacityService, MES.Services.Configuration.DailyProductionCapacityService>();
-builder.Services.AddScoped<IStandardRegisterService, MES.Services.StandardRegister.StandardRegisterService>();
+builder.Services.AddScoped<IStandardRegisterService, StandardRegisterService>();
 
 // ========== 读模型上下文 ==========
 builder.Services.AddScoped<IWorkOrderExecutionService, WorkOrderExecutionService>();
@@ -216,7 +215,7 @@ builder.Services.AddScoped<IWorkOrderExecutionService, WorkOrderExecutionService
 // ========== Scheduling 上下文 ==========
 builder.Services.AddScoped<IOrderDemandAdjustmentService, OrderDemandAdjustmentService>();
 builder.Services.AddScoped<IRawMaterialLockPlanAndExecutionService, RawMaterialLockPlanAndExecutionService>();
-builder.Services.AddScoped<ProductionOverviewService>();
+builder.Services.AddScoped<IProductionOverviewService, ProductionOverviewService>();
 builder.Services.AddScoped<ISectionProductionStatusService, SectionProductionStatusService>();
 builder.Services.AddScoped<ISectionFlowAnalysisService, SectionFlowAnalysisService>();
 builder.Services.AddScoped<IWorkOrderScheduleService, WorkOrderScheduleService>();
@@ -285,12 +284,6 @@ recurringJobManager.AddOrUpdate<HangfireJobService>(
     "cleanup-old-notifications",
     service => service.CleanupOldNotificationsJob(),
     "0 2 * * *");  // 每天凌晨2点执行
-
-recurringJobManager.AddOrUpdate<HangfireJobService>(
-    "material-sync",
-    service => service.MaterialSyncJob(),
-    "37 * * * *",  // 每小时的第37分钟执行
-    jobOptions);
 
 app.UseHttpsRedirection();
 app.UseCors("AllowBlazor");

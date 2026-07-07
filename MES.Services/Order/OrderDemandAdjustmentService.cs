@@ -8,7 +8,7 @@ using MES.Data.Entities.Scheduling;
 
 using MES.Services.Helpers;
 
-namespace MES.Services.Orders;
+namespace MES.Services.Order;
 
 /// <summary>
 /// 订单需求调整服务
@@ -149,7 +149,16 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
         await _context.SaveChangesAsync();
 
         // 实时同步读模型：IsPaused 变化需立即反映到 WorkOrderExecutionSummary.UrgencyLevel（E停）
-        await _workOrderExecutionService.RefreshAllAsync();
+        // 增量刷新：仅刷新该工单及其同 SalesOrderNo 的兄弟工单
+        var workOrderNo = await _context.WorkOrders
+            .AsNoTracking()
+            .Where(w => w.Id == workOrderId)
+            .Select(w => w.WorkOrderNo)
+            .FirstOrDefaultAsync();
+        if (!string.IsNullOrEmpty(workOrderNo))
+        {
+            await _workOrderExecutionService.RefreshByWorkOrderNosAsync(new List<string> { workOrderNo });
+        }
 
         return true;
     }

@@ -26,6 +26,11 @@ public class OutboundRecord : IAuditableEntity
     public int InventoryBatchId { get; set; }
 
     /// <summary>
+    /// 仓库批次号（从 InventoryBatch 冗余快照）
+    /// </summary>
+    public string? BatchNo { get; set; }
+
+    /// <summary>
     /// 出库类型
     /// </summary>
     public OutboundType OutboundType { get; set; }

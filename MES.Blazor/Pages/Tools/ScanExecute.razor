@@ -41,17 +41,17 @@
                     <div class="d-flex align-center mb-1" style="gap: 12px;">
                         <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Color="Color.Primary" Size="Size.Small" />
                         <MudText Typo="Typo.body2" Class="font-weight-bold" Color="Color.Primary">
-                            @_workstationContext!.Name (@_workstationContext.Code)
+                            @_workstationContext!.Name (@_workstationContext!.Code)
                         </MudText>
-                        <MudChip Size="Size.Small" Color="Color.Primary">@_workstationContext.SectionName</MudChip>
-                        <MudChip Size="Size.Small" Color="Color.Tertiary">@GetReportTypeText(_workstationContext.ReportType)</MudChip>
+                        <MudChip Size="Size.Small" Color="Color.Primary">@_workstationContext!.SectionName</MudChip>
+                        <MudChip Size="Size.Small" Color="Color.Tertiary">@GetReportTypeText(_workstationContext!.ReportType)</MudChip>
                         <MudButton Variant="Variant.Text" Color="Color.Default" Size="Size.Small"
                                    OnClick="ClearWorkstation" Style="font-size: 0.75rem; margin-left: auto;">
                             更换
                         </MudButton>
                     </div>
                     <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        设备：@_workstationContext.EquipmentName
+                        设备：@_workstationContext!.EquipmentName
                     </MudText>
                 </MudPaper>
             }
@@ -781,7 +781,7 @@
                     <div class="d-flex flex-column">
                         <MudText Typo="Typo.h6" Class="mb-3 font-weight-bold">
                             <MudIcon Icon="@Icons.Material.Filled.Output" Color="Color.Primary" Class="mr-1" />
-                            工段委外 — @_resolveResult.ProcessName / @_workstationContext.SectionName
+                            工段委外 — @_resolveResult.ProcessName / @_workstationContext!.SectionName
                         </MudText>
 
                         @* 批次摘要 *@
@@ -792,7 +792,7 @@
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">工序：</MudText>
                                 <MudText Typo="Typo.body2">@_resolveResult.ProcessName</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">工段：</MudText>
-                                <MudText Typo="Typo.body2">@_workstationContext.SectionName</MudText>
+                                <MudText Typo="Typo.body2">@_workstationContext!.SectionName</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">牌号：</MudText>
                                 <MudText Typo="Typo.body2">@_resolveResult.PlantGrade</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">规格：</MudText>
@@ -982,7 +982,7 @@
                     <div class="d-flex flex-column">
                         <MudText Typo="Typo.h6" Class="mb-3 font-weight-bold">
                             <MudIcon Icon="@Icons.Material.Filled.EditNote" Color="Color.Primary" Class="mr-1" />
-                            过程检验 — @_resolveResult.ProcessName / @_workstationContext.SectionName
+                            过程检验 — @_resolveResult.ProcessName / @_workstationContext!.SectionName
                         </MudText>
 
                         @* 批次摘要 *@
@@ -1646,7 +1646,7 @@
         }
 
         _workstationContext = response.Data;
-        Snackbar.Add($"已识别工位：{_workstationContext.Name}（{GetReportTypeText(_workstationContext.ReportType)}）", Severity.Success);
+        Snackbar.Add($"已识别工位：{_workstationContext!.Name}（{GetReportTypeText(_workstationContext!.ReportType)}）", Severity.Success);
         await StopCamera();
         _manualInput = null;
 
@@ -1978,9 +1978,9 @@
         // 工位上下文自动匹配工段
         _selectedSection = null;
         if (_hasWorkstation && !string.IsNullOrEmpty(_workstationContext?.SectionName)
-            && _resolveResult.AvailableSections.Any(s => s.SectionName == _workstationContext.SectionName))
+            && _resolveResult.AvailableSections.Any(s => s.SectionName == _workstationContext!.SectionName))
         {
-            _selectedSection = _workstationContext.SectionName;
+            _selectedSection = _workstationContext!.SectionName;
         }
 
         // 重置表单
@@ -2220,7 +2220,7 @@
                     ManufacturingSpec = _resolveResult.ManufacturingSpec ?? "",
                     SectionName = _workstationContext!.SectionName,
                     SequenceNumber = _resolveResult.AvailableSections
-                        .FirstOrDefault(s => s.SectionName == _workstationContext.SectionName)?.SequenceNumber ?? 0,
+                        .FirstOrDefault(s => s.SectionName == _workstationContext!.SectionName)?.SequenceNumber ?? 0,
                     OutsourceVendor = _sectionOutsourceVendor,
                     SendOutDate = DateTime.TryParse(_sectionOutsourceSendOutDate, out var sd) ? sd : DateTime.Today,
                     SendQuantity = _sectionOutsourceSendQuantity,
@@ -2236,7 +2236,7 @@
                 if (response.Success)
                 {
                     _submittedBatchNo = _resolveResult.BatchNo;
-                    _submittedSection = _workstationContext.SectionName;
+                    _submittedSection = _workstationContext!.SectionName;
                     Snackbar.Add("工段委外提交成功", Severity.Success);
                 }
                 else
@@ -2286,7 +2286,7 @@
                     ManufacturingSpec = _resolveResult.ManufacturingSpec ?? "",
                     SectionName = _workstationContext!.SectionName,
                     SequenceNumber = _resolveResult.AvailableSections
-                        .FirstOrDefault(s => s.SectionName == _workstationContext.SectionName)?.SequenceNumber ?? 0,
+                        .FirstOrDefault(s => s.SectionName == _workstationContext!.SectionName)?.SequenceNumber ?? 0,
                     InspectionDate = DateTime.TryParse(_inspectionDate, out var id) ? id : DateTime.Today,
                     EquipmentName = _workstationContext?.EquipmentName,
                     Inspector = string.Join("、", _operators.Select(o => $"{o.Name}({o.Code})")),
@@ -2310,7 +2310,7 @@
                 if (response.Success)
                 {
                     _submittedBatchNo = _resolveResult.BatchNo;
-                    _submittedSection = _workstationContext.SectionName;
+                    _submittedSection = _workstationContext!.SectionName;
                     Snackbar.Add("过程检验提交成功", Severity.Success);
                 }
                 else

@@ -1289,7 +1289,7 @@ public partial class WorkOrderSchedules
 
     private static object GetRawPropertyValue(WorkOrderScheduleDto item, string key)
     {
-        return key switch
+        return (key switch
         {
             "WorkOrderNo" => item.WorkOrderNo ?? "",
             "Salesman" => item.Salesman ?? "",
@@ -1340,7 +1340,7 @@ public partial class WorkOrderSchedules
             "PlanProductionAttentionProcess" => item.PlanProductionAttentionProcess ?? "",
             "PlanProductionFlowProperty" => item.PlanProductionFlowProperty ?? "",
             _ => ""
-        };
+        })!; // 编译器无法验证object返回值非null
     }
 
     // ========== 重置列显隐 ==========

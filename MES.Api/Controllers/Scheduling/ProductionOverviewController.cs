@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
 using MES.Core.Models;
-using MES.Services.Scheduling;
+using MES.Core.Interfaces;
 
 namespace MES.Api.Controllers.Scheduling;
 
@@ -11,9 +11,9 @@ namespace MES.Api.Controllers.Scheduling;
 [Authorize]
 public class ProductionOverviewController : ControllerBase
 {
-    private readonly ProductionOverviewService _service;
+    private readonly IProductionOverviewService _service;
 
-    public ProductionOverviewController(ProductionOverviewService service)
+    public ProductionOverviewController(IProductionOverviewService service)
     {
         _service = service;
     }

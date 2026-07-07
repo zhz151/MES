@@ -6,7 +6,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using System.Text.Json;
 
-namespace MES.Api.Controllers.Orders;
+namespace MES.Api.Controllers.Order;
 
 [ApiController]
 [Route("api/order-demand-adjustment")]

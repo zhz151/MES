@@ -139,11 +139,13 @@
         if (IsCreate && string.IsNullOrWhiteSpace(_email))
         {
             _errorMessage = "邮箱不能为空";
+            await Task.CompletedTask;
             return;
         }
         if (IsCreate && string.IsNullOrWhiteSpace(_password))
         {
             _errorMessage = "密码不能为空";
+            await Task.CompletedTask;
             return;
         }
 

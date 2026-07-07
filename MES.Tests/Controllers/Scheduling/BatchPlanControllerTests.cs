@@ -11,14 +11,12 @@ namespace MES.Tests.Controllers.Scheduling;
 public class BatchPlanControllerTests : ControllerTestBase
 {
     private readonly Mock<IBatchPlanService> _serviceMock;
-    private readonly Mock<IProductionRecordService> _prodRecordServiceMock;
     private readonly BatchPlanController _controller;
 
     public BatchPlanControllerTests()
     {
         _serviceMock = new Mock<IBatchPlanService>();
-        _prodRecordServiceMock = new Mock<IProductionRecordService>();
-        _controller = new BatchPlanController(_serviceMock.Object, _prodRecordServiceMock.Object);
+        _controller = new BatchPlanController(_serviceMock.Object);
     }
 
     [Fact]

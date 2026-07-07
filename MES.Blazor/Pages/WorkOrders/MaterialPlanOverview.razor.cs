@@ -22,9 +22,6 @@ public partial class MaterialPlanOverview
     private static readonly HashSet<string> _summableColumnKeys = new() { "TotalWeight", "TotalItemCount", "TotalQuantity" };
     private int _totalCount;
     private string errorMessage = string.Empty;
-    private bool _isRefreshing;
-
-
     // 选中状态
     private bool _allSelected;
     private bool allSelected
@@ -51,6 +48,7 @@ public partial class MaterialPlanOverview
     private int _pageSize = 10;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
+    private bool _isArrowNavSetup;
     private string _searchKeyword = string.Empty;
 
     private string sortColumn = "CreatedTime";
@@ -66,7 +64,8 @@ public partial class MaterialPlanOverview
     private bool includeInventory = true;
     private bool includeRework = true;
     private bool includePiercing = true;
-    private bool anyPlanTypeSelected => includeSemi || includeFinish || includeInventory || includeRework || includePiercing;
+    private bool includeInProcessRework = true;
+    private bool anyPlanTypeSelected => includeSemi || includeFinish || includeInventory || includeRework || includePiercing || includeInProcessRework;
 
     // ========== 列定义 ==========
 
@@ -114,7 +113,7 @@ public partial class MaterialPlanOverview
         new() { Key = "MainNoMaxStandardCycle",Label = "主号最大工艺周期",SortKey = "MainNoMaxStandardCycle", Width = "80" },
         new() { Key = "CapacityWorkDays",    Label = "产能工量",       SortKey = "CapacityWorkDays", Width = "80" },
         new() { Key = "TheoreticalCutoffDate",  Label = "理论截止投料日", SortKey = "TheoreticalCutoffDate", FilterType = "date", Width = "120" },
-        new() { Key = "MaterialPlanCoveredCount",Label = "料态种数",      SortKey = "MaterialPlanCoveredCount", Width = "60" },
+        new() { Key = "MaterialPlanCoveredCount",Label = "料态种数",      SortKey = "MaterialPlanCoveredCount", Width = "80" },
         new() { Key = "LatestRequiredDate",      Label = "要求到货日",    SortKey = "LatestRequiredDate", FilterType = "date", Width = "120" },
     };
 
@@ -215,6 +214,7 @@ public partial class MaterialPlanOverview
         }
 
         ComputePageSums();
+        await SavePageStateAsync();
 
         return new TableData<WorkOrderListDto>
         {
@@ -248,7 +248,8 @@ public partial class MaterialPlanOverview
         if (includeFinish) planTypes.Add("finish");
         if (includeInventory) planTypes.Add("inventory");
         if (includeRework) planTypes.Add("rework");
-        return planTypes.Count < 5 ? string.Join(",", planTypes) : null;
+        if (includeInProcessRework) planTypes.Add("inprocess");
+        return planTypes.Count < 6 ? string.Join(",", planTypes) : null;
     }
 
     // ========== 筛选上下文加载（ExcelFilter 下拉选项） ==========
@@ -346,6 +347,7 @@ public partial class MaterialPlanOverview
             case 3: includeInventory = value; break;
             case 4: includeRework = value; break;
             case 5: includePiercing = value; break;
+            case 6: includeInProcessRework = value; break;
         }
         selectedWorkOrderIds.Clear();
         _allSelected = false;
@@ -370,35 +372,7 @@ public partial class MaterialPlanOverview
         foreach (var c in _allColumns)
             c.Visible = true;
         await SaveColumnPrefs();
-    }
-
-    // ========== 手动刷新读模型 ==========
-
-    private async Task RefreshReadModel()
-    {
-        if (_isRefreshing) return;
-        _isRefreshing = true;
-        try
-        {
-            var result = await WorkOrderService.RefreshMaterialPlanReadModelAsync();
-            if (result.Success)
-            {
-                Snackbar.Add("读模型刷新成功", Severity.Success);
-                if (table != null) await table.ReloadServerData();
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "刷新失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"刷新异常: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _isRefreshing = false;
-        }
+        if (table != null) await table.ReloadServerData();
     }
 
     // ========== 初始化 ==========
@@ -461,6 +435,8 @@ public partial class MaterialPlanOverview
                 bool.TryParse(savedState.Extras["includeInventory"], out includeInventory);
             if (savedState.Extras?.ContainsKey("includeRework") == true)
                 bool.TryParse(savedState.Extras["includeRework"], out includeRework);
+            if (savedState.Extras?.ContainsKey("includeInProcessRework") == true)
+                bool.TryParse(savedState.Extras["includeInProcessRework"], out includeInProcessRework);
         }
 
         // 状态恢复后重新加载表格数据（首次渲染时 ServerData 可能已用默认值加载）
@@ -469,6 +445,16 @@ public partial class MaterialPlanOverview
 
         // 加载筛选上下文（ExcelFilter 下拉选项）
         await LoadFilterContextsAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#material-plan-overview-list-table"))
+                _isArrowNavSetup = false;
+        }
     }
 
     // ========== 选中 ==========
@@ -721,7 +707,7 @@ public partial class MaterialPlanOverview
                 }
                 break;
             case "MaterialPlanCoveredCount":
-                builder.AddContent(0, wo.MaterialPlanCoveredCount > 0 ? $"{wo.MaterialPlanCoveredCount}/4" : "-");
+                builder.AddContent(0, wo.MaterialPlanCoveredCount > 0 ? $"{wo.MaterialPlanCoveredCount}/6" : "-");
                 break;
             case "LatestRequiredDate":
                 if (wo.LatestRequiredDate.HasValue)
@@ -745,20 +731,16 @@ public partial class MaterialPlanOverview
             IncludeFinish = includeFinish,
             IncludeInventory = includeInventory,
             IncludeRework = includeRework,
-            IncludeRoundBarPiercing = includePiercing
+            IncludeRoundBarPiercing = includePiercing,
+            IncludeInProcessRework = includeInProcessRework
         };
 
         try
         {
-            var result = await MaterialPlanService.PrintSelectedPlansAsync(request);
-            if (result.Success && !string.IsNullOrEmpty(result.Data))
-            {
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "打印生成失败", Severity.Error);
-            }
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/material-plan/print/batch";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
@@ -778,6 +760,7 @@ public partial class MaterialPlanOverview
         extras["includeFinish"] = includeFinish.ToString();
         extras["includeInventory"] = includeInventory.ToString();
         extras["includeRework"] = includeRework.ToString();
+        extras["includeInProcessRework"] = includeInProcessRework.ToString();
         var state = new PageState
         {
             SortBy = sortColumn,

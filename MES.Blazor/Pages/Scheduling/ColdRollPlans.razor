@@ -4,6 +4,7 @@
 @using MES.Core.Models
 @using MES.Blazor.Components
 @using Microsoft.AspNetCore.Authorization
+@using MudBlazor
 @attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
@@ -49,12 +50,10 @@
                       Class="mb-2 crp-print-hide"
                       Style="max-width: 50%;"
                       Immediate="true"
-                      DebounceInterval="500">
-            <Adornment>
-                <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Small" />
-            </Adornment>
-            <ClearButton AdornmentButton="true" />
-        </MudTextField>
+                      DebounceInterval="500"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      AdornmentSize="Size.Small"
+                      Clearable="true" />
 
         <!-- Tab 汇总 -->
         <div class="d-flex flex-wrap align-center mb-2 crp-print-hide" style="gap: 12px; font-size: 0.85rem;">

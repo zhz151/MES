@@ -27,4 +27,9 @@ public interface IWorkOrderExecutionService
     /// 获取工单执行看板聚合数据（按 ScheduleStage × UrgencyLevel 分组）
     /// </summary>
     Task<List<WorkOrderExecutionDashboardItem>> GetDashboardSummaryAsync();
+
+    /// <summary>
+    /// 增量刷新指定工单号的执行状况汇总
+    /// </summary>
+    Task RefreshByWorkOrderNosAsync(List<string> workOrderNos);
 }

@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
@@ -23,7 +24,9 @@ public class PurchaseOrderServiceTests : TestBase
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        return new PurchaseOrderService(ctx, configMock.Object);
+        var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
+        var loggerMock = new Mock<ILogger<PurchaseOrderService>>();
+        return new PurchaseOrderService(ctx, configMock.Object, workOrderExecMock.Object, loggerMock.Object);
     }
 
     private async Task<int> SeedSupplierAsync(AppDbContext ctx, string name = "测试供应商")
@@ -37,10 +40,16 @@ public class PurchaseOrderServiceTests : TestBase
     private async Task<PurchaseOrder> SeedOrderAsync(AppDbContext ctx, int supplierId, PurchaseOrderStatus status = PurchaseOrderStatus.Open,
         DateTime? orderDate = null, DateTime? requiredDate = null, int? quantity = 100)
     {
+        var supplierName = await ctx.SupplierProfiles
+            .Where(s => s.Id == supplierId)
+            .Select(s => s.SupplierName)
+            .FirstOrDefaultAsync();
+
         var order = new PurchaseOrder
         {
             OrderNo = $"CG{DateTime.Now:yyMMdd}001",
             SupplierId = supplierId,
+            SupplierName = supplierName,
             OrderDate = orderDate ?? DateTime.Today,
             Status = status,
             MaterialCategory = "钢管",

@@ -52,7 +52,7 @@ public class StandardInspectionRequirementController : ControllerBase
     public async Task<ActionResult<ApiResponse<StandardInspectionRequirementDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
-        return Ok(ApiResponse<StandardInspectionRequirementDto>.Ok(result));
+        return Ok(ApiResponse<StandardInspectionRequirementDto>.Ok(result!));
     }
 
     [HttpPost]

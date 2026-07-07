@@ -33,8 +33,9 @@ public class MaterialPlanServiceTests : TestBase
         mockConfigSvc.Setup(s => s.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(() => new Dictionary<string, decimal>());
         var mockRefreshSvc = new Mock<IWorkOrderListSummaryRefreshService>();
+        var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
         return new MaterialPlanService(ctx, loggerMock.Object,
-            mockDaySvc.Object, mockDsSvc.Object, mockConfigSvc.Object, mockRefreshSvc.Object);
+            mockDaySvc.Object, mockDsSvc.Object, mockConfigSvc.Object, mockRefreshSvc.Object, workOrderExecMock.Object);
     }
 
     /// <summary>

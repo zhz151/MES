@@ -16,7 +16,7 @@ using System.Text.Json;
 
 namespace MES.Blazor.Pages.WorkOrders;
 
-public partial class WorkOrders
+public partial class WorkOrders : IAsyncDisposable
 {
     private MudTable<WorkOrderListItemDto>? table;
     private List<WorkOrderListItemDto> _pageItems = new();
@@ -32,6 +32,9 @@ public partial class WorkOrders
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
     private bool _isAdmin;
+
+    // ========== 通知定时轮询 ==========
+    private CancellationTokenSource? _pollingCts;
 
     // 排序状态
     private string sortColumn = "SignDate";
@@ -547,6 +550,9 @@ public partial class WorkOrders
         await CheckNotifications();
         await LoadCancelledOrders();
         await LoadPendingOrders();
+
+        // 启动通知定时轮询（后台运行，不阻塞初始化）
+        _ = StartNotificationPollingAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -766,15 +772,11 @@ public partial class WorkOrders
         if (!selectedSalesOrderNos.Any()) return;
         try
         {
-            var result = await WorkOrderService.PrintOrderWorkOrdersBatchAsync(selectedSalesOrderNos.ToArray());
-            if (result.Success && result.Data != null)
-            {
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
-            }
+            var salesOrderNos = selectedSalesOrderNos.ToArray();
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/workorder/order-print-batch";
+            var json = JsonSerializer.Serialize(salesOrderNos);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
@@ -786,19 +788,14 @@ public partial class WorkOrders
     {
         try
         {
-            var queryParams = new WorkOrderQueryParams
+            var queryParams = new
             {
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
             };
-            var result = await WorkOrderService.PrintOrderWorkOrdersAllAsync(queryParams);
-            if (result.Success && result.Data != null)
-            {
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
-            }
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/workorder/order-print-all";
+            var json = JsonSerializer.Serialize(queryParams);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
@@ -824,6 +821,45 @@ public partial class WorkOrders
         {
             Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
         }
+    }
+
+    // ========== 通知定时轮询（每 2 分钟） ==========
+
+    private async Task StartNotificationPollingAsync()
+    {
+        _pollingCts = new CancellationTokenSource();
+        try
+        {
+            while (!_pollingCts.Token.IsCancellationRequested)
+            {
+                await Task.Delay(TimeSpan.FromMinutes(2), _pollingCts.Token);
+                try
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await CheckNotifications();
+                        await LoadCancelledOrders();
+                        await LoadPendingOrders();
+                        StateHasChanged();
+                    });
+                }
+                catch
+                {
+                    // 单次轮询异常不影响下一轮
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // 组件销毁时正常取消
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _pollingCts?.Cancel();
+        _pollingCts?.Dispose();
+        return ValueTask.CompletedTask;
     }
 
     // ========== 持久化 ==========

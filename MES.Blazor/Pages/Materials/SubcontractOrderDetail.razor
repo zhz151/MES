@@ -71,7 +71,7 @@
                     </MudTable>
                 </div>
 
-                @* 收回进度条 + 即时更新按钮 *@
+                @* 收回进度条 *@
                 <div class="d-flex align-center mt-2 mb-2">
                     <MudText Typo="Typo.body2" Class="mr-4">
                         <MudIcon Icon="@Icons.Material.Filled.Inventory" Size="Size.Small" Class="mr-1" />收回进度
@@ -84,9 +84,6 @@
                         </div>
                         <MudText Typo="Typo.body2">@_order.InQuantity?.ToString("G29") / @_order.OutQuantity.ToString("G29") 支</MudText>
                     }
-                    <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" OnClick="SyncSingle" Disabled="@_isSyncing" StartIcon="@Icons.Material.Filled.Sync" Class="ml-4">
-                        即时更新
-                    </MudButton>
                 </div>
 
                 <MudDivider Class="my-4" />
@@ -109,9 +106,15 @@
                 <div id="subcontract-detail-table"><div style="overflow-x: auto;">
                     <MudTable Items="@_editReturnItems" Dense="true" Hover="true" Elevation="0" ReadOnly="@(!_isEditMode)" Class="auto-table">
                         <HeaderContent>
+                            @{
+                                int? _prevGk = null;
+                            }
                             @foreach (var col in _visibleDetailColumns)
                             {
-                                <MudTh>
+                                var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
+                                _prevGk = col.GroupKey;
+                                var _headerClass = GetDetailGroupCss(col.GroupKey, _isGroupStart);
+                                <MudTh Class="@_headerClass">
                                     @col.Label
                                     @if (col.IsRequired) { <span class="required-star">*</span> }
                                 </MudTh>
@@ -119,9 +122,15 @@
                             @if (_isEditMode) { <MudTh>操作</MudTh> }
                         </HeaderContent>
                         <RowTemplate Context="item">
+                            @{
+                                int? _prevGk2 = null;
+                            }
                             @foreach (var col in _visibleDetailColumns)
                             {
-                                <MudTd>@RenderDetailCell(item, col)</MudTd>
+                                var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
+                                _prevGk2 = col.GroupKey;
+                                var _cellClass = GetDetailGroupCss(col.GroupKey, _isGroupStart2);
+                                <MudTd Class="@_cellClass">@RenderDetailCell(item, col)</MudTd>
                             }
                             @if (_isEditMode)
                             {
@@ -143,7 +152,6 @@
     private bool _isLoading = true;
     private bool _isEditMode;
     private bool _isSubmitting;
-    private bool _isSyncing;
     private bool _editIsForceCompleted;
 
     // ========== 编辑模型 ==========
@@ -199,7 +207,7 @@
         public string UnitPriceStr { get; set; } = string.Empty;
         public string TotalAmountStr { get; set; } = string.Empty;
 
-        // ========== 回收执行数据（只读展示，由即时更新同步） ==========
+        // ========== 回收执行数据（只读展示，由增量更新同步） ==========
         public int ReturnedQuantity { get; set; }
         public decimal ReturnedWeight { get; set; }
         public SubcontractProcessStatus ProcessStatus { get; set; }
@@ -267,45 +275,54 @@
 
     private void InitDetailColumns()
     {
-        _detailColumns = new List<ColumnDef>
+        // G1: 加工要求
+        var g1 = new List<ColumnDef>
         {
-            new() { Key = "sequence", Label = "序号", Visible = true, IsRequired = true },
-            new() { Key = "materialcategory", Label = "物料分类", Visible = true, IsRequired = true },
-            new() { Key = "plantgrade", Label = "工厂牌号", Visible = true },
-            new() { Key = "processspecification", Label = "加工规格", Visible = true, IsRequired = true },
-            new() { Key = "unitweight", Label = "单重", Visible = true },
-            new() { Key = "requiredquantity", Label = "需求支数", Visible = true },
-            new() { Key = "requiredweight", Label = "需求重量", Visible = true },
-            new() { Key = "inputmultiple", Label = "投料制成倍", Visible = true },
-            new() { Key = "processstatusremark", Label = "状态说明", Visible = true },
+            new() { Key = "sequence", Label = "序号", Visible = true, IsRequired = true, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "materialcategory", Label = "物料分类", Visible = true, IsRequired = true, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "plantgrade", Label = "工厂牌号", Visible = true, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "processspecification", Label = "加工规格", Visible = true, IsRequired = true, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "unitweight", Label = "单重", Visible = true, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "requiredquantity", Label = "需求支数", Visible = true, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "requiredweight", Label = "需求重量", Visible = true, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "inputmultiple", Label = "投料制成倍", Visible = true, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "processstatusremark", Label = "状态说明", Visible = true, GroupKey = 1, GroupName = "加工要求" },
             // 回收执行数据（只读）
-            new() { Key = "returnedquantity", Label = "回收支数", Visible = true },
-            new() { Key = "returnedweight", Label = "回收重量", Visible = true },
-            new() { Key = "processstatus", Label = "加工状态", Visible = true },
-            new() { Key = "isforcecompleted", Label = "强制完成", Visible = true },
-            new() { Key = "remark", Label = "备注", Visible = false },
-            new() { Key = "sourceworkorderno", Label = "来源工单号", Visible = true },
-            // Wo* 字段（来源工单号后面）
-            new() { Key = "wosalesorderno", Label = "订单号", Visible = false },
-            new() { Key = "woproductionmainno", Label = "主号", Visible = false },
-            new() { Key = "woproductionsubno", Label = "次号", Visible = false },
-            new() { Key = "wosigndate", Label = "签订日期", Visible = false },
-            new() { Key = "wosalesman", Label = "业务员", Visible = false },
-            new() { Key = "woendcustomer", Label = "最终用户", Visible = false },
-            new() { Key = "wodeliverydate", Label = "交货日期", Visible = false },
-            new() { Key = "wodelaypenalty", Label = "延期罚款", Visible = false },
-            new() { Key = "wosettlementmethod", Label = "结算方式", Visible = false },
-            new() { Key = "woplantgrade", Label = "厂内牌号", Visible = false },
-            new() { Key = "wospecification", Label = "规格", Visible = false },
-            new() { Key = "wolengthstatus", Label = "长度状态", Visible = false },
-            new() { Key = "womaxlength", Label = "最长长度", Visible = false },
-            new() { Key = "wototalquantity", Label = "总支数", Visible = false },
-            new() { Key = "wototalweight", Label = "总重量", Visible = false },
-            new() { Key = "wodeliverystate", Label = "交货状态", Visible = false },
-            new() { Key = "wototalitemcount", Label = "总项次数", Visible = false },
-            new() { Key = "processunitprice", Label = "单价", Visible = false },
-            new() { Key = "processtotalamount", Label = "金额", Visible = false },
+            new() { Key = "returnedquantity", Label = "回收支数", Visible = true, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "returnedweight", Label = "回收重量", Visible = true, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "processstatus", Label = "加工状态", Visible = true, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "isforcecompleted", Label = "强制完成", Visible = true, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "remark", Label = "备注", Visible = false, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "sourceworkorderno", Label = "来源工单号", Visible = true, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "processunitprice", Label = "单价", Visible = false, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "processtotalamount", Label = "金额", Visible = false, GroupKey = 1, GroupName = "加工要求" },
         };
+
+        // G2: 来源工单字段
+        var g2 = new List<ColumnDef>
+        {
+            new() { Key = "wosalesorderno", Label = "订单号", Visible = false, GroupKey = 2, GroupName = "来源工单字段" },
+            new() { Key = "woproductionmainno", Label = "主号", Visible = false, GroupKey = 2, GroupName = "来源工单字段" },
+            new() { Key = "woproductionsubno", Label = "次号", Visible = false, GroupKey = 2, GroupName = "来源工单字段" },
+            new() { Key = "wosigndate", Label = "签订日期", Visible = false, GroupKey = 2, GroupName = "来源工单字段" },
+            new() { Key = "wosalesman", Label = "业务员", Visible = false, GroupKey = 2, GroupName = "来源工单字段" },
+            new() { Key = "woendcustomer", Label = "最终用户", Visible = false, GroupKey = 2, GroupName = "来源工单字段" },
+            new() { Key = "wodeliverydate", Label = "交货日期", Visible = false, GroupKey = 2, GroupName = "来源工单字段" },
+            new() { Key = "wodelaypenalty", Label = "延期罚款", Visible = false, GroupKey = 2, GroupName = "来源工单字段" },
+            new() { Key = "wosettlementmethod", Label = "结算方式", Visible = false, GroupKey = 2, GroupName = "来源工单字段" },
+            new() { Key = "woplantgrade", Label = "厂内牌号", Visible = false, GroupKey = 2, GroupName = "来源工单字段" },
+            new() { Key = "wospecification", Label = "规格", Visible = false, GroupKey = 2, GroupName = "来源工单字段" },
+            new() { Key = "wolengthstatus", Label = "长度状态", Visible = false, GroupKey = 2, GroupName = "来源工单字段" },
+            new() { Key = "womaxlength", Label = "最长长度", Visible = false, GroupKey = 2, GroupName = "来源工单字段" },
+            new() { Key = "wototalquantity", Label = "总支数", Visible = false, GroupKey = 2, GroupName = "来源工单字段" },
+            new() { Key = "wototalweight", Label = "总重量", Visible = false, GroupKey = 2, GroupName = "来源工单字段" },
+            new() { Key = "wodeliverystate", Label = "交货状态", Visible = false, GroupKey = 2, GroupName = "来源工单字段" },
+            new() { Key = "wototalitemcount", Label = "总项次数", Visible = false, GroupKey = 2, GroupName = "来源工单字段" },
+        };
+
+        _detailColumns = new List<ColumnDef>();
+        _detailColumns.AddRange(g1);
+        _detailColumns.AddRange(g2);
     }
 
     // ========== 列偏好持久化 ==========
@@ -541,20 +558,6 @@
         catch (Exception ex) { Snackbar.Add($"状态更新失败: {ex.Message}", Severity.Error); }
     }
 
-    // ========== 同步收回进度 ==========
-    private async Task SyncSingle()
-    {
-        _isSyncing = true; StateHasChanged();
-        try
-        {
-            var result = await SubcontractService.SyncSingleAsync(Id);
-            if (result.Success) { Snackbar.Add("同步完成", Severity.Success); await LoadData(); }
-            else { Snackbar.Add(result.Message ?? "同步失败", Severity.Error); }
-        }
-        catch (Exception ex) { Snackbar.Add($"同步失败: {ex.Message}", Severity.Error); }
-        finally { _isSyncing = false; StateHasChanged(); }
-    }
-
     // ========== 加工要求明细操作 ==========
     private void AddReturnItem()
     {
@@ -582,6 +585,18 @@
     }
 
     private static string GetStatusText(SubcontractOrderStatus status) => DisplayHelper.GetSubcontractOrderStatusText(status);
+
+    private static string GetDetailGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1-cell",
+            2 => "col-g2-cell",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
 
     // ========== 渲染方法：第一个表格 ==========
     private RenderFragment RenderHeaderCell(SubcontractOrderDto item, ColumnDef col) => builder =>

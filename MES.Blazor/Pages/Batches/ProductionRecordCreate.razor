@@ -313,7 +313,7 @@
             {
                 BatchNo = r.BatchNo,
                 ProcessName = r.ProcessName,
-                ManufacturingSpec = r.ManufacturingSpec,
+                ManufacturingSpec = r.ManufacturingSpec ?? "",
                 SectionName = r.SectionName,
                 ExecDate = DateTime.Parse(r.ExecDate),
                 EquipmentName = r.EquipmentName,

@@ -81,15 +81,15 @@ public partial class Customers
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "CustomerCode", Label = "客户编码", SortKey = "customercode", FilterType = "string", IsRequired = true },
-        new() { Key = "Salesman",     Label = "业务员",   SortKey = "salesman",     FilterType = "string", IsRequired = true },
-        new() { Key = "CustomerUnit", Label = "客户单位", SortKey = "customerunit", FilterType = "string", IsRequired = true },
-        new() { Key = "EndCustomer",  Label = "最终用户", SortKey = "endcustomer",  FilterType = "string" },
-        new() { Key = "Status",       Label = "状态",     SortKey = "status",       FilterType = "enum",     EnumOptions = new() { new("Active", "启用"), new("Inactive", "停用") } },
-        new() { Key = "ContactPerson",Label = "联系人",     SortKey = "contactperson", FilterType = "string" },
-        new() { Key = "ContactPhone", Label = "联系电话",   SortKey = "contactphone",  FilterType = "string" },
-        new() { Key = "Address",      Label = "联系地址",   SortKey = "address",       FilterType = "string" },
-        new() { Key = "Remark",       Label = "备注",       SortKey = "remark",        FilterType = "string" },
+        new() { Key = "CustomerCode", Label = "客户编码", SortKey = "customercode", FilterType = "string", IsRequired = true, Width = "120" },
+        new() { Key = "Salesman",     Label = "业务员",   SortKey = "salesman",     FilterType = "string", IsRequired = true, Width = "120" },
+        new() { Key = "CustomerUnit", Label = "客户单位", SortKey = "customerunit", FilterType = "string", IsRequired = true, Width = "120" },
+        new() { Key = "EndCustomer",  Label = "最终用户", SortKey = "endcustomer",  FilterType = "string", Width = "120" },
+        new() { Key = "Status",       Label = "状态",     SortKey = "status",       FilterType = "enum",     EnumOptions = new() { new("Active", "启用"), new("Inactive", "停用") }, Width = "120" },
+        new() { Key = "ContactPerson",Label = "联系人",     SortKey = "contactperson", FilterType = "string", Width = "120" },
+        new() { Key = "ContactPhone", Label = "联系电话",   SortKey = "contactphone",  FilterType = "string", Width = "120" },
+        new() { Key = "Address",      Label = "联系地址",   SortKey = "address",       FilterType = "string", Width = "150" },
+        new() { Key = "Remark",       Label = "备注",       SortKey = "remark",        FilterType = "string", Width = "120" },
     };
 
     // ========== 列选择操作 ==========
@@ -108,6 +108,7 @@ public partial class Customers
     {
         _allColumns = GetAllColumnDefs();
         await SaveColumnPrefs();
+        if (table != null) await table.ReloadServerData();
     }
 
     private async Task MoveColumnUp(ColumnDef col)
@@ -669,11 +670,11 @@ public partial class Customers
         try
         {
             var ids = selectedIds.ToArray();
-            var result = await CustomerService.PrintCustomerBatchAsync(ids);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var request = new { Ids = ids };
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/customer/print-batch";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
@@ -686,13 +687,16 @@ public partial class Customers
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "customercode";
-            var result = await CustomerService.PrintCustomerAllAsync(
-                string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                sortBy, sortDescending);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var request = new
+            {
+                keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                sortBy,
+                isDescending = sortDescending
+            };
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/customer/print-all";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {

@@ -15,6 +15,7 @@
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
 @inject PageStateService PageState
+@inject MaterialPlanService MaterialPlanService
 @attribute [Authorize(Roles = Roles.Policies.BatchRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
@@ -26,6 +27,19 @@
                 @foreach (var mismatch in _workOrderMismatches)
                 {
                     <div>批次 "@mismatch.BatchNo" 的工单号 "@mismatch.WorkOrderNo" 已不存在，需修改！</div>
+                }
+            </div>
+        </MudAlert>
+    }
+
+    <!-- 在产改制计划通知 -->
+    @if (_pendingInProcessReworkPlans is { Count: > 0 })
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Class="mb-4">
+            <div>
+                @foreach (var plan in _pendingInProcessReworkPlans)
+                {
+                    <div>批次 "@plan.BatchNo" 存在在产改制计划（工单 @plan.WorkOrderNo），请及时处理！</div>
                 }
             </div>
         </MudAlert>
@@ -47,7 +61,7 @@
                            Loading="@isSyncing"
                            Disabled="@isSyncing"
                            Class="ml-2">
-                    即时更新
+                    校验工单
                 </MudButton>
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Primary"

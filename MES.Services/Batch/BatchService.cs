@@ -23,13 +23,30 @@ public class BatchService : IBatchService
     private readonly ILogger<BatchService> _logger;
     private readonly IProductionRecordService _productionRecordService;
     private readonly IConfigParameterService _configService;
+    private readonly IWorkOrderExecutionService _workOrderExecutionService;
+    private readonly IMaterialPlanService _materialPlanService;
 
-    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IConfigParameterService configService)
+    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService)
     {
         _context = context;
         _logger = logger;
         _productionRecordService = productionRecordService;
         _configService = configService;
+        _workOrderExecutionService = workOrderExecutionService;
+        _materialPlanService = materialPlanService;
+    }
+
+    private async Task TryRefreshExecutionSummaryAsync(string? workOrderNo)
+    {
+        if (string.IsNullOrWhiteSpace(workOrderNo) || workOrderNo == NotWorkOrder) return;
+        try
+        {
+            await _workOrderExecutionService.RefreshByWorkOrderNosAsync(new List<string> { workOrderNo });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "工单执行状况刷新失败（不影响主流程）: WorkOrderNo={WorkOrderNo}", workOrderNo);
+        }
     }
 
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
@@ -555,6 +572,8 @@ public class BatchService : IBatchService
 
         _logger.LogInformation("创建生产批次 {BatchNo} (工单: {WorkOrderNo})", batchNo, entity.WorkOrderNo);
 
+        _ = TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+
         return new ProductionBatchListDto
         {
             Id = entity.Id,
@@ -703,6 +722,8 @@ public class BatchService : IBatchService
         // 从 CustomerProfile 取最新 Salesman/EndCustomer
         await PatchCustomerFieldsAsync(dto);
 
+        _ = TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+
         return dto;
     }
 
@@ -748,6 +769,8 @@ public class BatchService : IBatchService
         }
 
         _logger.LogInformation("更新批次状态 {BatchNo} → {Status}", entity.BatchNo, newStatus);
+
+        _ = TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
     }
 
     public async Task DeleteAsync(int id)
@@ -798,6 +821,8 @@ public class BatchService : IBatchService
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("删除生产批次 {BatchNo} (Id={Id})", entity.BatchNo, id);
+
+        _ = TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
     }
 
     public async Task<SaveBatchResponse> SaveAllAsync(int id, SaveBatchRequest request)
@@ -1142,6 +1167,11 @@ public class BatchService : IBatchService
 
         _logger.LogInformation("批量保存生产批次 {BatchNo} (Id={Id}), 工序组={GroupCount}",
             entity.BatchNo, id, request.ProcessGroups.Count);
+
+        // 重新计算关联改制库存计划的工艺周期（工序组变更后）
+        await _materialPlanService.RecalculateStandardCycleForBatchAsync(entity.BatchNo);
+
+        await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
 
         return new SaveBatchResponse
         {
@@ -1519,7 +1549,7 @@ public class BatchService : IBatchService
             ["ProductionSubNo"] = b.ProductionSubNo ?? "",
             ["ProductionType"] = b.ProductionType ?? "",
             ["Status"] = b.Status.ToString(),
-            ["CurrentExecDate"] = (object?)b.CurrentExecDate,
+            ["CurrentExecDate"] = (object)(b.CurrentExecDate ?? (object?)DBNull.Value)!,
             ["CurrentGroupName"] = b.CurrentGroupName ?? "",
             ["CurrentSectionName"] = b.CurrentSectionName ?? "",
             ["CurrentEquipmentName"] = b.CurrentEquipmentName ?? "",
@@ -1576,7 +1606,7 @@ public class BatchService : IBatchService
             ["ProductionSubNo"] = b.ProductionSubNo ?? "",
             ["ProductionType"] = b.ProductionType ?? "",
             ["Status"] = b.Status.ToString(),
-            ["CurrentExecDate"] = (object?)b.CurrentExecDate,
+            ["CurrentExecDate"] = (object)(b.CurrentExecDate ?? (object?)DBNull.Value)!,
             ["CurrentGroupName"] = b.CurrentGroupName ?? "",
             ["CurrentSectionName"] = b.CurrentSectionName ?? "",
             ["CurrentEquipmentName"] = b.CurrentEquipmentName ?? "",

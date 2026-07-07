@@ -18,11 +18,38 @@ public class FinalInspectionService : IFinalInspectionService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<FinalInspectionService> _logger;
+    private readonly IWorkOrderExecutionService _workOrderExecutionService;
 
-    public FinalInspectionService(AppDbContext context, ILogger<FinalInspectionService> logger)
+    public FinalInspectionService(AppDbContext context, ILogger<FinalInspectionService> logger, IWorkOrderExecutionService workOrderExecutionService)
     {
         _context = context;
         _logger = logger;
+        _workOrderExecutionService = workOrderExecutionService;
+    }
+
+    private async Task TryRefreshExecutionSummaryAsync(string? workOrderNo)
+    {
+        if (string.IsNullOrWhiteSpace(workOrderNo) || workOrderNo == "非工单") return;
+        try
+        {
+            await _workOrderExecutionService.RefreshByWorkOrderNosAsync(new List<string> { workOrderNo });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "工单执行状况刷新失败（不影响主流程）: WorkOrderNo={WorkOrderNo}", workOrderNo);
+        }
+    }
+
+    private async Task TryRefreshBatchExecutionSummaryAsync(List<string> workOrderNos)
+    {
+        try
+        {
+            await _workOrderExecutionService.RefreshByWorkOrderNosAsync(workOrderNos);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "工单执行状况批量刷新失败（不影响主流程）: Count={Count}", workOrderNos.Count);
+        }
     }
 
     public async Task<FinalInspectionDto?> GetByIdAsync(int id)
@@ -302,6 +329,8 @@ public class FinalInspectionService : IFinalInspectionService
         _context.FinalInspections.Add(entity);
         await _context.SaveChangesAsync();
 
+        _ = TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+
         return new FinalInspectionDto
         {
             Id = entity.Id,
@@ -372,6 +401,8 @@ public class FinalInspectionService : IFinalInspectionService
 
         await _context.SaveChangesAsync();
 
+        _ = TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+
         return new FinalInspectionDto
         {
             Id = entity.Id,
@@ -419,8 +450,11 @@ public class FinalInspectionService : IFinalInspectionService
         var entity = await _context.FinalInspections.FindAsync(id)
             ?? throw new BusinessException("成品检验记录不存在");
 
+        var workOrderNo = entity.WorkOrderNo;
         _context.FinalInspections.Remove(entity);
         await _context.SaveChangesAsync();
+
+        _ = TryRefreshExecutionSummaryAsync(workOrderNo);
     }
 
     public async Task<List<FinalInspectionDto>> BatchCreateAsync(List<CreateFinalInspectionRequest> requests)
@@ -541,6 +575,18 @@ public class FinalInspectionService : IFinalInspectionService
 
         _context.FinalInspections.AddRange(entities);
         await _context.SaveChangesAsync();
+
+        // 批量创建后触发增量刷新
+        var workOrderNos = entities
+            .Select(e => e.WorkOrderNo)
+            .Where(w => !string.IsNullOrWhiteSpace(w) && w != "非工单")
+            .Select(w => w!)
+            .Distinct()
+            .ToList();
+        if (workOrderNos.Count > 0)
+        {
+            _ = TryRefreshBatchExecutionSummaryAsync(workOrderNos);
+        }
 
         return entities.Select(e => new FinalInspectionDto
         {

@@ -204,17 +204,17 @@ public partial class Index
 
         // 合并 A+B+C → 荒管抛修
         var abcCodes = new[] { "A", "B", "C" };
-        var abc = abcCodes.Select(c => lookup.GetValueOrDefault(c)).Where(x => x != null).ToList();
+        var abc = abcCodes.Select(c => lookup.GetValueOrDefault(c)).Where(x => x != null).ToList()!;
         if (abc.Count > 0)
         {
             result.Add(new SectionFlowAnalysisDto
             {
                 CategoryCode = "M1",
                 CategoryName = "荒管抛修",
-                PendingTotal = abc.Sum(x => x.PendingTotal),
-                KeyBatchCount = abc.Sum(x => x.KeyBatchCount),
-                KeyBatchWeight = abc.Sum(x => x.KeyBatchWeight),
-                StatusJudgment = MergeStatus(abc.Select(x => x.StatusJudgment)),
+                PendingTotal = abc.Sum(x => x!.PendingTotal),
+                KeyBatchCount = abc.Sum(x => x!.KeyBatchCount),
+                KeyBatchWeight = abc.Sum(x => x!.KeyBatchWeight),
+                StatusJudgment = MergeStatus(abc.Select(x => x!.StatusJudgment)),
             });
         }
 
@@ -227,17 +227,17 @@ public partial class Index
 
         // 合并 F+G+H → 固矫切
         var fghCodes = new[] { "F", "G", "H" };
-        var fgh = fghCodes.Select(c => lookup.GetValueOrDefault(c)).Where(x => x != null).ToList();
+        var fgh = fghCodes.Select(c => lookup.GetValueOrDefault(c)).Where(x => x != null).ToList()!;
         if (fgh.Count > 0)
         {
             result.Add(new SectionFlowAnalysisDto
             {
                 CategoryCode = "M2",
                 CategoryName = "固矫切",
-                PendingTotal = fgh.Sum(x => x.PendingTotal),
-                KeyBatchCount = fgh.Sum(x => x.KeyBatchCount),
-                KeyBatchWeight = fgh.Sum(x => x.KeyBatchWeight),
-                StatusJudgment = MergeStatus(fgh.Select(x => x.StatusJudgment)),
+                PendingTotal = fgh.Sum(x => x!.PendingTotal),
+                KeyBatchCount = fgh.Sum(x => x!.KeyBatchCount),
+                KeyBatchWeight = fgh.Sum(x => x!.KeyBatchWeight),
+                StatusJudgment = MergeStatus(fgh.Select(x => x!.StatusJudgment)),
             });
         }
 

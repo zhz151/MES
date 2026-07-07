@@ -65,6 +65,90 @@ public static class MaterialPlanPrintHelper
         return CreateBatchReworkPlanDocument(new List<(InventoryPlan, WoEntity)> { (plan, workOrder) });
     }
 
+    // ==============================
+    // 5. 在产改制申请单
+    // ==============================
+    public static byte[] GenerateInProcessReworkPlanPdf(InProcessReworkPlan plan, WoEntity workOrder)
+    {
+        return CreateInProcessReworkPlanDocument(plan, workOrder).GeneratePdf();
+    }
+
+    public static Document CreateInProcessReworkPlanDocument(InProcessReworkPlan plan, WoEntity workOrder)
+    {
+        return CreateBatchInProcessReworkPlanDocument(new List<(InProcessReworkPlan, WoEntity)> { (plan, workOrder) });
+    }
+
+    // ==============================
+    // 10. 批量打印 - 在产改制汇总
+    // ==============================
+    public static Document CreateBatchInProcessReworkPlanDocument(List<(InProcessReworkPlan plan, WoEntity workOrder)> items)
+    {
+        if (!items.Any()) throw new BusinessException("items cannot be empty");
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4.Landscape());
+                page.Margin(40);
+                page.DefaultTextStyle(x => x.FontSize(10).FontFamily("SimSun"));
+                page.Header().Element(h => ComposeDocHeader(h, "在 产 改 制 计 划（批量）"));
+                page.Content().Element(c => ComposeBatchInProcessReworkContent(c, items));
+                page.Footer().Element(ComposeDocFooter);
+            });
+        });
+    }
+
+    private static void ComposeBatchInProcessReworkContent(IContainer container, List<(InProcessReworkPlan plan, WoEntity workOrder)> items)
+    {
+        container.Table(table =>
+        {
+            table.ColumnsDefinition(columns =>
+            {
+                columns.ConstantColumn(75);
+                columns.ConstantColumn(55);
+                columns.ConstantColumn(65);
+                columns.ConstantColumn(45);
+                columns.ConstantColumn(55);
+                columns.ConstantColumn(55);
+                columns.ConstantColumn(45);
+                columns.ConstantColumn(45);
+                columns.ConstantColumn(55);
+                columns.ConstantColumn(55);
+                columns.RelativeColumn();
+            });
+
+            table.Header(header =>
+            {
+                string[] headers = { "工单号", "计划日期", "生产编号", "挂牌号", "工厂牌号", "规格", "长度状态", "投料制成倍", "使用支数", "使用重量(kg)", "改制类型" };
+                foreach (var h in headers)
+                    header.Cell().Element(CellHeaderStyle).Text(h).FontSize(8).AlignCenter();
+            });
+
+            foreach (var (plan, workOrder) in items)
+            {
+                var reworkTypeText = plan.ReworkType switch
+                {
+                    ReworkType.EmptyDrawing => "空拉改制",
+                    ReworkType.FewerPass => "少道次改制",
+                    ReworkType.ManualSelect => "人工选择改制",
+                    _ => plan.ReworkType.ToString()
+                };
+
+                table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
+                table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
+                table.Cell().Element(CellStyle).Text(plan.BatchNo).FontSize(8);
+                table.Cell().Element(CellStyle).Text(plan.BatchTagNo ?? "-").FontSize(8);
+                table.Cell().Element(CellStyle).Text(plan.PlantGrade).FontSize(8).AlignCenter();
+                table.Cell().Element(CellStyle).Text(plan.Specification).FontSize(8).AlignCenter();
+                table.Cell().Element(CellStyle).Text(plan.LengthStatus).FontSize(8).AlignCenter();
+                table.Cell().Element(CellStyle).Text(plan.InputMultiple.ToString()).FontSize(8).AlignCenter();
+                table.Cell().Element(CellStyle).Text(plan.UsedQuantity?.ToString() is string q ? $"{q} 支" : "-").FontSize(8);
+                table.Cell().Element(CellStyle).Text($"{plan.UsedWeight:G29} kg").FontSize(8);
+                table.Cell().Element(CellStyle).Text(reworkTypeText).FontSize(8).AlignCenter();
+            }
+        });
+    }
+
     // ========== 公共组件 ==========
 
     private static void ComposeDocHeader(IContainer container, string title)

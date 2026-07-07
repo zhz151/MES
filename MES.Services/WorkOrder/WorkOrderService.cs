@@ -25,17 +25,47 @@ public class WorkOrderService : IWorkOrderService
     private readonly ILogger<WorkOrderService> _logger;
 private readonly IConfigParameterService _configService;
     private readonly IWorkOrderListSummaryRefreshService? _listSummaryService;
+    private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
     private static readonly SemaphoreSlim _workOrderNoSemaphore = new SemaphoreSlim(1, 1);
 
     public WorkOrderService(AppDbContext context, ILogger<WorkOrderService> logger,
         IConfigParameterService configService,
-        IWorkOrderListSummaryRefreshService? listSummaryService = null)
+        IWorkOrderListSummaryRefreshService? listSummaryService = null,
+        IWorkOrderExecutionService? workOrderExecutionService = null)
     {
         _context = context;
         _logger = logger;
         _configService = configService;
         _listSummaryService = listSummaryService;
+        _workOrderExecutionService = workOrderExecutionService!;
+    }
+
+    private async Task TryRefreshExecutionSummaryAsync(string? workOrderNo)
+    {
+        if (string.IsNullOrWhiteSpace(workOrderNo)) return;
+        try
+        {
+            await _workOrderExecutionService.RefreshByWorkOrderNosAsync(new List<string> { workOrderNo });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "工单执行状况刷新失败（不影响主流程）: WorkOrderNo={WorkOrderNo}", workOrderNo);
+        }
+    }
+
+    private async Task TryRefreshExecutionSummariesAsync(List<string> workOrderNos)
+    {
+        var validNos = workOrderNos.Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
+        if (validNos.Count == 0) return;
+        try
+        {
+            await _workOrderExecutionService.RefreshByWorkOrderNosAsync(validNos);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "批量刷新工单执行状况失败（不影响主流程）: Count={Count}", validNos.Count);
+        }
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -870,6 +900,16 @@ private readonly IConfigParameterService _configService;
                 if (invPlans.Any()) _context.InventoryPlans.RemoveRange(invPlans);
                 if (piercingPlans.Any()) _context.RoundBarPiercingPlans.RemoveRange(piercingPlans);
 
+                // 清理读模型行
+                var delListRows = await _context.Set<MES.Data.Entities.WorkOrderListSummary>()
+                    .Where(s => existingIds.Contains(s.WorkOrderId)).ToListAsync();
+                if (delListRows.Count != 0)
+                    _context.Set<MES.Data.Entities.WorkOrderListSummary>().RemoveRange(delListRows);
+                var delExecRows = await _context.Set<MES.Data.Entities.WorkOrderExecutionSummary>()
+                    .Where(s => existingIds.Contains(s.WorkOrderId)).ToListAsync();
+                if (delExecRows.Count != 0)
+                    _context.Set<MES.Data.Entities.WorkOrderExecutionSummary>().RemoveRange(delExecRows);
+
                 await _context.SaveChangesAsync();
             }
 
@@ -979,6 +1019,8 @@ private readonly IConfigParameterService _configService;
 
         // 刷新读模型（事务已提交，在 using 块之外执行）
         if (_listSummaryService != null) await _listSummaryService.RefreshBySalesOrderAsync(request.SalesOrderNo);
+        foreach (var wo in generatedWorkOrders)
+            await TryRefreshExecutionSummaryAsync(wo.WorkOrderNo);
 
         _logger.LogInformation("生成工单成功: 订单号 {OrderNo}, 生成 {Count} 个工单",
             request.SalesOrderNo, generatedWorkOrders.Count);
@@ -1025,6 +1067,19 @@ private readonly IConfigParameterService _configService;
                 if (!allOrderItems.ContainsKey(itemId))
                     throw new BusinessException($"项次 ID {itemId} 不存在或已被删除");
             }
+        }
+
+        // 3b. 验证所有项次都已分配到某个工单（防止删除工单后孤儿项次被静默遗漏）
+        var assignedItemIds = request.WorkOrders
+            .SelectMany(wo => wo.OrderItemIds)
+            .ToHashSet();
+        var unassignedItems = allOrderItems.Values
+            .Where(oi => !assignedItemIds.Contains(oi.Sequence))
+            .ToList();
+        if (unassignedItems.Count != 0)
+        {
+            var desc = string.Join("、", unassignedItems.Select(i => $"项次 {i.Sequence}"));
+            throw new BusinessException($"以下项次未分配到任何工单，请将其合并到某个工单后提交: {desc}");
         }
 
         // 4. 验证合并规则
@@ -1228,6 +1283,16 @@ private readonly IConfigParameterService _configService;
                     if (invPlans.Any()) _context.InventoryPlans.RemoveRange(invPlans);
                     if (piercingPlans.Any()) _context.RoundBarPiercingPlans.RemoveRange(piercingPlans);
 
+                    // 清理读模型行（删除工单的执行状况不会在后续增量刷新中被清除）
+                    var delListSummary = await _context.Set<MES.Data.Entities.WorkOrderListSummary>()
+                        .FirstOrDefaultAsync(s => s.WorkOrderId == wo.Id);
+                    if (delListSummary != null)
+                        _context.Set<MES.Data.Entities.WorkOrderListSummary>().Remove(delListSummary);
+                    var delExecSummary = await _context.Set<MES.Data.Entities.WorkOrderExecutionSummary>()
+                        .FirstOrDefaultAsync(s => s.WorkOrderId == wo.Id);
+                    if (delExecSummary != null)
+                        _context.Set<MES.Data.Entities.WorkOrderExecutionSummary>().Remove(delExecSummary);
+
                     _context.WorkOrders.Remove(wo);
                     _logger.LogInformation("更新修改删除工单（无项次）: {WorkOrderNo}", wo.WorkOrderNo);
                 }
@@ -1270,6 +1335,8 @@ private readonly IConfigParameterService _configService;
 
         // 刷新读模型（事务已提交，在 using 块之外执行）
         if (_listSummaryService != null) await _listSummaryService.RefreshBySalesOrderAsync(request.SalesOrderNo);
+        var woNos = result.Select(r => r.WorkOrderNo).Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
+        if (woNos.Count != 0) await TryRefreshExecutionSummariesAsync(woNos);
 
         _logger.LogInformation("更新修改工单成功: 订单号 {OrderNo}, 更新 {UpdatedCount} 个, 新建 {NewCount} 个",
             request.SalesOrderNo, result.Count(r => !r.IsModified || existingByKey.ContainsKey((r.ProductionMainNo, r.ProductionSubNo))),
@@ -1377,6 +1444,8 @@ private readonly IConfigParameterService _configService;
                 ReworkPlanTotalPieces = s.ReworkPlanTotalPieces,
                 PiercingPlanTotalWeight = s.PiercingPlanTotalWeight,
                 PiercingPlanTotalPieces = s.PiercingPlanTotalPieces,
+                InProcessReworkPlanTotalWeight = s.InProcessReworkPlanTotalWeight,
+                InProcessReworkPlanTotalPieces = s.InProcessReworkPlanTotalPieces,
                 MaxStandardCycle = s.MaxStandardCycle,
                 MainNoMaxStandardCycle = s.MainNoMaxStandardCycle,
                 CapacityWorkDays = s.CapacityWorkDays,
@@ -1469,7 +1538,7 @@ private readonly IConfigParameterService _configService;
         if (query.DeliveryDateEnd.HasValue)
             workOrderQuery = workOrderQuery.Where(wo => wo.DeliveryDate <= query.DeliveryDateEnd.Value);
 
-        // 关键字模糊搜索：工单号/订单号/业务员/牌号/规格
+        // 关键字模糊搜索：工单号/订单号/业务员/牌号/规格/主号/次号/最终用户
         if (!string.IsNullOrEmpty(query.Keyword))
         {
             var keyword = query.Keyword;
@@ -1478,7 +1547,10 @@ private readonly IConfigParameterService _configService;
                 wo.SalesOrderNo.Contains(keyword) ||
                 wo.Salesman.Contains(keyword) ||
                 wo.PlantGrade.Contains(keyword) ||
-                wo.Specification.Contains(keyword)
+                wo.Specification.Contains(keyword) ||
+                wo.ProductionMainNo.Contains(keyword) ||
+                (wo.ProductionSubNo != null && wo.ProductionSubNo.Contains(keyword)) ||
+                (wo.EndCustomer != null && wo.EndCustomer.Contains(keyword))
             );
         }
 
@@ -1539,7 +1611,7 @@ private readonly IConfigParameterService _configService;
         if (query.DeliveryDateEnd.HasValue)
             summaryQuery = summaryQuery.Where(s => s.DeliveryDate <= query.DeliveryDateEnd.Value);
 
-        // 关键字模糊搜索
+        // 关键字模糊搜索：工单号/订单号/主号/次号/业务员/最终用户/牌号/规格
         if (!string.IsNullOrEmpty(query.Keyword))
         {
             var keyword = query.Keyword;
@@ -1548,7 +1620,10 @@ private readonly IConfigParameterService _configService;
                 s.SalesOrderNo.Contains(keyword) ||
                 s.Salesman.Contains(keyword) ||
                 s.PlantGrade.Contains(keyword) ||
-                s.Specification.Contains(keyword)
+                s.Specification.Contains(keyword) ||
+                s.ProductionMainNo.Contains(keyword) ||
+                (s.ProductionSubNo != null && s.ProductionSubNo.Contains(keyword)) ||
+                (s.EndCustomer != null && s.EndCustomer.Contains(keyword))
             );
         }
 
@@ -1575,6 +1650,9 @@ private readonly IConfigParameterService _configService;
             if (!selectedTypes.Contains("rework"))
                 summaryQuery = summaryQuery.Where(s => (s.ReworkPlanTotalWeight == null || s.ReworkPlanTotalWeight == 0) &&
                                                        (s.ReworkPlanTotalPieces == null || s.ReworkPlanTotalPieces == 0));
+            if (!selectedTypes.Contains("inprocess"))
+                summaryQuery = summaryQuery.Where(s => (s.InProcessReworkPlanTotalWeight == null || s.InProcessReworkPlanTotalWeight == 0) &&
+                                                       (s.InProcessReworkPlanTotalPieces == null || s.InProcessReworkPlanTotalPieces == 0));
         }
 
         // ===== 应用 ExcelFilter 筛选条件 =====
@@ -1630,6 +1708,8 @@ private readonly IConfigParameterService _configService;
                 ReworkPlanTotalPieces = s.ReworkPlanTotalPieces,
                 PiercingPlanTotalWeight = s.PiercingPlanTotalWeight,
                 PiercingPlanTotalPieces = s.PiercingPlanTotalPieces,
+                InProcessReworkPlanTotalWeight = s.InProcessReworkPlanTotalWeight,
+                InProcessReworkPlanTotalPieces = s.InProcessReworkPlanTotalPieces,
                 MaxStandardCycle = s.MaxStandardCycle,
                 MainNoMaxStandardCycle = s.MainNoMaxStandardCycle,
                 CapacityWorkDays = s.CapacityWorkDays,
@@ -1680,6 +1760,10 @@ private readonly IConfigParameterService _configService;
             .Where(p => allWorkOrderIds.Contains(p.WorkOrderId))
             .ToListAsync();
 
+        var allInProcessReworkPlans = await _context.InProcessReworkPlans
+            .Where(p => allWorkOrderIds.Contains(p.WorkOrderId) && p.PlanStatus != InventoryPlanStatus.Cancelled)
+            .ToListAsync();
+
         // 1. 填充各计划类型重量汇总（按工单ID）
         var semiWeightByWo = allSemiPlans
             .GroupBy(p => p.WorkOrderId)
@@ -1720,6 +1804,13 @@ private readonly IConfigParameterService _configService;
             .GroupBy(p => p.WorkOrderId)
             .ToDictionary(g => g.Key, g => g.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple));
 
+        var inProcessReworkWeightByWo = allInProcessReworkPlans
+            .GroupBy(p => p.WorkOrderId)
+            .ToDictionary(g => g.Key, g => g.Sum(p => p.UsedWeight));
+        var inProcessReworkPiecesByWo = allInProcessReworkPlans
+            .GroupBy(p => p.WorkOrderId)
+            .ToDictionary(g => g.Key, g => g.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple));
+
         // 计算最新计划日期（所有计划中最晚的 PlanDate）
         var latestDateByWo = new Dictionary<int, DateTime>();
         void MergeMaxDate(IEnumerable<IGrouping<int, DateTime>> groups)
@@ -1741,6 +1832,7 @@ private readonly IConfigParameterService _configService;
         MergeMaxDate(allFinishPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
         MergeMaxDate(allInventoryPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
         MergeMaxDate(allPiercingPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
+        MergeMaxDate(allInProcessReworkPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
 
         foreach (var item in items)
         {
@@ -1754,6 +1846,8 @@ private readonly IConfigParameterService _configService;
             if (reworkPiecesByWo.TryGetValue(item.Id, out var rewP)) item.ReworkPlanTotalPieces = rewP;
             if (piercingWeightByWo.TryGetValue(item.Id, out var pW)) item.PiercingPlanTotalWeight = pW;
             if (piercingPiecesByWo.TryGetValue(item.Id, out var pP)) item.PiercingPlanTotalPieces = pP;
+            if (inProcessReworkWeightByWo.TryGetValue(item.Id, out var ipW)) item.InProcessReworkPlanTotalWeight = ipW;
+            if (inProcessReworkPiecesByWo.TryGetValue(item.Id, out var ipP)) item.InProcessReworkPlanTotalPieces = ipP;
             if (latestDateByWo.TryGetValue(item.Id, out var latestDate)) item.LatestPlanDate = latestDate;
         }
 
@@ -1762,6 +1856,7 @@ private readonly IConfigParameterService _configService;
         var finishByWo = allFinishPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
         var inventoryByWo = allInventoryPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
         var piercingByWo = allPiercingPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
+        var inProcessReworkByWo = allInProcessReworkPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
         var woById = allWorkOrdersInOrders.ToDictionary(wo => wo.Id);
 
         // 读取物料计划状态阈值配置（用在工单级和主号级计算）
@@ -1783,7 +1878,8 @@ private readonly IConfigParameterService _configService;
             var finish = finishByWo.TryGetValue(item.Id, out var f) ? f : new List<PurchaseFinishedPlan>();
             var inv = inventoryByWo.TryGetValue(item.Id, out var iv) ? iv : new List<InventoryPlan>();
             var pierce = piercingByWo.TryGetValue(item.Id, out var p) ? p : new List<RoundBarPiercingPlan>();
-            var (rate, status) = PlanRateCalculator.ComputeWorkOrderRate(wo, semi, finish, inv, pierce,
+            var inProcess = inProcessReworkByWo.TryGetValue(item.Id, out var ip) ? ip : new List<InProcessReworkPlan>();
+            var (rate, status) = PlanRateCalculator.ComputeWorkOrderRate(wo, semi, finish, inv, pierce, inProcess,
                 fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
             item.MaterialPlanRate = rate;
             item.MaterialPlanStatus = status;
@@ -1809,8 +1905,9 @@ private readonly IConfigParameterService _configService;
             var groupInventoryPlans = groupInventoryAll.Where(p => p.ReworkType == null).ToList();
             var groupReworkPlans = groupInventoryAll.Where(p => p.ReworkType != null).ToList();
             var groupPiercingPlans = allPiercingPlans.Where(p => groupIds.Contains(p.WorkOrderId)).ToList();
+            var groupInProcessRework = allInProcessReworkPlans.Where(p => groupIds.Contains(p.WorkOrderId)).ToList();
 
-            var (rate, status) = CalculateMainNoAggregation(groupWorkOrders, groupSemiPlans, groupFinishPlans, groupInventoryPlans, groupReworkPlans, groupPiercingPlans,
+            var (rate, status) = CalculateMainNoAggregation(groupWorkOrders, groupSemiPlans, groupFinishPlans, groupInventoryPlans, groupReworkPlans, groupPiercingPlans, groupInProcessRework,
                 fixedFinishRatio, fixedInventoryRatio, nonFixedFinishRatio, nonFixedInventoryRatio,
                 smallBatchMaxQty, smallBatchSatisfiedRate, fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
 
@@ -1855,6 +1952,7 @@ private readonly IConfigParameterService _configService;
         List<InventoryPlan> inventoryPlans,
         List<InventoryPlan> reworkPlans,
         List<RoundBarPiercingPlan> piercingPlans,
+        List<InProcessReworkPlan> inProcessReworkPlans,
         decimal fixedFinishRatio, decimal fixedInventoryRatio,
         decimal nonFixedFinishRatio, decimal nonFixedInventoryRatio,
         decimal smallBatchMaxQty, decimal smallBatchSatisfiedRate,
@@ -1889,6 +1987,9 @@ private readonly IConfigParameterService _configService;
             totalEffective += (int)(fixedInventory.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple) * fixedInventoryRatio);
             // 库料改制：不乘系数
             totalEffective += (int)fixedRework.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple);
+
+            var fixedInProcess = inProcessReworkPlans.Where(p => fixedIds.Contains(p.WorkOrderId)).ToList();
+            totalEffective += (int)fixedInProcess.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple);
         }
 
         // 范围尺/非定尺：按重量
@@ -1912,6 +2013,9 @@ private readonly IConfigParameterService _configService;
             totalEffective += nonFixedRework.Sum(p => p.UsedWeight);
             // 圆棒穿孔：不乘系数（同原料采购）
             totalEffective += nonFixedPiercing.Sum(p => p.RequiredWeight);
+
+            var nonFixedInProcess = inProcessReworkPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
+            totalEffective += nonFixedInProcess.Sum(p => p.UsedWeight);
         }
 
         if (totalDemand <= 0) return (0, MaterialPlanStatus.NotPlanned);
@@ -2075,6 +2179,8 @@ private readonly IConfigParameterService _configService;
         _logger.LogInformation("更新工单状态成功: 工单号 {WorkOrderNo}, 新状态 {Status}",
             workOrder.WorkOrderNo, request.Status);
 
+        await TryRefreshExecutionSummaryAsync(workOrder.WorkOrderNo);
+
         return new UpdateWorkOrderStatusResponseDto { Id = workOrder.Id, Status = workOrder.Status };
     }
 
@@ -2102,6 +2208,10 @@ private readonly IConfigParameterService _configService;
             .FirstOrDefaultAsync(s => s.WorkOrderId == id);
         if (summaryRow != null)
             _context.Set<MES.Data.Entities.WorkOrderListSummary>().Remove(summaryRow);
+        var execSummaryRow = await _context.Set<MES.Data.Entities.WorkOrderExecutionSummary>()
+            .FirstOrDefaultAsync(s => s.WorkOrderId == id);
+        if (execSummaryRow != null)
+            _context.Set<MES.Data.Entities.WorkOrderExecutionSummary>().Remove(execSummaryRow);
 
         // 扫描引用该工单号的入库批次，生成通知（已执行数据，不级联）
         var affectedBatches = await _context.InventoryBatches
@@ -2148,17 +2258,9 @@ private readonly IConfigParameterService _configService;
             _logger.LogError(ex, "读模型刷新失败: SalesOrderNo={SalesOrderNo}", workOrder.SalesOrderNo);
         }
 
-        try
-        {
-            var soId = await _context.SalesOrders
-                .Where(so => so.OrderNumber == workOrder.SalesOrderNo)
-                .Select(so => (int?)so.Id)
-                .FirstOrDefaultAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "工单首页读模型刷新失败: SalesOrderId 未知");
-        }
+        // 增量刷新工单执行状况（更新同订单内剩余工单的聚合值，删除当前工单的行由 ReadModelService 内处理）
+        var remainingWoNos = remainingWorkOrders.Select(w => w.WorkOrderNo).ToList();
+        foreach (var woNo in remainingWoNos) await TryRefreshExecutionSummaryAsync(woNo);
     }
 
     public async Task SoftDeleteAsync(int id)
@@ -2182,6 +2284,11 @@ private readonly IConfigParameterService _configService;
         if (salesOrder != null)
         {
             if (_listSummaryService != null) await _listSummaryService.RefreshBySalesOrderAsync(salesOrder.OrderNumber);
+            var woNos = await _context.WorkOrders
+                .Where(wo => wo.SalesOrderNo == salesOrder.OrderNumber)
+                .Select(wo => wo.WorkOrderNo)
+                .ToListAsync();
+            foreach (var woNo in woNos) await TryRefreshExecutionSummaryAsync(woNo);
         }
     }
 
@@ -2285,6 +2392,10 @@ private readonly IConfigParameterService _configService;
             // 工单状态变更后刷新用料计划总览读模型
             if (_listSummaryService != null)
                 await _listSummaryService.RefreshBySalesOrderAsync(salesOrder.OrderNumber);
+
+            // 增量刷新工单执行状况
+            foreach (var wo in workOrders)
+                await TryRefreshExecutionSummaryAsync(wo.WorkOrderNo);
 
             return true;
         }

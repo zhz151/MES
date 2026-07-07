@@ -52,7 +52,6 @@ public class OutboundHistoryTests : TestBase
                     Id = 1,
                     InventoryBatchId = 1,
                     BatchNo = "BATCH-OB-001",
-                    WarehouseName = "主仓库",
                     OutboundType = "生产领料",
                     OutboundQuantity = 50,
                     OutboundWeight = 2500m,

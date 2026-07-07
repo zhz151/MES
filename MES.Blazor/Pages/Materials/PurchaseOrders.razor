@@ -27,9 +27,6 @@
                 <MudText Typo="Typo.h5" Class="font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Class="mr-2" Color="Color.Primary" />采购订单</MudText>
             </CardHeaderContent>
             <CardHeaderActions>
-                <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.Sync" OnClick="() => SyncAllAsync()" Disabled="@isSyncing" Class="mr-2">
-                    @if (isSyncing) { <MudProgressCircular Size="Size.Small" Color="Color.Inherit" /> } else { <span>即时更新</span> }
-                </MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="NavigateToCreate">新建采购单</MudButton>
             </CardHeaderActions>
         </MudCardHeader>
@@ -85,8 +82,14 @@
                 </MudPaper>
             }
 
-            <div id="purchase-orders-list-table"><MudTable @ref="table" T="PurchaseOrderDto" ServerData="@LoadDataFromServer" Dense="true" Hover="true" Class="mt-4 auto-table compact-table" Elevation="0" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
-                <ToolBarContent>
+            <div id="purchase-orders-list-table">
+            @{
+                var _groupHeaders = GetGroupHeaders();
+                var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40;
+            }
+            @* 工具栏：列显隐 + 打印按钮 + 记录数 *@
+            <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
+                <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="_allColumns"
                                          OnColumnToggle="OnColumnToggle"
                                          OnMoveUp="MoveColumnUp"
@@ -97,7 +100,8 @@
                                OnClick="ResetColumnDisplay" Class="ml-2">
                         重置
                     </MudButton>
-                    <MudSpacer />
+                </div>
+                <div class="d-flex align-center" style="margin-left:auto;">
                     <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Info" StartIcon="@Icons.Material.Filled.Print" Disabled="@(!selectedIds.Any())" OnClick="PrintSelected">
                         打印选中 (@selectedIds.Count)
                     </MudButton>
@@ -105,14 +109,33 @@
                         打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-2">共 @_totalCount 条记录</MudText>
-                </ToolBarContent>
+                </div>
+            </div>
+            @* 分组标题栏 *@
+            <div class="col-group-header-scroll" id="po-group-header-scroll">
+                <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                    @foreach (var gh in _groupHeaders)
+                    {
+                        <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                            <span class="col-group-badge">@gh.GroupName</span>
+                        </div>
+                    }
+                </div>
+            </div>
+            <MudTable @ref="table" T="PurchaseOrderDto" ServerData="@LoadDataFromServer" Dense="true" Hover="true" Class="mt-0 auto-table compact-table" Elevation="0" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
                 <HeaderContent>
-                    <MudTh Style="width: 36px;">
+                    @{
+                        int? _prevGk = null;
+                    }
+                    <MudTh Class="col-selection-th" Style="width:40px;padding:0 4px;">
                         <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
                     </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTh Style="@($"width:{col.Width}px")">
+                        var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
+                        _prevGk = col.GroupKey;
+                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
+                        <MudTh Class="@_headerClass" Style="@($"width:{col.Width}px")">
                             <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
                                 @if (col.FilterType != null)
@@ -131,7 +154,10 @@
                     <MudTh Style="width: 90px;">操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
-                    <MudTd Style="width: 36px;">
+                    @{
+                        int? _prevGk2 = null;
+                    }
+                    <MudTd Class="col-selection-td" Style="width:40px;padding:0 4px;">
                         <MudCheckBox T="bool"
                                      Value="@selectedIds.Contains(item.Id)"
                                      ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
@@ -139,13 +165,16 @@
                     </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>@RenderCell(item, col)</MudTd>
+                        var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
+                        _prevGk2 = col.GroupKey;
+                        var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
+                        <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
                     }
                     <MudTd>
                         @if (item.Status != PurchaseOrderStatus.Completed)
                         {
-                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Size="Size.Small" OnClick="() => NavigateToEdit(item.Id)" />
-                            <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" OnClick="() => CancelOrder(item)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Size="Size.Small" Title="编辑" OnClick="() => NavigateToEdit(item.Id)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" Title="取消订单" OnClick="() => CancelOrder(item)" />
                         }
                         else if (_isAdmin)
                         {
@@ -155,10 +184,16 @@
                     </MudTd>
                 </RowTemplate>
                 <FooterContent>
-                    <MudTd Class="col-footer-cell"></MudTd>  @* checkbox占位 *@
+                    @{
+                        int? _prevGk3 = null;
+                    }
+                    <MudTd Class="col-selection-td col-footer-cell" Style="width:40px;padding:0 4px;"></MudTd>  @* checkbox占位 *@
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd Class="col-footer-cell"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
+                        var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
+                        _prevGk3 = col.GroupKey;
+                        var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell";
+                        <MudTd Class="@_footerClass"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
                     }
                     <MudTd Class="col-footer-cell"></MudTd>  @* 操作列占位 *@
                 </FooterContent>

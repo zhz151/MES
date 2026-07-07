@@ -64,7 +64,7 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
 
             var workOrderIds = workOrders.Select(wo => wo.Id).ToHashSet();
 
-            // 2. 加载所有 4 种计划
+            // 2. 加载所有 6 种计划
             var allSemiPlans = await _context.PurchaseSemiPlans
                 .Where(p => workOrderIds.Contains(p.WorkOrderId))
                 .ToListAsync();
@@ -79,6 +79,10 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
 
             var allPiercingPlans = await _context.RoundBarPiercingPlans
                 .Where(p => workOrderIds.Contains(p.WorkOrderId))
+                .ToListAsync();
+
+            var allInProcessReworkPlans = await _context.InProcessReworkPlans
+                .Where(p => workOrderIds.Contains(p.WorkOrderId) && p.PlanStatus != InventoryPlanStatus.Cancelled)
                 .ToListAsync();
 
             // 3. 从 CustomerProfile 取 Salesman/EndCustomer
@@ -103,6 +107,9 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
             var piercingWeightByWo = allPiercingPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.Sum(p => p.RequiredWeight));
             var piercingPiecesByWo = allPiercingPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple));
 
+            var inProcessReworkWeightByWo = allInProcessReworkPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.Sum(p => p.UsedWeight));
+            var inProcessReworkPiecesByWo = allInProcessReworkPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple));
+
             // 最新计划日期
             var latestDateByWo = new Dictionary<int, DateTime>();
             void MergeMaxDate(IEnumerable<IGrouping<int, DateTime>> groups)
@@ -119,6 +126,7 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
             MergeMaxDate(allFinishPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
             MergeMaxDate(allInventoryPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
             MergeMaxDate(allPiercingPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
+            MergeMaxDate(allInProcessReworkPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
 
             // 最新要求到货日
             var latestRequiredDateByWo = new Dictionary<int, DateTime>();
@@ -126,7 +134,7 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
             {
                 foreach (var g in groups)
                 {
-                    var nonNull = g.Where(d => d.HasValue).Select(d => d.Value).ToList();
+                    var nonNull = g.Where(d => d.HasValue).Select(d => d.GetValueOrDefault()).ToList();
                     if (nonNull.Count == 0) continue;
                     var max = nonNull.Max();
                     if (latestRequiredDateByWo.TryGetValue(g.Key, out var existing))
@@ -138,6 +146,7 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
             MergeMaxRequiredDate(allFinishPlans.GroupBy(p => p.WorkOrderId, p => (DateTime?)p.RequiredDate));
             MergeMaxRequiredDate(allInventoryPlans.GroupBy(p => p.WorkOrderId, p => (DateTime?)p.PlanDate));
             MergeMaxRequiredDate(allPiercingPlans.GroupBy(p => p.WorkOrderId, p => (DateTime?)p.RequiredDate));
+            MergeMaxRequiredDate(allInProcessReworkPlans.GroupBy(p => p.WorkOrderId, p => (DateTime?)p.RequiredDate));
 
             // 配置阈值
             var (fixedFinishRatio, fixedInventoryRatio, nonFixedFinishRatio, nonFixedInventoryRatio,
@@ -149,6 +158,7 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
             var finishByWo = allFinishPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
             var inventoryByWo = allInventoryPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
             var piercingByWo = allPiercingPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
+            var inProcessReworkByWo = allInProcessReworkPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
             var woById = workOrders.ToDictionary(wo => wo.Id);
 
             // 5. 构建每个工单的 Summary 行
@@ -162,9 +172,10 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
                 var finish = finishByWo.TryGetValue(wo.Id, out var f) ? f : new List<PurchaseFinishedPlan>();
                 var inv = inventoryByWo.TryGetValue(wo.Id, out var iv) ? iv : new List<InventoryPlan>();
                 var pierce = piercingByWo.TryGetValue(wo.Id, out var p) ? p : new List<RoundBarPiercingPlan>();
+                var inProcess = inProcessReworkByWo.TryGetValue(wo.Id, out var irp) ? irp : new List<InProcessReworkPlan>();
 
                 // 计算工单级满足率/状态
-                var (rate, status) = PlanRateCalculator.ComputeWorkOrderRate(wo, semi, finish, inv, pierce,
+                var (rate, status) = PlanRateCalculator.ComputeWorkOrderRate(wo, semi, finish, inv, pierce, inProcess,
                     fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
 
                 // 计算 MaxStandardCycle
@@ -172,6 +183,7 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
                     .Concat(finish.Select(pf => pf.StandardCycle))
                     .Concat(inv.Select(pi => pi.StandardCycle))
                     .Concat(pierce.Select(rp => rp.StandardCycle))
+                    .Concat(inProcess.Select(ir => ir.StandardCycle))
                     .Where(c => c > 0);
 
                 var maxCycle = allCycles.Any() ? allCycles.Max() : 0;
@@ -183,10 +195,12 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
                 if (inventoryWeightByWo.TryGetValue(wo.Id, out var invW) && invW > 0) coveredCount++;
                 if (reworkWeightByWo.TryGetValue(wo.Id, out var rewW) && rewW > 0) coveredCount++;
                 if (piercingWeightByWo.TryGetValue(wo.Id, out var pW) && pW > 0) coveredCount++;
+                if (inProcessReworkWeightByWo.TryGetValue(wo.Id, out var ipW) && ipW > 0) coveredCount++;
 
                 // 用料占比文本
                 var proportionText = BuildProportionText(wo, semi, finish, normalInv.Where(n => n.WorkOrderId == wo.Id).ToList(),
-                    reworkInv.Where(r => r.WorkOrderId == wo.Id).ToList(), pierce);
+                    reworkInv.Where(r => r.WorkOrderId == wo.Id).ToList(), pierce,
+                    inProcessReworkByWo.TryGetValue(wo.Id, out var inproc) ? inproc : new List<InProcessReworkPlan>());
 
                 var row = new WorkOrderListSummary
                 {
@@ -236,6 +250,8 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
                     ReworkPlanTotalPieces = reworkPiecesByWo.TryGetValue(wo.Id, out var rp) ? rp : null,
                     PiercingPlanTotalWeight = piercingWeightByWo.TryGetValue(wo.Id, out var pw) ? pw : null,
                     PiercingPlanTotalPieces = piercingPiecesByWo.TryGetValue(wo.Id, out var pp) ? pp : null,
+                    InProcessReworkPlanTotalWeight = inProcessReworkWeightByWo.TryGetValue(wo.Id, out var ipw) ? ipw : null,
+                    InProcessReworkPlanTotalPieces = inProcessReworkPiecesByWo.TryGetValue(wo.Id, out var ipp) ? ipp : null,
                     MaxStandardCycle = maxCycle,
                     MaterialPlanCoveredCount = coveredCount,
                     MaterialPlanProportion = proportionText,
@@ -248,7 +264,7 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
 
             // 6. 计算主号级和订单级聚合后写入
             ComputeMainNoAndOrderAggregation(summaryRows, workOrders, allSemiPlans, allFinishPlans,
-                allInventoryPlans, allPiercingPlans,
+                allInventoryPlans, allPiercingPlans, allInProcessReworkPlans,
                 fixedFinishRatio, fixedInventoryRatio, nonFixedFinishRatio, nonFixedInventoryRatio,
                 smallBatchMaxQty, smallBatchSatisfiedRate,
                 fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
@@ -331,6 +347,7 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
         List<PurchaseFinishedPlan> allFinishPlans,
         List<InventoryPlan> allInventoryPlans,
         List<RoundBarPiercingPlan> allPiercingPlans,
+        List<InProcessReworkPlan> allInProcessReworkPlans,
         decimal fixedFinishRatio, decimal fixedInventoryRatio,
         decimal nonFixedFinishRatio, decimal nonFixedInventoryRatio,
         decimal smallBatchMaxQty, decimal smallBatchSatisfiedRate,
@@ -356,9 +373,10 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
             var groupInventoryPlans = groupInventoryAll.Where(p => p.ReworkType == null).ToList();
             var groupReworkPlans = groupInventoryAll.Where(p => p.ReworkType != null).ToList();
             var groupPiercingPlans = allPiercingPlans.Where(p => groupIds.Contains(p.WorkOrderId)).ToList();
+            var groupInProcessReworkPlans = allInProcessReworkPlans.Where(p => groupIds.Contains(p.WorkOrderId)).ToList();
 
             var (rate, status) = CalculateMainNoAggregation(groupWorkOrders, groupSemiPlans, groupFinishPlans,
-                groupInventoryPlans, groupReworkPlans, groupPiercingPlans,
+                groupInventoryPlans, groupReworkPlans, groupPiercingPlans, groupInProcessReworkPlans,
                 fixedFinishRatio, fixedInventoryRatio, nonFixedFinishRatio, nonFixedInventoryRatio,
                 smallBatchMaxQty, smallBatchSatisfiedRate, fixedPartial, fixedSatisfied,
                 nonFixedPartial, nonFixedSatisfied);
@@ -401,6 +419,7 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
         List<InventoryPlan> inventoryPlans,
         List<InventoryPlan> reworkPlans,
         List<RoundBarPiercingPlan> piercingPlans,
+        List<InProcessReworkPlan> inProcessReworkPlans,
         decimal fixedFinishRatio, decimal fixedInventoryRatio,
         decimal nonFixedFinishRatio, decimal nonFixedInventoryRatio,
         decimal smallBatchMaxQty, decimal smallBatchSatisfiedRate,
@@ -423,12 +442,14 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
             var fixedInventory = inventoryPlans.Where(p => fixedIds.Contains(p.WorkOrderId)).ToList();
             var fixedRework = reworkPlans.Where(p => fixedIds.Contains(p.WorkOrderId)).ToList();
             var fixedPiercing = piercingPlans.Where(p => fixedIds.Contains(p.WorkOrderId)).ToList();
+            var fixedInProcess = inProcessReworkPlans.Where(p => fixedIds.Contains(p.WorkOrderId)).ToList();
 
             totalEffective += (int)fixedSemi.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple);
             totalEffective += (int)fixedPiercing.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple);
             totalEffective += fixedFinish.Sum(p => p.RequiredPiece ?? 0) * fixedFinishRatio;
             totalEffective += (int)(fixedInventory.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple) * fixedInventoryRatio);
             totalEffective += (int)fixedRework.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple);
+            totalEffective += (int)fixedInProcess.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple);
         }
 
         if (nonFixedOrders.Any())
@@ -441,12 +462,14 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
             var nonFixedInventory = inventoryPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
             var nonFixedRework = reworkPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
             var nonFixedPiercing = piercingPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
+            var nonFixedInProcess = inProcessReworkPlans.Where(p => nonFixedIds.Contains(p.WorkOrderId)).ToList();
 
             totalEffective += nonFixedSemi.Sum(p => p.RequiredWeight);
             totalEffective += nonFixedFinish.Sum(p => p.RequiredWeight) * nonFixedFinishRatio;
             totalEffective += nonFixedInventory.Sum(p => p.UsedWeight) * nonFixedInventoryRatio;
             totalEffective += nonFixedRework.Sum(p => p.UsedWeight);
             totalEffective += nonFixedPiercing.Sum(p => p.RequiredWeight);
+            totalEffective += nonFixedInProcess.Sum(p => p.UsedWeight);
         }
 
         if (totalDemand <= 0) return (0, MaterialPlanStatus.NotPlanned);
@@ -490,7 +513,8 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
         List<PurchaseFinishedPlan> finishPlans,
         List<InventoryPlan> inventoryPlans,
         List<InventoryPlan> reworkPlans,
-        List<RoundBarPiercingPlan> piercingPlans)
+        List<RoundBarPiercingPlan> piercingPlans,
+        List<InProcessReworkPlan> inProcessReworkPlans)
     {
         var isFixed = wo.LengthStatus == LengthStatus.Fixed;
         var parts = new List<string>();
@@ -519,6 +543,10 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
             var reworkPieces = (int)reworkPlans.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple);
             if (reworkPieces > 0)
                 parts.Add($"改{reworkPieces / (decimal)totalQty * 100:F0}%");
+
+            var inProcessPieces = (int)inProcessReworkPlans.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple);
+            if (inProcessPieces > 0)
+                parts.Add($"在{inProcessPieces / (decimal)totalQty * 100:F0}%");
         }
         else
         {
@@ -544,6 +572,10 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
             var reworkWt = reworkPlans.Sum(p => p.UsedWeight);
             if (reworkWt > 0)
                 parts.Add($"改{reworkWt / totalWt * 100:F0}%");
+
+            var inProcessWt = inProcessReworkPlans.Sum(p => p.UsedWeight);
+            if (inProcessWt > 0)
+                parts.Add($"在{inProcessWt / totalWt * 100:F0}%");
         }
 
         return parts.Any() ? string.Join(" ", parts) : null;

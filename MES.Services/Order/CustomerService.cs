@@ -20,10 +20,12 @@ namespace MES.Services.Order;
 public class CustomerService : ICustomerService
 {
     private readonly AppDbContext _context;
+    private readonly IOrderService _orderService;
 
-    public CustomerService(AppDbContext context)
+    public CustomerService(AppDbContext context, IOrderService orderService)
     {
         _context = context;
+        _orderService = orderService;
     }
 
     /// <summary>
@@ -218,6 +220,16 @@ public class CustomerService : ICustomerService
         catch (DbUpdateConcurrencyException)
         {
             throw new BusinessException("客户信息已被其他用户修改，请刷新后重试");
+        }
+
+        // 客户信息变更后，刷新引用了该客户的所有订单读模型
+        var affectedOrders = await _context.SalesOrders
+            .Where(so => so.CustomerId == id)
+            .Select(so => so.Id)
+            .ToListAsync();
+        foreach (var orderId in affectedOrders)
+        {
+            await _orderService.RefreshByOrderIdAsync(orderId);
         }
 
         return entity.ToDto();

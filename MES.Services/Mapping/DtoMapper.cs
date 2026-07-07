@@ -242,6 +242,7 @@ public static class DtoMapper
     {
         Id = entity.Id,
         InventoryBatchId = entity.InventoryBatchId,
+        BatchNo = entity.BatchNo,
         OutboundType = entity.OutboundType.ToString(),
         SourceOrderNo = entity.SourceOrderNo,
         TargetCompany = entity.TargetCompany,
@@ -481,4 +482,16 @@ public static class DtoMapper
         Elongation = entity.Elongation,
         GrainSize = entity.GrainSize
     };
+
+    public static MaterialPlanProcessGroupDto ToDto(this InProcessReworkPlanProcessGroup entity) =>
+        ToPlanGroupDto(
+            entity.InProcessReworkPlanId, entity.SequenceNumber,
+            entity.ProcessName, entity.ManufacturingSpec, entity.OuterDiameterTolerance,
+            entity.WallThicknessTolerance, entity.ManufacturingLength, entity.CuttingTreatment,
+            entity.ManufacturingMultiple, entity.Remark,
+            entity.ColdRollDraw, entity.OilPipeCut, entity.Degrease, entity.Solution,
+            entity.Straighten, entity.Cut, entity.ThicknessMeasure, entity.Pickle,
+            entity.OuterPolish, entity.InnerGrinding, entity.OuterSpotGrinding,
+            entity.Inspection, entity.WeldingHead, entity.Lubrication, entity.Warehouse,
+            entity.Id, entity.CreatedTime, entity.CreatedBy);
 }

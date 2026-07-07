@@ -18,6 +18,8 @@ public partial class Suppliers
     private MudTable<SupplierProfileDto>? table;
     private List<SupplierProfileDto> _pageItems = new();
     private int _totalCount;
+    private int _restoredPageIndex;
+    private bool _isFirstLoad = true;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
     private bool _allSelected;
@@ -47,6 +49,13 @@ public partial class Suppliers
     private string sortColumn = "SupplierCode";
     private bool sortDescending = true;
 
+    // B33: 分页汇总
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        // Suppliers 无非数值汇总字段，保留空集合
+    };
+
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -59,14 +68,14 @@ public partial class Suppliers
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "SupplierCode",    Label = "供应商编码", SortKey = "suppliercode",    FilterType = "string" },
-        new() { Key = "SupplierName",    Label = "供应商名称", SortKey = "suppliername",    FilterType = "string" },
-        new() { Key = "MaterialCategory",Label = "物料分类",   SortKey = "materialcategory",FilterType = "string" },
-        new() { Key = "ContactPerson",   Label = "联系人",     SortKey = "contactperson",   FilterType = "string" },
-        new() { Key = "ContactPhone",    Label = "联系电话",   SortKey = "contactphone",    FilterType = "string" },
-        new() { Key = "Address",         Label = "地址",         SortKey = "address",       FilterType = "string" },
-        new() { Key = "Remark",          Label = "备注",          SortKey = "remark",        FilterType = "string" },
-        new() { Key = "IsActive",        Label = "状态",       SortKey = "isactive",        FilterType = "boolean", BoolTrueLabel = "启用", BoolFalseLabel = "停用" },
+        new() { Key = "SupplierCode",    Label = "供应商编码", SortKey = "suppliercode",    FilterType = "string",  Width = "130" },
+        new() { Key = "SupplierName",    Label = "供应商名称", SortKey = "suppliername",    FilterType = "string",  Width = "160" },
+        new() { Key = "MaterialCategory",Label = "物料分类",   SortKey = "materialcategory",FilterType = "string",  Width = "100" },
+        new() { Key = "ContactPerson",   Label = "联系人",     SortKey = "contactperson",   FilterType = "string",  Width = "100" },
+        new() { Key = "ContactPhone",    Label = "联系电话",   SortKey = "contactphone",    FilterType = "string",  Width = "130" },
+        new() { Key = "Address",         Label = "地址",         SortKey = "address",       FilterType = "string",  Width = "200" },
+        new() { Key = "Remark",          Label = "备注",          SortKey = "remark",        FilterType = "string",  Width = "200" },
+        new() { Key = "IsActive",        Label = "状态",       SortKey = "isactive",        FilterType = "boolean", Width = "80", BoolTrueLabel = "启用", BoolFalseLabel = "停用" },
     };
 
     // ========== 服务端数据加载 ==========
@@ -78,6 +87,13 @@ public partial class Suppliers
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "suppliercode";
             var filtersJson = SerializeFilters();
+
+            // 恢复持久化的页码（MudTable 初始化时始终传 page=0）
+            if (_isFirstLoad)
+            {
+                state.Page = _restoredPageIndex;
+                _isFirstLoad = false;
+            }
 
             var query = new QueryParams
             {
@@ -99,6 +115,7 @@ public partial class Suppliers
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
                 _currentPage = state.Page + 1;
+                ComputePageSums();
             }
             else
             {
@@ -235,6 +252,22 @@ public partial class Suppliers
         if (table != null) await table.ReloadServerData();
     }
 
+    // ========== 分页汇总 ==========
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+        // Suppliers 无非数值汇总字段，保持空
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        if (_pageSums.TryGetValue(col.Key, out var sum))
+            return sum;
+        return "-";
+    }
+
     // ========== 列选择操作 ==========
 
     private async Task OnColumnToggle(ColumnDef col)
@@ -300,6 +333,7 @@ public partial class Suppliers
             sortColumn = savedState.SortBy ?? "SupplierCode";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
+            _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try

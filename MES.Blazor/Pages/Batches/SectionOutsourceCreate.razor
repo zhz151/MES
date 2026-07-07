@@ -299,7 +299,7 @@
             {
                 BatchNo = r.BatchNo.Trim(),
                 ProcessName = r.ProcessName.Trim(),
-                ManufacturingSpec = r.ManufacturingSpec?.Trim(),
+                ManufacturingSpec = r.ManufacturingSpec?.Trim() ?? "",
                 SectionName = r.SectionName.Trim(),
                 OutsourceVendor = r.OutsourceVendor.Trim(),
                 SendOutDate = r.SendOutDate ?? DateTime.Today,

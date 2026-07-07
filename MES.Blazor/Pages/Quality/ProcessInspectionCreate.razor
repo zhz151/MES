@@ -328,9 +328,9 @@
             {
                 BatchNo = r.BatchNo,
                 ProcessName = r.ProcessName,
-                ManufacturingSpec = r.ManufacturingSpec,
+                ManufacturingSpec = r.ManufacturingSpec ?? "",
                 SectionName = r.SectionName,
-                InspectionDate = DateTime.Parse(r.InspectionDate),
+                InspectionDate = DateTime.Parse(r.InspectionDate!),
                 EquipmentName = r.EquipmentName,
                 Inspector = r.Inspector,
                 Shift = r.Shift,

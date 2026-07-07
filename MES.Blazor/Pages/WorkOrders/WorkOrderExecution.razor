@@ -23,15 +23,6 @@
             工单执行状况
         </MudText>
         <div class="d-flex align-center">
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Info"
-                       StartIcon="@Icons.Material.Filled.Sync"
-                       OnClick="RefreshAll"
-                       Loading="@isRefreshing"
-                       Disabled="@isRefreshing"
-                       Class="ml-2">
-                即时更新
-            </MudButton>
         </div>
     </div>
 
@@ -41,7 +32,7 @@
             <MudGrid>
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
-                                  Label="工单号/订单号/业务员/客户/牌号/规格/主号"
+                                  Label="模糊搜索 - 工单号/订单号/业务员/客户/牌号/规格/主号"
                                   Value="@_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"

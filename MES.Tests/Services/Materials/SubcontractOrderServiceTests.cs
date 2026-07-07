@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Core.DTOs;
 using MES.Core.Enums;
@@ -23,7 +24,9 @@ public class SubcontractOrderServiceTests : TestBase
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        return new SubcontractOrderService(ctx, new Mock<IPurchaseOrderService>().Object, configMock.Object);
+        var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
+        var loggerMock = new Mock<ILogger<SubcontractOrderService>>();
+        return new SubcontractOrderService(ctx, new Mock<IPurchaseOrderService>().Object, configMock.Object, workOrderExecMock.Object, loggerMock.Object);
     }
 
     private async Task<int> SeedSupplierAsync(AppDbContext ctx, string name = "委外供应商")
@@ -37,10 +40,16 @@ public class SubcontractOrderServiceTests : TestBase
     private async Task<SubcontractOrder> SeedOrderAsync(AppDbContext ctx, int supplierId, SubcontractOrderStatus status = SubcontractOrderStatus.Sent,
         DateTime? orderDate = null, int outQty = 100, decimal outWt = 1000m)
     {
+        var supplierName = await ctx.SupplierProfiles
+            .Where(s => s.Id == supplierId)
+            .Select(s => s.SupplierName)
+            .FirstOrDefaultAsync();
+
         var order = new SubcontractOrder
         {
             OrderNo = $"WW{DateTime.Now:yyMMdd}001",
             SupplierId = supplierId,
+            SupplierName = supplierName,
             OrderDate = orderDate ?? DateTime.Today,
             Status = status,
             ProcessType = "车丝",

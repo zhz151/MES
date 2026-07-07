@@ -23,7 +23,6 @@ public partial class WorkOrderExecution
     private int _currentPageIndex = 1;
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
-    private bool isRefreshing = false;
     private string _searchKeyword = string.Empty;
 
     // 排序状态
@@ -561,34 +560,6 @@ public partial class WorkOrderExecution
             Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
         }
         if (table != null) await table.ReloadServerData();
-    }
-
-    // ========== 即时更新 ==========
-
-    private async Task RefreshAll()
-    {
-        isRefreshing = true;
-        try
-        {
-            var result = await WorkOrderExecutionService.RefreshAllAsync();
-            if (result.Success)
-            {
-                Snackbar.Add($"刷新完成，共{result.Data?.RefreshedCount ?? 0}条", Severity.Success);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "刷新失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"刷新失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            isRefreshing = false;
-        }
-        await LoadAllDataAsync();
     }
 
     // ========== 初始化 ==========

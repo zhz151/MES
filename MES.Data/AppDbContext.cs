@@ -54,6 +54,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<SemiPlanProcessGroup> SemiPlanProcessGroups { get; set; } = null!;
     public DbSet<InventoryPlanProcessGroup> InventoryPlanProcessGroups { get; set; } = null!;
     public DbSet<PiercingPlanProcessGroup> PiercingPlanProcessGroups { get; set; } = null!;
+    public DbSet<InProcessReworkPlan> InProcessReworkPlans { get; set; } = null!;
+    public DbSet<InProcessReworkPlanProcessGroup> InProcessReworkPlanProcessGroups { get; set; } = null!;
 
     // ========== 物料上下文 ==========
 
@@ -184,6 +186,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureSemiPlanProcessGroup(builder);
         ConfigureInventoryPlanProcessGroup(builder);
         ConfigurePiercingPlanProcessGroup(builder);
+        ConfigureInProcessReworkPlan(builder);
+        ConfigureInProcessReworkPlanProcessGroup(builder);
 
         // ========== 生产记录上下文 ==========
         ConfigureProductionRecord(builder);
@@ -973,6 +977,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasKey(e => e.Id);
             entity.Property(e => e.OrderNo).IsRequired().HasMaxLength(20);
             entity.Property(e => e.SupplierId).IsRequired();
+            entity.Property(e => e.SupplierName).HasMaxLength(200);
             entity.Property(e => e.OrderDate).IsRequired().HasColumnType("date");
             entity.Property(e => e.Status).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(PurchaseOrderStatus.Open);
             entity.Property(e => e.IsForceCompleted).IsRequired().HasDefaultValue(false);
@@ -1012,6 +1017,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasKey(e => e.Id);
             entity.Property(e => e.OrderNo).IsRequired().HasMaxLength(20);
             entity.Property(e => e.SupplierId).IsRequired();
+            entity.Property(e => e.SupplierName).HasMaxLength(200);
             entity.Property(e => e.OrderDate).IsRequired().HasColumnType("date");
             entity.Property(e => e.Status).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(SubcontractOrderStatus.Sent);
             entity.Property(e => e.IsForceCompleted).IsRequired().HasDefaultValue(false);
@@ -1348,6 +1354,81 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => new { e.RoundBarPiercingPlanId, e.SequenceNumber })
                 .IsUnique()
                 .HasDatabaseName("UK_PiercingPlanProcessGroup_Seq");
+        });
+    }
+
+    private static void ConfigureInProcessReworkPlan(ModelBuilder builder)
+    {
+        builder.Entity<InProcessReworkPlan>(entity =>
+        {
+            entity.ToTable("InProcessReworkPlan");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.WorkOrderId).IsRequired();
+            entity.Property(e => e.PlanDate).IsRequired().HasColumnType("date");
+            entity.Property(e => e.ProductionBatchId).IsRequired();
+            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.BatchTagNo).HasMaxLength(50);
+            entity.Property(e => e.MaterialName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.LengthStatus).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.InputMultiple).IsRequired().HasDefaultValue(1);
+            entity.Property(e => e.UsedQuantity);
+            entity.Property(e => e.UsedWeight).IsRequired().HasColumnType("decimal(18,3)");
+            entity.Property(e => e.RequiredDate).HasColumnType("date");
+            entity.Property(e => e.PlanStatus).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(InventoryPlanStatus.Planned);
+            entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.Property(e => e.ReworkType).IsRequired().HasMaxLength(20).HasConversion<string>();
+            entity.Property(e => e.StandardCycle).IsRequired().HasDefaultValue(0);
+            entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_InProcessReworkPlan_WorkOrderId");
+            entity.HasIndex(e => e.ProductionBatchId).HasDatabaseName("IX_InProcessReworkPlan_ProductionBatchId");
+            entity.HasIndex(e => e.PlanStatus).HasDatabaseName("IX_InProcessReworkPlan_PlanStatus");
+        });
+    }
+
+    private static void ConfigureInProcessReworkPlanProcessGroup(ModelBuilder builder)
+    {
+        builder.Entity<InProcessReworkPlanProcessGroup>(entity =>
+        {
+            entity.ToTable("InProcessReworkPlanProcessGroup");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.InProcessReworkPlanId).IsRequired();
+            entity.Property(e => e.SequenceNumber).IsRequired();
+            entity.Property(e => e.ProcessName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ManufacturingSpec).HasMaxLength(100);
+            entity.Property(e => e.OuterDiameterTolerance).HasMaxLength(50);
+            entity.Property(e => e.WallThicknessTolerance).HasMaxLength(50);
+            entity.Property(e => e.ManufacturingLength).HasMaxLength(100);
+            entity.Property(e => e.CuttingTreatment).HasMaxLength(200);
+            entity.Property(e => e.ManufacturingMultiple).IsRequired();
+            entity.Property(e => e.Remark).HasMaxLength(500);
+
+            entity.Property(e => e.ColdRollDraw);
+            entity.Property(e => e.OilPipeCut);
+            entity.Property(e => e.Degrease);
+            entity.Property(e => e.Solution);
+            entity.Property(e => e.Straighten);
+            entity.Property(e => e.Cut);
+            entity.Property(e => e.ThicknessMeasure);
+            entity.Property(e => e.Pickle);
+            entity.Property(e => e.OuterPolish);
+            entity.Property(e => e.InnerGrinding);
+            entity.Property(e => e.OuterSpotGrinding);
+            entity.Property(e => e.Inspection);
+            entity.Property(e => e.WeldingHead);
+            entity.Property(e => e.Lubrication);
+            entity.Property(e => e.Warehouse);
+
+            entity.HasOne<InProcessReworkPlan>()
+                .WithMany()
+                .HasForeignKey(e => e.InProcessReworkPlanId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.InProcessReworkPlanId).HasDatabaseName("IX_InProcessReworkPlanPG_PlanId");
+            entity.HasIndex(e => new { e.InProcessReworkPlanId, e.SequenceNumber })
+                .IsUnique()
+                .HasDatabaseName("UK_InProcessReworkPlanPG_Seq");
         });
     }
 
@@ -2549,6 +2630,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.ReworkPlanTotalPieces).IsRequired(false);
             entity.Property(e => e.PiercingPlanTotalWeight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.PiercingPlanTotalPieces).IsRequired(false);
+            entity.Property(e => e.InProcessReworkPlanTotalWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.InProcessReworkPlanTotalPieces).IsRequired(false);
             entity.Property(e => e.MaxStandardCycle).IsRequired().HasDefaultValue(0);
 
             // Group C: 预计算主号/订单聚合

@@ -17,22 +17,25 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace MES.Blazor.Pages.Materials;
 
-public partial class SubcontractOrders
+public partial class SubcontractOrders : IAsyncDisposable
 {
     private MudTable<SubcontractOrderDto>? table;
     private List<SubcontractOrderDto> _pageItems = new();
     private int _totalCount;
+    private int _restoredPageIndex;
+    private bool _isFirstLoad = true;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
-    private bool _allSelected;
+    private bool _allSelectedField;
     private bool _isAdmin;
+
     private bool allSelected
     {
-        get => _allSelected;
+        get => _allSelectedField;
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
+            if (_allSelectedField == value) return;
+            _allSelectedField = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -47,7 +50,6 @@ public partial class SubcontractOrders
     }
     private int _currentPage = 1;
     private int _pageSize = 10;
-    private bool isSyncing;
     private string _searchKeyword = string.Empty;
 
     // B33: 分页汇总
@@ -68,6 +70,9 @@ public partial class SubcontractOrders
     private bool showProcurementStatus = false;
     private List<OrderMismatchInfo> mismatchItems = new();
 
+    // ========== 状态面板定时轮询 ==========
+    private CancellationTokenSource? _pollingCts;
+
     // ========== 列定义 ==========
 
     private List<ColumnDef> _allColumns = new();
@@ -76,19 +81,19 @@ public partial class SubcontractOrders
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "OrderNo",             Label = "委外单号",     SortKey = "OrderNo",             FilterType = "string" },
-        new() { Key = "OrderDate",           Label = "下单日期",     SortKey = "OrderDate", FilterType = "date" },
-        new() { Key = "ProcessType",         Label = "加工类型",     SortKey = "ProcessType",         FilterType = "string" },
-        new() { Key = "OutMaterialCategory", Label = "物料分类",     SortKey = "OutMaterialCategory", FilterType = "string" },
-        new() { Key = "OutPlantGrade",       Label = "工厂牌号",     SortKey = "OutPlantGrade",       FilterType = "string" },
-        new() { Key = "OutSpecification",    Label = "规格",         SortKey = "OutSpecification",    FilterType = "string" },
-        new() { Key = "OutQuantity",         Label = "发出支数",     SortKey = "OutQuantity" },
-        new() { Key = "OutWeight",           Label = "发出重量",     SortKey = "OutWeight" },
-        new() { Key = "ReturnDeadline",      Label = "收回期限",     SortKey = "ReturnDeadline", FilterType = "date" },
-        new() { Key = "SupplierName",        Label = "供应商",       SortKey = "SupplierName",        FilterType = "string" },
-        new() { Key = "Status",              Label = "状态",         SortKey = "Status",              FilterType = "enum",
+        new() { Key = "OrderNo",             Label = "委外单号",     SortKey = "OrderNo",             FilterType = "string",   Width = "160" },
+        new() { Key = "OrderDate",           Label = "下单日期",     SortKey = "OrderDate",           FilterType = "date",     Width = "120" },
+        new() { Key = "ProcessType",         Label = "加工类型",     SortKey = "ProcessType",         FilterType = "string",   Width = "100" },
+        new() { Key = "OutMaterialCategory", Label = "物料分类",     SortKey = "OutMaterialCategory", FilterType = "string",   Width = "100" },
+        new() { Key = "OutPlantGrade",       Label = "工厂牌号",     SortKey = "OutPlantGrade",       FilterType = "string",   Width = "100" },
+        new() { Key = "OutSpecification",    Label = "规格",         SortKey = "OutSpecification",    FilterType = "string",   Width = "120" },
+        new() { Key = "OutQuantity",         Label = "发出支数",     SortKey = "OutQuantity",                                  Width = "90"  },
+        new() { Key = "OutWeight",           Label = "发出重量",     SortKey = "OutWeight",                                    Width = "90"  },
+        new() { Key = "ReturnDeadline",      Label = "收回期限",     SortKey = "ReturnDeadline",      FilterType = "date",     Width = "110" },
+        new() { Key = "SupplierName",        Label = "供应商",       SortKey = "SupplierName",        FilterType = "string",   Width = "150" },
+        new() { Key = "Status",              Label = "状态",         SortKey = "Status",              FilterType = "enum",     Width = "100",
             EnumOptions = new() { new("Sent", "已发出"), new("PartialReturned", "部分收回"), new("Completed", "已完成") } },
-        new() { Key = "Returned",            Label = "已回收" },
+        new() { Key = "Returned",            Label = "已回收",                                                                 Width = "130" },
     };
 
     // ========== 列选择操作 ==========
@@ -190,6 +195,13 @@ public partial class SubcontractOrders
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "OrderDate";
             var filtersJson = SerializeFilters();
+
+            // 恢复持久化的页码（MudTable 初始化时始终传 page=0）
+            if (_isFirstLoad)
+            {
+                state.Page = _restoredPageIndex;
+                _isFirstLoad = false;
+            }
 
             var query = new QueryParams
             {
@@ -419,6 +431,7 @@ public partial class SubcontractOrders
                 || user.IsInRole(Roles.Admin);
 
         await LoadProcurementStatus();
+        await LoadOrderMismatches();
 
         _allColumns = GetAllColumnDefs();
         var saved = await ColumnPrefs.LoadAsync("subcontract_orders", null);
@@ -452,6 +465,7 @@ public partial class SubcontractOrders
             sortColumn = savedState.SortBy ?? "OrderDate";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
+            _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try
@@ -471,6 +485,9 @@ public partial class SubcontractOrders
 
         // 加载筛选上下文
         await LoadFilterContextsAsync();
+
+        // 启动状态面板定时轮询（后台运行，不阻塞初始化）
+        _ = StartPollingAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -524,33 +541,6 @@ public partial class SubcontractOrders
         {
             Snackbar.Add($"检测工单关联异常: {ex.Message}", Severity.Error);
         }
-    }
-
-    // ========== 同步 ==========
-
-    private async Task SyncAllAsync(bool silent = false)
-    {
-        if (!silent) { isSyncing = true; StateHasChanged(); }
-        try
-        {
-            var result = await SubcontractService.SyncAllAsync();
-            if (result.Success)
-            {
-                if (!silent) Snackbar.Add("同步完成", Severity.Success);
-                if (table != null) await table.ReloadServerData();
-                await LoadProcurementStatus();
-                await LoadOrderMismatches();
-            }
-            else if (!silent)
-            {
-                Snackbar.Add(result.Message ?? "同步失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            if (!silent) Snackbar.Add($"同步失败: {ex.Message}", Severity.Error);
-        }
-        finally { if (!silent) { isSyncing = false; StateHasChanged(); } }
     }
 
     // ========== 打印 ==========
@@ -632,5 +622,42 @@ public partial class SubcontractOrders
             Extras = extras
         };
         await PageState.SaveAsync("subcontractorders", state);
+    }
+
+    // ========== 状态面板定时轮询（每 2 分钟） ==========
+
+    private async Task StartPollingAsync()
+    {
+        _pollingCts = new CancellationTokenSource();
+        try
+        {
+            while (!_pollingCts.Token.IsCancellationRequested)
+            {
+                await Task.Delay(TimeSpan.FromMinutes(2), _pollingCts.Token);
+                try
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await LoadProcurementStatus();
+                        StateHasChanged();
+                    });
+                }
+                catch
+                {
+                    // 单次轮询异常不影响下一轮
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // 组件销毁时正常取消
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _pollingCts?.Cancel();
+        _pollingCts?.Dispose();
+        return ValueTask.CompletedTask;
     }
 }

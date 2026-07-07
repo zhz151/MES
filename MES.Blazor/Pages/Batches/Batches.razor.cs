@@ -20,6 +20,7 @@ public partial class Batches
     private int _totalCount;
     private HashSet<int> selectedIds = new();
     private List<BatchWorkOrderMismatchDto> _workOrderMismatches = new();
+    private List<PendingPlanBatchDto> _pendingInProcessReworkPlans = new();
     private bool isSyncing = false;
     private bool _allSelected;
     private bool allSelected
@@ -464,6 +465,27 @@ public partial class Batches
         if (savedState != null && table != null)
             await table.ReloadServerData();
         await LoadFilterContextsAsync();
+
+        // 自动加载待处理在产改制计划通知
+        await LoadPendingInProcessReworkPlansAsync();
+    }
+
+    // ========== 在产改制计划通知 ==========
+
+    private async Task LoadPendingInProcessReworkPlansAsync()
+    {
+        try
+        {
+            var result = await MaterialPlanService.GetPendingInProcessReworkPlansAsync();
+            if (result.Success && result.Data != null)
+            {
+                _pendingInProcessReworkPlans = result.Data;
+            }
+        }
+        catch
+        {
+            // 静默失败，不影响页面加载
+        }
     }
 
     // ========== 工单号验证 ==========

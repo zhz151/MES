@@ -1,11 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MES.Core.DTOs;
 using MES.Core.Exceptions;
 using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
-using WoEntity = MES.Data.Entities.WorkOrder;
 using MES.Core.Enums;
 using MES.Services.Helpers;
 using MES.Services.Printing;
@@ -16,12 +16,30 @@ public class PurchaseOrderService : IPurchaseOrderService
 {
     private readonly AppDbContext _context;
     private readonly IConfigParameterService _configService;
+    private readonly IWorkOrderExecutionService _workOrderExecutionService;
+    private readonly ILogger<PurchaseOrderService> _logger;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
-    public PurchaseOrderService(AppDbContext context, IConfigParameterService configService)
+    public PurchaseOrderService(AppDbContext context, IConfigParameterService configService,
+        IWorkOrderExecutionService workOrderExecutionService, ILogger<PurchaseOrderService> logger)
     {
         _context = context;
         _configService = configService;
+        _workOrderExecutionService = workOrderExecutionService;
+        _logger = logger;
+    }
+
+    private async Task TryRefreshExecutionSummaryAsync(string? sourceWorkOrderNo)
+    {
+        if (string.IsNullOrWhiteSpace(sourceWorkOrderNo)) return;
+        try
+        {
+            await _workOrderExecutionService.RefreshByWorkOrderNosAsync(new List<string> { sourceWorkOrderNo });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "工单执行状况刷新失败（不影响主流程）: SourceWorkOrderNo={SourceWorkOrderNo}", sourceWorkOrderNo);
+        }
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -36,44 +54,73 @@ public class PurchaseOrderService : IPurchaseOrderService
 
     public async Task<PagedResult<PurchaseOrderDto>> GetPagedAsync(PurchaseOrderQueryParams query)
     {
-        var queryable = _context.PurchaseOrders
-            .AsNoTracking()
-            .AsQueryable();
+        // LEFT JOIN WorkOrders，直接投影到 PurchaseOrderDto
+        // 所有 Wo* 字段在投影中一并填充，后续 ApplyFilters/ApplySort 直接操作 DTO 属性
+        var queryable = from p in _context.PurchaseOrders.AsNoTracking()
+                        join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
+                        from w in wj.DefaultIfEmpty()
+                        select new PurchaseOrderDto
+                        {
+                            Id = p.Id,
+                            OrderNo = p.OrderNo,
+                            SupplierId = p.SupplierId,
+                            SupplierName = p.SupplierName,
+                            OrderDate = p.OrderDate,
+                            Status = p.Status,
+                            IsForceCompleted = p.IsForceCompleted,
+                            MaterialCategory = p.MaterialCategory,
+                            PlantGrade = p.PlantGrade,
+                            Specification = p.Specification,
+                            UnitWeight = p.UnitWeight,
+                            Quantity = p.Quantity,
+                            Weight = p.Weight,
+                            RequiredDate = p.RequiredDate,
+                            UnitPrice = p.UnitPrice,
+                            TotalAmount = p.TotalAmount,
+                            LastArrivalDate = p.LastArrivalDate,
+                            ReceivedQuantity = p.ReceivedQuantity,
+                            ReceivedWeight = p.ReceivedWeight,
+                            SourceWorkOrderNo = p.SourceWorkOrderNo,
+                            InputMultiple = p.InputMultiple,
+                            Remark = p.Remark,
+                            CreatedTime = p.CreatedTime,
+                            WoSalesOrderNo = w.SalesOrderNo,
+                            WoProductionMainNo = w.ProductionMainNo,
+                            WoProductionSubNo = w.ProductionSubNo,
+                            WoSignDate = (DateTime?)w.SignDate,
+                            WoSalesman = w.Salesman,
+                            WoEndCustomer = w.EndCustomer,
+                            WoDeliveryDate = (DateTime?)w.DeliveryDate,
+                            WoDelayPenalty = w != null && w.DelayPenalty,
+                            WoSettlementMethod = (SettlementMethod?)w.SettlementMethod,
+                            WoPlantGrade = w.PlantGrade,
+                            WoSpecification = w.Specification,
+                            WoLengthStatus = (LengthStatus?)w.LengthStatus,
+                            WoMaxLength = w.MaxLength,
+                            WoTotalQuantity = (int?)w.TotalQuantity,
+                            WoTotalWeight = (decimal?)w.TotalWeight,
+                            WoDeliveryState = (DeliveryState?)w.DeliveryState,
+                            WoTotalItemCount = (int?)w.TotalItemCount,
+                        };
 
         if (!string.IsNullOrEmpty(query.Keyword))
         {
             var kw = query.Keyword;
-
-            // 尝试按供应商名称搜索 → 查 SupplierId
-            var matchedSupplierIds = await _context.SupplierProfiles
-                .AsNoTracking()
-                .Where(s => s.SupplierName.Contains(kw))
-                .Select(s => s.Id)
-                .ToListAsync();
-
-            // 搜索工单关联字段
-            var matchedWoNos = await _context.WorkOrders
-                .AsNoTracking()
-                .Where(w =>
-                    w.SalesOrderNo.Contains(kw) ||
-                    w.Salesman.Contains(kw) ||
-                    w.ProductionMainNo.Contains(kw) ||
-                    (w.ProductionSubNo != null && w.ProductionSubNo.Contains(kw)) ||
-                    (w.EndCustomer != null && w.EndCustomer.Contains(kw)) ||
-                    w.PlantGrade.Contains(kw) ||
-                    w.Specification.Contains(kw))
-                .Select(w => w.WorkOrderNo)
-                .ToListAsync();
-
-            queryable = queryable.Where(p =>
-                p.OrderNo.Contains(kw) ||
-                p.MaterialCategory.Contains(kw) ||
-                p.PlantGrade.Contains(kw) ||
-                p.Specification.Contains(kw) ||
-                (p.SourceWorkOrderNo != null && p.SourceWorkOrderNo.Contains(kw)) ||
-                (p.SourceWorkOrderNo != null && matchedWoNos.Contains(p.SourceWorkOrderNo)) ||
-                matchedSupplierIds.Contains(p.SupplierId) ||
-                (p.Remark != null && p.Remark.Contains(kw)));
+            queryable = queryable.Where(dto =>
+                dto.OrderNo.Contains(kw) ||
+                dto.MaterialCategory.Contains(kw) ||
+                dto.PlantGrade.Contains(kw) ||
+                dto.Specification.Contains(kw) ||
+                (dto.SupplierName != null && dto.SupplierName.Contains(kw)) ||
+                (dto.SourceWorkOrderNo != null && dto.SourceWorkOrderNo.Contains(kw)) ||
+                (dto.WoSalesOrderNo != null && dto.WoSalesOrderNo.Contains(kw)) ||
+                (dto.WoProductionMainNo != null && dto.WoProductionMainNo.Contains(kw)) ||
+                (dto.WoProductionSubNo != null && dto.WoProductionSubNo.Contains(kw)) ||
+                (dto.WoSalesman != null && dto.WoSalesman.Contains(kw)) ||
+                (dto.WoEndCustomer != null && dto.WoEndCustomer.Contains(kw)) ||
+                (dto.WoPlantGrade != null && dto.WoPlantGrade.Contains(kw)) ||
+                (dto.WoSpecification != null && dto.WoSpecification.Contains(kw)) ||
+                (dto.Remark != null && dto.Remark.Contains(kw)));
         }
 
         // 状态筛选
@@ -106,244 +153,17 @@ public class PurchaseOrderService : IPurchaseOrderService
             queryable = queryable.Where(p => p.RequiredDate < to);
         }
 
-        // 跨表计算字段筛选（非 PurchaseOrder 直接属性，ApplyFilters 无法处理）
-        // 需提前处理并从 Filters 中移除，避免 ApplyFilters 反射时找不到属性
-        var crossTableFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "SupplierName", "WoSalesOrderNo", "WoProductionMainNo", "WoSignDate",
-            "WoSalesman", "WoDeliveryDate", "WoPlantGrade", "WoSpecification",
-            "WoMaxLength", "WoTotalQuantity", "WoTotalWeight", "WoTotalItemCount"
-        };
-        if (query.Filters != null)
-        {
-            foreach (var filter in query.Filters.Where(f => crossTableFields.Contains(f.Field)).ToList())
-            {
-                if (string.IsNullOrWhiteSpace(filter.Field)) continue;
-                var op = filter.Operator?.ToLowerInvariant() ?? "contains";
-                switch (filter.Field.ToLower())
-                {
-                    case "suppliername":
-                        if (op == "in" && filter.Values?.Count > 0)
-                            queryable = queryable.Where(p => _context.SupplierProfiles.Any(s => s.Id == p.SupplierId && filter.Values.Contains(s.SupplierName)));
-                        else if (!string.IsNullOrEmpty(filter.Value))
-                            queryable = queryable.Where(p => _context.SupplierProfiles.Any(s => s.Id == p.SupplierId && s.SupplierName.Contains(filter.Value)));
-                        break;
-                    case "wosalesorderno":
-                        if (op == "in" && filter.Values?.Count > 0)
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && filter.Values.Contains(wo.SalesOrderNo)));
-                        else if (!string.IsNullOrEmpty(filter.Value))
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.SalesOrderNo.Contains(filter.Value)));
-                        break;
-                    case "woproductionmainno":
-                        if (op == "in" && filter.Values?.Count > 0)
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && filter.Values.Contains(wo.ProductionMainNo)));
-                        else if (!string.IsNullOrEmpty(filter.Value))
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.ProductionMainNo.Contains(filter.Value)));
-                        break;
-                    case "wosigndate":
-                        if (DateTime.TryParse(filter.From?.ToString(), out var wsdFrom))
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.SignDate >= wsdFrom));
-                        if (DateTime.TryParse(filter.To?.ToString(), out var wsdTo))
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.SignDate <= wsdTo));
-                        break;
-                    case "wosalesman":
-                        if (op == "in" && filter.Values?.Count > 0)
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && filter.Values.Contains(wo.Salesman)));
-                        else if (!string.IsNullOrEmpty(filter.Value))
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.Salesman.Contains(filter.Value)));
-                        break;
-                    case "wodeliverydate":
-                        if (DateTime.TryParse(filter.From?.ToString(), out var wddFrom))
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.DeliveryDate >= wddFrom));
-                        if (DateTime.TryParse(filter.To?.ToString(), out var wddTo))
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.DeliveryDate <= wddTo));
-                        break;
-                    case "woplantgrade":
-                        if (op == "in" && filter.Values?.Count > 0)
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && filter.Values.Contains(wo.PlantGrade)));
-                        else if (!string.IsNullOrEmpty(filter.Value))
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.PlantGrade.Contains(filter.Value)));
-                        break;
-                    case "wospecification":
-                        if (op == "in" && filter.Values?.Count > 0)
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && filter.Values.Contains(wo.Specification)));
-                        else if (!string.IsNullOrEmpty(filter.Value))
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.Specification.Contains(filter.Value)));
-                        break;
-                    case "womaxlength":
-                        if (decimal.TryParse(filter.From?.ToString(), out var wmlMin))
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.MaxLength >= wmlMin));
-                        if (decimal.TryParse(filter.To?.ToString(), out var wmlMax))
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.MaxLength <= wmlMax));
-                        break;
-                    case "wototalquantity":
-                        if (decimal.TryParse(filter.From?.ToString(), out var wtqMin))
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.TotalQuantity >= wtqMin));
-                        if (decimal.TryParse(filter.To?.ToString(), out var wtqMax))
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.TotalQuantity <= wtqMax));
-                        break;
-                    case "wototalweight":
-                        if (decimal.TryParse(filter.From?.ToString(), out var wtwMin))
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.TotalWeight >= wtwMin));
-                        if (decimal.TryParse(filter.To?.ToString(), out var wtwMax))
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.TotalWeight <= wtwMax));
-                        break;
-                    case "wototalitemcount":
-                        if (int.TryParse(filter.From?.ToString(), out var wicMin))
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.TotalItemCount >= wicMin));
-                        if (int.TryParse(filter.To?.ToString(), out var wicMax))
-                            queryable = queryable.Where(p => _context.WorkOrders.Any(wo => wo.WorkOrderNo == p.SourceWorkOrderNo && wo.TotalItemCount <= wicMax));
-                        break;
-                }
-                query.Filters.Remove(filter);
-            }
-        }
-
+        // ApplyFilters 直接反射操作 DTO 属性，Wo* 字段无需特殊处理
         queryable = queryable.ApplyFilters(query.Filters);
 
-        // 工单来源字段排序（先提取带 LEFT JOIN 的 queryable）
-        var withWorkOrder = queryable.GroupJoin(
-            _context.WorkOrders.AsNoTracking(),
-            p => p.SourceWorkOrderNo,
-            w => w.WorkOrderNo,
-            (p, wg) => new { p, w = wg.FirstOrDefault()! });
-
-        queryable = query.SortBy?.ToLower() switch
-        {
-            "orderno" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.OrderNo)
-                : queryable.OrderBy(p => p.OrderNo),
-            "orderdate" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.OrderDate)
-                : queryable.OrderBy(p => p.OrderDate),
-            "requireddate" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.RequiredDate)
-                : queryable.OrderBy(p => p.RequiredDate),
-            "materialcategory" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.MaterialCategory)
-                : queryable.OrderBy(p => p.MaterialCategory),
-            "plantgrade" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.PlantGrade)
-                : queryable.OrderBy(p => p.PlantGrade),
-            "specification" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.Specification)
-                : queryable.OrderBy(p => p.Specification),
-            "sourceworkorderno" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.SourceWorkOrderNo ?? "")
-                : queryable.OrderBy(p => p.SourceWorkOrderNo ?? ""),
-            "suppliername" => query.IsDescending
-                ? queryable.Join(_context.SupplierProfiles, p => p.SupplierId, s => s.Id, (p, s) => new { p, s.SupplierName }).OrderByDescending(x => x.SupplierName).Select(x => x.p)
-                : queryable.Join(_context.SupplierProfiles, p => p.SupplierId, s => s.Id, (p, s) => new { p, s.SupplierName }).OrderBy(x => x.SupplierName).Select(x => x.p),
-            "status" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.Status)
-                : queryable.OrderBy(p => p.Status),
-            "wosalesorderno" => query.IsDescending
-                ? withWorkOrder.OrderByDescending(x => x.w.SalesOrderNo ?? "").Select(x => x.p)
-                : withWorkOrder.OrderBy(x => x.w.SalesOrderNo ?? "").Select(x => x.p),
-            "woproductionmainno" => query.IsDescending
-                ? withWorkOrder.OrderByDescending(x => x.w.ProductionMainNo ?? "").Select(x => x.p)
-                : withWorkOrder.OrderBy(x => x.w.ProductionMainNo ?? "").Select(x => x.p),
-            "wosigndate" => query.IsDescending
-                ? withWorkOrder.OrderByDescending(x => x.w.SignDate).Select(x => x.p)
-                : withWorkOrder.OrderBy(x => x.w.SignDate).Select(x => x.p),
-            "wosalesman" => query.IsDescending
-                ? withWorkOrder.OrderByDescending(x => x.w.Salesman ?? "").Select(x => x.p)
-                : withWorkOrder.OrderBy(x => x.w.Salesman ?? "").Select(x => x.p),
-            "wodeliverydate" => query.IsDescending
-                ? withWorkOrder.OrderByDescending(x => x.w.DeliveryDate).Select(x => x.p)
-                : withWorkOrder.OrderBy(x => x.w.DeliveryDate).Select(x => x.p),
-            "woplantgrade" => query.IsDescending
-                ? withWorkOrder.OrderByDescending(x => x.w.PlantGrade ?? "").Select(x => x.p)
-                : withWorkOrder.OrderBy(x => x.w.PlantGrade ?? "").Select(x => x.p),
-            "wospecification" => query.IsDescending
-                ? withWorkOrder.OrderByDescending(x => x.w.Specification ?? "").Select(x => x.p)
-                : withWorkOrder.OrderBy(x => x.w.Specification ?? "").Select(x => x.p),
-            "womaxlength" => query.IsDescending
-                ? withWorkOrder.OrderByDescending(x => x.w.MaxLength).Select(x => x.p)
-                : withWorkOrder.OrderBy(x => x.w.MaxLength).Select(x => x.p),
-            "wototalquantity" => query.IsDescending
-                ? withWorkOrder.OrderByDescending(x => x.w.TotalQuantity).Select(x => x.p)
-                : withWorkOrder.OrderBy(x => x.w.TotalQuantity).Select(x => x.p),
-            "wototalweight" => query.IsDescending
-                ? withWorkOrder.OrderByDescending(x => x.w.TotalWeight).Select(x => x.p)
-                : withWorkOrder.OrderBy(x => x.w.TotalWeight).Select(x => x.p),
-            "wototalitemcount" => query.IsDescending
-                ? withWorkOrder.OrderByDescending(x => x.w.TotalItemCount).Select(x => x.p)
-                : withWorkOrder.OrderBy(x => x.w.TotalItemCount).Select(x => x.p),
-            "unitweight" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.UnitWeight ?? 0)
-                : queryable.OrderBy(p => p.UnitWeight ?? 0),
-            "quantity" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.Quantity)
-                : queryable.OrderBy(p => p.Quantity),
-            "inputmultiple" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.InputMultiple)
-                : queryable.OrderBy(p => p.InputMultiple),
-            "weight" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.Weight)
-                : queryable.OrderBy(p => p.Weight),
-            "unitprice" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.UnitPrice ?? 0)
-                : queryable.OrderBy(p => p.UnitPrice ?? 0),
-            "totalamount" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.TotalAmount ?? 0)
-                : queryable.OrderBy(p => p.TotalAmount ?? 0),
-            "lastarrivaldate" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.LastArrivalDate)
-                : queryable.OrderBy(p => p.LastArrivalDate),
-            "receivedquantity" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.ReceivedQuantity)
-                : queryable.OrderBy(p => p.ReceivedQuantity),
-            "receivedweight" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.ReceivedWeight)
-                : queryable.OrderBy(p => p.ReceivedWeight),
-            "isforcecompleted" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.IsForceCompleted)
-                : queryable.OrderBy(p => p.IsForceCompleted),
-            "remark" => query.IsDescending
-                ? queryable.OrderByDescending(p => p.Remark ?? "")
-                : queryable.OrderBy(p => p.Remark ?? ""),
-            _ => query.IsDescending
-                ? queryable.OrderByDescending(p => p.CreatedTime)
-                : queryable.OrderBy(p => p.CreatedTime)
-        };
+        // ApplySort 直接反射操作 DTO 属性，Wo* 字段无需 GroupJoin
+        queryable = queryable.ApplySort(query.SortBy ?? "orderdate", query.IsDescending);
 
         var totalCount = await queryable.CountAsync();
-        var entityList = await queryable
+        var items = await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
             .ToListAsync();
-
-        // 填充工单来源字段
-        var sourceWoNos = entityList.Where(e => e.SourceWorkOrderNo != null).Select(e => e.SourceWorkOrderNo!).Distinct().ToList();
-        var workOrders = new Dictionary<string, WoEntity>();
-        if (sourceWoNos.Count > 0)
-        {
-            workOrders = await _context.WorkOrders
-                .AsNoTracking()
-                .Where(w => sourceWoNos.Contains(w.WorkOrderNo))
-                .ToDictionaryAsync(w => w.WorkOrderNo, w => w);
-        }
-
-        var items = entityList.Select(p =>
-        {
-            var dto = ToDto(p);
-            if (p.SourceWorkOrderNo != null && workOrders.TryGetValue(p.SourceWorkOrderNo, out var wo))
-                FillWorkOrderFields(dto, wo);
-            return dto;
-        }).ToList();
-
-        // 填充供应商名称
-        var supplierIds = items.Where(i => i.SupplierId > 0).Select(i => i.SupplierId).Distinct().ToList();
-        var suppliers = await _context.SupplierProfiles
-            .AsNoTracking()
-            .Where(s => supplierIds.Contains(s.Id))
-            .ToDictionaryAsync(s => s.Id, s => s.SupplierName);
-        foreach (var item in items)
-        {
-            if (suppliers.TryGetValue(item.SupplierId, out var name))
-                item.SupplierName = name;
-        }
 
         return new PagedResult<PurchaseOrderDto>
         {
@@ -356,70 +176,108 @@ public class PurchaseOrderService : IPurchaseOrderService
 
     public async Task<List<PurchaseOrderDto>> GetAllListAsync()
     {
-        var entityList = await _context.PurchaseOrders
-            .AsNoTracking()
-            .OrderBy(p => p.OrderDate)
-            .ThenBy(p => p.OrderNo)
-            .ToListAsync();
-
-        // 填充工单来源字段
-        var sourceWoNos = entityList.Where(e => e.SourceWorkOrderNo != null).Select(e => e.SourceWorkOrderNo!).Distinct().ToList();
-        var workOrders = new Dictionary<string, WoEntity>();
-        if (sourceWoNos.Count > 0)
-        {
-            workOrders = await _context.WorkOrders
-                .AsNoTracking()
-                .Where(w => sourceWoNos.Contains(w.WorkOrderNo))
-                .ToDictionaryAsync(w => w.WorkOrderNo, w => w);
-        }
-
-        var items = entityList.Select(p =>
-        {
-            var dto = ToDto(p);
-            if (p.SourceWorkOrderNo != null && workOrders.TryGetValue(p.SourceWorkOrderNo, out var wo))
-                FillWorkOrderFields(dto, wo);
-            return dto;
-        }).ToList();
-
-        // 填充供应商名称
-        var supplierIds = items.Where(i => i.SupplierId > 0).Select(i => i.SupplierId).Distinct().ToList();
-        var suppliers = await _context.SupplierProfiles
-            .AsNoTracking()
-            .Where(s => supplierIds.Contains(s.Id))
-            .ToDictionaryAsync(s => s.Id, s => s.SupplierName);
-        foreach (var item in items)
-        {
-            if (suppliers.TryGetValue(item.SupplierId, out var name))
-                item.SupplierName = name;
-        }
+        var items = await (from p in _context.PurchaseOrders.AsNoTracking()
+                          join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
+                          from w in wj.DefaultIfEmpty()
+                          orderby p.OrderDate, p.OrderNo
+                          select new PurchaseOrderDto
+                          {
+                              Id = p.Id,
+                              OrderNo = p.OrderNo,
+                              SupplierId = p.SupplierId,
+                              SupplierName = p.SupplierName,
+                              OrderDate = p.OrderDate,
+                              Status = p.Status,
+                              IsForceCompleted = p.IsForceCompleted,
+                              MaterialCategory = p.MaterialCategory,
+                              PlantGrade = p.PlantGrade,
+                              Specification = p.Specification,
+                              UnitWeight = p.UnitWeight,
+                              Quantity = p.Quantity,
+                              Weight = p.Weight,
+                              RequiredDate = p.RequiredDate,
+                              UnitPrice = p.UnitPrice,
+                              TotalAmount = p.TotalAmount,
+                              LastArrivalDate = p.LastArrivalDate,
+                              ReceivedQuantity = p.ReceivedQuantity,
+                              ReceivedWeight = p.ReceivedWeight,
+                              SourceWorkOrderNo = p.SourceWorkOrderNo,
+                              InputMultiple = p.InputMultiple,
+                              Remark = p.Remark,
+                              CreatedTime = p.CreatedTime,
+                              WoSalesOrderNo = w.SalesOrderNo,
+                              WoProductionMainNo = w.ProductionMainNo,
+                              WoProductionSubNo = w.ProductionSubNo,
+                              WoSignDate = (DateTime?)w.SignDate,
+                              WoSalesman = w.Salesman,
+                              WoEndCustomer = w.EndCustomer,
+                              WoDeliveryDate = (DateTime?)w.DeliveryDate,
+                              WoDelayPenalty = w != null && w.DelayPenalty,
+                              WoSettlementMethod = (SettlementMethod?)w.SettlementMethod,
+                              WoPlantGrade = w.PlantGrade,
+                              WoSpecification = w.Specification,
+                              WoLengthStatus = (LengthStatus?)w.LengthStatus,
+                              WoMaxLength = w.MaxLength,
+                              WoTotalQuantity = (int?)w.TotalQuantity,
+                              WoTotalWeight = (decimal?)w.TotalWeight,
+                              WoDeliveryState = (DeliveryState?)w.DeliveryState,
+                              WoTotalItemCount = (int?)w.TotalItemCount,
+                          }).ToListAsync();
 
         return items;
     }
 
     public async Task<PurchaseOrderDto> GetByIdAsync(int id)
     {
-        var entity = await _context.PurchaseOrders
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == id);
-        if (entity == null) throw new BusinessException("采购单不存在");
+        var dto = await (from p in _context.PurchaseOrders.AsNoTracking()
+                         join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
+                         from w in wj.DefaultIfEmpty()
+                         where p.Id == id
+                         select new PurchaseOrderDto
+                         {
+                             Id = p.Id,
+                             OrderNo = p.OrderNo,
+                             SupplierId = p.SupplierId,
+                             SupplierName = p.SupplierName,
+                             OrderDate = p.OrderDate,
+                             Status = p.Status,
+                             IsForceCompleted = p.IsForceCompleted,
+                             MaterialCategory = p.MaterialCategory,
+                             PlantGrade = p.PlantGrade,
+                             Specification = p.Specification,
+                             UnitWeight = p.UnitWeight,
+                             Quantity = p.Quantity,
+                             Weight = p.Weight,
+                             RequiredDate = p.RequiredDate,
+                             UnitPrice = p.UnitPrice,
+                             TotalAmount = p.TotalAmount,
+                             LastArrivalDate = p.LastArrivalDate,
+                             ReceivedQuantity = p.ReceivedQuantity,
+                             ReceivedWeight = p.ReceivedWeight,
+                             SourceWorkOrderNo = p.SourceWorkOrderNo,
+                             InputMultiple = p.InputMultiple,
+                             Remark = p.Remark,
+                             CreatedTime = p.CreatedTime,
+                             WoSalesOrderNo = w.SalesOrderNo,
+                             WoProductionMainNo = w.ProductionMainNo,
+                             WoProductionSubNo = w.ProductionSubNo,
+                             WoSignDate = (DateTime?)w.SignDate,
+                             WoSalesman = w.Salesman,
+                             WoEndCustomer = w.EndCustomer,
+                             WoDeliveryDate = (DateTime?)w.DeliveryDate,
+                             WoDelayPenalty = w != null && w.DelayPenalty,
+                             WoSettlementMethod = (SettlementMethod?)w.SettlementMethod,
+                             WoPlantGrade = w.PlantGrade,
+                             WoSpecification = w.Specification,
+                             WoLengthStatus = (LengthStatus?)w.LengthStatus,
+                             WoMaxLength = w.MaxLength,
+                             WoTotalQuantity = (int?)w.TotalQuantity,
+                             WoTotalWeight = (decimal?)w.TotalWeight,
+                             WoDeliveryState = (DeliveryState?)w.DeliveryState,
+                             WoTotalItemCount = (int?)w.TotalItemCount,
+                         }).FirstOrDefaultAsync();
 
-        var dto = ToDto(entity);
-
-        var supplier = await _context.SupplierProfiles
-            .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == entity.SupplierId);
-        if (supplier != null) dto.SupplierName = supplier.SupplierName;
-
-        // 填充工单来源字段
-        if (!string.IsNullOrEmpty(entity.SourceWorkOrderNo))
-        {
-            var workOrder = await _context.WorkOrders
-                .AsNoTracking()
-                .FirstOrDefaultAsync(w => w.WorkOrderNo == entity.SourceWorkOrderNo);
-            if (workOrder != null)
-                FillWorkOrderFields(dto, workOrder);
-        }
-
+        if (dto == null) throw new BusinessException("采购单不存在");
         return dto;
     }
 
@@ -433,11 +291,16 @@ public class PurchaseOrderService : IPurchaseOrderService
             try
             {
             var orderNo = await GenerateOrderNoAsync();
+            var supplierName = await _context.SupplierProfiles
+                .Where(s => s.Id == request.SupplierId)
+                .Select(s => s.SupplierName)
+                .FirstOrDefaultAsync();
 
             entity = new PurchaseOrder
             {
                 OrderNo = orderNo,
                 SupplierId = request.SupplierId,
+                SupplierName = supplierName,
                 OrderDate = request.OrderDate,
                 MaterialCategory = request.MaterialCategory,
                 PlantGrade = request.PlantGrade,
@@ -468,8 +331,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         }
 
         var dto = ToDto(entity);
-        var supplier = await _context.SupplierProfiles.FindAsync(entity.SupplierId);
-        if (supplier != null) dto.SupplierName = supplier.SupplierName;
+        _ = TryRefreshExecutionSummaryAsync(entity.SourceWorkOrderNo);
         return dto;
     }
 
@@ -501,6 +363,12 @@ public class PurchaseOrderService : IPurchaseOrderService
             }
             int seq = maxSeq + 1;
 
+            // 批量查询供应商名称
+            var supplierIdsBatch = requests.Select(r => r.SupplierId).Distinct().ToList();
+            var supplierNames = await _context.SupplierProfiles
+                .Where(s => supplierIdsBatch.Contains(s.Id))
+                .ToDictionaryAsync(s => s.Id, s => s.SupplierName);
+
             foreach (var request in requests)
             {
                 var orderNo = $"{prefix}{seq:D3}";
@@ -510,6 +378,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 {
                     OrderNo = orderNo,
                     SupplierId = request.SupplierId,
+                    SupplierName = supplierNames.GetValueOrDefault(request.SupplierId),
                     OrderDate = request.OrderDate,
                     MaterialCategory = request.MaterialCategory,
                     PlantGrade = request.PlantGrade,
@@ -541,19 +410,14 @@ public class PurchaseOrderService : IPurchaseOrderService
             }
         }
 
-        // 批量查询供应商名（事务已提交，在 using 块之外执行）
-        var supplierIds = entities.Select(e => e.SupplierId).Distinct().ToList();
-        var suppliers = await _context.SupplierProfiles
-            .Where(s => supplierIds.Contains(s.Id))
-            .ToDictionaryAsync(s => s.Id, s => s.SupplierName);
+        var distinctWoNos = entities
+            .Select(e => e.SourceWorkOrderNo)
+            .Where(w => !string.IsNullOrWhiteSpace(w))
+            .Distinct()
+            .ToList();
+        foreach (var woNo in distinctWoNos) _ = TryRefreshExecutionSummaryAsync(woNo);
 
-        return entities.Select(e =>
-        {
-            var dto = ToDto(e);
-            if (suppliers.TryGetValue(e.SupplierId, out var name))
-                dto.SupplierName = name;
-            return dto;
-        }).ToList();
+        return entities.Select(ToDto).ToList();
     }
 
     public async Task<PurchaseOrderDto> UpdateAsync(int id, UpdatePurchaseOrderRequest request, bool isAdmin = false)
@@ -565,12 +429,19 @@ public class PurchaseOrderService : IPurchaseOrderService
         // 管理员可无视状态编辑任何采购单
         if (isAdmin)
         {
+            var oldSupplierId = entity.SupplierId;
             MapUpdateFields(entity, request);
+            if (entity.SupplierId != oldSupplierId)
+            {
+                entity.SupplierName = await _context.SupplierProfiles
+                    .Where(s => s.Id == entity.SupplierId)
+                    .Select(s => s.SupplierName)
+                    .FirstOrDefaultAsync();
+            }
             await _context.SaveChangesAsync();
 
             var dto = ToDto(entity);
-            var supplier = await _context.SupplierProfiles.FindAsync(entity.SupplierId);
-            if (supplier != null) dto.SupplierName = supplier.SupplierName;
+            _ = TryRefreshExecutionSummaryAsync(entity.SourceWorkOrderNo);
             return dto;
         }
 
@@ -581,7 +452,15 @@ public class PurchaseOrderService : IPurchaseOrderService
         }
         else
         {
+            var oldSupplierId = entity.SupplierId;
             MapUpdateFields(entity, request);
+            if (entity.SupplierId != oldSupplierId)
+            {
+                entity.SupplierName = await _context.SupplierProfiles
+                    .Where(s => s.Id == entity.SupplierId)
+                    .Select(s => s.SupplierName)
+                    .FirstOrDefaultAsync();
+            }
 
             // 非强制完成时自动计算状态
             if (!entity.IsForceCompleted)
@@ -595,8 +474,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         await _context.SaveChangesAsync();
 
         var dto2 = ToDto(entity);
-        var supplier2 = await _context.SupplierProfiles.FindAsync(entity.SupplierId);
-        if (supplier2 != null) dto2.SupplierName = supplier2.SupplierName;
+        _ = TryRefreshExecutionSummaryAsync(entity.SourceWorkOrderNo);
         return dto2;
     }
 
@@ -676,6 +554,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         }
 
         await _context.SaveChangesAsync();
+        _ = TryRefreshExecutionSummaryAsync(order.SourceWorkOrderNo);
     }
 
     public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
@@ -696,6 +575,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         }
 
         await _context.SaveChangesAsync();
+        _ = TryRefreshExecutionSummaryAsync(entity.SourceWorkOrderNo);
     }
 
     public async Task DeleteAsync(int id, bool isAdmin = false)
@@ -710,8 +590,10 @@ public class PurchaseOrderService : IPurchaseOrderService
             if (entity.Status == PurchaseOrderStatus.Completed) throw new BusinessException("已完成的采购单无法删除");
         }
 
+        var deletedWoNo = entity.SourceWorkOrderNo;
         _context.PurchaseOrders.Remove(entity);
         await _context.SaveChangesAsync();
+        _ = TryRefreshExecutionSummaryAsync(deletedWoNo);
     }
 
     private static void RecalcPurchaseStatus(PurchaseOrder order, decimal purchaseCompleteRatio, decimal purchaseCompleteDeviation)
@@ -748,7 +630,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         Id = entity.Id,
         OrderNo = entity.OrderNo,
         SupplierId = entity.SupplierId,
-        SupplierName = "",
+        SupplierName = entity.SupplierName,
         OrderDate = entity.OrderDate,
         Status = entity.Status,
         IsForceCompleted = entity.IsForceCompleted,
@@ -769,27 +651,6 @@ public class PurchaseOrderService : IPurchaseOrderService
         Remark = entity.Remark,
         CreatedTime = entity.CreatedTime
     };
-
-    private static void FillWorkOrderFields(PurchaseOrderDto dto, WoEntity wo)
-    {
-        dto.WoSalesOrderNo = wo.SalesOrderNo;
-        dto.WoProductionMainNo = wo.ProductionMainNo;
-        dto.WoProductionSubNo = wo.ProductionSubNo;
-        dto.WoSignDate = wo.SignDate;
-        dto.WoSalesman = wo.Salesman;
-        dto.WoEndCustomer = wo.EndCustomer;
-        dto.WoDeliveryDate = wo.DeliveryDate;
-        dto.WoDelayPenalty = wo.DelayPenalty;
-        dto.WoSettlementMethod = wo.SettlementMethod;
-        dto.WoPlantGrade = wo.PlantGrade;
-        dto.WoSpecification = wo.Specification;
-        dto.WoLengthStatus = wo.LengthStatus;
-        dto.WoMaxLength = wo.MaxLength;
-        dto.WoTotalQuantity = wo.TotalQuantity;
-        dto.WoTotalWeight = wo.TotalWeight;
-        dto.WoDeliveryState = wo.DeliveryState;
-        dto.WoTotalItemCount = wo.TotalItemCount;
-    }
 
     public async Task<List<ProcurementStatusDto>> GetProcurementStatusAsync()
     {
@@ -1111,8 +972,6 @@ public class PurchaseOrderService : IPurchaseOrderService
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
         var query = from p in _context.PurchaseOrders.AsNoTracking()
-                    join s in _context.SupplierProfiles.AsNoTracking() on p.SupplierId equals s.Id into sj
-                    from s in sj.DefaultIfEmpty()
                     join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
                     from w in wj.DefaultIfEmpty()
                     select new
@@ -1124,7 +983,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                         p.PlantGrade,
                         p.Specification,
                         p.SourceWorkOrderNo,
-                        SupplierName = s.SupplierName,
+                        p.SupplierName,
                         WoSalesOrderNo = w.SalesOrderNo,
                         WoProductionMainNo = w.ProductionMainNo,
                         WoProductionSubNo = w.ProductionSubNo,
@@ -1176,36 +1035,55 @@ public class PurchaseOrderService : IPurchaseOrderService
 
     public async Task<List<PurchaseOrderDto>> GetByIdsAsync(int[] ids)
     {
-        var entities = await _context.PurchaseOrders
-            .AsNoTracking()
-            .Where(p => ids.Contains(p.Id))
-            .ToListAsync();
+        var items = await (from p in _context.PurchaseOrders.AsNoTracking()
+                          join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
+                          from w in wj.DefaultIfEmpty()
+                          where ids.Contains(p.Id)
+                          select new PurchaseOrderDto
+                          {
+                              Id = p.Id,
+                              OrderNo = p.OrderNo,
+                              SupplierId = p.SupplierId,
+                              SupplierName = p.SupplierName,
+                              OrderDate = p.OrderDate,
+                              Status = p.Status,
+                              IsForceCompleted = p.IsForceCompleted,
+                              MaterialCategory = p.MaterialCategory,
+                              PlantGrade = p.PlantGrade,
+                              Specification = p.Specification,
+                              UnitWeight = p.UnitWeight,
+                              Quantity = p.Quantity,
+                              Weight = p.Weight,
+                              RequiredDate = p.RequiredDate,
+                              UnitPrice = p.UnitPrice,
+                              TotalAmount = p.TotalAmount,
+                              LastArrivalDate = p.LastArrivalDate,
+                              ReceivedQuantity = p.ReceivedQuantity,
+                              ReceivedWeight = p.ReceivedWeight,
+                              SourceWorkOrderNo = p.SourceWorkOrderNo,
+                              InputMultiple = p.InputMultiple,
+                              Remark = p.Remark,
+                              CreatedTime = p.CreatedTime,
+                              WoSalesOrderNo = w.SalesOrderNo,
+                              WoProductionMainNo = w.ProductionMainNo,
+                              WoProductionSubNo = w.ProductionSubNo,
+                              WoSignDate = (DateTime?)w.SignDate,
+                              WoSalesman = w.Salesman,
+                              WoEndCustomer = w.EndCustomer,
+                              WoDeliveryDate = (DateTime?)w.DeliveryDate,
+                              WoDelayPenalty = w != null && w.DelayPenalty,
+                              WoSettlementMethod = (SettlementMethod?)w.SettlementMethod,
+                              WoPlantGrade = w.PlantGrade,
+                              WoSpecification = w.Specification,
+                              WoLengthStatus = (LengthStatus?)w.LengthStatus,
+                              WoMaxLength = w.MaxLength,
+                              WoTotalQuantity = (int?)w.TotalQuantity,
+                              WoTotalWeight = (decimal?)w.TotalWeight,
+                              WoDeliveryState = (DeliveryState?)w.DeliveryState,
+                              WoTotalItemCount = (int?)w.TotalItemCount,
+                          }).ToListAsync();
 
-        var supplierIds = entities.Where(e => e.SupplierId > 0).Select(e => e.SupplierId).Distinct().ToList();
-        var suppliers = await _context.SupplierProfiles
-            .AsNoTracking()
-            .Where(s => supplierIds.Contains(s.Id))
-            .ToDictionaryAsync(s => s.Id, s => s.SupplierName);
-
-        var woNos = entities.Where(e => !string.IsNullOrEmpty(e.SourceWorkOrderNo)).Select(e => e.SourceWorkOrderNo!).Distinct().ToList();
-        var workOrders = new Dictionary<string, WoEntity>();
-        if (woNos.Count > 0)
-        {
-            workOrders = await _context.WorkOrders
-                .AsNoTracking()
-                .Where(w => woNos.Contains(w.WorkOrderNo))
-                .ToDictionaryAsync(w => w.WorkOrderNo, w => w);
-        }
-
-        return entities.Select(e =>
-        {
-            var dto = ToDto(e);
-            if (suppliers.TryGetValue(e.SupplierId, out var name))
-                dto.SupplierName = name;
-            if (e.SourceWorkOrderNo != null && workOrders.TryGetValue(e.SourceWorkOrderNo, out var wo))
-                FillWorkOrderFields(dto, wo);
-            return dto;
-        }).ToList();
+        return items;
     }
 
     public async Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false)

@@ -335,6 +335,7 @@ public partial class Orders
     {
         _allColumns = GetAllColumnDefs();
         await SaveColumnPrefs();
+        if (table != null) await table.ReloadServerData();
     }
 
     private async Task MoveColumnUp(ColumnDef col)
@@ -609,11 +610,11 @@ public partial class Orders
     {
         try
         {
-            var result = await OrderService.PrintOrderAsync(id);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var request = new OrderPrintBatchRequest { Ids = new[] { id } };
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/order/print-batch";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
@@ -630,12 +631,11 @@ public partial class Orders
         }
         try
         {
-            var ids = selectedOrderIds.ToArray();
-            var result = await OrderService.PrintOrderBatchAsync(ids);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var request = new OrderPrintBatchRequest { Ids = selectedOrderIds.ToArray() };
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/order/print-batch";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {

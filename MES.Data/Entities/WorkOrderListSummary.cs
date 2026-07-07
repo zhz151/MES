@@ -141,6 +141,12 @@ public class WorkOrderListSummary : BaseEntity
     /// <summary>库料改制计划总支数</summary>
     public int? ReworkPlanTotalPieces { get; set; }
 
+    /// <summary>在产改制计划总重量(kg)</summary>
+    public decimal? InProcessReworkPlanTotalWeight { get; set; }
+
+    /// <summary>在产改制计划总支数</summary>
+    public int? InProcessReworkPlanTotalPieces { get; set; }
+
     /// <summary>圆棒穿孔计划总重量(kg)</summary>
     public decimal? PiercingPlanTotalWeight { get; set; }
 

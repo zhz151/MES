@@ -11,7 +11,7 @@ namespace MES.Services.Scheduling;
 /// <summary>
 /// 订单总况服务 — 聚合各工段产能负荷数据
 /// </summary>
-public class ProductionOverviewService
+public class ProductionOverviewService : IProductionOverviewService
 {
     private readonly AppDbContext _context;
     private readonly IConfigParameterService _configService;

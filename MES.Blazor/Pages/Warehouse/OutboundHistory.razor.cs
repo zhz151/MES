@@ -40,6 +40,7 @@ public partial class OutboundHistory
     private int _currentPage = 1;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
+    private bool _isArrowNavSetup;
     private int _pageSize = 10;
     // B33 分页汇总
     private Dictionary<string, string> _pageSums = new();
@@ -87,16 +88,16 @@ public partial class OutboundHistory
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "BatchNo",          Label = "仓库批次", SortKey = "batchno", FilterType = "string" },
-        new() { Key = "OutboundDate",     Label = "出库日期", SortKey = "outbounddate",     IsRequired = true },
-        new() { Key = "OutboundType",     Label = "出库类型", SortKey = "outboundtype",     IsRequired = true, FilterType = "enum",
+        new() { Key = "BatchNo",          Label = "仓库批次", SortKey = "batchno", FilterType = "string", Width = "120" },
+        new() { Key = "OutboundDate",     Label = "出库日期", SortKey = "outbounddate",     IsRequired = true, Width = "120" },
+        new() { Key = "OutboundType",     Label = "出库类型", SortKey = "outboundtype",     IsRequired = true, FilterType = "enum", Width = "120",
             EnumOptions = new() { new("SalesOut", "销售出库"), new("SubcontractOut", "委外出库"), new("ReturnOut", "退货出库"), new("ProductionPick", "生产领用"), new("InspectionPick", "检验领用"), new("TransferOut", "移库出库"), new("OtherOut", "其他出库") } },
-        new() { Key = "SourceOrderNo",    Label = "物料单号", SortKey = "sourceorderno", FilterType = "string" },
-        new() { Key = "TargetCompany",    Label = "目标单位", SortKey = "targetcompany", FilterType = "string" },
-        new() { Key = "OutboundQuantity", Label = "出库支数", SortKey = "outboundquantity", IsRequired = true },
-        new() { Key = "OutboundWeight",   Label = "出库重量", SortKey = "outboundweight",   IsRequired = true },
-        new() { Key = "Remark",           Label = "备注", SortKey = "remark", FilterType = "string" },
-        new() { Key = "CreatedBy",        Label = "创建人",   SortKey = "createdby", FilterType = "string" },
+        new() { Key = "SourceOrderNo",    Label = "物料单号", SortKey = "sourceorderno", FilterType = "string", Width = "120" },
+        new() { Key = "TargetCompany",    Label = "目标单位", SortKey = "targetcompany", FilterType = "string", Width = "120" },
+        new() { Key = "OutboundQuantity", Label = "出库支数", SortKey = "outboundquantity", IsRequired = true, Width = "80" },
+        new() { Key = "OutboundWeight",   Label = "出库重量", SortKey = "outboundweight",   IsRequired = true, Width = "80" },
+        new() { Key = "Remark",           Label = "备注", SortKey = "remark", FilterType = "string", Width = "120" },
+        new() { Key = "CreatedBy",        Label = "创建人",   SortKey = "createdby", FilterType = "string", Width = "100" },
     };
 
     private static void ApplyWarehouseDefaults(List<ColumnDef> cols, string whCode)
@@ -127,6 +128,7 @@ public partial class OutboundHistory
         _allColumns = GetAllColumnDefs();
         ApplyWarehouseDefaults(_allColumns, Code?.ToUpperInvariant() ?? "");
         await SaveColumnPrefs();
+        if (_table != null) await _table.ReloadServerData();
     }
 
     private async Task MoveColumnUp(ColumnDef col)
@@ -224,8 +226,15 @@ public partial class OutboundHistory
             {
                 BuildFilterContextOptions(result.Data);
             }
+            else
+            {
+                Snackbar.Add($"获取筛选选项失败: {result.Message}", Severity.Error);
+            }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"获取筛选选项异常: {ex.Message}", Severity.Error);
+        }
     }
 
     private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
@@ -512,7 +521,7 @@ public partial class OutboundHistory
             sortColumn = savedState.SortBy ?? "outbounddate";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
-            _restoredPageIndex = savedState.PageIndex;
+            _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try
@@ -532,6 +541,16 @@ public partial class OutboundHistory
 
         // 加载筛选上下文
         await LoadFilterContextsAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#outbound-history-list-table"))
+                _isArrowNavSetup = false;
+        }
     }
 
     protected override async Task OnParametersSetAsync()
@@ -748,15 +767,15 @@ public partial class OutboundHistory
         {
             var columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
             var ids = _selectedItems.Select(i => i.Id).ToArray();
-            var result = await InventoryService.PrintOutboundSelectedAsync(new OutboundPrintSelectedRequest
+            var request = new OutboundPrintSelectedRequest
             {
                 Ids = ids,
                 Columns = columns
-            });
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            };
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/inventory/print-outbound-selected";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
     }
@@ -766,18 +785,18 @@ public partial class OutboundHistory
         try
         {
             var columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
-            var result = await InventoryService.PrintOutboundAllAsync(new OutboundPrintAllRequest
+            var request = new OutboundPrintAllRequest
             {
                 Keyword = string.IsNullOrEmpty(_searchKeyword) ? null : _searchKeyword,
                 SortBy = sortColumn,
                 IsDescending = sortDescending,
                 WarehouseId = _filterWarehouseId,
                 Columns = columns
-            });
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            };
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/inventory/print-outbound-all";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
     }
@@ -794,7 +813,7 @@ public partial class OutboundHistory
     {
         var extras = new Dictionary<string, string>();
         if (_columnFilters.Count > 0)
-            extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters);
+            extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
         var state = new PageState
         {
             SortBy = sortColumn,

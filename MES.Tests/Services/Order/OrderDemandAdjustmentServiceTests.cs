@@ -7,10 +7,10 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.Scheduling;
-using MES.Services.Orders;
+using MES.Services.Order;
 using MES.Tests.Tests;
 
-namespace MES.Tests.Services.Orders;
+namespace MES.Tests.Services.Order;
 
 /// <summary>
 /// 订单需求调整服务测试：分页查询、保存、筛选上下文

@@ -18,6 +18,11 @@ public class SubcontractOrder : BaseEntity
     public int SupplierId { get; set; }
 
     /// <summary>
+    /// 供应商名称（从 SupplierProfile 冗余快照）
+    /// </summary>
+    public string? SupplierName { get; set; }
+
+    /// <summary>
     /// 下单日期
     /// </summary>
     public DateTime OrderDate { get; set; }
