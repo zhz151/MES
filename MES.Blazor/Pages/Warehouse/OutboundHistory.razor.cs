@@ -773,7 +773,7 @@ public partial class OutboundHistory
                 Columns = columns
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/inventory/print-outbound-selected";
+            var apiUrl = $"{Http.BaseAddress}api/inventory/print-outbound-selected-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -794,7 +794,7 @@ public partial class OutboundHistory
                 Columns = columns
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/inventory/print-outbound-all";
+            var apiUrl = $"{Http.BaseAddress}api/inventory/print-outbound-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

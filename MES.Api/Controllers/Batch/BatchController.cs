@@ -328,11 +328,11 @@ public class BatchController : ControllerBase
 
     [HttpPost("print-selected")]
     [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<string>>> PrintBatchSelected([FromBody] int[] ids)
+    public async Task<ActionResult<ApiResponse<string>>> PrintBatchSelected([FromBody] BatchPrintSelectedRequest request)
     {
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var pdfBytes = await _service.PrintBatchSelectedAsync(ids);
+        var pdfBytes = await _service.PrintBatchSelectedAsync(request.Ids, request.Columns);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
@@ -346,6 +346,46 @@ public class BatchController : ControllerBase
         var pdfBytes = await _service.PrintProcessCardAsync(request);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    [HttpPost("print-batch-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<IActionResult> PrintBatchFile([FromBody] PrintBatchFileRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+        var pdfBytes = await _service.PrintBatchAsync(request.Id);
+        return File(pdfBytes, "application/pdf", $"生产批次_{request.Id}.pdf");
+    }
+
+    [HttpPost("print-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<IActionResult> PrintBatchAllFile([FromBody] BatchPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+        var pdfBytes = await _service.PrintBatchAllAsync(request);
+        return File(pdfBytes, "application/pdf", "生产批次列表.pdf");
+    }
+
+    [HttpPost("print-selected-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<IActionResult> PrintBatchSelectedFile([FromBody] BatchPrintSelectedRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+        var pdfBytes = await _service.PrintBatchSelectedAsync(request.Ids, request.Columns);
+        return File(pdfBytes, "application/pdf", "生产批次列表.pdf");
+    }
+
+    [HttpPost("print-process-card-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<IActionResult> PrintProcessCardFile([FromBody] ProcessCardPrintRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+        var pdfBytes = await _service.PrintProcessCardAsync(request);
+        return File(pdfBytes, "application/pdf", "工艺流转卡.pdf");
     }
 
 }

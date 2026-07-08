@@ -384,7 +384,7 @@ public class PicklingService : IPicklingService
             queryable = queryable.Where(r =>
                 r.PicklingInRecord.ProductionBatch.BatchNo.Contains(kw) ||
                 r.PicklingInRecord.ProcessName.Contains(kw) ||
-                r.PicklingInRecord.SectionName.Contains(kw) ||
+                r.SectionName.Contains(kw) ||
                 (r.Remark != null && r.Remark.Contains(kw)));
         }
 
@@ -578,19 +578,191 @@ public class PicklingService : IPicklingService
 
     // ========== 打印 ==========
 
-    public Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
+    public async Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
     {
-        // 暂不实现打印，返回空 PDF
-        return Task.FromResult(Array.Empty<byte>());
+        var items = await _context.PicklingInRecords
+            .AsNoTracking()
+            .Include(s => s.ProductionBatch)
+            .Include(s => s.PicklingOutRecords)
+            .Where(s => ids.Contains(s.Id))
+            .ToListAsync();
+
+        if (items.Count == 0)
+            throw new BusinessException("未找到选中的数据");
+
+        var data = items.Select(s => new Dictionary<string, object>
+        {
+            ["BatchNo"] = s.ProductionBatch.BatchNo,
+            ["ProcessName"] = s.ProcessName,
+            ["ManufacturingSpec"] = s.ManufacturingSpec ?? "",
+            ["SequenceNumber"] = s.SequenceNumber,
+            ["InDate"] = s.InDate.ToString("yyyy-MM-dd"),
+            ["SectionName"] = s.SectionName,
+            ["EquipmentName"] = s.EquipmentName ?? "",
+            ["Operator"] = s.Operator ?? "",
+            ["Shift"] = s.Shift ?? "",
+            ["Quantity"] = s.Quantity ?? 0,
+            ["Weight"] = s.Weight ?? 0,
+            ["IsFinished"] = s.IsFinished ? "是" : "否",
+            ["TagNo"] = s.TagNo ?? "",
+            ["PlantGrade"] = s.PlantGrade ?? "",
+            ["Status"] = s.Status == PicklingStatus.Completed ? "已完工" : "浸泡中",
+            ["CompleteDate"] = s.PicklingOutRecords.Select(r => (DateTime?)r.CompleteDate).FirstOrDefault()?.ToString("yyyy-MM-dd") ?? "",
+            ["Remark"] = s.Remark ?? "",
+            ["DataSource"] = s.DataSource ?? "",
+            ["UpdatedTime"] = s.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
+        }).ToList();
+
+        return TablePrintHelper.GeneratePdf("去油/酸洗入缸记录", data, columns);
     }
 
-    public Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending,
+    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending,
         DateTime? inDateFrom, DateTime? inDateTo,
         DateTime? completeDateFrom, DateTime? completeDateTo,
         List<PrintColumnDef> columns)
     {
-        // 暂不实现打印，返回空 PDF
-        return Task.FromResult(Array.Empty<byte>());
+        var query = new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = int.MaxValue,
+            Keyword = keyword,
+            SortBy = sortBy ?? "createdtime",
+            IsDescending = isDescending,
+            InDateFrom = inDateFrom,
+            InDateTo = inDateTo,
+            CompleteDateFrom = completeDateFrom,
+            CompleteDateTo = completeDateTo
+        };
+        var paged = await GetPagedAsync(query);
+
+        var data = paged.Items.Select(s => new Dictionary<string, object>
+        {
+            ["BatchNo"] = s.BatchNo,
+            ["ProcessName"] = s.ProcessName,
+            ["ManufacturingSpec"] = s.ManufacturingSpec ?? "",
+            ["SequenceNumber"] = s.SequenceNumber,
+            ["InDate"] = s.InDate.ToString("yyyy-MM-dd"),
+            ["SectionName"] = s.SectionName,
+            ["EquipmentName"] = s.EquipmentName ?? "",
+            ["Operator"] = s.Operator ?? "",
+            ["Shift"] = s.Shift ?? "",
+            ["Quantity"] = s.Quantity ?? 0,
+            ["Weight"] = s.Weight ?? 0,
+            ["IsFinished"] = s.IsFinished ? "是" : "否",
+            ["TagNo"] = s.TagNo ?? "",
+            ["PlantGrade"] = s.PlantGrade ?? "",
+            ["Status"] = s.Status == "Completed" ? "已完工" : "浸泡中",
+            ["CompleteDate"] = s.CompleteDate?.ToString("yyyy-MM-dd") ?? "",
+            ["Remark"] = s.Remark ?? "",
+            ["DataSource"] = s.DataSource ?? "",
+            ["UpdatedTime"] = s.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
+        }).ToList();
+
+        return TablePrintHelper.GeneratePdf("去油/酸洗入缸记录", data, columns);
+    }
+
+    // ========== 完工记录打印 ==========
+
+    public async Task<byte[]> PrintOutBatchAsync(int[] ids, List<PrintColumnDef> columns)
+    {
+        var items = await _context.PicklingOutRecords
+            .AsNoTracking()
+            .Include(s => s.PicklingInRecord)
+                .ThenInclude(p => p.ProductionBatch)
+            .Where(s => ids.Contains(s.Id))
+            .ToListAsync();
+
+        if (items.Count == 0)
+            throw new BusinessException("未找到选中的数据");
+
+        var data = items.Select(s => new Dictionary<string, object>
+        {
+            ["BatchNo"] = s.PicklingInRecord.ProductionBatch.BatchNo,
+            ["ProcessName"] = s.PicklingInRecord.ProcessName,
+            ["SectionName"] = s.SectionName,
+            ["ManufacturingSpec"] = s.ManufacturingSpec ?? "",
+            ["CompleteDate"] = s.CompleteDate.ToString("yyyy-MM-dd"),
+            ["EquipmentName"] = s.EquipmentName ?? "",
+            ["Operator"] = s.Operator ?? "",
+            ["Shift"] = s.Shift ?? "",
+            ["Quantity"] = s.Quantity ?? 0,
+            ["Weight"] = s.Weight ?? 0,
+            ["IsFinished"] = s.IsFinished ? "是" : "否",
+            ["TagNo"] = s.PicklingInRecord.TagNo ?? "",
+            ["PlantGrade"] = s.PlantGrade ?? "",
+            ["Remark"] = s.Remark ?? "",
+            ["DataSource"] = s.DataSource ?? "",
+            ["UpdatedTime"] = s.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
+        }).ToList();
+
+        return TablePrintHelper.GeneratePdf("去油/酸洗完工记录", data, columns);
+    }
+
+    public async Task<byte[]> PrintOutAllAsync(string? keyword, string? sortBy, bool isDescending,
+        DateTime? completeDateFrom, DateTime? completeDateTo,
+        List<PrintColumnDef> columns)
+    {
+        var queryable = _context.PicklingOutRecords
+            .AsNoTracking()
+            .Include(s => s.PicklingInRecord)
+                .ThenInclude(p => p.ProductionBatch)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword;
+            queryable = queryable.Where(s =>
+                s.PicklingInRecord.ProductionBatch.BatchNo.Contains(kw) ||
+                s.PicklingInRecord.ProcessName.Contains(kw) ||
+                s.SectionName.Contains(kw) ||
+                (s.Remark != null && s.Remark.Contains(kw)));
+        }
+        if (completeDateFrom.HasValue)
+        {
+            var from = completeDateFrom.Value.Date;
+            queryable = queryable.Where(s => s.CompleteDate >= from);
+        }
+        if (completeDateTo.HasValue)
+        {
+            var to = completeDateTo.Value.Date.AddDays(1);
+            queryable = queryable.Where(s => s.CompleteDate < to);
+        }
+
+        queryable = (sortBy?.ToLower(), isDescending) switch
+        {
+            ("completedate", false) => queryable.OrderBy(s => s.CompleteDate),
+            ("completedate", true) => queryable.OrderByDescending(s => s.CompleteDate),
+            _ => isDescending
+                ? queryable.OrderByDescending(s => s.CreatedTime)
+                : queryable.OrderBy(s => s.CreatedTime)
+        };
+
+        var items = await queryable.ToListAsync();
+
+        if (items.Count == 0)
+            throw new BusinessException("未找到数据");
+
+        var data = items.Select(s => new Dictionary<string, object>
+        {
+            ["BatchNo"] = s.PicklingInRecord.ProductionBatch.BatchNo,
+            ["ProcessName"] = s.PicklingInRecord.ProcessName,
+            ["SectionName"] = s.SectionName,
+            ["ManufacturingSpec"] = s.ManufacturingSpec ?? "",
+            ["CompleteDate"] = s.CompleteDate.ToString("yyyy-MM-dd"),
+            ["EquipmentName"] = s.EquipmentName ?? "",
+            ["Operator"] = s.Operator ?? "",
+            ["Shift"] = s.Shift ?? "",
+            ["Quantity"] = s.Quantity ?? 0,
+            ["Weight"] = s.Weight ?? 0,
+            ["IsFinished"] = s.IsFinished ? "是" : "否",
+            ["TagNo"] = s.PicklingInRecord.TagNo ?? "",
+            ["PlantGrade"] = s.PlantGrade ?? "",
+            ["Remark"] = s.Remark ?? "",
+            ["DataSource"] = s.DataSource ?? "",
+            ["UpdatedTime"] = s.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
+        }).ToList();
+
+        return TablePrintHelper.GeneratePdf("去油/酸洗完工记录", data, columns);
     }
 
     // ========== 筛选上下文 ==========

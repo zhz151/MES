@@ -80,14 +80,6 @@ public class WorkOrderController : ControllerBase
         return Ok(ApiResponse<List<OrderWorkOrderStatusDto>>.Ok(result, "查询成功"));
     }
 
-    [HttpGet("cancelled-orders")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<List<CancelledOrderDto>>>> GetCancelledOrders()
-    {
-        var result = await _workOrderService.GetCancelledOrdersAsync();
-        return Ok(ApiResponse<List<CancelledOrderDto>>.Ok(result, "查询成功"));
-    }
-
     [HttpGet("pending-orders")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<WorkOrderListItemDto>>>> GetPendingOrders()
@@ -308,6 +300,44 @@ public class WorkOrderController : ControllerBase
         var bytes = await _workOrderService.PrintWorkOrdersByOrderAllAsync(query);
         var base64 = Convert.ToBase64String(bytes);
         return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
+    }
+
+    [HttpPost("{id}/print-file")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<IActionResult> PrintWorkOrderFile(int id)
+    {
+        var bytes = await _workOrderService.PrintWorkOrderAsync(id);
+        return File(bytes, "application/pdf", $"工单_{id}.pdf");
+    }
+
+    [HttpPost("order-print-file")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<IActionResult> PrintWorkOrdersByOrderFile([FromBody] string salesOrderNo)
+    {
+        if (string.IsNullOrWhiteSpace(salesOrderNo))
+            return BadRequest(ApiResponse<string>.Fail("订单号不能为空"));
+
+        var bytes = await _workOrderService.PrintWorkOrdersByOrderAsync(salesOrderNo);
+        return File(bytes, "application/pdf", $"工单_{salesOrderNo}.pdf");
+    }
+
+    [HttpPost("order-print-batch-file")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<IActionResult> PrintWorkOrdersByOrderBatchFile([FromBody] string[] salesOrderNos)
+    {
+        if (salesOrderNos == null || salesOrderNos.Length == 0)
+            return BadRequest(ApiResponse<string>.Fail("请选择要打印的订单"));
+
+        var bytes = await _workOrderService.PrintWorkOrdersByOrderBatchAsync(salesOrderNos);
+        return File(bytes, "application/pdf", "工单批量打印.pdf");
+    }
+
+    [HttpPost("order-print-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<IActionResult> PrintWorkOrdersByOrderAllFile([FromBody] WorkOrderQueryParams query)
+    {
+        var bytes = await _workOrderService.PrintWorkOrdersByOrderAllAsync(query);
+        return File(bytes, "application/pdf", "工单列表.pdf");
     }
 
     #endregion

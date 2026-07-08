@@ -168,15 +168,9 @@
     {
         try
         {
-            var result = await WorkOrderService.PrintAsync(Id);
-            if (result.Success && !string.IsNullOrEmpty(result.Data))
-            {
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
-            }
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Navigation.BaseUri}api/workorder/{Id}/print-file";
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}");
         }
         catch (Exception ex)
         {

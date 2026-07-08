@@ -670,89 +670,35 @@ public partial class FinalInspections
 
     // ========== 打印 ==========
 
+    private List<PrintColumnDef> GetPrintColumnDefs() =>
+        _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+
     private async Task PrintSelected()
     {
-        if (!selectedIds.Any())
+        if (!selectedIds.Any()) return;
+        var apiUrl = $"{Http.BaseAddress}api/final-inspection/print-batch-file";
+        var request = new FinalInspectionPrintBatchRequest
         {
-            Snackbar.Add("请先选择要打印的成品检验记录", Severity.Warning);
-            return;
-        }
-        await JS.InvokeVoidAsync("printTable", "#final-inspection-list-table", "成品检验（选中记录）");
+            Ids = selectedIds.ToArray(),
+            Columns = GetPrintColumnDefs()
+        };
+        var json = JsonSerializer.Serialize(request);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
     private async Task PrintAll()
     {
-        if (!_pageItems.Any())
+        var apiUrl = $"{Http.BaseAddress}api/final-inspection/print-all-file";
+        var request = new FinalInspectionPrintAllRequest
         {
-            Snackbar.Add("没有可打印的数据", Severity.Warning);
-            return;
-        }
-        var html = BuildPrintHtml(_pageItems);
-        await JS.InvokeVoidAsync("printRawHtml", html, "成品检验");
+            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+            SortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "inspectiondate",
+            IsDescending = sortDescending,
+            Columns = GetPrintColumnDefs()
+        };
+        var json = JsonSerializer.Serialize(request);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
-
-    private string BuildPrintHtml(IEnumerable<FinalInspectionDto> items)
-    {
-        var sb = new System.Text.StringBuilder();
-        sb.Append("<table><thead><tr>");
-        foreach (var col in _visibleColumns)
-        {
-            sb.Append("<th>").Append(System.Net.WebUtility.HtmlEncode(col.Label)).Append("</th>");
-        }
-        sb.Append("</tr></thead><tbody>");
-        foreach (var item in items)
-        {
-            sb.Append("<tr>");
-            foreach (var col in _visibleColumns)
-            {
-                sb.Append("<td>");
-                sb.Append(System.Net.WebUtility.HtmlEncode(GetCellPrintValue(item, col)));
-                sb.Append("</td>");
-            }
-            sb.Append("</tr>");
-        }
-        sb.Append("</tbody></table>");
-        return sb.ToString();
-    }
-
-    private string GetCellPrintValue(FinalInspectionDto item, ColumnDef col) => col.Key switch
-    {
-        "InspectionItem" => DisplayHelper.GetInspectionItemText(item.InspectionItem),
-        "InspectionDate" => item.InspectionDate.ToString("yyyy-MM-dd"),
-        "BatchNo" => item.BatchNo,
-        "MaterialName" => DisplayHelper.GetMaterialNameText(item.MaterialName),
-        "TagNo" => item.TagNo ?? "",
-        "WorkOrderNo" => item.WorkOrderNo ?? "",
-        "SalesOrderNo" => item.SalesOrderNo ?? "",
-        "SourceUnit" => item.SourceUnit ?? "",
-        "FurnaceNo" => item.FurnaceNo ?? "",
-        "PlantGrade" => item.PlantGrade ?? "",
-        "Specification" => item.Specification ?? "",
-        "FixedLength" => item.FixedLength ?? "",
-        "ProductionType" => item.ProductionType ?? "",
-        "EquipmentName" => item.EquipmentName ?? "",
-        "Shift" => item.Shift ?? "",
-        "Operator" => item.Operator ?? "",
-        "Quantity" => DisplayHelper.FormatNullableInt(item.Quantity),
-        "Weight" => DisplayHelper.FormatNullableDecimalAsInt(item.Weight),
-        "QualifiedQuantity" => DisplayHelper.FormatNullableInt(item.QualifiedQuantity),
-        "QualifiedWeight" => DisplayHelper.FormatNullableDecimalAsInt(item.QualifiedWeight),
-        "QualifiedConcessionQuantity" => DisplayHelper.FormatNullableInt(item.QualifiedConcessionQuantity),
-        "ConcessionRemark" => item.ConcessionRemark ?? "",
-        "DefectReworkQuantity" => DisplayHelper.FormatNullableInt(item.DefectReworkQuantity),
-        "DefectWarehouseQuantity" => DisplayHelper.FormatNullableInt(item.DefectWarehouseQuantity),
-        "DefectScrapQuantity" => DisplayHelper.FormatNullableInt(item.DefectScrapQuantity),
-        "DefectDescription" => item.DefectDescription ?? "",
-        "OuterDiameterRange" => item.OuterDiameterRange ?? "",
-        "WallThicknessRange" => item.WallThicknessRange ?? "",
-        "LengthAllowanceRange" => item.LengthAllowanceRange ?? "",
-        "Pressure" => DisplayHelper.FormatNullableDecimal(item.Pressure),
-        "HoldTime" => DisplayHelper.FormatNullableInt(item.HoldTime),
-        "Remark" => item.Remark ?? "",
-        "DataSource" => item.DataSource ?? "",
-        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
-        _ => ""
-    };
 
     // ========== 单元格渲染 ==========
 

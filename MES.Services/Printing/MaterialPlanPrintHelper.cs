@@ -3,6 +3,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using MES.Data.Entities;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 using MES.Core.Exceptions;
 using WoEntity = MES.Data.Entities.WorkOrder;
 
@@ -126,13 +127,7 @@ public static class MaterialPlanPrintHelper
 
             foreach (var (plan, workOrder) in items)
             {
-                var reworkTypeText = plan.ReworkType switch
-                {
-                    ReworkType.EmptyDrawing => "空拉改制",
-                    ReworkType.FewerPass => "少道次改制",
-                    ReworkType.ManualSelect => "人工选择改制",
-                    _ => plan.ReworkType.ToString()
-                };
+                var reworkTypeText = EnumHelper.GetDisplayName(plan.ReworkType);
 
                 table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
@@ -243,13 +238,7 @@ public static class MaterialPlanPrintHelper
 
             foreach (var (plan, workOrder) in items)
             {
-                var rawMatType = plan.RawMaterialType switch
-                {
-                    RawMaterialType.SemiFinished => "荒管",
-                    RawMaterialType.SemiProduct => "半成品",
-                    RawMaterialType.RoundBar => "圆棒",
-                    _ => plan.RawMaterialType.ToString()
-                };
+                var rawMatType = EnumHelper.GetDisplayName(plan.RawMaterialType);
 
                 table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
@@ -318,17 +307,11 @@ public static class MaterialPlanPrintHelper
 
             foreach (var (plan, workOrder) in items)
             {
-                var productType = plan.ProductType == FinishedProductType.Critical ? "临界成品" : "订单成品";
+                var productType = EnumHelper.GetDisplayName(plan.ProductType);
                 var odTol = $"-{plan.OuterDiameterNegative:G29}/+{plan.OuterDiameterPositive:G29}";
                 var wtTol = $"-{plan.WallThicknessNegative:G29}/+{plan.WallThicknessPositive:G29}";
 
-                var lengthStatusText = plan.LengthStatus switch
-                {
-                    LengthStatus.Fixed => "定尺",
-                    LengthStatus.Range => "范围",
-                    LengthStatus.NonFixed => "非定尺",
-                    _ => plan.LengthStatus.ToString()
-                };
+                var lengthStatusText = EnumHelper.GetDisplayName(plan.LengthStatus);
                 var lengthStr = (plan.MinLength, plan.MaxLength) switch
                 {
                     (null, null) => lengthStatusText,
@@ -337,13 +320,7 @@ public static class MaterialPlanPrintHelper
                     (var min, var max) => $"{lengthStatusText} {min:G29}~{max:G29}"
                 };
 
-                var deliveryStateText = plan.DeliveryState switch
-                {
-                    DeliveryState.SolutionAnnealedAndPickled => "固溶酸洗",
-                    DeliveryState.Bright => "光亮",
-                    DeliveryState.Hard => "硬态",
-                    _ => plan.DeliveryState.ToString()
-                };
+                var deliveryStateText = EnumHelper.GetDisplayName(plan.DeliveryState);
 
                 table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
@@ -504,13 +481,7 @@ public static class MaterialPlanPrintHelper
 
             foreach (var (plan, workOrder) in items)
             {
-                var rawMatType = plan.RawMaterialType switch
-                {
-                    RawMaterialType.SemiFinished => "荒管",
-                    RawMaterialType.SemiProduct => "半成品",
-                    RawMaterialType.RoundBar => "圆棒",
-                    _ => plan.RawMaterialType.ToString()
-                };
+                var rawMatType = EnumHelper.GetDisplayName(plan.RawMaterialType);
 
                 table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
@@ -585,13 +556,7 @@ public static class MaterialPlanPrintHelper
                     : string.IsNullOrEmpty(plan.LocationRack) ? plan.LocationArea
                     : $"{plan.LocationArea}/{plan.LocationRack}";
 
-                var reworkTypeText = plan.ReworkType switch
-                {
-                    ReworkType.EmptyDrawing => "空拉改制",
-                    ReworkType.FewerPass => "少道次改制",
-                    ReworkType.ManualSelect => "人工选择改制",
-                    _ => plan.ReworkType?.ToString() ?? "-"
-                };
+                var reworkTypeText = plan.ReworkType.HasValue ? EnumHelper.GetDisplayName(plan.ReworkType.Value) : "-";
 
                 table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);

@@ -21,7 +21,6 @@ public partial class Batches
     private HashSet<int> selectedIds = new();
     private List<BatchWorkOrderMismatchDto> _workOrderMismatches = new();
     private List<PendingPlanBatchDto> _pendingInProcessReworkPlans = new();
-    private bool isSyncing = false;
     private bool _allSelected;
     private bool allSelected
     {
@@ -73,65 +72,76 @@ public partial class Batches
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "BatchNo",            Label = "生产编号", SortKey = "batchno", FilterType = "string", Width = "120" },
-        new() { Key = "TagNo",              Label = "挂牌号",   SortKey = "tagno", FilterType = "string", Width = "120" },
-        new() { Key = "CreatedTime",        Label = "创建时间", SortKey = "createdtime", Width = "120" },
-        new() { Key = "UpdatedTime",        Label = "最后更新时间", SortKey = "updatedtime", Width = "120" },
-        new() { Key = "WorkOrderNo",        Label = "工单号",   SortKey = "workorderno", FilterType = "string", Width = "120" },
-        new() { Key = "SalesOrderNo",       Label = "订单号",   SortKey = "salesorderno", FilterType = "string", Width = "120" },
-        new() { Key = "ProductionMainNo",   Label = "主号",     SortKey = "productionmainno", FilterType = "string", Width = "120" },
-        new() { Key = "ProductionSubNo",    Label = "次号",     SortKey = "productionsubno", FilterType = "string", Width = "120" },
-        new() { Key = "ProductionType",     Label = "生产类型", SortKey = "productiontype", FilterType = "enum", Width = "120",
+        // ===== Group 1: 批次基本信息（含原料库存字段） =====
+        new() { Key = "BatchNo",            Label = "生产编号", SortKey = "batchno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
+        new() { Key = "TagNo",              Label = "挂牌号",   SortKey = "tagno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
+        new() { Key = "Status",             Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
+            EnumOptions = new() { new("None", "未产"), new("InProgress", "在产"), new("Completed", "完成"), new("Suspended", "挂起"), new("Cancelled", "作废") } },
+        new() { Key = "ProductionType",     Label = "生产类型", SortKey = "productiontype", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
             EnumOptions = new() { new("RoughTube", "荒管生产"), new("InProcess", "在制生产"), new("Inventory", "库存"),
                 new("OutsourcedPurchased", "外购"), new("Rework", "返整"), new("Subcontract", "委外生产"), new("ExternalProcessing", "对外加工") } },
-        new() { Key = "ManufacturingItem",  Label = "制造物品", SortKey = "manufacturingitem", FilterType = "enum", Width = "120",
+        new() { Key = "ManufacturingItem",  Label = "制造物品", SortKey = "manufacturingitem", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
             EnumOptions = new() { new("OrderFinishedProduct", "订单成品"), new("PreparedMaterial", "备料成品"),
                 new("SurplusStock", "余库料"), new("IntermediateProduct", "中间品"), new("SpecialDeliveryStatus", "特定交态成品") } },
-        new() { Key = "Status",             Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("None", "未产"), new("InProgress", "在产"), new("Completed", "完成"), new("Suspended", "挂起"), new("Cancelled", "作废") } },
-        new() { Key = "CurrentExecDate",    Label = "截止执行日", SortKey = "currentexecdate", FilterType = "date", Width = "120" },
-        new() { Key = "CurrentGroupName",   Label = "当前工序", SortKey = "currentgroupname", FilterType = "string", Width = "120" },
-        new() { Key = "CurrentSectionName", Label = "当前工段", SortKey = "currentsectionname", FilterType = "string", Width = "120" },
-        new() { Key = "CurrentSectionCompleted", Label = "工段完工", SortKey = null, FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("True", "完工"), new("False", "生产中") } },
-        new() { Key = "RemainingWorkDays",     Label = "剩余工量", SortKey = "remainingworkdays", Width = "80" },
-        new() { Key = "CurrentEquipmentName", Label = "当前设备", SortKey = "currentequipmentname", FilterType = "string", Width = "120" },
-        new() { Key = "CurrentOutsource",   Label = "当前委外", SortKey = "currentoutsource", FilterType = "string", Width = "120" },
-        new() { Key = "CurrentSpec",        Label = "当前规格", SortKey = "currentspec", FilterType = "string", Width = "120" },
-        new() { Key = "NextSectionName",    Label = "下一工段", SortKey = "nextsectionname", FilterType = "string", Width = "120" },
-        new() { Key = "CorrespondingSpec",  Label = "对应规格", SortKey = "correspondingspec", FilterType = "string", Width = "120" },
-        new() { Key = "NextProcess",        Label = "下一工序", SortKey = "nextprocess", FilterType = "string", Width = "120" },
-        new() { Key = "CurrentValidQty",    Label = "现有效原料支数", SortKey = "currentvalidqty", Width = "80" },
-        new() { Key = "CurrentValidWeight",  Label = "现有效原料重量", SortKey = "currentvalidweight", Width = "80" },
-        new() { Key = "ProductionRatio",    Label = "制成倍数", SortKey = "productionratio", Width = "80" },
-        new() { Key = "SignDate",           Label = "签订日期", SortKey = "signdate", FilterType = "date", Width = "120" },
-        new() { Key = "Salesman",           Label = "业务员",   SortKey = "salesman", FilterType = "string", Width = "120" },
-        new() { Key = "EndCustomer",        Label = "最终用户", SortKey = "endcustomer", FilterType = "string", Width = "120" },
-        new() { Key = "DeliveryDate",       Label = "交货日期", SortKey = "deliverydate", FilterType = "date", Width = "120" },
-        new() { Key = "DelayPenalty",       Label = "延期罚款", SortKey = "delaypenalty", FilterType = "enum", Width = "120",
+        new() { Key = "ProductionRatio",    Label = "制成倍数", SortKey = "productionratio", Width = "80", GroupKey = 1, GroupName = "批次基本信息" },
+        new() { Key = "CurrentValidQty",    Label = "现有效原料支数", SortKey = "currentvalidqty", Width = "80", GroupKey = 1, GroupName = "批次基本信息" },
+        new() { Key = "CurrentValidWeight",  Label = "现有效原料重量", SortKey = "currentvalidweight", Width = "80", GroupKey = 1, GroupName = "批次基本信息" },
+        new() { Key = "ValidInputQuestion",   Label = "有效投料疑问", SortKey = null, FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
+            EnumOptions = new() { new("True", "疑问"), new("False", "正常") } },
+        new() { Key = "CreatedBy",          Label = "创建人",   SortKey = "createdby", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
+        new() { Key = "CreatedTime",        Label = "创建时间", SortKey = "createdtime", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
+        new() { Key = "UpdatedTime",        Label = "最后更新时间", SortKey = "updatedtime", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
+
+        // ===== Group 2: 工单信息 =====
+        // -- 编号 --
+        new() { Key = "WorkOrderNo",        Label = "工单号",   SortKey = "workorderno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
+        new() { Key = "SalesOrderNo",       Label = "订单号",   SortKey = "salesorderno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
+        new() { Key = "ProductionMainNo",   Label = "主号",     SortKey = "productionmainno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
+        new() { Key = "ProductionSubNo",    Label = "次号",     SortKey = "productionsubno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
+        // -- 日期 --
+        new() { Key = "SignDate",           Label = "签订日期", SortKey = "signdate", FilterType = "date", Width = "120", GroupKey = 2, GroupName = "工单信息" },
+        new() { Key = "DeliveryDate",       Label = "交货日期", SortKey = "deliverydate", FilterType = "date", Width = "120", GroupKey = 2, GroupName = "工单信息" },
+        // -- 人员/客户 --
+        new() { Key = "Salesman",           Label = "业务员",   SortKey = "salesman", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
+        new() { Key = "EndCustomer",        Label = "最终用户", SortKey = "endcustomer", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
+        // -- 商务条款 --
+        new() { Key = "DelayPenalty",       Label = "延期罚款", SortKey = "delaypenalty", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "工单信息",
             EnumOptions = new() { new("True", "是"), new("False", "否") } },
-        new() { Key = "MaterialName",       Label = "物料名称", SortKey = "materialname", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("SeamlessPipe", "无缝管"), new("WeldedPipe", "焊管") } },
-        new() { Key = "SettlementMethod",   Label = "结算方式", SortKey = "settlementmethod", FilterType = "enum", Width = "120",
+        new() { Key = "SettlementMethod",   Label = "结算方式", SortKey = "settlementmethod", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "工单信息",
             EnumOptions = new() { new("Theoretical", "理算"), new("Weighing", "过磅"), new("WeighingNegative", "过磅-负") } },
-        new() { Key = "StandardCode",       Label = "产品标准", SortKey = "standardcode", FilterType = "string", Width = "120" },
-        new() { Key = "DeliveryState",      Label = "交货状态", SortKey = "deliverystate", FilterType = "enum", Width = "120",
+        new() { Key = "MaterialName",       Label = "物料名称", SortKey = "materialname", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "工单信息",
+            EnumOptions = new() { new("SeamlessPipe", "无缝管"), new("WeldedPipe", "焊管") } },
+        // -- 产品要求 --
+        new() { Key = "StandardCode",       Label = "产品标准", SortKey = "standardcode", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
+        new() { Key = "DeliveryState",      Label = "交货状态", SortKey = "deliverystate", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "工单信息",
             EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"),
                 new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"),
                 new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"),
                 new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"), new("Hard", "硬态") } },
-        new() { Key = "PlantGrade",         Label = "工厂牌号", SortKey = "plantgrade", FilterType = "string", Width = "120" },
-        new() { Key = "Specification",      Label = "规格",     SortKey = "specification", FilterType = "string", Width = "120" },
-        new() { Key = "LengthStatus",       Label = "长度状态", SortKey = "lengthstatus", FilterType = "enum", Width = "120",
+        new() { Key = "PlantGrade",         Label = "工厂牌号", SortKey = "plantgrade", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
+        new() { Key = "Specification",      Label = "规格",     SortKey = "specification", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
+        new() { Key = "LengthStatus",       Label = "长度状态", SortKey = "lengthstatus", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "工单信息",
             EnumOptions = new() { new("Fixed", "定尺"), new("Range", "范围尺"), new("NonFixed", "非定尺") } },
-        new() { Key = "TotalQuantity",      Label = "总支数",   SortKey = "totalquantity", Width = "80" },
-        new() { Key = "TotalMeters",        Label = "总米数",   SortKey = "totalmeters", Width = "80" },
-        new() { Key = "TotalWeight",        Label = "总重量",   SortKey = "totalweight", Width = "80" },
-        new() { Key = "TechnicalRequirements", Label = "技术要求", SortKey = "technicalrequirements", FilterType = "enum", Width = "120",
+        // -- 数量汇总 --
+        new() { Key = "TotalQuantity",      Label = "总支数",   SortKey = "totalquantity", Width = "80", GroupKey = 2, GroupName = "工单信息" },
+        new() { Key = "TotalMeters",        Label = "总米数",   SortKey = "totalmeters", Width = "80", GroupKey = 2, GroupName = "工单信息" },
+        new() { Key = "TotalWeight",        Label = "总重量",   SortKey = "totalweight", Width = "80", GroupKey = 2, GroupName = "工单信息" },
+        new() { Key = "TechnicalRequirements", Label = "技术要求", SortKey = "technicalrequirements", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "工单信息",
             EnumOptions = new() { new("Normal", "普通"), new("Special", "特殊") } },
-        new() { Key = "ValidInputQuestion",   Label = "有效投料疑问", SortKey = null, FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("True", "疑问"), new("False", "正常") } },
-        new() { Key = "CreatedBy",          Label = "创建人",   SortKey = "createdby", FilterType = "string", Width = "120" },
+
+        // ===== Group 3: 生产执行 =====
+        new() { Key = "CurrentExecDate",    Label = "截止执行日", SortKey = "currentexecdate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "CurrentGroupName",   Label = "当前工序", SortKey = "currentgroupname", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "CurrentSectionName", Label = "当前工段", SortKey = "currentsectionname", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "CurrentSectionCompleted", Label = "工段完工", SortKey = null, FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "生产执行",
+            EnumOptions = new() { new("True", "完工"), new("False", "生产中") } },
+        new() { Key = "RemainingWorkDays",     Label = "剩余工量", SortKey = "remainingworkdays", Width = "80", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "CurrentEquipmentName", Label = "当前设备", SortKey = "currentequipmentname", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "CurrentOutsource",   Label = "当前委外", SortKey = "currentoutsource", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "CurrentSpec",        Label = "当前规格", SortKey = "currentspec", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "NextSectionName",    Label = "下一工段", SortKey = "nextsectionname", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "CorrespondingSpec",  Label = "对应规格", SortKey = "correspondingspec", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "NextProcess",        Label = "下一工序", SortKey = "nextprocess", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
     };
 
     // ========== 分页汇总计算 ==========
@@ -376,6 +386,7 @@ public partial class Batches
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        selectedIds.Clear();
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -468,6 +479,9 @@ public partial class Batches
 
         // 自动加载待处理在产改制计划通知
         await LoadPendingInProcessReworkPlansAsync();
+
+        // 自动加载工单号不匹配通知
+        await CheckWorkOrdersAsync();
     }
 
     // ========== 在产改制计划通知 ==========
@@ -492,29 +506,17 @@ public partial class Batches
 
     private async Task CheckWorkOrdersAsync()
     {
-        isSyncing = true;
         try
         {
             var verifyResult = await BatchService.VerifyWorkOrderNosAsync();
             if (verifyResult.Success && verifyResult.Data != null)
-            {
                 _workOrderMismatches = verifyResult.Data;
-                if (_workOrderMismatches.Count > 0)
-                    Snackbar.Add($"发现 {_workOrderMismatches.Count} 个批次的工单号不匹配", Severity.Warning);
-                else
-                    Snackbar.Add("所有批次工单号验证通过", Severity.Success);
-
-                if (table != null) await table.ReloadServerData();
-            }
+            else
+                _workOrderMismatches.Clear();
         }
-        catch (Exception ex)
+        catch
         {
-            Snackbar.Add($"工单号验证失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            isSyncing = false;
-            StateHasChanged();
+            _workOrderMismatches.Clear();
         }
     }
 
@@ -623,7 +625,7 @@ public partial class Batches
         "CurrentSpec" => item.CurrentSpec,
         "NextSectionName" => item.NextSectionName,
         "CorrespondingSpec" => item.CorrespondingSpec,
-        "CurrentValidQty" => item.CurrentValidQty?.ToString("G29"),
+        "CurrentValidQty" => DisplayHelper.FormatNullableInt(item.CurrentValidQty),
         "CurrentValidWeight" => $"{(int)(item.CurrentValidWeight ?? 0)}",
         "ProductionRatio" => item.ProductionRatio.ToString(),
         "SignDate" => item.SignDate.ToString("yyyy-MM-dd"),
@@ -664,7 +666,7 @@ public partial class Batches
         "CorrespondingSpec" => item.CorrespondingSpec ?? "",
         "NextProcess" => item.NextProcess ?? "",
         "ManufacturingItem" => DisplayHelper.GetManufacturingItemText(item.ManufacturingItem),
-        "CurrentValidQty" => item.CurrentValidQty?.ToString("G29") ?? "",
+        "CurrentValidQty" => DisplayHelper.FormatNullableInt(item.CurrentValidQty),
         "CurrentValidWeight" => $"{(int)(item.CurrentValidWeight ?? 0)}",
         "ProductionRatio" => item.ProductionRatio.ToString(),
         "SignDate" => item.SignDate.ToString("yyyy-MM-dd"),
@@ -778,6 +780,15 @@ public partial class Batches
 
     // ========== 打印方法 ==========
 
+    private List<PrintColumnDef> GetPrintColumnDefs()
+    {
+        return _visibleColumns.Select(c => new PrintColumnDef
+        {
+            Key = c.Key,
+            Label = c.Label
+        }).ToList();
+    }
+
     private async Task PrintSelected()
     {
         if (!selectedIds.Any())
@@ -788,11 +799,15 @@ public partial class Batches
         try
         {
             var ids = selectedIds.ToArray();
-            var result = await BatchService.PrintBatchSelectedAsync(ids);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var request = new BatchPrintSelectedRequest
+            {
+                Ids = ids,
+                Columns = GetPrintColumnDefs()
+            };
+            var apiUrl = $"{Http.BaseAddress}api/batch/print-selected-file";
+            var json = JsonSerializer.Serialize(request);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
@@ -806,18 +821,134 @@ public partial class Batches
         {
             var request = new BatchPrintAllRequest
             {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword
+                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                Columns = GetPrintColumnDefs()
             };
-            var result = await BatchService.PrintBatchAllAsync(request);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var apiUrl = $"{Http.BaseAddress}api/batch/print-all-file";
+            var json = JsonSerializer.Serialize(request);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
             Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
         }
+    }
+
+    // ========== 分组渲染 ==========
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+
+        // 选择列占位（40px），对齐表格最左侧的 checkbox 列
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        int? lastKey = null;
+        int totalWidth = 0;
+        var groupKey = 0;
+        var groupName = "";
+        var count = 0;
+
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (lastKey.HasValue && gk != lastKey.Value)
+            {
+                if (count > 0)
+                {
+                    result.Add(new GroupHeaderInfo
+                    {
+                        GroupKey = groupKey,
+                        GroupName = groupName,
+                        TotalWidth = totalWidth,
+                        ColumnCount = count,
+                        CssClass = GetHeaderGroupCss(groupKey, true)
+                    });
+                }
+                totalWidth = 0;
+                count = 0;
+            }
+            groupKey = gk;
+            groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++;
+            lastKey = gk;
+        }
+        if (count > 0)
+        {
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        }
+
+        // 操作列占位，对齐表格最右侧的操作按钮列（无 col-g 类，JS 按 gk=0 单独测量）
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 90,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g3",
+            2 => "col-g4",
+            3 => "col-g5",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g3-cell",
+            2 => "col-g4-cell",
+            3 => "col-g5-cell",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#batches-list-table");
+        }
+        catch { }
     }
 
     // ========== 持久化 ==========

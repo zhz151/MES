@@ -588,11 +588,11 @@ public partial class Equipments
         {
             var ids = selectedIds.ToArray();
             var columns = GetPrintColumnDefs();
-            var result = await EquipmentService.PrintBatchAsync(ids, columns);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var request = new EquipmentPrintBatchRequest { Ids = ids, Columns = columns };
+            var apiUrl = $"{Http.BaseAddress}api/equipment/print-batch-file";
+            var json = JsonSerializer.Serialize(request);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
@@ -626,24 +626,23 @@ public partial class Equipments
         {
             var columns = GetPrintColumnDefs();
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "createdtime";
-            var query = new EquipmentQueryParams
+            var request = new EquipmentPrintAllRequest
             {
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 SortBy = sortBy,
-                IsDescending = sortDescending
+                IsDescending = sortDescending,
+                Columns = columns
             };
-            var result = await EquipmentService.PrintAllAsync(query, columns);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var apiUrl = $"{Http.BaseAddress}api/equipment/print-all-file";
+            var json = JsonSerializer.Serialize(request);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
             Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
         }
     }
-
     // ========== 单元格渲染 ==========
 
     private RenderFragment RenderCell(EquipmentListDto item, ColumnDef col) => builder =>

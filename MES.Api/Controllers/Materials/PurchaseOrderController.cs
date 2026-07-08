@@ -179,6 +179,14 @@ public class PurchaseOrderController : ControllerBase
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
 
+    [HttpPost("{id}/print-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<IActionResult> PrintOrderFile(int id)
+    {
+        var pdfBytes = await _service.PrintOrderAsync(id);
+        return File(pdfBytes, "application/pdf", $"采购单_{id}.pdf");
+    }
+
     [HttpPost("print-batch")]
     [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintOrderBatch([FromBody] OrderPrintBatchRequest request)
@@ -191,6 +199,17 @@ public class PurchaseOrderController : ControllerBase
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
 
+    [HttpPost("print-batch-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<IActionResult> PrintOrderBatchFile([FromBody] OrderPrintBatchRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintOrderBatchAsync(request.Ids);
+        return File(pdfBytes, "application/pdf", $"采购单批量.pdf");
+    }
+
     [HttpPost("print-all")]
     [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintOrderAll([FromBody] OrderPrintAllRequest request)
@@ -201,6 +220,17 @@ public class PurchaseOrderController : ControllerBase
         var pdfBytes = await _service.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    [HttpPost("print-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<IActionResult> PrintOrderAllFile([FromBody] OrderPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending);
+        return File(pdfBytes, "application/pdf", $"采购单全部.pdf");
     }
 
     [HttpGet("plan-detail")]

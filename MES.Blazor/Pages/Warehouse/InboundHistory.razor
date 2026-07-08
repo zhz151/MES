@@ -15,7 +15,6 @@
 @inject ColumnPrefsService ColumnPrefs
 @inject IJSRuntime JS
 @inject HttpClient Http
-@inject NotificationService NotificationService
 @inject PageStateService PageState
 @attribute [Authorize]
 
@@ -55,17 +54,16 @@
         </MudCardHeader>
 
         <MudCardContent>
-            <!-- 工单删除通知提醒条 -->
-            @if (_workOrderNotices is { Count: > 0 })
+            <!-- 工单号不匹配通知 -->
+            @if (_mismatchBatches.Count > 0)
             {
-                <MudAlert Severity="Severity.Warning" Class="mb-2" Variant="Variant.Filled">
-                    <MudText>
-                        <strong>工单已删除：</strong>有 @_workOrderNotices.Count 条入库批次引用了已删除的工单号，请及时更新或清空这些批次的工单关联。
-                    </MudText>
-                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Inherit"
-                               OnClick="DismissWorkOrderNotices" Class="ml-4">
-                        忽略
-                    </MudButton>
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Class="mb-4">
+                    <div>
+                        @foreach (var item in _mismatchBatches)
+                        {
+                            <div>入库批次 "@item.BatchNo" 的工单号 "@item.WorkOrderNo" 已不存在，需修改！</div>
+                        }
+                    </div>
                 </MudAlert>
             }
             <!-- 筛选栏 -->

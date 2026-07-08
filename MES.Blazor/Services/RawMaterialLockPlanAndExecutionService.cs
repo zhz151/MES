@@ -52,6 +52,7 @@ public class RawMaterialLockPlanAndExecutionService
         }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintAsync(RawMaterialLockPlanPrintRequest request)
     {
         try

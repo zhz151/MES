@@ -64,48 +64,6 @@
         </MudAlert>
     }
 
-    <!-- 订单已取消-工单待删除区域 -->
-    @if (cancelledOrders.Any())
-    {
-        <MudCard Class="mb-4" Style="border-left: 4px solid var(--mud-palette-error);">
-            <MudCardHeader>
-                <CardHeaderContent>
-                    <MudText Typo="Typo.subtitle1" Color="Color.Error">
-                        <MudIcon Icon="@Icons.Material.Filled.Warning" Class="mr-2" Size="Size.Small" />
-                        订单已取消-工单待删除
-                    </MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        以下订单已取消，但关联的工单尚未删除，请点击订单号进行软删除
-                    </MudText>
-                </CardHeaderContent>
-            </MudCardHeader>
-            <MudCardContent>
-                <MudGrid>
-                    @foreach (var item in cancelledOrders)
-                    {
-                        <MudItem xs="12" md="6" lg="4">
-                            <MudPaper Class="pa-3 d-flex justify-space-between align-center" Elevation="0" Style="background-color: #fff3f3;">
-                                <div>
-                                    <MudText Typo="Typo.body2">
-                                        <strong>订单号：</strong>
-                                        <MudLink Typo="Typo.body2" Color="Color.Error" Underline="Underline.Always"
-                                                 OnClick="() => SoftDeleteWorkOrder(item.WorkOrderId, item.OrderNumber)">
-                                            @item.OrderNumber
-                                        </MudLink>
-                                    </MudText>
-                                    <MudText Typo="Typo.body2">签订日期：@item.SignDate.ToString("yyyy-MM-dd")</MudText>
-                                    <MudText Typo="Typo.body2">业务员：@item.Salesman</MudText>
-                                    <MudText Typo="Typo.body2">客户名称：@item.CustomerName</MudText>
-                                </div>
-                                <MudChip Size="Size.Small" Color="Color.Error">待删除</MudChip>
-                            </MudPaper>
-                        </MudItem>
-                    }
-                </MudGrid>
-            </MudCardContent>
-        </MudCard>
-    }
-
     <!-- 待生成工单区域 -->
     @if (_pendingOrders is { Count: > 0 })
     {

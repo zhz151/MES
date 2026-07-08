@@ -464,6 +464,54 @@ public class MaterialPlanController : ControllerBase
         }
     }
 
+    [HttpPost("print/semi/{id}/file")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<IActionResult> PrintSemiPlanFile(int id)
+    {
+        var bytes = await _materialPlanService.PrintSemiPlanAsync(id);
+        return File(bytes, "application/pdf", $"荒管采购_{id}.pdf");
+    }
+
+    [HttpPost("print/finished/{id}/file")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<IActionResult> PrintFinishedPlanFile(int id)
+    {
+        var bytes = await _materialPlanService.PrintFinishedPlanAsync(id);
+        return File(bytes, "application/pdf", $"成品采购_{id}.pdf");
+    }
+
+    [HttpPost("print/inventory/{id}/file")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<IActionResult> PrintInventoryPlanFile(int id)
+    {
+        var bytes = await _materialPlanService.PrintInventoryPlanAsync(id);
+        return File(bytes, "application/pdf", $"库存使用_{id}.pdf");
+    }
+
+    [HttpPost("print/rework/{id}/file")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<IActionResult> PrintReworkPlanFile(int id)
+    {
+        var bytes = await _materialPlanService.PrintReworkPlanAsync(id);
+        return File(bytes, "application/pdf", $"库料改制_{id}.pdf");
+    }
+
+    [HttpPost("print/piercing/{id}/file")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<IActionResult> PrintPiercingPlanFile(int id)
+    {
+        var bytes = await _materialPlanService.PrintPiercingPlanAsync(id);
+        return File(bytes, "application/pdf", $"圆棒穿孔_{id}.pdf");
+    }
+
+    [HttpPost("print/in-process-rework/{id}/file")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<IActionResult> PrintInProcessReworkPlanFile(int id)
+    {
+        var bytes = await _materialPlanService.PrintInProcessReworkPlanAsync(id);
+        return File(bytes, "application/pdf", $"在产改制_{id}.pdf");
+    }
+
     #endregion
 
     #region 仓库通知

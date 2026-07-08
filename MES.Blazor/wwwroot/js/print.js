@@ -77,15 +77,12 @@ function openPrintWindow(html, title) {
     printWindow.document.close();
 }
 
-// 打印 DOM 表格内容（所见即所得）
-window.printTable = function (containerSelector, title) {
+// 获取 DOM 表格的 HTML（供 C# 调用 printRawHtml 使用）
+window.getTableHtml = function (containerSelector) {
     var container = document.querySelector(containerSelector);
-    if (!container) return;
-
+    if (!container) return '';
     var table = container.querySelector('table');
-    if (!table) return;
-
-    openPrintWindow(table.outerHTML, title);
+    return table ? table.outerHTML : '';
 };
 
 // 打印原始 HTML 表格内容（打印全部）
@@ -135,12 +132,32 @@ window.openPdfFromApi = function (apiUrl, jsonBody) {
     })
     .then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.arrayBuffer();
-    })
-    .then(function (buffer) {
-        var blob = new Blob([buffer], { type: 'application/pdf' });
-        var url = URL.createObjectURL(blob);
-        showPdfOverlay(url);
+        var contentType = r.headers.get('content-type') || '';
+        if (contentType.indexOf('application/pdf') !== -1) {
+            // 端点直接返回 PDF 文件（如 TablePrintHelper）
+            return r.arrayBuffer().then(function (buffer) {
+                var blob = new Blob([buffer], { type: 'application/pdf' });
+                var url = URL.createObjectURL(blob);
+                showPdfOverlay(url);
+            });
+        } else {
+            // 端点返回 JSON ApiResponse<string> 包裹的 Base64
+            return r.json().then(function (envelope) {
+                if (!envelope || !envelope.success || !envelope.data) {
+                    throw new Error(envelope && envelope.message || '响应格式异常');
+                }
+                var base64 = envelope.data;
+                var byteChars = atob(base64);
+                var byteNums = new Array(byteChars.length);
+                for (var i = 0; i < byteChars.length; i++) {
+                    byteNums[i] = byteChars.charCodeAt(i);
+                }
+                var byteArr = new Uint8Array(byteNums);
+                var blob = new Blob([byteArr], { type: 'application/pdf' });
+                var url = URL.createObjectURL(blob);
+                showPdfOverlay(url);
+            });
+        }
     })
     .catch(function (e) {
         console.error('PDF加载失败:', e);

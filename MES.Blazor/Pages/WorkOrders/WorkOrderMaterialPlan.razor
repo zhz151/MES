@@ -563,11 +563,9 @@
     {
         try
         {
-            var result = await MaterialPlanService.PrintSemiPlanAsync(planId);
-            if (result.Success && !string.IsNullOrEmpty(result.Data))
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印生成失败", Severity.Error);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Navigation.BaseUri}api/material-plan/print/semi/{planId}/file";
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}");
         }
         catch (Exception ex)
         {
@@ -627,11 +625,9 @@
     {
         try
         {
-            var result = await MaterialPlanService.PrintFinishedPlanAsync(planId);
-            if (result.Success && !string.IsNullOrEmpty(result.Data))
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印生成失败", Severity.Error);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Navigation.BaseUri}api/material-plan/print/finished/{planId}/file";
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}");
         }
         catch (Exception ex)
         {
@@ -684,11 +680,9 @@
     {
         try
         {
-            var result = await MaterialPlanService.PrintInventoryPlanAsync(planId);
-            if (result.Success && !string.IsNullOrEmpty(result.Data))
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印生成失败", Severity.Error);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Navigation.BaseUri}api/material-plan/print/inventory/{planId}/file";
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}");
         }
         catch (Exception ex)
         {
@@ -736,11 +730,9 @@
     {
         try
         {
-            var result = await MaterialPlanService.PrintReworkPlanAsync(planId);
-            if (result.Success && !string.IsNullOrEmpty(result.Data))
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印生成失败", Severity.Error);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Navigation.BaseUri}api/material-plan/print/rework/{planId}/file";
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}");
         }
         catch (Exception ex)
         {
@@ -795,11 +787,9 @@
     {
         try
         {
-            var result = await MaterialPlanService.PrintPiercingPlanAsync(planId);
-            if (result.Success && !string.IsNullOrEmpty(result.Data))
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印生成失败", Severity.Error);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Navigation.BaseUri}api/material-plan/print/piercing/{planId}/file";
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}");
         }
         catch (Exception ex)
         {
@@ -859,11 +849,9 @@
     {
         try
         {
-            var result = await MaterialPlanService.PrintInProcessReworkPlanAsync(planId);
-            if (result.Success && !string.IsNullOrEmpty(result.Data))
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印生成失败", Severity.Error);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Navigation.BaseUri}api/material-plan/print/in-process-rework/{planId}/file";
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}");
         }
         catch (Exception ex)
         {

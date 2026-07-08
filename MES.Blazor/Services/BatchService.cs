@@ -210,6 +210,7 @@ public class BatchService
 
     // ========== 打印 ==========
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintBatchAsync(int id)
     {
         try
@@ -220,6 +221,7 @@ public class BatchService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintBatchAllAsync(BatchPrintAllRequest request)
     {
         try
@@ -230,6 +232,7 @@ public class BatchService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintBatchSelectedAsync(int[] ids)
     {
         try
@@ -240,6 +243,7 @@ public class BatchService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintProcessCardAsync(ProcessCardPrintRequest request)
     {
         try

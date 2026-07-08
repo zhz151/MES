@@ -188,50 +188,52 @@
                     </MudPaper>
                 }
 
-                <MudSimpleTable Dense="true" Class="auto-table">
-                    <thead>
-                        <tr>
-                            <th>来源库存批次号</th>
-                            <th>原料类型</th>
-                            <th>入库来源</th>
-                            <th>来料单位</th>
-                            <th>入库日期</th>
-                            <th>炉号</th>
-                            <th>工厂牌号</th>
-                            <th>名义规格</th>
-                            <th>长度状态</th>
-                            <th>单支重(kg)</th>
-                            <th>领料支数</th>
-                            <th>领料重量(kg)</th>
-                            <th>来源工单号</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><MudTextField T="string" @bind-Value="request.SourceBatchNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
-                            <td><MudTextField T="string" @bind-Value="request.SourceMaterialType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
-                            <td><MudSelect T="string" @bind-Value="request.InboundSource" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                    <MudSelectItem Value="@("Purchase")">外购</MudSelectItem>
-                                    <MudSelectItem Value="@("Subcontract")">委外</MudSelectItem>
-                                    <MudSelectItem Value="@("ReturnIn")">退货入库</MudSelectItem>
-                                    <MudSelectItem Value="@("ProductionInbound")">生产入库</MudSelectItem>
-                                    <MudSelectItem Value="@("InspectionInbound")">检验入库</MudSelectItem>
-                                    <MudSelectItem Value="@("TransferIn")">移库入库</MudSelectItem>
-                                    <MudSelectItem Value="@("Other")">其它</MudSelectItem>
-                                </MudSelect></td>
-                            <td><MudTextField T="string" @bind-Value="request.SourceName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
-                            <td><MudTextField T="string" @bind-Value="editInboundDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
-                            <td><MudTextField T="string" @bind-Value="request.SourceHeatNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
-                            <td><MudTextField T="string" @bind-Value="request.SourcePlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
-                            <td><MudTextField T="string" @bind-Value="request.SourceSpecification" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
-                            <td><MudTextField T="string" @bind-Value="request.SourceLengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
-                            <td><MudNumericField T="decimal?" @bind-Value="request.SourceUnitWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td>
-                            <td><MudNumericField T="int?" @bind-Value="request.InputQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></td>
-                            <td><MudNumericField T="decimal?" @bind-Value="request.InputWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td>
-                            <td><MudTextField T="string" @bind-Value="editSourceWorkOrderNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td>
-                        </tr>
-                    </tbody>
-                </MudSimpleTable>
+                <div style="overflow-x:auto;">
+                    <MudSimpleTable Dense="true" Class="auto-table compact-table" Style="min-width:1600px;">
+                        <thead>
+                            <tr>
+                                <th style="width:140px;">来源库存批次号</th>
+                                <th style="width:100px;">原料类型</th>
+                                <th style="width:140px;">入库来源</th>
+                                <th style="width:120px;">来料单位</th>
+                                <th style="width:120px;">入库日期</th>
+                                <th style="width:100px;">炉号</th>
+                                <th style="width:120px;">工厂牌号</th>
+                                <th style="width:140px;">名义规格</th>
+                                <th style="width:100px;">长度状态</th>
+                                <th style="width:100px;">单支重(kg)</th>
+                                <th style="width:90px;">领料支数</th>
+                                <th style="width:110px;">领料重量(kg)</th>
+                                <th style="width:140px;">来源工单号</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><MudTextField T="string" @bind-Value="request.SourceBatchNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
+                                <td><MudTextField T="string" @bind-Value="request.SourceMaterialType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
+                                <td><MudSelect T="string" @bind-Value="request.InboundSource" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                        <MudSelectItem Value="@("Purchase")">外购</MudSelectItem>
+                                        <MudSelectItem Value="@("Subcontract")">委外</MudSelectItem>
+                                        <MudSelectItem Value="@("ReturnIn")">退货入库</MudSelectItem>
+                                        <MudSelectItem Value="@("ProductionInbound")">生产入库</MudSelectItem>
+                                        <MudSelectItem Value="@("InspectionInbound")">检验入库</MudSelectItem>
+                                        <MudSelectItem Value="@("TransferIn")">移库入库</MudSelectItem>
+                                        <MudSelectItem Value="@("Other")">其它</MudSelectItem>
+                                    </MudSelect></td>
+                                <td><MudTextField T="string" @bind-Value="request.SourceName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
+                                <td><MudTextField T="string" @bind-Value="editInboundDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
+                                <td><MudTextField T="string" @bind-Value="request.SourceHeatNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
+                                <td><MudTextField T="string" @bind-Value="request.SourcePlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
+                                <td><MudTextField T="string" @bind-Value="request.SourceSpecification" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
+                                <td><MudTextField T="string" @bind-Value="request.SourceLengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
+                                <td><MudNumericField T="decimal?" @bind-Value="request.SourceUnitWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td>
+                                <td><MudNumericField T="int?" @bind-Value="request.InputQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" /></td>
+                                <td><MudNumericField T="decimal?" @bind-Value="request.InputWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td>
+                                <td><MudTextField T="string" @bind-Value="editSourceWorkOrderNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
+                            </tr>
+                        </tbody>
+                    </MudSimpleTable>
+                </div>
             </MudCardContent>
         </MudCard>
 
@@ -273,98 +275,137 @@
                     </div>
                 </div>
 
-                @if (visibleFieldCount == 0)
+                @if (visibleFieldCount > 0)
                 {
-                }
-                else
-                {
-                    <MudSimpleTable Dense="true" Class="auto-table">
-                        <thead>
-                            <tr>
-                                @if (GetCol("SalesOrderNo").Visible) { <th>源订单号</th> }
-                                @if (GetCol("ProductionMainNo").Visible) { <th>主号</th> }
-                                @if (GetCol("ProductionSubNo").Visible) { <th>次号</th> }
-                                @if (GetCol("OrderItemIds").Visible) { <th>项次ID列表</th> }
-                                @if (GetCol("SignDate").Visible) { <th>签订日期</th> }
-                                @if (GetCol("Salesman").Visible) { <th>业务员</th> }
-                                @if (GetCol("EndCustomer").Visible) { <th>最终用户</th> }
-                                @if (GetCol("DeliveryDate").Visible) { <th>交货日期</th> }
-                                @if (GetCol("DelayPenalty").Visible) { <th>延期罚款</th> }
-                                @if (GetCol("MaterialName").Visible) { <th>物料名称</th> }
-                                @if (GetCol("SettlementMethod").Visible) { <th>结算方式</th> }
-                                @if (GetCol("StandardCode").Visible) { <th>产品标准编码</th> }
-                                @if (GetCol("DeliveryState").Visible) { <th>交货状态</th> }
-                                @if (GetCol("PlantGrade").Visible) { <th>工厂牌号</th> }
-                                @if (GetCol("Specification").Visible) { <th>规格</th> }
-                                @if (GetCol("OuterDiameterNegative").Visible) { <th>外径负公差</th> }
-                                @if (GetCol("OuterDiameterPositive").Visible) { <th>外径正公差</th> }
-                                @if (GetCol("WallThicknessNegative").Visible) { <th>壁厚负公差</th> }
-                                @if (GetCol("WallThicknessPositive").Visible) { <th>壁厚正公差</th> }
-                                @if (GetCol("LengthStatus").Visible) { <th>长度状态</th> }
-                                @if (GetCol("MinLength").Visible) { <th>最小长度(mm)</th> }
-                                @if (GetCol("MaxLength").Visible) { <th>最大长度(mm)</th> }
-                                @if (GetCol("TotalQuantity").Visible) { <th>总支数</th> }
-                                @if (GetCol("TotalMeters").Visible) { <th>总米数</th> }
-                                @if (GetCol("TotalWeight").Visible) { <th>总重量(kg)</th> }
-                                @if (GetCol("TotalItemCount").Visible) { <th>总项次数</th> }
-                                @if (GetCol("ItemDetails").Visible) { <th>明细</th> }
-                                @if (GetCol("TechnicalRequirements").Visible) { <th>技术要求</th> }
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                @if (GetCol("SalesOrderNo").Visible) { <td><MudTextField T="string" @bind-Value="request.SalesOrderNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
-                                @if (GetCol("ProductionMainNo").Visible) { <td><MudTextField T="string" @bind-Value="request.ProductionMainNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
-                                @if (GetCol("ProductionSubNo").Visible) { <td><MudTextField T="string" @bind-Value="request.ProductionSubNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
-                                @if (GetCol("OrderItemIds").Visible) { <td><MudTextField T="string" @bind-Value="request.OrderItemIds" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
-                                @if (GetCol("SignDate").Visible) { <td><MudTextField T="string" @bind-Value="editSignDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
-                                @if (GetCol("Salesman").Visible) { <td><MudTextField T="string" @bind-Value="request.Salesman" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
-                                @if (GetCol("EndCustomer").Visible) { <td><MudTextField T="string" @bind-Value="request.EndCustomer" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
-                                @if (GetCol("DeliveryDate").Visible) { <td><MudTextField T="string" @bind-Value="editDeliveryDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
-                                @if (GetCol("DelayPenalty").Visible) { <td><MudCheckBox @bind-Value="editDelayPenaltyValue" Color="Color.Warning" /></td> }
-                                @if (GetCol("MaterialName").Visible) { <td><MudSelect T="string" @bind-Value="request.MaterialName" Dense="true" Variant="Variant.Outlined" Size="Size.Small"><MudSelectItem Value="@((string?)null)">请选择</MudSelectItem><MudSelectItem Value="@("SeamlessPipe")">无缝管</MudSelectItem><MudSelectItem Value="@("WeldedPipe")">焊管</MudSelectItem></MudSelect></td> }
-                                @if (GetCol("SettlementMethod").Visible) { <td><MudSelect T="string" @bind-Value="request.SettlementMethod" Dense="true" Variant="Variant.Outlined" Size="Size.Small"><MudSelectItem Value="@((string?)null)">请选择</MudSelectItem><MudSelectItem Value="@("Weighing")">过磅</MudSelectItem><MudSelectItem Value="@("WeighingNegative")">过磅-负</MudSelectItem><MudSelectItem Value="@("Theoretical")">理算</MudSelectItem></MudSelect></td> }
-                                @if (GetCol("StandardCode").Visible) { <td><MudTextField T="string" @bind-Value="request.StandardCode" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
-                                @if (GetCol("DeliveryState").Visible) { <td><MudSelect T="string" @bind-Value="request.DeliveryState" Dense="true" Variant="Variant.Outlined" Size="Size.Small"><MudSelectItem Value="@((string?)null)">请选择</MudSelectItem><MudSelectItem Value="@("SolutionAnnealedAndPickled")">固溶酸洗</MudSelectItem><MudSelectItem Value="@("SolutionAnnealedAndPickledUTube")">固溶酸洗-U型管</MudSelectItem><MudSelectItem Value="@("SolutionAnnealedAndPickledExternalPolished")">固溶酸洗-外抛光</MudSelectItem><MudSelectItem Value="@("SolutionAnnealedAndPickledInternalPolished")">固溶酸洗-内抛光</MudSelectItem><MudSelectItem Value="@("SolutionAnnealedAndPickledBothPolished")">固溶酸洗-内外抛光</MudSelectItem><MudSelectItem Value="@("SolutionAnnealedAndPickledCoiled")">固溶酸洗-盘管</MudSelectItem><MudSelectItem Value="@("Bright")">光亮</MudSelectItem><MudSelectItem Value="@("BrightUTube")">光亮-U型管</MudSelectItem><MudSelectItem Value="@("BrightCoiled")">光亮-盘管</MudSelectItem><MudSelectItem Value="@("Hard")">硬态</MudSelectItem></MudSelect></td> }
-                                @if (GetCol("PlantGrade").Visible) { <td><MudTextField T="string" @bind-Value="request.PlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
-                                @if (GetCol("Specification").Visible) { <td><MudTextField T="string" @bind-Value="request.Specification" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
-                                @if (GetCol("OuterDiameterNegative").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.OuterDiameterNegative" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
-                                @if (GetCol("OuterDiameterPositive").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.OuterDiameterPositive" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
-                                @if (GetCol("WallThicknessNegative").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.WallThicknessNegative" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
-                                @if (GetCol("WallThicknessPositive").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.WallThicknessPositive" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
-                                @if (GetCol("LengthStatus").Visible) { <td><MudSelect T="string" @bind-Value="request.LengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small"><MudSelectItem Value="@((string?)null)">请选择</MudSelectItem><MudSelectItem Value="@("Fixed")">定尺</MudSelectItem><MudSelectItem Value="@("Range")">范围尺</MudSelectItem><MudSelectItem Value="@("NonFixed")">非定尺</MudSelectItem></MudSelect></td> }
-                                @if (GetCol("MinLength").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.MinLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
-                                @if (GetCol("MaxLength").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.MaxLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
-                                @if (GetCol("TotalQuantity").Visible) { <td><MudNumericField T="int?" @bind-Value="request.TotalQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></td> }
-                                @if (GetCol("TotalMeters").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.TotalMeters" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
-                                @if (GetCol("TotalWeight").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.TotalWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" /></td> }
-                                @if (GetCol("TotalItemCount").Visible) { <td><MudNumericField T="int?" @bind-Value="request.TotalItemCount" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></td> }
-                                @if (GetCol("ItemDetails").Visible) { <td><MudTextField T="string" @bind-Value="request.ItemDetails" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></td> }
-                                @if (GetCol("TechnicalRequirements").Visible) { <td><MudSelect T="string" @bind-Value="request.TechnicalRequirements" Dense="true" Variant="Variant.Outlined" Size="Size.Small"><MudSelectItem Value="@((string?)null)">请选择</MudSelectItem><MudSelectItem Value="@("Normal")">普通</MudSelectItem><MudSelectItem Value="@("Special")">特殊</MudSelectItem></MudSelect></td> }
-                            </tr>
-                        </tbody>
-                    </MudSimpleTable>
+                    <div style="overflow-x:auto;">
+                        <MudSimpleTable Dense="true" Class="auto-table compact-table" Style="width:4200px;">
+                            <thead>
+                                <tr>
+                                    @if (GetCol("SalesOrderNo").Visible) { <th style="width:140px;">源订单号</th> }
+                                    @if (GetCol("ProductionMainNo").Visible) { <th style="width:100px;">主号</th> }
+                                    @if (GetCol("ProductionSubNo").Visible) { <th style="width:100px;">次号</th> }
+                                    @if (GetCol("SignDate").Visible) { <th style="width:120px;">签订日期</th> }
+                                    @if (GetCol("Salesman").Visible) { <th style="width:100px;">业务员</th> }
+                                    @if (GetCol("EndCustomer").Visible) { <th style="width:120px;">最终用户</th> }
+                                    @if (GetCol("DeliveryDate").Visible) { <th style="width:120px;">交货日期</th> }
+                                    @if (GetCol("DelayPenalty").Visible) { <th style="width:80px;">延期罚款</th> }
+                                    @if (GetCol("MaterialName").Visible) { <th style="width:140px;">物料名称</th> }
+                                    @if (GetCol("SettlementMethod").Visible) { <th style="width:140px;">结算方式</th> }
+                                    @if (GetCol("StandardCode").Visible) { <th style="width:140px;">产品标准编码</th> }
+                                    @if (GetCol("DeliveryState").Visible) { <th style="width:200px;">交货状态</th> }
+                                    @if (GetCol("PlantGrade").Visible) { <th style="width:120px;">工厂牌号</th> }
+                                    @if (GetCol("Specification").Visible) { <th style="width:160px;">规格</th> }
+                                    @if (GetCol("OrderItemIds").Visible) { <th style="width:120px;">项次ID列表</th> }
+                                    @if (GetCol("LengthStatus").Visible) { <th style="width:100px;">长度状态</th> }
+                                    @if (GetCol("OuterDiameterNegative").Visible) { <th style="width:110px;">外径负公差</th> }
+                                    @if (GetCol("OuterDiameterPositive").Visible) { <th style="width:110px;">外径正公差</th> }
+                                    @if (GetCol("WallThicknessNegative").Visible) { <th style="width:110px;">壁厚负公差</th> }
+                                    @if (GetCol("WallThicknessPositive").Visible) { <th style="width:110px;">壁厚正公差</th> }
+                                    @if (GetCol("MinLength").Visible) { <th style="width:110px;">最小长度(mm)</th> }
+                                    @if (GetCol("MaxLength").Visible) { <th style="width:110px;">最大长度(mm)</th> }
+                                    @if (GetCol("TotalQuantity").Visible) { <th style="width:100px;">总支数</th> }
+                                    @if (GetCol("TotalMeters").Visible) { <th style="width:100px;">总米数</th> }
+                                    @if (GetCol("TotalWeight").Visible) { <th style="width:120px;">总重量(kg)</th> }
+                                    @if (GetCol("TotalItemCount").Visible) { <th style="width:100px;">总项次数</th> }
+                                    @if (GetCol("ItemDetails").Visible) { <th style="width:250px;">明细</th> }
+                                    @if (GetCol("TechnicalRequirements").Visible) { <th style="width:120px;">技术要求</th> }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    @if (GetCol("SalesOrderNo").Visible) { <td><MudTextField T="string" @bind-Value="request.SalesOrderNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("ProductionMainNo").Visible) { <td><MudTextField T="string" @bind-Value="request.ProductionMainNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("ProductionSubNo").Visible) { <td><MudTextField T="string" @bind-Value="request.ProductionSubNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("SignDate").Visible) { <td><MudTextField T="string" @bind-Value="editSignDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("Salesman").Visible) { <td><MudTextField T="string" @bind-Value="request.Salesman" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("EndCustomer").Visible) { <td><MudTextField T="string" @bind-Value="request.EndCustomer" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("DeliveryDate").Visible) { <td><MudTextField T="string" @bind-Value="editDeliveryDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("DelayPenalty").Visible) { <td><MudCheckBox @bind-Value="editDelayPenaltyValue" Color="Color.Warning" /></td> }
+                                    @if (GetCol("MaterialName").Visible)
+                                    {
+                                        <td>
+                                            <MudSelect T="string" @bind-Value="request.MaterialName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                                <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
+                                                <MudSelectItem Value="@("SeamlessPipe")">无缝管</MudSelectItem>
+                                                <MudSelectItem Value="@("WeldedPipe")">焊管</MudSelectItem>
+                                            </MudSelect>
+                                        </td>
+                                    }
+                                    @if (GetCol("SettlementMethod").Visible)
+                                    {
+                                        <td>
+                                            <MudSelect T="string" @bind-Value="request.SettlementMethod" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                                <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
+                                                <MudSelectItem Value="@("Weighing")">过磅</MudSelectItem>
+                                                <MudSelectItem Value="@("WeighingNegative")">过磅-负</MudSelectItem>
+                                                <MudSelectItem Value="@("Theoretical")">理算</MudSelectItem>
+                                            </MudSelect>
+                                        </td>
+                                    }
+                                    @if (GetCol("StandardCode").Visible) { <td><MudTextField T="string" @bind-Value="request.StandardCode" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("DeliveryState").Visible)
+                                    {
+                                        <td>
+                                            <MudSelect T="string" @bind-Value="request.DeliveryState" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                                <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
+                                                <MudSelectItem Value="@("SolutionAnnealedAndPickled")">固溶酸洗</MudSelectItem>
+                                                <MudSelectItem Value="@("SolutionAnnealedAndPickledUTube")">固溶酸洗-U型管</MudSelectItem>
+                                                <MudSelectItem Value="@("SolutionAnnealedAndPickledExternalPolished")">固溶酸洗-外抛光</MudSelectItem>
+                                                <MudSelectItem Value="@("SolutionAnnealedAndPickledInternalPolished")">固溶酸洗-内抛光</MudSelectItem>
+                                                <MudSelectItem Value="@("SolutionAnnealedAndPickledBothPolished")">固溶酸洗-内外抛光</MudSelectItem>
+                                                <MudSelectItem Value="@("SolutionAnnealedAndPickledCoiled")">固溶酸洗-盘管</MudSelectItem>
+                                                <MudSelectItem Value="@("Bright")">光亮</MudSelectItem>
+                                                <MudSelectItem Value="@("BrightUTube")">光亮-U型管</MudSelectItem>
+                                                <MudSelectItem Value="@("BrightCoiled")">光亮-盘管</MudSelectItem>
+                                                <MudSelectItem Value="@("Hard")">硬态</MudSelectItem>
+                                            </MudSelect>
+                                        </td>
+                                    }
+                                    @if (GetCol("PlantGrade").Visible) { <td><MudTextField T="string" @bind-Value="request.PlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("Specification").Visible) { <td><MudTextField T="string" @bind-Value="request.Specification" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("OrderItemIds").Visible) { <td><MudTextField T="string" @bind-Value="request.OrderItemIds" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("LengthStatus").Visible)
+                                    {
+                                        <td>
+                                            <MudSelect T="string" @bind-Value="request.LengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                                <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
+                                                <MudSelectItem Value="@("Fixed")">定尺</MudSelectItem>
+                                                <MudSelectItem Value="@("Range")">范围尺</MudSelectItem>
+                                                <MudSelectItem Value="@("NonFixed")">非定尺</MudSelectItem>
+                                            </MudSelect>
+                                        </td>
+                                    }
+                                    @if (GetCol("OuterDiameterNegative").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.OuterDiameterNegative" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
+                                    @if (GetCol("OuterDiameterPositive").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.OuterDiameterPositive" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
+                                    @if (GetCol("WallThicknessNegative").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.WallThicknessNegative" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
+                                    @if (GetCol("WallThicknessPositive").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.WallThicknessPositive" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
+                                    @if (GetCol("MinLength").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.MinLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
+                                    @if (GetCol("MaxLength").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.MaxLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
+                                    @if (GetCol("TotalQuantity").Visible) { <td><MudNumericField T="int?" @bind-Value="request.TotalQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" /></td> }
+                                    @if (GetCol("TotalMeters").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.TotalMeters" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
+                                    @if (GetCol("TotalWeight").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.TotalWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
+                                    @if (GetCol("TotalItemCount").Visible) { <td><MudNumericField T="int?" @bind-Value="request.TotalItemCount" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" /></td> }
+                                    @if (GetCol("ItemDetails").Visible) { <td><MudTextField T="string" @bind-Value="request.ItemDetails" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("TechnicalRequirements").Visible)
+                                    {
+                                        <td>
+                                            <MudSelect T="string" @bind-Value="request.TechnicalRequirements" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                                <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
+                                                <MudSelectItem Value="@("Normal")">普通</MudSelectItem>
+                                                <MudSelectItem Value="@("Special")">特殊</MudSelectItem>
+                                            </MudSelect>
+                                        </td>
+                                    }
+                                </tr>
+                            </tbody>
+                        </MudSimpleTable>
+                    </div>
                 }
             </MudCardContent>
         </MudCard>
 
-        <!-- ==================== Block C: 质量要求信息 ==================== -->
-        <MudCard Class="mb-4 compact-card">
-            <MudCardContent>
-                <div class="d-flex flex-wrap" style="gap:8px 24px;">
-                    <div class="d-flex align-center" style="gap:6px;">
-                        <span style="white-space:nowrap; font-weight:500;">固溶参数</span>
-                        <MudTextField T="string" @bind-Value="request.SolutionParams" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:180px;" />
-                    </div>
-                    <div class="d-flex align-center" style="gap:6px;">
-                        <span style="white-space:nowrap; font-weight:500;">质量备注</span>
-                        <MudTextField T="string" @bind-Value="request.QualityRemark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:500px;" />
-                    </div>
-                </div>
-            </MudCardContent>
-        </MudCard>
 
-        <!-- ==================== Block D: 基础信息 ==================== -->
+        <!-- ==================== Block C/D: 基础信息（含质量要求） ==================== -->
         <MudCard Class="mb-4 compact-card">
             <MudCardHeader>
                 <CardHeaderContent>
@@ -375,53 +416,55 @@
                 </CardHeaderContent>
             </MudCardHeader>
             <MudCardContent>
-                <div class="d-flex flex-wrap" style="gap:8px 24px;">
-                    <div class="d-flex align-center" style="gap:6px;">
-                        <span style="white-space:nowrap; font-weight:500;">生产编号</span>
-                        <MudTextField T="string" Value="@(originalBatch.BatchNo)" Disabled="true" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:130px; font-weight:700; color:#000000;" />
-                    </div>
-                    <div class="d-flex align-center" style="gap:6px;">
-                        <span style="white-space:nowrap; font-weight:500;">挂牌号</span>
-                        <MudTextField T="string" @bind-Value="request.TagNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:130px;" />
-                    </div>
-                    <div class="d-flex align-center" style="gap:6px;">
-                        <span style="white-space:nowrap; font-weight:500;">生产类型</span>
-                        <MudSelect T="string" @bind-Value="request.ProductionType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:130px;">
-                            <MudSelectItem Value="@("RoughTube")">荒管生产</MudSelectItem>
-                            <MudSelectItem Value="@("InProcess")">在制生产</MudSelectItem>
-                            <MudSelectItem Value="@("Inventory")">库存</MudSelectItem>
-                            <MudSelectItem Value="@("OutsourcedPurchased")">外购</MudSelectItem>
-                            <MudSelectItem Value="@("Rework")">返整</MudSelectItem>
-                            <MudSelectItem Value="@("Subcontract")">委外生产</MudSelectItem>
-                            <MudSelectItem Value="@("ExternalProcessing")">对外加工</MudSelectItem>
-                        </MudSelect>
-                    </div>
-                    <div class="d-flex align-center" style="gap:6px;">
-                        <span style="white-space:nowrap; font-weight:500;">制造物品</span>
-                        <MudSelect T="string" @bind-Value="request.ManufacturingItem" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:130px;">
-                            <MudSelectItem Value="@("OrderFinishedProduct")">订单成品</MudSelectItem>
-                            <MudSelectItem Value="@("PreparedMaterial")">备料成品</MudSelectItem>
-                            <MudSelectItem Value="@("SurplusStock")">余库料</MudSelectItem>
-                            <MudSelectItem Value="@("IntermediateProduct")">中间品</MudSelectItem>
-                            <MudSelectItem Value="@("SpecialDeliveryStatus")">特定交态成品</MudSelectItem>
-                        </MudSelect>
-                    </div>
-                    <div class="d-flex align-center" style="gap:6px;">
-                        <span style="white-space:nowrap; font-weight:500;">制成倍数</span>
-                        <MudNumericField T="int?" @bind-Value="request.ProductionRatio" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" Style="width:70px;" Min="0" />
-                    </div>
-                    <div class="d-flex align-center" style="gap:6px;">
-                        <span style="white-space:nowrap; font-weight:500;">有效支数</span>
-                        <MudNumericField T="int?" @bind-Value="request.CurrentValidQty" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" Style="width:70px;" @bind-Value:after="RecalcValidWeightOnQtyChange" />
-                    </div>
-                    <div class="d-flex align-center" style="gap:6px;">
-                        <span style="white-space:nowrap; font-weight:500;">有效重量(kg)</span>
-                        <MudNumericField T="decimal?" @bind-Value="request.CurrentValidWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" Style="width:100px;" />
-                    </div>
-                    <div class="d-flex align-center" style="gap:6px;">
-                        <span style="white-space:nowrap; font-weight:500;">备注</span>
-                        <MudTextField T="string" @bind-Value="request.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width:280px;" />
-                    </div>
+                <div style="overflow-x:auto;">
+                    <MudSimpleTable Dense="true" Class="auto-table compact-table" Style="min-width:1500px;">
+                        <thead>
+                            <tr>
+                                <th style="width:130px;">生产编号</th>
+                                <th style="width:100px;">挂牌号</th>
+                                <th style="width:140px;">生产类型</th>
+                                <th style="width:140px;">制造物品</th>
+                                <th style="width:90px;">制成倍数</th>
+                                <th style="width:90px;">有效支数</th>
+                                <th style="width:110px;">有效重量(kg)</th>
+                                <th style="width:200px;">备注</th>
+                                <th style="width:180px;">固溶参数</th>
+                                <th style="width:300px;">质量备注</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><MudTextField T="string" Value="@(originalBatch.BatchNo)" Disabled="true" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" Style="font-weight:700; color:#000000;" /></td>
+                                <td><MudTextField T="string" @bind-Value="request.TagNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
+                                <td>
+                                    <MudSelect T="string" @bind-Value="request.ProductionType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                        <MudSelectItem Value="@("RoughTube")">荒管生产</MudSelectItem>
+                                        <MudSelectItem Value="@("InProcess")">在制生产</MudSelectItem>
+                                        <MudSelectItem Value="@("Inventory")">库存</MudSelectItem>
+                                        <MudSelectItem Value="@("OutsourcedPurchased")">外购</MudSelectItem>
+                                        <MudSelectItem Value="@("Rework")">返整</MudSelectItem>
+                                        <MudSelectItem Value="@("Subcontract")">委外生产</MudSelectItem>
+                                        <MudSelectItem Value="@("ExternalProcessing")">对外加工</MudSelectItem>
+                                    </MudSelect>
+                                </td>
+                                <td>
+                                    <MudSelect T="string" @bind-Value="request.ManufacturingItem" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                        <MudSelectItem Value="@("OrderFinishedProduct")">订单成品</MudSelectItem>
+                                        <MudSelectItem Value="@("PreparedMaterial")">备料成品</MudSelectItem>
+                                        <MudSelectItem Value="@("SurplusStock")">余库料</MudSelectItem>
+                                        <MudSelectItem Value="@("IntermediateProduct")">中间品</MudSelectItem>
+                                        <MudSelectItem Value="@("SpecialDeliveryStatus")">特定交态成品</MudSelectItem>
+                                    </MudSelect>
+                                </td>
+                                <td><MudNumericField T="int?" @bind-Value="request.ProductionRatio" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" Min="0" /></td>
+                                <td><MudNumericField T="int?" @bind-Value="request.CurrentValidQty" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" @bind-Value:after="RecalcValidWeightOnQtyChange" /></td>
+                                <td><MudNumericField T="decimal?" @bind-Value="request.CurrentValidWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td>
+                                <td><MudTextField T="string" @bind-Value="request.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
+                                <td><MudTextField T="string" @bind-Value="request.SolutionParams" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
+                                <td><MudTextField T="string" @bind-Value="request.QualityRemark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
+                            </tr>
+                        </tbody>
+                    </MudSimpleTable>
                 </div>
             </MudCardContent>
         </MudCard>
@@ -437,12 +480,6 @@
                 </CardHeaderContent>
             </MudCardHeader>
             <MudCardContent>
-                <div style="margin-bottom:8px; display:flex; justify-content:flex-end;">
-                    <div style="width:130px;">
-                        <MudTextField T="string" @bind-Value="_copyBatchNo"
-                                      Dense="true" Variant="Variant.Outlined" Size="Size.Small" />
-                    </div>
-                </div>
                 <div class="d-flex flex-wrap align-center" style="gap:8px; margin-bottom:12px; justify-content:flex-end;">
                     <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyLastBatchProcessGroups"
@@ -464,6 +501,10 @@
                                        OnMoveDown="OnPgColumnMove" />
                     <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Warning"
                                StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetPgColumns">重置</MudButton>
+                    <div style="width:130px;">
+                        <MudTextField T="string" @bind-Value="_copyBatchNo"
+                                      Dense="true" Variant="Variant.Outlined" Size="Size.Small" />
+                    </div>
                     <MudButton Variant="Variant.Outlined" Color="Color.Tertiary" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.FileCopy"
                                OnClick="CopyProcessGroupsByBatchNo"

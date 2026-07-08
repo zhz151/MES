@@ -76,7 +76,8 @@ public partial class Orders
         new() { Key = "itemcount", Label = "含项次数", SortKey = "itemcount", Width = "80" },
         new() { Key = "notech",        Label = "技术要求", SortKey = "hastechnicalrequirement", FilterType = "boolean", Width = "120", BoolTrueLabel = "已编辑", BoolFalseLabel = "未编辑" },
         new() { Key = "status",        Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120",
-               EnumOptions = new List<EnumOption> { new("Pending", "待处理"), new("Confirmed", "已确认") } },
+               EnumOptions = new List<EnumOption> { new("Pending", "待处理"), new("Confirmed", "已确认") },
+               DisplayConverter = v => v is SalesOrderStatus s ? DisplayHelper.GetSalesOrderStatusText(s) : "-" },
         new() { Key = "lastchangedate",Label = "变更日期", SortKey = "lastchangedate", FilterType = "date", Width = "120" },
     };
 
@@ -612,7 +613,7 @@ public partial class Orders
         {
             var request = new OrderPrintBatchRequest { Ids = new[] { id } };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/order/print-batch";
+            var apiUrl = $"{Http.BaseAddress}api/order/print-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -633,7 +634,7 @@ public partial class Orders
         {
             var request = new OrderPrintBatchRequest { Ids = selectedOrderIds.ToArray() };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/order/print-batch";
+            var apiUrl = $"{Http.BaseAddress}api/order/print-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

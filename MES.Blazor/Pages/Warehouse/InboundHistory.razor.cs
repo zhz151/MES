@@ -23,8 +23,8 @@ public partial class InboundHistory
     private string _warehouseName = string.Empty;
     private List<WarehouseDto> _warehouses = new();
 
-    // ========== 工单删除通知 ==========
-    private List<NotificationDto>? _workOrderNotices;
+    // ========== 工单号不匹配 ==========
+    private List<BatchWorkOrderMismatchDto> _mismatchBatches = new();
 
     // ========== 数据与筛选 ==========
     private List<InventoryBatchDto> _pageItems = new();
@@ -796,7 +796,7 @@ public partial class InboundHistory
         // 加载筛选上下文
         await LoadFilterContextsAsync();
 
-        await CheckWorkOrderNotices();
+        await CheckWorkOrderMismatches();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -822,7 +822,7 @@ public partial class InboundHistory
                 if (_table != null) await _table.ReloadServerData();
             }
         }
-        await CheckWorkOrderNotices();
+        await CheckWorkOrderMismatches();
     }
 
     private async Task ResolveWarehouse()
@@ -1031,7 +1031,7 @@ public partial class InboundHistory
                 Columns = columns
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/inventory/print-inventory-selected";
+            var apiUrl = $"{Http.BaseAddress}api/inventory/print-inbound-selected-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -1053,33 +1053,31 @@ public partial class InboundHistory
                 Columns = columns
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/inventory/print-inventory-all";
+            var apiUrl = $"{Http.BaseAddress}api/inventory/print-inbound-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
     }
 
-    // ========== 工单删除通知检查 ==========
+    // ========== 工单号不匹配检查（实时扫描） ==========
 
-    private async Task CheckWorkOrderNotices()
+    private async Task CheckWorkOrderMismatches()
     {
         try
         {
-            var result = await NotificationService.GetByTypeAsync("WorkOrderDeleted");
+            var result = await InventoryService.GetMismatchedBatchesAsync(_warehouseId);
             if (result.Success && result.Data != null)
-                _workOrderNotices = result.Data;
+            {
+                _mismatchBatches = result.Data;
+            }
+            else
+                _mismatchBatches.Clear();
         }
         catch
         {
-            // 通知检查失败不影响主页面
+            _mismatchBatches.Clear();
         }
-    }
-
-    private async Task DismissWorkOrderNotices()
-    {
-        await NotificationService.MarkAllByTypeAsReadAsync("WorkOrderDeleted");
-        _workOrderNotices = null;
     }
 
     private void GoBack() => Navigation.NavigateTo(!string.IsNullOrEmpty(Code) ? $"/warehouse/{Code.ToLowerInvariant()}" : "/warehouse");

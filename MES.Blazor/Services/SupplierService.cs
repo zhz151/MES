@@ -112,6 +112,7 @@ public class SupplierService
 
     // ========== 打印 ==========
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintSupplierAsync(int id)
     {
         try
@@ -122,6 +123,7 @@ public class SupplierService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintSupplierBatchAsync(int[] ids)
     {
         try
@@ -133,6 +135,7 @@ public class SupplierService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintSupplierAllAsync(string? keyword = null, string? sortBy = null, bool isDescending = false)
     {
         try

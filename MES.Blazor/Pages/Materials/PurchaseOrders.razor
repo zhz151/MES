@@ -31,6 +31,18 @@
             </CardHeaderActions>
         </MudCardHeader>
         <MudCardContent>
+            @* 工单关联异常通知 *@
+            @if (mismatchItems.Count > 0)
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Class="mb-4">
+                    <div>
+                        @foreach (var item in mismatchItems)
+                        {
+                            <div>采购单号 "@item.OrderNo" 中，来源工单号：@string.Join("；", item.MismatchedWorkOrderNos) 已不关联采购用料计划，需修改！</div>
+                        }
+                    </div>
+                </MudAlert>
+            }
             <MudGrid>
                 <MudItem xs="12" md="6">
                     <MudTextField T="string" Label="模糊搜索 - 单号/物料分类/钢种/规格/供应商/工单号" Value="_searchKeyword" ValueChanged="@OnSearchChanged" Immediate="true" DebounceInterval="500" Clearable="true" ClearButton="true" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
@@ -85,7 +97,7 @@
             <div id="purchase-orders-list-table">
             @{
                 var _groupHeaders = GetGroupHeaders();
-                var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40;
+                var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40 + 90;
             }
             @* 工具栏：列显隐 + 打印按钮 + 记录数 *@
             <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">

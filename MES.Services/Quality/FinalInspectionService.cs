@@ -8,6 +8,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Helpers;
+using MES.Services.Printing;
 
 namespace MES.Services.Quality;
 
@@ -715,6 +716,28 @@ public class FinalInspectionService : IFinalInspectionService
             .FirstOrDefaultAsync();
 
         return batch;
+    }
+
+    public async Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
+    {
+        var query = new QueryParams { PageIndex = 1, PageSize = int.MaxValue };
+        var result = await GetAllAsync(query);
+        var selected = result.Items.Where(i => ids.Contains(i.Id)).ToList();
+        return FinalInspectionPrintHelper.GenerateBatchPdf(selected, columns);
+    }
+
+    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns)
+    {
+        var query = new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = int.MaxValue,
+            Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? null : sortBy,
+            IsDescending = isDescending
+        };
+        var result = await GetAllAsync(query);
+        return FinalInspectionPrintHelper.GenerateBatchPdf(result.Items, columns);
     }
 
     private static IQueryable<FinalInspection> ApplySorting(IQueryable<FinalInspection> queryable, string sortBy, bool isDescending)

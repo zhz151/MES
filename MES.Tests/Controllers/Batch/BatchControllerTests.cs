@@ -461,7 +461,7 @@ public class BatchControllerTests : ControllerTestBase
         AddModelError(_controller);
 
         // Act
-        var result = await _controller.PrintBatchSelected(new int[] { });
+        var result = await _controller.PrintBatchSelected(new BatchPrintSelectedRequest { Ids = Array.Empty<int>() });
 
         // Assert
         var (_, response) = AssertBadRequest<ApiResponse<string>>(result);
@@ -472,11 +472,11 @@ public class BatchControllerTests : ControllerTestBase
     public async Task PrintBatchSelected_ReturnsOk()
     {
         // Arrange
-        _serviceMock.Setup(x => x.PrintBatchSelectedAsync(It.IsAny<int[]>()))
+        _serviceMock.Setup(x => x.PrintBatchSelectedAsync(It.IsAny<int[]>(), It.IsAny<List<PrintColumnDef>>()))
             .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
 
         // Act
-        var result = await _controller.PrintBatchSelected(new[] { 1, 2 });
+        var result = await _controller.PrintBatchSelected(new BatchPrintSelectedRequest { Ids = new[] { 1, 2 } });
 
         // Assert
         var (_, response) = AssertOk<ApiResponse<string>>(result);

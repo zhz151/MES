@@ -302,6 +302,18 @@ public class InventoryController : ControllerBase
         return Ok(ApiResponse<List<string>>.Ok(result, "验证完成"));
     }
 
+    /// <summary>
+    /// 获取入库批次中工单号不存在的批次列表（实时扫描）
+    /// </summary>
+    [HttpGet("mismatched-batches")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<BatchWorkOrderMismatchDto>>>> GetMismatchedBatches(
+        [FromQuery] int? warehouseId = null)
+    {
+        var result = await _service.GetMismatchedWorkOrderBatchesAsync(warehouseId);
+        return Ok(ApiResponse<List<BatchWorkOrderMismatchDto>>.Ok(result, "查询成功"));
+    }
+
     // ========== 打印 ==========
 
     /// <summary>
@@ -318,6 +330,17 @@ public class InventoryController : ControllerBase
         return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes), "打印成功"));
     }
 
+    [HttpPost("print-inventory-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<IActionResult> PrintInventoryAllFile([FromBody] InventoryPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintInventoryAllAsync(request);
+        return File(pdfBytes, "application/pdf", request.OnlyWithStock ? "仓库库存列表.pdf" : "入库历史列表.pdf");
+    }
+
     /// <summary>
     /// 打印选中库存/入库记录
     /// </summary>
@@ -330,6 +353,61 @@ public class InventoryController : ControllerBase
 
         var pdfBytes = await _service.PrintInventorySelectedAsync(request);
         return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes), "打印成功"));
+    }
+
+    [HttpPost("print-inventory-selected-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<IActionResult> PrintInventorySelectedFile([FromBody] InventoryPrintSelectedRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintInventorySelectedAsync(request);
+        return File(pdfBytes, "application/pdf", "入库批次打印.pdf");
+    }
+
+    [HttpPost("print-stock-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<IActionResult> PrintStockAllFile([FromBody] InventoryPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintStockAllAsync(request);
+        return File(pdfBytes, "application/pdf", "仓库库存列表.pdf");
+    }
+
+    [HttpPost("print-stock-selected-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<IActionResult> PrintStockSelectedFile([FromBody] InventoryPrintSelectedRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintStockSelectedAsync(request);
+        return File(pdfBytes, "application/pdf", "库存批次打印.pdf");
+    }
+
+    [HttpPost("print-inbound-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<IActionResult> PrintInboundAllFile([FromBody] InventoryPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintInboundAllAsync(request);
+        return File(pdfBytes, "application/pdf", "入库历史列表.pdf");
+    }
+
+    [HttpPost("print-inbound-selected-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<IActionResult> PrintInboundSelectedFile([FromBody] InventoryPrintSelectedRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintInboundSelectedAsync(request);
+        return File(pdfBytes, "application/pdf", "入库批次打印.pdf");
     }
 
     /// <summary>
@@ -346,6 +424,17 @@ public class InventoryController : ControllerBase
         return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes), "打印成功"));
     }
 
+    [HttpPost("print-outbound-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<IActionResult> PrintOutboundAllFile([FromBody] OutboundPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintOutboundAllAsync(request);
+        return File(pdfBytes, "application/pdf", "出库历史列表.pdf");
+    }
+
     /// <summary>
     /// 打印选中出库记录
     /// </summary>
@@ -358,6 +447,17 @@ public class InventoryController : ControllerBase
 
         var pdfBytes = await _service.PrintOutboundSelectedAsync(request);
         return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes), "打印成功"));
+    }
+
+    [HttpPost("print-outbound-selected-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<IActionResult> PrintOutboundSelectedFile([FromBody] OutboundPrintSelectedRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintOutboundSelectedAsync(request);
+        return File(pdfBytes, "application/pdf", "出库记录打印.pdf");
     }
 
     // ========== 筛选上下文 ==========

@@ -597,78 +597,35 @@ public partial class FurnaceRegistrations
 
     // ========== 打印 ==========
 
+    private List<PrintColumnDef> GetPrintColumnDefs() =>
+        _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+
     private async Task PrintSelected()
     {
-        if (!selectedIds.Any()) { Snackbar.Add("请先选择要打印的炉号登记记录", Severity.Warning); return; }
-        await JS.InvokeVoidAsync("printTable", "#furnace-registration-list-table", "来料炉号登记（选中记录）");
+        if (!selectedIds.Any()) return;
+        var apiUrl = $"{Http.BaseAddress}api/furnace-registration/print-batch-file";
+        var request = new FurnaceRegistrationPrintBatchRequest
+        {
+            Ids = selectedIds.ToArray(),
+            Columns = GetPrintColumnDefs()
+        };
+        var json = JsonSerializer.Serialize(request);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
     private async Task PrintAll()
     {
-        if (!_pageItems.Any())
+        var apiUrl = $"{Http.BaseAddress}api/furnace-registration/print-all-file";
+        var request = new FurnaceRegistrationPrintAllRequest
         {
-            Snackbar.Add("没有可打印的数据", Severity.Warning);
-            return;
-        }
-        var html = BuildPrintHtml(_pageItems);
-        await JS.InvokeVoidAsync("printRawHtml", html, "来料炉号登记");
+            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+            SortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "furnacenumber",
+            IsDescending = sortDescending,
+            Columns = GetPrintColumnDefs()
+        };
+        var json = JsonSerializer.Serialize(request);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
-
-    private string BuildPrintHtml(IEnumerable<FurnaceRegistrationDto> items)
-    {
-        var sb = new System.Text.StringBuilder();
-        sb.Append("<table><thead><tr>");
-        foreach (var col in _visibleColumns)
-        {
-            sb.Append("<th>").Append(System.Net.WebUtility.HtmlEncode(col.Label)).Append("</th>");
-        }
-        sb.Append("</tr></thead><tbody>");
-        foreach (var item in items)
-        {
-            sb.Append("<tr>");
-            foreach (var col in _visibleColumns)
-            {
-                sb.Append("<td>");
-                sb.Append(System.Net.WebUtility.HtmlEncode(GetCellPrintValue(item, col)));
-                sb.Append("</td>");
-            }
-            sb.Append("</tr>");
-        }
-        sb.Append("</tbody></table>");
-        return sb.ToString();
-    }
-
-    private string? GetCellPrintValue(FurnaceRegistrationDto item, ColumnDef col) => col.Key switch
-    {
-        "IncomingDate" => item.IncomingDate.ToString("yyyy-MM-dd"),
-        "RawMaterialUnit" => item.RawMaterialUnit,
-        "RawMaterialType" => item.RawMaterialType,
-        "RegisteredGrade" => item.RegisteredGrade,
-        "RelatedPlantGrade" => item.RelatedPlantGrade,
-        "FurnaceNumber" => item.FurnaceNumber,
-        "Specification" => item.Specification,
-        "Quantity" => item.Quantity?.ToString(),
-        "Weight" => DisplayHelper.FormatNullableDecimalAsInt(item.Weight),
-        "Carbon" => item.Carbon?.ToString("G29"),
-        "Silicon" => item.Silicon?.ToString("G29"),
-        "Manganese" => item.Manganese?.ToString("G29"),
-        "Phosphorus" => item.Phosphorus?.ToString("G29"),
-        "Sulfur" => item.Sulfur?.ToString("G29"),
-        "Nickel" => item.Nickel?.ToString("G29"),
-        "Chromium" => item.Chromium?.ToString("G29"),
-        "Molybdenum" => item.Molybdenum?.ToString("G29"),
-        "Copper" => item.Copper?.ToString("G29"),
-        "Nitrogen" => item.Nitrogen?.ToString("G29"),
-        "Niobium" => item.Niobium?.ToString("G29"),
-        "Titanium" => item.Titanium?.ToString("G29"),
-        "Iron" => item.Iron?.ToString("G29"),
-        "Aluminum" => item.Aluminum?.ToString("G29"),
-        "Tungsten" => item.Tungsten?.ToString("G29"),
-        "PREN" => item.PREN?.ToString("G29"),
-        "Remark" => item.Remark,
-        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
-        _ => ""
-    };
 
     private async Task DeleteItem(FurnaceRegistrationDto item)
     {

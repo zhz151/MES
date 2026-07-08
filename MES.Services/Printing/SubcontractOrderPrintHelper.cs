@@ -3,6 +3,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using MES.Core.DTOs;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Services.Printing;
 
@@ -160,7 +161,7 @@ public static class SubcontractOrderPrintHelper
                 row.RelativeItem(1.5f).Text(t =>
                 {
                     t.Span("状态：").Bold().FontSize(9);
-                    t.Span(GetStatusText(order.Status)).FontSize(9);
+                    t.Span(EnumHelper.GetDisplayName(order.Status)).FontSize(9);
                 });
                 row.RelativeItem(2.5f).Text(t =>
                 {
@@ -242,14 +243,6 @@ public static class SubcontractOrderPrintHelper
                 t.Span($"  /  加工金额 {totalAmount:G29} 元").FontSize(8).Bold();
         });
     }
-
-    private static string GetStatusText(SubcontractOrderStatus status) => status switch
-    {
-        SubcontractOrderStatus.Sent => "已发出",
-        SubcontractOrderStatus.PartialReturned => "部分收回",
-        SubcontractOrderStatus.Completed => "已完成",
-        _ => status.ToString()
-    };
 
     private static string FormatNullableDecimal(decimal? value)
         => value.HasValue && value.Value != 0 ? value.Value.ToString("G29") : "-";

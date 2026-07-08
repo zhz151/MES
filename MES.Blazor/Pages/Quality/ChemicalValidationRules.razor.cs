@@ -678,69 +678,37 @@ public partial class ChemicalValidationRules
         }
     }
 
+    // ========== 打印 ==========
+
+    private List<PrintColumnDef> GetPrintColumnDefs() =>
+        _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+
     private async Task PrintSelected()
     {
-        if (!selectedIds.Any()) { Snackbar.Add("请先选择要打印的牌号验证记录", Severity.Warning); return; }
-        await JS.InvokeVoidAsync("printTable", "#chemical-validate-list-table", "牌号验证（选中记录）");
+        if (!selectedIds.Any()) return;
+        var apiUrl = $"{Http.BaseAddress}api/chemical-validation-rule/print-batch-file";
+        var request = new ChemicalValidationRulePrintBatchRequest
+        {
+            Ids = selectedIds.ToArray(),
+            Columns = GetPrintColumnDefs()
+        };
+        var json = JsonSerializer.Serialize(request);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
     private async Task PrintAll()
     {
-        if (!_pageItems.Any())
+        var apiUrl = $"{Http.BaseAddress}api/chemical-validation-rule/print-all-file";
+        var request = new ChemicalValidationRulePrintAllRequest
         {
-            Snackbar.Add("没有可打印的数据", Severity.Warning);
-            return;
-        }
-        var html = BuildPrintHtml(_pageItems);
-        await JS.InvokeVoidAsync("printRawHtml", html, "牌号验证");
+            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+            SortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "plantgrade",
+            IsDescending = sortDescending,
+            Columns = GetPrintColumnDefs()
+        };
+        var json = JsonSerializer.Serialize(request);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
-
-    private string BuildPrintHtml(IEnumerable<ChemicalValidationRuleDto> items)
-    {
-        var sb = new System.Text.StringBuilder();
-        sb.Append("<table><thead><tr>");
-        foreach (var col in _visibleColumns)
-        {
-            sb.Append("<th>").Append(System.Net.WebUtility.HtmlEncode(col.Label)).Append("</th>");
-        }
-        sb.Append("</tr></thead><tbody>");
-        foreach (var item in items)
-        {
-            sb.Append("<tr>");
-            foreach (var col in _visibleColumns)
-            {
-                sb.Append("<td>");
-                sb.Append(System.Net.WebUtility.HtmlEncode(GetCellPrintValue(item, col)));
-                sb.Append("</td>");
-            }
-            sb.Append("</tr>");
-        }
-        sb.Append("</tbody></table>");
-        return sb.ToString();
-    }
-
-    private string? GetCellPrintValue(ChemicalValidationRuleDto item, ColumnDef col) => col.Key switch
-    {
-        "PlantGrade" => item.PlantGrade,
-        "CMin" => item.CMin, "CMax" => item.CMax,
-        "SiMin" => item.SiMin, "SiMax" => item.SiMax,
-        "MnMin" => item.MnMin, "MnMax" => item.MnMax,
-        "PMin" => item.PMin, "PMax" => item.PMax,
-        "SMin" => item.SMin, "SMax" => item.SMax,
-        "NiMin" => item.NiMin, "NiMax" => item.NiMax,
-        "CrMin" => item.CrMin, "CrMax" => item.CrMax,
-        "MoMin" => item.MoMin, "MoMax" => item.MoMax,
-        "CuMin" => item.CuMin, "CuMax" => item.CuMax,
-        "NMin" => item.NMin, "NMax" => item.NMax,
-        "NbMin" => item.NbMin, "NbMax" => item.NbMax,
-        "TiMin" => item.TiMin, "TiMax" => item.TiMax,
-        "FeMin" => item.FeMin, "FeMax" => item.FeMax,
-        "AlMin" => item.AlMin, "AlMax" => item.AlMax,
-        "WMin" => item.WMin, "WMax" => item.WMax,
-        "PRENMin" => item.PRENMin,
-        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
-        _ => ""
-    };
 
     private async Task SavePageStateAsync()
     {

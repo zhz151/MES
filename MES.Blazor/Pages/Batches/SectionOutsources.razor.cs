@@ -21,14 +21,11 @@ public partial class SectionOutsources
     private int _totalCount;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -49,6 +46,44 @@ public partial class SectionOutsources
 
     private string sortColumn = "createdtime";
     private bool sortDescending = true;
+
+    // ========== 客户端排序（聚合字段无法后端排序）==========
+
+    private static readonly HashSet<string> _clientSortableKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "totalrecoveredquantity", "totalrecoveredweight",
+        "totalunprocessedquantity", "totalunprocessedweight",
+        "actualrecoverydate", "recoveryremark"
+    };
+
+    private void ApplyClientSideSort()
+    {
+        var key = sortColumn.ToLower();
+        if (!_clientSortableKeys.Contains(key)) return;
+
+        _pageItems = key switch
+        {
+            "totalrecoveredquantity" => sortDescending
+                ? _pageItems.OrderByDescending(i => i.TotalRecoveredQuantity ?? 0).ToList()
+                : _pageItems.OrderBy(i => i.TotalRecoveredQuantity ?? 0).ToList(),
+            "totalrecoveredweight" => sortDescending
+                ? _pageItems.OrderByDescending(i => i.TotalRecoveredWeight ?? 0).ToList()
+                : _pageItems.OrderBy(i => i.TotalRecoveredWeight ?? 0).ToList(),
+            "totalunprocessedquantity" => sortDescending
+                ? _pageItems.OrderByDescending(i => i.TotalUnprocessedQuantity ?? 0).ToList()
+                : _pageItems.OrderBy(i => i.TotalUnprocessedQuantity ?? 0).ToList(),
+            "totalunprocessedweight" => sortDescending
+                ? _pageItems.OrderByDescending(i => i.TotalUnprocessedWeight ?? 0).ToList()
+                : _pageItems.OrderBy(i => i.TotalUnprocessedWeight ?? 0).ToList(),
+            "actualrecoverydate" => sortDescending
+                ? _pageItems.OrderByDescending(i => i.ActualRecoveryDate ?? DateTime.MinValue).ToList()
+                : _pageItems.OrderBy(i => i.ActualRecoveryDate ?? DateTime.MinValue).ToList(),
+            "recoveryremark" => sortDescending
+                ? _pageItems.OrderByDescending(i => i.RecoveryRemark ?? "").ToList()
+                : _pageItems.OrderBy(i => i.RecoveryRemark ?? "").ToList(),
+            _ => _pageItems
+        };
+    }
 
     // ========== 分页汇总 ==========
     private Dictionary<string, string> _pageSums = new();
@@ -72,31 +107,34 @@ public partial class SectionOutsources
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "BatchNo",             Label = "生产编号",     SortKey = "batchno",             FilterType = "string", Width = "120" },
-        new() { Key = "ProcessName",         Label = "工序名称",     SortKey = "processname",         FilterType = "string", Width = "120" },
-        new() { Key = "ManufacturingSpec",   Label = "制造规格",     SortKey = "manufacturingspec",   FilterType = "string", Width = "120" },
-        new() { Key = "SectionName",         Label = "工段名称",     SortKey = "sectionname",         FilterType = "string", Width = "120" },
-        new() { Key = "SequenceNumber",      Label = "执行序号",     SortKey = "sequencenumber", Width = "45" },
-        new() { Key = "OutsourceVendor",     Label = "委外单位",     SortKey = "outsourcevendor",     FilterType = "string", Width = "120" },
-        new() { Key = "SendOutDate",         Label = "发出日期",     SortKey = "sendoutdate",         FilterType = "date", Width = "120" },
-        new() { Key = "SendQuantity",        Label = "发出支数",     SortKey = "sendquantity", Width = "80" },
-        new() { Key = "SendWeight",          Label = "发出重量",     SortKey = "sendweight", Width = "80" },
-        new() { Key = "Status",              Label = "状态",         SortKey = "status",              FilterType = "enum", Width = "120",
+        new() { Key = "BatchNo",             Label = "生产编号",     SortKey = "batchno",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "ProcessName",         Label = "工序名称",     SortKey = "processname",         FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "ManufacturingSpec",   Label = "制造规格",     SortKey = "manufacturingspec",   FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "SectionName",         Label = "工段名称",     SortKey = "sectionname",         FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "SequenceNumber",      Label = "执行序号",     SortKey = "sequencenumber", Width = "45", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "OutsourceVendor",     Label = "委外单位",     SortKey = "outsourcevendor",     FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "SendOutDate",         Label = "发出日期",     SortKey = "sendoutdate",         FilterType = "date", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "SendQuantity",        Label = "发出支数",     SortKey = "sendquantity", Width = "80", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "SendWeight",          Label = "发出重量",     SortKey = "sendweight", Width = "80", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "Status",              Label = "状态",         SortKey = "status",              FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "委外信息",
             EnumOptions = new() { new("PendingRecovery", "待回收"), new("Recovered", "已回收"), new("InProgress", "在轧") } },
-        new() { Key = "TagNo",               Label = "挂牌号",       SortKey = "tagno",               FilterType = "string", Width = "120" },
-        new() { Key = "PlantGrade",          Label = "工厂牌号",     SortKey = "plantgrade",          FilterType = "string", Width = "120" },
-        new() { Key = "OutsourceSpec",       Label = "委外规格",     SortKey = "outsourcespec",       FilterType = "string", Width = "120" },
-        new() { Key = "ExpectedReturnDate",  Label = "要求收回日期", SortKey = "expectedreturndate",  FilterType = "date", Width = "120" },
-        new() { Key = "IsUrgent",            Label = "紧急",         SortKey = "isurgent",            FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "60" },
-        new() { Key = "TotalRecoveredQuantity",     Label = "正常回收(支)",  SortKey = "totalrecoveredquantity", Width = "80" },
-        new() { Key = "TotalRecoveredWeight",       Label = "正常回收(重)",  SortKey = "totalrecoveredweight", Width = "80" },
-        new() { Key = "TotalUnprocessedQuantity",   Label = "非正常回收(支)", SortKey = "totalunprocessedquantity", Width = "80" },
-        new() { Key = "TotalUnprocessedWeight",     Label = "非正常回收(重)", SortKey = "totalunprocessedweight", Width = "80" },
-        new() { Key = "ActualRecoveryDate",  Label = "实际回收日期", SortKey = "actualrecoverydate",  FilterType = "date", Width = "120" },
-        new() { Key = "Remark",              Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120" },
-        new() { Key = "DataSource",          Label = "数据来源",     SortKey = "datasource",          FilterType = "enum", Width = "80",
+        new() { Key = "TagNo",               Label = "挂牌号",       SortKey = "tagno",               FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "PlantGrade",          Label = "工厂牌号",     SortKey = "plantgrade",          FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "OutsourceSpec",       Label = "委外规格",     SortKey = "outsourcespec",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "ExpectedReturnDate",  Label = "要求收回日期", SortKey = "expectedreturndate",  FilterType = "date", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "IsUrgent",            Label = "紧急",         SortKey = "isurgent",            FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "60", GroupKey = 1, GroupName = "委外信息" },
+        // ----- 元信息（归属委外记录） -----
+        new() { Key = "Remark",              Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "DataSource",          Label = "数据来源",     SortKey = "datasource",          FilterType = "enum", Width = "80", GroupKey = 1, GroupName = "委外信息",
             EnumOptions = new() { new("SCAN", "扫码"), new("MANUAL", "手动") } },
-        new() { Key = "UpdatedTime",         Label = "更新时间",     SortKey = "updatedtime", Width = "120" },
+        new() { Key = "UpdatedTime",         Label = "更新时间",     SortKey = "updatedtime", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        // ===== 回收信息 =====
+        new() { Key = "TotalRecoveredQuantity",     Label = "正常回收(支)",  SortKey = "totalrecoveredquantity", Width = "80", GroupKey = 2, GroupName = "回收信息" },
+        new() { Key = "TotalRecoveredWeight",       Label = "正常回收(重)",  SortKey = "totalrecoveredweight", Width = "80", GroupKey = 2, GroupName = "回收信息" },
+        new() { Key = "TotalUnprocessedQuantity",   Label = "非正常回收(支)", SortKey = "totalunprocessedquantity", Width = "80", GroupKey = 2, GroupName = "回收信息" },
+        new() { Key = "TotalUnprocessedWeight",     Label = "非正常回收(重)", SortKey = "totalunprocessedweight", Width = "80", GroupKey = 2, GroupName = "回收信息" },
+        new() { Key = "ActualRecoveryDate",  Label = "实际回收日期", SortKey = "actualrecoverydate",  FilterType = "date", Width = "120", GroupKey = 2, GroupName = "回收信息" },
+        new() { Key = "RecoveryRemark",      Label = "回收备注",     SortKey = "recoveryremark",      FilterType = "string", Width = "120", GroupKey = 2, GroupName = "回收信息" },
     };
 
     // ========== 分页汇总计算 ==========
@@ -198,6 +236,7 @@ public partial class SectionOutsources
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
                 _currentPageIndex = result.Data.PageIndex;
+                ApplyClientSideSort();
                 ComputePageSums();
             }
             else
@@ -369,14 +408,22 @@ public partial class SectionOutsources
         var saved = await ColumnPrefs.LoadAsync("section-outsources", null);
         if (saved.Count > 0)
         {
-            foreach (var col in _allColumns)
+            var reordered = new List<ColumnDef>();
+            foreach (var savedCol in saved)
             {
-                var savedCol = saved.FirstOrDefault(c => c.Key == col.Key);
-                if (savedCol != null)
+                var match = _allColumns.FirstOrDefault(c => c.Key == savedCol.Key);
+                if (match != null)
                 {
-                    col.Visible = savedCol.Visible;
+                    match.Visible = savedCol.Visible;
+                    reordered.Add(match);
                 }
             }
+            foreach (var col in _allColumns)
+            {
+                if (!reordered.Any(c => c.Key == col.Key))
+                    reordered.Add(col);
+            }
+            _allColumns = reordered;
         }
 
         // 恢复排序/筛选状态
@@ -410,6 +457,12 @@ public partial class SectionOutsources
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#section-outsources-list-table");
+        }
+        catch { }
+
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
@@ -561,6 +614,10 @@ public partial class SectionOutsources
 
             case "ActualRecoveryDate":
                 builder.AddContent(0, item.ActualRecoveryDate?.ToString("yyyy-MM-dd") ?? "");
+                break;
+
+            case "RecoveryRemark":
+                builder.AddContent(0, item.RecoveryRemark ?? "");
                 break;
 
             case "Remark":
@@ -724,11 +781,11 @@ public partial class SectionOutsources
             .Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label })
             .ToList();
 
-        var result = await SectionOutsourceService.PrintSelectedAsync(selectedIds.ToArray(), columns);
-        if (result.Success)
-            await JS.InvokeVoidAsync("openPdf", result.Data);
-        else
-            Snackbar.Add(result.Message, Severity.Error);
+        var request = new SectionOutsourcePrintBatchRequest { Ids = selectedIds.ToArray(), Columns = columns };
+        var apiUrl = $"{Http.BaseAddress}api/section-outsource/print-selected-file";
+        var json = JsonSerializer.Serialize(request);
+        Snackbar.Add("正在生成PDF...", Severity.Info);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
     private async Task PrintAll()
@@ -737,15 +794,17 @@ public partial class SectionOutsources
             .Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label })
             .ToList();
 
-        var result = await SectionOutsourceService.PrintAllAsync(
-            keyword: string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword.Trim(),
-            sortBy: sortColumn,
-            isDescending: sortDescending,
-            columns: columns);
-        if (result.Success)
-            await JS.InvokeVoidAsync("openPdf", result.Data);
-        else
-            Snackbar.Add(result.Message, Severity.Error);
+        var request = new SectionOutsourcePrintAllRequest
+        {
+            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword.Trim(),
+            SortBy = sortColumn,
+            IsDescending = sortDescending,
+            Columns = columns
+        };
+        var apiUrl = $"{Http.BaseAddress}api/section-outsource/print-all-file";
+        var json = JsonSerializer.Serialize(request);
+        Snackbar.Add("正在生成PDF...", Severity.Info);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
     private void NavigateToCreate() => Navigation.NavigateTo("/section-outsources/create");
@@ -755,6 +814,111 @@ public partial class SectionOutsources
         if (!selectedIds.Any()) return;
         var ids = string.Join(",", selectedIds);
         Navigation.NavigateTo($"/section-outsources/create-recovery?ids={ids}");
+    }
+
+    // ========== 分组渲染 ==========
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+
+        // 选择列占位（40px），对齐表格最左侧的 checkbox 列
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        int? lastKey = null;
+        int totalWidth = 0;
+        var groupKey = 0;
+        var groupName = "";
+        var count = 0;
+
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (lastKey.HasValue && gk != lastKey.Value)
+            {
+                if (count > 0)
+                {
+                    result.Add(new GroupHeaderInfo
+                    {
+                        GroupKey = groupKey,
+                        GroupName = groupName,
+                        TotalWidth = totalWidth,
+                        ColumnCount = count,
+                        CssClass = GetHeaderGroupCss(groupKey, true)
+                    });
+                }
+                totalWidth = 0;
+                count = 0;
+            }
+            groupKey = gk;
+            groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++;
+            lastKey = gk;
+        }
+        if (count > 0)
+        {
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        }
+
+        // 操作列占位，对齐表格最右侧的操作按钮列
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 90,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1",
+            2 => "col-g2",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1-cell",
+            2 => "col-g2-cell",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
     }
 
     // ========== 持久化 ==========

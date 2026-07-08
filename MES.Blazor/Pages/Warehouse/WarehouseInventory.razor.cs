@@ -65,6 +65,9 @@ public partial class WarehouseInventory
     // 多选
     private HashSet<InventoryBatchDto> _selectedItems = new();
 
+    // ========== 待出库用料计划通知 ==========
+    private List<PendingPlanBatchDto> _pendingPlanBatches = new();
+
     // ========== 列定义 ==========
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
@@ -603,8 +606,7 @@ public partial class WarehouseInventory
             }
 
             // 注意：筛选上下文已在 ResolveWarehouse() 中加载
-            await LoadWarehouseMismatches(); // 自动检查工单号有效性
-            _ = LoadPendingPlanBatches(); // 自动检查待出库用料计划
+            await LoadPendingPlanBatches(); // 自动检查待出库用料计划
             _initialized = true;
         }
     }
@@ -764,7 +766,7 @@ public partial class WarehouseInventory
                 Columns = columns
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/inventory/print-inventory-selected";
+            var apiUrl = $"{Http.BaseAddress}api/inventory/print-stock-selected-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -786,7 +788,7 @@ public partial class WarehouseInventory
                 Columns = columns
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/inventory/print-inventory-all";
+            var apiUrl = $"{Http.BaseAddress}api/inventory/print-stock-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -814,32 +816,6 @@ public partial class WarehouseInventory
         _ => Icons.Material.Filled.Warehouse
     };
 
-    // ========== 工单号自动验证（页面加载时执行） ==========
-
-    private async Task LoadWarehouseMismatches()
-    {
-        if (warehouseId <= 0) return;
-
-        try
-        {
-            var result = await InventoryService.ValidateWorkOrderNosAsync(warehouseId);
-            if (result.Success && result.Data != null && result.Data.Count > 0)
-            {
-                var woNos = string.Join("\u3001", result.Data);
-                Snackbar.Add($"入库数据中包含已不存在的工单号：{woNos}，需修改！",
-                    Severity.Warning, config =>
-                    {
-                        config.VisibleStateDuration = 20000;
-                        config.Action = "忽略";
-                    });
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"工单号验证失败: {ex.Message}", Severity.Error);
-        }
-    }
-
     // ========== 待出库用料计划通知（页面加载时执行） ==========
 
     private async Task LoadPendingPlanBatches()
@@ -849,18 +825,13 @@ public partial class WarehouseInventory
         try
         {
             var result = await MaterialPlanService.GetPendingPlanBatchesAsync(warehouseId);
-            if (result.Success && result.Data != null && result.Data.Count > 0)
+            if (result.Success && result.Data != null)
             {
-                var items = result.Data
-                    .Select(d => $"{d.BatchNo}（{d.WorkOrderNo}，{d.PlanType}）")
-                    .ToList();
-                var batchInfo = string.Join("\u3001", items);
-                Snackbar.Add($"以下批次存在库存使用/库料改制计划，请及时出库：{batchInfo}",
-                    Severity.Warning, config =>
-                    {
-                        config.VisibleStateDuration = 20000;
-                        config.Action = "忽略";
-                    });
+                _pendingPlanBatches = result.Data;
+            }
+            else
+            {
+                _pendingPlanBatches.Clear();
             }
         }
         catch (Exception ex)

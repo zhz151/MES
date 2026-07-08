@@ -23,13 +23,6 @@ public class WorkOrdersTests : TestBase
             Code = 200,
             Data = new Dictionary<string, List<string>>()
         });
-        // OnInitializedAsync 调用 LoadCancelledOrders
-        ConfigureResponse("/api/workorder/cancelled-orders", new ApiResponse<List<CancelledOrderDto>>
-        {
-            Success = true,
-            Code = 200,
-            Data = new List<CancelledOrderDto>()
-        });
     }
 
     [Fact]

@@ -77,6 +77,18 @@ public interface IPicklingService
         DateTime? completeDateFrom, DateTime? completeDateTo,
         List<PrintColumnDef> columns);
 
+    /// <summary>
+    /// 批量打印完工记录（选中）
+    /// </summary>
+    Task<byte[]> PrintOutBatchAsync(int[] ids, List<PrintColumnDef> columns);
+
+    /// <summary>
+    /// 按筛选条件打印全部完工记录
+    /// </summary>
+    Task<byte[]> PrintOutAllAsync(string? keyword, string? sortBy, bool isDescending,
+        DateTime? completeDateFrom, DateTime? completeDateTo,
+        List<PrintColumnDef> columns);
+
     // ========== 筛选上下文 ==========
 
     /// <summary>

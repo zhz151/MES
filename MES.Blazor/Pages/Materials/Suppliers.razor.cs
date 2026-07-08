@@ -639,12 +639,12 @@ public partial class Suppliers
         }
         try
         {
+            Snackbar.Add("正在生成PDF...", Severity.Info);
             var ids = selectedIds.ToArray();
-            var result = await SupplierService.PrintSupplierBatchAsync(ids);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var request = new OrderPrintBatchRequest { Ids = ids };
+            var apiUrl = $"{Navigation.BaseUri}api/supplier/print-batch-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
@@ -656,13 +656,16 @@ public partial class Suppliers
     {
         try
         {
-            var result = await SupplierService.PrintSupplierAllAsync(
-                string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                sortColumn, sortDescending);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var request = new OrderPrintAllRequest
+            {
+                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                SortBy = sortColumn,
+                IsDescending = sortDescending
+            };
+            var apiUrl = $"{Navigation.BaseUri}api/supplier/print-all-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {

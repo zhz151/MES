@@ -181,6 +181,34 @@ public class CustomerController : ControllerBase
     }
 
     /// <summary>
+    /// 批量打印客户（直接返回 PDF 文件）
+    /// </summary>
+    [HttpPost("print-batch-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<IActionResult> PrintBatchFile([FromBody] OrderPrintBatchRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _customerService.PrintCustomerBatchAsync(request.Ids);
+        return File(pdfBytes, "application/pdf", "客户打印.pdf");
+    }
+
+    /// <summary>
+    /// 按筛选条件打印全部客户（直接返回 PDF 文件）
+    /// </summary>
+    [HttpPost("print-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<IActionResult> PrintAllFile([FromBody] OrderPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _customerService.PrintCustomerAllAsync(request.Keyword, request.SortBy, request.IsDescending);
+        return File(pdfBytes, "application/pdf", "客户列表.pdf");
+    }
+
+    /// <summary>
     /// 删除客户（物理删除）
     /// </summary>
     [HttpDelete("{id}")]

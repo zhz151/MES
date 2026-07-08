@@ -169,4 +169,39 @@ public class EquipmentController : ControllerBase
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
+
+    [HttpPost("print-batch-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    public async Task<IActionResult> PrintBatchFile([FromBody] EquipmentPrintBatchRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
+        return File(pdfBytes, "application/pdf", "设备台账打印.pdf");
+    }
+
+    [HttpPost("print-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    public async Task<IActionResult> PrintAllFile([FromBody] EquipmentPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var query = new EquipmentQueryParams
+        {
+            Keyword = request.Keyword,
+            SortBy = string.IsNullOrEmpty(request.SortBy) ? "CreatedTime" : request.SortBy,
+            IsDescending = request.IsDescending,
+            LifecycleStatus = request.LifecycleStatus,
+            UsageType = request.UsageType,
+            RunningStatus = request.RunningStatus,
+            InspectionStatus = request.InspectionStatus,
+            MaintStatus = request.MaintStatus,
+            Location = request.Location,
+            RelatedSection = request.RelatedSection
+        };
+        var pdfBytes = await _service.PrintAllAsync(query, request.Columns);
+        return File(pdfBytes, "application/pdf", "设备台账列表.pdf");
+    }
 }

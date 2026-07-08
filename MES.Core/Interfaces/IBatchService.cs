@@ -99,7 +99,7 @@ public interface IBatchService
     /// <summary>
     /// 打印选中批次
     /// </summary>
-    Task<byte[]> PrintBatchSelectedAsync(int[] ids);
+    Task<byte[]> PrintBatchSelectedAsync(int[] ids, List<PrintColumnDef> columns);
 
     /// <summary>
     /// 打印工艺流转卡（A4，5区块，列选择）

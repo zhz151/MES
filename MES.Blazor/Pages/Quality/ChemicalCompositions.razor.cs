@@ -630,73 +630,35 @@ public partial class ChemicalCompositions
 
     // ========== 打印 ==========
 
+    private List<PrintColumnDef> GetPrintColumnDefs() =>
+        _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+
     private async Task PrintSelected()
     {
-        if (!selectedIds.Any())
+        if (!selectedIds.Any()) return;
+        var apiUrl = $"{Http.BaseAddress}api/chemical-composition/print-batch-file";
+        var request = new ChemicalCompositionPrintBatchRequest
         {
-            Snackbar.Add("请先选择要打印的化学成分记录", Severity.Warning);
-            return;
-        }
-        await JS.InvokeVoidAsync("printTable", "#chemical-composition-list-table", "牌号化学成分（选中记录）");
+            Ids = selectedIds.ToArray(),
+            Columns = GetPrintColumnDefs()
+        };
+        var json = JsonSerializer.Serialize(request);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
     private async Task PrintAll()
     {
-        if (!_pageItems.Any())
+        var apiUrl = $"{Http.BaseAddress}api/chemical-composition/print-all-file";
+        var request = new ChemicalCompositionPrintAllRequest
         {
-            Snackbar.Add("没有可打印的数据", Severity.Warning);
-            return;
-        }
-        var html = BuildPrintHtml(_pageItems);
-        await JS.InvokeVoidAsync("printRawHtml", html, "牌号化学成分");
+            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+            SortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "plantgrade",
+            IsDescending = sortDescending,
+            Columns = GetPrintColumnDefs()
+        };
+        var json = JsonSerializer.Serialize(request);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
-
-    private string BuildPrintHtml(IEnumerable<ChemicalCompositionDto> items)
-    {
-        var sb = new System.Text.StringBuilder();
-        sb.Append("<table><thead><tr>");
-        foreach (var col in _visibleColumns)
-        {
-            sb.Append("<th>").Append(System.Net.WebUtility.HtmlEncode(col.Label)).Append("</th>");
-        }
-        sb.Append("</tr></thead><tbody>");
-        foreach (var item in items)
-        {
-            sb.Append("<tr>");
-            foreach (var col in _visibleColumns)
-            {
-                sb.Append("<td>");
-                sb.Append(System.Net.WebUtility.HtmlEncode(GetCellPrintValue(item, col)));
-                sb.Append("</td>");
-            }
-            sb.Append("</tr>");
-        }
-        sb.Append("</tbody></table>");
-        return sb.ToString();
-    }
-
-    private string? GetCellPrintValue(ChemicalCompositionDto item, ColumnDef col) => col.Key switch
-    {
-        "PlantGrade" => item.PlantGrade,
-        "Carbon" => item.Carbon,
-        "Silicon" => item.Silicon,
-        "Manganese" => item.Manganese,
-        "Phosphorus" => item.Phosphorus,
-        "Sulfur" => item.Sulfur,
-        "Nickel" => item.Nickel,
-        "Chromium" => item.Chromium,
-        "Molybdenum" => item.Molybdenum,
-        "Copper" => item.Copper,
-        "Nitrogen" => item.Nitrogen,
-        "Niobium" => item.Niobium,
-        "Titanium" => item.Titanium,
-        "Iron" => item.Iron,
-        "Aluminum" => item.Aluminum,
-        "Tungsten" => item.Tungsten,
-        "PREN" => item.PREN,
-        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
-        _ => ""
-    };
 
     // ========== 持久化 ==========
 

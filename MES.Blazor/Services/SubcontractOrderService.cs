@@ -141,6 +141,7 @@ public class SubcontractOrderService
 
     // ========== 打印 ==========
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintOrderAsync(int id)
     {
         try
@@ -151,6 +152,7 @@ public class SubcontractOrderService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintOrderBatchAsync(int[] ids)
     {
         try
@@ -162,6 +164,7 @@ public class SubcontractOrderService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintOrderAllAsync(string? keyword = null, string? sortBy = null, bool isDescending = false)
     {
         try

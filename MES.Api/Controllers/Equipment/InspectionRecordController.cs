@@ -167,4 +167,33 @@ public class InspectionRecordController : ControllerBase
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
+
+    [HttpPost("print-batch-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    public async Task<IActionResult> PrintBatchFile([FromBody] InspectionRecordPrintBatchRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
+        return File(pdfBytes, "application/pdf", "点检记录打印.pdf");
+    }
+
+    [HttpPost("print-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    public async Task<IActionResult> PrintAllFile([FromBody] InspectionRecordPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var query = new InspectionRecordQueryParams
+        {
+            Keyword = request.Keyword,
+            SortBy = string.IsNullOrEmpty(request.SortBy) ? "Id" : request.SortBy,
+            IsDescending = request.IsDescending,
+            EquipmentId = request.EquipmentId
+        };
+        var pdfBytes = await _service.PrintAllAsync(query, request.Columns);
+        return File(pdfBytes, "application/pdf", "点检记录列表.pdf");
+    }
 }

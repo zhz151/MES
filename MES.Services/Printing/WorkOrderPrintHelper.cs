@@ -3,6 +3,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using MES.Data.Entities;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 using WoEntity = MES.Data.Entities.WorkOrder;
 
 namespace MES.Services.Printing;
@@ -105,7 +106,7 @@ public static class WorkOrderPrintHelper
 
             col.Item().PaddingTop(2).Row(row =>
             {
-                row.RelativeItem().AlignLeft().Text(GetStatusText(entity.Status))
+                row.RelativeItem().AlignLeft().Text(EnumHelper.GetDisplayName(entity.Status))
                     .FontSize(9).FontColor(GetStatusColor(entity.Status));
             });
 
@@ -183,7 +184,7 @@ public static class WorkOrderPrintHelper
                     t.Span("工单号：").Bold().FontSize(10);
                     t.Span(entity.WorkOrderNo).FontSize(10);
                     t.Span("  [").FontSize(8);
-                    t.Span(GetStatusText(entity.Status)).FontSize(8).FontColor(GetStatusColor(entity.Status));
+                    t.Span(EnumHelper.GetDisplayName(entity.Status)).FontSize(8).FontColor(GetStatusColor(entity.Status));
                     t.Span("]").FontSize(8);
                 });
                 row.RelativeItem().AlignRight().Text(t =>
@@ -290,8 +291,8 @@ public static class WorkOrderPrintHelper
             ("最终用户", entity.EndCustomer ?? "-"),
             ("交货日期", entity.DeliveryDate.ToString("yyyy-MM-dd")),
             ("延期罚款", entity.DelayPenalty ? "是" : "否"),
-            ("物料名称", GetMaterialText(entity.MaterialName)),
-            ("结算方式", GetSettlementText(entity.SettlementMethod)),
+            ("物料名称", EnumHelper.GetDisplayName(entity.MaterialName)),
+            ("结算方式", EnumHelper.GetDisplayName(entity.SettlementMethod)),
             ("标准编码", entity.StandardCode),
         };
     }
@@ -300,19 +301,19 @@ public static class WorkOrderPrintHelper
     {
         return new List<(string, string)>
         {
-            ("交货状态", GetDeliveryStateText(entity.DeliveryState)),
+            ("交货状态", EnumHelper.GetDisplayName(entity.DeliveryState)),
             ("工厂牌号", entity.PlantGrade),
             ("规格", FormatSpec(entity.Specification)),
             ("外径公差", $"-{entity.OuterDiameterNegative:G29}/+{entity.OuterDiameterPositive:G29}"),
             ("壁厚公差", $"-{entity.WallThicknessNegative:G29}/+{entity.WallThicknessPositive:G29}"),
-            ("长度状态", GetLengthStatusText(entity.LengthStatus)),
+            ("长度状态", EnumHelper.GetDisplayName(entity.LengthStatus)),
             ("最小长度", entity.MinLength.HasValue ? $"{entity.MinLength:G29} mm" : "-"),
             ("最大长度", entity.MaxLength.HasValue ? $"{entity.MaxLength:G29} mm" : "-"),
             ("总支数", $"{entity.TotalQuantity} 支"),
             ("总米数", $"{entity.TotalMeters:G29} m"),
             ("总重量", $"{entity.TotalWeight:G29} kg"),
             ("理论单支重", $"{CalculateUnitWeight(entity):G29} kg"),
-            ("技术要求", entity.TechnicalRequirements == RequirementType.Special ? "特殊" : "常规"),
+            ("技术要求", EnumHelper.GetDisplayName(entity.TechnicalRequirements)),
         };
     }
 
@@ -341,57 +342,11 @@ public static class WorkOrderPrintHelper
 
     // ========== 辅助方法 ==========
 
-    private static string GetStatusText(WorkOrderStatus status) => status switch
-    {
-        WorkOrderStatus.NotGenerated => "未编制",
-        WorkOrderStatus.Confirmed => "已确定",
-        WorkOrderStatus.Pending => "待修正",
-        _ => status.ToString()
-    };
-
     private static string GetStatusColor(WorkOrderStatus status) => status switch
     {
         WorkOrderStatus.Confirmed => Colors.Green.Darken1,
         WorkOrderStatus.Pending => Colors.Orange.Darken1,
         _ => Colors.Grey.Darken1
-    };
-
-    private static string GetMaterialText(MaterialName name) => name switch
-    {
-        MaterialName.SeamlessPipe => "无缝管",
-        MaterialName.WeldedPipe => "焊管",
-        _ => name.ToString()
-    };
-
-    private static string GetSettlementText(SettlementMethod method) => method switch
-    {
-        SettlementMethod.Theoretical => "理算",
-        SettlementMethod.Weighing => "过磅",
-        SettlementMethod.WeighingNegative => "过磅-负",
-        _ => method.ToString()
-    };
-
-    private static string GetDeliveryStateText(DeliveryState state) => state switch
-    {
-        DeliveryState.SolutionAnnealedAndPickled => "固溶酸洗",
-        DeliveryState.SolutionAnnealedAndPickledUTube => "固溶酸洗-U型管",
-        DeliveryState.SolutionAnnealedAndPickledExternalPolished => "固溶酸洗-外抛光",
-        DeliveryState.SolutionAnnealedAndPickledInternalPolished => "固溶酸洗-内抛光",
-        DeliveryState.SolutionAnnealedAndPickledBothPolished => "固溶酸洗-内外抛光",
-        DeliveryState.SolutionAnnealedAndPickledCoiled => "固溶酸洗-盘管",
-        DeliveryState.Bright => "光亮",
-        DeliveryState.BrightUTube => "光亮-U型管",
-        DeliveryState.BrightCoiled => "光亮-盘管",
-        DeliveryState.Hard => "硬态",
-        _ => state.ToString()
-    };
-
-    private static string GetLengthStatusText(LengthStatus status) => status switch
-    {
-        LengthStatus.Fixed => "定尺",
-        LengthStatus.Range => "范围尺",
-        LengthStatus.NonFixed => "非定尺",
-        _ => status.ToString()
     };
 
     private static string FormatSpec(string specification)

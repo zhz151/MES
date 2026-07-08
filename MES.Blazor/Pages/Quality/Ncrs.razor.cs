@@ -654,6 +654,11 @@ public partial class Ncrs
                 CssClass = GetHeaderGroupCss(groupKey, true)
             });
         }
+        // 操作列尾随占位符（160px）
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0, GroupName = "", TotalWidth = 160, ColumnCount = 0, CssClass = ""
+        });
         return result;
     }
 

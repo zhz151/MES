@@ -14,11 +14,6 @@ public interface IWorkOrderService
     Task<PagedResult<OrderWorkOrderStatusDto>> GetOrderWorkOrderStatusPageAsync(WorkOrderQueryParams query);
 
     /// <summary>
-    /// 获取"订单已取消-工单待删除"列表
-    /// </summary>
-    Task<List<CancelledOrderDto>> GetCancelledOrdersAsync();
-
-    /// <summary>
     /// 获取已确认但无工单的订单列表（待生成工单）
     /// </summary>
     Task<List<WorkOrderListItemDto>> GetPendingOrdersAsync();

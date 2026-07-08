@@ -71,30 +71,37 @@ public partial class ProductionRecords
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "ExecDate",          Label = "执行日期",   SortKey = "execdate", FilterType = "date", Width = "120" },
-        new() { Key = "BatchNo",           Label = "生产编号",   SortKey = "batchno",           FilterType = "string", Width = "120" },
-        new() { Key = "ProcessName",       Label = "工序名称",   SortKey = "processname",       FilterType = "string", Width = "120" },
-        new() { Key = "ManufacturingSpec", Label = "制造规格", SortKey = "manufacturingspec", FilterType = "string", Width = "120" },
-        new() { Key = "SectionName",       Label = "工段名称",   SortKey = "sectionname",       FilterType = "string", Width = "120" },
-        new() { Key = "SequenceNumber",    Label = "执行序号",   SortKey = "sequencenumber", Width = "45" },
-        new() { Key = "EquipmentName",     Label = "设备名称",   SortKey = "equipmentname",     FilterType = "string", Width = "120" },
-        new() { Key = "Operator",          Label = "操作人",     SortKey = "operator",          FilterType = "string", Width = "120" },
-        new() { Key = "Shift",             Label = "班次",       SortKey = "shift",             FilterType = "string", Width = "120" },
-        new() { Key = "Quantity",          Label = "加工支数",   SortKey = "quantity", Width = "80" },
-        new() { Key = "Weight",            Label = "加工重量",   SortKey = "weight", Width = "80" },
-        new() { Key = "SolutionTemperature", Label = "固溶温度(℃)", SortKey = "solutiontemperature", Width = "80" },
-        new() { Key = "SoakTime",           Label = "保温时间(min)", SortKey = "soaktime", Width = "80" },
-        new() { Key = "IsFinished",        Label = "是否成品", SortKey = "isfinished",         FilterType = "boolean", BoolTrueLabel = "成品", BoolFalseLabel = "在制品", Width = "60" },
-        new() { Key = "CuttingMultiple",   Label = "断切倍数",   SortKey = "cuttingmultiple", Width = "80" },
-        new() { Key = "FinishedCutLength", Label = "成品长度",   SortKey = "finishedcutlength", Width = "80" },
-        new() { Key = "PostCutQuantity",   Label = "切后支数",   SortKey = "postcutquantity", Width = "80" },
-        new() { Key = "FaceCutCount",      Label = "平头数",     SortKey = "facecutcount", Width = "60" },
-        new() { Key = "TagNo",             Label = "挂牌号",     SortKey = "tagno",             FilterType = "string", Width = "120" },
-        new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade",        FilterType = "string", Width = "120" },
-        new() { Key = "Remark",            Label = "备注",       SortKey = "remark",            FilterType = "string", Width = "120" },
-        new() { Key = "DataSource",        Label = "数据来源",   SortKey = "datasource",        FilterType = "enum", Width = "80",
+        // ===== Group 1: 执行信息 =====
+        new() { Key = "ExecDate",          Label = "执行日期",   SortKey = "execdate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "执行信息" },
+        new() { Key = "BatchNo",           Label = "生产编号",   SortKey = "batchno",           FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
+        new() { Key = "ProcessName",       Label = "工序名称",   SortKey = "processname",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
+        new() { Key = "ManufacturingSpec", Label = "制造规格",   SortKey = "manufacturingspec", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
+        new() { Key = "SectionName",       Label = "工段名称",   SortKey = "sectionname",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
+        new() { Key = "SequenceNumber",    Label = "执行序号",   SortKey = "sequencenumber", Width = "45", GroupKey = 1, GroupName = "执行信息" },
+
+        // ===== Group 2: 产出数据 =====
+        new() { Key = "EquipmentName",     Label = "设备名称",   SortKey = "equipmentname",     FilterType = "string", Width = "120", GroupKey = 2, GroupName = "产出数据" },
+        new() { Key = "Operator",          Label = "操作人",     SortKey = "operator",          FilterType = "string", Width = "120", GroupKey = 2, GroupName = "产出数据" },
+        new() { Key = "Shift",             Label = "班次",       SortKey = "shift",             FilterType = "string", Width = "120", GroupKey = 2, GroupName = "产出数据" },
+        new() { Key = "Quantity",          Label = "加工支数",   SortKey = "quantity", Width = "80", GroupKey = 2, GroupName = "产出数据" },
+        new() { Key = "Weight",            Label = "加工重量",   SortKey = "weight", Width = "80", GroupKey = 2, GroupName = "产出数据" },
+        new() { Key = "IsFinished",        Label = "是否成品",   SortKey = "isfinished",         FilterType = "boolean", BoolTrueLabel = "成品", BoolFalseLabel = "在制品", Width = "60", GroupKey = 2, GroupName = "产出数据" },
+        new() { Key = "CuttingMultiple",   Label = "断切倍数",   SortKey = "cuttingmultiple", Width = "80", GroupKey = 2, GroupName = "产出数据" },
+        new() { Key = "FinishedCutLength", Label = "成品长度",   SortKey = "finishedcutlength", Width = "80", GroupKey = 2, GroupName = "产出数据" },
+        new() { Key = "PostCutQuantity",   Label = "切后支数",   SortKey = "postcutquantity", Width = "80", GroupKey = 2, GroupName = "产出数据" },
+        new() { Key = "FaceCutCount",      Label = "平头数",     SortKey = "facecutcount", Width = "60", GroupKey = 2, GroupName = "产出数据" },
+
+        // ===== Group 3: 工艺参数 =====
+        new() { Key = "SolutionTemperature", Label = "固溶温度(℃)", SortKey = "solutiontemperature", Width = "80", GroupKey = 3, GroupName = "工艺参数" },
+        new() { Key = "SoakTime",           Label = "保温时间(min)", SortKey = "soaktime", Width = "80", GroupKey = 3, GroupName = "工艺参数" },
+
+        // ===== Group 4: 追溯信息 =====
+        new() { Key = "TagNo",             Label = "挂牌号",     SortKey = "tagno",             FilterType = "string", Width = "120", GroupKey = 4, GroupName = "追溯信息" },
+        new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade",        FilterType = "string", Width = "120", GroupKey = 4, GroupName = "追溯信息" },
+        new() { Key = "Remark",            Label = "备注",       SortKey = "remark",            FilterType = "string", Width = "120", GroupKey = 4, GroupName = "追溯信息" },
+        new() { Key = "DataSource",        Label = "数据来源",   SortKey = "datasource",        FilterType = "enum", Width = "80", GroupKey = 4, GroupName = "追溯信息",
             EnumOptions = new() { new("SCAN", "扫码"), new("MANUAL", "手动") } },
-        new() { Key = "UpdatedTime",       Label = "更新日期",   SortKey = "updatedtime", Width = "120" },
+        new() { Key = "UpdatedTime",       Label = "更新日期",   SortKey = "updatedtime", Width = "120", GroupKey = 4, GroupName = "追溯信息" },
     };
 
     // ========== 分页汇总计算 ==========
@@ -321,6 +328,7 @@ public partial class ProductionRecords
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        selectedIds.Clear();
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -551,6 +559,12 @@ public partial class ProductionRecords
             if (!await JS.InvokeAsync<bool>("enableTableArrowNav", new object[] { "#production-records-list-table" }))
                 _isArrowNavSetup = false;
         }
+
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#production-records-list-table");
+        }
+        catch { }
     }
 
     // ========== 导航 ==========
@@ -907,11 +921,11 @@ public partial class ProductionRecords
         {
             var ids = selectedIds.ToArray();
             var cols = GetPrintColumnDefs();
-            var result = await ProductionRecordService.PrintBatchAsync(ids, cols);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", new object[] { result.Data });
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var request = new ProductionRecordPrintBatchRequest { Ids = ids, Columns = cols };
+            var apiUrl = $"{Http.BaseAddress}api/production-record/print-batch-file";
+            var json = JsonSerializer.Serialize(request);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
@@ -926,19 +940,131 @@ public partial class ProductionRecords
             var cols = GetPrintColumnDefs();
             var sortCol = _allColumns.FirstOrDefault(c => c.Key == sortColumn);
             var sortBy = sortCol?.SortKey ?? sortColumn ?? "createdtime";
-            var filtersJson = SerializeFilters();
-            var result = await ProductionRecordService.PrintAllAsync(
-                string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                sortBy, sortDescending, cols);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", new object[] { result.Data });
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var request = new ProductionRecordPrintAllRequest
+            {
+                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                SortBy = sortBy,
+                IsDescending = sortDescending,
+                Columns = cols
+            };
+            var apiUrl = $"{Http.BaseAddress}api/production-record/print-all-file";
+            var json = JsonSerializer.Serialize(request);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
             Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
         }
+    }
+
+    // ========== 分组渲染 ==========
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+
+        // 选择列占位（40px），对齐表格最左侧的 checkbox 列
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        int? lastKey = null;
+        int totalWidth = 0;
+        var groupKey = 0;
+        var groupName = "";
+        var count = 0;
+
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (lastKey.HasValue && gk != lastKey.Value)
+            {
+                if (count > 0)
+                {
+                    result.Add(new GroupHeaderInfo
+                    {
+                        GroupKey = groupKey,
+                        GroupName = groupName,
+                        TotalWidth = totalWidth,
+                        ColumnCount = count,
+                        CssClass = GetHeaderGroupCss(groupKey, true)
+                    });
+                }
+                totalWidth = 0;
+                count = 0;
+            }
+            groupKey = gk;
+            groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++;
+            lastKey = gk;
+        }
+        if (count > 0)
+        {
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        }
+
+        // 操作列占位
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 90,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g3",
+            2 => "col-g4",
+            3 => "col-g5",
+            4 => "col-g6",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g3-cell",
+            2 => "col-g4-cell",
+            3 => "col-g5-cell",
+            4 => "col-g6-cell",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
     }
 
     // ========== 持久化 ==========

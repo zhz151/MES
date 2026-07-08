@@ -612,12 +612,12 @@ public partial class Materials
         }
         try
         {
+            Snackbar.Add("正在生成PDF...", Severity.Info);
             var ids = selectedIds.ToArray();
-            var result = await MaterialService.PrintMaterialBatchAsync(ids);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var request = new OrderPrintBatchRequest { Ids = ids };
+            var apiUrl = $"{Navigation.BaseUri}api/material/print-batch-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
@@ -629,14 +629,17 @@ public partial class Materials
     {
         try
         {
+            Snackbar.Add("正在生成PDF...", Severity.Info);
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "materialcode";
-            var result = await MaterialService.PrintMaterialAllAsync(
-                string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                sortBy, sortDescending);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var request = new OrderPrintAllRequest
+            {
+                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                SortBy = sortBy,
+                IsDescending = sortDescending
+            };
+            var apiUrl = $"{Navigation.BaseUri}api/material/print-all-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {

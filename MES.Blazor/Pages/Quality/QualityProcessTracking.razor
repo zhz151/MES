@@ -14,6 +14,7 @@
 @inject IJSRuntime JS
 @inject PageStateService PageState
 @inject ColumnPrefsService ColumnPrefs
+@inject HttpClient Http
 @attribute [Authorize(Roles = Roles.Policies.QualityRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
@@ -39,9 +40,7 @@
             <div id="quality-process-tracking-list-table">
             @{
                 var _groupHeaders = GetGroupHeaders();
-                var _checkboxWidth = 40;
-                var _checkboxWidthStr = "40";
-                var _totalTableWidth = _checkboxWidth + _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100);
+                var _totalTableWidth = 40 + _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100);
             }
             @* 工具栏：列显隐 + 重置（左）+ 打印 + 记录数（右） *@
             <div class="woe-toolbar">
@@ -82,7 +81,6 @@
             @* 分组标题栏 *@
             <div class="col-group-header-scroll" id="qpt-group-header-scroll">
                 <div class="col-group-header-bar" style="@("width: " + _totalTableWidth + "px")">
-                    <div class="col-group-header-item" style="@("width: " + _checkboxWidthStr + "px; min-width: " + _checkboxWidthStr + "px")"></div>
                     @foreach (var gh in _groupHeaders)
                     {
                         <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
@@ -97,7 +95,7 @@
                       Elevation="0" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
 
                 <HeaderContent>
-                    <MudTh Style="@("width: 40px")">
+                    <MudTh Class="col-selection-th" Style="@("width: 40px")">
                         <MudCheckBox T="bool"
                                      Value="@(_pageItems.Any() && _pageItems.All(i => _selectedIds.Contains(i.Id)))"
                                      ValueChanged="@((v) => { if(v) { foreach(var i in _pageItems) _selectedIds.Add(i.Id); } else { foreach(var i in _pageItems) _selectedIds.Remove(i.Id); } StateHasChanged(); })"
@@ -132,7 +130,7 @@
                 </HeaderContent>
 
                 <RowTemplate Context="item">
-                    <MudTd Style="@("width: 40px")">
+                    <MudTd Class="col-selection-td" Style="@("width: 40px")">
                         <MudCheckBox T="bool"
                                      Value="@_selectedIds.Contains(item.Id)"
                                      ValueChanged="@(v => { if(v) _selectedIds.Add(item.Id); else _selectedIds.Remove(item.Id); StateHasChanged(); })"

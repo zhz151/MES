@@ -19,7 +19,25 @@ public partial class PicklingInRecords
     private MudTable<PicklingInRecordDto>? table;
     private List<PicklingInRecordDto> _pageItems = new();
     private int _totalCount;
+    private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
+    private bool allSelected
+    {
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
+        set
+        {
+            if (value)
+            {
+                foreach (var item in _pageItems)
+                    selectedIds.Add(item.Id);
+            }
+            else
+            {
+                selectedIds.Clear();
+            }
+            StateHasChanged();
+        }
+    }
     private int _currentPageIndex;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
@@ -74,31 +92,29 @@ public partial class PicklingInRecords
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        // G1: 批次信息
-        new() { Key = "BatchNo",             Label = "生产编号",     SortKey = "batchno",             FilterType = "string", Width = "120" },
-        new() { Key = "ProcessName",         Label = "工序名称",     SortKey = "processname",         FilterType = "string", Width = "120" },
-        new() { Key = "ManufacturingSpec",   Label = "制造规格",     SortKey = "manufacturingspec",   FilterType = "string", Width = "120" },
-        new() { Key = "SequenceNumber",      Label = "执行序号",     SortKey = "sequencenumber",      FilterType = "string", Width = "80" },
-        // G2: 入缸信息
-        new() { Key = "InDate",              Label = "入缸日期",     SortKey = "indate",              FilterType = "date", Width = "120" },
-        new() { Key = "SectionName",         Label = "工段名称",     SortKey = "sectionname",         FilterType = "string", Width = "100" },
-        new() { Key = "EquipmentName",       Label = "设备名称",     SortKey = "equipmentname",       FilterType = "string", Width = "100" },
-        new() { Key = "Operator",            Label = "操作人",       SortKey = "operator",            FilterType = "string", Width = "80" },
-        new() { Key = "Shift",               Label = "班次",         SortKey = "shift",               FilterType = "string", Width = "80" },
-        new() { Key = "Quantity",            Label = "加工支数",     SortKey = "quantity",            Width = "80" },
-        new() { Key = "Weight",              Label = "加工重量",     SortKey = "weight",              Width = "80" },
-        new() { Key = "IsFinished",          Label = "是否成品",     SortKey = "isfinished",          FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "80" },
-        new() { Key = "TagNo",               Label = "挂牌号",       SortKey = "tagno",               FilterType = "string", Width = "120" },
-        new() { Key = "PlantGrade",          Label = "工厂牌号",     SortKey = "plantgrade",          FilterType = "string", Width = "120" },
-        // G3: 完工信息
-        new() { Key = "Status",              Label = "状态",         SortKey = "status",              FilterType = "enum", Width = "100",
-            EnumOptions = new() { new("Soaking", "浸泡中"), new("Completed", "已完工") } },
-        new() { Key = "CompleteDate",        Label = "完工日期",     SortKey = "completedate",        FilterType = "date", Width = "120" },
-        new() { Key = "Remark",              Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120" },
-        new() { Key = "DataSource",          Label = "数据来源",     SortKey = "datasource",          FilterType = "enum", Width = "80",
+        // G1: 去油/酸洗信息
+        new() { Key = "BatchNo",             Label = "生产编号",     SortKey = "batchno",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "ProcessName",         Label = "工序名称",     SortKey = "processname",         FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "ManufacturingSpec",   Label = "制造规格",     SortKey = "manufacturingspec",   FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "SequenceNumber",      Label = "执行序号",     SortKey = "sequencenumber",      FilterType = "string", Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "InDate",              Label = "入缸日期",     SortKey = "indate",              FilterType = "date",   Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "SectionName",         Label = "工段名称",     SortKey = "sectionname",         FilterType = "string", Width = "100", GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "EquipmentName",       Label = "设备名称",     SortKey = "equipmentname",       FilterType = "string", Width = "100", GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "Operator",            Label = "操作人",       SortKey = "operator",            FilterType = "string", Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "Shift",               Label = "班次",         SortKey = "shift",               FilterType = "string", Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "Quantity",            Label = "加工支数",     SortKey = "quantity",                                       Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "Weight",              Label = "加工重量",     SortKey = "weight",                                         Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "IsFinished",          Label = "是否成品",     SortKey = "isfinished",          FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "80", GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "TagNo",               Label = "挂牌号",       SortKey = "tagno",               FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "PlantGrade",          Label = "工厂牌号",     SortKey = "plantgrade",          FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "Remark",              Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "DataSource",          Label = "数据来源",     SortKey = "datasource",          FilterType = "enum",   Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息",
             EnumOptions = new() { new("SCAN", "扫码"), new("MANUAL", "手动") } },
-        // G4: 操作
-        new() { Key = "UpdatedTime",         Label = "更新时间",     SortKey = "updatedtime", Width = "120" },
+        new() { Key = "UpdatedTime",         Label = "更新时间",     SortKey = "updatedtime",                                   Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
+        // G2: 完工信息
+        new() { Key = "Status",              Label = "状态",         SortKey = "status",              FilterType = "enum",   Width = "100", GroupKey = 2, GroupName = "完工信息",
+            EnumOptions = new() { new("Soaking", "浸泡中"), new("Completed", "已完工") } },
+        new() { Key = "CompleteDate",        Label = "完工日期",     SortKey = "completedate",        FilterType = "date",   Width = "120", GroupKey = 2, GroupName = "完工信息" },
     };
 
     // ========== 分页汇总计算 ==========
@@ -242,8 +258,11 @@ public partial class PicklingInRecords
 
     private async Task ConfirmDelete(PicklingInRecordDto item)
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认删除",
-            new DialogParameters { { "Message", $"确定要删除批次「{item.BatchNo}」的入缸记录吗？" } });
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认删除", new DialogParameters
+        {
+            ["ContentText"] = $"确定要删除批次「{item.BatchNo}」的入缸记录吗？",
+            ["ConfirmText"] = "删除"
+        });
         var result = await dialog.Result;
         if (!result.Canceled)
         {
@@ -422,6 +441,7 @@ public partial class PicklingInRecords
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        selectedIds.Clear();
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -490,23 +510,26 @@ public partial class PicklingInRecords
             }
         }
 
+        // 状态恢复后重新加载表格数据
+        if (savedState != null && table != null)
+            await table.ReloadServerData();
+
         await LoadFilterContextsAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        try
         {
-            // 恢复状态后 ReloadServerData
-            var savedState = await PageState.LoadAsync("picklinginrecords");
-            if (savedState != null && table != null)
-                await table.ReloadServerData();
+            await JS.InvokeVoidAsync("initGroupHeaders", "#pickling-in-records-list-table");
         }
+        catch { }
 
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
-            await JS.InvokeVoidAsync("enableTableArrowNav", "pickling-in-records-list-table");
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#pickling-in-records-list-table"))
+                _isArrowNavSetup = false;
         }
     }
 
@@ -543,7 +566,7 @@ public partial class PicklingInRecords
                     builder.OpenComponent<MudTextField<string>>(0);
                     builder.AddAttribute(1, "Value", cache.EquipmentName);
                     builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.EquipmentName = v));
-                    builder.AddAttribute(3, "Class", "dense-input");
+                    builder.AddAttribute(3, "Class", "compact-input");
                     builder.CloseComponent();
                 }
                 else
@@ -557,7 +580,7 @@ public partial class PicklingInRecords
                     builder.OpenComponent<MudTextField<string>>(0);
                     builder.AddAttribute(1, "Value", cache.Operator);
                     builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.Operator = v));
-                    builder.AddAttribute(3, "Class", "dense-input");
+                    builder.AddAttribute(3, "Class", "compact-input");
                     builder.CloseComponent();
                 }
                 else
@@ -571,7 +594,7 @@ public partial class PicklingInRecords
                     builder.OpenComponent<MudTextField<string>>(0);
                     builder.AddAttribute(1, "Value", cache.Shift);
                     builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.Shift = v));
-                    builder.AddAttribute(3, "Class", "dense-input");
+                    builder.AddAttribute(3, "Class", "compact-input");
                     builder.CloseComponent();
                 }
                 else
@@ -585,13 +608,13 @@ public partial class PicklingInRecords
                     builder.OpenComponent<MudNumericField<int?>>(0);
                     builder.AddAttribute(1, "Value", cache.Quantity);
                     builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => cache.Quantity = v));
-                    builder.AddAttribute(3, "Class", "dense-input");
+                    builder.AddAttribute(3, "Class", "compact-input");
                     builder.AddAttribute(4, "HideSpinButtons", true);
                     builder.CloseComponent();
                 }
                 else
                 {
-                    builder.AddContent(0, item.Quantity?.ToString());
+                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.Quantity));
                 }
                 break;
             case "Weight":
@@ -600,14 +623,14 @@ public partial class PicklingInRecords
                     builder.OpenComponent<MudNumericField<decimal?>>(0);
                     builder.AddAttribute(1, "Value", cache.Weight);
                     builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => cache.Weight = v));
-                    builder.AddAttribute(3, "Class", "dense-input");
+                    builder.AddAttribute(3, "Class", "compact-input");
                     builder.AddAttribute(4, "HideSpinButtons", true);
                     builder.AddAttribute(5, "Format", "G29");
                     builder.CloseComponent();
                 }
                 else
                 {
-                    builder.AddContent(0, ((int)(item.Weight ?? 0)).ToString());
+                    builder.AddContent(0, $"{(int)(item.Weight ?? 0)}");
                 }
                 break;
             case "IsFinished":
@@ -678,7 +701,7 @@ public partial class PicklingInRecords
                     builder.OpenComponent<MudTextField<string>>(0);
                     builder.AddAttribute(1, "Value", cache.Remark);
                     builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.Remark = v));
-                    builder.AddAttribute(3, "Class", "dense-input");
+                    builder.AddAttribute(3, "Class", "compact-input");
                     builder.CloseComponent();
                 }
                 else
@@ -700,6 +723,157 @@ public partial class PicklingInRecords
                 break;
         }
     };
+
+    // ========== 打印 ==========
+
+    private async Task PrintSelected()
+    {
+        if (!selectedIds.Any())
+        {
+            Snackbar.Add("请先选择要打印的记录", Severity.Warning);
+            return;
+        }
+
+        var columns = _visibleColumns
+            .Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label })
+            .ToList();
+
+        var request = new PicklingInRecordPrintBatchRequest { Ids = selectedIds.ToArray(), Columns = columns };
+        var apiUrl = $"{Http.BaseAddress}api/pickling/print-selected-file";
+        var json = JsonSerializer.Serialize(request);
+        Snackbar.Add("正在生成PDF...", Severity.Info);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+    }
+
+    private async Task PrintAll()
+    {
+        var columns = _visibleColumns
+            .Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label })
+            .ToList();
+
+        var request = new PicklingInRecordPrintAllRequest
+        {
+            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword.Trim(),
+            SortBy = sortColumn,
+            IsDescending = sortDescending,
+            Columns = columns
+        };
+        var apiUrl = $"{Http.BaseAddress}api/pickling/print-all-file";
+        var json = JsonSerializer.Serialize(request);
+        Snackbar.Add("正在生成PDF...", Severity.Info);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+    }
+
+    // ========== 分组渲染 ==========
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+
+        // 选择列占位（40px）
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        int? lastKey = null;
+        int totalWidth = 0;
+        var groupKey = 0;
+        var groupName = "";
+        var count = 0;
+
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (lastKey.HasValue && gk != lastKey.Value)
+            {
+                if (count > 0)
+                {
+                    result.Add(new GroupHeaderInfo
+                    {
+                        GroupKey = groupKey,
+                        GroupName = groupName,
+                        TotalWidth = totalWidth,
+                        ColumnCount = count,
+                        CssClass = GetHeaderGroupCss(groupKey, true)
+                    });
+                }
+                totalWidth = 0;
+                count = 0;
+            }
+            groupKey = gk;
+            groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++;
+            lastKey = gk;
+        }
+        if (count > 0)
+        {
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        }
+
+        // 操作列占位（90px）
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 90,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1",
+            2 => "col-g2",
+            3 => "col-g3",
+            4 => "col-g4",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1-cell",
+            2 => "col-g2-cell",
+            3 => "col-g3-cell",
+            4 => "col-g4-cell",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
+
+    // ========== 持久化 ==========
 
     private async Task SavePageStateAsync()
     {

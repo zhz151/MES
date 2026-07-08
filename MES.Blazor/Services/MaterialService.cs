@@ -140,6 +140,7 @@ public class MaterialService
 
     // ========== 打印 ==========
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintMaterialAsync(int id)
     {
         try
@@ -150,6 +151,7 @@ public class MaterialService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintMaterialBatchAsync(int[] ids)
     {
         try
@@ -161,6 +163,7 @@ public class MaterialService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintMaterialAllAsync(string? keyword = null, string? sortBy = null, bool isDescending = false)
     {
         try

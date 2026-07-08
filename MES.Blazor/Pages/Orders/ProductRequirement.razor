@@ -4,11 +4,13 @@
 @using MES.Core.DTOs
 @using MES.Core.Enums
 @using Microsoft.AspNetCore.Authorization
+@using System.Text.Json
 @inject ProductRequirementService RequirementService
 @inject OrderService OrderService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
+@inject HttpClient Http
 @inject ColumnPrefsService ColumnPrefs
 @attribute [Authorize(Roles = Roles.Policies.OrderRead)]
 
@@ -426,11 +428,9 @@
     {
         try
         {
-            var result = await OrderService.PrintOrderRequirementsAsync(orderId);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var apiUrl = $"{Http.BaseAddress}api/order/{orderId}/requirements/print-file";
+            var json = JsonSerializer.Serialize(new { });
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {

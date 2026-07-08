@@ -6,6 +6,7 @@ using MES.Core.Exceptions;
 using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Core.Constants;
+using MES.Core.Helpers;
 using MES.Data;
 using MES.Data.Entities;
 using WoEntity = MES.Data.Entities.WorkOrder;
@@ -1466,8 +1467,8 @@ public class BatchService : IBatchService
                 ["SalesOrderNo"] = entity.SalesOrderNo,
                 ["ProductionMainNo"] = entity.ProductionMainNo,
                 ["ProductionSubNo"] = entity.ProductionSubNo ?? "",
-                ["ProductionType"] = entity.ProductionType ?? "",
-                ["Status"] = entity.Status.ToString(),
+                ["ProductionType"] = !string.IsNullOrEmpty(entity.ProductionType) && Enum.TryParse<ProductionType>(entity.ProductionType, out var pt) ? EnumHelper.GetDisplayName(pt) : (entity.ProductionType ?? ""),
+                ["Status"] = EnumHelper.GetDisplayName(entity.Status),
                 ["CurrentExecDate"] = entity.CurrentExecDate?.ToString("yyyy-MM-dd") ?? "",
                 ["CurrentGroupName"] = entity.CurrentGroupName ?? "",
                 ["CurrentSectionName"] = entity.CurrentSectionName ?? "",
@@ -1538,53 +1539,12 @@ public class BatchService : IBatchService
             .OrderByDescending(b => b.CreatedTime)
             .ToListAsync();
 
-        var items = entities.Select(b => new Dictionary<string, object>
-        {
-            ["BatchNo"] = b.BatchNo,
-            ["TagNo"] = b.TagNo ?? "",
-            ["CreatedTime"] = b.CreatedTime,
-            ["WorkOrderNo"] = b.WorkOrderNo,
-            ["SalesOrderNo"] = b.SalesOrderNo,
-            ["ProductionMainNo"] = b.ProductionMainNo,
-            ["ProductionSubNo"] = b.ProductionSubNo ?? "",
-            ["ProductionType"] = b.ProductionType ?? "",
-            ["Status"] = b.Status.ToString(),
-            ["CurrentExecDate"] = (object)(b.CurrentExecDate ?? (object?)DBNull.Value)!,
-            ["CurrentGroupName"] = b.CurrentGroupName ?? "",
-            ["CurrentSectionName"] = b.CurrentSectionName ?? "",
-            ["CurrentEquipmentName"] = b.CurrentEquipmentName ?? "",
-            ["CurrentOutsource"] = b.CurrentOutsource ?? "",
-            ["CurrentSpec"] = b.CurrentSpec ?? "",
-            ["NextSectionName"] = b.NextSectionName ?? "",
-            ["CorrespondingSpec"] = b.CorrespondingSpec ?? ""
-        }).ToList();
-
-        var columns = new List<PrintColumnDef>
-        {
-            new() { Key = "BatchNo", Label = "生产编号" },
-            new() { Key = "TagNo", Label = "挂牌号" },
-            new() { Key = "CreatedTime", Label = "创建时间" },
-            new() { Key = "WorkOrderNo", Label = "工单号" },
-            new() { Key = "SalesOrderNo", Label = "订单号" },
-            new() { Key = "ProductionMainNo", Label = "主号" },
-            new() { Key = "ProductionSubNo", Label = "次号" },
-            new() { Key = "ProductionType", Label = "生产类型" },
-            new() { Key = "Status", Label = "状态" },
-            new() { Key = "CurrentExecDate", Label = "截止执行日" },
-            new() { Key = "CurrentGroupName", Label = "当前工序" },
-            new() { Key = "CurrentSectionName", Label = "当前工段" },
-            new() { Key = "CurrentEquipmentName", Label = "当前设备" },
-            new() { Key = "CurrentOutsource", Label = "当前委外" },
-            new() { Key = "CurrentSpec", Label = "当前规格" },
-            new() { Key = "NextSectionName", Label = "下一工段" },
-            new() { Key = "CorrespondingSpec", Label = "对应规格" },
-            new() { Key = "NextProcess", Label = "下一工序" }
-        };
-
+        var columns = request.Columns?.Count > 0 ? request.Columns : GetDefaultBatchPrintColumns();
+        var items = BuildBatchDictItems(entities, columns);
         return TablePrintHelper.GeneratePdf("生产批次列表", items, columns);
     }
 
-    public async Task<byte[]> PrintBatchSelectedAsync(int[] ids)
+    public async Task<byte[]> PrintBatchSelectedAsync(int[] ids, List<PrintColumnDef> columns)
     {
         var entities = await _context.ProductionBatches
             .AsNoTracking()
@@ -1595,50 +1555,135 @@ public class BatchService : IBatchService
         if (entities.Count == 0)
             throw new BusinessException("未找到选中的批次数据");
 
-        var items = entities.Select(b => new Dictionary<string, object>
+        var cols = columns?.Count > 0 ? columns : GetDefaultBatchPrintColumns();
+        var items = BuildBatchDictItems(entities, cols);
+        return TablePrintHelper.GeneratePdf("生产批次列表", items, cols);
+    }
+
+    private static List<PrintColumnDef> GetDefaultBatchPrintColumns() => new()
+    {
+        new() { Key = "BatchNo", Label = "生产编号" },
+        new() { Key = "TagNo", Label = "挂牌号" },
+        new() { Key = "CreatedTime", Label = "创建时间" },
+        new() { Key = "WorkOrderNo", Label = "工单号" },
+        new() { Key = "SalesOrderNo", Label = "订单号" },
+        new() { Key = "ProductionMainNo", Label = "主号" },
+        new() { Key = "ProductionSubNo", Label = "次号" },
+        new() { Key = "ProductionType", Label = "生产类型" },
+        new() { Key = "Status", Label = "状态" },
+        new() { Key = "CurrentExecDate", Label = "截止执行日" },
+        new() { Key = "CurrentGroupName", Label = "当前工序" },
+        new() { Key = "CurrentSectionName", Label = "当前工段" },
+        new() { Key = "CurrentEquipmentName", Label = "当前设备" },
+        new() { Key = "CurrentOutsource", Label = "当前委外" },
+        new() { Key = "CurrentSpec", Label = "当前规格" },
+        new() { Key = "NextSectionName", Label = "下一工段" },
+        new() { Key = "CorrespondingSpec", Label = "对应规格" },
+        new() { Key = "NextProcess", Label = "下一工序" }
+    };
+
+    private static List<Dictionary<string, object>> BuildBatchDictItems(List<ProductionBatch> entities, List<PrintColumnDef> columns)
+    {
+        return entities.Select(b =>
         {
-            ["BatchNo"] = b.BatchNo,
-            ["TagNo"] = b.TagNo ?? "",
-            ["CreatedTime"] = b.CreatedTime,
-            ["WorkOrderNo"] = b.WorkOrderNo,
-            ["SalesOrderNo"] = b.SalesOrderNo,
-            ["ProductionMainNo"] = b.ProductionMainNo,
-            ["ProductionSubNo"] = b.ProductionSubNo ?? "",
-            ["ProductionType"] = b.ProductionType ?? "",
-            ["Status"] = b.Status.ToString(),
-            ["CurrentExecDate"] = (object)(b.CurrentExecDate ?? (object?)DBNull.Value)!,
-            ["CurrentGroupName"] = b.CurrentGroupName ?? "",
-            ["CurrentSectionName"] = b.CurrentSectionName ?? "",
-            ["CurrentEquipmentName"] = b.CurrentEquipmentName ?? "",
-            ["CurrentOutsource"] = b.CurrentOutsource ?? "",
-            ["CurrentSpec"] = b.CurrentSpec ?? "",
-            ["NextSectionName"] = b.NextSectionName ?? "",
-            ["CorrespondingSpec"] = b.CorrespondingSpec ?? ""
+            var dict = new Dictionary<string, object>();
+            foreach (var col in columns)
+            {
+                dict[col.Key] = GetBatchFieldValue(b, col.Key);
+            }
+            return dict;
         }).ToList();
+    }
 
-        var columns = new List<PrintColumnDef>
+    private static object GetBatchFieldValue(ProductionBatch b, string key)
+    {
+        // 使用 switch 表达式处理字段映射 + 枚举转换
+        return key switch
         {
-            new() { Key = "BatchNo", Label = "生产编号" },
-            new() { Key = "TagNo", Label = "挂牌号" },
-            new() { Key = "CreatedTime", Label = "创建时间" },
-            new() { Key = "WorkOrderNo", Label = "工单号" },
-            new() { Key = "SalesOrderNo", Label = "订单号" },
-            new() { Key = "ProductionMainNo", Label = "主号" },
-            new() { Key = "ProductionSubNo", Label = "次号" },
-            new() { Key = "ProductionType", Label = "生产类型" },
-            new() { Key = "Status", Label = "状态" },
-            new() { Key = "CurrentExecDate", Label = "截止执行日" },
-            new() { Key = "CurrentGroupName", Label = "当前工序" },
-            new() { Key = "CurrentSectionName", Label = "当前工段" },
-            new() { Key = "CurrentEquipmentName", Label = "当前设备" },
-            new() { Key = "CurrentOutsource", Label = "当前委外" },
-            new() { Key = "CurrentSpec", Label = "当前规格" },
-            new() { Key = "NextSectionName", Label = "下一工段" },
-            new() { Key = "CorrespondingSpec", Label = "对应规格" },
-            new() { Key = "NextProcess", Label = "下一工序" }
-        };
+            // 批次基本信息
+            "BatchNo" => b.BatchNo,
+            "TagNo" => (object?)b.TagNo ?? "",
+            "Status" => EnumHelper.GetDisplayName(b.Status),
+            "ProductionType" => TryGetEnumDisplay<ProductionType>(b.ProductionType),
+            "ManufacturingItem" => TryGetEnumDisplay<ManufacturingItem>(b.ManufacturingItem),
+            "ProductionRatio" => b.ProductionRatio,
+            "IsForceCompleted" => b.IsForceCompleted,
+            "IsClosed" => b.IsClosed,
+            "CurrentValidQty" => (object?)b.CurrentValidQty ?? DBNull.Value,
+            "CurrentValidWeight" => (object?)b.CurrentValidWeight ?? DBNull.Value,
+            "ValidInputQuestion" => b.ValidInputQuestion,
+            "CreatedBy" => b.CreatedBy,
+            "CreatedTime" => b.CreatedTime,
+            "UpdatedTime" => b.UpdatedTime,
+            "CurrentExecDate" => (object?)b.CurrentExecDate ?? DBNull.Value,
+            "CurrentSectionCompleted" => (object?)b.CurrentSectionCompleted ?? DBNull.Value,
+            "RemainingWorkDays" => b.RemainingWorkDays,
 
-        return TablePrintHelper.GeneratePdf("生产批次列表", items, columns);
+            // 工单信息
+            "WorkOrderNo" => b.WorkOrderNo,
+            "SalesOrderNo" => b.SalesOrderNo,
+            "ProductionMainNo" => b.ProductionMainNo,
+            "ProductionSubNo" => (object?)b.ProductionSubNo ?? "",
+            "SignDate" => b.SignDate,
+            "Salesman" => b.Salesman,
+            "EndCustomer" => (object?)b.EndCustomer ?? "",
+            "DeliveryDate" => b.DeliveryDate,
+            "DelayPenalty" => b.DelayPenalty,
+            "MaterialName" => TryGetEnumDisplay<MaterialName>(b.MaterialName),
+            "SettlementMethod" => TryGetEnumDisplay<SettlementMethod>(b.SettlementMethod),
+            "StandardCode" => b.StandardCode,
+            "DeliveryState" => TryGetEnumDisplay<DeliveryState>(b.DeliveryState),
+            "PlantGrade" => b.PlantGrade,
+            "Specification" => b.Specification,
+            "LengthStatus" => TryGetEnumDisplay<Core.Enums.LengthStatus>(b.LengthStatus),
+            "TotalQuantity" => b.TotalQuantity,
+            "TotalMeters" => b.TotalMeters,
+            "TotalWeight" => b.TotalWeight,
+            "TotalItemCount" => b.TotalItemCount,
+            "ItemDetails" => (object?)b.ItemDetails ?? "",
+            "TechnicalRequirements" => TryGetEnumDisplay<RequirementType>(b.TechnicalRequirements),
+
+            // 生产执行
+            "CurrentGroupName" => (object?)b.CurrentGroupName ?? "",
+            "CurrentSectionName" => (object?)b.CurrentSectionName ?? "",
+            "CurrentEquipmentName" => (object?)b.CurrentEquipmentName ?? "",
+            "CurrentOutsource" => (object?)b.CurrentOutsource ?? "",
+            "CurrentSpec" => (object?)b.CurrentSpec ?? "",
+            "NextSectionName" => (object?)b.NextSectionName ?? "",
+            "CorrespondingSpec" => (object?)b.CorrespondingSpec ?? "",
+            "NextProcess" => (object?)b.NextProcess ?? "",
+
+            // 仓库信息
+            "SourceBatchNo" => (object?)b.SourceBatchNo ?? "",
+            "SourceMaterialType" => (object?)b.SourceMaterialType ?? "",
+            "InboundSource" => (object?)b.InboundSource ?? "",
+            "SourceName" => (object?)b.SourceName ?? "",
+            "InboundDate" => (object?)b.InboundDate ?? DBNull.Value,
+            "SourceHeatNo" => (object?)b.SourceHeatNo ?? "",
+            "SourcePlantGrade" => (object?)b.SourcePlantGrade ?? "",
+            "SourceSpecification" => (object?)b.SourceSpecification ?? "",
+            "SourceLengthStatus" => TryGetEnumDisplay<Core.Enums.LengthStatus>(b.SourceLengthStatus),
+            "SourceUnitWeight" => (object?)b.SourceUnitWeight ?? DBNull.Value,
+            "InputQuantity" => (object?)b.InputQuantity ?? DBNull.Value,
+            "InputWeight" => (object?)b.InputWeight ?? DBNull.Value,
+
+            // 质量
+            "SolutionParams" => (object?)b.SolutionParams ?? "",
+            "QualityRemark" => (object?)b.QualityRemark ?? "",
+
+            // 默认
+            _ => ""
+        };
+    }
+
+    /// <summary>
+    /// 尝试将字符串枚举值转为中文显示名，失败返回原始字符串
+    /// </summary>
+    private static string TryGetEnumDisplay<T>(string? value) where T : struct, Enum
+    {
+        return !string.IsNullOrEmpty(value) && Enum.TryParse<T>(value, out var result)
+            ? EnumHelper.GetDisplayName(result)
+            : (value ?? "");
     }
 
     public async Task<byte[]> PrintProcessCardAsync(ProcessCardPrintRequest request)

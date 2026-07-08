@@ -11,6 +11,7 @@
 @inject ColumnPrefsService ColumnPrefs
 @inject IJSRuntime JS
 @inject PageStateService PageState
+@inject HttpClient Http
 @attribute [Authorize(Roles = Roles.Policies.BatchRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
@@ -107,17 +108,13 @@
 
             <!-- 数据表格 -->
             <div id="process-card-print-list-table">
-            <MudTable @ref="table"
-                      T="ProductionBatchListDto"
-                      ServerData="LoadDataFromServer"
-                      Dense="true"
-                      Hover="true"
-                      Class="mt-2 auto-table compact-table"
-                      Elevation="0"
-                      RowsPerPage="@_pageSize"
-                      RowsPerPageLabel="每页行数:"
-                      TotalItems="_totalCount">
-                <ToolBarContent>
+            @{
+                var _groupHeaders = GetGroupHeaders();
+                var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40 + 90;
+            }
+            @* 工具栏 *@
+            <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
+                <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="_allColumns"
                                          OnColumnToggle="OnColumnToggle"
                                          OnMoveUp="MoveColumnUp"
@@ -128,32 +125,58 @@
                                OnClick="ResetColumnDisplay" Class="ml-2">
                         重置
                     </MudButton>
-                    <MudSpacer />
-                    <MudButton Variant="Variant.Filled" Color="Color.Info"
-                               Size="Size.Small"
+                </div>
+                <div class="d-flex align-center" style="margin-left:auto;">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Info"
                                StartIcon="@Icons.Material.Filled.Print"
                                Disabled="@(!selectedIds.Any())"
-                               OnClick="PrintSelected"
-                               Class="mr-2">
+                               OnClick="PrintSelected">
                         打印选中 (@selectedIds.Count)
                     </MudButton>
-                    <MudButton Variant="Variant.Text" Color="Color.Info"
-                               Size="Size.Small"
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info"
                                StartIcon="@Icons.Material.Filled.Print"
                                OnClick="PrintAll">
                         打印全部
                     </MudButton>
-                    <MudText Typo="Typo.body2" Class="ml-4">
+                    <MudText Typo="Typo.body2" Class="ml-2">
                         共 @_totalCount 条记录
                     </MudText>
-                </ToolBarContent>
+                </div>
+            </div>
+            @* 分组标题栏 *@
+            <div class="col-group-header-scroll">
+                <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                    @foreach (var gh in _groupHeaders)
+                    {
+                        <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                            <span class="col-group-badge">@gh.GroupName</span>
+                        </div>
+                    }
+                </div>
+            </div>
+            <MudTable @ref="table"
+                      T="ProductionBatchListDto"
+                      ServerData="LoadDataFromServer"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-0 auto-table compact-table"
+                      Elevation="0"
+                      RowsPerPage="@_pageSize"
+                      RowsPerPageLabel="每页行数:"
+                      TotalItems="_totalCount">
                 <HeaderContent>
-                    <MudTh Style="width: 40px;">
+                    @{
+                        int? _prevGk = null;
+                    }
+                    <MudTh Class="col-selection-th" Style="width:40px;padding:0 4px;">
                         <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
                     </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTh Style="@($"width:{col.Width}px")">
+                        var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
+                        _prevGk = col.GroupKey;
+                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
+                        <MudTh Class="@_headerClass" Style="@($"width:{col.Width}px")">
                             <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer">
                                     @col.Label
@@ -174,10 +197,13 @@
                             </div>
                         </MudTh>
                     }
-                    <MudTh>操作</MudTh>
+                    <MudTh Style="width: 90px;">操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
-                    <MudTd Style="width: 40px;">
+                    @{
+                        int? _prevGk2 = null;
+                    }
+                    <MudTd Class="col-selection-td" Style="width:40px;padding:0 4px;">
                         <MudCheckBox T="bool"
                                      Value="@selectedIds.Contains(item.Id)"
                                      ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
@@ -185,7 +211,10 @@
                     </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>@RenderCell(item, col)</MudTd>
+                        var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
+                        _prevGk2 = col.GroupKey;
+                        var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
+                        <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
                     }
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Visibility"
@@ -250,30 +279,35 @@
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "BatchNo",            Label = "生产编号", SortKey = "batchno", FilterType = "string", Width = "120" },
-        new() { Key = "TagNo",              Label = "挂牌号",   SortKey = "tagno", FilterType = "string", Width = "120" },
-        new() { Key = "CreatedTime",        Label = "创建时间", SortKey = "createdtime", FilterType = "date", Width = "120" },
-        new() { Key = "WorkOrderNo",        Label = "工单号",   SortKey = "workorderno", FilterType = "string", Width = "120" },
-        new() { Key = "SalesOrderNo",       Label = "订单号",   SortKey = "salesorderno", FilterType = "string", Width = "120" },
-        new() { Key = "ProductionMainNo",   Label = "主号",     SortKey = "productionmainno", FilterType = "string", Width = "120" },
-        new() { Key = "ProductionSubNo",    Label = "次号",     SortKey = "productionsubno", FilterType = "string", Width = "120" },
-        new() { Key = "ProductionType",     Label = "生产类型", SortKey = "productiontype", FilterType = "enum", Width = "120",
+        // ===== Group 1: 批次基本信息 =====
+        new() { Key = "BatchNo",            Label = "生产编号", SortKey = "batchno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
+        new() { Key = "TagNo",              Label = "挂牌号",   SortKey = "tagno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
+        new() { Key = "Status",             Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
+            EnumOptions = new() { new("None", "无"), new("InProgress", "在产"), new("Completed", "完成"), new("Suspended", "暂停"), new("Cancelled", "取消") } },
+        new() { Key = "ProductionType",     Label = "生产类型", SortKey = "productiontype", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
             EnumOptions = new() { new("RoughTube", "荒管生产"), new("InProcess", "在制生产"), new("Inventory", "库存"),
                 new("OutsourcedPurchased", "外购"), new("Rework", "返整"), new("Subcontract", "委外生产"), new("ExternalProcessing", "对外加工") } },
-        new() { Key = "ManufacturingItem",  Label = "制造物品", SortKey = "manufacturingitem", FilterType = "enum", Width = "120",
+        new() { Key = "ManufacturingItem",  Label = "制造物品", SortKey = "manufacturingitem", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
             EnumOptions = new() { new("OrderFinishedProduct", "订单成品"), new("PreparedMaterial", "备料成品"),
                 new("SurplusStock", "余库料"), new("IntermediateProduct", "中间品"), new("SpecialDeliveryStatus", "特定交态成品") } },
-        new() { Key = "Status",             Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("None", "无"), new("InProgress", "在产"), new("Completed", "完成"), new("Suspended", "暂停"), new("Cancelled", "取消") } },
-        new() { Key = "CurrentExecDate",    Label = "截止执行日", SortKey = "currentexecdate", FilterType = "date", Width = "120" },
-        new() { Key = "CurrentGroupName",   Label = "当前工序", SortKey = "currentgroupname", FilterType = "string", Width = "120" },
-        new() { Key = "CurrentSectionName", Label = "当前工段", SortKey = "currentsectionname", FilterType = "string", Width = "120" },
-        new() { Key = "CurrentEquipmentName", Label = "当前设备", SortKey = "currentequipmentname", FilterType = "string", Width = "120" },
-        new() { Key = "CurrentOutsource",   Label = "当前委外", SortKey = "currentoutsource", FilterType = "string", Width = "120" },
-        new() { Key = "CurrentSpec",        Label = "当前规格", SortKey = "currentspec", FilterType = "string", Width = "120" },
-        new() { Key = "NextSectionName",    Label = "下一工段", SortKey = "nextsectionname", FilterType = "string", Width = "120" },
-        new() { Key = "CorrespondingSpec",  Label = "对应规格", SortKey = "correspondingspec", FilterType = "string", Width = "120" },
-        new() { Key = "NextProcess",        Label = "下一工序", SortKey = "nextprocess", FilterType = "string", Width = "120" },
+        new() { Key = "CreatedTime",        Label = "创建时间", SortKey = "createdtime", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
+
+        // ===== Group 2: 工单信息 =====
+        new() { Key = "WorkOrderNo",        Label = "工单号",   SortKey = "workorderno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
+        new() { Key = "SalesOrderNo",       Label = "订单号",   SortKey = "salesorderno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
+        new() { Key = "ProductionMainNo",   Label = "主号",     SortKey = "productionmainno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
+        new() { Key = "ProductionSubNo",    Label = "次号",     SortKey = "productionsubno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
+
+        // ===== Group 3: 生产执行 =====
+        new() { Key = "CurrentExecDate",    Label = "截止执行日", SortKey = "currentexecdate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "CurrentGroupName",   Label = "当前工序", SortKey = "currentgroupname", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "CurrentSectionName", Label = "当前工段", SortKey = "currentsectionname", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "CurrentEquipmentName", Label = "当前设备", SortKey = "currentequipmentname", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "CurrentOutsource",   Label = "当前委外", SortKey = "currentoutsource", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "CurrentSpec",        Label = "当前规格", SortKey = "currentspec", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "NextSectionName",    Label = "下一工段", SortKey = "nextsectionname", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "CorrespondingSpec",  Label = "对应规格", SortKey = "correspondingspec", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "NextProcess",        Label = "下一工序", SortKey = "nextprocess", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
     };
 
     // ========== 列选择操作 ==========
@@ -285,7 +319,7 @@
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("batches", null, _allColumns);
+        await ColumnPrefs.SaveAsync("process_card_print_list", null, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -412,7 +446,7 @@
     {
         // 加载批次列表列偏好
         _allColumns = GetAllColumnDefs();
-        var savedList = await ColumnPrefs.LoadAsync("batches", null);
+        var savedList = await ColumnPrefs.LoadAsync("process_card_print_list", null);
         if (savedList.Count > 0)
         {
             foreach (var s in savedList)
@@ -462,6 +496,20 @@
                     if (match != null) match.Visible = true;
                 }
             }
+            // 按保存的顺序重排 allColumns
+            var reordered = new List<ProcessCardColumnDef>();
+            foreach (var savedCol in saved)
+            {
+                var match = allColumns.FirstOrDefault(c =>
+                    c.Key.Equals(savedCol.Key, StringComparison.OrdinalIgnoreCase));
+                if (match != null) reordered.Add(match);
+            }
+            foreach (var col in allColumns)
+            {
+                if (!reordered.Any(c => c.Key.Equals(col.Key, StringComparison.OrdinalIgnoreCase)))
+                    reordered.Add(col);
+            }
+            allColumns = reordered;
         }
 
         // 恢复排序/筛选状态
@@ -648,6 +696,7 @@
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        selectedIds.Clear();
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -754,11 +803,10 @@
                 Ids = selectedIds.ToArray(),
                 Columns = allColumns.ToList()
             };
-            var result = await BatchService.PrintProcessCardAsync(request);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var apiUrl = $"{Http.BaseAddress}api/batch/print-process-card-file";
+            var json = JsonSerializer.Serialize(request);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
@@ -781,11 +829,10 @@
                 Ids = Array.Empty<int>(),
                 Columns = allColumns.ToList()
             };
-            var result = await BatchService.PrintProcessCardAsync(request);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var apiUrl = $"{Http.BaseAddress}api/batch/print-process-card-file";
+            var json = JsonSerializer.Serialize(request);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
@@ -814,6 +861,122 @@
         "ProcessGroup" => Icons.Material.Filled.Factory,
         _ => Icons.Material.Filled.Circle
     };
+
+    // ========== 分组渲染 ==========
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+
+        // 选择列占位（40px）
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        int? lastKey = null;
+        int totalWidth = 0;
+        var groupKey = 0;
+        var groupName = "";
+        var count = 0;
+
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (lastKey.HasValue && gk != lastKey.Value)
+            {
+                if (count > 0)
+                {
+                    result.Add(new GroupHeaderInfo
+                    {
+                        GroupKey = groupKey,
+                        GroupName = groupName,
+                        TotalWidth = totalWidth,
+                        ColumnCount = count,
+                        CssClass = GetHeaderGroupCss(groupKey, true)
+                    });
+                }
+                totalWidth = 0;
+                count = 0;
+            }
+            groupKey = gk;
+            groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++;
+            lastKey = gk;
+        }
+        if (count > 0)
+        {
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        }
+
+        // 操作列占位
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 90,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g3",
+            2 => "col-g4",
+            3 => "col-g5",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g3-cell",
+            2 => "col-g4-cell",
+            3 => "col-g5-cell",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#process-card-print-list-table");
+        }
+        catch { }
+    }
 
     // ========== 持久化 ==========
 

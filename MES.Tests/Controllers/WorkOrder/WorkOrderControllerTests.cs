@@ -41,21 +41,6 @@ public class WorkOrderControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task GetCancelledOrders_ReturnsOk()
-    {
-        // Arrange
-        var list = new List<CancelledOrderDto> { new() { SalesOrderId = 1, OrderNumber = "SO001" } };
-        _serviceMock.Setup(x => x.GetCancelledOrdersAsync()).ReturnsAsync(list);
-
-        // Act
-        var result = await _controller.GetCancelledOrders();
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<List<CancelledOrderDto>>>(result);
-        Assert.Single(response.Data!);
-    }
-
-    [Fact]
     public async Task GetOrderItemsForWorkOrder_ReturnsOk()
     {
         // Arrange

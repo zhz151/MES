@@ -557,11 +557,11 @@ public partial class MaintenanceOrders
         {
             var ids = selectedIds.ToArray();
             var columns = GetPrintColumnDefs();
-            var result = await MaintenanceOrderService.PrintBatchAsync(ids, columns);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var request = new MaintenanceOrderPrintBatchRequest { Ids = ids, Columns = columns };
+            var apiUrl = $"{Http.BaseAddress}api/maintenance-order/print-batch-file";
+            var json = JsonSerializer.Serialize(request);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
@@ -574,17 +574,17 @@ public partial class MaintenanceOrders
         try
         {
             var columns = GetPrintColumnDefs();
-            var query = new MaintenanceOrderQueryParams
+            var request = new MaintenanceOrderPrintAllRequest
             {
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 SortBy = sortColumn,
-                IsDescending = sortDescending
+                IsDescending = sortDescending,
+                Columns = columns
             };
-            var result = await MaintenanceOrderService.PrintAllAsync(query, columns);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var apiUrl = $"{Http.BaseAddress}api/maintenance-order/print-all-file";
+            var json = JsonSerializer.Serialize(request);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {

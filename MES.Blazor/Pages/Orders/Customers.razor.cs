@@ -672,7 +672,7 @@ public partial class Customers
             var ids = selectedIds.ToArray();
             var request = new { Ids = ids };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/customer/print-batch";
+            var apiUrl = $"{Http.BaseAddress}api/customer/print-batch-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -694,7 +694,7 @@ public partial class Customers
                 isDescending = sortDescending
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/customer/print-all";
+            var apiUrl = $"{Http.BaseAddress}api/customer/print-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

@@ -1,5 +1,6 @@
 using System.Reflection;
 using MES.Core.DTOs;
+using MES.Core.Helpers;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -14,7 +15,12 @@ public static class TablePrintHelper
     /// <summary>
     /// 生成通用表格PDF
     /// </summary>
-    public static byte[] GeneratePdf<T>(string title, List<T> items, List<PrintColumnDef> columns)
+    /// <param name="title">PDF 标题</param>
+    /// <param name="items">数据行</param>
+    /// <param name="columns">列定义</param>
+    /// <param name="valueResolvers">可选：列值自定义解析器（Key=列名, Func=原始值→显示文本），用于枚举转中文等场景</param>
+    public static byte[] GeneratePdf<T>(string title, List<T> items, List<PrintColumnDef> columns,
+        Dictionary<string, Func<object?, string>>? valueResolvers = null)
     {
         return Document.Create(container =>
         {
@@ -25,7 +31,7 @@ public static class TablePrintHelper
                 page.DefaultTextStyle(x => x.FontSize(8).FontFamily("SimSun"));
 
                 page.Header().Element(h => ComposeHeader(h, title));
-                page.Content().Element(c => ComposeContent(c, items, columns));
+                page.Content().Element(c => ComposeContent(c, items, columns, valueResolvers));
                 page.Footer().Element(ComposeFooter);
             });
         }).GeneratePdf();
@@ -58,7 +64,8 @@ public static class TablePrintHelper
         });
     }
 
-    private static void ComposeContent<T>(IContainer container, List<T> items, List<PrintColumnDef> columns)
+    private static void ComposeContent<T>(IContainer container, List<T> items, List<PrintColumnDef> columns,
+        Dictionary<string, Func<object?, string>>? valueResolvers = null)
     {
         if (items.Count == 0)
         {
@@ -86,7 +93,7 @@ public static class TablePrintHelper
 
             // 数据行
             int seq = 0;
-            var getters = GetValueGetters<T>(columns);
+            var getters = GetValueGetters<T>(columns, valueResolvers);
             foreach (var item in items)
             {
                 seq++;
@@ -102,7 +109,8 @@ public static class TablePrintHelper
         });
     }
 
-    private static Dictionary<string, Func<T, string>> GetValueGetters<T>(List<PrintColumnDef> columns)
+    private static Dictionary<string, Func<T, string>> GetValueGetters<T>(List<PrintColumnDef> columns,
+        Dictionary<string, Func<object?, string>>? valueResolvers = null)
     {
         var dict = new Dictionary<string, Func<T, string>>();
         var type = typeof(T);
@@ -115,9 +123,16 @@ public static class TablePrintHelper
             {
                 dict[col.Key] = item =>
                 {
-                    var dictItem = (IDictionary<string, object>)item!;
-                    if (dictItem.TryGetValue(col.Key, out var raw) && raw != null && raw != DBNull.Value)
-                        return FormatValue(raw);
+                    // 有自定义解析器则优先使用
+                    if (valueResolvers != null && valueResolvers.TryGetValue(col.Key, out var resolver))
+                    {
+                        var dictItem = (IDictionary<string, object>)item!;
+                        dictItem.TryGetValue(col.Key, out var raw);
+                        return resolver(raw);
+                    }
+                    var dictItem2 = (IDictionary<string, object>)item!;
+                    if (dictItem2.TryGetValue(col.Key, out var raw2) && raw2 != null && raw2 != DBNull.Value)
+                        return FormatValue(raw2);
                     return "";
                 };
             }
@@ -132,9 +147,15 @@ public static class TablePrintHelper
                 {
                     dict[col.Key] = item =>
                     {
-                        var raw = prop.GetValue(item);
-                        if (raw == null || raw == DBNull.Value) return "";
-                        return FormatValue(raw);
+                        // 有自定义解析器则优先使用
+                        if (valueResolvers != null && valueResolvers.TryGetValue(col.Key, out var resolver))
+                        {
+                            var raw = prop.GetValue(item);
+                            return resolver(raw);
+                        }
+                        var raw2 = prop.GetValue(item);
+                        if (raw2 == null || raw2 == DBNull.Value) return "";
+                        return FormatValue(raw2);
                     };
                 }
                 else
@@ -157,6 +178,7 @@ public static class TablePrintHelper
             decimal d => d.ToString("G29"),
             int i => i.ToString(),
             long l => l.ToString(),
+            _ when raw.GetType().IsEnum => EnumHelper.GetDisplayName(raw.GetType(), raw),
             _ => raw.ToString() ?? ""
         };
     }

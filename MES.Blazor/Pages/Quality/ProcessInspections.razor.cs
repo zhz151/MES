@@ -843,82 +843,35 @@ public partial class ProcessInspections
 
     // ========== 打印 ==========
 
+    private List<PrintColumnDef> GetPrintColumnDefs() =>
+        _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+
     private async Task PrintSelected()
     {
-        if (!selectedIds.Any())
+        if (!selectedIds.Any()) return;
+        var apiUrl = $"{Http.BaseAddress}api/process-inspection/print-batch-file";
+        var request = new ProcessInspectionPrintBatchRequest
         {
-            Snackbar.Add("请先选择要打印的过程检验记录", Severity.Warning);
-            return;
-        }
-        var selectedItems = _pageItems.Where(i => selectedIds.Contains(i.Id)).ToList();
-        var html = BuildPrintHtml(selectedItems);
-        await JS.InvokeVoidAsync("printRawHtml", html, "过程检验（选中记录）");
+            Ids = selectedIds.ToArray(),
+            Columns = GetPrintColumnDefs()
+        };
+        var json = JsonSerializer.Serialize(request);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
     private async Task PrintAll()
     {
-        if (!_pageItems.Any())
+        var apiUrl = $"{Http.BaseAddress}api/process-inspection/print-all-file";
+        var request = new ProcessInspectionPrintAllRequest
         {
-            Snackbar.Add("没有可打印的数据", Severity.Warning);
-            return;
-        }
-        var html = BuildPrintHtml(_pageItems);
-        await JS.InvokeVoidAsync("printRawHtml", html, "过程检验");
+            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+            SortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "inspectiondate",
+            IsDescending = sortDescending,
+            Columns = GetPrintColumnDefs()
+        };
+        var json = JsonSerializer.Serialize(request);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
-
-    private string BuildPrintHtml(IEnumerable<ProcessInspectionDto> items)
-    {
-        var sb = new System.Text.StringBuilder();
-        sb.Append("<table><thead><tr>");
-        foreach (var col in _visibleColumns)
-        {
-            sb.Append("<th>").Append(System.Net.WebUtility.HtmlEncode(col.Label)).Append("</th>");
-        }
-        sb.Append("</tr></thead><tbody>");
-        foreach (var item in items)
-        {
-            sb.Append("<tr>");
-            foreach (var col in _visibleColumns)
-            {
-                sb.Append("<td>");
-                sb.Append(System.Net.WebUtility.HtmlEncode(GetCellPrintValue(item, col)));
-                sb.Append("</td>");
-            }
-            sb.Append("</tr>");
-        }
-        sb.Append("</tbody></table>");
-        return sb.ToString();
-    }
-
-    private string GetCellPrintValue(ProcessInspectionDto item, ColumnDef col) => col.Key switch
-    {
-        "InspectionDate" => item.InspectionDate.ToString("yyyy-MM-dd"),
-        "BatchNo" => item.BatchNo,
-        "ProcessName" => item.ProcessName,
-        "ManufacturingSpec" => DisplayHelper.FormatSpecification(item.ManufacturingSpec),
-        "SectionName" => item.SectionName,
-        "SequenceNumber" => item.SequenceNumber.ToString(),
-        "EquipmentName" => item.EquipmentName,
-        "Inspector" => item.Inspector,
-        "Shift" => item.Shift,
-        "Quantity" => DisplayHelper.FormatNullableInt(item.Quantity),
-        "Weight" => DisplayHelper.FormatNullableDecimal(item.Weight),
-        "InspectionItem" => item.InspectionItem,
-        "QualifiedQuantity" => DisplayHelper.FormatNullableInt(item.QualifiedQuantity),
-        "QualifiedWeight" => DisplayHelper.FormatNullableDecimal(item.QualifiedWeight),
-        "QualifiedConcessionQuantity" => DisplayHelper.FormatNullableInt(item.QualifiedConcessionQuantity),
-        "ConcessionRemark" => item.ConcessionRemark ?? "",
-        "DefectReworkQuantity" => DisplayHelper.FormatNullableInt(item.DefectReworkQuantity),
-        "DefectWarehouseQuantity" => DisplayHelper.FormatNullableInt(item.DefectWarehouseQuantity),
-        "DefectScrapQuantity" => DisplayHelper.FormatNullableInt(item.DefectScrapQuantity),
-        "DefectDescription" => item.DefectDescription,
-        "SourceUnit" => item.SourceUnit,
-        "TagNo" => item.TagNo,
-        "PlantGrade" => item.PlantGrade,
-        "Remark" => item.Remark,
-        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
-        _ => ""
-    };
 
     // ========== 分页汇总（B33） ==========
 

@@ -95,6 +95,18 @@ else
             </MudCardHeader>
 
             <MudCardContent>
+                <!-- 待出库用料计划通知 -->
+                @if (_pendingPlanBatches.Count > 0)
+                {
+                    <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Class="mb-4">
+                        <div>
+                            @foreach (var item in _pendingPlanBatches)
+                            {
+                                <div>批次 "@item.BatchNo"（@item.WorkOrderNo，@item.PlanType）存在用料计划，请及时出库！</div>
+                            }
+                        </div>
+                    </MudAlert>
+                }
                 <!-- 顶部：模糊搜索 + 出库筛选切换 -->
                 <MudGrid Class="mb-2">
                     <MudItem xs="12" md="6">

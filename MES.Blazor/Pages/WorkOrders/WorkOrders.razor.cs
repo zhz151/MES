@@ -23,7 +23,6 @@ public partial class WorkOrders : IAsyncDisposable
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new() { "TotalQuantity", "TotalWeight", "TotalItemCount" };
     private int _totalCount;
-    private List<CancelledOrderDto> cancelledOrders = new();
     private List<WorkOrderListItemDto>? _pendingOrders;
     private string _searchKeyword = string.Empty;
     private bool _isArrowNavSetup;
@@ -372,7 +371,6 @@ public partial class WorkOrders : IAsyncDisposable
         _searchKeyword = value ?? string.Empty;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
-        await LoadCancelledOrders();
     }
 
     // ========== 列选择操作 ==========
@@ -548,7 +546,6 @@ public partial class WorkOrders : IAsyncDisposable
         await LoadFilterContextsAsync();
 
         await CheckNotifications();
-        await LoadCancelledOrders();
         await LoadPendingOrders();
 
         // 启动通知定时轮询（后台运行，不阻塞初始化）
@@ -617,7 +614,7 @@ public partial class WorkOrders : IAsyncDisposable
         }
     }
 
-    // ========== 已取消订单 ==========
+    // ========== 待生成工单 ==========
 
     private async Task LoadPendingOrders()
     {
@@ -639,22 +636,6 @@ public partial class WorkOrders : IAsyncDisposable
         }
     }
 
-    private async Task LoadCancelledOrders()
-    {
-        try
-        {
-            var result = await WorkOrderService.GetCancelledOrdersAsync();
-            if (result.Success && result.Data != null)
-            {
-                cancelledOrders = result.Data;
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"加载待删除订单失败: {ex.Message}");
-        }
-    }
-
     // ========== 状态筛选 ==========
 
     private async Task FilterByStatus(string status)
@@ -662,7 +643,6 @@ public partial class WorkOrders : IAsyncDisposable
         _columnFilters["Status"] = new HashSet<string> { status };
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
-        await LoadCancelledOrders();
     }
 
     // ========== 颜色 ==========
@@ -719,7 +699,6 @@ public partial class WorkOrders : IAsyncDisposable
             if (result.Success)
             {
                 Snackbar.Add($"工单已删除", Severity.Success);
-                await LoadCancelledOrders();
                 if (table != null) await table.ReloadServerData();
             }
             else
@@ -774,7 +753,7 @@ public partial class WorkOrders : IAsyncDisposable
         {
             var salesOrderNos = selectedSalesOrderNos.ToArray();
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/workorder/order-print-batch";
+            var apiUrl = $"{Http.BaseAddress}api/workorder/order-print-batch-file";
             var json = JsonSerializer.Serialize(salesOrderNos);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -793,7 +772,7 @@ public partial class WorkOrders : IAsyncDisposable
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/workorder/order-print-all";
+            var apiUrl = $"{Http.BaseAddress}api/workorder/order-print-all-file";
             var json = JsonSerializer.Serialize(queryParams);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -807,15 +786,10 @@ public partial class WorkOrders : IAsyncDisposable
     {
         try
         {
-            var result = await WorkOrderService.PrintOrderWorkOrdersAsync(salesOrderNo);
-            if (result.Success && result.Data != null)
-            {
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
-            }
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/workorder/order-print-file";
+            var json = JsonSerializer.Serialize(salesOrderNo);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
@@ -838,7 +812,6 @@ public partial class WorkOrders : IAsyncDisposable
                     await InvokeAsync(async () =>
                     {
                         await CheckNotifications();
-                        await LoadCancelledOrders();
                         await LoadPendingOrders();
                         StateHasChanged();
                     });

@@ -95,10 +95,10 @@ public static class EnumHelper
                                     ("Scrap", "废料"),
                                     ("Surplus", "余料"));
 
-        Register<OutboundType>(("ProductionPick", "生产领料"),
+        Register<OutboundType>(("ProductionPick", "生产领用"),
                                 ("SalesOut", "销售出库"),
                                 ("ReturnOut", "退货出库"),
-                                ("SubcontractOut", "委外加工"),
+                                ("SubcontractOut", "委外出库"),
                                 ("ScrapOut", "报废出库"),
                                 ("InspectionPick", "检验领用"),
                                 ("TransferOut", "移库出库"),
@@ -125,11 +125,11 @@ public static class EnumHelper
                                ("Suspended", "挂起"),
                                ("Cancelled", "作废"));
 
-        Register<PurchaseOrderStatus>(("Open", "未到货"),
+        Register<PurchaseOrderStatus>(("Open", "已下单"),
                                        ("Partial", "部分到货"),
                                        ("Completed", "已完成"));
 
-        Register<SubcontractOrderStatus>(("Sent", "已发出未收回"),
+        Register<SubcontractOrderStatus>(("Sent", "已发出"),
                                           ("PartialReturned", "部分收回"),
                                           ("Completed", "已完成"));
 

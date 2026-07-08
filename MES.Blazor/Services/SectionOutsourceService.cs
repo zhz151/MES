@@ -179,6 +179,7 @@ public class SectionOutsourceService
 
     // ========== 打印 ==========
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintSelectedAsync(int[] ids, List<PrintColumnDef> columns)
     {
         try
@@ -191,6 +192,7 @@ public class SectionOutsourceService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintAllAsync(string? keyword = null, string? sortBy = null,
         bool isDescending = true, List<PrintColumnDef>? columns = null,
         DateTime? sendOutDateFrom = null, DateTime? sendOutDateTo = null,
@@ -216,6 +218,7 @@ public class SectionOutsourceService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintRecoverySelectedAsync(int[] ids, List<PrintColumnDef> columns)
     {
         try
@@ -228,6 +231,7 @@ public class SectionOutsourceService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintRecoveryAllAsync(string? keyword = null, string? sortBy = null,
         bool isDescending = true, List<PrintColumnDef>? columns = null,
         DateTime? recoveryDateFrom = null, DateTime? recoveryDateTo = null)

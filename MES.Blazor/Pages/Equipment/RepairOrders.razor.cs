@@ -795,11 +795,11 @@ public partial class RepairOrders
         {
             var ids = selectedIds.ToArray();
             var columns = GetPrintColumnDefs();
-            var result = await RepairOrderService.PrintBatchAsync(ids, columns);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var request = new RepairOrderPrintBatchRequest { Ids = ids, Columns = columns };
+            var apiUrl = $"{Http.BaseAddress}api/repair-order/print-batch-file";
+            var json = JsonSerializer.Serialize(request);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
@@ -812,17 +812,17 @@ public partial class RepairOrders
         try
         {
             var columns = GetPrintColumnDefs();
-            var query = new RepairOrderQueryParams
+            var request = new RepairOrderPrintAllRequest
             {
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 SortBy = sortColumn,
-                IsDescending = sortDescending
+                IsDescending = sortDescending,
+                Columns = columns
             };
-            var result = await RepairOrderService.PrintAllAsync(query, columns);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var apiUrl = $"{Http.BaseAddress}api/repair-order/print-all-file";
+            var json = JsonSerializer.Serialize(request);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {

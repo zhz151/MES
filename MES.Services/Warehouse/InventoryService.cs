@@ -13,6 +13,7 @@ using WoEntity = MES.Data.Entities.WorkOrder;
 using MES.Services.Mapping;
 using MES.Services.Helpers;
 using MES.Services.Printing;
+using MES.Core.Helpers;
 
 namespace MES.Services.Warehouse;
 
@@ -1124,6 +1125,44 @@ public class InventoryService : IInventoryService
         return workOrderNos.Where(woNo => !existingSet.Contains(woNo)).ToList();
     }
 
+    public async Task<List<BatchWorkOrderMismatchDto>> GetMismatchedWorkOrderBatchesAsync(int? warehouseId = null)
+    {
+        var query = _context.InventoryBatches
+            .AsNoTracking()
+            .Where(b => b.WorkOrderNo != null
+                     && b.WorkOrderNo != string.Empty
+                     && b.WorkOrderNo != "非工单");
+
+        if (warehouseId.HasValue)
+            query = query.Where(b => b.WarehouseId == warehouseId.Value);
+
+        var batchWorkOrders = await query
+            .Select(b => new { b.Id, b.BatchNo, WorkOrderNo = b.WorkOrderNo ?? string.Empty })
+            .ToListAsync();
+
+        if (batchWorkOrders.Count == 0)
+            return new List<BatchWorkOrderMismatchDto>();
+
+        var workOrderNos = batchWorkOrders.Select(b => b.WorkOrderNo).Distinct().ToList();
+        var existingNos = await _context.WorkOrders
+            .AsNoTracking()
+            .Where(w => workOrderNos.Contains(w.WorkOrderNo))
+            .Select(w => w.WorkOrderNo)
+            .ToListAsync();
+
+        var existingSet = existingNos.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return batchWorkOrders
+            .Where(b => !existingSet.Contains(b.WorkOrderNo))
+            .Select(b => new BatchWorkOrderMismatchDto
+            {
+                BatchId = b.Id,
+                BatchNo = b.BatchNo,
+                WorkOrderNo = b.WorkOrderNo
+            })
+            .ToList();
+    }
+
     // ========== 打印 ==========
 
     public async Task<byte[]> PrintInventoryAllAsync(InventoryPrintAllRequest request)
@@ -1154,6 +1193,60 @@ public class InventoryService : IInventoryService
         return TablePrintHelper.GeneratePdf("入 库 批 次 打 印", items, request.Columns);
     }
 
+    public async Task<byte[]> PrintStockAllAsync(InventoryPrintAllRequest request)
+    {
+        var query = new InventoryQueryParams
+        {
+            PageIndex = 1,
+            PageSize = int.MaxValue,
+            Keyword = request.Keyword,
+            SortBy = request.SortBy ?? "inbounddate",
+            IsDescending = request.IsDescending,
+            WarehouseId = request.WarehouseId,
+            OnlyWithStock = true
+        };
+        var paged = await GetPagedAsync(query);
+        return TablePrintHelper.GeneratePdf("仓 库 库 存 列 表", paged.Items, request.Columns);
+    }
+
+    public async Task<byte[]> PrintStockSelectedAsync(InventoryPrintSelectedRequest request)
+    {
+        var items = await _context.InventoryBatches
+            .AsNoTracking()
+            .Where(b => request.Ids.Contains(b.Id))
+            .Select(b => b.ToDto())
+            .ToListAsync();
+
+        return TablePrintHelper.GeneratePdf("库 存 批 次 打 印", items, request.Columns);
+    }
+
+    public async Task<byte[]> PrintInboundAllAsync(InventoryPrintAllRequest request)
+    {
+        var query = new InventoryQueryParams
+        {
+            PageIndex = 1,
+            PageSize = int.MaxValue,
+            Keyword = request.Keyword,
+            SortBy = request.SortBy ?? "inbounddate",
+            IsDescending = request.IsDescending,
+            WarehouseId = request.WarehouseId,
+            OnlyWithStock = false
+        };
+        var paged = await GetPagedAsync(query);
+        return TablePrintHelper.GeneratePdf("入 库 历 史 列 表", paged.Items, request.Columns);
+    }
+
+    public async Task<byte[]> PrintInboundSelectedAsync(InventoryPrintSelectedRequest request)
+    {
+        var items = await _context.InventoryBatches
+            .AsNoTracking()
+            .Where(b => request.Ids.Contains(b.Id))
+            .Select(b => b.ToDto())
+            .ToListAsync();
+
+        return TablePrintHelper.GeneratePdf("入 库 批 次 打 印", items, request.Columns);
+    }
+
     public async Task<byte[]> PrintOutboundAllAsync(OutboundPrintAllRequest request)
     {
         var query = new OutboundQueryParams
@@ -1166,7 +1259,8 @@ public class InventoryService : IInventoryService
             WarehouseId = request.WarehouseId
         };
         var paged = await GetOutboundRecordsAsync(query);
-        return TablePrintHelper.GeneratePdf("出 库 历 史 列 表", paged.Items, request.Columns);
+        var resolvers = GetOutboundPrintResolvers();
+        return TablePrintHelper.GeneratePdf("出 库 历 史 列 表", paged.Items, request.Columns, resolvers);
     }
 
     public async Task<byte[]> PrintOutboundSelectedAsync(OutboundPrintSelectedRequest request)
@@ -1177,7 +1271,26 @@ public class InventoryService : IInventoryService
             .Select(r => r.ToDto())
             .ToListAsync();
 
-        return TablePrintHelper.GeneratePdf("出 库 记 录 打 印", items, request.Columns);
+        var resolvers = GetOutboundPrintResolvers();
+        return TablePrintHelper.GeneratePdf("出 库 记 录 打 印", items, request.Columns, resolvers);
+    }
+
+    /// <summary>
+    /// 出库打印枚举字段中文解析器
+    /// </summary>
+    private static Dictionary<string, Func<object?, string>> GetOutboundPrintResolvers()
+    {
+        return new Dictionary<string, Func<object?, string>>
+        {
+            ["OutboundType"] = raw =>
+            {
+                if (raw == null) return "";
+                if (raw is OutboundType ot) return EnumHelper.GetDisplayName(ot);
+                return Enum.TryParse<OutboundType>(raw.ToString(), out var parsed)
+                    ? EnumHelper.GetDisplayName(parsed)
+                    : raw.ToString() ?? "";
+            }
+        };
     }
 
     public async Task<Dictionary<string, List<string>>> GetOutboundFilterContextsAsync()

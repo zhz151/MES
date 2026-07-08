@@ -149,6 +149,14 @@ public class OrderController : ControllerBase
 
     #region 打印
 
+    [HttpPost("print-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<IActionResult> PrintFile([FromBody] OrderPrintBatchRequest request)
+    {
+        var pdfBytes = await _orderService.PrintOrderBatchAsync(request.Ids);
+        return File(pdfBytes, "application/pdf", "订单打印.pdf");
+    }
+
     [HttpGet("{id}/print")]
     [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintOrder(int id)
@@ -177,6 +185,14 @@ public class OrderController : ControllerBase
         var pdfBytes = await _orderService.PrintOrderRequirementsAsync(orderId);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    [HttpPost("{orderId}/requirements/print-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<IActionResult> PrintOrderRequirementsFile(int orderId)
+    {
+        var pdfBytes = await _orderService.PrintOrderRequirementsAsync(orderId);
+        return File(pdfBytes, "application/pdf", $"技术要求_{orderId}.pdf");
     }
 
     #endregion

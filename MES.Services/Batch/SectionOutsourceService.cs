@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Helpers;
 using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
@@ -83,7 +84,11 @@ public class SectionOutsourceService : ISectionOutsourceService
                 TotalRecoveredWeight = s.OutsourceRecoveries.Sum(r => r.RecoveryWeight),
                 TotalUnprocessedQuantity = s.OutsourceRecoveries.Sum(r => r.UnprocessedQuantity),
                 TotalUnprocessedWeight = s.OutsourceRecoveries.Sum(r => r.UnprocessedWeight),
-                ActualRecoveryDate = s.OutsourceRecoveries.Max(r => (DateTime?)r.RecoveryDate)
+                ActualRecoveryDate = s.OutsourceRecoveries.Max(r => (DateTime?)r.RecoveryDate),
+                RecoveryRemark = s.OutsourceRecoveries
+                    .OrderByDescending(r => r.RecoveryDate)
+                    .Select(r => r.Remark)
+                    .FirstOrDefault()
             })
             .ToListAsync();
     }
@@ -109,7 +114,8 @@ public class SectionOutsourceService : ISectionOutsourceService
                 (s.ManufacturingSpec != null && s.ManufacturingSpec.Contains(kw)) ||
                 (s.PlantGrade != null && s.PlantGrade.Contains(kw)) ||
                 (s.OutsourceSpec != null && s.OutsourceSpec.Contains(kw)) ||
-                (s.Remark != null && s.Remark.Contains(kw)));
+                (s.Remark != null && s.Remark.Contains(kw)) ||
+                s.OutsourceRecoveries.Any(r => r.Remark != null && r.Remark.Contains(kw)));
         }
 
         // 发出日期范围筛选
@@ -246,7 +252,11 @@ public class SectionOutsourceService : ISectionOutsourceService
                 TotalRecoveredWeight = s.OutsourceRecoveries.Sum(r => r.RecoveryWeight),
                 TotalUnprocessedQuantity = s.OutsourceRecoveries.Sum(r => r.UnprocessedQuantity),
                 TotalUnprocessedWeight = s.OutsourceRecoveries.Sum(r => r.UnprocessedWeight),
-                ActualRecoveryDate = s.OutsourceRecoveries.Max(r => (DateTime?)r.RecoveryDate)
+                ActualRecoveryDate = s.OutsourceRecoveries.Max(r => (DateTime?)r.RecoveryDate),
+                RecoveryRemark = s.OutsourceRecoveries
+                    .OrderByDescending(r => r.RecoveryDate)
+                    .Select(r => r.Remark)
+                    .FirstOrDefault()
             })
             .ToListAsync();
 
@@ -964,7 +974,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["SendOutDate"] = s.SendOutDate.ToString("yyyy-MM-dd"),
             ["SendQuantity"] = (object)(s.SendQuantity ?? (object?)DBNull.Value)!,
             ["SendWeight"] = (object)(s.SendWeight ?? (object?)DBNull.Value)!,
-            ["Status"] = s.Status,
+            ["Status"] = EnumHelper.GetDisplayName(s.Status),
             ["TagNo"] = s.TagNo ?? "",
             ["PlantGrade"] = s.PlantGrade ?? "",
             ["OutsourceSpec"] = s.OutsourceSpec ?? "",
@@ -974,7 +984,11 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["TotalRecoveredWeight"] = s.OutsourceRecoveries.Sum(r => r.RecoveryWeight) ?? 0,
             ["TotalUnprocessedQuantity"] = s.OutsourceRecoveries.Sum(r => r.UnprocessedQuantity) ?? 0,
             ["TotalUnprocessedWeight"] = s.OutsourceRecoveries.Sum(r => r.UnprocessedWeight) ?? 0,
-            ["ActualRecoveryDate"] = s.OutsourceRecoveries.Max(r => (DateTime?)r.RecoveryDate)?.ToString("yyyy-MM-dd") ?? ""
+            ["ActualRecoveryDate"] = s.OutsourceRecoveries.Max(r => (DateTime?)r.RecoveryDate)?.ToString("yyyy-MM-dd") ?? "",
+            ["RecoveryRemark"] = s.OutsourceRecoveries
+                .OrderByDescending(r => r.RecoveryDate)
+                .Select(r => r.Remark)
+                .FirstOrDefault() ?? ""
         }).ToList();
 
         return TablePrintHelper.GeneratePdf("工段委外列表", data, columns);
@@ -1010,7 +1024,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["SendOutDate"] = s.SendOutDate.ToString("yyyy-MM-dd"),
             ["SendQuantity"] = (object)(s.SendQuantity ?? (object?)DBNull.Value)!,
             ["SendWeight"] = (object)(s.SendWeight ?? (object?)DBNull.Value)!,
-            ["Status"] = s.Status,
+            ["Status"] = Enum.TryParse<SectionOutsourceStatus>(s.Status, out var st) ? EnumHelper.GetDisplayName(st) : s.Status,
             ["TagNo"] = s.TagNo ?? "",
             ["PlantGrade"] = s.PlantGrade ?? "",
             ["OutsourceSpec"] = s.OutsourceSpec ?? "",
@@ -1020,7 +1034,8 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["TotalRecoveredWeight"] = s.TotalRecoveredWeight ?? 0,
             ["TotalUnprocessedQuantity"] = s.TotalUnprocessedQuantity ?? 0,
             ["TotalUnprocessedWeight"] = s.TotalUnprocessedWeight ?? 0,
-            ["ActualRecoveryDate"] = s.ActualRecoveryDate?.ToString("yyyy-MM-dd") ?? ""
+            ["ActualRecoveryDate"] = s.ActualRecoveryDate?.ToString("yyyy-MM-dd") ?? "",
+            ["RecoveryRemark"] = s.RecoveryRemark ?? ""
         }).ToList();
 
         return TablePrintHelper.GeneratePdf("工段委外列表", data, columns);
@@ -1055,7 +1070,9 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["RecoveryWeight"] = r.RecoveryWeight ?? 0,
             ["UnprocessedQuantity"] = r.UnprocessedQuantity ?? 0,
             ["UnprocessedWeight"] = r.UnprocessedWeight ?? 0,
-            ["Remark"] = r.Remark ?? ""
+            ["Remark"] = r.Remark ?? "",
+            ["DataSource"] = r.DataSource ?? "",
+            ["UpdatedTime"] = r.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
         }).ToList();
 
         return TablePrintHelper.GeneratePdf("委外回收列表", data, columns);
@@ -1094,7 +1111,9 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["RecoveryWeight"] = r.RecoveryWeight ?? 0,
             ["UnprocessedQuantity"] = r.UnprocessedQuantity ?? 0,
             ["UnprocessedWeight"] = r.UnprocessedWeight ?? 0,
-            ["Remark"] = r.Remark ?? ""
+            ["Remark"] = r.Remark ?? "",
+            ["DataSource"] = r.DataSource ?? "",
+            ["UpdatedTime"] = r.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
         }).ToList();
 
         return TablePrintHelper.GeneratePdf("委外回收列表", data, columns);

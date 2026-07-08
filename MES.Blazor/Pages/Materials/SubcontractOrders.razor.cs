@@ -525,21 +525,16 @@ public partial class SubcontractOrders : IAsyncDisposable
         try
         {
             var result = await SubcontractService.GetMismatchedOrdersAsync();
-            if (result.Success && result.Data != null && result.Data.Count > 0)
+            if (result.Success && result.Data != null)
             {
                 mismatchItems = result.Data;
-                var messages = mismatchItems.Select(item =>
-                    $"委外单号 {item.OrderNo} 中，来源工单号：{string.Join("；", item.MismatchedWorkOrderNos)} 已不关联采购用料计划，需修改！");
-                Snackbar.Add($"发现 {mismatchItems.Count} 条工单关联异常：\n{string.Join("\n", messages)}", Severity.Warning, config =>
-                {
-                    config.VisibleStateDuration = 20000;
-                    config.Action = "忽略";
-                });
             }
+            else
+                mismatchItems.Clear();
         }
-        catch (Exception ex)
+        catch
         {
-            Snackbar.Add($"检测工单关联异常: {ex.Message}", Severity.Error);
+            mismatchItems.Clear();
         }
     }
 
@@ -554,12 +549,12 @@ public partial class SubcontractOrders : IAsyncDisposable
         }
         try
         {
+            Snackbar.Add("正在生成PDF...", Severity.Info);
             var ids = selectedIds.ToArray();
-            var result = await SubcontractService.PrintOrderBatchAsync(ids);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var request = new OrderPrintBatchRequest { Ids = ids };
+            var apiUrl = $"{Navigation.BaseUri}api/subcontract/print-batch-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
     }
@@ -568,13 +563,16 @@ public partial class SubcontractOrders : IAsyncDisposable
     {
         try
         {
-            var result = await SubcontractService.PrintOrderAllAsync(
-                string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                sortColumn, sortDescending);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var request = new OrderPrintAllRequest
+            {
+                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                SortBy = sortColumn,
+                IsDescending = sortDescending
+            };
+            var apiUrl = $"{Navigation.BaseUri}api/subcontract/print-all-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
     }

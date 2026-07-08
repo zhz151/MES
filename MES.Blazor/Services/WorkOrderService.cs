@@ -67,22 +67,6 @@ public class WorkOrderService
     }
 
     /// <summary>
-    /// 获取"订单已取消-工单待删除"列表
-    /// </summary>
-    public async Task<ApiResponse<List<CancelledOrderDto>>> GetCancelledOrdersAsync()
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<List<CancelledOrderDto>>>($"{BaseUrl}/cancelled-orders");
-            return response ?? ApiResponse<List<CancelledOrderDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<List<CancelledOrderDto>>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// 获取已确认但无工单的订单列表（待生成工单）
     /// </summary>
     public async Task<ApiResponse<List<WorkOrderListItemDto>>> GetPendingOrdersAsync()
@@ -321,6 +305,7 @@ public async Task<ApiResponse<OrderWorkOrderRelationDto>> GetOrderWorkOrderRelat
     /// <summary>
     /// 打印工单详情（返回PDF base64）
     /// </summary>
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintAsync(int id)
     {
         try
@@ -337,6 +322,7 @@ public async Task<ApiResponse<OrderWorkOrderRelationDto>> GetOrderWorkOrderRelat
     /// <summary>
     /// 按订单号批量打印所有工单（返回PDF base64）
     /// </summary>
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintOrderWorkOrdersAsync(string salesOrderNo)
     {
         try
@@ -354,6 +340,7 @@ public async Task<ApiResponse<OrderWorkOrderRelationDto>> GetOrderWorkOrderRelat
     /// <summary>
     /// 按多个订单号批量打印工单（选中打印）
     /// </summary>
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintOrderWorkOrdersBatchAsync(string[] salesOrderNos)
     {
         try
@@ -370,6 +357,7 @@ public async Task<ApiResponse<OrderWorkOrderRelationDto>> GetOrderWorkOrderRelat
     /// <summary>
     /// 按筛选项打印全部工单
     /// </summary>
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintOrderWorkOrdersAllAsync(WorkOrderQueryParams query)
     {
         try

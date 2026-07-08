@@ -7,6 +7,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Helpers;
+using MES.Services.Printing;
 using OfficeOpenXml;
 
 namespace MES.Services.Quality;
@@ -543,6 +544,28 @@ public class ChemicalCompositionService : IChemicalCompositionService
         }
 
         return result;
+    }
+
+    public async Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
+    {
+        var query = new QueryParams { PageIndex = 1, PageSize = int.MaxValue };
+        var result = await GetAllAsync(query);
+        var selected = result.Items.Where(i => ids.Contains(i.Id)).ToList();
+        return ChemicalCompositionPrintHelper.GenerateBatchPdf(selected, columns);
+    }
+
+    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns)
+    {
+        var query = new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = int.MaxValue,
+            Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? null : sortBy,
+            IsDescending = isDescending
+        };
+        var result = await GetAllAsync(query);
+        return ChemicalCompositionPrintHelper.GenerateBatchPdf(result.Items, columns);
     }
 
     private static IQueryable<ChemicalComposition> ApplySorting(IQueryable<ChemicalComposition> queryable, string sortBy, bool isDescending)

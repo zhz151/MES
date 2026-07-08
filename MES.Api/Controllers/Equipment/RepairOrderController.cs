@@ -155,6 +155,39 @@ public class RepairOrderController : ControllerBase
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
 
+    [HttpPost("print-batch-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    public async Task<IActionResult> PrintBatchFile([FromBody] RepairOrderPrintBatchRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
+        return File(pdfBytes, "application/pdf", "维修工单打印.pdf");
+    }
+
+    [HttpPost("print-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    public async Task<IActionResult> PrintAllFile([FromBody] RepairOrderPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var query = new RepairOrderQueryParams
+        {
+            Keyword = request.Keyword,
+            SortBy = string.IsNullOrEmpty(request.SortBy) ? "ReportTime" : request.SortBy,
+            IsDescending = request.IsDescending,
+            EquipmentId = request.EquipmentId,
+            RepairStatus = request.RepairStatus,
+            Priority = request.Priority,
+            ReportTimeFrom = request.ReportTimeFrom,
+            ReportTimeTo = request.ReportTimeTo
+        };
+        var pdfBytes = await _service.PrintAllAsync(query, request.Columns);
+        return File(pdfBytes, "application/pdf", "维修工单列表.pdf");
+    }
+
     /// <summary>
     /// 获取指定设备的待处理维修工单
     /// </summary>

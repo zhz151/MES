@@ -669,11 +669,11 @@ public partial class MaterialChecks
         {
             var ids = selectedIds.ToArray();
             var columns = GetPrintColumnDefs();
-            var result = await ProductionRecordService.PrintMaterialCheckBatchAsync(ids, columns);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var request = new MaterialCheckPrintBatchRequest { Ids = ids, Columns = columns };
+            var apiUrl = $"{Http.BaseAddress}api/production-record/material-check/print-batch-file";
+            var json = JsonSerializer.Serialize(request);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {
@@ -686,14 +686,17 @@ public partial class MaterialChecks
         try
         {
             var columns = GetPrintColumnDefs();
-            var result = await ProductionRecordService.PrintMaterialCheckAllAsync(
-                string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                sortColumn, sortDescending, columns,
-                null, null);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var request = new MaterialCheckPrintAllRequest
+            {
+                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                SortBy = sortColumn,
+                IsDescending = sortDescending,
+                Columns = columns
+            };
+            var apiUrl = $"{Http.BaseAddress}api/production-record/material-check/print-all-file";
+            var json = JsonSerializer.Serialize(request);
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {

@@ -150,6 +150,7 @@ public class GradeMappingService
     // ========== 打印 ==========
 
     /// <summary>打印单个牌号对照</summary>
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintGradeMappingAsync(int id)
     {
         try
@@ -164,6 +165,7 @@ public class GradeMappingService
     }
 
     /// <summary>批量打印牌号对照</summary>
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintGradeMappingBatchAsync(int[] ids)
     {
         try
@@ -179,6 +181,7 @@ public class GradeMappingService
     }
 
     /// <summary>按筛选条件打印全部牌号对照</summary>
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintGradeMappingAllAsync(string? keyword = null, string? sortBy = null, bool isDescending = false)
     {
         try

@@ -133,6 +133,34 @@ public class GradeMappingController : ControllerBase
     }
 
     /// <summary>
+    /// 批量打印牌号对照（直接返回 PDF 文件）
+    /// </summary>
+    [HttpPost("print-batch-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    public async Task<IActionResult> PrintBatchFile([FromBody] OrderPrintBatchRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintGradeMappingBatchAsync(request.Ids);
+        return File(pdfBytes, "application/pdf", "牌号对照打印.pdf");
+    }
+
+    /// <summary>
+    /// 按筛选条件打印全部牌号对照（直接返回 PDF 文件）
+    /// </summary>
+    [HttpPost("print-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    public async Task<IActionResult> PrintAllFile([FromBody] OrderPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintGradeMappingAllAsync(request.Keyword, request.SortBy, request.IsDescending);
+        return File(pdfBytes, "application/pdf", "牌号对照列表.pdf");
+    }
+
+    /// <summary>
     /// 更新牌号对照
     /// </summary>
     [HttpPut("{id}")]

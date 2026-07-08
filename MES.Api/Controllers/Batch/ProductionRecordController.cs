@@ -555,4 +555,44 @@ public class ProductionRecordController : ControllerBase
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
+
+    [HttpPost("print-batch-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<IActionResult> PrintProductionRecordBatchFile([FromBody] ProductionRecordPrintBatchRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+        var pdfBytes = await _service.PrintProductionRecordBatchAsync(request.Ids, request.Columns);
+        return File(pdfBytes, "application/pdf", "生产记录打印.pdf");
+    }
+
+    [HttpPost("print-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<IActionResult> PrintProductionRecordAllFile([FromBody] ProductionRecordPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+        var pdfBytes = await _service.PrintProductionRecordAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.ExecDateFrom, request.ExecDateTo);
+        return File(pdfBytes, "application/pdf", "生产记录列表.pdf");
+    }
+
+    [HttpPost("material-check/print-batch-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<IActionResult> PrintMaterialCheckBatchFile([FromBody] MaterialCheckPrintBatchRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+        var pdfBytes = await _service.PrintMaterialCheckBatchAsync(request.Ids, request.Columns);
+        return File(pdfBytes, "application/pdf", "检验到料打印.pdf");
+    }
+
+    [HttpPost("material-check/print-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<IActionResult> PrintMaterialCheckAllFile([FromBody] MaterialCheckPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+        var pdfBytes = await _service.PrintMaterialCheckAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.ReceiveDateFrom, request.ReceiveDateTo);
+        return File(pdfBytes, "application/pdf", "检验到料列表.pdf");
+    }
 }

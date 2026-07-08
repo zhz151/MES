@@ -5,6 +5,7 @@
 @using MES.Core.Models
 @using MES.Core.Enums
 @using Microsoft.AspNetCore.Authorization
+@using System.Text.Json
 @using MES.Blazor.Shared
 @inject OrderService OrderService
 @inject CustomerService CustomerService
@@ -965,11 +966,11 @@
     {
         try
         {
-            var result = await OrderService.PrintOrderAsync(Id);
-            if (result.Success && result.Data != null)
-                await JS.InvokeVoidAsync("openPdf", result.Data);
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+            var request = new OrderPrintBatchRequest { Ids = new[] { Id } };
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Navigation.BaseUri}api/order/print-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
         {

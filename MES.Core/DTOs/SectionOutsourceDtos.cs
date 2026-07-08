@@ -68,6 +68,9 @@ public class SectionOutsourceDto
 
     /// <summary>数据来源（SCAN=扫码报工，MANUAL=手动录入）</summary>
     public string? DataSource { get; set; }
+
+    /// <summary>回收备注（最近一次回收记录的备注）</summary>
+    public string? RecoveryRemark { get; set; }
 }
 
 /// <summary>

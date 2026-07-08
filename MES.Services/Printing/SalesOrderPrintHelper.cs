@@ -3,6 +3,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using MES.Core.DTOs;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Services.Printing;
 
@@ -162,7 +163,7 @@ public static class SalesOrderPrintHelper
             row.RelativeItem(2).Text(t =>
             {
                 t.Span("状态：").Bold().FontSize(10);
-                t.Span(GetOrderStatusText(order.Status)).FontSize(10);
+                t.Span(EnumHelper.GetDisplayName(order.Status)).FontSize(10);
             });
         });
     }
@@ -210,17 +211,17 @@ public static class SalesOrderPrintHelper
                 table.Cell().Element(CellStyle).Text(item.Sequence.ToString()).FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(item.DeliveryDate.ToString("yyyy-MM-dd")).FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(item.DelayPenalty ? "是" : "否").FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(GetSettlementText(item.SettlementMethod)).FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(GetMaterialText(item.MaterialName)).FontSize(7).AlignCenter();
+                table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(item.SettlementMethod)).FontSize(7).AlignCenter();
+                table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(item.MaterialName)).FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(item.StandardNo).FontSize(6).AlignCenter();
-                table.Cell().Element(CellStyle).Text(GetDeliveryStateText(item.DeliveryState)).FontSize(6).AlignCenter();
+                table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(item.DeliveryState)).FontSize(6).AlignCenter();
                 table.Cell().Element(CellStyle).Text(item.StandardGrade).FontSize(6).AlignCenter();
                 table.Cell().Element(CellStyle).Text(item.Specification).FontSize(6).AlignCenter();
                 table.Cell().Element(CellStyle).Text(FormatDecimal(item.OuterDiameterNegative)).FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(FormatDecimal(item.OuterDiameterPositive)).FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(FormatDecimal(item.WallThicknessNegative)).FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(FormatDecimal(item.WallThicknessPositive)).FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(GetLengthStatusText(item.LengthStatus)).FontSize(7).AlignCenter();
+                table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(item.LengthStatus)).FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(FormatNullableDecimal(item.MinLength)).FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(FormatNullableDecimal(item.MaxLength)).FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(item.Quantity?.ToString() ?? "-").FontSize(7).AlignCenter();
@@ -282,7 +283,7 @@ public static class SalesOrderPrintHelper
                 foreach (var req in requirements.OrderBy(r => r.Sequence))
                 {
                     table.Cell().Element(CellStyle).Text(req.Sequence.ToString()).FontSize(8).AlignCenter();
-                    table.Cell().Element(CellStyle).Text(GetRequirementTypeText(req.RequirementType)).FontSize(8).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(req.RequirementType)).FontSize(8).AlignCenter();
                     table.Cell().Element(CellStyle).Text(req.ChemicalComposition ?? "-").FontSize(8);
                     table.Cell().Element(CellStyle).Text(req.MechanicalProperty ?? "-").FontSize(8);
                     table.Cell().Element(CellStyle).Text(req.ToleranceRequirement ?? "-").FontSize(8);
@@ -320,56 +321,4 @@ public static class SalesOrderPrintHelper
 
     private static string FormatDecimal(decimal value) => value == 0 ? "0" : value.ToString("G29");
     private static string FormatNullableDecimal(decimal? value) => value.HasValue && value.Value != 0 ? value.Value.ToString("G29") : "-";
-
-    private static string GetOrderStatusText(SalesOrderStatus status) => status switch
-    {
-        SalesOrderStatus.Pending => "待处理",
-        SalesOrderStatus.Confirmed => "已确认",
-        _ => status.ToString()
-    };
-
-    private static string GetSettlementText(SettlementMethod method) => method switch
-    {
-        SettlementMethod.Theoretical => "理算",
-        SettlementMethod.Weighing => "过磅",
-        SettlementMethod.WeighingNegative => "过磅-负",
-        _ => method.ToString()
-    };
-
-    private static string GetMaterialText(MaterialName name) => name switch
-    {
-        MaterialName.SeamlessPipe => "无缝管",
-        MaterialName.WeldedPipe => "焊管",
-        _ => name.ToString()
-    };
-
-    private static string GetDeliveryStateText(DeliveryState state) => state switch
-    {
-        DeliveryState.SolutionAnnealedAndPickled => "固溶酸洗",
-        DeliveryState.SolutionAnnealedAndPickledUTube => "固溶酸洗U型管",
-        DeliveryState.SolutionAnnealedAndPickledExternalPolished => "固溶酸洗外抛",
-        DeliveryState.SolutionAnnealedAndPickledInternalPolished => "固溶酸洗内抛",
-        DeliveryState.SolutionAnnealedAndPickledBothPolished => "固溶酸洗内外抛",
-        DeliveryState.SolutionAnnealedAndPickledCoiled => "固溶酸洗盘管",
-        DeliveryState.Bright => "光亮",
-        DeliveryState.BrightUTube => "光亮U型管",
-        DeliveryState.BrightCoiled => "光亮盘管",
-        DeliveryState.Hard => "硬态",
-        _ => state.ToString()
-    };
-
-    private static string GetLengthStatusText(LengthStatus status) => status switch
-    {
-        LengthStatus.Fixed => "定尺",
-        LengthStatus.Range => "范围尺",
-        LengthStatus.NonFixed => "非定尺",
-        _ => status.ToString()
-    };
-
-    private static string GetRequirementTypeText(RequirementType type) => type switch
-    {
-        RequirementType.Normal => "常规",
-        RequirementType.Special => "特殊",
-        _ => type.ToString()
-    };
 }

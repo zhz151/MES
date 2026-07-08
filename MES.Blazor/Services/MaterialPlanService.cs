@@ -504,6 +504,7 @@ public class MaterialPlanService
 
     #region 打印
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintSemiPlanAsync(int planId)
     {
         try
@@ -517,6 +518,7 @@ public class MaterialPlanService
         }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintFinishedPlanAsync(int planId)
     {
         try
@@ -530,6 +532,7 @@ public class MaterialPlanService
         }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintInventoryPlanAsync(int planId)
     {
         try
@@ -543,6 +546,7 @@ public class MaterialPlanService
         }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintReworkPlanAsync(int planId)
     {
         try
@@ -556,6 +560,7 @@ public class MaterialPlanService
         }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintPiercingPlanAsync(int planId)
     {
         try
@@ -569,6 +574,7 @@ public class MaterialPlanService
         }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintInProcessReworkPlanAsync(int planId)
     {
         try
@@ -582,6 +588,7 @@ public class MaterialPlanService
         }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintSelectedPlansAsync(MaterialPlanBatchPrintRequest request)
     {
         try

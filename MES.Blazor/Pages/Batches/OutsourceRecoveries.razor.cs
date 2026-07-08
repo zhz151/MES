@@ -19,14 +19,11 @@ public partial class OutsourceRecoveries
     private int _totalCount;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -39,7 +36,7 @@ public partial class OutsourceRecoveries
             StateHasChanged();
         }
     }
-    private int _currentPage = 1;
+    private int _currentPageIndex;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
@@ -72,25 +69,27 @@ public partial class OutsourceRecoveries
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "BatchNo",             Label = "生产编号",     SortKey = "batchno",                FilterType = "string" },
-        new() { Key = "OutsourceVendor",     Label = "委外单位",     SortKey = "outsourcevendor",        FilterType = "string" },
-        new() { Key = "ProcessName",         Label = "工序名称",     SortKey = "processname",            FilterType = "string" },
-        new() { Key = "SectionName",         Label = "工段名称",     SortKey = "sectionname",            FilterType = "string" },
-        new() { Key = "ManufacturingSpec",   Label = "制造规格",     SortKey = "manufacturingspec",      FilterType = "string" },
-        new() { Key = "OutsourceSpec",       Label = "委外规格",     SortKey = "outsourcespec",          FilterType = "string" },
-        new() { Key = "SendQuantity",        Label = "发出支数",     SortKey = "sendquantity" },
-        new() { Key = "SendWeight",          Label = "发出重量",     SortKey = "sendweight" },
-        new() { Key = "TagNo",               Label = "挂牌号",       SortKey = "tagno",                  FilterType = "string" },
-        new() { Key = "PlantGrade",          Label = "工厂牌号",     SortKey = "plantgrade",             FilterType = "string" },
-        new() { Key = "RecoveryDate",        Label = "回收日期",     SortKey = "recoverydate",           FilterType = "date" },
-        new() { Key = "RecoveryQuantity",    Label = "正常回收(支)", SortKey = "recoveryquantity" },
-        new() { Key = "RecoveryWeight",      Label = "正常回收(重)", SortKey = "recoveryweight" },
-        new() { Key = "UnprocessedQuantity", Label = "非正常回收(支)", SortKey = "unprocessedquantity" },
-        new() { Key = "UnprocessedWeight",   Label = "非正常回收(重)", SortKey = "unprocessedweight" },
-        new() { Key = "Remark",              Label = "备注",          SortKey = "remark",                 FilterType = "string" },
-        new() { Key = "DataSource",          Label = "数据来源",     SortKey = "datasource",            FilterType = "enum",
+        // ===== 回收信息 =====
+        new() { Key = "RecoveryDate",        Label = "回收日期",       SortKey = "recoverydate",        FilterType = "date",   Width = "120", GroupKey = 1, GroupName = "回收信息" },
+        new() { Key = "RecoveryQuantity",    Label = "正常回收(支)",   SortKey = "recoveryquantity",                           Width = "80",  GroupKey = 1, GroupName = "回收信息" },
+        new() { Key = "RecoveryWeight",      Label = "正常回收(重)",   SortKey = "recoveryweight",                             Width = "80",  GroupKey = 1, GroupName = "回收信息" },
+        new() { Key = "UnprocessedQuantity", Label = "非正常回收(支)", SortKey = "unprocessedquantity",                       Width = "80",  GroupKey = 1, GroupName = "回收信息" },
+        new() { Key = "UnprocessedWeight",   Label = "非正常回收(重)", SortKey = "unprocessedweight",                         Width = "80",  GroupKey = 1, GroupName = "回收信息" },
+        new() { Key = "Remark",              Label = "回收备注",       SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "回收信息" },
+        new() { Key = "DataSource",          Label = "数据来源",       SortKey = "datasource",          FilterType = "enum",   Width = "80",  GroupKey = 1, GroupName = "回收信息",
             EnumOptions = new() { new("SCAN", "扫码"), new("MANUAL", "手动") } },
-        new() { Key = "UpdatedTime",         Label = "更新时间",     SortKey = "updatedtime",            FilterType = "date" },
+        new() { Key = "UpdatedTime",         Label = "更新时间",       SortKey = "updatedtime",         FilterType = "date",   Width = "120", GroupKey = 1, GroupName = "回收信息" },
+        // ===== 委外信息（导航属性冗余字段）=====
+        new() { Key = "BatchNo",             Label = "生产编号",       SortKey = "batchno",             FilterType = "string", Width = "120", GroupKey = 2, GroupName = "委外信息" },
+        new() { Key = "OutsourceVendor",     Label = "委外单位",       SortKey = "outsourcevendor",     FilterType = "string", Width = "120", GroupKey = 2, GroupName = "委外信息" },
+        new() { Key = "ProcessName",         Label = "工序名称",       SortKey = "processname",         FilterType = "string", Width = "120", GroupKey = 2, GroupName = "委外信息" },
+        new() { Key = "SectionName",         Label = "工段名称",       SortKey = "sectionname",         FilterType = "string", Width = "120", GroupKey = 2, GroupName = "委外信息" },
+        new() { Key = "ManufacturingSpec",   Label = "制造规格",       SortKey = "manufacturingspec",   FilterType = "string", Width = "120", GroupKey = 2, GroupName = "委外信息" },
+        new() { Key = "OutsourceSpec",       Label = "委外规格",       SortKey = "outsourcespec",       FilterType = "string", Width = "120", GroupKey = 2, GroupName = "委外信息" },
+        new() { Key = "SendQuantity",        Label = "发出支数",       SortKey = "sendquantity",                              Width = "80",  GroupKey = 2, GroupName = "委外信息" },
+        new() { Key = "SendWeight",          Label = "发出重量",       SortKey = "sendweight",                                Width = "80",  GroupKey = 2, GroupName = "委外信息" },
+        new() { Key = "TagNo",               Label = "挂牌号",         SortKey = "tagno",               FilterType = "string", Width = "120", GroupKey = 2, GroupName = "委外信息" },
+        new() { Key = "PlantGrade",          Label = "工厂牌号",       SortKey = "plantgrade",          FilterType = "string", Width = "120", GroupKey = 2, GroupName = "委外信息" },
     };
 
     // ========== 分页汇总计算 ==========
@@ -160,7 +159,8 @@ public partial class OutsourceRecoveries
                 _isFirstLoad = false;
             }
 
-            var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "recoverydate";
+            var sortCol = _allColumns.FirstOrDefault(c => c.Key == sortColumn);
+            var sortBy = sortCol?.SortKey ?? sortColumn ?? "recoverydate";
             var filtersJson = SerializeFilters();
 
             var result = await SectionOutsourceService.GetRecoveriesPagedAsync(
@@ -176,7 +176,7 @@ public partial class OutsourceRecoveries
             {
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
-                _currentPage = state.Page + 1;
+                _currentPageIndex = result.Data.PageIndex;
                 ComputePageSums();
             }
             else
@@ -303,7 +303,6 @@ public partial class OutsourceRecoveries
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
-        _allSelected = false;
         selectedIds.Clear();
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
@@ -325,6 +324,7 @@ public partial class OutsourceRecoveries
     {
         _allColumns = GetAllColumnDefs();
         await SaveColumnPrefs();
+        if (table != null) await table.ReloadServerData();
     }
 
     private async Task MoveColumnUp(ColumnDef col)
@@ -346,23 +346,22 @@ public partial class OutsourceRecoveries
         var saved = await ColumnPrefs.LoadAsync(StorageKey, null);
         if (saved.Count > 0)
         {
-            foreach (var s in saved)
-            {
-                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
-                if (match != null)
-                    match.Visible = s.Visible;
-            }
+            // 按保存的顺序重新排列 _allColumns，同时恢复 Visible
             var reordered = new List<ColumnDef>();
-            foreach (var s in saved)
+            foreach (var savedCol in saved)
             {
-                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
-                if (match != null && !reordered.Contains(match))
+                var match = _allColumns.FirstOrDefault(c => c.Key == savedCol.Key);
+                if (match != null)
+                {
+                    match.Visible = savedCol.Visible;
                     reordered.Add(match);
+                }
             }
-            foreach (var c in _allColumns)
+            // 补充全新列（保存数据中没有的，如新增字段）追加到末尾
+            foreach (var col in _allColumns)
             {
-                if (!reordered.Contains(c))
-                    reordered.Add(c);
+                if (!reordered.Any(c => c.Key == col.Key))
+                    reordered.Add(col);
             }
             _allColumns = reordered;
         }
@@ -398,6 +397,12 @@ public partial class OutsourceRecoveries
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#outsource-recoveries-list-table");
+        }
+        catch { }
+
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
@@ -412,36 +417,6 @@ public partial class OutsourceRecoveries
     {
         switch (col.Key)
         {
-            case "BatchNo":
-                builder.AddContent(0, item.BatchNo ?? "");
-                break;
-            case "OutsourceVendor":
-                builder.AddContent(0, item.OutsourceVendor ?? "");
-                break;
-            case "ProcessName":
-                builder.AddContent(0, item.ProcessName ?? "");
-                break;
-            case "SectionName":
-                builder.AddContent(0, item.SectionName ?? "");
-                break;
-            case "ManufacturingSpec":
-                builder.AddContent(0, DisplayHelper.FormatSpecification(item.ManufacturingSpec ?? ""));
-                break;
-            case "OutsourceSpec":
-                builder.AddContent(0, item.OutsourceSpec ?? "");
-                break;
-            case "SendQuantity":
-                builder.AddContent(0, DisplayHelper.FormatNullableInt(item.SendQuantity));
-                break;
-            case "SendWeight":
-                builder.AddContent(0, $"{(int)(item.SendWeight ?? 0)}");
-                break;
-            case "TagNo":
-                builder.AddContent(0, item.TagNo ?? "");
-                break;
-            case "PlantGrade":
-                builder.AddContent(0, item.PlantGrade ?? "");
-                break;
             case "RecoveryDate":
                 builder.AddContent(0, item.RecoveryDate.ToString("yyyy-MM-dd"));
                 break;
@@ -472,6 +447,36 @@ public partial class OutsourceRecoveries
             case "UpdatedTime":
                 builder.AddContent(0, item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
+            case "BatchNo":
+                builder.AddContent(0, item.BatchNo ?? "");
+                break;
+            case "OutsourceVendor":
+                builder.AddContent(0, item.OutsourceVendor ?? "");
+                break;
+            case "ProcessName":
+                builder.AddContent(0, item.ProcessName ?? "");
+                break;
+            case "SectionName":
+                builder.AddContent(0, item.SectionName ?? "");
+                break;
+            case "ManufacturingSpec":
+                builder.AddContent(0, DisplayHelper.FormatSpecification(item.ManufacturingSpec ?? ""));
+                break;
+            case "OutsourceSpec":
+                builder.AddContent(0, item.OutsourceSpec ?? "");
+                break;
+            case "SendQuantity":
+                builder.AddContent(0, DisplayHelper.FormatNullableInt(item.SendQuantity));
+                break;
+            case "SendWeight":
+                builder.AddContent(0, $"{(int)(item.SendWeight ?? 0)}");
+                break;
+            case "TagNo":
+                builder.AddContent(0, item.TagNo ?? "");
+                break;
+            case "PlantGrade":
+                builder.AddContent(0, item.PlantGrade ?? "");
+                break;
             default:
                 builder.AddContent(0, "");
                 break;
@@ -482,6 +487,14 @@ public partial class OutsourceRecoveries
 
     private string? GetCellRawValue(OutsourceRecoveryDto item, string key) => key switch
     {
+        "RecoveryDate" => item.RecoveryDate.ToString("yyyy-MM-dd"),
+        "RecoveryQuantity" => item.RecoveryQuantity?.ToString("G29"),
+        "RecoveryWeight" => $"{(int)(item.RecoveryWeight ?? 0)}",
+        "UnprocessedQuantity" => item.UnprocessedQuantity?.ToString("G29"),
+        "UnprocessedWeight" => $"{(int)(item.UnprocessedWeight ?? 0)}",
+        "Remark" => item.Remark,
+        "DataSource" => item.DataSource,
+        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         "BatchNo" => item.BatchNo,
         "OutsourceVendor" => item.OutsourceVendor,
         "ProcessName" => item.ProcessName,
@@ -492,14 +505,6 @@ public partial class OutsourceRecoveries
         "SendWeight" => $"{(int)(item.SendWeight ?? 0)}",
         "TagNo" => item.TagNo,
         "PlantGrade" => item.PlantGrade,
-        "RecoveryDate" => item.RecoveryDate.ToString("yyyy-MM-dd"),
-        "RecoveryQuantity" => item.RecoveryQuantity?.ToString("G29"),
-        "RecoveryWeight" => $"{(int)(item.RecoveryWeight ?? 0)}",
-        "UnprocessedQuantity" => item.UnprocessedQuantity?.ToString("G29"),
-        "UnprocessedWeight" => $"{(int)(item.UnprocessedWeight ?? 0)}",
-        "Remark" => item.Remark,
-        "DataSource" => item.DataSource,
-        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         _ => null
     };
 
@@ -535,7 +540,6 @@ public partial class OutsourceRecoveries
         if (!selectedIds.Any()) return;
 
         var columns = _visibleColumns
-            .Where(c => c.Key != "CreatedTime")
             .Select(c => new PrintColumnDef
             {
                 Key = c.Key,
@@ -543,17 +547,16 @@ public partial class OutsourceRecoveries
             })
             .ToList();
 
-        var result = await SectionOutsourceService.PrintRecoverySelectedAsync(selectedIds.ToArray(), columns);
-        if (result.Success)
-            await JS.InvokeVoidAsync("openPdf", result.Data);
-        else
-            Snackbar.Add(result.Message, Severity.Error);
+        var request = new RecoveryPrintBatchRequest { Ids = selectedIds.ToArray(), Columns = columns };
+        var apiUrl = $"{Http.BaseAddress}api/section-outsource/recoveries/print-selected-file";
+        var json = JsonSerializer.Serialize(request);
+        Snackbar.Add("正在生成PDF...", Severity.Info);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
     private async Task PrintAll()
     {
         var columns = _visibleColumns
-            .Where(c => c.Key != "CreatedTime")
             .Select(c => new PrintColumnDef
             {
                 Key = c.Key,
@@ -561,17 +564,122 @@ public partial class OutsourceRecoveries
             })
             .ToList();
 
-        var result = await SectionOutsourceService.PrintRecoveryAllAsync(
-            keyword: string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword.Trim(),
-            sortBy: sortColumn,
-            isDescending: sortDescending,
-            columns: columns,
-            recoveryDateFrom: null,
-            recoveryDateTo: null);
-        if (result.Success)
-            await JS.InvokeVoidAsync("openPdf", result.Data);
-        else
-            Snackbar.Add(result.Message, Severity.Error);
+        var request = new RecoveryPrintAllRequest
+        {
+            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword.Trim(),
+            SortBy = sortColumn,
+            IsDescending = sortDescending,
+            Columns = columns
+        };
+        var apiUrl = $"{Http.BaseAddress}api/section-outsource/recoveries/print-all-file";
+        var json = JsonSerializer.Serialize(request);
+        Snackbar.Add("正在生成PDF...", Severity.Info);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+    }
+
+    // ========== 分组渲染 ==========
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+
+        // 选择列占位（40px），对齐表格最左侧的 checkbox 列
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        int? lastKey = null;
+        int totalWidth = 0;
+        var groupKey = 0;
+        var groupName = "";
+        var count = 0;
+
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (lastKey.HasValue && gk != lastKey.Value)
+            {
+                if (count > 0)
+                {
+                    result.Add(new GroupHeaderInfo
+                    {
+                        GroupKey = groupKey,
+                        GroupName = groupName,
+                        TotalWidth = totalWidth,
+                        ColumnCount = count,
+                        CssClass = GetHeaderGroupCss(groupKey, true)
+                    });
+                }
+                totalWidth = 0;
+                count = 0;
+            }
+            groupKey = gk;
+            groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++;
+            lastKey = gk;
+        }
+        if (count > 0)
+        {
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        }
+
+        // 操作列占位，对齐表格最右侧的操作按钮列
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 90,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1",
+            2 => "col-g2",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1-cell",
+            2 => "col-g2-cell",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
     }
 
     // ========== 持久化 ==========
@@ -586,7 +694,7 @@ public partial class OutsourceRecoveries
             SortBy = sortColumn,
             IsDescending = sortDescending,
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            PageIndex = _currentPage,
+            PageIndex = _currentPageIndex,
             Extras = extras
         };
         await PageState.SaveAsync("outsourcerecoveries", state);

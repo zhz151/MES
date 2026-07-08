@@ -353,6 +353,7 @@ public class ProductionRecordService
 
     // ========== 打印 ==========
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
     {
         try
@@ -365,6 +366,7 @@ public class ProductionRecordService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintAllAsync(string? keyword = null, string? sortBy = null, bool isDescending = true, List<PrintColumnDef>? columns = null, DateTime? execDateFrom = null, DateTime? execDateTo = null)
     {
         try
@@ -385,6 +387,7 @@ public class ProductionRecordService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintMaterialCheckBatchAsync(int[] ids, List<PrintColumnDef> columns)
     {
         try
@@ -397,6 +400,7 @@ public class ProductionRecordService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintMaterialCheckAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? receiveDateFrom = null, DateTime? receiveDateTo = null)
     {
         try

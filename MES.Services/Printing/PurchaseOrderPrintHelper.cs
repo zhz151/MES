@@ -3,6 +3,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using MES.Core.DTOs;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Services.Printing;
 
@@ -110,19 +111,11 @@ public static class PurchaseOrderPrintHelper
                 table.Cell().Element(CellStyle).Text(o.Weight.ToString("G29")).FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(o.RequiredDate.ToString("yyyy-MM-dd")).FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(o.SupplierName).FontSize(7);
-                table.Cell().Element(CellStyle).Text(GetStatusText(o.Status)).FontSize(7).AlignCenter();
+                table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(o.Status)).FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text($"{o.ReceivedQuantity}支/{o.ReceivedWeight.ToString("G29")}kg").FontSize(7).AlignCenter();
             }
         });
     }
-
-    private static string GetStatusText(PurchaseOrderStatus status) => status switch
-    {
-        PurchaseOrderStatus.Open => "已下单",
-        PurchaseOrderStatus.Partial => "部分到货",
-        PurchaseOrderStatus.Completed => "已完成",
-        _ => status.ToString()
-    };
 
     private static IContainer CellHeaderStyle(IContainer container)
     {

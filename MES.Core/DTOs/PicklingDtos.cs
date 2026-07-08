@@ -196,6 +196,8 @@ public class UpdatePicklingOutRecordRequest
 
 // ========== 打印相关 ==========
 
+// ========== 入缸记录打印 ==========
+
 /// <summary>
 /// 入缸记录打印已选请求
 /// </summary>
@@ -216,6 +218,31 @@ public class PicklingInRecordPrintAllRequest
     public bool IsDescending { get; set; } = true;
     public DateTime? InDateFrom { get; set; }
     public DateTime? InDateTo { get; set; }
+    public DateTime? CompleteDateFrom { get; set; }
+    public DateTime? CompleteDateTo { get; set; }
+    public List<PrintColumnDef> Columns { get; set; } = new();
+}
+
+// ========== 完工记录打印 ==========
+
+/// <summary>
+/// 完工记录打印已选请求
+/// </summary>
+public class PicklingOutRecordPrintBatchRequest
+{
+    [Required(ErrorMessage = "请选择要打印的记录")]
+    public int[] Ids { get; set; } = Array.Empty<int>();
+    public List<PrintColumnDef> Columns { get; set; } = new();
+}
+
+/// <summary>
+/// 完工记录打印全部请求
+/// </summary>
+public class PicklingOutRecordPrintAllRequest
+{
+    public string? Keyword { get; set; }
+    public string? SortBy { get; set; }
+    public bool IsDescending { get; set; } = true;
     public DateTime? CompleteDateFrom { get; set; }
     public DateTime? CompleteDateTo { get; set; }
     public List<PrintColumnDef> Columns { get; set; } = new();

@@ -51,7 +51,11 @@ public partial class WorkOrderLoadOverview : ComponentBase
 
     private async Task PrintTable()
     {
-        await JS.InvokeVoidAsync("printTable", "#workorder-overview-table", Title);
+        var html = await JS.InvokeAsync<string>("getTableHtml", "#workorder-overview-table");
+        if (!string.IsNullOrEmpty(html))
+            await JS.InvokeVoidAsync("printRawHtml", html, Title);
+        else
+            Console.Error.WriteLine("WorkOrderLoadOverview: 未找到可打印的表格");
     }
 
     private static string FormatTons(decimal? tons)

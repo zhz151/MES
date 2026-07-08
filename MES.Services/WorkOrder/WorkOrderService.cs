@@ -480,26 +480,6 @@ private readonly IConfigParameterService _configService;
         };
     }
 
-    public async Task<List<CancelledOrderDto>> GetCancelledOrdersAsync()
-    {
-        var query = from so in _context.SalesOrders
-                    join c in _context.CustomerProfiles on so.CustomerId equals c.Id
-                    join wo in _context.WorkOrders on so.OrderNumber equals wo.SalesOrderNo
-                    where so.Status == SalesOrderStatus.Cancelled
-                    select new CancelledOrderDto
-                    {
-                        SalesOrderId = so.Id,
-                        OrderNumber = so.OrderNumber,
-                        SignDate = so.SignDate,
-                        Salesman = c.Salesman,
-                        CustomerName = c.CustomerUnit,
-                        WorkOrderId = wo.Id,
-                        WorkOrderNo = wo.WorkOrderNo
-                    };
-
-        return await query.ToListAsync();
-    }
-
     /// <summary>
     /// 获取已确认但无工单的订单列表（待生成工单）
     /// </summary>

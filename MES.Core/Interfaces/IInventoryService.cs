@@ -75,6 +75,11 @@ public interface IInventoryService
     /// </summary>
     Task<List<string>> ValidateWarehouseWorkOrderNosAsync(int warehouseId);
 
+    /// <summary>
+    /// 获取入库批次中工单号不存在的批次列表（实时扫描）
+    /// </summary>
+    Task<List<BatchWorkOrderMismatchDto>> GetMismatchedWorkOrderBatchesAsync(int? warehouseId = null);
+
     // ========== 打印 ==========
 
     /// <summary>
@@ -86,6 +91,26 @@ public interface IInventoryService
     /// 打印选中库存/入库记录
     /// </summary>
     Task<byte[]> PrintInventorySelectedAsync(InventoryPrintSelectedRequest request);
+
+    /// <summary>
+    /// 打印全部库存（只显示有库存的记录）
+    /// </summary>
+    Task<byte[]> PrintStockAllAsync(InventoryPrintAllRequest request);
+
+    /// <summary>
+    /// 打印选中库存批次
+    /// </summary>
+    Task<byte[]> PrintStockSelectedAsync(InventoryPrintSelectedRequest request);
+
+    /// <summary>
+    /// 打印全部入库历史
+    /// </summary>
+    Task<byte[]> PrintInboundAllAsync(InventoryPrintAllRequest request);
+
+    /// <summary>
+    /// 打印选中入库批次
+    /// </summary>
+    Task<byte[]> PrintInboundSelectedAsync(InventoryPrintSelectedRequest request);
 
     /// <summary>
     /// 打印全部出库记录

@@ -2021,14 +2021,14 @@ public class MaterialPlanService : IMaterialPlanService
     }
 
     /// <summary>
-    /// 获取所有待处理（Planned状态）的在产改制计划列表（供批次上下文通知）
-    /// 取消条件：批次工单号不再是"非工单"（被正式工单认领）
+    /// 获取在产改制计划通知（供批次上下文使用）
+    /// 通知规则：批次 WorkOrderNo == "非工单" 时显示，被正式工单认领后自动消失
+    /// 不限制 PlanStatus，避免维护隐患
     /// </summary>
     public async Task<List<PendingPlanBatchDto>> GetPendingInProcessReworkPlansAsync()
     {
         return await _context.InProcessReworkPlans
             .AsNoTracking()
-            .Where(p => p.PlanStatus == InventoryPlanStatus.Planned)
             .Join(_context.ProductionBatches.AsNoTracking(),
                 p => p.ProductionBatchId,
                 b => b.Id,

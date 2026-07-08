@@ -161,4 +161,24 @@ public class FinalInspectionsController : ControllerBase
         var result = await _service.LookupBatchAsync(batchNo);
         return Ok(ApiResponse<BatchLookupResultDto?>.Ok(result, "查询成功"));
     }
+
+    /// <summary>批量打印选中记录（PDF 文件）</summary>
+    [HttpPost("print-batch-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<IActionResult> PrintBatchFile([FromBody] FinalInspectionPrintBatchRequest request)
+    {
+        if (request.Ids.Length == 0)
+            return BadRequest(ApiResponse<object>.Fail("请至少选择一条记录"));
+        var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
+        return File(pdfBytes, "application/pdf", "成品检验-选中.pdf");
+    }
+
+    /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
+    [HttpPost("print-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<IActionResult> PrintAllFile([FromBody] FinalInspectionPrintAllRequest request)
+    {
+        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
+        return File(pdfBytes, "application/pdf", "成品检验-全部.pdf");
+    }
 }

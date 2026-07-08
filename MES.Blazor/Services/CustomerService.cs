@@ -196,6 +196,7 @@ public class CustomerService
     // ========== 打印 ==========
 
     /// <summary>打印单个客户</summary>
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintCustomerAsync(int id)
     {
         try
@@ -210,6 +211,7 @@ public class CustomerService
     }
 
     /// <summary>批量打印客户</summary>
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintCustomerBatchAsync(int[] ids)
     {
         try
@@ -225,6 +227,7 @@ public class CustomerService
     }
 
     /// <summary>按筛选条件打印全部客户</summary>
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintCustomerAllAsync(string? keyword = null, string? sortBy = null, bool isDescending = false)
     {
         try

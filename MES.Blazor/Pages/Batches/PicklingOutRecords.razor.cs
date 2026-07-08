@@ -17,8 +17,26 @@ public partial class PicklingOutRecords
     private MudTable<PicklingOutRecordDto>? table;
     private List<PicklingOutRecordDto> _pageItems = new();
     private int _totalCount;
+    private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
-    private int _currentPage;
+    private bool allSelected
+    {
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
+        set
+        {
+            if (value)
+            {
+                foreach (var item in _pageItems)
+                    selectedIds.Add(item.Id);
+            }
+            else
+            {
+                selectedIds.Clear();
+            }
+            StateHasChanged();
+        }
+    }
+    private int _currentPageIndex;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
@@ -63,23 +81,25 @@ public partial class PicklingOutRecords
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "BatchNo",             Label = "生产编号",     SortKey = "batchno",          FilterType = "string" },
-        new() { Key = "ProcessName",         Label = "工序名称",     SortKey = "processname",      FilterType = "string" },
-        new() { Key = "SectionName",         Label = "工段名称",     SortKey = "sectionname",      FilterType = "string" },
-        new() { Key = "ManufacturingSpec",   Label = "制造规格",     SortKey = "manufacturingspec", FilterType = "string" },
-        new() { Key = "CompleteDate",        Label = "完工日期",     SortKey = "completedate",     FilterType = "date" },
-        new() { Key = "EquipmentName",       Label = "设备名称",     SortKey = "equipmentname",    FilterType = "string" },
-        new() { Key = "Operator",            Label = "操作人",       SortKey = "operator",         FilterType = "string" },
-        new() { Key = "Shift",               Label = "班次",         SortKey = "shift",            FilterType = "string" },
-        new() { Key = "Quantity",            Label = "加工支数",     SortKey = "quantity",         FilterType = "string" },
-        new() { Key = "Weight",              Label = "加工重量(kg)", SortKey = "weight",           FilterType = "string" },
-        new() { Key = "IsFinished",          Label = "是否成品",     SortKey = "isfinished",       FilterType = "string" },
-        new() { Key = "TagNo",               Label = "挂牌号",       SortKey = "tagno",            FilterType = "string" },
-        new() { Key = "PlantGrade",          Label = "工厂牌号",     SortKey = "plantgrade",       FilterType = "string" },
-        new() { Key = "Remark",              Label = "备注",         SortKey = "remark",           FilterType = "string" },
-        new() { Key = "DataSource",          Label = "数据来源",     SortKey = "datasource",       FilterType = "enum",
+        // G1: 出缸信息（完工记录自身业务字段）
+        new() { Key = "CompleteDate",      Label = "完工日期",     SortKey = "completedate",      FilterType = "date",   Width = "120", GroupKey = 1, GroupName = "出缸信息" },
+        new() { Key = "Remark",            Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "出缸信息" },
+        new() { Key = "DataSource",        Label = "数据来源",     SortKey = "datasource",          FilterType = "enum",   Width = "80",  GroupKey = 1, GroupName = "出缸信息",
             EnumOptions = new() { new("SCAN", "扫码"), new("MANUAL", "手动") } },
-        new() { Key = "UpdatedTime",         Label = "更新时间",     SortKey = "updatedtime",      FilterType = "date" },
+        new() { Key = "UpdatedTime",       Label = "更新时间",     SortKey = "updatedtime",                                 Width = "120", GroupKey = 1, GroupName = "出缸信息" },
+        // G2: 其它（冗余字段 + 导航属性）
+        new() { Key = "EquipmentName",     Label = "设备名称",     SortKey = "equipmentname",     FilterType = "string", Width = "100", GroupKey = 2, GroupName = "其它信息" },
+        new() { Key = "Operator",          Label = "操作人",       SortKey = "operator",          FilterType = "string", Width = "80",  GroupKey = 2, GroupName = "其它信息" },
+        new() { Key = "Shift",             Label = "班次",         SortKey = "shift",             FilterType = "string", Width = "80",  GroupKey = 2, GroupName = "其它信息" },
+        new() { Key = "Quantity",          Label = "加工支数",     SortKey = "quantity",                                     Width = "80",  GroupKey = 2, GroupName = "其它信息" },
+        new() { Key = "Weight",            Label = "加工重量(kg)", SortKey = "weight",                                       Width = "80",  GroupKey = 2, GroupName = "其它信息" },
+        new() { Key = "IsFinished",        Label = "是否成品",     SortKey = "isfinished",          FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "80", GroupKey = 2, GroupName = "其它信息" },
+        new() { Key = "BatchNo",           Label = "生产编号",     SortKey = "batchno",             FilterType = "string", Width = "120", GroupKey = 2, GroupName = "其它信息" },
+        new() { Key = "ProcessName",       Label = "工序名称",     SortKey = "processname",         FilterType = "string", Width = "120", GroupKey = 2, GroupName = "其它信息" },
+        new() { Key = "SectionName",       Label = "工段名称",     SortKey = "sectionname",         FilterType = "string", Width = "100", GroupKey = 2, GroupName = "其它信息" },
+        new() { Key = "ManufacturingSpec", Label = "制造规格",     SortKey = "manufacturingspec",   FilterType = "string", Width = "120", GroupKey = 2, GroupName = "其它信息" },
+        new() { Key = "TagNo",             Label = "挂牌号",       SortKey = "tagno",               FilterType = "string", Width = "120", GroupKey = 2, GroupName = "其它信息" },
+        new() { Key = "PlantGrade",        Label = "工厂牌号",     SortKey = "plantgrade",          FilterType = "string", Width = "120", GroupKey = 2, GroupName = "其它信息" },
     };
 
     // ========== 分页汇总计算 ==========
@@ -222,7 +242,7 @@ public partial class PicklingOutRecords
             {
                 _pageItems = result.Data.Items;
                 _totalCount = result.Data.TotalCount;
-                _currentPage = state.Page + 1;
+                _currentPageIndex = result.Data.PageIndex;
                 ComputePageSums();
             }
             else
@@ -264,7 +284,7 @@ public partial class PicklingOutRecords
         return descriptors.Count > 0 ? JsonSerializer.Serialize(descriptors) : null;
     }
 
-    // ========== 筛选上下文加载（ExcelFilter 下拉选项） ==========
+    // ========== 筛选上下文加载 ==========
 
     private async Task LoadFilterContextsAsync()
     {
@@ -305,6 +325,19 @@ public partial class PicklingOutRecords
                 }).ToList();
             }
         }
+
+        // 补充布尔列筛选选项
+        foreach (var col in _allColumns)
+        {
+            if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
+            {
+                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
+                {
+                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
+                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
+                };
+            }
+        }
     }
 
     // ========== ExcelFilter 事件 ==========
@@ -335,6 +368,7 @@ public partial class PicklingOutRecords
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        selectedIds.Clear();
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -355,6 +389,7 @@ public partial class PicklingOutRecords
     {
         _allColumns = GetAllColumnDefs();
         await SaveColumnPrefs();
+        if (table != null) await table.ReloadServerData();
     }
 
     private async Task MoveColumnUp(ColumnDef col)
@@ -426,6 +461,12 @@ public partial class PicklingOutRecords
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#pickling-out-records-list-table");
+        }
+        catch { }
+
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
@@ -456,13 +497,10 @@ public partial class PicklingOutRecords
                 if (_editingIds.Contains(item.Id))
                 {
                     builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Dense", true);
-                    builder.AddAttribute(2, "Variant", Variant.Outlined);
-                    builder.AddAttribute(3, "Size", Size.Small);
-                    builder.AddAttribute(4, "Value", _editCache[item.Id].CompleteDateStr);
-                    builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => _editCache[item.Id].CompleteDateStr = v ?? ""));
-                    builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd");
-                    builder.AddAttribute(7, "Style", "width:110px;");
+                    builder.AddAttribute(1, "Value", _editCache[item.Id].CompleteDateStr);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => _editCache[item.Id].CompleteDateStr = v ?? ""));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "Placeholder", "yyyy-MM-dd");
                     builder.CloseComponent();
                 }
                 else
@@ -483,13 +521,28 @@ public partial class PicklingOutRecords
                 builder.AddContent(0, item.Shift ?? "");
                 break;
             case "Quantity":
-                builder.AddContent(0, item.Quantity?.ToString() ?? "");
+                builder.AddContent(0, DisplayHelper.FormatNullableInt(item.Quantity));
                 break;
             case "Weight":
-                builder.AddContent(0, item.Weight?.ToString("G29") ?? "");
+                builder.AddContent(0, $"{(int)(item.Weight ?? 0)}");
                 break;
             case "IsFinished":
-                builder.AddContent(0, item.IsFinished ? "是" : "否");
+                if (item.IsFinished)
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", Color.Success);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "是")));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", Color.Default);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "否")));
+                    builder.CloseComponent();
+                }
                 break;
             case "PlantGrade":
                 builder.AddContent(0, item.PlantGrade ?? "");
@@ -498,12 +551,9 @@ public partial class PicklingOutRecords
                 if (_editingIds.Contains(item.Id))
                 {
                     builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Dense", true);
-                    builder.AddAttribute(2, "Variant", Variant.Outlined);
-                    builder.AddAttribute(3, "Size", Size.Small);
-                    builder.AddAttribute(4, "Value", _editCache[item.Id].Remark);
-                    builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => _editCache[item.Id].Remark = v ?? ""));
-                    builder.AddAttribute(7, "Style", "width:120px;");
+                    builder.AddAttribute(1, "Value", _editCache[item.Id].Remark);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => _editCache[item.Id].Remark = v ?? ""));
+                    builder.AddAttribute(3, "Class", "compact-input");
                     builder.CloseComponent();
                 }
                 else
@@ -528,6 +578,151 @@ public partial class PicklingOutRecords
                 break;
         }
     };
+
+    // ========== 打印 ==========
+
+    private async Task PrintSelected()
+    {
+        if (!selectedIds.Any())
+        {
+            Snackbar.Add("请先选择要打印的记录", Severity.Warning);
+            return;
+        }
+
+        var columns = _visibleColumns
+            .Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label })
+            .ToList();
+
+        var request = new PicklingOutRecordPrintBatchRequest { Ids = selectedIds.ToArray(), Columns = columns };
+        var apiUrl = $"{Http.BaseAddress}api/pickling/out-records/print-selected-file";
+        var json = JsonSerializer.Serialize(request);
+        Snackbar.Add("正在生成PDF...", Severity.Info);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+    }
+
+    private async Task PrintAll()
+    {
+        var columns = _visibleColumns
+            .Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label })
+            .ToList();
+
+        var request = new PicklingOutRecordPrintAllRequest
+        {
+            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword.Trim(),
+            SortBy = sortColumn,
+            IsDescending = sortDescending,
+            Columns = columns
+        };
+        var apiUrl = $"{Http.BaseAddress}api/pickling/out-records/print-all-file";
+        var json = JsonSerializer.Serialize(request);
+        Snackbar.Add("正在生成PDF...", Severity.Info);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+    }
+
+    // ========== 分组渲染 ==========
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+
+        // 选择列占位（40px）
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        int? lastKey = null;
+        int totalWidth = 0;
+        var groupKey = 0;
+        var groupName = "";
+        var count = 0;
+
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (lastKey.HasValue && gk != lastKey.Value)
+            {
+                if (count > 0)
+                {
+                    result.Add(new GroupHeaderInfo
+                    {
+                        GroupKey = groupKey,
+                        GroupName = groupName,
+                        TotalWidth = totalWidth,
+                        ColumnCount = count,
+                        CssClass = GetHeaderGroupCss(groupKey, true)
+                    });
+                }
+                totalWidth = 0;
+                count = 0;
+            }
+            groupKey = gk;
+            groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++;
+            lastKey = gk;
+        }
+        if (count > 0)
+        {
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        }
+
+        // 操作列占位（90px）
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 90,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1",
+            2 => "col-g2",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1-cell",
+            2 => "col-g2-cell",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
 
     // ========== 删除 ==========
 
@@ -566,7 +761,7 @@ public partial class PicklingOutRecords
             SortBy = sortColumn,
             IsDescending = sortDescending,
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            PageIndex = _currentPage,
+            PageIndex = _currentPageIndex,
             Extras = extras
         };
         await PageState.SaveAsync("picklingoutrecords", state);

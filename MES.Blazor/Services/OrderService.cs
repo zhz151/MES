@@ -206,6 +206,7 @@ public class OrderService
     /// <summary>
     /// 打印单个订单
     /// </summary>
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintOrderAsync(int id)
     {
         try
@@ -222,6 +223,7 @@ public class OrderService
     /// <summary>
     /// 批量打印选定订单
     /// </summary>
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintOrderBatchAsync(int[] ids)
     {
         try
@@ -238,6 +240,7 @@ public class OrderService
     /// <summary>
     /// 打印订单技术要求
     /// </summary>
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintOrderRequirementsAsync(int orderId)
     {
         try

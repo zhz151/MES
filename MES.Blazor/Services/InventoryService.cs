@@ -257,8 +257,25 @@ public class InventoryService
         catch (Exception ex) { return ApiResponse<List<string>>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    /// <summary>
+    /// 获取入库批次中工单号不存在的批次列表（实时扫描）
+    /// </summary>
+    public async Task<ApiResponse<List<BatchWorkOrderMismatchDto>>> GetMismatchedBatchesAsync(int? warehouseId = null)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/mismatched-batches";
+            if (warehouseId.HasValue)
+                url += $"?warehouseId={warehouseId.Value}";
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<BatchWorkOrderMismatchDto>>>(url);
+            return response ?? ApiResponse<List<BatchWorkOrderMismatchDto>>.Fail("查询失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<BatchWorkOrderMismatchDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     // ========== 打印 ==========
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintInventoryAllAsync(InventoryPrintAllRequest request)
     {
         try
@@ -269,6 +286,7 @@ public class InventoryService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintInventorySelectedAsync(InventoryPrintSelectedRequest request)
     {
         try
@@ -279,6 +297,7 @@ public class InventoryService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintOutboundAllAsync(OutboundPrintAllRequest request)
     {
         try
@@ -289,6 +308,7 @@ public class InventoryService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
     public async Task<ApiResponse<string>> PrintOutboundSelectedAsync(OutboundPrintSelectedRequest request)
     {
         try

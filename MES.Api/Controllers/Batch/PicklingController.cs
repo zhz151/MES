@@ -249,6 +249,69 @@ public class PicklingController : ControllerBase
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
 
+    /// <summary>
+    /// 批量打印入缸记录（选中，直接返回 PDF 文件）
+    /// </summary>
+    [HttpPost("print-selected-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<IActionResult> PrintSelectedFile([FromBody] PicklingInRecordPrintBatchRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
+        return File(pdfBytes, "application/pdf", "酸洗入缸记录打印.pdf");
+    }
+
+    /// <summary>
+    /// 按筛选条件打印全部入缸记录（直接返回 PDF 文件）
+    /// </summary>
+    [HttpPost("print-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<IActionResult> PrintAllFile([FromBody] PicklingInRecordPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending,
+            request.InDateFrom, request.InDateTo,
+            request.CompleteDateFrom, request.CompleteDateTo,
+            request.Columns);
+        return File(pdfBytes, "application/pdf", "酸洗入缸记录列表.pdf");
+    }
+
+    // ========== 完工记录打印 ==========
+
+    /// <summary>
+    /// 批量打印完工记录（选中，直接返回 PDF 文件）
+    /// </summary>
+    [HttpPost("out-records/print-selected-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<IActionResult> PrintOutSelectedFile([FromBody] PicklingOutRecordPrintBatchRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintOutBatchAsync(request.Ids, request.Columns);
+        return File(pdfBytes, "application/pdf", "酸洗完工记录打印.pdf");
+    }
+
+    /// <summary>
+    /// 按筛选条件打印全部完工记录（直接返回 PDF 文件）
+    /// </summary>
+    [HttpPost("out-records/print-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<IActionResult> PrintOutAllFile([FromBody] PicklingOutRecordPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintOutAllAsync(request.Keyword, request.SortBy, request.IsDescending,
+            request.CompleteDateFrom, request.CompleteDateTo,
+            request.Columns);
+        return File(pdfBytes, "application/pdf", "酸洗完工记录列表.pdf");
+    }
+
     // ========== 筛选上下文 ==========
 
     /// <summary>
