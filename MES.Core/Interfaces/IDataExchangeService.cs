@@ -50,4 +50,9 @@ public interface IDataExchangeService
     /// 修复现有生产记录中错误的 SequenceNumber 值
     /// </summary>
     Task<int> FixSequenceNumbersAsync();
+
+    /// <summary>
+    /// 一键修复所有系统计算字段
+    /// </summary>
+    Task<DataFixReport> FixAllSystemFieldsAsync();
 }

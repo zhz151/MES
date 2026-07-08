@@ -861,6 +861,9 @@ public class WorkOrderExecutionServiceTests : TestBase
                 LatestPlanDate = DateTime.Today,
                 MaterialPlanRate = rate,
                 MaterialPlanStatus = rate >= 100 ? 3 : 1,
+                // MainNo 聚合值由 WorkOrderListSummaryRefreshService 写入，测试中直接预置
+                MainNoMaterialPlanRate = 86.67m,
+                MainNoMaterialPlanStatus = 1,
                 RowVersion = new byte[8]
             });
         }

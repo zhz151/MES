@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs;
 using MES.Core.Exceptions;
+using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
@@ -16,7 +17,10 @@ namespace MES.Tests.Services;
 public class FurnaceRegistrationServiceTests : TestBase
 {
     private FurnaceRegistrationService CreateService(AppDbContext ctx)
-        => new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FurnaceRegistrationService>.Instance);
+    {
+        var ruleServiceMock = new Moq.Mock<IChemicalValidationRuleService>();
+        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FurnaceRegistrationService>.Instance, ruleServiceMock.Object);
+    }
 
     private async Task SeedFurnaceAsync(AppDbContext ctx, string furnaceNo = "FUR001",
         string unit = "钢厂A", string grade = "Q345B")

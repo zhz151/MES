@@ -679,12 +679,27 @@ public class InventoryService : IInventoryService
             foreach (var kw in keywords)
             {
                 var keyword = kw;
-                queryable = queryable.Where(r =>
-                    (r.TargetCompany != null && r.TargetCompany.Contains(keyword)) ||
-                    (r.CreatedBy != null && r.CreatedBy.Contains(keyword)) ||
-                    (r.SourceOrderNo != null && r.SourceOrderNo.Contains(keyword)) ||
-                    (r.Remark != null && r.Remark.Contains(keyword)) ||
-                    (r.BatchNo != null && r.BatchNo.Contains(keyword)));
+                var matchedOutboundType = Enum.TryParse<OutboundType>(keyword, ignoreCase: true, out var parsedType);
+                if (matchedOutboundType)
+                {
+                    var outboundType = parsedType;
+                    queryable = queryable.Where(r =>
+                        (r.TargetCompany != null && r.TargetCompany.Contains(keyword)) ||
+                        (r.CreatedBy != null && r.CreatedBy.Contains(keyword)) ||
+                        (r.SourceOrderNo != null && r.SourceOrderNo.Contains(keyword)) ||
+                        (r.Remark != null && r.Remark.Contains(keyword)) ||
+                        (r.BatchNo != null && r.BatchNo.Contains(keyword)) ||
+                        r.OutboundType == outboundType);
+                }
+                else
+                {
+                    queryable = queryable.Where(r =>
+                        (r.TargetCompany != null && r.TargetCompany.Contains(keyword)) ||
+                        (r.CreatedBy != null && r.CreatedBy.Contains(keyword)) ||
+                        (r.SourceOrderNo != null && r.SourceOrderNo.Contains(keyword)) ||
+                        (r.Remark != null && r.Remark.Contains(keyword)) ||
+                        (r.BatchNo != null && r.BatchNo.Contains(keyword)));
+                }
             }
         }
 

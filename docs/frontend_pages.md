@@ -1,6 +1,6 @@
 # MES 前端页面结构参考
 
-> 生成日期：2026-07-07（V12）
+> 生成日期：2026-07-09（V14）
 > 用途：Quick Reference - 快速了解项目前端页面组织结构和上下文归属
 
 ---
@@ -14,12 +14,12 @@
 | 订单 | 订单管理 | OrderStaff/Director | 7 | 3 |
 | 工单 | 工单管理 | WorkOrderStaff/Director | 15 | 4 |
 | 批次 | 批次管理 | BatchStaff/Director | 14 | 6 |
-| 质量 | 质量管理 | QualityStaff/Director | 25 | 17 |
+| 质量 | 质量管理 | QualityStaff/Director | 21 | 15 |
 | 设备 | 设备管理 | EquipmentStaff/Director | 8 | 4 |
 | 物料 | 物料管理 | MaterialStaff/Director | 10 | 4 |
 | 仓库 | 仓库管理 | WarehouseStaff/Director | 5 | 3 |
 | 计划排程 | 计划排程 | 所有 | 8 | 7 |
-| 生产标准 | 生产标准 | StandardRead/StandardWrite | 10 | 6 |
+| 生产标准 | 生产标准 | StandardRead/StandardWrite | 14 | 8 |
 | 配置 | 参数表 | Admin | 8 | 8 |
 | 数据工具 | (独立按钮) | 所有 | 2 | 0 |
 | 用户管理 | (Admin按钮) | Admin | 1 | 0 |
@@ -126,9 +126,8 @@
 ### 2.4 质量上下文
 
 ```
-路由前缀: /quality/furnace, /quality/chemical-composition, /quality/chemical-validate,
-         /quality/process-inspection, /material-checks, /quality/final-inspection,
-         /quality-process-tracking, /quality/ncr,
+路由前缀: /quality/furnace, /quality/process-inspection, /quality/material-receive-checks, /quality/final-inspection,
+         /quality/process-tracking, /quality/ncr,
          /quality/chemical-analysis, /quality/hardness-test, /quality/grain-size-test,
          /quality/pitting-corrosion-test, /quality/intergranular-corrosion-test,
          /quality/tensile-test, /quality/metallographic-test,
@@ -136,29 +135,23 @@
          /quality/lab-testing, /quality/certificate
 菜单: 质量管理 → [检验(子组), 不合格报告, 炉号/化学(子组), 理化检测, 质量证明书]
       检验子组: [过程检验, 成检到料, 成品检验, 成检追踪]
-      炉号/化学子组: [炉号登记, 牌号化学, 牌号验证]
+      炉号/化学子组: [炉号登记]
 
 ┌─ 质量管理 ───────────────────────────────────────────────┐
 │                                                           │
 │  FurnaceRegistrations.razor       /quality/furnace              [列表页]│
 │  FurnaceRegistrationCreate.razor  /quality/furnace/create       [创建页]│
 │                                                           │
-│  ChemicalCompositions.razor       /quality/chemical-composition  [列表页]│
-│  ChemicalCompositionCreate.razor  /quality/chemical-composition/create [创建页]│
-│                                                           │
-│  ChemicalValidationRules.razor    /quality/chemical-validate     [列表页]│
-│  ChemicalValidationRuleCreate.razor /quality/chemical-validate/create [创建页]│
-│                                                           │
 │  ProcessInspections.razor         /quality/process-inspection   [列表页]│
 │  ProcessInspectionCreate.razor    /quality/process-inspection/create [创建页]│
 │                                                           │
-│  MaterialChecks.razor             /material-checks              [列表页]│
-│  MaterialCheckCreate.razor        /material-checks/create       [创建页]│
+│  MaterialReceiveChecks.razor        /quality/material-receive-checks      [列表页]│
+│  MaterialReceiveCheckCreate.razor   /quality/material-receive-checks/create [创建页]│
 │                                                           │
 │  FinalInspections.razor           /quality/final-inspection     [列表页]│
 │  FinalInspectionCreate.razor      /quality/final-inspection/create [创建页]│
 │                                                           │
-│  QualityProcessTracking.razor     /quality-process-tracking    [列表页]│
+│  QualityProcessTracking.razor     /quality/process-tracking    [列表页]│
 │                                                           │
 │  Ncrs.razor                      /quality/ncr                      [列表页+分页汇总]│
 │  NcrForm.razor                   /quality/ncr/create               [创建页]       │
@@ -178,8 +171,7 @@
 │                                                           │
 │  ⚠ /quality/certificate   - 路由存在，页面文件缺失           │
 │                                                           │
-│  列表页: FurnaceRegistrations, ChemicalCompositions,        │
-│          ChemicalValidationRules, ProcessInspections,       │
+│  列表页: FurnaceRegistrations, ProcessInspections,           │
 │          MaterialChecks, FinalInspections,                   │
 │          QualityProcessTracking, Ncrs,                       │
 │          ChemicalAnalyses, HardnessTests, GrainSizeTests,    │
@@ -298,8 +290,8 @@
 ### 2.9 生产标准上下文
 
 ```
-路由前缀: /standard-registers, /grade-mappings, /grade-chemical-compositions, /grade-physical-properties, /sub-standard-quick-views, /standard-inspection-requirements
-菜单: 生产标准 → [标准号列表, 标准号检验项要求, 牌号对照, 牌号化学成分, 牌号物理性能, 子标准速览]
+路由前缀: /standard-registers, /grade-mappings, /grade-chemical-compositions, /grade-physical-properties, /sub-standard-quick-views, /standard-inspection-requirements, /chemical-composition, /chemical-validate
+菜单: 生产标准 → [标准号列表, 标准号检验项要求, 牌号对照, 标准牌号化学成分, 工厂牌号化学成分, 工厂牌号化分验证, 牌号物理性能, 子标准速览]
 
 ┌─ 生产标准 ───────────────────────────────────────────────┐
 │                                                           │
@@ -320,14 +312,23 @@
 │                                                           │
 │  StandardInspectionRequirements.razor  /standard-inspection-requirements [列表页]  │
 │                                                           │
+│  ChemicalCompositions.razor       /chemical-composition  [列表页]  │
+│  ChemicalCompositionCreate.razor  /chemical-composition/create [创建页]  │
+│                                                           │
+│  ChemicalValidationRules.razor    /chemical-validate     [列表页]  │
+│  ChemicalValidationRuleCreate.razor /chemical-validate/create [创建页]  │
+│                                                           │
 │  列表页: StandardRegisters, StandardInspectionRequirements, │
 │          GradeMappings, GradeChemicalCompositions,         │
-│          GradePhysicalProperties, SubStandardQuickViews    │
+│          GradePhysicalProperties, SubStandardQuickViews,   │
+│          ChemicalCompositions, ChemicalValidationRules     │
 │  ※ StandardRegisterDetail 双模式：Id=0 创建，Id>0 查看/编辑│
 │  ※ 详情页含子项目内联表格（StandardRegisterItem）           │
 │  ※ GradeMappings 原属订单上下文，2026-06-21 迁移至此      │
 │  ※ GradeChemicalCompositions/GradePhysicalProperties 为     │
 │     2026-06-21 新增，按 StandardGrade+Category 纯逻辑关联   │
+│  ※ ChemicalCompositions/ChemicalValidationRules 原属质量上下文，│
+│     已迁移至生产标准上下文，路由同步更新为生产标准前缀        │
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -353,8 +354,8 @@
 │          DailyProductionCapacities, DailyOutputEstimates,  │
 │          Workstations, Employees                           │
 │  注: AdminOnly，所有业务模块引用其参数参与工量/业务计算          │
-│  SectionFlowCategorySettings 数据源在 Scheduling 上下文      │
-│  （SectionFlowCategorySetting + SectionFlowCategoryItem 表）│
+│  SectionFlowCategorySettings 数据源和 API 均在 Configuration 上下文│
+│  （独立服务：SectionFlowCategoryService，独立控制器：SectionFlowCategorySettingsController）│
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -376,14 +377,15 @@
 │          首页                                          │
 │          ▸ 订单管理 / ▸ 工单管理 / ▸ 批次管理            │
 │          ▾ 质量管理（3 级嵌套）                          │
-│            ▾ 检验 → 过程检验/成检到料/成品检验/成检追踪 │
+│            ▾ 检验 → 过程检验/成检到料/成品检验/成检追踪   │
 │            不合格报告                                   │
-│            ▾ 炉号/化学 → 炉号登记/牌号化学/牌号验证      │
+│            ▾ 炉号/化学 → 炉号登记                    │
 │            理化检测 / 质量证明书                         │
 │          ▸ 设备管理 / ▸ 物料管理 / ▸ 仓库管理            │
 │          ▸ 计划排程                                     │
 │          ▸ 生产标准 → 标准号列表 / 标准号检验项要求 /   │
-          │            牌号对照 / 牌号化学成分 /            │
+          │            牌号对照 / 标准牌号化学成分 /            │
+          │            工厂牌号化学成分 / 工厂牌号化分验证 /   │
           │            牌号物理性能 / 子标准速览             │
 │          数据工具 / 扫码报工 / 设备扫码                  │
 │          ▸ 参数表 → 生产-工段日流转量 / 生产-重点工段日产 / │
@@ -415,10 +417,10 @@
 | 10 | PicklingInRecords.razor | /batches/pickling-in-records | 批次 | | |
 | 11 | PicklingOutRecords.razor | /batches/pickling-out-records | 批次 | | |
 | 12 | FurnaceRegistrations.razor | /quality/furnace | 质量 | | |
-| 13 | ChemicalCompositions.razor | /quality/chemical-composition | 质量 | | |
-| 14 | ChemicalValidationRules.razor | /quality/chemical-validate | 质量 | | |
+| 13 | ChemicalCompositions.razor | /chemical-composition | 生产标准 | | 原属质量上下文，已迁移 |
+| 14 | ChemicalValidationRules.razor | /chemical-validate | 生产标准 | | 原属质量上下文，已迁移 |
 | 15 | ProcessInspections.razor | /quality/process-inspection | 质量 | | |
-| 16 | MaterialChecks.razor | /material-checks | 质量 | | |
+| 16 | MaterialReceiveChecks.razor | /quality/material-receive-checks | 质量 | | |
 | 17 | FinalInspections.razor | /quality/final-inspection | 质量 | | |
 | 18 | Equipments.razor | /equipment | 设备 | | |
 | 19 | RepairOrders.razor | /repair-orders | 设备 | | |
@@ -432,7 +434,7 @@
 | 27 | InboundHistory.razor | /warehouse/inbound-history | 仓库 | | Code复用 |
 | 28 | OutboundHistory.razor | /warehouse/outbound-history | 仓库 | | Code复用 |
 | 29 | WorkOrderExecution.razor | /workorder-execution | 工单 | | ✅ 已过规范检查 |
-| 30 | QualityProcessTracking.razor | /quality-process-tracking | 质量 | | 只读列表 |
+| 30 | QualityProcessTracking.razor | /quality/process-tracking | 质量 | | 只读列表 |
 | 31 | Ncrs.razor | /quality/ncr | 质量 | | 列表页+分页汇总 |
 | 32 | OrderDemandAdjustment.razor | /order-demand-adjustment | 订单 | ✅ | 内联编辑催单/分批/暂停开关及调整备注 |
 | 33 | RawMaterialLockPlanAndExecution.razor | /raw-material-lock-plan | 计划排程 | ✅ | 汇总栏（工单总数/成品在购/待投料 + 紧急性5档分解 + 预执行(外购/投料) 区分）+ G15 预执行 MudSwitch 内联编辑 + BudgetInputDate 日期输入 + 主号齐全系统计算（LEFT JOIN 实时查询，无计划安排按钮） |
@@ -508,4 +510,4 @@
 
 > 使用方式：询问关于页面结构、上下文归属、列表页检查范围等问题时，可引用此文档作为参考基础。
 >
-> **最后更新：2026-07-07（V12）** — 工单上下文移除已删除的 StandardProcessCycles，新增 InProcessReworkPlan 在产改制计划页面
+> **最后更新：2026-07-09（V14）** — 路由规范化：ChemicalComposition/ValidationRule 路由同步生产标准前缀；MaterialReceiveChecks 加 /quality/ 前缀；QualityProcessTracking 用斜杠分层；上下文边界审核同步

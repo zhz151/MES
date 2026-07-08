@@ -767,8 +767,8 @@ public class InventoryServiceTests : TestBase
         ctx.InventoryBatches.Add(batch);
         await ctx.SaveChangesAsync();
         ctx.OutboundRecords.AddRange(
-            new OutboundRecord { InventoryBatchId = batch.Id, OutboundType = Core.Enums.OutboundType.SalesOut, SourceOrderNo = "SO001", TargetCompany = "客户A", OutboundQuantity = 2, OutboundWeight = 200m, OutboundDate = DateTime.Today, CreatedBy = "user1" },
-            new OutboundRecord { InventoryBatchId = batch.Id, OutboundType = Core.Enums.OutboundType.TransferOut, SourceOrderNo = null, TargetCompany = null, OutboundQuantity = 3, OutboundWeight = 300m, OutboundDate = DateTime.Today, CreatedBy = "user2", Remark = "调拨" }
+            new OutboundRecord { InventoryBatchId = batch.Id, BatchNo = batch.BatchNo, OutboundType = Core.Enums.OutboundType.SalesOut, SourceOrderNo = "SO001", TargetCompany = "客户A", OutboundQuantity = 2, OutboundWeight = 200m, OutboundDate = DateTime.Today, CreatedBy = "user1" },
+            new OutboundRecord { InventoryBatchId = batch.Id, BatchNo = batch.BatchNo, OutboundType = Core.Enums.OutboundType.TransferOut, SourceOrderNo = null, TargetCompany = null, OutboundQuantity = 3, OutboundWeight = 300m, OutboundDate = DateTime.Today, CreatedBy = "user2", Remark = "调拨" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);

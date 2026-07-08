@@ -30,29 +30,43 @@ builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7001") });
 builder.Services.AddScoped<AuthHttpClient>();
 
+// ========== 订单上下文 ==========
 builder.Services.AddScoped<CustomerService>();
+builder.Services.AddScoped<OrderService>();
+builder.Services.AddScoped<ProductRequirementService>();
+builder.Services.AddScoped<OrderDemandAdjustmentService>();
+
+// ========== 生产标准上下文 ==========
 builder.Services.AddScoped<GradeMappingService>();
 builder.Services.AddScoped<GradeChemicalCompositionService>();
 builder.Services.AddScoped<GradePhysicalPropertyService>();
 builder.Services.AddScoped<SubStandardQuickViewService>();
 builder.Services.AddScoped<StandardInspectionRequirementService>();
-builder.Services.AddScoped<OrderService>();
-builder.Services.AddScoped<ProductRequirementService>();
+builder.Services.AddScoped<ChemicalCompositionService>();
+builder.Services.AddScoped<ChemicalValidationRuleService>();
+builder.Services.AddScoped<StandardRegisterService>();
+
+// ========== 工单上下文 ==========
 builder.Services.AddScoped<WorkOrderService>();
 builder.Services.AddScoped<MaterialPlanService>();
 builder.Services.AddScoped<MaterialPlanProcessGroupService>();
 builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<WorkOrderExecutionService>();
+
+// ========== 仓库上下文 ==========
 builder.Services.AddScoped<WarehouseService>();
 builder.Services.AddScoped<InventoryService>();
-builder.Services.AddScoped<ColumnPrefsService>();
-builder.Services.AddScoped<PageStateService>();
-builder.Services.AddScoped<OutboundStateService>();
+
+// ========== 批次上下文 ==========
 builder.Services.AddScoped<BatchService>();
 builder.Services.AddScoped<ProductionRecordService>();
+builder.Services.AddScoped<SectionOutsourceService>();
+builder.Services.AddScoped<PicklingService>();
+
+// ========== 质量上下文 ==========
+builder.Services.AddScoped<QualityProcessTrackingService>();
 builder.Services.AddScoped<ProcessInspectionService>();
-builder.Services.AddScoped<ChemicalCompositionService>();
 builder.Services.AddScoped<FurnaceRegistrationService>();
-builder.Services.AddScoped<ChemicalValidationRuleService>();
 builder.Services.AddScoped<FinalInspectionService>();
 builder.Services.AddScoped<ChemicalAnalysisService>();
 builder.Services.AddScoped<HardnessTestService>();
@@ -64,34 +78,37 @@ builder.Services.AddScoped<MetallographicTestService>();
 builder.Services.AddScoped<FlatteningTestService>();
 builder.Services.AddScoped<FlaringTestService>();
 builder.Services.AddScoped<NcrService>();
-builder.Services.AddScoped<SectionOutsourceService>();
-builder.Services.AddScoped<PicklingService>();
+builder.Services.AddScoped<MaterialReceiveCheckService>();
+
+// ========== 物料上下文 ==========
 builder.Services.AddScoped<MaterialService>();
 builder.Services.AddScoped<SupplierService>();
 builder.Services.AddScoped<PurchaseOrderService>();
 builder.Services.AddScoped<SubcontractOrderService>();
-builder.Services.AddScoped<DataExchangeService>();
+
+// ========== 设备上下文 ==========
 builder.Services.AddScoped<EquipmentService>();
 builder.Services.AddScoped<RepairOrderService>();
 builder.Services.AddScoped<MaintenanceOrderService>();
 builder.Services.AddScoped<InspectionRecordService>();
 
-// ========== 读模型上下文 ==========
-builder.Services.AddScoped<MES.Blazor.Services.WorkOrderExecutionService>();
+// ========== 数据交换 ==========
+builder.Services.AddScoped<DataExchangeService>();
 
-builder.Services.AddScoped<QualityProcessTrackingService>();
+// ========== 基础设施 ==========
+builder.Services.AddScoped<ColumnPrefsService>();
+builder.Services.AddScoped<PageStateService>();
+builder.Services.AddScoped<OutboundStateService>();
 
 // ========== 扫码执行 ==========
 builder.Services.AddScoped<ScanService>();
-builder.Services.AddScoped<WorkstationService>();
-builder.Services.AddScoped<EmployeeService>();
 
 // ========== Scheduling 上下文 ==========
-builder.Services.AddScoped<OrderDemandAdjustmentService>();
 builder.Services.AddScoped<RawMaterialLockPlanAndExecutionService>();
 builder.Services.AddScoped<ProductionOverviewService>();
 builder.Services.AddScoped<SectionProductionStatusService>();
 builder.Services.AddScoped<MES.Blazor.Services.SectionFlowAnalysisService>();
+builder.Services.AddScoped<SectionFlowCategoryService>();
 builder.Services.AddScoped<WorkOrderScheduleService>();
 builder.Services.AddScoped<BatchPlanService>();
 builder.Services.AddScoped<ColdRollPlanService>();
@@ -109,6 +126,7 @@ builder.Services.AddScoped<StandardWorkDayDeliveryStateService>();
 builder.Services.AddScoped<ConfigParameterService>();
 builder.Services.AddScoped<DailyOutputEstimateService>();
 builder.Services.AddScoped<DailyProductionCapacityService>();
-builder.Services.AddScoped<StandardRegisterService>();
+builder.Services.AddScoped<WorkstationService>();
+builder.Services.AddScoped<EmployeeService>();
 
 await builder.Build().RunAsync();

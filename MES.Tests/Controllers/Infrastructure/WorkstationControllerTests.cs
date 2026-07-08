@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Moq;
-using MES.Api.Controllers;
+using MES.Api.Controllers.Configuration;
 using MES.Core.DTOs;
 using MES.Core.Interfaces;
 using MES.Core.Models;

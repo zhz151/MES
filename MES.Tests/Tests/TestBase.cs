@@ -113,6 +113,12 @@ public abstract class TestBase
     protected async Task<StandardRegister> SeedRegisterAsync(AppDbContext ctx,
         string standardNo = "GB/T 8163", string standardName = "流体管标准")
     {
+        // 检查是否已存在相同标准号的记录，避免 ToDictionaryAsync 键冲突
+        var existing = await ctx.StandardRegisters
+            .FirstOrDefaultAsync(sr => sr.StandardNo == standardNo);
+        if (existing != null)
+            return existing;
+
         var sr = new StandardRegister
         {
             StandardNo = standardNo,

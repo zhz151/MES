@@ -29,11 +29,13 @@ public class DataExchangeService : IDataExchangeService
 {
     protected readonly AppDbContext _context;
     private readonly ILogger<DataExchangeService> _logger;
+    private readonly IDataFixService _fixService;
 
-    public DataExchangeService(AppDbContext context, ILogger<DataExchangeService> logger)
+    public DataExchangeService(AppDbContext context, ILogger<DataExchangeService> logger, IDataFixService fixService)
     {
         _context = context;
         _logger = logger;
+        _fixService = fixService;
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
     }
 
@@ -258,7 +260,7 @@ public class DataExchangeService : IDataExchangeService
 
         // === 第5批：工单-需求调整（依赖工单） ===
         ["OrderDemandAdjustment"] = new EntityDef("订单-需求调整", "订单-需求调整",
-            typeof(Data.Entities.Scheduling.OrderDemandAdjustment), 5, null, new List<ColumnDef>
+            typeof(Data.Entities.OrderDemandAdjustment), 5, null, new List<ColumnDef>
         {
             new("工单号", null!) { IsFkColumn = true, FkEntityKey = "WorkOrder", FkLookupProperty = "WorkOrderNo", FkTargetProperty = "WorkOrderId" },
             new("催单", "IsUrging", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
@@ -922,8 +924,8 @@ public class DataExchangeService : IDataExchangeService
             new("工艺周期", "StandardCycle", typeof(int), isRequired: false),
         }),
 
-        // === 独立实体：牌号化学成分 ===
-        ["ChemicalComposition"] = new EntityDef("质量-牌号化学成分", "质量-牌号化学成分", typeof(ChemicalComposition), 1, "PlantGrade", new List<ColumnDef>
+        // === 独立实体：工厂牌号化学成分 ===
+        ["ChemicalComposition"] = new EntityDef("标准-工厂牌号化学成分", "标准-工厂牌号化学成分", typeof(ChemicalComposition), 1, "PlantGrade", new List<ColumnDef>
         {
             new("工厂牌号", "PlantGrade"),
             new("C", "Carbon", typeof(string), isRequired: false),
@@ -945,7 +947,7 @@ public class DataExchangeService : IDataExchangeService
         }),
 
         // === 独立实体：牌号验证规则 ===
-        ["ChemicalValidationRule"] = new EntityDef("质量-牌号验证规则", "质量-牌号验证规则", typeof(ChemicalValidationRule), 1, "PlantGrade", new List<ColumnDef>
+        ["ChemicalValidationRule"] = new EntityDef("标准-工厂牌号化分验证规则", "标准-工厂牌号化分验证规则", typeof(ChemicalValidationRule), 1, "PlantGrade", new List<ColumnDef>
         {
             new("工厂牌号", "PlantGrade"),
             new("C-", "CMin", typeof(string), isRequired: false),
@@ -1405,7 +1407,7 @@ public class DataExchangeService : IDataExchangeService
         }),
 
         // === 生产-工段日流转量（独立配置表，CategoryCode 唯一） ===
-        ["SectionFlowCategorySetting"] = new EntityDef("生产-工段日流转量", "生产-工段日流转量", typeof(Data.Entities.Scheduling.SectionFlowCategorySetting), 1, "CategoryCode", new List<ColumnDef>
+        ["SectionFlowCategorySetting"] = new EntityDef("生产-工段日流转量", "生产-工段日流转量", typeof(Data.Entities.Configuration.SectionFlowCategorySetting), 1, "CategoryCode", new List<ColumnDef>
         {
             new("类别编码", "CategoryCode"),
             new("类别名称", "CategoryName"),
@@ -1416,7 +1418,7 @@ public class DataExchangeService : IDataExchangeService
         }),
 
         // === 生产-工段日流转量子项（依赖 SectionFlowCategorySetting） ===
-        ["SectionFlowCategoryItem"] = new EntityDef("生产-工段日流转量子项", "生产-工段日流转量子项", typeof(Data.Entities.Scheduling.SectionFlowCategoryItem), 2, null, new List<ColumnDef>
+        ["SectionFlowCategoryItem"] = new EntityDef("生产-工段日流转量子项", "生产-工段日流转量子项", typeof(Data.Entities.Configuration.SectionFlowCategoryItem), 2, null, new List<ColumnDef>
         {
             new("类别编码", null!) { IsFkColumn = true, FkEntityKey = "SectionFlowCategorySetting", FkLookupProperty = "CategoryCode", FkTargetProperty = "SettingId" },
             new("工序组名称", "ProcessGroupName"),
@@ -3511,6 +3513,14 @@ WHERE fk.is_not_trusted = 1 OR fk.is_disabled = 1";
         while (inner.InnerException != null)
             inner = inner.InnerException;
         return inner.Message;
+    }
+
+    /// <summary>
+    /// 一键修复所有系统计算字段
+    /// </summary>
+    public async Task<DataFixReport> FixAllSystemFieldsAsync()
+    {
+        return await _fixService.FixAllAsync();
     }
 
     #endregion

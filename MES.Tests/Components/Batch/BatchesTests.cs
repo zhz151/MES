@@ -12,7 +12,7 @@ public class BatchesTests : TestBase
     public BatchesTests()
     {
         RegisterServices(typeof(BatchService), typeof(ProductionRecordService),
-            typeof(WorkOrderService), typeof(OrderService));
+            typeof(WorkOrderService), typeof(OrderService), typeof(MaterialPlanService));
         ConfigureEmptyResponse("/api/batch/list");
         ConfigureEmptyResponse("/api/batch/filter-contexts");
     }

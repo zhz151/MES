@@ -71,7 +71,9 @@ public class ColdRollPlanServiceTests : TestBase
     }
 
     private void SeedSummary(AppDbContext ctx, string workOrderNo,
-        int scheduleStage = 1, string? urgencyLevel = null)
+        int scheduleStage = 1, string? urgencyLevel = null,
+        string? productionFlowProperty = null,
+        string? mainNoAttentionProcess = null)
     {
         int wid = Math.Abs(workOrderNo.GetHashCode());
         ctx.Set<WorkOrderExecutionSummary>().Add(new WorkOrderExecutionSummary
@@ -96,6 +98,8 @@ public class ColdRollPlanServiceTests : TestBase
             TotalWeight = 2500m,
             ScheduleStage = scheduleStage,
             UrgencyLevel = urgencyLevel,
+            ProductionFlowProperty = productionFlowProperty,
+            MainNoAttentionProcess = mainNoAttentionProcess,
         });
     }
 
@@ -234,7 +238,8 @@ public class ColdRollPlanServiceTests : TestBase
         using var ctx = CreateDbContext();
         CreateBatch(ctx, "B001", "WO001", "60冷轧", 1, isFinished: false,
             currentGroupName: null, currentSectionName: null, weight: 2000m);
-        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: "A急");
+        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: "A急",
+            productionFlowProperty: "正常", mainNoAttentionProcess: "60冷轧");
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);

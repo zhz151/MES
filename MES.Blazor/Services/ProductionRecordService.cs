@@ -129,48 +129,6 @@ public class ProductionRecordService
         catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    // ========== 成检到料 ==========
-
-    public async Task<ApiResponse<MaterialReceiveCheckDto>> GetMaterialReceiveCheckAsync(int batchId)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<MaterialReceiveCheckDto>>($"{BaseUrl}/{batchId}/material-check")
-                   ?? ApiResponse<MaterialReceiveCheckDto>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<MaterialReceiveCheckDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<MaterialReceiveCheckDto>> CreateMaterialReceiveCheckAsync(CreateMaterialReceiveCheckRequest request)
-    {
-        try
-        {
-            return await _http.PostAsJsonAsync<CreateMaterialReceiveCheckRequest, ApiResponse<MaterialReceiveCheckDto>>($"{BaseUrl}/material-check", request)
-                   ?? ApiResponse<MaterialReceiveCheckDto>.Fail("创建失败");
-        }
-        catch (Exception ex) { return ApiResponse<MaterialReceiveCheckDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<MaterialReceiveCheckDto>> UpdateMaterialReceiveCheckAsync(int id, UpdateMaterialReceiveCheckRequest request)
-    {
-        try
-        {
-            return await _http.PutAsJsonAsync<UpdateMaterialReceiveCheckRequest, ApiResponse<MaterialReceiveCheckDto>>($"{BaseUrl}/material-check/{id}", request)
-                   ?? ApiResponse<MaterialReceiveCheckDto>.Fail("更新失败");
-        }
-        catch (Exception ex) { return ApiResponse<MaterialReceiveCheckDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<object>> DeleteMaterialReceiveCheckAsync(int id)
-    {
-        try
-        {
-            return await _http.DeleteFromJsonAsync<ApiResponse<object>>($"{BaseUrl}/material-check/{id}")
-                   ?? ApiResponse<object>.Fail("删除失败");
-        }
-        catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     // ========== 跨批次查询（用于独立页面） ==========
 
     public async Task<ApiResponse<PagedResult<ProductionRecordDto>>> GetAllProductionRecordsAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, DateTime? execDateFrom = null, DateTime? execDateTo = null, string? filters = null)
@@ -215,22 +173,6 @@ public class ProductionRecordService
         catch (Exception ex) { return ApiResponse<PagedResult<OutsourceRecoveryDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<PagedResult<MaterialReceiveCheckDto>>> GetAllMaterialReceiveChecksAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, DateTime? receiveDateFrom = null, DateTime? receiveDateTo = null, string? filters = null)
-    {
-        try
-        {
-            var url = $"{BaseUrl}/all/material-checks?pageIndex={pageIndex}&pageSize={pageSize}&isDescending={isDescending.ToString().ToLower()}";
-            if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
-            if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
-            if (receiveDateFrom.HasValue) url += $"&receiveDateFrom={receiveDateFrom.Value:yyyy-MM-dd}";
-            if (receiveDateTo.HasValue) url += $"&receiveDateTo={receiveDateTo.Value:yyyy-MM-dd}";
-            if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
-            return await _http.GetFromJsonAsync<ApiResponse<PagedResult<MaterialReceiveCheckDto>>>(url)
-                   ?? ApiResponse<PagedResult<MaterialReceiveCheckDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<PagedResult<MaterialReceiveCheckDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<List<ProductionRecordDto>>> GetAllProductionRecordListAsync()
     {
         try
@@ -239,16 +181,6 @@ public class ProductionRecordService
                    ?? ApiResponse<List<ProductionRecordDto>>.Fail("获取数据失败");
         }
         catch (Exception ex) { return ApiResponse<List<ProductionRecordDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<List<MaterialReceiveCheckDto>>> GetAllMaterialReceiveCheckListAsync()
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<MaterialReceiveCheckDto>>>($"{BaseUrl}/material-receive-checks/all-list")
-                   ?? ApiResponse<List<MaterialReceiveCheckDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<MaterialReceiveCheckDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
     public async Task<ApiResponse<List<SectionOutsourceDto>>> GetAllSectionOutsourceListAsync()
@@ -291,27 +223,7 @@ public class ProductionRecordService
         catch (Exception ex) { return ApiResponse<List<OutsourceRecoveryDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<List<MaterialReceiveCheckDto>>> BatchCreateMaterialReceiveChecksAsync(List<CreateMaterialReceiveCheckRequest> requests)
-    {
-        try
-        {
-            return await _http.PostAsJsonAsync<List<CreateMaterialReceiveCheckRequest>, ApiResponse<List<MaterialReceiveCheckDto>>>($"{BaseUrl}/material-checks/batch", requests)
-                   ?? ApiResponse<List<MaterialReceiveCheckDto>>.Fail("批量创建失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<MaterialReceiveCheckDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     // ========== 筛选上下文 ==========
-
-    public async Task<ApiResponse<Dictionary<string, List<string>>>> GetMaterialCheckFilterContextsAsync()
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<Dictionary<string, List<string>>>>($"{BaseUrl}/material-check/filter-contexts")
-                   ?? ApiResponse<Dictionary<string, List<string>>>.Fail("获取筛选上下文失败");
-        }
-        catch (Exception ex) { return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}"); }
-    }
 
     /// <summary>
     /// 获取生产记录筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
@@ -387,49 +299,4 @@ public class ProductionRecordService
         catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintMaterialCheckBatchAsync(int[] ids, List<PrintColumnDef> columns)
-    {
-        try
-        {
-            var request = new MaterialCheckPrintBatchRequest { Ids = ids, Columns = columns };
-            var response = await _http.PostAsJsonAsync<MaterialCheckPrintBatchRequest, ApiResponse<string>>(
-                $"{BaseUrl}/material-check/print-batch", request);
-            return response ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintMaterialCheckAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? receiveDateFrom = null, DateTime? receiveDateTo = null)
-    {
-        try
-        {
-            var request = new MaterialCheckPrintAllRequest
-            {
-                Keyword = keyword,
-                SortBy = sortBy,
-                IsDescending = isDescending,
-                Columns = columns,
-                ReceiveDateFrom = receiveDateFrom,
-                ReceiveDateTo = receiveDateTo
-            };
-            var response = await _http.PostAsJsonAsync<MaterialCheckPrintAllRequest, ApiResponse<string>>(
-                $"{BaseUrl}/material-check/print-all", request);
-            return response ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    // ========== 待成检到料查询 ==========
-
-    public async Task<ApiResponse<List<PendingMaterialCheckDto>>> GetPendingMaterialChecksAsync()
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<PendingMaterialCheckDto>>>($"{BaseUrl}/material-check/pending")
-                   ?? ApiResponse<List<PendingMaterialCheckDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<PendingMaterialCheckDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
 }

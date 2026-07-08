@@ -29,7 +29,7 @@ public class OrdersTests : TestBase
     public void Render_HasFilter()
     {
         var cut = Ctx.RenderComponent<CascadingAuthenticationState>(p => p.AddChildContent<Orders>());
-        cut.Markup.Should().Contain("关键字搜索");
+        cut.Markup.Should().Contain("模糊搜索");
     }
 
     [Theory]

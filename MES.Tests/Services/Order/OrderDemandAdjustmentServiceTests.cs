@@ -7,6 +7,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.Scheduling;
+using MES.Core.Enums;
 using MES.Services.Order;
 using MES.Tests.Tests;
 
@@ -183,8 +184,36 @@ public class OrderDemandAdjustmentServiceTests : TestBase
     public async Task SaveUrgingAsync_创建新记录()
     {
         using var ctx = CreateDbContext();
+        ctx.Set<WorkOrder>().Add(new WorkOrder
+        {
+            Id = 1,
+            WorkOrderNo = "WO001",
+            SalesOrderNo = "SO001",
+            ProductionMainNo = "D01",
+            OrderItemIds = "1",
+            Status = WorkOrderStatus.Confirmed,
+            RowVersion = Array.Empty<byte>(),
+            SignDate = DateTime.Today,
+            Salesman = "张三",
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            MaterialName = MaterialName.SeamlessPipe,
+            SettlementMethod = SettlementMethod.Theoretical,
+            StandardCode = "GB/T 8163",
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            PlantGrade = "304",
+            Specification = "219*8",
+            OuterDiameterNegative = 0.5m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.3m,
+            WallThicknessPositive = 0.3m,
+            LengthStatus = LengthStatus.Fixed,
+            TotalQuantity = 100,
+            TotalMeters = 600,
+            TotalWeight = 2500m,
+            TotalItemCount = 1,
+        });
         var woMock = new Mock<IWorkOrderExecutionService>();
-        woMock.Setup(x => x.RefreshAllAsync()).ReturnsAsync(new WorkOrderExecutionRefreshResultDto());
+        woMock.Setup(x => x.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>())).Returns(Task.CompletedTask);
         var svc = CreateService(ctx, woMock);
 
         var result = await svc.SaveUrgingAsync(1, true, false, false, "催单备注");
@@ -196,13 +225,41 @@ public class OrderDemandAdjustmentServiceTests : TestBase
         saved.IsBatchDelivery.Should().BeFalse();
         saved.IsPaused.Should().BeFalse();
         saved.AdjustmentRemark.Should().Be("催单备注");
-        woMock.Verify(x => x.RefreshAllAsync(), Times.Once);
+        woMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>()), Times.Once);
     }
 
     [Fact]
     public async Task SaveUrgingAsync_更新已有记录()
     {
         using var ctx = CreateDbContext();
+        ctx.Set<WorkOrder>().Add(new WorkOrder
+        {
+            Id = 1,
+            WorkOrderNo = "WO001",
+            SalesOrderNo = "SO001",
+            ProductionMainNo = "D01",
+            OrderItemIds = "1",
+            Status = WorkOrderStatus.Confirmed,
+            RowVersion = Array.Empty<byte>(),
+            SignDate = DateTime.Today,
+            Salesman = "张三",
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            MaterialName = MaterialName.SeamlessPipe,
+            SettlementMethod = SettlementMethod.Theoretical,
+            StandardCode = "GB/T 8163",
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            PlantGrade = "304",
+            Specification = "219*8",
+            OuterDiameterNegative = 0.5m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.3m,
+            WallThicknessPositive = 0.3m,
+            LengthStatus = LengthStatus.Fixed,
+            TotalQuantity = 100,
+            TotalMeters = 600,
+            TotalWeight = 2500m,
+            TotalItemCount = 1,
+        });
         ctx.Set<OrderDemandAdjustment>().Add(new OrderDemandAdjustment
         {
             WorkOrderId = 1,
@@ -214,7 +271,7 @@ public class OrderDemandAdjustmentServiceTests : TestBase
         await ctx.SaveChangesAsync();
 
         var woMock = new Mock<IWorkOrderExecutionService>();
-        woMock.Setup(x => x.RefreshAllAsync()).ReturnsAsync(new WorkOrderExecutionRefreshResultDto());
+        woMock.Setup(x => x.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>())).Returns(Task.CompletedTask);
         var svc = CreateService(ctx, woMock);
 
         var result = await svc.SaveUrgingAsync(1, true, true, true, "新备注");
@@ -225,7 +282,7 @@ public class OrderDemandAdjustmentServiceTests : TestBase
         updated.IsBatchDelivery.Should().BeTrue();
         updated.IsPaused.Should().BeTrue();
         updated.AdjustmentRemark.Should().Be("新备注");
-        woMock.Verify(x => x.RefreshAllAsync(), Times.Once);
+        woMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>()), Times.Once);
     }
 
     // ==================== GetFilterContextsAsync 测试 ====================

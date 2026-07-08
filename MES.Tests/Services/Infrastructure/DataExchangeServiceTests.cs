@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Helpers;
+using MES.Core.Interfaces;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.DataExchange;
@@ -23,15 +24,16 @@ public class DataExchangeServiceTests : TestBase
     private DataExchangeService CreateService(AppDbContext ctx)
     {
         var loggerMock = new Mock<ILogger<DataExchangeService>>();
-        return new DataExchangeService(ctx, loggerMock.Object);
+        var fixServiceMock = new Mock<IDataFixService>();
+        return new DataExchangeService(ctx, loggerMock.Object, fixServiceMock.Object);
     }
 
     // ========== Registry 验证 ==========
 
     [Fact]
-    public void Registry_包含所有65个实体()
+    public void Registry_包含所有67个实体()
     {
-        DataExchangeService.Registry.Should().HaveCount(65);
+        DataExchangeService.Registry.Should().HaveCount(67);
     }
 
     [Fact]
@@ -339,7 +341,8 @@ public class DataExchangeServiceTests : TestBase
     private TestableDataExchangeService CreateTestableService(AppDbContext ctx)
     {
         var loggerMock = new Mock<ILogger<DataExchangeService>>();
-        return new TestableDataExchangeService(ctx, loggerMock.Object);
+        var fixServiceMock = new Mock<IDataFixService>();
+        return new TestableDataExchangeService(ctx, loggerMock.Object, fixServiceMock.Object);
     }
 
     [Fact]
@@ -697,8 +700,8 @@ public class DataExchangeServiceTests : TestBase
 /// </summary>
 public class TestableDataExchangeService : DataExchangeService
 {
-    public TestableDataExchangeService(AppDbContext context, ILogger<DataExchangeService> logger)
-        : base(context, logger) { }
+    public TestableDataExchangeService(AppDbContext context, ILogger<DataExchangeService> logger, IDataFixService fixService)
+        : base(context, logger, fixService) { }
 
     protected override Task DisableAllConstraintsAsync(DbConnection connection, DbTransaction transaction)
     {

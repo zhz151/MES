@@ -174,7 +174,7 @@ public class EnumHelperTests
     }
 
     [Theory]
-    [InlineData(PurchaseOrderStatus.Open, "未到货")]
+    [InlineData(PurchaseOrderStatus.Open, "已下单")]
     [InlineData(PurchaseOrderStatus.Partial, "部分到货")]
     [InlineData(PurchaseOrderStatus.Completed, "已完成")]
     public void PurchaseOrderStatus_GetDisplayName(PurchaseOrderStatus value, string expected)
@@ -183,7 +183,7 @@ public class EnumHelperTests
     }
 
     [Theory]
-    [InlineData("未到货", PurchaseOrderStatus.Open)]
+    [InlineData("已下单", PurchaseOrderStatus.Open)]
     [InlineData("部分到货", PurchaseOrderStatus.Partial)]
     [InlineData("已完成", PurchaseOrderStatus.Completed)]
     public void PurchaseOrderStatus_Parse_Chinese(string chinese, PurchaseOrderStatus expected)
@@ -192,7 +192,7 @@ public class EnumHelperTests
     }
 
     [Theory]
-    [InlineData(SubcontractOrderStatus.Sent, "已发出未收回")]
+    [InlineData(SubcontractOrderStatus.Sent, "已发出")]
     [InlineData(SubcontractOrderStatus.PartialReturned, "部分收回")]
     [InlineData(SubcontractOrderStatus.Completed, "已完成")]
     public void SubcontractOrderStatus_GetDisplayName(SubcontractOrderStatus value, string expected)
@@ -201,7 +201,7 @@ public class EnumHelperTests
     }
 
     [Theory]
-    [InlineData("已发出未收回", SubcontractOrderStatus.Sent)]
+    [InlineData("已发出", SubcontractOrderStatus.Sent)]
     [InlineData("部分收回", SubcontractOrderStatus.PartialReturned)]
     [InlineData("已完成", SubcontractOrderStatus.Completed)]
     public void SubcontractOrderStatus_Parse_Chinese(string chinese, SubcontractOrderStatus expected)
@@ -340,7 +340,7 @@ public class EnumHelperTests
     }
 
     [Theory]
-    [InlineData(OutboundType.ProductionPick, "生产领料")]
+    [InlineData(OutboundType.ProductionPick, "生产领用")]
     [InlineData(OutboundType.SalesOut, "销售出库")]
     [InlineData(OutboundType.ScrapOut, "报废出库")]
     public void OutboundType_GetDisplayName(OutboundType value, string expected)
@@ -349,7 +349,7 @@ public class EnumHelperTests
     }
 
     [Theory]
-    [InlineData("生产领料", OutboundType.ProductionPick)]
+    [InlineData("生产领用", OutboundType.ProductionPick)]
     [InlineData("销售出库", OutboundType.SalesOut)]
     public void OutboundType_Parse_Chinese(string chinese, OutboundType expected)
     {

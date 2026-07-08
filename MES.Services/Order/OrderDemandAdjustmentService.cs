@@ -4,7 +4,6 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
-using MES.Data.Entities.Scheduling;
 
 using MES.Services.Helpers;
 

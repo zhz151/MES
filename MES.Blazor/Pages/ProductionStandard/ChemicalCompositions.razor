@@ -1,0 +1,155 @@
+@page "/chemical-composition"
+@using MES.Blazor.Services
+@using MES.Core.DTOs
+@using MES.Core.Models
+@using MES.Blazor.Helpers
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
+@inject ChemicalCompositionService ChemicalCompositionService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+@inject ColumnPrefsService ColumnPrefs
+@inject PageStateService PageState
+@inject HttpClient Http
+@attribute [Authorize(Roles = Roles.Policies.StandardRead)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Science" Class="mr-2" Color="Color.Primary" />
+                    工厂牌号化学成分
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="NavigateToCreate"
+                           Class="mr-2">
+                    新建
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <!-- 搜索栏 -->
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  Label="模糊搜索 - 工厂牌号"
+                                  Value="_searchKeyword"
+                                  ValueChanged="@OnSearchChanged"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+            </MudGrid>
+
+            <!-- 数据表格 -->
+            <div id="chemical-composition-list-table">
+            <MudTable @ref="table"
+                      T="ChemicalCompositionDto"
+                      ServerData="@LoadDataFromServer"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-4 auto-table compact-table"
+                      Elevation="0"
+                      RowsPerPage="@_pageSize"
+                      RowsPerPageLabel="每页行数:">
+                <ToolBarContent>
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                    <MudSpacer />
+                    <MudButton Variant="Variant.Outlined"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               Disabled="@(!selectedIds.Any())"
+                               OnClick="PrintSelected">
+                        打印选中 (@selectedIds.Count)
+                    </MudButton>
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll">
+                        打印全部
+                    </MudButton>
+                    <MudText Typo="Typo.body2" Class="ml-4">
+                        共 @_totalCount 条记录
+                    </MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh Style="width: 40px;">
+                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
+                    </MudTh>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTh Style="@($"width:{col.Width}px")">
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
+                                <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label@if (col.IsRequired) {<span class="required-star">*</span>} @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
+                                @if (col.FilterType != null)
+                                {
+                                    <ExcelFilter T="ChemicalCompositionDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))" />
+
+                                }
+                            </div>
+                        </MudTh>
+                    }
+                    <MudTh>操作</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="item">
+                    <MudTd Style="width: 40px;">
+                        <MudCheckBox T="bool"
+                                     Value="@selectedIds.Contains(item.Id)"
+                                     ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                     Dense="true" />
+                    </MudTd>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd>@RenderCell(item, col)</MudTd>
+                    }
+                    <MudTd Style="white-space: nowrap; width: 90px;">
+                        @{
+                            var isEditing = _editingIds.Contains(item.Id);
+                        }
+                        @if (isEditing)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small" OnClick="() => SaveEdit(item)" Disabled="@_isSaving" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Default" Size="Size.Small" OnClick="() => CancelEdit(item)" />
+                        }
+                        else
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => StartEdit(item)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItem(item)" />
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
+                </PagerContent>
+            </MudTable>
+            </div>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>

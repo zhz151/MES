@@ -65,15 +65,13 @@
                 <MudNavGroup Title="质量管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavGroup Title="检验" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                         <MudNavLink Href="/quality/process-inspection">过程检验</MudNavLink>
-                        <MudNavLink Href="/material-checks">成检到料</MudNavLink>
+                        <MudNavLink Href="/quality/material-receive-checks">成检到料</MudNavLink>
                         <MudNavLink Href="/quality/final-inspection">成品检验</MudNavLink>
-                        <MudNavLink Href="/quality-process-tracking">成检追踪</MudNavLink>
+                        <MudNavLink Href="/quality/process-tracking">成检追踪</MudNavLink>
                     </MudNavGroup>
                     <MudNavLink Href="/quality/ncr">不合格报告</MudNavLink>
                     <MudNavGroup Title="炉号/化学" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                         <MudNavLink Href="/quality/furnace">炉号登记</MudNavLink>
-                        <MudNavLink Href="/quality/chemical-composition">牌号化学</MudNavLink>
-                        <MudNavLink Href="/quality/chemical-validate">牌号验证</MudNavLink>
                     </MudNavGroup>
                     <MudNavGroup Title="理化检测" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                         <MudNavLink Href="/quality/chemical-analysis">化学检验</MudNavLink>
@@ -147,8 +145,10 @@
                     <MudNavLink Href="/standard-inspection-requirements">标准号检验项要求</MudNavLink>
                     <MudNavLink Href="/sub-standard-quick-views">子标准速览</MudNavLink>
                     <MudNavLink Href="/grade-mappings">牌号对照</MudNavLink>
-                    <MudNavLink Href="/grade-chemical-compositions">牌号化学成分</MudNavLink>
+                    <MudNavLink Href="/grade-chemical-compositions">标准牌号化学成分</MudNavLink>
                     <MudNavLink Href="/grade-physical-properties">牌号物理性能</MudNavLink>
+                    <MudNavLink Href="/chemical-composition">工厂牌号化学成分</MudNavLink>
+                    <MudNavLink Href="/chemical-validate">工厂牌号化分验证</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
 

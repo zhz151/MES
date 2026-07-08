@@ -31,31 +31,37 @@ public class AppDbContext : IdentityDbContext<AppUser>
         _httpContextAccessor = httpContextAccessor;
     }
 
+    // ========== 订单上下文 ==========
     public DbSet<SalesOrder> SalesOrders { get; set; } = null!;
     public DbSet<OrderItem> OrderItems { get; set; } = null!;
     public DbSet<CustomerProfile> CustomerProfiles { get; set; } = null!;
     public DbSet<ProductRequirement> ProductRequirements { get; set; } = null!;
-    public DbSet<StandardGradeMapping> StandardGradeMappings { get; set; } = null!;
-    public DbSet<WorkOrder> WorkOrders { get; set; } = null!;
     public DbSet<OrderChangeNotification> OrderChangeNotifications { get; set; } = null!;
     public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
+    public DbSet<OrderDemandAdjustment> OrderDemandAdjustments { get; set; } = null!;
+    public DbSet<OrderListSummary> OrderListSummaries { get; set; } = null!;
+
+    // ========== 工单上下文 ==========
+    public DbSet<WorkOrder> WorkOrders { get; set; } = null!;
+    public DbSet<WorkOrderListSummary> WorkOrderListSummaries { get; set; } = null!;
+    public DbSet<WorkOrderExecutionSummary> WorkOrderExecutionSummaries { get; set; } = null!;
+    public DbSet<Notification> Notifications { get; set; } = null!;
     public DbSet<PurchaseSemiPlan> PurchaseSemiPlans { get; set; } = null!;
     public DbSet<PurchaseFinishedPlan> PurchaseFinishedPlans { get; set; } = null!;
     public DbSet<RoundBarPiercingPlan> RoundBarPiercingPlans { get; set; } = null!;
-
-    // ========== 仓库上下文 ==========
-
-    public DbSet<Warehouse> Warehouses { get; set; } = null!;
-    public DbSet<InventoryBatch> InventoryBatches { get; set; } = null!;
-    public DbSet<OutboundRecord> OutboundRecords { get; set; } = null!;
-    public DbSet<Notification> Notifications { get; set; } = null!;
-    public DbSet<InventoryBatchDeleteLog> InventoryBatchDeleteLogs { get; set; } = null!;
     public DbSet<InventoryPlan> InventoryPlans { get; set; } = null!;
     public DbSet<SemiPlanProcessGroup> SemiPlanProcessGroups { get; set; } = null!;
     public DbSet<InventoryPlanProcessGroup> InventoryPlanProcessGroups { get; set; } = null!;
     public DbSet<PiercingPlanProcessGroup> PiercingPlanProcessGroups { get; set; } = null!;
     public DbSet<InProcessReworkPlan> InProcessReworkPlans { get; set; } = null!;
     public DbSet<InProcessReworkPlanProcessGroup> InProcessReworkPlanProcessGroups { get; set; } = null!;
+
+    // ========== 仓库上下文 ==========
+
+    public DbSet<Warehouse> Warehouses { get; set; } = null!;
+    public DbSet<InventoryBatch> InventoryBatches { get; set; } = null!;
+    public DbSet<OutboundRecord> OutboundRecords { get; set; } = null!;
+    public DbSet<InventoryBatchDeleteLog> InventoryBatchDeleteLogs { get; set; } = null!;
 
     // ========== 物料上下文 ==========
 
@@ -69,13 +75,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
     public DbSet<ProductionBatch> ProductionBatches { get; set; } = null!;
     public DbSet<ProcessGroup> ProcessGroups { get; set; } = null!;
-
-    // ========== 生产记录上下文 ==========
-
     public DbSet<ProductionRecord> ProductionRecords { get; set; } = null!;
     public DbSet<SectionOutsource> SectionOutsources { get; set; } = null!;
     public DbSet<OutsourceRecovery> OutsourceRecoveries { get; set; } = null!;
-    public DbSet<MaterialReceiveCheck> MaterialReceiveChecks { get; set; } = null!;
     public DbSet<BatchOperationLog> BatchOperationLogs { get; set; } = null!;
     public DbSet<PicklingInRecord> PicklingInRecords { get; set; } = null!;
     public DbSet<PicklingOutRecord> PicklingOutRecords { get; set; } = null!;
@@ -83,9 +85,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
     // ========== 质量上下文 ==========
 
     public DbSet<ProcessInspection> ProcessInspections { get; set; } = null!;
-    public DbSet<ChemicalComposition> ChemicalCompositions { get; set; } = null!;
+    public DbSet<MaterialReceiveCheck> MaterialReceiveChecks { get; set; } = null!;
     public DbSet<FurnaceRegistration> FurnaceRegistrations { get; set; } = null!;
-    public DbSet<ChemicalValidationRule> ChemicalValidationRules { get; set; } = null!;
     public DbSet<FinalInspection> FinalInspections { get; set; } = null!;
     public DbSet<ChemicalAnalysis> ChemicalAnalyses { get; set; } = null!;
     public DbSet<HardnessTest> HardnessTests { get; set; } = null!;
@@ -105,14 +106,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<MaintenanceOrder> MaintenanceOrders { get; set; } = null!;
     public DbSet<InspectionRecord> InspectionRecords { get; set; } = null!;
 
-    // ========== 读模型上下文 ==========
-
-    public DbSet<WorkOrderExecutionSummary> WorkOrderExecutionSummaries { get; set; } = null!;
-    public DbSet<OrderListSummary> OrderListSummaries { get; set; } = null!;
-    public DbSet<WorkOrderListSummary> WorkOrderListSummaries { get; set; } = null!;
-
     // ========== Scheduling 上下文 ==========
-    public DbSet<OrderDemandAdjustment> OrderDemandAdjustments { get; set; } = null!;
     public DbSet<RawMaterialLockPreExecution> RawMaterialLockPreExecutions { get; set; } = null!;
     public DbSet<WorkOrderPlan> WorkOrderPlans { get; set; } = null!;
     public DbSet<SectionFlowCategorySetting> SectionFlowCategorySettings { get; set; } = null!;
@@ -127,20 +121,19 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<ConfigParameter> ConfigParameters { get; set; } = null!;
     public DbSet<DailyOutputEstimate> DailyOutputEstimates { get; set; } = null!;
     public DbSet<DailyProductionCapacity> DailyProductionCapacities { get; set; } = null!;
-
-    // 工位管理
     public DbSet<Workstation> Workstations { get; set; } = null!;
-
-    // 员工管理
     public DbSet<Employee> Employees { get; set; } = null!;
 
     // ========== 生产标准上下文 ==========
+    public DbSet<StandardGradeMapping> StandardGradeMappings { get; set; } = null!;
     public DbSet<StandardRegister> StandardRegisters { get; set; } = null!;
     public DbSet<StandardRegisterItem> StandardRegisterItems { get; set; } = null!;
     public DbSet<GradeChemicalComposition> GradeChemicalCompositions { get; set; } = null!;
     public DbSet<GradePhysicalProperty> GradePhysicalProperties { get; set; } = null!;
     public DbSet<SubStandardQuickView> SubStandardQuickViews { get; set; } = null!;
     public DbSet<StandardInspectionRequirement> StandardInspectionRequirements { get; set; } = null!;
+    public DbSet<ChemicalComposition> ChemicalCompositions { get; set; } = null!;
+    public DbSet<ChemicalValidationRule> ChemicalValidationRules { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -153,18 +146,30 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.LastLoginAt);
         });
 
+        // ========== 订单上下文 ==========
         ConfigureSalesOrder(builder);
         ConfigureOrderItem(builder);
         ConfigureCustomerProfile(builder);
         ConfigureProductRequirement(builder);
-        ConfigureStandardGradeMapping(builder);
-        ConfigureWorkOrder(builder);
         ConfigureOrderChangeNotification(builder);
         ConfigureRefreshToken(builder);
+        ConfigureOrderDemandAdjustment(builder);
+        ConfigureOrderListSummary(builder);
+
+        // ========== 工单上下文 ==========
+        ConfigureWorkOrder(builder);
+        ConfigureWorkOrderListSummary(builder);
+        ConfigureWorkOrderExecutionSummary(builder);
+        ConfigureNotification(builder);
         ConfigurePurchaseSemiPlan(builder);
         ConfigurePurchaseFinishedPlan(builder);
         ConfigureRoundBarPiercingPlan(builder);
         ConfigureInventoryPlan(builder);
+        ConfigureSemiPlanProcessGroup(builder);
+        ConfigureInventoryPlanProcessGroup(builder);
+        ConfigurePiercingPlanProcessGroup(builder);
+        ConfigureInProcessReworkPlan(builder);
+        ConfigureInProcessReworkPlanProcessGroup(builder);
 
         // ========== 物料上下文 ==========
         ConfigureMaterial(builder);
@@ -177,32 +182,22 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureWarehouse(builder);
         ConfigureInventoryBatch(builder);
         ConfigureOutboundRecord(builder);
-        ConfigureNotification(builder);
         ConfigureInventoryBatchDeleteLog(builder);
 
         // ========== 批次上下文 ==========
         ConfigureProductionBatch(builder);
         ConfigureProcessGroup(builder);
-        ConfigureSemiPlanProcessGroup(builder);
-        ConfigureInventoryPlanProcessGroup(builder);
-        ConfigurePiercingPlanProcessGroup(builder);
-        ConfigureInProcessReworkPlan(builder);
-        ConfigureInProcessReworkPlanProcessGroup(builder);
-
-        // ========== 生产记录上下文 ==========
         ConfigureProductionRecord(builder);
         ConfigureSectionOutsource(builder);
         ConfigureOutsourceRecovery(builder);
-        ConfigureMaterialReceiveCheck(builder);
         ConfigureBatchOperationLog(builder);
         ConfigurePicklingInRecord(builder);
         ConfigurePicklingOutRecord(builder);
 
         // ========== 质量上下文 ==========
         ConfigureProcessInspection(builder);
-        ConfigureChemicalComposition(builder);
+        ConfigureMaterialReceiveCheck(builder);
         ConfigureFurnaceRegistration(builder);
-        ConfigureChemicalValidationRule(builder);
         ConfigureFinalInspection(builder);
         ConfigureChemicalAnalysis(builder);
         ConfigureHardnessTest(builder);
@@ -221,13 +216,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureMaintenanceOrder(builder);
         ConfigureInspectionRecord(builder);
 
-        // ========== 读模型上下文 ==========
-        ConfigureWorkOrderExecutionSummary(builder);
-        ConfigureOrderListSummary(builder);
-        ConfigureWorkOrderListSummary(builder);
-
         // ========== Scheduling 上下文 ==========
-        ConfigureOrderDemandAdjustment(builder);
         ConfigureRawMaterialLockPreExecution(builder);
         ConfigureWorkOrderPlan(builder);
         ConfigureSectionFlowCategorySetting(builder);
@@ -246,12 +235,15 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureWorkstation(builder);
 
         // ========== 生产标准上下文 ==========
+        ConfigureStandardGradeMapping(builder);
         ConfigureStandardRegister(builder);
         ConfigureStandardRegisterItem(builder);
         ConfigureGradeChemicalComposition(builder);
         ConfigureGradePhysicalProperty(builder);
         ConfigureSubStandardQuickView(builder);
         ConfigureStandardInspectionRequirement(builder);
+        ConfigureChemicalComposition(builder);
+        ConfigureChemicalValidationRule(builder);
 
         // 为所有继承 BaseEntity 的实体统一配置审计字段长度
         foreach (var entityType in builder.Model.GetEntityTypes())

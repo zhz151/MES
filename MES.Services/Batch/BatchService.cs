@@ -676,33 +676,80 @@ public class BatchService : IBatchService
         // 工单号变更时，同步更新相关记录的全部冗余字段
         if (entity.WorkOrderNo != oldWorkOrderNo)
         {
-            await _context.MaterialReceiveChecks
-                .Where(r => r.ProductionBatchId == id)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(r => r.WorkOrderNo, entity.WorkOrderNo)
-                    .SetProperty(r => r.SalesOrderNo, entity.SalesOrderNo)
-                    .SetProperty(r => r.ManufacturingItem, entity.ManufacturingItem)
-                    .SetProperty(r => r.PlantGrade, entity.PlantGrade)
-                    .SetProperty(r => r.Specification, entity.Specification)
-                    .SetProperty(r => r.ProductionType, entity.ProductionType)
-                    .SetProperty(r => r.LengthStatus, entity.LengthStatus)
-                    .SetProperty(r => r.Salesman, entity.Salesman)
-                    .SetProperty(r => r.DeliveryState, entity.DeliveryState));
-            await _context.FinalInspections
-                .Where(f => f.ProductionBatchId == id)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(f => f.WorkOrderNo, entity.WorkOrderNo)
-                    .SetProperty(f => f.SalesOrderNo, entity.SalesOrderNo)
-                    .SetProperty(f => f.MaterialName, entity.MaterialName)
-                    .SetProperty(f => f.PlantGrade, entity.PlantGrade)
-                    .SetProperty(f => f.Specification, entity.Specification)
-                    .SetProperty(f => f.ProductionType, entity.ProductionType));
-            await _context.Ncrs
-                .Where(n => n.BatchNo == entity.BatchNo)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(n => n.WorkOrderNo, entity.WorkOrderNo)
-                    .SetProperty(n => n.PlantGrade, entity.PlantGrade)
-                    .SetProperty(n => n.Specification, entity.Specification));
+            if (_context.Database.IsRelational())
+            {
+                await _context.MaterialReceiveChecks
+                    .Where(r => r.ProductionBatchId == id)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(r => r.WorkOrderNo, entity.WorkOrderNo)
+                        .SetProperty(r => r.SalesOrderNo, entity.SalesOrderNo)
+                        .SetProperty(r => r.ManufacturingItem, entity.ManufacturingItem)
+                        .SetProperty(r => r.PlantGrade, entity.PlantGrade)
+                        .SetProperty(r => r.Specification, entity.Specification)
+                        .SetProperty(r => r.ProductionType, entity.ProductionType)
+                        .SetProperty(r => r.LengthStatus, entity.LengthStatus)
+                        .SetProperty(r => r.Salesman, entity.Salesman)
+                        .SetProperty(r => r.DeliveryState, entity.DeliveryState));
+                await _context.FinalInspections
+                    .Where(f => f.ProductionBatchId == id)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(f => f.WorkOrderNo, entity.WorkOrderNo)
+                        .SetProperty(f => f.SalesOrderNo, entity.SalesOrderNo)
+                        .SetProperty(f => f.MaterialName, entity.MaterialName)
+                        .SetProperty(f => f.PlantGrade, entity.PlantGrade)
+                        .SetProperty(f => f.Specification, entity.Specification)
+                        .SetProperty(f => f.ProductionType, entity.ProductionType));
+                await _context.Ncrs
+                    .Where(n => n.BatchNo == entity.BatchNo)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(n => n.WorkOrderNo, entity.WorkOrderNo)
+                        .SetProperty(n => n.PlantGrade, entity.PlantGrade)
+                        .SetProperty(n => n.Specification, entity.Specification));
+            }
+            else
+            {
+                // InMemory 回退：加载实体后逐条更新（InMemory Provider 不支持 ExecuteUpdateAsync）
+                var receiveChecks = await _context.MaterialReceiveChecks
+                    .Where(r => r.ProductionBatchId == id)
+                    .ToListAsync();
+                foreach (var r in receiveChecks)
+                {
+                    r.WorkOrderNo = entity.WorkOrderNo;
+                    r.SalesOrderNo = entity.SalesOrderNo;
+                    r.ManufacturingItem = entity.ManufacturingItem;
+                    r.PlantGrade = entity.PlantGrade;
+                    r.Specification = entity.Specification;
+                    r.ProductionType = entity.ProductionType;
+                    r.LengthStatus = entity.LengthStatus;
+                    r.Salesman = entity.Salesman;
+                    r.DeliveryState = entity.DeliveryState;
+                }
+
+                var inspections = await _context.FinalInspections
+                    .Where(f => f.ProductionBatchId == id)
+                    .ToListAsync();
+                foreach (var f in inspections)
+                {
+                    f.WorkOrderNo = entity.WorkOrderNo;
+                    f.SalesOrderNo = entity.SalesOrderNo;
+                    f.MaterialName = entity.MaterialName;
+                    f.PlantGrade = entity.PlantGrade;
+                    f.Specification = entity.Specification;
+                    f.ProductionType = entity.ProductionType;
+                }
+
+                var ncrs = await _context.Ncrs
+                    .Where(n => n.BatchNo == entity.BatchNo)
+                    .ToListAsync();
+                foreach (var n in ncrs)
+                {
+                    n.WorkOrderNo = entity.WorkOrderNo;
+                    n.PlantGrade = entity.PlantGrade;
+                    n.Specification = entity.Specification;
+                }
+
+                await _context.SaveChangesAsync();
+            }
         }
 
         // 刷新批次跟踪字段（包括有效投料疑问等计算字段）
@@ -1126,33 +1173,80 @@ public class BatchService : IBatchService
         // 工单号变更时，同步更新相关记录的全部冗余字段
         if (entity.WorkOrderNo != oldWorkOrderNo)
         {
-            await _context.MaterialReceiveChecks
-                .Where(r => r.ProductionBatchId == id)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(r => r.WorkOrderNo, entity.WorkOrderNo)
-                    .SetProperty(r => r.SalesOrderNo, entity.SalesOrderNo)
-                    .SetProperty(r => r.ManufacturingItem, entity.ManufacturingItem)
-                    .SetProperty(r => r.PlantGrade, entity.PlantGrade)
-                    .SetProperty(r => r.Specification, entity.Specification)
-                    .SetProperty(r => r.ProductionType, entity.ProductionType)
-                    .SetProperty(r => r.LengthStatus, entity.LengthStatus)
-                    .SetProperty(r => r.Salesman, entity.Salesman)
-                    .SetProperty(r => r.DeliveryState, entity.DeliveryState));
-            await _context.FinalInspections
-                .Where(f => f.ProductionBatchId == id)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(f => f.WorkOrderNo, entity.WorkOrderNo)
-                    .SetProperty(f => f.SalesOrderNo, entity.SalesOrderNo)
-                    .SetProperty(f => f.MaterialName, entity.MaterialName)
-                    .SetProperty(f => f.PlantGrade, entity.PlantGrade)
-                    .SetProperty(f => f.Specification, entity.Specification)
-                    .SetProperty(f => f.ProductionType, entity.ProductionType));
-            await _context.Ncrs
-                .Where(n => n.BatchNo == entity.BatchNo)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(n => n.WorkOrderNo, entity.WorkOrderNo)
-                    .SetProperty(n => n.PlantGrade, entity.PlantGrade)
-                    .SetProperty(n => n.Specification, entity.Specification));
+            if (_context.Database.IsRelational())
+            {
+                await _context.MaterialReceiveChecks
+                    .Where(r => r.ProductionBatchId == id)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(r => r.WorkOrderNo, entity.WorkOrderNo)
+                        .SetProperty(r => r.SalesOrderNo, entity.SalesOrderNo)
+                        .SetProperty(r => r.ManufacturingItem, entity.ManufacturingItem)
+                        .SetProperty(r => r.PlantGrade, entity.PlantGrade)
+                        .SetProperty(r => r.Specification, entity.Specification)
+                        .SetProperty(r => r.ProductionType, entity.ProductionType)
+                        .SetProperty(r => r.LengthStatus, entity.LengthStatus)
+                        .SetProperty(r => r.Salesman, entity.Salesman)
+                        .SetProperty(r => r.DeliveryState, entity.DeliveryState));
+                await _context.FinalInspections
+                    .Where(f => f.ProductionBatchId == id)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(f => f.WorkOrderNo, entity.WorkOrderNo)
+                        .SetProperty(f => f.SalesOrderNo, entity.SalesOrderNo)
+                        .SetProperty(f => f.MaterialName, entity.MaterialName)
+                        .SetProperty(f => f.PlantGrade, entity.PlantGrade)
+                        .SetProperty(f => f.Specification, entity.Specification)
+                        .SetProperty(f => f.ProductionType, entity.ProductionType));
+                await _context.Ncrs
+                    .Where(n => n.BatchNo == entity.BatchNo)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(n => n.WorkOrderNo, entity.WorkOrderNo)
+                        .SetProperty(n => n.PlantGrade, entity.PlantGrade)
+                        .SetProperty(n => n.Specification, entity.Specification));
+            }
+            else
+            {
+                // InMemory 回退：加载实体后逐条更新（InMemory Provider 不支持 ExecuteUpdateAsync）
+                var receiveChecks = await _context.MaterialReceiveChecks
+                    .Where(r => r.ProductionBatchId == id)
+                    .ToListAsync();
+                foreach (var r in receiveChecks)
+                {
+                    r.WorkOrderNo = entity.WorkOrderNo;
+                    r.SalesOrderNo = entity.SalesOrderNo;
+                    r.ManufacturingItem = entity.ManufacturingItem;
+                    r.PlantGrade = entity.PlantGrade;
+                    r.Specification = entity.Specification;
+                    r.ProductionType = entity.ProductionType;
+                    r.LengthStatus = entity.LengthStatus;
+                    r.Salesman = entity.Salesman;
+                    r.DeliveryState = entity.DeliveryState;
+                }
+
+                var inspections = await _context.FinalInspections
+                    .Where(f => f.ProductionBatchId == id)
+                    .ToListAsync();
+                foreach (var f in inspections)
+                {
+                    f.WorkOrderNo = entity.WorkOrderNo;
+                    f.SalesOrderNo = entity.SalesOrderNo;
+                    f.MaterialName = entity.MaterialName;
+                    f.PlantGrade = entity.PlantGrade;
+                    f.Specification = entity.Specification;
+                    f.ProductionType = entity.ProductionType;
+                }
+
+                var ncrs = await _context.Ncrs
+                    .Where(n => n.BatchNo == entity.BatchNo)
+                    .ToListAsync();
+                foreach (var n in ncrs)
+                {
+                    n.WorkOrderNo = entity.WorkOrderNo;
+                    n.PlantGrade = entity.PlantGrade;
+                    n.Specification = entity.Specification;
+                }
+
+                await _context.SaveChangesAsync();
+            }
         }
 
         // 记录有效数量变更日志

@@ -15,7 +15,7 @@ using Moq;
 namespace MES.Tests.Services;
 
 /// <summary>
-/// 生产记录服务测试：生产记录、工段委外、委外回收、检验到料
+/// 生产记录服务测试：生产记录、工段委外、委外回收
 /// </summary>
 public class ProductionRecordServiceTests : TestBase
 {
@@ -333,56 +333,6 @@ public class ProductionRecordServiceTests : TestBase
 
         var deleted = await ctx.OutsourceRecoveries.FindAsync(recovery.Id);
         deleted.Should().BeNull();
-    }
-
-    // ========== 检验到料 ==========
-
-    [Fact]
-    public async Task CreateMaterialReceiveCheckAsync_成功创建()
-    {
-        var ctx = CreateDbContext();
-        await SeedBatchAsync(ctx);
-        var svc = CreateService(ctx);
-
-        var result = await svc.CreateMaterialReceiveCheckAsync(new CreateMaterialReceiveCheckRequest
-        {
-            BatchNo = "BATCH001",
-            ReceiveDate = DateTime.Today
-        });
-
-        result.Should().NotBeNull();
-        result.BatchNo.Should().Be("BATCH001");
-    }
-
-    [Fact]
-    public async Task GetMaterialReceiveCheckAsync_存在_返回Dto()
-    {
-        var ctx = CreateDbContext();
-        var batch = await SeedBatchAsync(ctx);
-        var svc = CreateService(ctx);
-
-        await svc.CreateMaterialReceiveCheckAsync(new CreateMaterialReceiveCheckRequest
-        {
-            BatchNo = "BATCH001",
-            ReceiveDate = DateTime.Today
-        });
-
-        var result = await svc.GetMaterialReceiveCheckAsync(batch.Id);
-
-        result.Should().NotBeNull();
-        result!.BatchNo.Should().Be("BATCH001");
-    }
-
-    [Fact]
-    public async Task GetMaterialReceiveCheckAsync_不存在_返回Null()
-    {
-        var ctx = CreateDbContext();
-        await SeedBatchAsync(ctx);
-        var svc = CreateService(ctx);
-
-        var result = await svc.GetMaterialReceiveCheckAsync(999);
-
-        result.Should().BeNull();
     }
 
     // ========== B11 专项测试 ==========

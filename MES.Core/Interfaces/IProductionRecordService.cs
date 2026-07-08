@@ -4,7 +4,7 @@ using MES.Core.Models;
 namespace MES.Core.Interfaces;
 
 /// <summary>
-/// 生产记录服务接口（内部生产记录/工段委外/委外回收/检验到料）
+/// 生产记录服务接口（内部生产记录/工段委外/委外回收）
 /// </summary>
 public interface IProductionRecordService
 {
@@ -69,32 +69,6 @@ public interface IProductionRecordService
     /// </summary>
     Task DeleteOutsourceRecoveryAsync(int id);
 
-    // ========== 检验到料 ==========
-
-    /// <summary>
-    /// 获取批次的检验到料记录
-    /// </summary>
-    Task<MaterialReceiveCheckDto?> GetMaterialReceiveCheckAsync(int batchId);
-
-    /// <summary>
-    /// 创建检验到料（将批次状态设为Completed）
-    /// </summary>
-    Task<MaterialReceiveCheckDto> CreateMaterialReceiveCheckAsync(CreateMaterialReceiveCheckRequest request);
-
-    /// <summary>
-    /// 批量创建检验到料（一次查询 + 一次SaveChanges + 一次批量刷新）
-    /// </summary>
-    Task<List<MaterialReceiveCheckDto>> BatchCreateMaterialReceiveChecksAsync(List<CreateMaterialReceiveCheckRequest> requests);
-
-    /// <summary>
-    /// 更新检验到料
-    /// </summary>
-    Task<MaterialReceiveCheckDto> UpdateMaterialReceiveCheckAsync(int id, UpdateMaterialReceiveCheckRequest request);
-
-    /// <summary>
-    /// 删除检验到料
-    /// </summary>
-    Task DeleteMaterialReceiveCheckAsync(int id);
 
     // ========== 批次状态查询 ==========
 
@@ -136,11 +110,6 @@ public interface IProductionRecordService
     Task<PagedResult<OutsourceRecoveryDto>> GetAllOutsourceRecoveriesAsync(QueryParams query);
 
     /// <summary>
-    /// 跨批次查询所有检验到料记录
-    /// </summary>
-    Task<PagedResult<MaterialReceiveCheckDto>> GetAllMaterialReceiveChecksAsync(QueryParams query);
-
-    /// <summary>
     /// 获取所有内部生产记录（不含分页，用于 ProductionRecords 页面列表展示）
     /// </summary>
     Task<List<ProductionRecordDto>> GetAllProductionRecordListAsync();
@@ -149,11 +118,6 @@ public interface IProductionRecordService
     /// 获取指定日期的各工段产量汇总（按 SectionName 分组聚合重量），供看板使用
     /// </summary>
     Task<List<DailySectionOutputDto>> GetDailySectionOutputAsync(DateTime date);
-
-    /// <summary>
-    /// 获取所有检验到料记录（不含分页，用于 MaterialChecks 页面列表展示）
-    /// </summary>
-    Task<List<MaterialReceiveCheckDto>> GetAllMaterialReceiveCheckListAsync();
 
     /// <summary>
     /// 获取所有工段委外记录（不含分页，用于 SectionOutsources 页面列表展示）
@@ -175,24 +139,12 @@ public interface IProductionRecordService
     /// </summary>
     Task<List<OutsourceRecoveryDto>> BatchCreateOutsourceRecoveriesAsync(List<CreateOutsourceRecoveryRequest> requests);
 
-    // ========== 待检验到料查询 ==========
-
-    /// <summary>
-    /// 获取待检验到料批次（成品检验阶段且未创建检验到料记录）
-    /// </summary>
-    Task<List<PendingMaterialCheckDto>> GetPendingMaterialChecksAsync();
-
     // ========== 筛选上下文 ==========
 
     /// <summary>
     /// 获取生产记录筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
-
-    /// <summary>
-    /// 获取检验到料筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
-    /// </summary>
-    Task<Dictionary<string, List<string>>> GetMaterialCheckFilterContextsAsync();
 
     // ========== 打印 ==========
 
@@ -205,16 +157,6 @@ public interface IProductionRecordService
     /// 按筛选条件打印全部生产记录
     /// </summary>
     Task<byte[]> PrintProductionRecordAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? execDateFrom, DateTime? execDateTo);
-
-    /// <summary>
-    /// 批量打印检验到料
-    /// </summary>
-    Task<byte[]> PrintMaterialCheckBatchAsync(int[] ids, List<PrintColumnDef> columns);
-
-    /// <summary>
-    /// 按筛选条件打印全部检验到料
-    /// </summary>
-    Task<byte[]> PrintMaterialCheckAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? receiveDateFrom, DateTime? receiveDateTo);
 
     /// <summary>
     /// 删除生产记录中所有"去油"和"酸洗"的旧数据

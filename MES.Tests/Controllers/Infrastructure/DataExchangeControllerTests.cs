@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
-using MES.Api.Controllers;
+using MES.Api.Controllers.DataExchange;
 using MES.Core.DTOs;
 using MES.Core.Interfaces;
 using MES.Core.Models;
@@ -12,16 +12,14 @@ namespace MES.Tests.Controllers;
 public class DataExchangeControllerTests : ControllerTestBase
 {
     private readonly Mock<IDataExchangeService> _serviceMock;
-    private readonly Mock<IDataFixService> _fixServiceMock;
     private readonly Mock<ILogger<DataExchangeController>> _loggerMock;
     private readonly DataExchangeController _controller;
 
     public DataExchangeControllerTests()
     {
         _serviceMock = new Mock<IDataExchangeService>();
-        _fixServiceMock = new Mock<IDataFixService>();
         _loggerMock = CreateLoggerMock<DataExchangeController>();
-        _controller = new DataExchangeController(_serviceMock.Object, _fixServiceMock.Object, _loggerMock.Object);
+        _controller = new DataExchangeController(_serviceMock.Object, _loggerMock.Object);
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext
@@ -170,7 +168,7 @@ public class DataExchangeControllerTests : ControllerTestBase
             BatchTrackingFixed = 2,
             EquipmentFixed = 1
         };
-        _fixServiceMock.Setup(x => x.FixAllAsync()).ReturnsAsync(report);
+        _serviceMock.Setup(x => x.FixAllSystemFieldsAsync()).ReturnsAsync(report);
 
         // Act
         var result = await _controller.FixAllSystemFields();

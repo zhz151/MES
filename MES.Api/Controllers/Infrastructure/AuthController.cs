@@ -5,7 +5,7 @@ using MES.Auth.Services;
 using MES.Core.Models;
 using MES.Core.DTOs.Auth;
 
-namespace MES.Api.Controllers;
+namespace MES.Api.Controllers.Infrastructure;
 
 [ApiController]
 [Route("api/auth")]

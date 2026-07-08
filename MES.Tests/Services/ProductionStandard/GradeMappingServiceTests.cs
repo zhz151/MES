@@ -198,7 +198,7 @@ public class GradeMappingServiceTests : TestBase
             Density = 7.85m
         });
 
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("*already exists*");
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*已存在*");
     }
 
     // ========== UpdateAsync ==========

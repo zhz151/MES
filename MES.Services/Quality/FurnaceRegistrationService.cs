@@ -18,13 +18,16 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<FurnaceRegistrationService> _logger;
+    private readonly IChemicalValidationRuleService _chemicalValidationRuleService;
 
     public FurnaceRegistrationService(
         AppDbContext context,
-        ILogger<FurnaceRegistrationService> logger)
+        ILogger<FurnaceRegistrationService> logger,
+        IChemicalValidationRuleService chemicalValidationRuleService)
     {
         _context = context;
         _logger = logger;
+        _chemicalValidationRuleService = chemicalValidationRuleService;
     }
 
     public async Task<FurnaceRegistrationDto?> GetByIdAsync(int id)
@@ -414,9 +417,7 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
         if (string.IsNullOrWhiteSpace(request.RelatedPlantGrade))
             return errors;
 
-        var rule = await _context.ChemicalValidationRules
-            .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.PlantGrade == request.RelatedPlantGrade);
+        var rule = await _chemicalValidationRuleService.GetByPlantGradeAsync(request.RelatedPlantGrade);
 
         if (rule == null)
             return errors;

@@ -19,6 +19,7 @@ public static class ApiEndpoints
 
     // ===== Order 订单 =====
     public const string Order = "api/order";
+    public const string OrderDemandAdjustment = "api/order-demand-adjustment";
 
     // ===== WorkOrder 工单 =====
     public const string WorkOrder = "api/workorder";
@@ -26,11 +27,9 @@ public static class ApiEndpoints
     public const string MaterialPlan = "api/material-plan";
 
     // ===== Quality 质量 =====
-    public const string ChemicalComposition = "api/chemical-composition";
-    public const string ChemicalValidationRule = "api/chemical-validation-rule";
+    public const string MaterialReceiveCheck = "api/material-receive-check";
     public const string FinalInspection = "api/final-inspection";
     public const string FurnaceRegistration = "api/furnace-registration";
-    public const string GradeMapping = "api/grade-mapping";
     public const string ProcessInspection = "api/process-inspection";
     public const string QualityProcessTracking = "api/quality-process-tracking";
     public const string Ncr = "api/ncr";
@@ -65,8 +64,7 @@ public static class ApiEndpoints
     public const string DataExchange = "api/data-exchange";
     public const string Notification = "api/notification";
     public const string ProductionOverview = "api/production-overview";
-public const string RawMaterialLockPlan = "api/raw-material-lock-plan";
-    public const string OrderDemandAdjustment = "api/order-demand-adjustment";
+    public const string RawMaterialLockPlan = "api/raw-material-lock-plan";
     public const string Scan = "api/scan";
     public const string Workstation = "api/workstation";
     public const string Employee = "api/employee";
@@ -98,13 +96,17 @@ public const string RawMaterialLockPlan = "api/raw-material-lock-plan";
     public const string ConfigParameter = "api/config-parameter";
     public const string DailyOutputEstimate = "api/daily-output-estimate";
     public const string DailyProductionCapacity = "api/daily-production-capacity";
+    public const string SectionFlowCategorySettings = "api/section-flow-category-settings";
 
-    // ===== StandardRegister 标准号 =====
+    // ===== ProductionStandard 生产标准 =====
     public const string StandardRegister = "api/standard-register";
     public const string GradeChemicalComposition = "api/grade-chemical-composition";
     public const string GradePhysicalProperty = "api/grade-physical-property";
     public const string SubStandardQuickView = "api/sub-standard-quick-view";
     public const string StandardInspectionRequirement = "api/standard-inspection-requirement";
+    public const string ChemicalComposition = "api/chemical-composition";
+    public const string ChemicalValidationRule = "api/chemical-validation-rule";
+    public const string GradeMapping = "api/grade-mapping";
 
     // ===== 通用默认排序字段 =====
     public const string DefaultSortBy = "CreatedTime";

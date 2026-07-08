@@ -183,6 +183,7 @@ builder.Services.AddScoped<IFlaringTestService, FlaringTestService>();
 builder.Services.AddScoped<INcrService, NcrService>();
 builder.Services.AddScoped<ISectionOutsourceService, SectionOutsourceService>();
 builder.Services.AddScoped<IPicklingService, PicklingService>();
+builder.Services.AddScoped<IMaterialReceiveCheckService, MaterialReceiveCheckService>();
 
 // Register material context services
 builder.Services.AddScoped<IMaterialService, MaterialService>();
@@ -218,6 +219,7 @@ builder.Services.AddScoped<IRawMaterialLockPlanAndExecutionService, RawMaterialL
 builder.Services.AddScoped<IProductionOverviewService, ProductionOverviewService>();
 builder.Services.AddScoped<ISectionProductionStatusService, SectionProductionStatusService>();
 builder.Services.AddScoped<ISectionFlowAnalysisService, SectionFlowAnalysisService>();
+builder.Services.AddScoped<ISectionFlowCategoryService, MES.Services.Configuration.SectionFlowCategoryService>();
 builder.Services.AddScoped<IWorkOrderScheduleService, WorkOrderScheduleService>();
 builder.Services.AddScoped<IBatchPlanService, BatchPlanService>();
 builder.Services.AddScoped<IColdRollPlanService, ColdRollPlanService>();

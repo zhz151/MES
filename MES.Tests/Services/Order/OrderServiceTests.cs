@@ -291,18 +291,7 @@ public class OrderServiceTests : TestBase
             Status = SalesOrderStatus.Confirmed.ToString(),
             RowVersion = new byte[8]
         });
-
-        // 手动创建 OrderListSummary 读模型（原 RefreshAllAsync 已移除）
-        ctx.OrderListSummaries.Add(new OrderListSummary
-        {
-            OrderId = order.Id,
-            OrderNumber = "ORD-TEST-001",
-            CustomerName = cust.CustomerUnit,
-            Salesman = cust.Salesman,
-            SignDate = DateTime.Today,
-            Status = SalesOrderStatus.Confirmed,
-        });
-        await ctx.SaveChangesAsync();
+        // UpdateAsync 内部通过 RefreshByOrderIdAsync 已自动创建 OrderListSummary，无需手动添加
 
         // 只查待处理
         var pendingResult = await svc.GetPagedAsync(new QueryParams
