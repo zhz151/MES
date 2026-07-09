@@ -54,54 +54,55 @@ public class EquipmentService : IEquipmentService
         if (!string.IsNullOrEmpty(query.RelatedSection))
             q = q.Where(e => e.RelatedSection == query.RelatedSection);
 
-        var filterRunningStatus = query.RunningStatus;
-        var filterInspectionStatus = query.InspectionStatus;
-        var filterMaintStatus = query.MaintStatus;
+        // 物化状态字段现在直接存在 Equipment 表中，可直接在 DB 层筛选
+        if (!string.IsNullOrEmpty(query.RunningStatus))
+            q = q.Where(e => e.RunningStatus == query.RunningStatus);
+        if (!string.IsNullOrEmpty(query.InspectionStatus))
+            q = q.Where(e => e.InspectionStatus == query.InspectionStatus);
+        if (!string.IsNullOrEmpty(query.MaintStatus))
+            q = q.Where(e => e.MaintStatus == query.MaintStatus);
 
-        // 从 ExcelFilter 提取后处理状态字段筛选（RunningStatus/InspectionStatus/MaintStatus 由 ComputeStatusesAsync
-        // 在后端计算，ApplyFilters 无法在 Equipment 实体上找到这些属性）
-        var statusExcelFilters = new List<(string Field, List<string> Values)>();
-        if (query.Filters != null)
-        {
-            var statusFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "RunningStatus", "InspectionStatus", "MaintStatus" };
-            foreach (var f in query.Filters.Where(f => statusFields.Contains(f.Field)).ToList())
-            {
-                if (f.Values?.Count > 0)
-                    statusExcelFilters.Add((f.Field, f.Values));
-                query.Filters.Remove(f);
-            }
-        }
-
+        // ExcelFilter 筛选（物化状态字段 ApplyFilters 可直接找到）
         q = q.ApplyFilters(query.Filters);
         q = q.ApplySort(query.SortBy ?? "equipmentcode", query.IsDescending);
 
         var totalCount = await q.CountAsync();
-        var entities = await q
+
+        var items = await q
             .Skip(query.Skip)
             .Take(query.PageSize)
+            .Select(e => new EquipmentListDto
+            {
+                Id = e.Id,
+                EquipmentCode = e.EquipmentCode,
+                EquipmentName = e.EquipmentName,
+                ModelNumber = e.ModelNumber,
+                TechnicalParams = e.TechnicalParams,
+                Manufacturer = e.Manufacturer,
+                InstallationDate = e.InstallationDate,
+                Remark = e.Remark,
+                Location = e.Location,
+                RelatedSection = e.RelatedSection,
+                NeedInspection = e.NeedInspection,
+                InspectionPerson = e.InspectionPerson,
+                InspectionCycleDays = e.InspectionCycleDays,
+                LastInspectionDate = e.LastInspectionDate,
+                CurrentInspectionStartDate = e.CurrentInspectionStartDate,
+                NeedMaintenance = e.NeedMaintenance,
+                MaintPerson = e.MaintPerson,
+                MaintCycleDays = e.MaintCycleDays,
+                LastMaintDate = e.LastMaintDate,
+                CurrentMaintStartDate = e.CurrentMaintStartDate,
+                LastRepairDate = e.LastRepairDate,
+                LifecycleStatus = e.LifecycleStatus,
+                UsageType = e.UsageType,
+                RunningStatus = e.RunningStatus,
+                InspectionStatus = e.InspectionStatus,
+                MaintStatus = e.MaintStatus,
+                CreatedTime = e.CreatedTime,
+                UpdatedTime = e.UpdatedTime,
+            })
             .ToListAsync();
-
-        var items = await ComputeStatusesAsync(entities);
-
-        if (!string.IsNullOrEmpty(filterRunningStatus))
-            items = items.Where(e => e.RunningStatus == filterRunningStatus).ToList();
-        if (!string.IsNullOrEmpty(filterInspectionStatus))
-            items = items.Where(e => e.InspectionStatus == filterInspectionStatus).ToList();
-        if (!string.IsNullOrEmpty(filterMaintStatus))
-            items = items.Where(e => e.MaintStatus == filterMaintStatus).ToList();
-        // 应用 ExcelFilter 状态筛选（来自 query.Filters 提取的 Values）
-        if (statusExcelFilters.Count > 0)
-        {
-            items = items.Where(e =>
-                statusExcelFilters.All(sf =>
-                    sf.Values.Contains(sf.Field.ToLowerInvariant() switch
-                    {
-                        "runningstatus" => e.RunningStatus,
-                        "inspectionstatus" => e.InspectionStatus,
-                        "maintstatus" => e.MaintStatus,
-                        _ => ""
-                    }))).ToList();
-        }
 
         return new PagedResult<EquipmentListDto>
         {
@@ -114,22 +115,20 @@ public class EquipmentService : IEquipmentService
 
     public async Task<List<EquipmentListDto>> GetAllListAsync()
     {
-        var entities = await _context.Equipment
+        return await _context.Equipment
             .AsNoTracking()
+            .Select(e => ToDto(e))
             .ToListAsync();
-
-        return await ComputeStatusesAsync(entities);
     }
 
     public async Task<List<EquipmentListDto>> GetAllAsync()
     {
-        var entities = await _context.Equipment
+        return await _context.Equipment
             .AsNoTracking()
             .Where(e => e.LifecycleStatus != nameof(LifecycleStatus.Scrapped))
             .OrderBy(e => e.EquipmentCode)
+            .Select(e => ToDto(e))
             .ToListAsync();
-
-        return await ComputeStatusesAsync(entities);
     }
 
     public async Task<EquipmentDetailDto> GetByIdAsync(int id)
@@ -139,8 +138,7 @@ public class EquipmentService : IEquipmentService
             .FirstOrDefaultAsync(e => e.Id == id);
         if (entity == null) throw new BusinessException("设备不存在");
 
-        var list = await ComputeStatusesAsync(new List<MES.Data.Entities.Equipment> { entity });
-        return ToDetailDto(list[0]);
+        return ToDetailDto(ToDto(entity));
     }
 
     public async Task<EquipmentDetailDto> CreateAsync(CreateEquipmentRequest request)
@@ -175,8 +173,10 @@ public class EquipmentService : IEquipmentService
         _context.Equipment.Add(entity);
         await _context.SaveChangesAsync();
 
-        var list = await ComputeStatusesAsync(new List<MES.Data.Entities.Equipment> { entity });
-        return ToDetailDto(list[0]);
+        // 创建后计算并持久化初始物化状态
+        await EquipmentStatusCalculator.RecalculateAndSaveAsync(_context, entity.Id);
+
+        return ToDetailDto(ToDto(entity));
     }
 
     public async Task<EquipmentDetailDto> UpdateAsync(int id, UpdateEquipmentRequest request)
@@ -217,8 +217,10 @@ public class EquipmentService : IEquipmentService
 
         await _context.SaveChangesAsync();
 
-        var list = await ComputeStatusesAsync(new List<MES.Data.Entities.Equipment> { entity });
-        return ToDetailDto(list[0]);
+        // 更新后重算物化状态（点检/保养参数可能已变）
+        await EquipmentStatusCalculator.RecalculateAndSaveAsync(_context, entity.Id);
+
+        return ToDetailDto(ToDto(entity));
     }
 
     public async Task DeleteAsync(int id)
@@ -229,75 +231,6 @@ public class EquipmentService : IEquipmentService
 
         _context.Equipment.Remove(entity);
         await _context.SaveChangesAsync();
-    }
-
-    private async Task<List<EquipmentListDto>> ComputeStatusesAsync(List<MES.Data.Entities.Equipment> entities)
-    {
-        if (entities.Count == 0) return new List<EquipmentListDto>();
-
-        var ids = entities.Select(e => e.Id).ToList();
-        var today = DateTime.Today;
-
-        // 批量加载关联记录
-        var inspectionByEquipment = await _context.InspectionRecords
-            .AsNoTracking()
-            .Where(r => ids.Contains(r.EquipmentId) && r.ActualDate != null)
-            .Select(r => new { r.EquipmentId, r.ActualDate })
-            .ToListAsync();
-
-        var maintByEquipment = await _context.MaintenanceOrders
-            .AsNoTracking()
-            .Where(m => ids.Contains(m.EquipmentId) && m.ActualDate != null)
-            .Select(m => new { m.EquipmentId, m.ActualDate })
-            .ToListAsync();
-
-        var repairByEquipment = await _context.RepairOrders
-            .AsNoTracking()
-            .Where(r => ids.Contains(r.EquipmentId))
-            .Select(r => new { r.EquipmentId, r.RepairStartTime, r.RepairEndTime, r.CreatedTime })
-            .ToListAsync();
-
-        var inspectionLookup = inspectionByEquipment
-            .GroupBy(x => x.EquipmentId)
-            .ToDictionary(g => g.Key, g => g.Select(x => x.ActualDate!.Value).ToList());
-
-        var maintLookup = maintByEquipment
-            .GroupBy(x => x.EquipmentId)
-            .ToDictionary(g => g.Key, g => g.Select(x => x.ActualDate!.Value).ToList());
-
-        var repairLookup = repairByEquipment
-            .GroupBy(x => x.EquipmentId)
-            .ToDictionary(g => g.Key, g => g
-                .OrderByDescending(x => x.RepairStartTime ?? x.RepairEndTime ?? x.CreatedTime.DateTime)
-                .Select(x => (x.RepairStartTime, x.RepairEndTime))
-                .ToList());
-
-        return entities.Select(entity =>
-        {
-            var dto = ToListDto(entity);
-
-            var inspectionDates = inspectionLookup.GetValueOrDefault(entity.Id) ?? new List<DateTime>();
-            var maintDates = maintLookup.GetValueOrDefault(entity.Id) ?? new List<DateTime>();
-            var repairs = repairLookup.GetValueOrDefault(entity.Id) ?? new List<(DateTime? RepairStartTime, DateTime? RepairEndTime)>();
-
-            dto.InspectionStatus = ComputeTaskStatus(
-                entity.NeedInspection,
-                entity.CurrentInspectionStartDate,
-                entity.InspectionCycleDays,
-                inspectionDates,
-                today);
-
-            dto.MaintStatus = ComputeTaskStatus(
-                entity.NeedMaintenance,
-                entity.CurrentMaintStartDate,
-                entity.MaintCycleDays,
-                maintDates,
-                today);
-
-            dto.RunningStatus = ComputeRunningStatus(repairs);
-
-            return dto;
-        }).ToList();
     }
 
     public async Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
@@ -319,38 +252,7 @@ public class EquipmentService : IEquipmentService
         return EquipmentPrintHelper.GenerateBatchPdf(result.Items, columns);
     }
 
-    private static string ComputeTaskStatus(
-        bool needTask,
-        DateTime? currentStartDate,
-        int cycleDays,
-        List<DateTime> actualDates,
-        DateTime today)
-    {
-        if (!needTask) return nameof(EquipmentTaskStatus.NotApplicable);
-        if (currentStartDate == null) return nameof(EquipmentTaskStatus.Pending);
-
-        // 如果今天 < 起始日，说明时间窗还未开始 → 正常（此逻辑优先）
-        if (today < currentStartDate) return nameof(EquipmentTaskStatus.Normal);
-
-        var periodEnd = currentStartDate.Value.AddDays(cycleDays - 1);
-        var hasRecord = actualDates.Any(ad => ad >= currentStartDate && ad <= periodEnd);
-
-        if (hasRecord) return nameof(EquipmentTaskStatus.Normal);
-        if (today > periodEnd) return nameof(EquipmentTaskStatus.Overdue);
-        return nameof(EquipmentTaskStatus.Pending);
-    }
-
-    private static string ComputeRunningStatus(List<(DateTime? RepairStartTime, DateTime? RepairEndTime)> repairs)
-    {
-        if (repairs.Count == 0) return nameof(RunningStatus.Normal);
-
-        var latest = repairs[0];
-        if (latest.RepairEndTime != null) return nameof(RunningStatus.Normal);
-        if (latest.RepairStartTime != null) return nameof(RunningStatus.InProgress);
-        return nameof(RunningStatus.Pending);
-    }
-
-    private static EquipmentListDto ToListDto(MES.Data.Entities.Equipment e) => new()
+    private static EquipmentListDto ToDto(MES.Data.Entities.Equipment e) => new()
     {
         Id = e.Id,
         EquipmentCode = e.EquipmentCode,
@@ -375,11 +277,11 @@ public class EquipmentService : IEquipmentService
         LastRepairDate = e.LastRepairDate,
         LifecycleStatus = e.LifecycleStatus,
         UsageType = e.UsageType,
+        RunningStatus = e.RunningStatus,
+        InspectionStatus = e.InspectionStatus,
+        MaintStatus = e.MaintStatus,
         CreatedTime = e.CreatedTime,
         UpdatedTime = e.UpdatedTime,
-        InspectionStatus = nameof(EquipmentTaskStatus.NotApplicable),
-        MaintStatus = nameof(EquipmentTaskStatus.NotApplicable),
-        RunningStatus = nameof(RunningStatus.Normal)
     };
 
     private static EquipmentDetailDto ToDetailDto(EquipmentListDto dto)
@@ -392,7 +294,7 @@ public class EquipmentService : IEquipmentService
         return detail;
     }
 
-    public async Task<Dictionary<string, List<string>>> GetEquipmentFilterContextsAsync()
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
         var contexts = new Dictionary<string, List<string>>();
 
@@ -411,12 +313,6 @@ public class EquipmentService : IEquipmentService
         contexts["RelatedSection"] = await _context.Equipment
             .AsNoTracking().Where(e => e.RelatedSection != null)
             .Select(e => e.RelatedSection!).Distinct().ToListAsync()!;
-        contexts["LifecycleStatus"] = await _context.Equipment
-            .AsNoTracking().Where(e => e.LifecycleStatus != null)
-            .Select(e => e.LifecycleStatus).Distinct().ToListAsync()!;
-        contexts["UsageType"] = await _context.Equipment
-            .AsNoTracking().Where(e => e.UsageType != null)
-            .Select(e => e.UsageType).Distinct().ToListAsync()!;
 
         return contexts;
     }

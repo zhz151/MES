@@ -1671,7 +1671,7 @@ public async Task DeleteAsync(int id)
 
     #endregion
 
-    public async Task<Dictionary<string, List<string>>> GetOrderFilterContextsAsync()
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
         return await _cache.GetOrCreateAsync("OrderService:FilterContexts", async entry =>
         {

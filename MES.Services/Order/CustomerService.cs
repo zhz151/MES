@@ -293,7 +293,7 @@ public class CustomerService : ICustomerService
             .ToListAsync();
     }
 
-    public async Task<Dictionary<string, List<string>>> GetCustomerFilterContextsAsync()
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
         return await _cache.GetOrCreateAsync("CustomerService:FilterContexts", async entry =>
         {

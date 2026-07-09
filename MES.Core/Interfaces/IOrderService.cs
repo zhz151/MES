@@ -98,7 +98,7 @@ public interface IOrderService
     /// <summary>
     /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
-    Task<Dictionary<string, List<string>>> GetOrderFilterContextsAsync();
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
     /// <summary>
     /// 刷新全部订单读模型（从源表重新聚合 OrderListSummary）

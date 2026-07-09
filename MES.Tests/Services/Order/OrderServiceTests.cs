@@ -576,7 +576,7 @@ public class OrderServiceTests : TestBase
     // ========== 筛选上下文 ==========
 
     [Fact]
-    public async Task GetOrderFilterContextsAsync_返回正确选项()
+    public async Task GetFilterContextsAsync_返回正确选项()
     {
         var ctx = CreateDbContext();
         ctx.Set<MES.Data.Entities.OrderListSummary>().AddRange(
@@ -604,19 +604,19 @@ public class OrderServiceTests : TestBase
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
-        var result = await svc.GetOrderFilterContextsAsync();
+        var result = await svc.GetFilterContextsAsync();
 
         result.Should().ContainKeys("OrderNumber", "SignDate", "Salesman", "CustomerName");
         result["OrderNumber"].Should().BeEquivalentTo(new[] { "SO001", "SO002" }, options => options.WithStrictOrdering());
     }
 
     [Fact]
-    public async Task GetOrderFilterContextsAsync_无数据_各字段返回空列表()
+    public async Task GetFilterContextsAsync_无数据_各字段返回空列表()
     {
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        var result = await svc.GetOrderFilterContextsAsync();
+        var result = await svc.GetFilterContextsAsync();
 
         result.Should().ContainKeys("OrderNumber", "SignDate", "Salesman", "CustomerName", "EndCustomer", "DeliveryStart", "DeliveryEnd", "LastChangeDate");
         foreach (var kvp in result)

@@ -51,7 +51,7 @@ public interface IMaterialReceiveCheckService
     /// <summary>
     /// 获取检验到料筛选上下文（各列去重值）
     /// </summary>
-    Task<Dictionary<string, List<string>>> GetMaterialCheckFilterContextsAsync();
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
     /// <summary>
     /// 批量打印检验到料

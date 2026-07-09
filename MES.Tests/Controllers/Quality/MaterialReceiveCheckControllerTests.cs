@@ -208,7 +208,7 @@ public class MaterialReceiveCheckControllerTests : ControllerTestBase
     {
         // Arrange
         var ctx = new Dictionary<string, List<string>> { { "BatchNo", new List<string> { "BATCH001" } } };
-        _serviceMock.Setup(x => x.GetMaterialCheckFilterContextsAsync()).ReturnsAsync(ctx);
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(ctx);
 
         // Act
         var result = await _controller.GetFilterContexts();
@@ -224,7 +224,7 @@ public class MaterialReceiveCheckControllerTests : ControllerTestBase
     public async Task GetFilterContexts_Empty_ReturnsEmpty()
     {
         // Arrange
-        _serviceMock.Setup(x => x.GetMaterialCheckFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
 
         // Act
         var result = await _controller.GetFilterContexts();

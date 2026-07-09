@@ -674,7 +674,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         "Remark", "Salesman"
     };
 
-    public async Task<Dictionary<string, List<string>>> GetMaterialCheckFilterContextsAsync()
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
         return await _cache.GetOrCreateAsync("MaterialReceiveCheckService:FilterContexts", async entry =>
         {

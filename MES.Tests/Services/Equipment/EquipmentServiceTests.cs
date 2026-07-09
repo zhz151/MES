@@ -451,7 +451,7 @@ public class EquipmentServiceTests : TestBase
     // ========== 筛选上下文 ==========
 
     [Fact]
-    public async Task GetEquipmentFilterContextsAsync_返回正确选项()
+    public async Task GetFilterContextsAsync_返回正确选项()
     {
         var ctx = CreateDbContext();
         ctx.Equipment.AddRange(
@@ -461,24 +461,23 @@ public class EquipmentServiceTests : TestBase
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
 
-        var result = await svc.GetEquipmentFilterContextsAsync();
+        var result = await svc.GetFilterContextsAsync();
 
-        result.Should().ContainKeys("EquipmentCode", "EquipmentName", "ModelNumber", "Location", "RelatedSection", "LifecycleStatus", "UsageType");
+        result.Should().ContainKeys("EquipmentCode", "EquipmentName", "ModelNumber", "Location", "RelatedSection");
         result["EquipmentCode"].Should().BeEquivalentTo(new[] { "EQ-001", "EQ-002" }, options => options.WithStrictOrdering());
         result["EquipmentName"].Should().BeEquivalentTo(new[] { "车床", "铣床" }, options => options.WithStrictOrdering());
         result["ModelNumber"].Should().HaveCount(1).And.Contain("M1");
-        result["LifecycleStatus"].Should().BeEquivalentTo(new[] { "Active", "Standby" }, options => options.WithStrictOrdering());
     }
 
     [Fact]
-    public async Task GetEquipmentFilterContextsAsync_无数据_返回空列表()
+    public async Task GetFilterContextsAsync_无数据_返回空列表()
     {
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        var result = await svc.GetEquipmentFilterContextsAsync();
+        var result = await svc.GetFilterContextsAsync();
 
-        result.Should().ContainKeys("EquipmentCode", "EquipmentName", "ModelNumber", "Location", "RelatedSection", "LifecycleStatus", "UsageType");
+        result.Should().ContainKeys("EquipmentCode", "EquipmentName", "ModelNumber", "Location", "RelatedSection");
         foreach (var kvp in result)
             kvp.Value.Should().BeEmpty($"字段 {kvp.Key} 应返回空列表");
     }

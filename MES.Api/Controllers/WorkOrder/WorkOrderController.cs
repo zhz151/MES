@@ -374,7 +374,7 @@ public class WorkOrderController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetWorkOrderFilterContexts()
     {
-        var result = await _workOrderService.GetWorkOrderFilterContextsAsync();
+        var result = await _workOrderService.GetFilterContextsAsync();
         return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
     }
 

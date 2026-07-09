@@ -123,7 +123,7 @@ public class EquipmentController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
-        var result = await _service.GetEquipmentFilterContextsAsync();
+        var result = await _service.GetFilterContextsAsync();
         return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result, "查询成功"));
     }
 

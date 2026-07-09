@@ -305,7 +305,7 @@ public class WorkOrderControllerTests : ControllerTestBase
         {
             ["Field1"] = new() { "A", "B" }
         };
-        _serviceMock.Setup(x => x.GetWorkOrderFilterContextsAsync()).ReturnsAsync(filterContexts);
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(filterContexts);
         var result = await _controller.GetWorkOrderFilterContexts();
         var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
         Assert.True(response.Success);
@@ -315,7 +315,7 @@ public class WorkOrderControllerTests : ControllerTestBase
     [Fact]
     public async Task GetFilterContexts_Empty_ReturnsEmpty()
     {
-        _serviceMock.Setup(x => x.GetWorkOrderFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
         var result = await _controller.GetWorkOrderFilterContexts();
         var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
         Assert.True(response.Success);

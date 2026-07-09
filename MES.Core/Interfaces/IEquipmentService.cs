@@ -14,5 +14,5 @@ public interface IEquipmentService
     Task DeleteAsync(int id);
     Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
     Task<byte[]> PrintAllAsync(EquipmentQueryParams query, List<PrintColumnDef> columns);
-    Task<Dictionary<string, List<string>>> GetEquipmentFilterContextsAsync();
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 }

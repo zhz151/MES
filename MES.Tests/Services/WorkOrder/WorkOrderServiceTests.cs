@@ -805,7 +805,7 @@ public class WorkOrderServiceTests : TestBase
     // ========== 筛选上下文 ==========
 
     [Fact]
-    public async Task GetWorkOrderFilterContextsAsync_返回正确选项()
+    public async Task GetFilterContextsAsync_返回正确选项()
     {
         var ctx = CreateDbContext();
         ctx.Set<WorkOrderListSummary>().AddRange(
@@ -861,7 +861,7 @@ public class WorkOrderServiceTests : TestBase
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
 
-        var result = await svc.GetWorkOrderFilterContextsAsync();
+        var result = await svc.GetFilterContextsAsync();
 
         result.Should().ContainKeys("WorkOrderNo", "SalesOrderNo", "ProductionMainNo", "ProductionSubNo", "SignDate", "Salesman", "PlantGrade", "Specification", "DeliveryDate");
         result["WorkOrderNo"].Should().BeEquivalentTo(new[] { "WO001", "WO002" }, options => options.WithStrictOrdering());
@@ -870,12 +870,12 @@ public class WorkOrderServiceTests : TestBase
     }
 
     [Fact]
-    public async Task GetWorkOrderFilterContextsAsync_无数据_各字段返回空列表()
+    public async Task GetFilterContextsAsync_无数据_各字段返回空列表()
     {
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        var result = await svc.GetWorkOrderFilterContextsAsync();
+        var result = await svc.GetFilterContextsAsync();
 
         result.Should().ContainKeys("WorkOrderNo", "SalesOrderNo", "ProductionMainNo", "ProductionSubNo", "SignDate", "Salesman", "EndCustomer", "DeliveryDate", "PlantGrade", "Specification", "LatestPlanDate");
         foreach (var kvp in result)

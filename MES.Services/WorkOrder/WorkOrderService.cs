@@ -1430,7 +1430,7 @@ public class WorkOrderService : IWorkOrderService
         return items;
     }
 
-    public async Task<Dictionary<string, List<string>>> GetWorkOrderFilterContextsAsync()
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
         return await _cache.GetOrCreateAsync("WorkOrderService:FilterContexts", async entry =>
         {

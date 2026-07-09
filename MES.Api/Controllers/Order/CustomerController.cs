@@ -132,7 +132,7 @@ public class CustomerController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
-        var result = await _customerService.GetCustomerFilterContextsAsync();
+        var result = await _customerService.GetFilterContextsAsync();
         return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
     }
 

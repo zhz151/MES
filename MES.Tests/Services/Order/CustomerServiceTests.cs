@@ -326,7 +326,7 @@ public class CustomerServiceTests : TestBase
     // ========== 筛选上下文 ==========
 
     [Fact]
-    public async Task GetCustomerFilterContextsAsync_返回正确选项()
+    public async Task GetFilterContextsAsync_返回正确选项()
     {
         var ctx = CreateDbContext();
         // 种子 2 个不同客户
@@ -337,7 +337,7 @@ public class CustomerServiceTests : TestBase
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
 
-        var result = await svc.GetCustomerFilterContextsAsync();
+        var result = await svc.GetFilterContextsAsync();
 
         result.Should().ContainKey("CustomerCode");
         result.Should().ContainKey("Salesman");
@@ -360,12 +360,12 @@ public class CustomerServiceTests : TestBase
     }
 
     [Fact]
-    public async Task GetCustomerFilterContextsAsync_无数据_各字段返回空列表()
+    public async Task GetFilterContextsAsync_无数据_各字段返回空列表()
     {
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        var result = await svc.GetCustomerFilterContextsAsync();
+        var result = await svc.GetFilterContextsAsync();
 
         result.Should().ContainKeys("CustomerCode", "Salesman", "CustomerUnit", "EndCustomer", "ContactPerson", "ContactPhone", "Address", "Remark");
         foreach (var kvp in result)

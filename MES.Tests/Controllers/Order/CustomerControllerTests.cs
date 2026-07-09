@@ -232,7 +232,7 @@ public class CustomerControllerTests : ControllerTestBase
         {
             ["Field1"] = new() { "A", "B" }
         };
-        _serviceMock.Setup(x => x.GetCustomerFilterContextsAsync()).ReturnsAsync(filterContexts);
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(filterContexts);
 
         // Act
         var result = await _controller.GetFilterContexts();
@@ -247,7 +247,7 @@ public class CustomerControllerTests : ControllerTestBase
     public async Task GetFilterContexts_Empty_ReturnsEmpty()
     {
         // Arrange
-        _serviceMock.Setup(x => x.GetCustomerFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(new Dictionary<string, List<string>>());
 
         // Act
         var result = await _controller.GetFilterContexts();

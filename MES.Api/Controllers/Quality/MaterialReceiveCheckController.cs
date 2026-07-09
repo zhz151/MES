@@ -148,7 +148,7 @@ public class MaterialReceiveCheckController : ControllerBase
     [Authorize(Roles = Roles.Policies.QualityRead)]
     public async Task<ActionResult> GetFilterContexts()
     {
-        var result = await _service.GetMaterialCheckFilterContextsAsync();
+        var result = await _service.GetFilterContextsAsync();
         return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
     }
 
