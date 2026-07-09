@@ -14,6 +14,7 @@ using MES.Services.Mapping;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 using MES.Core.Helpers;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Warehouse;
 
@@ -23,17 +24,21 @@ public class InventoryService : IInventoryService
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IConfigParameterService _configService;
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
+    private readonly IQualityProcessTrackingService _qualityProcessTracking;
     private readonly ILogger<InventoryService> _logger;
+    private readonly IMemoryCache _cache;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
     private static readonly SemaphoreSlim _batchNoLock = new(1, 1);
 
-    public InventoryService(AppDbContext context, IHttpContextAccessor httpContextAccessor, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, ILogger<InventoryService> logger)
+    public InventoryService(AppDbContext context, IHttpContextAccessor httpContextAccessor, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IQualityProcessTrackingService qualityProcessTracking, ILogger<InventoryService> logger, IMemoryCache cache)
     {
         _context = context;
         _httpContextAccessor = httpContextAccessor;
         _configService = configService;
         _workOrderExecutionService = workOrderExecutionService;
+        _qualityProcessTracking = qualityProcessTracking;
         _logger = logger;
+        _cache = cache;
     }
 
     private async Task TryRefreshExecutionSummaryAsync(string? workOrderNo)
@@ -46,6 +51,19 @@ public class InventoryService : IInventoryService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "工单执行状况刷新失败（不影响主流程）: WorkOrderNo={WorkOrderNo}", workOrderNo);
+        }
+    }
+
+    private void TryRefreshQualityProcessTrackingAsync(string? batchNo)
+    {
+        if (string.IsNullOrWhiteSpace(batchNo)) return;
+        try
+        {
+            _ = _qualityProcessTracking.RefreshByBatchNoAsync(batchNo);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "质量过程跟踪刷新失败（不影响主流程）: BatchNo={BatchNo}", batchNo);
         }
     }
 
@@ -350,6 +368,7 @@ public class InventoryService : IInventoryService
             throw new BusinessException("仓库不存在");
 
         var results = new List<string>();
+        var productionBatchNos = new List<string?>();
         var transaction = await _context.Database.BeginTransactionAsync();
         using (transaction)
         {
@@ -424,6 +443,7 @@ public class InventoryService : IInventoryService
 
                 _context.InventoryBatches.Add(entity);
                 results.Add(batchNo);
+                productionBatchNos.Add(row.ProductionBatchNo ?? request.ProductionBatchNo);
             }
 
             await _context.SaveChangesAsync();
@@ -453,6 +473,9 @@ public class InventoryService : IInventoryService
             .ToList();
         foreach (var woNo in workOrderNos)
             _ = TryRefreshExecutionSummaryAsync(woNo);
+
+        foreach (var pbNo in productionBatchNos)
+            TryRefreshQualityProcessTrackingAsync(pbNo);
 
         return new BatchInboundResult
         {
@@ -542,6 +565,8 @@ public class InventoryService : IInventoryService
 
         _context.InventoryBatches.Add(entity);
         await _context.SaveChangesAsync();
+
+        TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchNo);
 
         var dto = entity.ToDto();
         return dto;
@@ -839,6 +864,7 @@ public class InventoryService : IInventoryService
         await _context.SaveChangesAsync();
 
         _ = TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchNo);
 
         var dto = entity.ToDto();
 
@@ -876,10 +902,12 @@ public class InventoryService : IInventoryService
         // 物理删除批次
         var sourceOrderNo = entity.SourceOrderNo;
         var workOrderNo = entity.WorkOrderNo;
+        var productionBatchNo = entity.ProductionBatchNo;
         _context.InventoryBatches.Remove(entity);
         await _context.SaveChangesAsync();
 
         _ = TryRefreshExecutionSummaryAsync(workOrderNo);
+        TryRefreshQualityProcessTrackingAsync(productionBatchNo);
 
         // 自动同步采购单/委外单的收货状态
         if (!string.IsNullOrEmpty(sourceOrderNo))
@@ -1308,80 +1336,94 @@ public class InventoryService : IInventoryService
         };
     }
 
+    // 筛选上下文缓存由 IMemoryCache 管理（注入 _cache）
+
     public async Task<Dictionary<string, List<string>>> GetOutboundFilterContextsAsync()
     {
-        var records = _context.OutboundRecords.AsNoTracking();
-
-        return new Dictionary<string, List<string>>
+        return await _cache.GetOrCreateAsync("InventoryService:OutboundFilterContexts", async entry =>
         {
-            ["BatchNo"] = await records.Where(r => r.BatchNo != null).Select(r => r.BatchNo!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["OutboundType"] = (await records.Select(r => r.OutboundType).Distinct().ToListAsync()).Select(e => e.ToString()).OrderBy(x => x).ToList(),
-            ["SourceOrderNo"] = await records.Where(r => r.SourceOrderNo != null).Select(r => r.SourceOrderNo!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["TargetCompany"] = await records.Where(r => r.TargetCompany != null).Select(r => r.TargetCompany!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["Remark"] = await records.Where(r => r.Remark != null).Select(r => r.Remark!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["CreatedBy"] = await records.Select(r => r.CreatedBy).Distinct().OrderBy(x => x).ToListAsync(),
-        };
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
+            var records = _context.OutboundRecords.AsNoTracking();
+
+            return new Dictionary<string, List<string>>
+            {
+                ["BatchNo"] = await records.Where(r => r.BatchNo != null).Select(r => r.BatchNo!).Distinct().OrderBy(x => x).ToListAsync(),
+                ["OutboundType"] = (await records.Select(r => r.OutboundType).Distinct().ToListAsync()).Select(e => e.ToString()).OrderBy(x => x).ToList(),
+                ["SourceOrderNo"] = await records.Where(r => r.SourceOrderNo != null).Select(r => r.SourceOrderNo!).Distinct().OrderBy(x => x).ToListAsync(),
+                ["TargetCompany"] = await records.Where(r => r.TargetCompany != null).Select(r => r.TargetCompany!).Distinct().OrderBy(x => x).ToListAsync(),
+                ["Remark"] = await records.Where(r => r.Remark != null).Select(r => r.Remark!).Distinct().OrderBy(x => x).ToListAsync(),
+                ["CreatedBy"] = await records.Select(r => r.CreatedBy).Distinct().OrderBy(x => x).ToListAsync(),
+            };
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     public async Task<Dictionary<string, List<string>>> GetInventoryFilterContextsAsync()
     {
-        var results = await _context.InventoryBatches.AsNoTracking()
-            .Select(b => new
-            {
-                b.BatchNo,
-                b.InboundDate,
-                b.SourceOrderNo,
-                b.MaterialType,
-                b.SourceName,
-                b.SurfaceCondition,
-                b.LocationArea,
-                b.LocationRack,
-                b.HeatNo,
-                b.PlantGrade,
-                b.Specification,
-                b.Remark,
-                b.IsLinkedToWorkOrder,
-                b.WorkOrderNo,
-                b.SalesOrderNo,
-                b.ProductionBatchNo,
-                b.ActualSpecification,
-                b.DefectReason,
-                b.LiabilityType,
-                b.OriginalSupplier,
-                b.TagNo,
-                b.DefectRemark,
-                b.InboundSource,
-                b.LengthStatus
-            })
-            .ToListAsync();
-
-        return new Dictionary<string, List<string>>
+        return await _cache.GetOrCreateAsync("InventoryService:InventoryFilterContexts", async entry =>
         {
-            ["BatchNo"] = results.Select(x => x.BatchNo).Distinct().OrderBy(x => x).ToList(),
-            ["InboundDate"] = results.Select(x => x.InboundDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["SourceOrderNo"] = results.Where(x => x.SourceOrderNo != null).Select(x => x.SourceOrderNo!).Distinct().OrderBy(x => x).ToList(),
-            ["MaterialType"] = results.Select(x => x.MaterialType).Distinct().OrderBy(x => x).ToList(),
-            ["SourceName"] = results.Select(x => x.SourceName).Distinct().OrderBy(x => x).ToList(),
-            ["SurfaceCondition"] = results.Where(x => x.SurfaceCondition != null).Select(x => x.SurfaceCondition!).Distinct().OrderBy(x => x).ToList(),
-            ["LocationArea"] = results.Where(x => x.LocationArea != null).Select(x => x.LocationArea!).Distinct().OrderBy(x => x).ToList(),
-            ["LocationRack"] = results.Where(x => x.LocationRack != null).Select(x => x.LocationRack!).Distinct().OrderBy(x => x).ToList(),
-            ["HeatNo"] = results.Where(x => x.HeatNo != null).Select(x => x.HeatNo!).Distinct().OrderBy(x => x).ToList(),
-            ["PlantGrade"] = results.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
-            ["Specification"] = results.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
-            ["Remark"] = results.Where(x => x.Remark != null).Select(x => x.Remark!).Distinct().OrderBy(x => x).ToList(),
-            ["IsLinkedToWorkOrder"] = results.Select(x => x.IsLinkedToWorkOrder.ToString()).Distinct().OrderBy(x => x).ToList(),
-            ["WorkOrderNo"] = results.Where(x => x.WorkOrderNo != null).Select(x => x.WorkOrderNo!).Distinct().OrderBy(x => x).ToList(),
-            ["SalesOrderNo"] = results.Where(x => x.SalesOrderNo != null).Select(x => x.SalesOrderNo!).Distinct().OrderBy(x => x).ToList(),
-            ["ProductionBatchNo"] = results.Where(x => x.ProductionBatchNo != null).Select(x => x.ProductionBatchNo!).Distinct().OrderBy(x => x).ToList(),
-            ["ActualSpecification"] = results.Where(x => x.ActualSpecification != null).Select(x => x.ActualSpecification!).Distinct().OrderBy(x => x).ToList(),
-            ["DefectReason"] = results.Where(x => x.DefectReason != null).Select(x => x.DefectReason!).Distinct().OrderBy(x => x).ToList(),
-            ["LiabilityType"] = results.Where(x => x.LiabilityType != null).Select(x => x.LiabilityType!).Distinct().OrderBy(x => x).ToList(),
-            ["OriginalSupplier"] = results.Where(x => x.OriginalSupplier != null).Select(x => x.OriginalSupplier!).Distinct().OrderBy(x => x).ToList(),
-            ["TagNo"] = results.Where(x => x.TagNo != null).Select(x => x.TagNo!).Distinct().OrderBy(x => x).ToList(),
-            ["DefectRemark"] = results.Where(x => x.DefectRemark != null).Select(x => x.DefectRemark!).Distinct().OrderBy(x => x).ToList(),
-            ["InboundSource"] = results.Select(x => x.InboundSource).Distinct().OrderBy(x => x).ToList(),
-            ["LengthStatus"] = results.Where(x => x.LengthStatus != null).Select(x => x.LengthStatus!).Distinct().OrderBy(x => x).ToList(),
-        };
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
+            var results = await _context.InventoryBatches.AsNoTracking()
+                .Select(b => new
+                {
+                    b.BatchNo,
+                    b.InboundDate,
+                    b.SourceOrderNo,
+                    b.MaterialType,
+                    b.SourceName,
+                    b.SurfaceCondition,
+                    b.LocationArea,
+                    b.LocationRack,
+                    b.HeatNo,
+                    b.PlantGrade,
+                    b.Specification,
+                    b.Remark,
+                    b.IsLinkedToWorkOrder,
+                    b.WorkOrderNo,
+                    b.SalesOrderNo,
+                    b.ProductionBatchNo,
+                    b.ActualSpecification,
+                    b.DefectReason,
+                    b.LiabilityType,
+                    b.OriginalSupplier,
+                    b.TagNo,
+                    b.DefectRemark,
+                    b.InboundSource,
+                    b.LengthStatus,
+                    OrderItemIds = b.OrderItemIds
+                })
+                .ToListAsync();
+
+            return new Dictionary<string, List<string>>
+            {
+                ["BatchNo"] = results.Select(x => x.BatchNo).Distinct().OrderBy(x => x).ToList(),
+                ["InboundDate"] = results.Select(x => x.InboundDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["SourceOrderNo"] = results.Where(x => x.SourceOrderNo != null).Select(x => x.SourceOrderNo!).Distinct().OrderBy(x => x).ToList(),
+                ["MaterialType"] = results.Select(x => x.MaterialType).Distinct().OrderBy(x => x).ToList(),
+                ["SourceName"] = results.Select(x => x.SourceName).Distinct().OrderBy(x => x).ToList(),
+                ["SurfaceCondition"] = results.Where(x => x.SurfaceCondition != null).Select(x => x.SurfaceCondition!).Distinct().OrderBy(x => x).ToList(),
+                ["LocationArea"] = results.Where(x => x.LocationArea != null).Select(x => x.LocationArea!).Distinct().OrderBy(x => x).ToList(),
+                ["LocationRack"] = results.Where(x => x.LocationRack != null).Select(x => x.LocationRack!).Distinct().OrderBy(x => x).ToList(),
+                ["HeatNo"] = results.Where(x => x.HeatNo != null).Select(x => x.HeatNo!).Distinct().OrderBy(x => x).ToList(),
+                ["PlantGrade"] = results.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
+                ["Specification"] = results.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
+                ["Remark"] = results.Where(x => x.Remark != null).Select(x => x.Remark!).Distinct().OrderBy(x => x).ToList(),
+                ["IsLinkedToWorkOrder"] = results.Select(x => x.IsLinkedToWorkOrder.ToString()).Distinct().OrderBy(x => x).ToList(),
+                ["WorkOrderNo"] = results.Where(x => x.WorkOrderNo != null).Select(x => x.WorkOrderNo!).Distinct().OrderBy(x => x).ToList(),
+                ["SalesOrderNo"] = results.Where(x => x.SalesOrderNo != null).Select(x => x.SalesOrderNo!).Distinct().OrderBy(x => x).ToList(),
+                ["ProductionBatchNo"] = results.Where(x => x.ProductionBatchNo != null).Select(x => x.ProductionBatchNo!).Distinct().OrderBy(x => x).ToList(),
+                ["ActualSpecification"] = results.Where(x => x.ActualSpecification != null).Select(x => x.ActualSpecification!).Distinct().OrderBy(x => x).ToList(),
+                ["DefectReason"] = results.Where(x => x.DefectReason != null).Select(x => x.DefectReason!).Distinct().OrderBy(x => x).ToList(),
+                ["LiabilityType"] = results.Where(x => x.LiabilityType != null).Select(x => x.LiabilityType!).Distinct().OrderBy(x => x).ToList(),
+                ["OriginalSupplier"] = results.Where(x => x.OriginalSupplier != null).Select(x => x.OriginalSupplier!).Distinct().OrderBy(x => x).ToList(),
+                ["TagNo"] = results.Where(x => x.TagNo != null).Select(x => x.TagNo!).Distinct().OrderBy(x => x).ToList(),
+                ["DefectRemark"] = results.Where(x => x.DefectRemark != null).Select(x => x.DefectRemark!).Distinct().OrderBy(x => x).ToList(),
+                ["InboundSource"] = results.Select(x => x.InboundSource).Distinct().OrderBy(x => x).ToList(),
+                ["LengthStatus"] = results.Where(x => x.LengthStatus != null).Select(x => x.LengthStatus!).Distinct().OrderBy(x => x).ToList(),
+                ["OrderItemIds"] = results.Where(x => x.OrderItemIds != null).Select(x => x.OrderItemIds!).Distinct().OrderBy(x => x).ToList(),
+            };
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     /// <summary>

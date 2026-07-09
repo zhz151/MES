@@ -29,7 +29,8 @@ public class InventoryServiceTests : TestBase
             .ReturnsAsync(new Dictionary<string, decimal>());
         var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
         var loggerMock = new Mock<ILogger<InventoryService>>();
-        return new InventoryService(ctx, httpMock.Object, configMock.Object, workOrderExecMock.Object, loggerMock.Object);
+        var qptMock = new Mock<IQualityProcessTrackingService>();
+        return new InventoryService(ctx, httpMock.Object, configMock.Object, workOrderExecMock.Object, qptMock.Object, loggerMock.Object, Mock.Of<IMemoryCache>());
     }
 
     // ========== 入库 ==========
