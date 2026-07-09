@@ -392,7 +392,8 @@ public async Task<ApiResponse<OrderWorkOrderRelationDto>> GetOrderWorkOrderRelat
     /// </summary>
     public async Task<ApiResponse<PagedResult<WorkOrderListItemDto>>> GetPagedAsync(
         int pageIndex = 1, int pageSize = 20, string? keyword = null,
-        string? sortBy = null, bool isDescending = true, string? filters = null)
+        string? sortBy = null, bool isDescending = true, string? filters = null,
+        DateTime? dateFrom = null, DateTime? dateTo = null)
     {
         try
         {
@@ -400,6 +401,8 @@ public async Task<ApiResponse<OrderWorkOrderRelationDto>> GetOrderWorkOrderRelat
             if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
             if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
             if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
+            if (dateFrom.HasValue) url += $"&signDateFrom={dateFrom.Value:yyyy-MM-dd}";
+            if (dateTo.HasValue) url += $"&signDateTo={dateTo.Value:yyyy-MM-dd}";
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<WorkOrderListItemDto>>>(url);
             return response ?? ApiResponse<PagedResult<WorkOrderListItemDto>>.Fail("获取数据失败");
         }
@@ -415,7 +418,8 @@ public async Task<ApiResponse<OrderWorkOrderRelationDto>> GetOrderWorkOrderRelat
     public async Task<ApiResponse<PagedResult<WorkOrderListDto>>> GetPagedWithPlansAsync(
         int pageIndex = 1, int pageSize = 20, string? keyword = null,
         string? sortBy = null, bool isDescending = true, string? filters = null,
-        string? planTypeFilter = null)
+        string? planTypeFilter = null,
+        DateTime? dateFrom = null, DateTime? dateTo = null)
     {
         try
         {
@@ -424,6 +428,8 @@ public async Task<ApiResponse<OrderWorkOrderRelationDto>> GetOrderWorkOrderRelat
             if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
             if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
             if (!string.IsNullOrEmpty(planTypeFilter)) url += $"&planTypeFilter={Uri.EscapeDataString(planTypeFilter)}";
+            if (dateFrom.HasValue) url += $"&signDateFrom={dateFrom.Value:yyyy-MM-dd}";
+            if (dateTo.HasValue) url += $"&signDateTo={dateTo.Value:yyyy-MM-dd}";
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<WorkOrderListDto>>>(url);
             return response ?? ApiResponse<PagedResult<WorkOrderListDto>>.Fail("获取数据失败");
         }

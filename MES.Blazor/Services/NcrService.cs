@@ -12,13 +12,15 @@ public class NcrService
 
     public NcrService(AuthHttpClient http) => _http = http;
 
-    public async Task<ApiResponse<PagedResult<NcrDto>>> GetAllAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, string? filters = null)
+    public async Task<ApiResponse<PagedResult<NcrDto>>> GetAllAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, string? filters = null, DateTime? reportDateFrom = null, DateTime? reportDateTo = null)
     {
         try
         {
             var url = $"{BaseUrl}/all?pageIndex={pageIndex}&pageSize={pageSize}&isDescending={isDescending.ToString().ToLower()}";
             if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
             if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
+            if (reportDateFrom.HasValue) url += $"&reportDateFrom={reportDateFrom.Value:yyyy-MM-dd}";
+            if (reportDateTo.HasValue) url += $"&reportDateTo={reportDateTo.Value:yyyy-MM-dd}";
             if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<NcrDto>>>(url)
                    ?? ApiResponse<PagedResult<NcrDto>>.Fail("获取数据失败");

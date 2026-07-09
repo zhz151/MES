@@ -25,6 +25,8 @@ public partial class WorkOrders : IAsyncDisposable
     private int _totalCount;
     private List<WorkOrderListItemDto>? _pendingOrders;
     private string _searchKeyword = string.Empty;
+    private string _dateFrom = string.Empty;
+    private string _dateTo = string.Empty;
     private bool _isArrowNavSetup;
     private int _currentPage = 1;
     private int _pageSize = 10;
@@ -170,7 +172,9 @@ public partial class WorkOrders : IAsyncDisposable
                 keyword: string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 sortBy: sortBy,
                 isDescending: sortDescending,
-                filters: filtersJson);
+                filters: filtersJson,
+                dateFrom: DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null,
+                dateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null);
 
             if (result.Success && result.Data != null)
             {
@@ -230,7 +234,10 @@ public partial class WorkOrders : IAsyncDisposable
                 BuildFilterContextOptions(result.Data);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
@@ -369,6 +376,20 @@ public partial class WorkOrders : IAsyncDisposable
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateFromChanged(string value)
+    {
+        _dateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateToChanged(string value)
+    {
+        _dateTo = value ?? string.Empty;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -519,6 +540,8 @@ public partial class WorkOrders : IAsyncDisposable
             sortColumn = savedState.SortBy ?? "SignDate";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
+            _dateFrom = savedState.Extras?.ContainsKey("dateFrom") == true ? savedState.Extras["dateFrom"] ?? string.Empty : string.Empty;
+            _dateTo = savedState.Extras?.ContainsKey("dateTo") == true ? savedState.Extras["dateTo"] ?? string.Empty : string.Empty;
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try
@@ -770,6 +793,8 @@ public partial class WorkOrders : IAsyncDisposable
             var queryParams = new
             {
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                SignDateFrom = DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : (DateTime?)null,
+                SignDateTo = DateTime.TryParse(_dateTo, out var dTo) ? dTo : (DateTime?)null,
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
             var apiUrl = $"{Http.BaseAddress}api/workorder/order-print-all-file";
@@ -842,6 +867,8 @@ public partial class WorkOrders : IAsyncDisposable
         var extras = new Dictionary<string, string>();
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
+        if (!string.IsNullOrWhiteSpace(_dateFrom)) extras["dateFrom"] = _dateFrom;
+        if (!string.IsNullOrWhiteSpace(_dateTo)) extras["dateTo"] = _dateTo;
         var state = new PageState
         {
             SortBy = sortColumn,

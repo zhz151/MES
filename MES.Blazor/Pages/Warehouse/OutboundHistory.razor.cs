@@ -24,6 +24,10 @@ public partial class OutboundHistory
     private int _totalCount;
     private string _searchKeyword = string.Empty;
 
+    // 日期搜索
+    private string _dateFrom = string.Empty;
+    private string _dateTo = string.Empty;
+
 
     // 排序状态
     private string sortColumn = "outbounddate";
@@ -165,7 +169,9 @@ public partial class OutboundHistory
                 SortBy = sortBy,
                 IsDescending = sortDescending,
                 WarehouseId = _filterWarehouseId,
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword
+                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                StartDate = DateTime.TryParse(_dateFrom, out var df) ? df : null,
+                EndDate = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
             };
 
             var result = await InventoryService.GetOutboundRecordsAsync(query, filtersJson);
@@ -317,6 +323,22 @@ public partial class OutboundHistory
     {
         _searchKeyword = value ?? string.Empty;
         ClearEditState();
+        await SavePageStateAsync();
+        if (_table != null) await _table.ReloadServerData();
+    }
+
+    // ========== 日期搜索 ==========
+
+    private async Task OnDateFromChanged(string value)
+    {
+        _dateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (_table != null) await _table.ReloadServerData();
+    }
+
+    private async Task OnDateToChanged(string value)
+    {
+        _dateTo = value ?? string.Empty;
         await SavePageStateAsync();
         if (_table != null) await _table.ReloadServerData();
     }
@@ -522,6 +544,10 @@ public partial class OutboundHistory
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
             _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
+            if (savedState.Extras?.ContainsKey("dateFrom") == true)
+                _dateFrom = savedState.Extras["dateFrom"] ?? string.Empty;
+            if (savedState.Extras?.ContainsKey("dateTo") == true)
+                _dateTo = savedState.Extras["dateTo"] ?? string.Empty;
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try
@@ -791,6 +817,8 @@ public partial class OutboundHistory
                 SortBy = sortColumn,
                 IsDescending = sortDescending,
                 WarehouseId = _filterWarehouseId,
+                StartDate = DateTime.TryParse(_dateFrom, out var df) ? df : null,
+                EndDate = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
                 Columns = columns
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
@@ -812,6 +840,8 @@ public partial class OutboundHistory
     private async Task SavePageStateAsync()
     {
         var extras = new Dictionary<string, string>();
+        if (!string.IsNullOrEmpty(_dateFrom)) extras["dateFrom"] = _dateFrom;
+        if (!string.IsNullOrEmpty(_dateTo)) extras["dateTo"] = _dateTo;
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
         var state = new PageState

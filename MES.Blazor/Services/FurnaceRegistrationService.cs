@@ -32,14 +32,16 @@ public class FurnaceRegistrationService
         catch (Exception ex) { return ApiResponse<List<FurnaceRegistrationDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<PagedResult<FurnaceRegistrationDto>>> GetAllAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, List<FilterDescriptor>? filters = null)
+    public async Task<ApiResponse<PagedResult<FurnaceRegistrationDto>>> GetAllAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, DateTime? incomingDateFrom = null, DateTime? incomingDateTo = null, string? filters = null)
     {
         try
         {
             var url = $"{BaseUrl}/all?pageIndex={pageIndex}&pageSize={pageSize}&isDescending={isDescending.ToString().ToLower()}";
             if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
             if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
-            if (filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(filters))}";
+            if (incomingDateFrom.HasValue) url += $"&incomingDateFrom={incomingDateFrom.Value:yyyy-MM-dd}";
+            if (incomingDateTo.HasValue) url += $"&incomingDateTo={incomingDateTo.Value:yyyy-MM-dd}";
+            if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<FurnaceRegistrationDto>>>(url)
                    ?? ApiResponse<PagedResult<FurnaceRegistrationDto>>.Fail("获取数据失败");
         }

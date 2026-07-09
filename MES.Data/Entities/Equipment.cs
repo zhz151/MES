@@ -107,6 +107,23 @@ public class Equipment : BaseEntity
     /// <summary>最近维修日期（从RepairOrder取最近RepairEndTime）</summary>
     public DateTime? LastRepairDate { get; set; }
 
+    // ========== 物化状态字段（由 RepairOrder/InspectionRecord/MaintenanceOrder 写操作同步更新） ==========
+
+    /// <summary>
+    /// 运行状态：Normal(正常) / Pending(待维修) / InProgress(维修中)
+    /// </summary>
+    public string RunningStatus { get; set; } = nameof(MES.Core.Enums.RunningStatus.Normal);
+
+    /// <summary>
+    /// 点检状况：NotApplicable(不适用) / Pending(待执行) / Normal(正常) / Overdue(逾期)
+    /// </summary>
+    public string InspectionStatus { get; set; } = nameof(MES.Core.Enums.EquipmentTaskStatus.NotApplicable);
+
+    /// <summary>
+    /// 保养状况：NotApplicable(不适用) / Pending(待执行) / Normal(正常) / Overdue(逾期)
+    /// </summary>
+    public string MaintStatus { get; set; } = nameof(MES.Core.Enums.EquipmentTaskStatus.NotApplicable);
+
     // ========== 状态字段（存储） ==========
 
     /// <summary>

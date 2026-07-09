@@ -62,13 +62,35 @@
                     <MudTextField T="string"
                                   Value="_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
-                                  Label="模糊搜索（批次/单号/目标单位）"
+                                  Label="模糊搜索 - 批次/单号/目标单位"
                                   Immediate="true"
                                   DebounceInterval="500"
                                   Clearable="true"
                                   ClearButton="true"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string"
+                                  Value="_dateFrom"
+                                  ValueChanged="@OnDateFromChanged"
+                                  Placeholder="yyyy-MM-dd"
+                                  Label="出库日期从"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string"
+                                  Value="_dateTo"
+                                  ValueChanged="@OnDateToChanged"
+                                  Placeholder="yyyy-MM-dd"
+                                  Label="出库日期至"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true" />
                 </MudItem>
             </MudGrid>
 

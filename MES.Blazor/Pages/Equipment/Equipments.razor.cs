@@ -211,7 +211,10 @@ public partial class Equipments
                 BuildFilterContextOptions(result.Data);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选选项失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)

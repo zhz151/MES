@@ -14,7 +14,7 @@ public interface IOrderService
     /// <summary>
     /// 分页查询订单列表（支持技术要求状态和订单状态筛选）
     /// </summary>
-    Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, string? technicalStatus = null, string? orderStatus = null);
+    Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, string? technicalStatus = null, string? orderStatus = null, DateTime? signDateFrom = null, DateTime? signDateTo = null);
 
     /// <summary>
     /// 根据ID获取订单详情
@@ -89,6 +89,11 @@ public interface IOrderService
     /// 打印选中批次订单PDF
     /// </summary>
     Task<byte[]> PrintOrderBatchAsync(int[] ids);
+
+    /// <summary>
+    /// 按筛选条件打印全部订单PDF
+    /// </summary>
+    Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom = null, DateTime? signDateTo = null);
 
     /// <summary>
     /// 打印订单技术要求PDF

@@ -12,4 +12,6 @@ public interface IMetallographicTestService
     Task DeleteAsync(int id);
     Task<List<MetallographicTestDto>> BatchCreateAsync(List<CreateMetallographicTestRequest> requests);
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
+    Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
+    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null);
 }

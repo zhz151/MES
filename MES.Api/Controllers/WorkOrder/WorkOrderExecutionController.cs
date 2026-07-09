@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs;
 using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Services.Printing;
 using MES.Shared.Constants;
 
 namespace MES.Api.Controllers.WorkOrder;
@@ -34,6 +35,8 @@ public class WorkOrderExecutionController : ControllerBase
         [FromQuery] string? keyword = null,
         [FromQuery] string? sortBy = null,
         [FromQuery] bool isDescending = true,
+        [FromQuery] DateTime? signDateFrom = null,
+        [FromQuery] DateTime? signDateTo = null,
         [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
@@ -47,7 +50,7 @@ public class WorkOrderExecutionController : ControllerBase
             }
             catch { }
         }
-        var result = await _service.GetPagedAsync(query);
+        var result = await _service.GetPagedAsync(query, signDateFrom, signDateTo);
         return Ok(ApiResponse<PagedResult<WorkOrderExecutionSummaryDto>>.Ok(result));
     }
 
@@ -93,5 +96,27 @@ public class WorkOrderExecutionController : ControllerBase
     {
         var result = await _service.GetFilterContextsAsync();
         return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
+
+    /// <summary>
+    /// 打印选中行
+    /// </summary>
+    [HttpPost("print-file")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public IActionResult PrintFile([FromBody] WorkOrderExecutionPrintRequest request)
+    {
+        var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        return File(pdfBytes, "application/pdf", "工单执行状况.pdf");
+    }
+
+    /// <summary>
+    /// 打印全部（按筛选条件）
+    /// </summary>
+    [HttpPost("print-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<IActionResult> PrintAllFile([FromBody] WorkOrderExecutionPrintAllRequest request)
+    {
+        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.SignDateFrom, request.SignDateTo, request.Columns);
+        return File(pdfBytes, "application/pdf", "工单执行状况-全部.pdf");
     }
 }

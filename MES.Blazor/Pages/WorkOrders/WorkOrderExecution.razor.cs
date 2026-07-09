@@ -24,6 +24,8 @@ public partial class WorkOrderExecution
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
+    private string _dateFrom = string.Empty;
+    private string _dateTo = string.Empty;
 
     // 排序状态
     private string sortColumn = "LastRefreshTime";
@@ -49,8 +51,8 @@ public partial class WorkOrderExecution
             new() { Key = "WorkOrderNo",             Label = "工单号",          SortKey = "WorkOrderNo",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "Salesman",                Label = "业务员",          SortKey = "Salesman",                FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "CustomerName",            Label = "往来单位",        SortKey = "CustomerName",            FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "SignDate",                Label = "订单日期",        SortKey = "SignDate",                Width = "120", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "DeliveryDate",            Label = "交货日期",        SortKey = "DeliveryDate",            Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "SignDate",                Label = "订单日期",        SortKey = "SignDate",                FilterType = "date", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "DeliveryDate",            Label = "交货日期",        SortKey = "DeliveryDate",            FilterType = "date", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "DelayPenalty",            Label = "延期罚款",        SortKey = "DelayPenalty",            FilterType = "boolean", Width = "120", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "SettlementMethod",        Label = "结算方式",        SortKey = "SettlementMethod",        FilterType = "enum", Width = "120", EnumOptions = new() { new("Weighing","过磅"), new("WeighingNegative","过磅-负"), new("Theoretical","理算") }, Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "SalesOrderNo",            Label = "订单号",          SortKey = "SalesOrderNo",            FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
@@ -326,6 +328,31 @@ public partial class WorkOrderExecution
         }
     }
 
+    // ========== 行选中 ==========
+    private HashSet<int> _selectedIds = new();
+
+    private void SelectAllItems(bool selected)
+    {
+        if (selected)
+        {
+            foreach (var item in _pageItems)
+                _selectedIds.Add(item.WorkOrderId);
+        }
+        else
+        {
+            foreach (var item in _pageItems)
+                _selectedIds.Remove(item.WorkOrderId);
+        }
+    }
+
+    private void ToggleSelection(WorkOrderExecutionSummaryDto item, bool selected)
+    {
+        if (selected)
+            _selectedIds.Add(item.WorkOrderId);
+        else
+            _selectedIds.Remove(item.WorkOrderId);
+    }
+
     // ========== 服务端数据加载 ==========
 
     private async Task<TableData<WorkOrderExecutionSummaryDto>> LoadDataFromServer(TableState state)
@@ -356,7 +383,9 @@ public partial class WorkOrderExecution
                 query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filtersJson);
             }
 
-            var result = await WorkOrderExecutionService.GetPagedAsync(query);
+            var result = await WorkOrderExecutionService.GetPagedAsync(query,
+                signDateFrom: DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null,
+                signDateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null);
 
             if (result.Success && result.Data != null)
             {
@@ -417,7 +446,10 @@ public partial class WorkOrderExecution
                 BuildFilterContextOptions(result.Data);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
@@ -532,6 +564,20 @@ public partial class WorkOrderExecution
         if (table != null) await table.ReloadServerData();
     }
 
+    private async Task OnDateFromChanged(string value)
+    {
+        _dateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateToChanged(string value)
+    {
+        _dateTo = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
     // ========== 数据加载操作 ==========
 
     private async Task LoadAllDataAsync()
@@ -548,7 +594,9 @@ public partial class WorkOrderExecution
                 Keyword = _searchKeyword
             };
 
-            var result = await WorkOrderExecutionService.GetPagedAsync(query);
+            var result = await WorkOrderExecutionService.GetPagedAsync(query,
+                signDateFrom: DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null,
+                signDateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null);
             if (result.Success && result.Data != null)
             {
                 _totalCount = result.Data.TotalCount;
@@ -575,6 +623,8 @@ public partial class WorkOrderExecution
             sortColumn = savedState.SortBy ?? "LastRefreshTime";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
+            _dateFrom = savedState.Extras?.ContainsKey("dateFrom") == true ? savedState.Extras["dateFrom"] ?? string.Empty : string.Empty;
+            _dateTo = savedState.Extras?.ContainsKey("dateTo") == true ? savedState.Extras["dateTo"] ?? string.Empty : string.Empty;
             _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
 
             // 恢复列显隐
@@ -1071,6 +1121,17 @@ public partial class WorkOrderExecution
     private List<GroupHeaderInfo> GetGroupHeaders()
     {
         var result = new List<GroupHeaderInfo>();
+
+        // 选择列占位（40px），对齐表格最左侧的 checkbox 列
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
         int? lastKey = null;
         int totalWidth = 0;
         var groupKey = 0;
@@ -1216,6 +1277,9 @@ public partial class WorkOrderExecution
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
 
+        if (!string.IsNullOrWhiteSpace(_dateFrom)) extras["dateFrom"] = _dateFrom;
+        if (!string.IsNullOrWhiteSpace(_dateTo)) extras["dateTo"] = _dateTo;
+
         // 列显隐持久化
         extras["columnVisibility"] = JsonSerializer.Serialize(_allColumns.Where(c => c.Visible).Select(c => c.Key).ToList());
 
@@ -1229,4 +1293,206 @@ public partial class WorkOrderExecution
         };
         await PageState.SaveAsync("workorderexecution", state);
     }
+
+    // ========== 打印 ==========
+
+    private async Task PrintAll()
+    {
+        try
+        {
+            var printColumns = _visibleColumns
+                .Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label })
+                .ToList();
+
+            var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "LastRefreshTime";
+            var request = new
+            {
+                keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                sortBy,
+                isDescending = sortDescending,
+                signDateFrom = DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom.ToString("yyyy-MM-dd") : null,
+                signDateTo = DateTime.TryParse(_dateTo, out var dTo) ? dTo.ToString("yyyy-MM-dd") : null,
+                columns = printColumns
+            };
+
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/workorder-execution/print-all-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PrintSelected()
+    {
+        if (_selectedIds.Count == 0)
+        {
+            Snackbar.Add("请先选择要打印的行", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var printColumns = _visibleColumns
+                .Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label })
+                .ToList();
+
+            var selectedItems = _pageItems.Where(i => _selectedIds.Contains(i.WorkOrderId)).ToList();
+
+            var printItems = selectedItems.Select(item =>
+            {
+                var dict = new Dictionary<string, object>();
+                foreach (var col in _visibleColumns)
+                {
+                    dict[col.Key] = ResolvePrintValue(item, col.Key);
+                }
+                return dict;
+            }).ToList();
+
+            var request = new WorkOrderExecutionPrintRequest
+            {
+                Title = "工单执行状况",
+                Items = printItems,
+                Columns = printColumns
+            };
+
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/workorder-execution/print-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static object ResolvePrintValue(WorkOrderExecutionSummaryDto item, string key) => key switch
+    {
+        // 枚举→中文
+        "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod) ?? "",
+        "MaterialName" => DisplayHelper.GetMaterialNameText(item.MaterialName) ?? "",
+        "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState) ?? "",
+        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus) ?? "",
+        // Bool→中文
+        "DelayPenalty" => item.DelayPenaltyText,
+        "IsUrging" => item.IsUrging ? "是" : "否",
+        "IsBatchDelivery" => item.IsBatchDelivery ? "是" : "否",
+        "IsPaused" => item.IsPaused ? "是" : "否",
+        "DeformedProcessCompleted" => item.DeformedProcessCompleted ? "是" : "否",
+        // 状态 int→中文
+        "MaterialPlanStatus" => item.MaterialPlanStatusText,
+        "MainNoMaterialPlanStatus" => item.MainNoMaterialPlanStatusText,
+        "InputStatus" => item.InputStatusText,
+        "MainNoInputStatus" => item.MainNoInputStatusText,
+        "FlowStatus" => item.FlowStatusText,
+        "MainNoFlowStatus" => item.MainNoFlowStatusText,
+        "WoWarehousingStatus" => item.WoWarehousingStatusText,
+        "MainNoWarehousingStatus" => item.MainNoWarehousingStatusText,
+        "OrderWarehousingStatus" => item.OrderWarehousingStatusText,
+        "ScheduleStage" => item.ScheduleStageText,
+        _ => GetRawPropertyValue(item, key)
+    };
+
+    private static object GetRawPropertyValue(WorkOrderExecutionSummaryDto item, string key) => (key switch
+    {
+        "WorkOrderNo" => item.WorkOrderNo ?? "",
+        "Salesman" => item.Salesman ?? "",
+        "CustomerName" => item.CustomerName ?? "",
+        "SignDate" => item.SignDate,
+        "DeliveryDate" => item.DeliveryDate,
+        "SalesOrderNo" => item.SalesOrderNo ?? "",
+        "ProductionMainNo" => item.ProductionMainNo ?? "",
+        "ProductionSubNo" => item.ProductionSubNo ?? "",
+        "PlantGrade" => item.PlantGrade ?? "",
+        "Specification" => item.Specification ?? "",
+        "MinLength" => item.MinLength,
+        "MaxLength" => item.MaxLength,
+        "TotalItemCount" => item.TotalItemCount,
+        "TotalQuantity" => item.TotalQuantity,
+        "TotalMeters" => item.TotalMeters,
+        "TotalWeight" => item.TotalWeight,
+        "LatestPlanDate" => item.LatestPlanDate,
+        "MaterialPlanRate" => item.MaterialPlanRate,
+        "MainNoMaterialPlanRate" => item.MainNoMaterialPlanRate,
+        "ProcessCycle" => item.ProcessCycle,
+        "MaterialPlanCoveredCount" => item.MaterialPlanCoveredCount,
+        "MaterialPlanProportion" => item.MaterialPlanProportion ?? "",
+        "LatestRequiredDate" => item.LatestRequiredDate,
+        "PendingRoughTubeQty" => item.PendingRoughTubeQty,
+        "PendingRoughTubeWeight" => item.PendingRoughTubeWeight,
+        "PendingOutsourceFinishQty" => item.PendingOutsourceFinishQty,
+        "PendingOutsourceFinishWeight" => item.PendingOutsourceFinishWeight,
+        "TheoreticalFinishQty" => item.TheoreticalFinishQty,
+        "TheoreticalFinishWeight" => item.TheoreticalFinishWeight,
+        "ReworkInputEndDate" => item.ReworkInputEndDate,
+        "ReworkBatchCount" => item.ReworkBatchCount,
+        "ReworkInputQuantity" => item.ReworkInputQuantity,
+        "ReworkInputWeight" => item.ReworkInputWeight,
+        "ReworkTheoreticalOutputQty" => item.ReworkTheoreticalOutputQty,
+        "ReworkTheoreticalOutputWeight" => item.ReworkTheoreticalOutputWeight,
+        "FlowOutputRatio" => item.FlowOutputRatio,
+        "MainNoFlowOutputRatio" => item.MainNoFlowOutputRatio,
+        "FlowTotalBatchCount" => item.FlowTotalBatchCount,
+        "FlowIncompleteBatchCount" => item.FlowIncompleteBatchCount,
+        "FlowMaxRemainingWorkDays" => item.FlowMaxRemainingWorkDays,
+        "InputStartDate" => item.InputStartDate,
+        "InputEndDate" => item.InputEndDate,
+        "TotalBatchCount" => item.TotalBatchCount,
+        "InputQuantity" => item.InputQuantity,
+        "InputWeight" => item.InputWeight,
+        "TheoreticalOutputQty" => item.TheoreticalOutputQty,
+        "TheoreticalOutputWeight" => item.TheoreticalOutputWeight,
+        "InputOutputRatio" => item.InputOutputRatio,
+        "MainNoInputRatio" => item.MainNoInputOutputRatio,
+        "ValidBatchCount" => item.ValidBatchCount,
+        "ValidInputQuantity" => item.ValidInputQuantity,
+        "ValidInputWeight" => item.ValidInputWeight,
+        "ValidOutputQty" => item.ValidOutputQty,
+        "ValidOutputWeight" => item.ValidOutputWeight,
+        "DefectiveRawQty" => item.DefectiveRawQty,
+        "DefectiveRawWeight" => item.DefectiveRawWeight,
+        "DefectiveOutputQty" => item.DefectiveOutputQty,
+        "DefectiveOutputWeight" => item.DefectiveOutputWeight,
+        "DefectiveRatio" => item.DefectiveRatio,
+        "InspectionStartDate" => item.InspectionStartDate,
+        "InspectionEndDate" => item.InspectionEndDate,
+        "InspectionDefectQty" => item.InspectionDefectQty,
+        "InspectionDefectWeight" => item.InspectionDefectWeight,
+        "InspectionDefectRatio" => item.InspectionDefectRatio,
+        "GeneralDefectWeight" => item.GeneralDefectWeight,
+        "GeneralDefectRatio" => item.GeneralDefectRatio,
+        "SeriousDefectWeight" => item.SeriousDefectWeight,
+        "SeriousDefectRatio" => item.SeriousDefectRatio,
+        "ScrapWeight" => item.ScrapWeight,
+        "ScrapRatio" => item.ScrapRatio,
+        "WarehousingStartDate" => item.WarehousingStartDate,
+        "WarehousingEndDate" => item.WarehousingEndDate,
+        "WarehousingTotalQty" => item.WarehousingTotalQty,
+        "WarehousingTotalWeight" => item.WarehousingTotalWeight,
+        "TotalRemainingWorkDays" => item.TotalRemainingWorkDays,
+        "CapacityWorkDays" => item.CapacityWorkDays,
+        "UrgencyLevel" => item.UrgencyLevel ?? "",
+        "EstimatedProcessCompletionDate" => item.EstimatedProcessCompletionDate,
+        "DaysDiffFromDelivery" => item.DaysDiffFromDelivery,
+        "RawMaterialLockRemark" => item.RawMaterialLockRemark ?? "",
+        "AdjustmentRemark" => item.AdjustmentRemark ?? "",
+        "PendingSectionRoughTube" => item.PendingSectionRoughTube,
+        "PendingSectionWarehouseFix" => item.PendingSectionWarehouseFix,
+        "PendingSection60Roll" => item.PendingSection60Roll,
+        "PendingSection50Roll" => item.PendingSection50Roll,
+        "PendingSection30Roll" => item.PendingSection30Roll,
+        "PendingSection20Roll" => item.PendingSection20Roll,
+        "PendingSectionThreeRoll" => item.PendingSectionThreeRoll,
+        "PendingSectionDrawBench" => item.PendingSectionDrawBench,
+        "ProductionAttentionProcess" => item.ProductionAttentionProcess ?? "",
+        "ProductionFlowProperty" => item.ProductionFlowProperty ?? "",
+        "MaxBatchRemainingWorkDays" => item.MaxBatchRemainingWorkDays,
+        "MainNoAttentionProcess" => item.MainNoAttentionProcess ?? "",
+        "MainNoFlowRatio" => item.MainNoFlowOutputRatio,
+        _ => ""
+    })!;
 }

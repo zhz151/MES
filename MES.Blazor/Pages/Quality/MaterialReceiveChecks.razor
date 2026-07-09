@@ -49,6 +49,28 @@
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string"
+                                  Label="日期从"
+                                  Value="_dateFrom"
+                                  ValueChanged="@OnDateFromChanged"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Placeholder="yyyy-MM-dd" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string"
+                                  Label="日期至"
+                                  Value="_dateTo"
+                                  ValueChanged="@OnDateToChanged"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Placeholder="yyyy-MM-dd" />
+                </MudItem>
             </MudGrid>
 
             <!-- 待成检到料卡片 -->
@@ -138,7 +160,7 @@
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
-                    <MudTh Style="width: 40px;">
+                    <MudTh Class="col-selection-th" Style="width: 40px;">
                         <MudCheckBox T="bool" Value="@_allSelected" ValueChanged="@((v) => { _allSelected = v; if (v) { selectedIds.Clear(); foreach (var i in _pageItems) selectedIds.Add(i.Id); } else { selectedIds.Clear(); } StateHasChanged(); })" Dense="true" />
                     </MudTh>
                     @foreach (var col in _visibleColumns)
@@ -162,7 +184,7 @@
                     <MudTh Style="width: 100px;">操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
-                    <MudTd Style="width: 40px;">
+                    <MudTd Class="col-selection-td" Style="width: 40px;">
                         @if (!_editingIds.Contains(item.Id))
                         {
                             <MudCheckBox T="bool"

@@ -154,6 +154,12 @@ public class BatchService : IBatchService
             }
         }
 
+        // 创建时间（登记日期）范围筛选
+        if (query.StartDateFrom.HasValue)
+            queryable = queryable.Where(b => b.CreatedTime >= query.StartDateFrom.Value);
+        if (query.StartDateTo.HasValue)
+            queryable = queryable.Where(b => b.CreatedTime <= query.StartDateTo.Value);
+
         // 通用筛选
         queryable = queryable.ApplyFilters(query.Filters);
 

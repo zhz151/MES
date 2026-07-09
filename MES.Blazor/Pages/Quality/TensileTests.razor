@@ -14,6 +14,7 @@
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
 @inject PageStateService PageState
+@inject HttpClient Http
 @attribute [Authorize(Roles = Roles.Policies.QualityRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
@@ -61,19 +62,54 @@
                 </MudItem>
             </MudGrid>
 
-            <MudTable @ref="table" T="TensileTestDto" ServerData="@LoadDataFromServer"
-                      Dense="true" Hover="true" Class="mt-4 auto-table" Elevation="0"
-                      RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
-                <ToolBarContent>
-                    <ColumnDisplaySelect Columns="_allColumns" OnColumnToggle="OnColumnToggle"
-                                         OnMoveUp="MoveColumnUp" OnMoveDown="MoveColumnDown" />
-                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Default"
+            <div id="tensile-test-list-table">
+            <div class="woe-toolbar">
+                <div class="d-flex align-center">
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
                                StartIcon="@Icons.Material.Filled.RestartAlt"
-                               OnClick="ResetColumnDisplay" Class="ml-2">重置</MudButton>
-                    <MudSpacer />
-                    <MudText Typo="Typo.body2" Class="ml-auto">共 @_totalCount 条记录</MudText>
-                </ToolBarContent>
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                </div>
+                <div class="d-flex align-center" style="margin-left:auto;">
+                    <MudButton Variant="Variant.Outlined"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               Disabled="@(!selectedIds.Any())"
+                               OnClick="PrintSelected">
+                        打印选中 (@selectedIds.Count)
+                    </MudButton>
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll">
+                        打印全部
+                    </MudButton>
+                    <MudText Typo="Typo.body2" Class="ml-4">
+                        共 @_totalCount 条记录
+                    </MudText>
+                </div>
+            </div>
+            <MudTable @ref="table"
+                      T="TensileTestDto"
+                      ServerData="@LoadDataFromServer"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-0 auto-table compact-table"
+                      Elevation="0"
+                      RowsPerPage="@_pageSize"
+                      RowsPerPageLabel="每页行数:">
                 <HeaderContent>
+                    <MudTh Class="col-selection-th" Style="width:40px;padding:0 4px;">
+                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
+                    </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
@@ -94,11 +130,20 @@
                     <MudTh Style="width: 90px;">操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
+                    <MudTd Class="col-selection-td" Style="width:40px;padding:0 4px;">
+                        @if (!_editingIds.Contains(item.Id))
+                        {
+                            <MudCheckBox T="bool"
+                                         Value="@selectedIds.Contains(item.Id)"
+                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                         Dense="true" />
+                        }
+                    </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTd>@RenderCell(item, col)</MudTd>
                     }
-                    <MudTd>
+                    <MudTd Style="white-space: nowrap; width: 90px;">
                         @{
                             var isEditing = _editingIds.Contains(item.Id);
                         }
@@ -118,6 +163,7 @@
                     <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
                 </PagerContent>
             </MudTable>
+            </div>
         </MudCardContent>
     </MudCard>
 </MudContainer>

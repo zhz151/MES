@@ -41,7 +41,7 @@
             <MudGrid>
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
-                                  Label="模糊搜索 - 炉号/原料单位/牌号"
+                                  Label="模糊搜索 - 炉号/牌号/供应商"
                                   Value="_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
@@ -50,6 +50,28 @@
                                   ClearButton="true"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string"
+                                  Label="日期从"
+                                  Value="_dateFrom"
+                                  ValueChanged="@OnDateFromChanged"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Placeholder="yyyy-MM-dd" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string"
+                                  Label="日期至"
+                                  Value="_dateTo"
+                                  ValueChanged="@OnDateToChanged"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Placeholder="yyyy-MM-dd" />
                 </MudItem>
             </MudGrid>
 
@@ -96,7 +118,7 @@
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
-                    <MudTh Style="width: 40px;">
+                    <MudTh Class="col-selection-th" Style="width: 40px;">
                         <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
                     </MudTh>
                     @foreach (var col in _visibleColumns)
@@ -120,7 +142,7 @@
                     <MudTh>操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
-                    <MudTd Style="width: 40px;">
+                    <MudTd Class="col-selection-td" Style="width: 40px;">
                         <MudCheckBox T="bool" Value="@selectedIds.Contains(item.Id)"
                                      ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
                                      Dense="true" />

@@ -137,7 +137,7 @@ public class ProcessInspectionController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
     public async Task<IActionResult> PrintAllFile([FromBody] ProcessInspectionPrintAllRequest request)
     {
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
+        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.InspectionDateFrom, request.InspectionDateTo);
         return File(pdfBytes, "application/pdf", "过程检验-全部.pdf");
     }
 }

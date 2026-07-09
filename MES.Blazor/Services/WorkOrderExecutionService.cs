@@ -21,7 +21,7 @@ public class WorkOrderExecutionService
     /// <summary>
     /// 分页查询工单执行状况列表
     /// </summary>
-    public async Task<ApiResponse<PagedResult<WorkOrderExecutionSummaryDto>>> GetPagedAsync(QueryParams query)
+    public async Task<ApiResponse<PagedResult<WorkOrderExecutionSummaryDto>>> GetPagedAsync(QueryParams query, DateTime? signDateFrom = null, DateTime? signDateTo = null)
     {
         try
         {
@@ -30,6 +30,9 @@ public class WorkOrderExecutionService
                 url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
 
             if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
+
+            if (signDateFrom.HasValue) url += $"&signDateFrom={signDateFrom.Value:yyyy-MM-dd}";
+            if (signDateTo.HasValue) url += $"&signDateTo={signDateTo.Value:yyyy-MM-dd}";
 
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<WorkOrderExecutionSummaryDto>>>(url);
             return response ?? ApiResponse<PagedResult<WorkOrderExecutionSummaryDto>>.Fail("获取数据失败");

@@ -30,7 +30,7 @@ public class WorkOrderExecutionControllerTests : ControllerTestBase
             Items = new List<WorkOrderExecutionSummaryDto> { new() { Id = 1, WorkOrderNo = "WO001" } },
             TotalCount = 1, PageIndex = 1, PageSize = 20
         };
-        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>())).ReturnsAsync(pagedResult);
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>())).ReturnsAsync(pagedResult);
 
         // Act
         var result = await _controller.GetPaged(pageIndex: 1, pageSize: 20);
@@ -83,37 +83,37 @@ public class WorkOrderExecutionControllerTests : ControllerTestBase
     [Fact]
     public async Task GetPaged_LimitsPageSize()
     {
-        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
             .ReturnsAsync(new PagedResult<WorkOrderExecutionSummaryDto> { Items = new List<WorkOrderExecutionSummaryDto>() });
         var result = await _controller.GetPaged(pageSize: 9999);
-        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.PageSize == 5000)), Times.Once);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.PageSize == 5000), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()), Times.Once);
     }
 
     [Fact]
     public async Task GetPaged_PassesKeyword_ToService()
     {
-        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
             .ReturnsAsync(new PagedResult<WorkOrderExecutionSummaryDto> { Items = new List<WorkOrderExecutionSummaryDto>() });
         await _controller.GetPaged(keyword: "测试");
-        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Keyword == "测试")), Times.Once);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Keyword == "测试"), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()), Times.Once);
     }
 
     [Fact]
     public async Task GetPaged_PassesSortBy_ToService()
     {
-        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
             .ReturnsAsync(new PagedResult<WorkOrderExecutionSummaryDto> { Items = new List<WorkOrderExecutionSummaryDto>() });
         await _controller.GetPaged(sortBy: "WorkOrderNo");
-        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "WorkOrderNo")), Times.Once);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "WorkOrderNo"), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()), Times.Once);
     }
 
     [Fact]
     public async Task GetPaged_PassesFilters_ToService()
     {
-        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
             .ReturnsAsync(new PagedResult<WorkOrderExecutionSummaryDto> { Items = new List<WorkOrderExecutionSummaryDto>() });
         var filtersJson = "[{\"Field\":\"Status\",\"Operator\":\"equals\",\"Value\":\"Completed\"}]";
         await _controller.GetPaged(filters: filtersJson);
-        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Filters != null && q.Filters.Count > 0)), Times.Once);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Filters != null && q.Filters.Count > 0), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()), Times.Once);
     }
 }

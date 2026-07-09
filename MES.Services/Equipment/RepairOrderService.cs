@@ -243,6 +243,8 @@ public class RepairOrderService : IRepairOrderService
         }
 
         await _context.SaveChangesAsync();
+        // 同步更新设备运行状态
+        await EquipmentStatusCalculator.RecalculateRunningStatusAsync(_context, entity.EquipmentId);
         return await ToDtoAsync(entity);
     }
 
@@ -294,6 +296,8 @@ public class RepairOrderService : IRepairOrderService
         }
 
         await _context.SaveChangesAsync();
+        // 同步更新设备运行状态
+        await EquipmentStatusCalculator.RecalculateRunningStatusAsync(_context, entity.EquipmentId);
         return await ToDtoAsync(entity);
     }
 
@@ -305,6 +309,8 @@ public class RepairOrderService : IRepairOrderService
 
         _context.RepairOrders.Remove(entity);
         await _context.SaveChangesAsync();
+        // 同步更新设备运行状态
+        await EquipmentStatusCalculator.RecalculateRunningStatusAsync(_context, entity.EquipmentId);
     }
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
@@ -418,6 +424,8 @@ public class RepairOrderService : IRepairOrderService
         entity.RepairStatus = nameof(RepairOrderStatus.InProgress);
 
         await _context.SaveChangesAsync();
+        // 同步更新设备运行状态
+        await EquipmentStatusCalculator.RecalculateRunningStatusAsync(_context, entity.EquipmentId);
         return await ToDtoAsync(entity);
     }
 
@@ -456,6 +464,8 @@ public class RepairOrderService : IRepairOrderService
         }
 
         await _context.SaveChangesAsync();
+        // 同步更新设备运行状态
+        await EquipmentStatusCalculator.RecalculateRunningStatusAsync(_context, entity.EquipmentId);
         return await ToDtoAsync(entity);
     }
 

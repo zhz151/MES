@@ -304,10 +304,9 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
     {
         var salesOrder = await _context.SalesOrders
             .AsNoTracking()
-            .Include(so => so.Customer)
             .FirstOrDefaultAsync(so => so.OrderNumber == salesOrderNo);
 
-        return (salesOrder?.Customer?.Salesman, salesOrder?.Customer?.EndCustomer);
+        return (salesOrder?.Salesman, salesOrder?.EndCustomer);
     }
 
     private async Task<(

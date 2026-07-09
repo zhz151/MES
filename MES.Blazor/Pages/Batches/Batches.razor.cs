@@ -46,6 +46,8 @@ public partial class Batches
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
+    private string _dateFrom = string.Empty;
+    private string _dateTo = string.Empty;
 
     // 排序
     private string sortColumn = "batchno";
@@ -221,7 +223,9 @@ public partial class Batches
                 PageSize = state.PageSize,
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 SortBy = sortBy,
-                IsDescending = sortDescending
+                IsDescending = sortDescending,
+                StartDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
+                StartDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
             };
 
             if (!string.IsNullOrEmpty(filtersJson))
@@ -290,7 +294,10 @@ public partial class Batches
                 BuildFilterContextOptions(result.Data);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
@@ -391,6 +398,20 @@ public partial class Batches
         if (table != null) await table.ReloadServerData();
     }
 
+    private async Task OnDateFromChanged(string value)
+    {
+        _dateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateToChanged(string value)
+    {
+        _dateTo = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
     // ========== 列选择操作 ==========
 
     private async Task OnColumnToggle(ColumnDef col)
@@ -470,6 +491,10 @@ public partial class Batches
                 }
                 catch { }
             }
+            if (savedState.Extras?.TryGetValue("dateFrom", out var dateFrom) == true)
+                _dateFrom = dateFrom ?? string.Empty;
+            if (savedState.Extras?.TryGetValue("dateTo", out var dateTo) == true)
+                _dateTo = dateTo ?? string.Empty;
         }
 
         // 状态恢复后重新加载表格数据（首次渲染时 ServerData 可能已用默认值加载）
@@ -822,6 +847,8 @@ public partial class Batches
             var request = new BatchPrintAllRequest
             {
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                StartDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
+                StartDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
                 Columns = GetPrintColumnDefs()
             };
             var apiUrl = $"{Http.BaseAddress}api/batch/print-all-file";
@@ -958,6 +985,8 @@ public partial class Batches
         var extras = new Dictionary<string, string>();
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
+        if (!string.IsNullOrEmpty(_dateFrom)) extras["dateFrom"] = _dateFrom;
+        if (!string.IsNullOrEmpty(_dateTo)) extras["dateTo"] = _dateTo;
         var state = new PageState
         {
             SortBy = sortColumn,

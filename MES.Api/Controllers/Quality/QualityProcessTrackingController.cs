@@ -38,10 +38,12 @@ public class QualityProcessTrackingController : ControllerBase
         [FromQuery] string? keyword = null,
         [FromQuery] string? sortBy = null,
         [FromQuery] bool isDescending = true,
-        [FromQuery] string? filters = null)
+        [FromQuery] string? filters = null,
+        [FromQuery] DateTime? receiveDateFrom = null,
+        [FromQuery] DateTime? receiveDateTo = null)
     {
         if (pageSize > 5000) pageSize = 5000;
-        QueryParams query = new() { PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword, SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending };
+        QueryParams query = new() { PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword, SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending, ReceiveDateFrom = receiveDateFrom, ReceiveDateTo = receiveDateTo };
         if (!string.IsNullOrEmpty(filters))
         {
             var f = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, _jsonOptions);
@@ -82,7 +84,7 @@ public class QualityProcessTrackingController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
     public async Task<IActionResult> PrintAllFile([FromBody] QualityProcessTrackingPrintAllRequest request)
     {
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
+        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.ReceiveDateFrom, request.ReceiveDateTo);
         return File(pdfBytes, "application/pdf", "成检追踪-全部.pdf");
     }
 }

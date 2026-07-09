@@ -31,6 +31,8 @@ public partial class Ncrs
     private int _totalCount;
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
+    private string _dateFrom = string.Empty;
+    private string _dateTo = string.Empty;
     private string sortColumn = "reportdate";
     private bool sortDescending = true;
     private bool _isFirstLoad = true;
@@ -196,6 +198,10 @@ public partial class Ncrs
             sortColumn = savedState.SortBy ?? "reportdate";
             sortDescending = savedState.IsDescending;
             _restoredPageIndex = savedState.PageIndex;
+            if (savedState.Extras?.ContainsKey("dateFrom") == true)
+                _dateFrom = savedState.Extras["dateFrom"];
+            if (savedState.Extras?.ContainsKey("dateTo") == true)
+                _dateTo = savedState.Extras["dateTo"];
             if (savedState.Filters?.Count > 0)
             {
                 _columnFilters = savedState.Filters
@@ -237,13 +243,20 @@ public partial class Ncrs
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "reportdate";
             var filtersJson = SerializeFilters();
 
+            DateTime? dateFrom = null;
+            DateTime? dateTo = null;
+            if (DateTime.TryParse(_dateFrom, out var df)) dateFrom = df;
+            if (DateTime.TryParse(_dateTo, out var dt)) dateTo = dt;
+
             var result = await NcrService.GetAllAsync(
                 pageIndex: state.Page + 1,
                 pageSize: state.PageSize,
                 keyword: string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 sortBy: sortBy,
                 isDescending: sortDescending,
-                filters: filtersJson);
+                filters: filtersJson,
+                reportDateFrom: dateFrom,
+                reportDateTo: dateTo);
 
             if (result.Success && result.Data != null)
             {
@@ -278,6 +291,20 @@ public partial class Ncrs
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateFromChanged(string value)
+    {
+        _dateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateToChanged(string value)
+    {
+        _dateTo = value ?? string.Empty;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -336,7 +363,10 @@ public partial class Ncrs
                 BuildFilterContextOptions(result.Data);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
@@ -352,7 +382,21 @@ public partial class Ncrs
             }).ToList();
         }
 
-        // 补充枚举列（后端不返回枚举 DISTINCT 值）
+        // 枚举列显示中文标签
+        foreach (var col in _allColumns)
+        {
+            if (col.FilterType == "enum" && col.EnumOptions != null && _filterContextOptions.TryGetValue(col.Key, out var options))
+            {
+                var displayMap = col.EnumOptions.ToDictionary(e => e.Value, e => e.Display);
+                foreach (var opt in options)
+                {
+                    if (displayMap.TryGetValue(opt.Value, out var display))
+                        opt.Display = display;
+                }
+            }
+        }
+
+        // 补充枚举列筛选选项（后端不返回枚举列 DISTINCT 值）
         foreach (var col in _allColumns)
         {
             if (col.FilterType == "enum" && col.EnumOptions != null && !_filterContextOptions.ContainsKey(col.Key))
@@ -366,7 +410,7 @@ public partial class Ncrs
             }
         }
 
-        // 补充布尔列
+        // 补充布尔列筛选选项
         foreach (var col in _allColumns)
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
@@ -517,6 +561,11 @@ public partial class Ncrs
 
     private async Task SavePageStateAsync()
     {
+        var extras = new Dictionary<string, string>();
+        if (!string.IsNullOrEmpty(_dateFrom))
+            extras["dateFrom"] = _dateFrom;
+        if (!string.IsNullOrEmpty(_dateTo))
+            extras["dateTo"] = _dateTo;
         await PageState.SaveAsync(PageType, new PageState
         {
             Keyword = _searchKeyword,
@@ -530,7 +579,8 @@ public partial class Ncrs
                     Operator = "in",
                     Values = kvp.Value.ToList()
                 }).ToList()
-                : null
+                : null,
+            Extras = extras.Count > 0 ? extras : null
         });
     }
 

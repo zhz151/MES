@@ -18,5 +18,14 @@ public interface IQualityProcessTrackingService
     Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
 
     /// <summary>按条件打印全部记录</summary>
-    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns);
+    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? receiveDateFrom = null, DateTime? receiveDateTo = null);
+
+    /// <summary>按成检到料ID刷新物化行</summary>
+    Task RefreshByMrCheckIdAsync(int mrCheckId);
+
+    /// <summary>按批次ID刷新物化行</summary>
+    Task RefreshByProductionBatchIdAsync(int productionBatchId);
+
+    /// <summary>按批次号刷新物化行</summary>
+    Task RefreshByBatchNoAsync(string batchNo);
 }

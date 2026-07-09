@@ -1,13 +1,15 @@
 # MES 项目持久知识
 
-## 04_开发规范.md 重构简化记录（V9.22）
-- **删除 §18 AI 自动化检查**：全部内容与附录 A 检查清单及 §4.5/§4.6/§6.8 重复，不再单独保留
-- **删除 §13-十七 预留章节**：空占位章节
-- **压缩代码模板**：§6.4/§6.23/§6.33 完整模板移入 SKILL.md，本文档仅保留规则要点
-- **合并 §10+§11**：数值格式化 + 字符串大小写 → §10 数值与字符串格式规范
-- **精简版本历史**：26 条 → 11 条核心，更早版本引用 git log
-- 文档体积：1533 行 → 1220 行（-20%）
-- SKILL.md 对应版本：V9.9
+## StandardRegister（标准号）模块
+...
+
+## 日期范围搜索规范（§6.30.2）
+- 理化检测等列表页模糊搜索右侧搭配日期起止搜索栏
+- MudGrid: 模糊搜索 md="6" + 日期从 md="3" + 日期至 md="3"
+- 日期字段用 `MudTextField T="string"`（禁止 MudDatePicker）+ `Placeholder="yyyy-MM-dd"`
+- CS: `_dateFrom`/`_dateTo` + `OnDateFromChanged`/`OnDateToChanged` 事件
+- PageState Extras 持久化：extras["dateFrom"]/extras["dateTo"]
+- 文档 V9.23 / SKILL.md V9.11
 
 ## 文档同步规则
 - 修改 04_开发规范.md 后必须同步更新 SKILL.md（行8明确注明）

@@ -1511,6 +1511,10 @@ public class WorkOrderService : IWorkOrderService
             workOrderQuery = workOrderQuery.Where(wo => wo.DeliveryDate >= query.DeliveryDateStart.Value);
         if (query.DeliveryDateEnd.HasValue)
             workOrderQuery = workOrderQuery.Where(wo => wo.DeliveryDate <= query.DeliveryDateEnd.Value);
+        if (query.SignDateFrom.HasValue)
+            workOrderQuery = workOrderQuery.Where(wo => wo.SignDate >= query.SignDateFrom.Value);
+        if (query.SignDateTo.HasValue)
+            workOrderQuery = workOrderQuery.Where(wo => wo.SignDate < query.SignDateTo.Value.AddDays(1));
 
         // 关键字模糊搜索：工单号/订单号/业务员/牌号/规格/主号/次号/最终用户
         if (!string.IsNullOrEmpty(query.Keyword))
@@ -1584,6 +1588,10 @@ public class WorkOrderService : IWorkOrderService
             summaryQuery = summaryQuery.Where(s => s.DeliveryDate >= query.DeliveryDateStart.Value);
         if (query.DeliveryDateEnd.HasValue)
             summaryQuery = summaryQuery.Where(s => s.DeliveryDate <= query.DeliveryDateEnd.Value);
+        if (query.SignDateFrom.HasValue)
+            summaryQuery = summaryQuery.Where(s => s.SignDate >= query.SignDateFrom.Value);
+        if (query.SignDateTo.HasValue)
+            summaryQuery = summaryQuery.Where(s => s.SignDate < query.SignDateTo.Value.AddDays(1));
 
         // 关键字模糊搜索：工单号/订单号/主号/次号/业务员/最终用户/牌号/规格
         if (!string.IsNullOrEmpty(query.Keyword))
@@ -2600,6 +2608,12 @@ result.WorkOrders.Add(new WorkOrderRelationDto
             .ThenBy(wo => wo.ProductionMainNo)
             .ThenBy(wo => wo.ProductionSubNo)
             .ToList();
+
+        // 签订日期筛选
+        if (query.SignDateFrom.HasValue)
+            resultWorkOrders = resultWorkOrders.Where(wo => wo.SignDate >= query.SignDateFrom.Value).ToList();
+        if (query.SignDateTo.HasValue)
+            resultWorkOrders = resultWorkOrders.Where(wo => wo.SignDate < query.SignDateTo.Value.AddDays(1)).ToList();
 
         if (resultWorkOrders.Count == 0)
             throw new BusinessException("没有可打印的工单");

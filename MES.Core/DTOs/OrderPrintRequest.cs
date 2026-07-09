@@ -40,4 +40,14 @@ public class OrderPrintAllRequest
     /// 是否降序
     /// </summary>
     public bool IsDescending { get; set; }
+
+    /// <summary>
+    /// 日期范围筛选-开始（仅采购/委外使用）
+    /// </summary>
+    public DateTime? DateFrom { get; set; }
+
+    /// <summary>
+    /// 日期范围筛选-结束（仅采购/委外使用）
+    /// </summary>
+    public DateTime? DateTo { get; set; }
 }

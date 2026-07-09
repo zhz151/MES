@@ -50,6 +50,8 @@ public partial class MaterialPlanOverview
     private bool _isFirstLoad = true;
     private bool _isArrowNavSetup;
     private string _searchKeyword = string.Empty;
+    private string _dateFrom = string.Empty;
+    private string _dateTo = string.Empty;
 
     private string sortColumn = "CreatedTime";
     private bool sortDescending = true;
@@ -104,7 +106,7 @@ public partial class MaterialPlanOverview
         new() { Key = "MaterialPlanStatus",      Label = "工单用料计划",   SortKey = "MaterialPlanStatus", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("0", "未计划"), new("1", "部分"), new("2", "理论满足"), new("3", "满足"), new("4", "超量") } },
         new() { Key = "MaterialPlanRate",        Label = "工单满足率",     SortKey = "MaterialPlanRate", Width = "80" },
-        new() { Key = "PlanProportion",          Label = "用料占比",       SortKey = null, Width = "120" },
+        new() { Key = "PlanProportion",          Label = "用料占比",       SortKey = "MaterialPlanProportion", Width = "120" },
         new() { Key = "MainNoMaterialPlanStatus",Label = "关联主号用料",   SortKey = "MainNoMaterialPlanStatus", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("0", "未计划"), new("1", "部分"), new("3", "满足"), new("4", "超量") } },
         new() { Key = "OrderMaterialPlanStatus", Label = "关联订单用料",   SortKey = "OrderMaterialPlanStatus", FilterType = "enum", Width = "120",
@@ -189,7 +191,9 @@ public partial class MaterialPlanOverview
                 sortBy: sortBy,
                 isDescending: sortDescending,
                 filters: filtersJson,
-                planTypeFilter: planTypeFilter
+                planTypeFilter: planTypeFilter,
+                dateFrom: DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null,
+                dateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null
             );
 
             if (result.Success && result.Data != null)
@@ -300,7 +304,10 @@ public partial class MaterialPlanOverview
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     // ========== ExcelFilter 事件 ==========
@@ -332,6 +339,20 @@ public partial class MaterialPlanOverview
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateFromChanged(string value)
+    {
+        _dateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateToChanged(string value)
+    {
+        _dateTo = value ?? string.Empty;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -412,6 +433,8 @@ public partial class MaterialPlanOverview
             sortColumn = savedState.SortBy ?? "CreatedTime";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
+            _dateFrom = savedState.Extras?.ContainsKey("dateFrom") == true ? savedState.Extras["dateFrom"] ?? string.Empty : string.Empty;
+            _dateTo = savedState.Extras?.ContainsKey("dateTo") == true ? savedState.Extras["dateTo"] ?? string.Empty : string.Empty;
             _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
@@ -755,6 +778,8 @@ public partial class MaterialPlanOverview
         var extras = new Dictionary<string, string>();
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
+        if (!string.IsNullOrWhiteSpace(_dateFrom)) extras["dateFrom"] = _dateFrom;
+        if (!string.IsNullOrWhiteSpace(_dateTo)) extras["dateTo"] = _dateTo;
         extras["includePiercing"] = includePiercing.ToString();
         extras["includeSemi"] = includeSemi.ToString();
         extras["includeFinish"] = includeFinish.ToString();

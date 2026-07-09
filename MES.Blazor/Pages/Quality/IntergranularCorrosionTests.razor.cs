@@ -25,6 +25,22 @@ public partial class IntergranularCorrosionTests
     private string sortColumn = "inspectiondate";
     private bool sortDescending = true;
 
+    // ========== 打印选中 ==========
+    private HashSet<int> selectedIds = new();
+    private bool _allSelected;
+    private bool allSelected
+    {
+        get => _allSelected;
+        set
+        {
+            if (_allSelected == value) return;
+            _allSelected = value;
+            if (value) { foreach (var item in _pageItems) selectedIds.Add(item.Id); }
+            else { selectedIds.Clear(); }
+            StateHasChanged();
+        }
+    }
+
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
 
@@ -100,7 +116,10 @@ public partial class IntergranularCorrosionTests
                     _filterContextOptions[col.Key] = col.EnumOptions!.Select(e => new ExcelFilterOption { Value = e.Value, Display = e.Display, Count = 0 }).ToList();
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
@@ -356,5 +375,35 @@ public partial class IntergranularCorrosionTests
             }
             catch (Exception ex) { Snackbar.Add($"删除失败: {ex.Message}", Severity.Error); }
         }
+    }
+
+    // ========== 打印 ==========
+
+    private List<PrintColumnDef> GetPrintColumnDefs() =>
+        _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+
+    private async Task PrintSelected()
+    {
+        if (!selectedIds.Any()) return;
+        var apiUrl = $"{Http.BaseAddress}api/intergranular-corrosion-test/print-batch-file";
+        var request = new IntergranularCorrosionTestPrintBatchRequest { Ids = selectedIds.ToArray(), Columns = GetPrintColumnDefs() };
+        var json = JsonSerializer.Serialize(request);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+    }
+
+    private async Task PrintAll()
+    {
+        var apiUrl = $"{Http.BaseAddress}api/intergranular-corrosion-test/print-all-file";
+        var request = new IntergranularCorrosionTestPrintAllRequest
+        {
+            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+            SortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "inspectiondate",
+            IsDescending = sortDescending,
+            InspectionDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
+            InspectionDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
+            Columns = GetPrintColumnDefs()
+        };
+        var json = JsonSerializer.Serialize(request);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 }

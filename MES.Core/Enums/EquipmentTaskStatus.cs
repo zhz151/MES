@@ -1,7 +1,7 @@
 namespace MES.Core.Enums;
 
 /// <summary>
-/// 设备点检/保养状况（动态计算，不存字段）
+/// 设备点检/保养状况（物化存储到 Equipment 表）
 /// </summary>
 public enum EquipmentTaskStatus
 {

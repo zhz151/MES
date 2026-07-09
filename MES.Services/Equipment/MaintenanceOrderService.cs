@@ -183,6 +183,8 @@ public class MaintenanceOrderService : IMaintenanceOrderService
         }
 
         await _context.SaveChangesAsync();
+        // 同步更新设备保养状况
+        await EquipmentStatusCalculator.RecalculateMaintStatusAsync(_context, entity.EquipmentId);
         return await ToDtoAsync(entity);
     }
 
@@ -228,6 +230,8 @@ public class MaintenanceOrderService : IMaintenanceOrderService
         }
 
         await _context.SaveChangesAsync();
+        // 同步更新设备保养状况
+        await EquipmentStatusCalculator.RecalculateMaintStatusAsync(_context, entity.EquipmentId);
         return await ToDtoAsync(entity);
     }
 
@@ -239,6 +243,8 @@ public class MaintenanceOrderService : IMaintenanceOrderService
 
         _context.MaintenanceOrders.Remove(entity);
         await _context.SaveChangesAsync();
+        // 同步更新设备保养状况
+        await EquipmentStatusCalculator.RecalculateMaintStatusAsync(_context, entity.EquipmentId);
     }
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()

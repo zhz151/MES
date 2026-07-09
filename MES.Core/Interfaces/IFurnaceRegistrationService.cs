@@ -52,5 +52,5 @@ public interface IFurnaceRegistrationService
     Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
 
     /// <summary>按条件打印全部记录</summary>
-    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns);
+    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? incomingDateFrom = null, DateTime? incomingDateTo = null);
 }

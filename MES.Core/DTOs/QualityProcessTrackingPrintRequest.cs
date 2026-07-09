@@ -18,4 +18,6 @@ public class QualityProcessTrackingPrintAllRequest
     public string? SortBy { get; set; }
     public bool IsDescending { get; set; }
     public List<PrintColumnDef> Columns { get; set; } = new();
+    public DateTime? ReceiveDateFrom { get; set; }
+    public DateTime? ReceiveDateTo { get; set; }
 }

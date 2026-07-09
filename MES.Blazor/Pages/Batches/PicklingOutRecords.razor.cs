@@ -41,6 +41,8 @@ public partial class PicklingOutRecords
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
+    private string _dateFrom = string.Empty;
+    private string _dateTo = string.Empty;
 
     private string sortColumn = "completedate";
     private bool sortDescending = true;
@@ -235,6 +237,8 @@ public partial class PicklingOutRecords
                 keyword: string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 sortBy: sortBy,
                 isDescending: sortDescending,
+                completeDateFrom: DateTime.TryParse(_dateFrom, out var df) ? df : null,
+                completeDateTo: DateTime.TryParse(_dateTo, out var dt) ? dt : null,
                 filters: filtersJson
             );
 
@@ -296,7 +300,10 @@ public partial class PicklingOutRecords
                 BuildFilterContextOptions(result.Data);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
@@ -369,6 +376,20 @@ public partial class PicklingOutRecords
     {
         _searchKeyword = value ?? string.Empty;
         selectedIds.Clear();
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateFromChanged(string value)
+    {
+        _dateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateToChanged(string value)
+    {
+        _dateTo = value ?? string.Empty;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -451,6 +472,10 @@ public partial class PicklingOutRecords
                 }
                 catch { }
             }
+            if (savedState.Extras?.TryGetValue("dateFrom", out var dateFrom) == true)
+                _dateFrom = dateFrom ?? string.Empty;
+            if (savedState.Extras?.TryGetValue("dateTo", out var dateTo) == true)
+                _dateTo = dateTo ?? string.Empty;
         }
 
         if (savedState != null && table != null)
@@ -611,6 +636,8 @@ public partial class PicklingOutRecords
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword.Trim(),
             SortBy = sortColumn,
             IsDescending = sortDescending,
+            CompleteDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
+            CompleteDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
             Columns = columns
         };
         var apiUrl = $"{Http.BaseAddress}api/pickling/out-records/print-all-file";
@@ -756,6 +783,8 @@ public partial class PicklingOutRecords
         var extras = new Dictionary<string, string>();
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
+        if (!string.IsNullOrEmpty(_dateFrom)) extras["dateFrom"] = _dateFrom;
+        if (!string.IsNullOrEmpty(_dateTo)) extras["dateTo"] = _dateTo;
         var state = new PageState
         {
             SortBy = sortColumn,

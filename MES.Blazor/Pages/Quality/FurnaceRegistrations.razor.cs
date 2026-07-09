@@ -20,6 +20,8 @@ public partial class FurnaceRegistrations
     private int _totalCount;
     private bool _isArrowNavSetup;
     private string _searchKeyword = string.Empty;
+    private string _dateFrom = string.Empty;
+    private string _dateTo = string.Empty;
     private int _currentPage = 1;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
@@ -91,12 +93,19 @@ public partial class FurnaceRegistrations
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "furnacenumber";
             var filters = SerializeFilters();
 
+            DateTime? dateFrom = null;
+            DateTime? dateTo = null;
+            if (DateTime.TryParse(_dateFrom, out var df)) dateFrom = df;
+            if (DateTime.TryParse(_dateTo, out var dt)) dateTo = dt;
+
             var result = await FurnaceRegistrationService.GetAllAsync(
                 pageIndex: state.Page + 1,
                 pageSize: state.PageSize,
                 keyword: string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 sortBy: sortBy,
                 isDescending: sortDescending,
+                incomingDateFrom: dateFrom,
+                incomingDateTo: dateTo,
                 filters: filters);
 
             if (result.Success && result.Data != null)
@@ -127,7 +136,7 @@ public partial class FurnaceRegistrations
         };
     }
 
-    private List<FilterDescriptor>? SerializeFilters()
+    private string? SerializeFilters()
     {
         if (_columnFilters.Count == 0) return null;
         var descriptors = new List<FilterDescriptor>();
@@ -141,7 +150,7 @@ public partial class FurnaceRegistrations
                 Values = kvp.Value.ToList()
             });
         }
-        return descriptors.Count > 0 ? descriptors : null;
+        return descriptors.Count > 0 ? JsonSerializer.Serialize(descriptors) : null;
     }
 
     // ========== 筛选上下文加载（ExcelFilter 下拉选项） ==========
@@ -156,7 +165,10 @@ public partial class FurnaceRegistrations
                 BuildFilterContextOptions(result.Data);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
@@ -468,6 +480,10 @@ public partial class FurnaceRegistrations
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
             _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
+            if (savedState.Extras?.ContainsKey("dateFrom") == true)
+                _dateFrom = savedState.Extras["dateFrom"];
+            if (savedState.Extras?.ContainsKey("dateTo") == true)
+                _dateTo = savedState.Extras["dateTo"];
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try
@@ -535,6 +551,20 @@ public partial class FurnaceRegistrations
         if (table != null) await table.ReloadServerData();
     }
 
+    private async Task OnDateFromChanged(string value)
+    {
+        _dateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateToChanged(string value)
+    {
+        _dateTo = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
     // ========== 单元格原始值/显示值 ==========
 
     private string? GetCellRawValue(FurnaceRegistrationDto item, string key) => key switch
@@ -581,6 +611,10 @@ public partial class FurnaceRegistrations
         var extras = new Dictionary<string, string>();
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
+        if (!string.IsNullOrEmpty(_dateFrom))
+            extras["dateFrom"] = _dateFrom;
+        if (!string.IsNullOrEmpty(_dateTo))
+            extras["dateTo"] = _dateTo;
         var state = new PageState
         {
             SortBy = sortColumn,
@@ -616,12 +650,20 @@ public partial class FurnaceRegistrations
     private async Task PrintAll()
     {
         var apiUrl = $"{Http.BaseAddress}api/furnace-registration/print-all-file";
+
+        DateTime? dateFrom = null;
+        DateTime? dateTo = null;
+        if (DateTime.TryParse(_dateFrom, out var df)) dateFrom = df;
+        if (DateTime.TryParse(_dateTo, out var dt)) dateTo = dt;
+
         var request = new FurnaceRegistrationPrintAllRequest
         {
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
             SortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "furnacenumber",
             IsDescending = sortDescending,
-            Columns = GetPrintColumnDefs()
+            Columns = GetPrintColumnDefs(),
+            IncomingDateFrom = dateFrom,
+            IncomingDateTo = dateTo
         };
         var json = JsonSerializer.Serialize(request);
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);

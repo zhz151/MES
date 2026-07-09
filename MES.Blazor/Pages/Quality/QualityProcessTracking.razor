@@ -29,11 +29,25 @@
         <MudCardContent>
             <MudGrid>
                 <MudItem xs="12" md="6">
-                    <MudTextField T="string" Label="批次号/制造物品/钢种/规格/确认人/业务员"
+                    <MudTextField T="string" Label="模糊搜索 - 批次号/制造物品/钢种/规格/确认人/业务员"
                                   Value="@_searchKeyword" ValueChanged="@OnSearchChanged"
                                   Immediate="true" DebounceInterval="500"
                                   Clearable="true" ClearButton="true"
                                   Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string" Label="日期从" Value="_dateFrom"
+                                  ValueChanged="@OnDateFromChanged"
+                                  Immediate="true" DebounceInterval="500"
+                                  Clearable="true" ClearButton="true"
+                                  Placeholder="yyyy-MM-dd" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string" Label="日期至" Value="_dateTo"
+                                  ValueChanged="@OnDateToChanged"
+                                  Immediate="true" DebounceInterval="500"
+                                  Clearable="true" ClearButton="true"
+                                  Placeholder="yyyy-MM-dd" />
                 </MudItem>
             </MudGrid>
 

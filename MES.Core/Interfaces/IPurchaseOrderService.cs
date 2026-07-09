@@ -26,5 +26,5 @@ public interface IPurchaseOrderService
     // ========== 打印 ==========
     Task<byte[]> PrintOrderAsync(int id);
     Task<byte[]> PrintOrderBatchAsync(int[] ids);
-    Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false);
+    Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, DateTime? dateFrom = null, DateTime? dateTo = null);
 }

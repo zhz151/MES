@@ -12,4 +12,7 @@ public interface IGrainSizeTestService
     Task DeleteAsync(int id);
     Task<List<GrainSizeTestDto>> BatchCreateAsync(List<CreateGrainSizeTestRequest> requests);
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
+
+    Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
+    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null);
 }

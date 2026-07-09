@@ -91,4 +91,14 @@ public class WorkOrderQueryParams : QueryParams
     /// 多个用逗号分隔，如 "Semi,Finish"
     /// </summary>
     public string? PlanTypeFilter { get; set; }
+
+    /// <summary>
+    /// 签订日期范围筛选-开始
+    /// </summary>
+    public DateTime? SignDateFrom { get; set; }
+
+    /// <summary>
+    /// 签订日期范围筛选-结束
+    /// </summary>
+    public DateTime? SignDateTo { get; set; }
 }

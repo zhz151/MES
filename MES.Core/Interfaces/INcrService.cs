@@ -37,4 +37,10 @@ public interface INcrService
 
     /// <summary>获取待处理批次卡片数据（分析过程检验+成品检验）</summary>
     Task<List<NcrPendingCheckDto>> GetPendingChecksAsync();
+
+    /// <summary>打印选中 NCR（生成 HTML）</summary>
+    Task<string> PrintSelectedAsync(int[] ids, List<PrintColumnDef> columns);
+
+    /// <summary>打印全部 NCR（生成 HTML）</summary>
+    Task<string> PrintAllAsync(NcrPrintAllRequest request);
 }

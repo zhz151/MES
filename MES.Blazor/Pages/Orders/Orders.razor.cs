@@ -46,6 +46,8 @@ public partial class Orders
     private int _currentPage = 1;
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
+    private string _dateFrom = string.Empty;
+    private string _dateTo = string.Empty;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
 
@@ -159,7 +161,10 @@ public partial class Orders
                 catch { }
             }
 
-            var result = await OrderService.GetPagedAsync(query);
+            var result = await OrderService.GetPagedAsync(
+                query,
+                dateFrom: DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null,
+                dateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null);
 
             if (result.Success && result.Data != null)
             {
@@ -219,7 +224,10 @@ public partial class Orders
                 BuildFilterContextOptions(result.Data);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
@@ -320,6 +328,20 @@ public partial class Orders
         if (table != null) await table.ReloadServerData();
     }
 
+    private async Task OnDateFromChanged(string value)
+    {
+        _dateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateToChanged(string value)
+    {
+        _dateTo = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
     // ========== 列选择操作 ==========
 
     private async Task OnColumnToggle(ColumnDef col)
@@ -385,6 +407,8 @@ public partial class Orders
             sortColumn = savedState.SortBy ?? "signdate";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
+            _dateFrom = savedState.Extras?.ContainsKey("dateFrom") == true ? savedState.Extras["dateFrom"] ?? string.Empty : string.Empty;
+            _dateTo = savedState.Extras?.ContainsKey("dateTo") == true ? savedState.Extras["dateTo"] ?? string.Empty : string.Empty;
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try
@@ -607,6 +631,30 @@ public partial class Orders
 
     // ========== 打印方法 ==========
 
+    private async Task PrintAll()
+    {
+        try
+        {
+            var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "signdate";
+            var request = new
+            {
+                keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                sortBy,
+                isDescending = sortDescending,
+                dateFrom = DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom.ToString("yyyy-MM-dd") : null,
+                dateTo = DateTime.TryParse(_dateTo, out var dTo) ? dTo.ToString("yyyy-MM-dd") : null
+            };
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/order/print-all-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
     private async Task PrintSingleOrder(int id)
     {
         try
@@ -649,6 +697,8 @@ public partial class Orders
     private async Task SavePageStateAsync()
     {
         var extras = new Dictionary<string, string>();
+        if (!string.IsNullOrWhiteSpace(_dateFrom)) extras["dateFrom"] = _dateFrom;
+        if (!string.IsNullOrWhiteSpace(_dateTo)) extras["dateTo"] = _dateTo;
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
         var state = new PageState

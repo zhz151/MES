@@ -83,12 +83,34 @@
             <MudGrid>
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
-                                  Label="模糊搜索 - 生产编号/工单号/牌号/规格/被反馈人/确认人"
+                                  Label="模糊搜索 - 编号/炉号/牌号/责任部门"
                                   Value="_searchKeyword" ValueChanged="@OnSearchChanged"
                                   Immediate="true" DebounceInterval="500"
                                   Clearable="true" ClearButton="true"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string"
+                                  Label="日期从"
+                                  Value="_dateFrom"
+                                  ValueChanged="@OnDateFromChanged"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Placeholder="yyyy-MM-dd" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string"
+                                  Label="日期至"
+                                  Value="_dateTo"
+                                  ValueChanged="@OnDateToChanged"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Placeholder="yyyy-MM-dd" />
                 </MudItem>
             </MudGrid>
 
@@ -144,16 +166,15 @@
                         var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
                         _prevGk = col.GroupKey;
                         var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
-                        <MudTh Class="@_headerClass" Style="@($"width: {col.Width}")">
+                        <MudTh Class="@_headerClass" Style="@($"width:{col.Width}px")">
                             <div class="col-header-cell">
-                                <span @onclick='() => ToggleSort(col.SortKey ?? col.Key)'
+                                <span @onclick='() => ToggleSort(col.Key)'
                                       style="cursor: pointer; white-space: nowrap; user-select: none;"
                                       class="th-label">
                                     @col.Label
-                                    @if (sortColumn == (col.SortKey ?? col.Key))
+                                    @if (sortColumn == col.Key)
                                     {
-                                        <MudIcon Size="Size.Small"
-                                                 Icon="@(sortDescending ? Icons.Material.Filled.ArrowDownward : Icons.Material.Filled.ArrowUpward)" />
+                                        @(sortDescending ? " ▼" : " ▲")
                                     }
                                 </span>
                                 @if (col.FilterType != null)
@@ -187,12 +208,15 @@
                         <AuthorizeView Roles="@Roles.Policies.QualityWrite">
                             <MudIconButton Icon="@Icons.Material.Filled.Print"
                                            Size="Size.Small" Color="Color.Default"
+                                           Title="打印"
                                            OnClick='() => PrintItem(item.Id)' />
                             <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                           Size="Size.Small" Color="Color.Primary"
+                                           Size="Size.Small" Color="Color.Warning"
+                                           Title="编辑"
                                            OnClick='() => EditItem(item.Id)' />
                             <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                            Size="Size.Small" Color="Color.Error"
+                                           Title="删除"
                                            OnClick='() => DeleteItem(item.Id)' />
                         </AuthorizeView>
                     </MudTd>

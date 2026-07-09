@@ -56,6 +56,12 @@ public class InventoryService
             if (query.WarehouseId.HasValue)
                 url += $"&warehouseId={query.WarehouseId.Value}";
 
+            if (query.InboundDateFrom.HasValue)
+                url += $"&inboundDateFrom={query.InboundDateFrom.Value:yyyy-MM-dd}";
+
+            if (query.InboundDateTo.HasValue)
+                url += $"&inboundDateTo={query.InboundDateTo.Value:yyyy-MM-dd}";
+
             if (!string.IsNullOrEmpty(query.MaterialType))
                 url += $"&materialType={Uri.EscapeDataString(query.MaterialType)}";
 

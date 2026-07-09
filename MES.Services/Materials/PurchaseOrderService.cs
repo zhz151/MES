@@ -1093,7 +1093,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         return items;
     }
 
-    public async Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false)
+    public async Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, DateTime? dateFrom = null, DateTime? dateTo = null)
     {
         var query = new PurchaseOrderQueryParams
         {
@@ -1101,7 +1101,9 @@ public class PurchaseOrderService : IPurchaseOrderService
             PageSize = int.MaxValue,
             Keyword = keyword,
             SortBy = sortBy ?? "CreatedTime",
-            IsDescending = isDescending
+            IsDescending = isDescending,
+            DateFrom = dateFrom,
+            DateTo = dateTo
         };
         var paged = await GetPagedAsync(query);
         return PurchaseOrderPrintHelper.GenerateBatchPdf(paged.Items);

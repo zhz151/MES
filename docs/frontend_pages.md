@@ -433,7 +433,7 @@
 | 26 | WarehouseInventory.razor | /warehouse | 仓库 | | Code复用 |
 | 27 | InboundHistory.razor | /warehouse/inbound-history | 仓库 | | Code复用 |
 | 28 | OutboundHistory.razor | /warehouse/outbound-history | 仓库 | | Code复用 |
-| 29 | WorkOrderExecution.razor | /workorder-execution | 工单 | | ✅ 已过规范检查 |
+| 29 | WorkOrderExecution.razor | /workorder-execution | 工单 | | ✅ 已过规范检查。列分组14组(G1-G14) + 复选框选择列 + 打印选中+打印全部 + 分组标题栏 + 底部聚合行 |
 | 30 | QualityProcessTracking.razor | /quality/process-tracking | 质量 | | 只读列表 |
 | 31 | Ncrs.razor | /quality/ncr | 质量 | | 列表页+分页汇总 |
 | 32 | OrderDemandAdjustment.razor | /order-demand-adjustment | 订单 | ✅ | 内联编辑催单/分批/暂停开关及调整备注 |
@@ -483,7 +483,7 @@
 | 批次 | ProductionRecords | ✅ | ✅ | ✅ | 2026-07-08 列分组重构 |
 | 批次 | SectionOutsources | ✅ | ✅ | ✅ | 2026-05-23 |
 | 批次 | OutsourceRecoveries ⚠️ | ✅ | ✅ | ✅ | 2026-05-23 |
-| 工单 | WorkOrderExecution | ✅ | ✅ | ✅ | 2026-05-26 |
+| 工单 | WorkOrderExecution | ✅ | ✅ | ✅ | 2026-07-09 新增选择列+打印 |
 | 其他 | ... | ❌ | ❌ | ❌ | 未检查 |
 
 ---

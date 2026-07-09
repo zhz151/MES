@@ -138,6 +138,8 @@ public class WorkOrderController : ControllerBase
         [FromQuery] string? plantGrade = null,
         [FromQuery] DateTime? deliveryDateStart = null,
         [FromQuery] DateTime? deliveryDateEnd = null,
+        [FromQuery] DateTime? signDateFrom = null,
+        [FromQuery] DateTime? signDateTo = null,
         [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
@@ -148,7 +150,8 @@ public class WorkOrderController : ControllerBase
             SalesOrderNo = salesOrderNo, ProductionMainNo = productionMainNo, ProductionSubNo = productionSubNo,
             Status = status, Specification = specification,
             DeliveryDateStart = deliveryDateStart, DeliveryDateEnd = deliveryDateEnd,
-            Salesman = salesman, EndCustomer = endCustomer, PlantGrade = plantGrade
+            Salesman = salesman, EndCustomer = endCustomer, PlantGrade = plantGrade,
+            SignDateFrom = signDateFrom, SignDateTo = signDateTo
         };
         if (!string.IsNullOrEmpty(filters))
         {
@@ -178,6 +181,8 @@ public class WorkOrderController : ControllerBase
         [FromQuery] DateTime? deliveryDateStart = null,
         [FromQuery] DateTime? deliveryDateEnd = null,
         [FromQuery] string? planTypeFilter = null,
+        [FromQuery] DateTime? signDateFrom = null,
+        [FromQuery] DateTime? signDateTo = null,
         [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
@@ -189,7 +194,8 @@ public class WorkOrderController : ControllerBase
             Status = status, Specification = specification,
             DeliveryDateStart = deliveryDateStart, DeliveryDateEnd = deliveryDateEnd,
             Salesman = salesman, EndCustomer = endCustomer, PlantGrade = plantGrade,
-            PlanTypeFilter = planTypeFilter
+            PlanTypeFilter = planTypeFilter,
+            SignDateFrom = signDateFrom, SignDateTo = signDateTo
         };
         if (!string.IsNullOrEmpty(filters))
         {

@@ -46,6 +46,24 @@
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string"
+                                  Label="订单日期从"
+                                  Value="@_dateFrom"
+                                  ValueChanged="@OnDateFromChanged"
+                                  Placeholder="yyyy-MM-dd"
+                                  Clearable="true"
+                                  ClearButton="true" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string"
+                                  Label="订单日期至"
+                                  Value="@_dateTo"
+                                  ValueChanged="@OnDateToChanged"
+                                  Placeholder="yyyy-MM-dd"
+                                  Clearable="true"
+                                  ClearButton="true" />
+                </MudItem>
             </MudGrid>
 
             <!-- 数据表格 -->
@@ -76,6 +94,13 @@
                                OnClick="PrintSelected"
                                Disabled="@(_selectedIds.Count == 0)">
                         打印选中 (@_selectedIds.Count)
+                    </MudButton>
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll">
+                        打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-4">
                         共 @_totalCount 条记录

@@ -19,6 +19,8 @@ public class InventoryPrintAllRequest
     public bool IsDescending { get; set; }
     public int WarehouseId { get; set; }
     public bool OnlyWithStock { get; set; } = true;
+    public DateTime? InboundDateFrom { get; set; }
+    public DateTime? InboundDateTo { get; set; }
     public List<PrintColumnDef> Columns { get; set; } = new();
 }
 
@@ -40,6 +42,8 @@ public class OutboundPrintAllRequest
     public string? SortBy { get; set; }
     public bool IsDescending { get; set; }
     public int? WarehouseId { get; set; }
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
     public List<PrintColumnDef> Columns { get; set; } = new();
 }
 

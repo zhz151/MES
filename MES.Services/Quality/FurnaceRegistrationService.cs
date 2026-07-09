@@ -121,6 +121,11 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
                 (r.Remark != null && r.Remark.Contains(kw)));
         }
 
+        if (query.IncomingDateFrom.HasValue)
+            queryable = queryable.Where(r => r.IncomingDate >= query.IncomingDateFrom.Value);
+        if (query.IncomingDateTo.HasValue)
+            queryable = queryable.Where(r => r.IncomingDate <= query.IncomingDateTo.Value);
+
         queryable = queryable.ApplyFilters(query.Filters);
         var totalCount = await queryable.CountAsync();
 
@@ -524,7 +529,7 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
         return FurnaceRegistrationPrintHelper.GenerateBatchPdf(selected, columns);
     }
 
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns)
+    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? incomingDateFrom = null, DateTime? incomingDateTo = null)
     {
         var query = new QueryParams
         {
@@ -532,7 +537,9 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
             PageSize = int.MaxValue,
             Keyword = keyword,
             SortBy = string.IsNullOrEmpty(sortBy) ? null : sortBy,
-            IsDescending = isDescending
+            IsDescending = isDescending,
+            IncomingDateFrom = incomingDateFrom,
+            IncomingDateTo = incomingDateTo
         };
         var result = await GetAllAsync(query);
         return FurnaceRegistrationPrintHelper.GenerateBatchPdf(result.Items, columns);

@@ -217,7 +217,7 @@ public class PurchaseOrderController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
 
-        var pdfBytes = await _service.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending);
+        var pdfBytes = await _service.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.DateFrom, request.DateTo);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
@@ -229,7 +229,7 @@ public class PurchaseOrderController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
 
-        var pdfBytes = await _service.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending);
+        var pdfBytes = await _service.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.DateFrom, request.DateTo);
         return File(pdfBytes, "application/pdf", $"采购单全部.pdf");
     }
 

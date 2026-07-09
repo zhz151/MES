@@ -18,13 +18,16 @@ public class OrderDemandAdjustmentService
         _http = http;
     }
 
-    public async Task<ApiResponse<PagedResult<OrderDemandAdjustmentDto>>> GetPagedAsync(QueryParams query)
+    public async Task<ApiResponse<PagedResult<OrderDemandAdjustmentDto>>> GetPagedAsync(QueryParams query, DateTime? dateFrom = null, DateTime? dateTo = null)
     {
         try
         {
             var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={Uri.EscapeDataString(query.SortBy)}&isDescending={query.IsDescending}";
             if (!string.IsNullOrEmpty(query.Keyword))
                 url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
+
+            if (dateFrom.HasValue) url += $"&signDateFrom={dateFrom.Value:yyyy-MM-dd}";
+            if (dateTo.HasValue) url += $"&signDateTo={dateTo.Value:yyyy-MM-dd}";
 
             if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
 

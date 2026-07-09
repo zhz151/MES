@@ -4,6 +4,7 @@ using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Services.Helpers;
 
 namespace MES.Services.ProductionStandard;
 
@@ -29,6 +30,8 @@ public class StandardRegisterService : IStandardRegisterService
                 (e.RefSpecification != null && e.RefSpecification.Contains(kw)) ||
                 (e.Remark != null && e.Remark.Contains(kw)));
         }
+
+        q = q.ApplyFilters(query.Filters);
 
         var sortBy = string.IsNullOrWhiteSpace(query.SortBy) ? "StandardNo" : query.SortBy;
         var sortField = sortBy.ToLower() switch

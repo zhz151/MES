@@ -87,7 +87,7 @@ public partial class RepairOrders
         new() { Key = "FaultType",      Label = "故障类型",   SortKey = "faulttype", FilterType = "string" },
         new() { Key = "Priority",       Label = "优先级",     SortKey = "priority", FilterType = "enum",
             EnumOptions = new() { new("Normal", "普通"), new("Urgent", "紧急"), new("Emergency", "特急") } },
-        new() { Key = "RepairStatus",   Label = "维修状态", FilterType = "enum",
+        new() { Key = "RepairStatus",   Label = "维修状态", SortKey = "repairstatus", FilterType = "enum",
             EnumOptions = new() { new("Pending", "待维修"), new("InProgress", "维修中"), new("Completed", "完成") } },
         new() { Key = "ReportPerson",   Label = "报修人",     SortKey = "reportperson", FilterType = "string", IsRequired = true },
         new() { Key = "ReportTime",     Label = "报修时间",   SortKey = "reporttime", FilterType = "date", IsRequired = true },
@@ -179,7 +179,10 @@ public partial class RepairOrders
                 BuildFilterContextOptions(result.Data);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选选项失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)

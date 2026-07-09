@@ -98,6 +98,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<FlatteningTest> FlatteningTests { get; set; } = null!;
     public DbSet<FlaringTest> FlaringTests { get; set; } = null!;
     public DbSet<Ncr> Ncrs { get; set; } = null!;
+    public DbSet<QualityProcessTracking> QualityProcessTrackings { get; set; } = null!;
 
     // ========== 设备上下文 ==========
 
@@ -209,6 +210,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureFlatteningTest(builder);
         ConfigureFlaringTest(builder);
         ConfigureNcr(builder);
+        ConfigureQualityProcessTracking(builder);
 
         // ========== 设备上下文 ==========
         ConfigureEquipment(builder);
@@ -2245,6 +2247,81 @@ public class AppDbContext : IdentityDbContext<AppUser>
         });
     }
 
+    private static void ConfigureQualityProcessTracking(ModelBuilder builder)
+    {
+        builder.Entity<QualityProcessTracking>(entity =>
+        {
+            entity.ToTable("QualityProcessTracking");
+            entity.HasKey(e => e.Id);
+
+            // 关联标识
+            entity.Property(e => e.MaterialReceiveCheckId).IsRequired();
+            entity.Property(e => e.ProductionBatchId).IsRequired();
+
+            // G1: 批次信息
+            entity.Property(e => e.BatchNo).HasMaxLength(50);
+            entity.Property(e => e.ManufacturingItem).HasMaxLength(50);
+            entity.Property(e => e.TagNo).HasMaxLength(100);
+            entity.Property(e => e.WorkOrderNo).HasMaxLength(50);
+            entity.Property(e => e.SalesOrderNo).HasMaxLength(50);
+            entity.Property(e => e.SourceUnit).HasMaxLength(100);
+            entity.Property(e => e.FurnaceNo).HasMaxLength(50);
+            entity.Property(e => e.PlantGrade).HasMaxLength(100);
+            entity.Property(e => e.Specification).HasMaxLength(100);
+            entity.Property(e => e.ProductionType).HasMaxLength(20);
+            entity.Property(e => e.LengthStatus).HasMaxLength(20);
+            entity.Property(e => e.ProductionWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.ReceiveDate).IsRequired().HasColumnType("date");
+            entity.Property(e => e.Shift).HasMaxLength(20);
+            entity.Property(e => e.Checker).HasMaxLength(50);
+            entity.Property(e => e.Salesman).HasMaxLength(50);
+            entity.Property(e => e.DeliveryState).HasMaxLength(50);
+            entity.Property(e => e.IsForceCompleted).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.PbBatchNo).HasMaxLength(50);
+
+            // G2: 检验日期
+            entity.Property(e => e.PmiDate).HasColumnType("date");
+            entity.Property(e => e.VisualDate).HasColumnType("date");
+            entity.Property(e => e.DimensionDate).HasColumnType("date");
+            entity.Property(e => e.EndoscopyDate).HasColumnType("date");
+            entity.Property(e => e.HydroDate).HasColumnType("date");
+            entity.Property(e => e.UnderwaterPneumaticDate).HasColumnType("date");
+            entity.Property(e => e.EddyCurrentDate).HasColumnType("date");
+            entity.Property(e => e.UltrasonicDate).HasColumnType("date");
+            entity.Property(e => e.PortColoringDate).HasColumnType("date");
+            entity.Property(e => e.InspectionCount).IsRequired().HasDefaultValue(0);
+
+            // G3: 检验汇总
+            entity.Property(e => e.ProductionCutQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.TotalQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.QualifiedQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.DefectReworkQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.DefectWarehouseQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.DefectScrapQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.MaxInspectionDate).HasColumnType("date");
+
+            // G4: 成品入库
+            entity.Property(e => e.InboundQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.InboundWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.InboundDate).HasColumnType("date");
+
+            // G5: 执行状态
+            entity.Property(e => e.QualityStatus).IsRequired().HasMaxLength(20).HasDefaultValue("待检验");
+
+            // 刷新追踪
+            entity.Property(e => e.LastRefreshTime).HasColumnType("datetime2");
+
+            // 索引
+            entity.HasIndex(e => e.MaterialReceiveCheckId).IsUnique().HasDatabaseName("UK_QPT_MaterialReceiveCheckId");
+            entity.HasIndex(e => e.ProductionBatchId).HasDatabaseName("IX_QPT_ProductionBatchId");
+            entity.HasIndex(e => e.BatchNo).HasDatabaseName("IX_QPT_BatchNo");
+            entity.HasIndex(e => e.SalesOrderNo).HasDatabaseName("IX_QPT_SalesOrderNo");
+            entity.HasIndex(e => e.WorkOrderNo).HasDatabaseName("IX_QPT_WorkOrderNo");
+            entity.HasIndex(e => e.QualityStatus).HasDatabaseName("IX_QPT_QualityStatus");
+            entity.HasIndex(e => e.ReceiveDate).HasDatabaseName("IX_QPT_ReceiveDate");
+        });
+    }
+
     // ================================================================
     //                      设备上下文配置
     // ================================================================
@@ -2288,6 +2365,17 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.UsageType)
                 .IsRequired().HasConversion<string>().HasMaxLength(20)
                 .HasDefaultValue(nameof(MES.Core.Enums.UsageType.Primary));
+
+            // 物化状态字段
+            entity.Property(e => e.RunningStatus)
+                .IsRequired().HasConversion<string>().HasMaxLength(20)
+                .HasDefaultValue(nameof(MES.Core.Enums.RunningStatus.Normal));
+            entity.Property(e => e.InspectionStatus)
+                .IsRequired().HasConversion<string>().HasMaxLength(20)
+                .HasDefaultValue(nameof(MES.Core.Enums.EquipmentTaskStatus.NotApplicable));
+            entity.Property(e => e.MaintStatus)
+                .IsRequired().HasConversion<string>().HasMaxLength(20)
+                .HasDefaultValue(nameof(MES.Core.Enums.EquipmentTaskStatus.NotApplicable));
 
             // 索引
             entity.HasIndex(e => e.EquipmentCode).IsUnique().HasDatabaseName("UK_Equipment_Code");

@@ -31,6 +31,8 @@ public class SubcontractOrderController : ControllerBase
         [FromQuery] string? sortBy = null,
         [FromQuery] bool isDescending = true,
         [FromQuery] string? status = null,
+        [FromQuery] DateTime? dateFrom = null,
+        [FromQuery] DateTime? dateTo = null,
         [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
@@ -41,7 +43,9 @@ public class SubcontractOrderController : ControllerBase
             Keyword = keyword,
             SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy,
             IsDescending = isDescending,
-            Status = status
+            Status = status,
+            DateFrom = dateFrom,
+            DateTo = dateTo
         };
         if (!string.IsNullOrEmpty(filters))
         {
@@ -195,7 +199,7 @@ public class SubcontractOrderController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
 
-        var pdfBytes = await _service.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending);
+        var pdfBytes = await _service.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.DateFrom, request.DateTo);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
@@ -207,7 +211,7 @@ public class SubcontractOrderController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
 
-        var pdfBytes = await _service.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending);
+        var pdfBytes = await _service.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.DateFrom, request.DateTo);
         return File(pdfBytes, "application/pdf", $"委外单全部.pdf");
     }
 

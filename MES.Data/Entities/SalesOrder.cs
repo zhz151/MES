@@ -38,6 +38,21 @@ public class SalesOrder : BaseEntity
     public DateTimeOffset? LastItemChangeTime { get; set; }
 
     /// <summary>
+    /// 客户名称（订单签约时的快照，从 CustomerProfile 复制）
+    /// </summary>
+    public string CustomerName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 业务员（订单签约时的快照，从 CustomerProfile 复制）
+    /// </summary>
+    public string Salesman { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 最终用户（订单签约时的快照，从 CustomerProfile 复制）
+    /// </summary>
+    public string? EndCustomer { get; set; }
+
+    /// <summary>
     /// 客户信息
     /// </summary>
     public CustomerProfile Customer { get; set; } = null!;

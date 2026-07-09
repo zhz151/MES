@@ -48,7 +48,7 @@ public class OrderService : IOrderService
 
     #region 订单管理
 
-    public async Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, string? technicalStatus = null, string? orderStatus = null)
+    public async Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, string? technicalStatus = null, string? orderStatus = null, DateTime? signDateFrom = null, DateTime? signDateTo = null)
     {
         bool? hasTechnicalRequirement = technicalStatus?.ToLower() switch
         {
@@ -77,6 +77,12 @@ public class OrderService : IOrderService
             statuses = new List<SalesOrderStatus> { SalesOrderStatus.Pending, SalesOrderStatus.Confirmed };
         }
         queryable = queryable.Where(s => statuses.Contains(s.Status));
+
+        // 签订日期范围筛选
+        if (signDateFrom.HasValue)
+            queryable = queryable.Where(s => s.SignDate >= signDateFrom.Value);
+        if (signDateTo.HasValue)
+            queryable = queryable.Where(s => s.SignDate <= signDateTo.Value);
 
         // 关键字模糊搜索（多关键词AND + 状态中文映射）
         if (!string.IsNullOrEmpty(query.Keyword))
@@ -1570,6 +1576,23 @@ public async Task DeleteAsync(int id)
     public async Task<byte[]> PrintOrderBatchAsync(int[] ids)
     {
         var orders = await GetByIdsForPrintAsync(ids);
+        return SalesOrderPrintHelper.GenerateBatchOrderPdf(orders);
+    }
+
+    public async Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom = null, DateTime? signDateTo = null)
+    {
+        var query = new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = int.MaxValue,
+            Keyword = keyword,
+            SortBy = sortBy ?? "signdate",
+            IsDescending = isDescending
+        };
+        var pagedResult = await GetPagedAsync(query, null, null, signDateFrom, signDateTo);
+        var allIds = pagedResult.Items.Select(s => s.Id).ToArray();
+        if (allIds.Length == 0) return Array.Empty<byte>();
+        var orders = await GetByIdsForPrintAsync(allIds);
         return SalesOrderPrintHelper.GenerateBatchOrderPdf(orders);
     }
 

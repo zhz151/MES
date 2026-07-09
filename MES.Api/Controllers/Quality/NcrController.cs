@@ -31,7 +31,9 @@ public class NcrController : ControllerBase
         [FromQuery] string? keyword = null,
         [FromQuery] string? sortBy = null,
         [FromQuery] bool isDescending = true,
-        [FromQuery] string? filters = null)
+        [FromQuery] string? filters = null,
+        [FromQuery] DateTime? reportDateFrom = null,
+        [FromQuery] DateTime? reportDateTo = null)
     {
         var query = new QueryParams
         {
@@ -39,7 +41,9 @@ public class NcrController : ControllerBase
             PageSize = pageSize,
             Keyword = keyword,
             SortBy = sortBy ?? "createdtime",
-            IsDescending = isDescending
+            IsDescending = isDescending,
+            ReportDateFrom = reportDateFrom,
+            ReportDateTo = reportDateTo
         };
         if (!string.IsNullOrEmpty(filters))
         {
@@ -131,5 +135,27 @@ public class NcrController : ControllerBase
     {
         var result = await _ncrService.GetFilterContextsAsync();
         return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
+
+    /// <summary>打印选中 NCR（生成 HTML）</summary>
+    [HttpPost("print-selected-file")]
+    [Authorize(Roles = Roles.Policies.QualityWrite)]
+    public async Task<ActionResult<ApiResponse<string>>> PrintSelectedFile([FromBody] NcrPrintSelectedRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+        var html = await _ncrService.PrintSelectedAsync(request.Ids, request.Columns);
+        return Ok(ApiResponse<string>.Ok(html));
+    }
+
+    /// <summary>打印全部 NCR（生成 HTML）</summary>
+    [HttpPost("print-all-file")]
+    [Authorize(Roles = Roles.Policies.QualityWrite)]
+    public async Task<ActionResult<ApiResponse<string>>> PrintAllFile([FromBody] NcrPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+        var html = await _ncrService.PrintAllAsync(request);
+        return Ok(ApiResponse<string>.Ok(html));
     }
 }

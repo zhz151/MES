@@ -120,6 +120,26 @@ public class QueryParams
     public DateTime? CompleteDateTo { get; set; }
 
     /// <summary>
+    /// 来料日期范围筛选-开始（仅炉号登记使用）
+    /// </summary>
+    public DateTime? IncomingDateFrom { get; set; }
+
+    /// <summary>
+    /// 来料日期范围筛选-结束（仅炉号登记使用）
+    /// </summary>
+    public DateTime? IncomingDateTo { get; set; }
+
+    /// <summary>
+    /// 反馈日期范围筛选-开始（仅NCR使用）
+    /// </summary>
+    public DateTime? ReportDateFrom { get; set; }
+
+    /// <summary>
+    /// 反馈日期范围筛选-结束（仅NCR使用）
+    /// </summary>
+    public DateTime? ReportDateTo { get; set; }
+
+    /// <summary>
     /// 计算跳过的记录数
     /// </summary>
     public int Skip => (PageIndex - 1) * PageSize;

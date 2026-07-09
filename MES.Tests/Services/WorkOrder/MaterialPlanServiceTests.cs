@@ -99,7 +99,7 @@ public class MaterialPlanServiceTests : TestBase
 
         var woLoggerMock = new Mock<ILogger<WorkOrderService>>();
         var configMock = new Mock<IConfigParameterService>();
-        var woSvc = new WorkOrderService(ctx, woLoggerMock.Object, configMock.Object);
+        var woSvc = new WorkOrderService(ctx, woLoggerMock.Object, configMock.Object, Mock.Of<IMemoryCache>());
         var result = await woSvc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
         {
             SalesOrderNo = order.OrderNumber,

@@ -47,6 +47,12 @@
                 <MudItem xs="12" md="6">
                     <MudTextField T="string" Label="模糊搜索 - 单号/物料分类/钢种/规格/供应商/工单号" Value="_searchKeyword" ValueChanged="@OnSearchChanged" Immediate="true" DebounceInterval="500" Clearable="true" ClearButton="true" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string" Label="下单日期从" Value="@_dateFrom" ValueChanged="@OnDateFromChanged" Placeholder="yyyy-MM-dd" Clearable="true" ClearButton="true" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string" Label="下单日期至" Value="@_dateTo" ValueChanged="@OnDateToChanged" Placeholder="yyyy-MM-dd" Clearable="true" ClearButton="true" />
+                </MudItem>
             </MudGrid>
 
             @* 工单采购计划执行状态 *@

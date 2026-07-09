@@ -29,6 +29,29 @@ public partial class ChemicalAnalyses
     private string sortColumn = "analysisdate";
     private bool sortDescending = true;
 
+    // ========== 打印选中 ==========
+    private HashSet<int> selectedIds = new();
+    private bool _allSelected;
+    private bool allSelected
+    {
+        get => _allSelected;
+        set
+        {
+            if (_allSelected == value) return;
+            _allSelected = value;
+            if (value)
+            {
+                foreach (var item in _pageItems)
+                    selectedIds.Add(item.Id);
+            }
+            else
+            {
+                selectedIds.Clear();
+            }
+            StateHasChanged();
+        }
+    }
+
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -150,7 +173,10 @@ public partial class ChemicalAnalyses
                 BuildFilterContextOptions(result.Data);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
@@ -673,5 +699,39 @@ public partial class ChemicalAnalyses
                 Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
             }
         }
+    }
+
+    // ========== 打印 ==========
+
+    private List<PrintColumnDef> GetPrintColumnDefs() =>
+        _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+
+    private async Task PrintSelected()
+    {
+        if (!selectedIds.Any()) return;
+        var apiUrl = $"{Http.BaseAddress}api/chemical-analysis/print-batch-file";
+        var request = new ChemicalAnalysisPrintBatchRequest
+        {
+            Ids = selectedIds.ToArray(),
+            Columns = GetPrintColumnDefs()
+        };
+        var json = JsonSerializer.Serialize(request);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+    }
+
+    private async Task PrintAll()
+    {
+        var apiUrl = $"{Http.BaseAddress}api/chemical-analysis/print-all-file";
+        var request = new ChemicalAnalysisPrintAllRequest
+        {
+            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+            SortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "analysisdate",
+            IsDescending = sortDescending,
+            InspectionDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
+            InspectionDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
+            Columns = GetPrintColumnDefs()
+        };
+        var json = JsonSerializer.Serialize(request);
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 }

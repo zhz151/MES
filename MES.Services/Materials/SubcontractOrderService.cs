@@ -86,6 +86,18 @@ public class SubcontractOrderService : ISubcontractOrderService
             queryable = queryable.Where(s => s.Status == parsedStatus);
         }
 
+        // 下单日期筛选
+        if (query.DateFrom.HasValue)
+        {
+            var from = query.DateFrom.Value.Date;
+            queryable = queryable.Where(s => s.OrderDate >= from);
+        }
+        if (query.DateTo.HasValue)
+        {
+            var to = query.DateTo.Value.Date.AddDays(1);
+            queryable = queryable.Where(s => s.OrderDate < to);
+        }
+
         queryable = queryable.ApplyFilters(query.Filters);
 
         // 排序
@@ -770,7 +782,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         }).ToList();
     }
 
-    public async Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false)
+    public async Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, DateTime? dateFrom = null, DateTime? dateTo = null)
     {
         var query = new SubcontractQueryParams
         {
@@ -778,7 +790,9 @@ public class SubcontractOrderService : ISubcontractOrderService
             PageSize = 10000,
             Keyword = keyword,
             SortBy = sortBy ?? "CreatedTime",
-            IsDescending = isDescending
+            IsDescending = isDescending,
+            DateFrom = dateFrom,
+            DateTo = dateTo
         };
         var result = await GetPagedAsync(query);
         return SubcontractOrderPrintHelper.GenerateBatchPdf(result.Items);

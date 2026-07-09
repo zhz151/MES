@@ -81,6 +81,11 @@ public class NcrService : INcrService
                 (r.ActionResult != null && r.ActionResult.Contains(kw)));
         }
 
+        if (query.ReportDateFrom.HasValue)
+            queryable = queryable.Where(r => r.ReportDate >= query.ReportDateFrom.Value);
+        if (query.ReportDateTo.HasValue)
+            queryable = queryable.Where(r => r.ReportDate <= query.ReportDateTo.Value);
+
         queryable = queryable.ApplyFilters(query.Filters);
         var totalCount = await queryable.CountAsync();
 

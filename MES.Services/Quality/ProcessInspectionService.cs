@@ -507,7 +507,7 @@ public class ProcessInspectionService : IProcessInspectionService
         return ProcessInspectionPrintHelper.GenerateBatchPdf(selected, columns);
     }
 
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns)
+    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null)
     {
         var query = new QueryParams
         {
@@ -515,7 +515,9 @@ public class ProcessInspectionService : IProcessInspectionService
             PageSize = int.MaxValue,
             Keyword = keyword,
             SortBy = string.IsNullOrEmpty(sortBy) ? null : sortBy,
-            IsDescending = isDescending
+            IsDescending = isDescending,
+            InspectionDateFrom = inspectionDateFrom,
+            InspectionDateTo = inspectionDateTo
         };
         var result = await GetAllAsync(query);
         return ProcessInspectionPrintHelper.GenerateBatchPdf(result.Items, columns);

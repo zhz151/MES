@@ -27,6 +27,8 @@ public class OrderDemandAdjustmentController : ControllerBase
         [FromQuery] string? keyword = null,
         [FromQuery] string? sortBy = null,
         [FromQuery] bool isDescending = true,
+        [FromQuery] DateTime? signDateFrom = null,
+        [FromQuery] DateTime? signDateTo = null,
         [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
@@ -34,7 +36,7 @@ public class OrderDemandAdjustmentController : ControllerBase
         if (!string.IsNullOrEmpty(filters))
             query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        var result = await _service.GetPagedAsync(query);
+        var result = await _service.GetPagedAsync(query, signDateFrom, signDateTo);
         return Ok(ApiResponse<PagedResult<Core.DTOs.OrderDemandAdjustmentDto>>.Ok(result));
     }
 
@@ -58,6 +60,13 @@ public class OrderDemandAdjustmentController : ControllerBase
     {
         var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "订单需求调整.pdf");
+    }
+
+    [HttpPost("print-all-file")]
+    public async Task<IActionResult> PrintAllFile([FromBody] DemandAdjustmentPrintAllRequest request)
+    {
+        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.SignDateFrom, request.SignDateTo, request.Columns);
+        return File(pdfBytes, "application/pdf", "订单需求调整-全部.pdf");
     }
 }
 

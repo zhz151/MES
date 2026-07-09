@@ -22,7 +22,7 @@ public class EquipmentListDto
     public int InspectionCycleDays { get; set; }
     public DateTime? LastInspectionDate { get; set; }
     public DateTime? CurrentInspectionStartDate { get; set; }
-    public string InspectionStatus { get; set; } = null!;  // 动态计算
+    public string InspectionStatus { get; set; } = null!;  // 物化存储
 
     // 保养
     public bool NeedMaintenance { get; set; }
@@ -30,7 +30,7 @@ public class EquipmentListDto
     public int MaintCycleDays { get; set; }
     public DateTime? LastMaintDate { get; set; }
     public DateTime? CurrentMaintStartDate { get; set; }
-    public string MaintStatus { get; set; } = null!;  // 动态计算
+    public string MaintStatus { get; set; } = null!;  // 物化存储
 
     // 维修
     public DateTime? LastRepairDate { get; set; }
@@ -38,7 +38,7 @@ public class EquipmentListDto
     // 状态
     public string LifecycleStatus { get; set; } = null!;
     public string UsageType { get; set; } = null!;
-    public string RunningStatus { get; set; } = null!;  // 动态计算
+    public string RunningStatus { get; set; } = null!;  // 物化存储
 
     public DateTimeOffset CreatedTime { get; set; }
     public DateTimeOffset UpdatedTime { get; set; }

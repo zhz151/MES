@@ -9,6 +9,7 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.Scheduling;
 using MES.Services.Helpers;
+using MES.Services.Printing;
 using WoEntity = MES.Data.Entities.WorkOrder;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -48,9 +49,15 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         return map.GetValueOrDefault(key, defaultValue);
     }
 
-    public async Task<PagedResult<WorkOrderExecutionSummaryDto>> GetPagedAsync(QueryParams query)
+    public async Task<PagedResult<WorkOrderExecutionSummaryDto>> GetPagedAsync(QueryParams query, DateTime? signDateFrom = null, DateTime? signDateTo = null)
     {
         var q = _context.Set<WorkOrderExecutionSummary>().AsQueryable();
+
+        // 签订日期范围筛选
+        if (signDateFrom.HasValue)
+            q = q.Where(x => x.SignDate >= signDateFrom.Value);
+        if (signDateTo.HasValue)
+            q = q.Where(x => x.SignDate < signDateTo.Value.AddDays(1));
 
         // 关键字搜索（匹配工单号/订单号/业务员/客户/规格等）
         if (!string.IsNullOrEmpty(query.Keyword))
@@ -2404,5 +2411,345 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         SectionDefs.Lubrication => pg.Lubrication,
         SectionDefs.Warehouse => pg.Warehouse,
         _ => null
+    };
+
+    // ========== 打印 ==========
+
+    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom, DateTime? signDateTo, List<PrintColumnDef> columns)
+    {
+        var q = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
+
+        // 签订日期范围筛选
+        if (signDateFrom.HasValue)
+            q = q.Where(x => x.SignDate >= signDateFrom.Value);
+        if (signDateTo.HasValue)
+            q = q.Where(x => x.SignDate < signDateTo.Value.AddDays(1));
+
+        // 关键字搜索
+        if (!string.IsNullOrEmpty(keyword))
+        {
+            var kw = keyword;
+            q = q.Where(x =>
+                x.WorkOrderNo.Contains(kw) ||
+                x.SalesOrderNo.Contains(kw) ||
+                x.Salesman.Contains(kw) ||
+                x.CustomerName.Contains(kw) ||
+                x.SettlementMethod.Contains(kw) ||
+                x.MaterialName.Contains(kw) ||
+                x.DeliveryState.Contains(kw) ||
+                x.LengthStatus.Contains(kw) ||
+                x.PlantGrade.Contains(kw) ||
+                x.Specification.Contains(kw) ||
+                x.ProductionMainNo.Contains(kw) ||
+                (x.ProductionSubNo != null && x.ProductionSubNo.Contains(kw)) ||
+                (x.UrgencyLevel != null && x.UrgencyLevel.Contains(kw)) ||
+                (x.RawMaterialLockRemark != null && x.RawMaterialLockRemark.Contains(kw)) ||
+                (x.ProductionAttentionProcess != null && x.ProductionAttentionProcess.Contains(kw)) ||
+                (x.AdjustmentRemark != null && x.AdjustmentRemark.Contains(kw)) ||
+                (x.ProductionFlowProperty != null && x.ProductionFlowProperty.Contains(kw)) ||
+                (x.MainNoAttentionProcess != null && x.MainNoAttentionProcess.Contains(kw)));
+        }
+
+        // 排序
+        q = ApplySorting(q, sortBy ?? "LastRefreshTime", isDescending);
+
+        var items = await q.Select(e => new WorkOrderExecutionSummaryDto
+        {
+            Id = e.Id,
+            WorkOrderId = e.WorkOrderId,
+            WorkOrderNo = e.WorkOrderNo,
+            LastRefreshTime = e.LastRefreshTime,
+            Salesman = e.Salesman,
+            CustomerName = e.CustomerName,
+            SignDate = e.SignDate,
+            DeliveryDate = e.DeliveryDate,
+            DelayPenalty = e.DelayPenalty,
+            SettlementMethod = e.SettlementMethod,
+            SalesOrderNo = e.SalesOrderNo,
+            ProductionMainNo = e.ProductionMainNo,
+            ProductionSubNo = e.ProductionSubNo,
+            MaterialName = e.MaterialName,
+            DeliveryState = e.DeliveryState,
+            PlantGrade = e.PlantGrade,
+            Specification = e.Specification,
+            LengthStatus = e.LengthStatus,
+            MinLength = e.MinLength,
+            MaxLength = e.MaxLength,
+            TotalItemCount = e.TotalItemCount,
+            TotalQuantity = e.TotalQuantity,
+            TotalMeters = e.TotalMeters,
+            TotalWeight = e.TotalWeight,
+            LatestPlanDate = e.LatestPlanDate,
+            MaterialPlanRate = e.MaterialPlanRate,
+            MaterialPlanStatus = e.MaterialPlanStatus,
+            MainNoMaterialPlanRate = e.MainNoMaterialPlanRate,
+            MainNoMaterialPlanStatus = e.MainNoMaterialPlanStatus,
+            ProcessCycle = e.ProcessCycle,
+            MaterialPlanCoveredCount = e.MaterialPlanCoveredCount,
+            MaterialPlanProportion = e.MaterialPlanProportion,
+            LatestRequiredDate = e.LatestRequiredDate,
+            PendingRoughTubeQty = e.PendingRoughTubeQty,
+            PendingRoughTubeWeight = e.PendingRoughTubeWeight,
+            PendingOutsourceFinishQty = e.PendingOutsourceFinishQty,
+            PendingOutsourceFinishWeight = e.PendingOutsourceFinishWeight,
+            TheoreticalFinishQty = e.TheoreticalFinishQty,
+            TheoreticalFinishWeight = e.TheoreticalFinishWeight,
+            ReworkInputEndDate = e.ReworkInputEndDate,
+            ReworkBatchCount = e.ReworkBatchCount,
+            ReworkInputQuantity = e.ReworkInputQuantity,
+            ReworkInputWeight = e.ReworkInputWeight,
+            ReworkTheoreticalOutputQty = e.ReworkTheoreticalOutputQty,
+            ReworkTheoreticalOutputWeight = e.ReworkTheoreticalOutputWeight,
+            FlowOutputRatio = e.FlowOutputRatio,
+            FlowStatus = e.FlowStatus,
+            MainNoFlowOutputRatio = e.MainNoFlowOutputRatio,
+            MainNoFlowStatus = e.MainNoFlowStatus,
+            FlowTotalBatchCount = e.FlowTotalBatchCount,
+            FlowIncompleteBatchCount = e.FlowIncompleteBatchCount,
+            FlowMaxRemainingWorkDays = e.FlowMaxRemainingWorkDays,
+            DefectiveRawQty = e.DefectiveRawQty,
+            DefectiveRawWeight = e.DefectiveRawWeight,
+            DefectiveOutputQty = e.DefectiveOutputQty,
+            DefectiveOutputWeight = e.DefectiveOutputWeight,
+            DefectiveRatio = e.DefectiveRatio,
+            InspectionStartDate = e.InspectionStartDate,
+            InspectionEndDate = e.InspectionEndDate,
+            InspectionDefectQty = e.InspectionDefectQty,
+            InspectionDefectWeight = e.InspectionDefectWeight,
+            InspectionDefectRatio = e.InspectionDefectRatio,
+            GeneralDefectWeight = e.GeneralDefectWeight,
+            GeneralDefectRatio = e.GeneralDefectRatio,
+            SeriousDefectWeight = e.SeriousDefectWeight,
+            SeriousDefectRatio = e.SeriousDefectRatio,
+            ScrapWeight = e.ScrapWeight,
+            ScrapRatio = e.ScrapRatio,
+            WarehousingStartDate = e.WarehousingStartDate,
+            WarehousingEndDate = e.WarehousingEndDate,
+            WarehousingTotalQty = e.WarehousingTotalQty,
+            WarehousingTotalWeight = e.WarehousingTotalWeight,
+            WoWarehousingStatus = e.WoWarehousingStatus,
+            MainNoWarehousingStatus = e.MainNoWarehousingStatus,
+            OrderWarehousingStatus = e.OrderWarehousingStatus,
+            ScheduleStage = e.ScheduleStage,
+            TotalRemainingWorkDays = e.TotalRemainingWorkDays,
+            CapacityWorkDays = e.CapacityWorkDays,
+            UrgencyLevel = e.UrgencyLevel,
+            EstimatedProcessCompletionDate = e.EstimatedProcessCompletionDate,
+            DaysDiffFromDelivery = e.DaysDiffFromDelivery,
+            RawMaterialLockRemark = e.RawMaterialLockRemark,
+            InputStartDate = e.InputStartDate,
+            InputEndDate = e.InputEndDate,
+            TotalBatchCount = e.TotalBatchCount,
+            InputQuantity = e.InputQuantity,
+            InputWeight = e.InputWeight,
+            TheoreticalOutputQty = e.TheoreticalOutputQty,
+            TheoreticalOutputWeight = e.TheoreticalOutputWeight,
+            InputOutputRatio = e.InputOutputRatio,
+            InputStatus = e.InputStatus,
+            MainNoInputOutputRatio = e.MainNoInputOutputRatio,
+            MainNoInputStatus = e.MainNoInputStatus,
+            ValidBatchCount = e.ValidBatchCount,
+            ValidInputQuantity = e.ValidInputQuantity,
+            ValidInputWeight = e.ValidInputWeight,
+            ValidOutputQty = e.ValidOutputQty,
+            ValidOutputWeight = e.ValidOutputWeight,
+            PendingSectionRoughTube = e.PendingSectionRoughTube,
+            PendingSectionWarehouseFix = e.PendingSectionWarehouseFix,
+            PendingSection60Roll = e.PendingSection60Roll,
+            PendingSection50Roll = e.PendingSection50Roll,
+            PendingSection30Roll = e.PendingSection30Roll,
+            PendingSection20Roll = e.PendingSection20Roll,
+            PendingSectionThreeRoll = e.PendingSectionThreeRoll,
+            PendingSectionDrawBench = e.PendingSectionDrawBench,
+            DeformedProcessCompleted = e.DeformedProcessCompleted,
+            ProductionAttentionProcess = e.ProductionAttentionProcess,
+            MaxBatchRemainingWorkDays = e.MaxBatchRemainingWorkDays,
+            MainNoAttentionProcess = e.MainNoAttentionProcess,
+            IsUrging = e.IsUrging,
+            IsBatchDelivery = e.IsBatchDelivery,
+            IsPaused = e.IsPaused,
+            AdjustmentRemark = e.AdjustmentRemark,
+            ProductionFlowProperty = e.ProductionFlowProperty,
+        }).ToListAsync();
+
+        var resolvedItems = items.Select(item =>
+        {
+            var dict = new Dictionary<string, object>();
+            foreach (var col in columns)
+            {
+                dict[col.Key] = ResolvePrintValue(item, col.Key);
+            }
+            return dict;
+        }).ToList();
+
+        return TablePrintHelper.GeneratePdf("工单执行状况", resolvedItems, columns);
+    }
+
+    private static object ResolvePrintValue(WorkOrderExecutionSummaryDto item, string key) => key switch
+    {
+        // 枚举→中文
+        "SettlementMethod" => GetSettlementMethodText(item.SettlementMethod),
+        "MaterialName" => GetMaterialNameText(item.MaterialName),
+        "DeliveryState" => GetDeliveryStateText(item.DeliveryState),
+        "LengthStatus" => GetLengthStatusText(item.LengthStatus),
+        // Bool→中文
+        "DelayPenalty" => item.DelayPenaltyText,
+        "IsUrging" => item.IsUrging ? "是" : "否",
+        "IsBatchDelivery" => item.IsBatchDelivery ? "是" : "否",
+        "IsPaused" => item.IsPaused ? "是" : "否",
+        "DeformedProcessCompleted" => item.DeformedProcessCompleted ? "是" : "否",
+        // 状态 int→中文
+        "MaterialPlanStatus" => item.MaterialPlanStatusText,
+        "MainNoMaterialPlanStatus" => item.MainNoMaterialPlanStatusText,
+        "InputStatus" => item.InputStatusText,
+        "MainNoInputStatus" => item.MainNoInputStatusText,
+        "FlowStatus" => item.FlowStatusText,
+        "MainNoFlowStatus" => item.MainNoFlowStatusText,
+        "WoWarehousingStatus" => item.WoWarehousingStatusText,
+        "MainNoWarehousingStatus" => item.MainNoWarehousingStatusText,
+        "OrderWarehousingStatus" => item.OrderWarehousingStatusText,
+        "ScheduleStage" => item.ScheduleStageText,
+        // 日期格式
+        "SignDate" => item.SignDate.ToString("yyyy-MM-dd"),
+        "DeliveryDate" => item.DeliveryDate.ToString("yyyy-MM-dd"),
+        "LatestPlanDate" => item.LatestPlanDate?.ToString("yyyy-MM-dd") ?? "",
+        "LatestRequiredDate" => item.LatestRequiredDate?.ToString("yyyy-MM-dd") ?? "",
+        "InputStartDate" => item.InputStartDate?.ToString("yyyy-MM-dd") ?? "",
+        "InputEndDate" => item.InputEndDate?.ToString("yyyy-MM-dd") ?? "",
+        "ReworkInputEndDate" => item.ReworkInputEndDate?.ToString("yyyy-MM-dd") ?? "",
+        "InspectionStartDate" => item.InspectionStartDate?.ToString("yyyy-MM-dd") ?? "",
+        "InspectionEndDate" => item.InspectionEndDate?.ToString("yyyy-MM-dd") ?? "",
+        "WarehousingStartDate" => item.WarehousingStartDate?.ToString("yyyy-MM-dd") ?? "",
+        "WarehousingEndDate" => item.WarehousingEndDate?.ToString("yyyy-MM-dd") ?? "",
+        "EstimatedProcessCompletionDate" => item.EstimatedProcessCompletionDate?.ToString("yyyy-MM-dd") ?? "",
+        // 比率→百分比格式
+        "MaterialPlanRate" => item.MaterialPlanRate.ToString("F1") + "%",
+        "MainNoMaterialPlanRate" => item.MainNoMaterialPlanRate.ToString("F1") + "%",
+        "FlowOutputRatio" => item.FlowOutputRatio.ToString("F1") + "%",
+        "MainNoFlowOutputRatio" => item.MainNoFlowOutputRatio.ToString("F1") + "%",
+        "InputOutputRatio" => item.InputOutputRatio.ToString("F1") + "%",
+        "MainNoInputRatio" => item.MainNoInputOutputRatio.ToString("F1") + "%",
+        "DefectiveRatio" => item.DefectiveRatio.ToString("F1") + "%",
+        "InspectionDefectRatio" => item.InspectionDefectRatio.ToString("F1") + "%",
+        "GeneralDefectRatio" => item.GeneralDefectRatio.ToString("F1") + "%",
+        "SeriousDefectRatio" => item.SeriousDefectRatio.ToString("F1") + "%",
+        "ScrapRatio" => item.ScrapRatio.ToString("F1") + "%",
+        // 通用字符串/数值
+        _ => GetRawPrintValue(item, key)
+    };
+
+    private static object GetRawPrintValue(WorkOrderExecutionSummaryDto item, string key) => (key switch
+    {
+        "WorkOrderNo" => item.WorkOrderNo ?? "",
+        "Salesman" => item.Salesman ?? "",
+        "CustomerName" => item.CustomerName ?? "",
+        "SalesOrderNo" => item.SalesOrderNo ?? "",
+        "ProductionMainNo" => item.ProductionMainNo ?? "",
+        "ProductionSubNo" => item.ProductionSubNo ?? "",
+        "PlantGrade" => item.PlantGrade ?? "",
+        "Specification" => item.Specification ?? "",
+        "MinLength" => item.MinLength,
+        "MaxLength" => item.MaxLength,
+        "TotalItemCount" => item.TotalItemCount,
+        "TotalQuantity" => item.TotalQuantity,
+        "TotalMeters" => item.TotalMeters,
+        "TotalWeight" => item.TotalWeight,
+        "ProcessCycle" => item.ProcessCycle,
+        "MaterialPlanCoveredCount" => item.MaterialPlanCoveredCount,
+        "MaterialPlanProportion" => item.MaterialPlanProportion ?? "",
+        "PendingRoughTubeQty" => item.PendingRoughTubeQty,
+        "PendingRoughTubeWeight" => item.PendingRoughTubeWeight,
+        "PendingOutsourceFinishQty" => item.PendingOutsourceFinishQty,
+        "PendingOutsourceFinishWeight" => item.PendingOutsourceFinishWeight,
+        "TheoreticalFinishQty" => item.TheoreticalFinishQty,
+        "TheoreticalFinishWeight" => item.TheoreticalFinishWeight,
+        "ReworkBatchCount" => item.ReworkBatchCount,
+        "ReworkInputQuantity" => item.ReworkInputQuantity,
+        "ReworkInputWeight" => item.ReworkInputWeight,
+        "ReworkTheoreticalOutputQty" => item.ReworkTheoreticalOutputQty,
+        "ReworkTheoreticalOutputWeight" => item.ReworkTheoreticalOutputWeight,
+        "TotalBatchCount" => item.TotalBatchCount,
+        "InputQuantity" => item.InputQuantity,
+        "InputWeight" => item.InputWeight,
+        "TheoreticalOutputQty" => item.TheoreticalOutputQty,
+        "TheoreticalOutputWeight" => item.TheoreticalOutputWeight,
+        "ValidBatchCount" => item.ValidBatchCount,
+        "ValidInputQuantity" => item.ValidInputQuantity,
+        "ValidInputWeight" => item.ValidInputWeight,
+        "ValidOutputQty" => item.ValidOutputQty,
+        "ValidOutputWeight" => item.ValidOutputWeight,
+        "FlowTotalBatchCount" => item.FlowTotalBatchCount,
+        "FlowIncompleteBatchCount" => item.FlowIncompleteBatchCount,
+        "FlowMaxRemainingWorkDays" => item.FlowMaxRemainingWorkDays,
+        "DefectiveRawQty" => item.DefectiveRawQty,
+        "DefectiveRawWeight" => item.DefectiveRawWeight,
+        "DefectiveOutputQty" => item.DefectiveOutputQty,
+        "DefectiveOutputWeight" => item.DefectiveOutputWeight,
+        "InspectionDefectQty" => item.InspectionDefectQty,
+        "InspectionDefectWeight" => item.InspectionDefectWeight,
+        "GeneralDefectWeight" => item.GeneralDefectWeight,
+        "SeriousDefectWeight" => item.SeriousDefectWeight,
+        "ScrapWeight" => item.ScrapWeight,
+        "WarehousingTotalQty" => item.WarehousingTotalQty,
+        "WarehousingTotalWeight" => item.WarehousingTotalWeight,
+        "TotalRemainingWorkDays" => item.TotalRemainingWorkDays,
+        "CapacityWorkDays" => item.CapacityWorkDays,
+        "UrgencyLevel" => item.UrgencyLevel ?? "",
+        "DaysDiffFromDelivery" => item.DaysDiffFromDelivery,
+        "RawMaterialLockRemark" => item.RawMaterialLockRemark ?? "",
+        "AdjustmentRemark" => item.AdjustmentRemark ?? "",
+        "PendingSectionRoughTube" => item.PendingSectionRoughTube,
+        "PendingSectionWarehouseFix" => item.PendingSectionWarehouseFix,
+        "PendingSection60Roll" => item.PendingSection60Roll,
+        "PendingSection50Roll" => item.PendingSection50Roll,
+        "PendingSection30Roll" => item.PendingSection30Roll,
+        "PendingSection20Roll" => item.PendingSection20Roll,
+        "PendingSectionThreeRoll" => item.PendingSectionThreeRoll,
+        "PendingSectionDrawBench" => item.PendingSectionDrawBench,
+        "ProductionAttentionProcess" => item.ProductionAttentionProcess ?? "",
+        "ProductionFlowProperty" => item.ProductionFlowProperty ?? "",
+        "MaxBatchRemainingWorkDays" => item.MaxBatchRemainingWorkDays,
+        "MainNoAttentionProcess" => item.MainNoAttentionProcess ?? "",
+        // 主号流转比（ColumnDef Key 与 DTO 属性名不一致：Key=MainNoFlowRatio, DTO=MainNoFlowOutputRatio）
+        "MainNoFlowRatio" => item.MainNoFlowOutputRatio,
+        _ => ""
+    })!;
+
+    private static string GetMaterialNameText(string? materialName) => materialName switch
+    {
+        "SeamlessPipe" => "无缝管",
+        "WeldedPipe" => "焊管",
+        _ => materialName ?? ""
+    };
+
+    private static string GetDeliveryStateText(string? deliveryState) => deliveryState switch
+    {
+        "SolutionAnnealedAndPickled" => "固溶酸洗",
+        "SolutionAnnealedAndPickledUTube" => "固溶酸洗-U型管",
+        "SolutionAnnealedAndPickledExternalPolished" => "固溶酸洗-外抛光",
+        "SolutionAnnealedAndPickledInternalPolished" => "固溶酸洗-内抛光",
+        "SolutionAnnealedAndPickledBothPolished" => "固溶酸洗-内外抛光",
+        "SolutionAnnealedAndPickledCoiled" => "固溶酸洗-盘管",
+        "Bright" => "光亮",
+        "BrightUTube" => "光亮-U型管",
+        "BrightCoiled" => "光亮-盘管",
+        "Hard" => "硬态",
+        _ => deliveryState ?? ""
+    };
+
+    private static string GetSettlementMethodText(string? method) => method switch
+    {
+        "Theoretical" => "理算",
+        "Weighing" => "过磅",
+        "WeighingNegative" => "过磅-负",
+        _ => method ?? ""
+    };
+
+    private static string GetLengthStatusText(string? lengthStatus) => lengthStatus switch
+    {
+        "Fixed" => "定尺",
+        "Range" => "范围尺",
+        "NonFixed" => "非定尺",
+        _ => lengthStatus ?? ""
     };
 }

@@ -56,6 +56,12 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             );
         }
 
+        // 到料日期范围筛选
+        if (query.ReceiveDateFrom.HasValue)
+            q = q.Where(x => x.ReceiveDate >= query.ReceiveDateFrom.Value);
+        if (query.ReceiveDateTo.HasValue)
+            q = q.Where(x => x.ReceiveDate <= query.ReceiveDateTo.Value);
+
         // 列筛选（DB 级）
         q = q.ApplyFilters(query.Filters);
 
@@ -426,7 +432,7 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
         return QualityProcessTrackingPrintHelper.GenerateBatchPdf(selected, columns);
     }
 
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns)
+    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? receiveDateFrom = null, DateTime? receiveDateTo = null)
     {
         var query = new QueryParams
         {
@@ -434,7 +440,9 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             PageSize = int.MaxValue,
             Keyword = keyword,
             SortBy = string.IsNullOrEmpty(sortBy) ? "Receivedate" : sortBy,
-            IsDescending = isDescending
+            IsDescending = isDescending,
+            ReceiveDateFrom = receiveDateFrom,
+            ReceiveDateTo = receiveDateTo
         };
         var result = await GetPagedAsync(query);
         return QualityProcessTrackingPrintHelper.GenerateBatchPdf(result.Items, columns);

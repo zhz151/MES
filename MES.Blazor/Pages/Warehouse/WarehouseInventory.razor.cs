@@ -42,6 +42,10 @@ public partial class WarehouseInventory
     // 关键字搜索
     private string _searchKeyword = string.Empty;
 
+    // 日期搜索
+    private string _dateFrom = string.Empty;
+    private string _dateTo = string.Empty;
+
     // 排序状态
     private string sortColumn = "InboundDate";
     private bool sortDescending = true;
@@ -349,7 +353,9 @@ public partial class WarehouseInventory
                 IsDescending = sortDescending,
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 WarehouseId = warehouseId,
-                OnlyWithStock = true
+                OnlyWithStock = true,
+                InboundDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
+                InboundDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
             };
 
             var result = await InventoryService.GetPagedAsync(query, filtersJson);
@@ -431,7 +437,10 @@ public partial class WarehouseInventory
                 BuildFilterContextOptions(result.Data);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
@@ -536,6 +545,22 @@ public partial class WarehouseInventory
         if (table != null) await table.ReloadServerData();
     }
 
+    // ========== 日期搜索 ==========
+
+    private async Task OnDateFromChanged(string value)
+    {
+        _dateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateToChanged(string value)
+    {
+        _dateTo = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
     // ========== 列管理 ==========
 
     private async Task OnColumnToggle(ColumnDef col)
@@ -592,6 +617,10 @@ public partial class WarehouseInventory
                 sortDescending = savedState.IsDescending;
                 _searchKeyword = savedState.Keyword ?? string.Empty;
                 _restoredPageIndex = savedState.PageIndex;
+                if (savedState.Extras?.ContainsKey("dateFrom") == true)
+                    _dateFrom = savedState.Extras["dateFrom"] ?? string.Empty;
+                if (savedState.Extras?.ContainsKey("dateTo") == true)
+                    _dateTo = savedState.Extras["dateTo"] ?? string.Empty;
                 if (savedState.Extras?.ContainsKey("columnFilters") == true)
                 {
                     try
@@ -785,6 +814,8 @@ public partial class WarehouseInventory
                 IsDescending = sortDescending,
                 WarehouseId = warehouseId,
                 OnlyWithStock = true,
+                InboundDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
+                InboundDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
                 Columns = columns
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
@@ -845,6 +876,8 @@ public partial class WarehouseInventory
     private async Task SavePageStateAsync()
     {
         var extras = new Dictionary<string, string>();
+        if (!string.IsNullOrEmpty(_dateFrom)) extras["dateFrom"] = _dateFrom;
+        if (!string.IsNullOrEmpty(_dateTo)) extras["dateTo"] = _dateTo;
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
         var state = new PageState

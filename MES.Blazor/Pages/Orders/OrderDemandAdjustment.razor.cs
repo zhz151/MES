@@ -36,6 +36,8 @@ public partial class OrderDemandAdjustment
     };
 
     private string _searchKeyword = string.Empty;
+    private string _dateFrom = string.Empty;
+    private string _dateTo = string.Empty;
 
     // 排序状态
     private string sortColumn = "ScheduleStage";
@@ -170,7 +172,10 @@ public partial class OrderDemandAdjustment
                 query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filtersJson);
             }
 
-            var result = await DemandAdjustmentService.GetPagedAsync(query);
+            var result = await DemandAdjustmentService.GetPagedAsync(
+                query,
+                dateFrom: DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null,
+                dateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null);
 
             if (result.Success && result.Data != null)
             {
@@ -230,7 +235,10 @@ public partial class OrderDemandAdjustment
                 BuildFilterContextOptions(result.Data);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
@@ -333,6 +341,20 @@ public partial class OrderDemandAdjustment
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateFromChanged(string value)
+    {
+        _dateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateToChanged(string value)
+    {
+        _dateTo = value ?? string.Empty;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -500,6 +522,8 @@ public partial class OrderDemandAdjustment
             sortColumn = savedState.SortBy ?? "ScheduleStage";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
+            _dateFrom = savedState.Extras?.ContainsKey("dateFrom") == true ? savedState.Extras["dateFrom"] ?? string.Empty : string.Empty;
+            _dateTo = savedState.Extras?.ContainsKey("dateTo") == true ? savedState.Extras["dateTo"] ?? string.Empty : string.Empty;
             _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
 
             // 恢复列显隐
@@ -748,7 +772,37 @@ public partial class OrderDemandAdjustment
         _ => Color.Default
     };
 
-    // ========== 打印选中 ==========
+    // ========== 打印 ==========
+
+    private async Task PrintAll()
+    {
+        try
+        {
+            var printColumns = _visibleColumns
+                .Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label })
+                .ToList();
+
+            var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "ScheduleStage";
+            var request = new
+            {
+                keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                sortBy,
+                isDescending = sortDescending,
+                signDateFrom = DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom.ToString("yyyy-MM-dd") : null,
+                signDateTo = DateTime.TryParse(_dateTo, out var dTo) ? dTo.ToString("yyyy-MM-dd") : null,
+                columns = printColumns
+            };
+
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}api/order-demand-adjustment/print-all-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
 
     private async Task PrintSelected()
     {
@@ -846,6 +900,8 @@ public partial class OrderDemandAdjustment
     private async Task SavePageStateAsync()
     {
         var extras = new Dictionary<string, string>();
+        if (!string.IsNullOrWhiteSpace(_dateFrom)) extras["dateFrom"] = _dateFrom;
+        if (!string.IsNullOrWhiteSpace(_dateTo)) extras["dateTo"] = _dateTo;
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
 

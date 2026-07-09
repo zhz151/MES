@@ -33,6 +33,8 @@ public class OrderController : ControllerBase
         [FromQuery] bool isDescending = true,
         [FromQuery] string? technicalStatus = null,
         [FromQuery] string? orderStatus = null,
+        [FromQuery] DateTime? signDateFrom = null,
+        [FromQuery] DateTime? signDateTo = null,
         [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
@@ -42,7 +44,7 @@ public class OrderController : ControllerBase
             try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
             catch { }
         }
-        var result = await _orderService.GetPagedAsync(query, technicalStatus, orderStatus);
+        var result = await _orderService.GetPagedAsync(query, technicalStatus, orderStatus, signDateFrom, signDateTo);
         return Ok(ApiResponse<PagedResult<SalesOrderListDto>>.Ok(result, "查询成功"));
     }
 
@@ -164,6 +166,14 @@ public class OrderController : ControllerBase
         var pdfBytes = await _orderService.PrintOrderAsync(id);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    [HttpPost("print-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<IActionResult> PrintAllFile([FromBody] OrderPrintAllRequest request)
+    {
+        var pdfBytes = await _orderService.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.DateFrom, request.DateTo);
+        return File(pdfBytes, "application/pdf", "订单列表.pdf");
     }
 
     [HttpPost("print-batch")]

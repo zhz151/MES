@@ -76,7 +76,7 @@
             <MudGrid>
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
-                                  Label="模糊搜索"
+                                  Label="模糊搜索 - 批次号/工单号/销售单号/挂牌号/规格"
                                   Value="_searchKeyword"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
@@ -85,6 +85,28 @@
                                   ClearButton="true"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string"
+                                  Value="_dateFrom"
+                                  ValueChanged="OnDateFromChanged"
+                                  Placeholder="yyyy-MM-dd"
+                                  Label="登记日期从"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string"
+                                  Value="_dateTo"
+                                  ValueChanged="OnDateToChanged"
+                                  Placeholder="yyyy-MM-dd"
+                                  Label="登记日期至"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true" />
                 </MudItem>
             </MudGrid>
 

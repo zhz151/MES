@@ -45,6 +45,8 @@ public partial class FinalInspections
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
+    private string _dateFrom = string.Empty;
+    private string _dateTo = string.Empty;
 
     private string sortColumn = "inspectiondate";
     private bool sortDescending = true;
@@ -59,6 +61,9 @@ public partial class FinalInspections
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    private int _totalTableWidth =>
+        _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40 + 90;
+
     // B33: 分页汇总
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
@@ -70,7 +75,33 @@ public partial class FinalInspections
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
+        // G1: 生产批次
+        new() { Key = "BatchNo",                Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120",
+            GroupKey = 1, GroupName = "G1 生产批次" },
+        new() { Key = "MaterialName",           Label = "物料名称",   SortKey = "materialname", FilterType = "string", Width = "120",
+            GroupKey = 1, GroupName = "G1 生产批次" },
+        new() { Key = "TagNo",                  Label = "挂牌号",     SortKey = "tagno", FilterType = "string", Width = "120",
+            GroupKey = 1, GroupName = "G1 生产批次" },
+        new() { Key = "WorkOrderNo",            Label = "工单号",     SortKey = "workorderno", FilterType = "string", Width = "120",
+            GroupKey = 1, GroupName = "G1 生产批次" },
+        new() { Key = "SalesOrderNo",           Label = "订单号",     SortKey = "salesorderno", FilterType = "string", Width = "120",
+            GroupKey = 1, GroupName = "G1 生产批次" },
+        new() { Key = "SourceUnit",             Label = "来料单位",   SortKey = "sourceunit", FilterType = "string", Width = "120",
+            GroupKey = 1, GroupName = "G1 生产批次" },
+        new() { Key = "FurnaceNo",              Label = "炉号",       SortKey = "furnaceno", FilterType = "string", Width = "120",
+            GroupKey = 1, GroupName = "G1 生产批次" },
+        new() { Key = "PlantGrade",             Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string", Width = "120",
+            GroupKey = 1, GroupName = "G1 生产批次" },
+        new() { Key = "Specification",          Label = "规格",       SortKey = "specification", FilterType = "string", Width = "120",
+            GroupKey = 1, GroupName = "G1 生产批次" },
+        new() { Key = "FixedLength",            Label = "定尺长度",   SortKey = "fixedlength", FilterType = "string", Width = "120",
+            GroupKey = 1, GroupName = "G1 生产批次" },
+        new() { Key = "ProductionType",         Label = "生产类型",   SortKey = "productiontype", FilterType = "string", Width = "120",
+            GroupKey = 1, GroupName = "G1 生产批次" },
+
+        // G2: 检验执行
         new() { Key = "InspectionItem",        Label = "检验项目",   SortKey = "inspectionitem", FilterType = "enum", Width = "120",
+               GroupKey = 2, GroupName = "G2 检验执行",
                EnumOptions = new List<EnumOption>
                {
                    new("PMIInspection", "PMI检验"),
@@ -83,40 +114,59 @@ public partial class FinalInspections
                    new("Ultrasonic", "超声波"),
                    new("PortColoring", "端口着色"),
                } },
-        new() { Key = "InspectionDate",        Label = "检验日期",   SortKey = "inspectiondate", FilterType = "date", Width = "120" },
-        new() { Key = "BatchNo",                Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120" },
-        new() { Key = "MaterialName",           Label = "物料名称",   SortKey = "materialname", FilterType = "string", Width = "120" },
-        new() { Key = "TagNo",                  Label = "挂牌号",     SortKey = "tagno", FilterType = "string", Width = "120" },
-        new() { Key = "WorkOrderNo",            Label = "工单号",     SortKey = "workorderno", FilterType = "string", Width = "120" },
-        new() { Key = "SalesOrderNo",           Label = "订单号",     SortKey = "salesorderno", FilterType = "string", Width = "120" },
-        new() { Key = "SourceUnit",             Label = "来料单位",   SortKey = "sourceunit", FilterType = "string", Width = "120" },
-        new() { Key = "FurnaceNo",              Label = "炉号",       SortKey = "furnaceno", FilterType = "string", Width = "120" },
-        new() { Key = "PlantGrade",             Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string", Width = "120" },
-        new() { Key = "Specification",          Label = "规格",       SortKey = "specification", FilterType = "string", Width = "120" },
-        new() { Key = "FixedLength",            Label = "定尺长度",   SortKey = "fixedlength", FilterType = "string", Width = "120" },
-        new() { Key = "ProductionType",         Label = "生产类型",   SortKey = "productiontype", FilterType = "string", Width = "120" },
-        new() { Key = "EquipmentName",          Label = "设备名称",   SortKey = "equipmentname", FilterType = "string", Width = "120" },
-        new() { Key = "Shift",                  Label = "班次",       SortKey = "shift", FilterType = "string", Width = "120" },
-        new() { Key = "Operator",               Label = "操作员",     SortKey = "operator", FilterType = "string", Width = "120" },
-        new() { Key = "Quantity",               Label = "检验支数",   SortKey = "quantity", Width = "80" },
-        new() { Key = "Weight",                 Label = "检验重量",   SortKey = "weight", Width = "80" },
-        new() { Key = "QualifiedQuantity",      Label = "合格支数",     SortKey = "qualifiedquantity", Width = "80" },
-        new() { Key = "QualifiedWeight",        Label = "合格重量",     SortKey = "qualifiedweight", Width = "80" },
-        new() { Key = "QualifiedConcessionQuantity", Label = "让步放行支", SortKey = "qualifiedconcessionquantity", Width = "80" },
-        new() { Key = "ConcessionRemark",       Label = "让步说明",     SortKey = "concessionremark", FilterType = "string", Width = "120" },
-        new() { Key = "DefectReworkQuantity",   Label = "次品返整支",   SortKey = "defectreworkquantity", Width = "80" },
-        new() { Key = "DefectWarehouseQuantity",Label = "次品入库支",   SortKey = "defectwarehousequantity", Width = "80" },
-        new() { Key = "DefectScrapQuantity",    Label = "次品报废支",   SortKey = "defectscrapquantity", Width = "80" },
-        new() { Key = "DefectDescription",      Label = "次品情况描述", SortKey = "defectdescription", FilterType = "string", Width = "120" },
-        new() { Key = "OuterDiameterRange",     Label = "外径范围",   SortKey = "outerdiameterrange", FilterType = "string", Width = "120" },
-        new() { Key = "WallThicknessRange",     Label = "壁厚范围",   SortKey = "wallthicknessrange", FilterType = "string", Width = "120" },
-        new() { Key = "LengthAllowanceRange",   Label = "长度余量范围", SortKey = "lengthallowancerange", FilterType = "string", Width = "120" },
-        new() { Key = "Pressure",               Label = "压力Mpa",    SortKey = "pressure", Width = "80" },
-        new() { Key = "HoldTime",               Label = "保压时间s",  SortKey = "holdtime", Width = "80" },
-        new() { Key = "Remark",                 Label = "检验备注",   SortKey = "remark", FilterType = "string", Width = "120" },
+        new() { Key = "InspectionDate",        Label = "检验日期",   SortKey = "inspectiondate", FilterType = "date", Width = "120",
+            GroupKey = 2, GroupName = "G2 检验执行" },
+        new() { Key = "EquipmentName",          Label = "设备名称",   SortKey = "equipmentname", FilterType = "string", Width = "120",
+            GroupKey = 2, GroupName = "G2 检验执行" },
+        new() { Key = "Shift",                  Label = "班次",       SortKey = "shift", FilterType = "string", Width = "120",
+            GroupKey = 2, GroupName = "G2 检验执行" },
+        new() { Key = "Operator",               Label = "操作员",     SortKey = "operator", FilterType = "string", Width = "120",
+            GroupKey = 2, GroupName = "G2 检验执行" },
+
+        // G3: 检验结果
+        new() { Key = "Quantity",               Label = "检验支数",   SortKey = "quantity", Width = "80",
+            GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "Weight",                 Label = "检验重量",   SortKey = "weight", Width = "80",
+            GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "QualifiedQuantity",      Label = "合格支数",     SortKey = "qualifiedquantity", Width = "80",
+            GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "QualifiedWeight",        Label = "合格重量",     SortKey = "qualifiedweight", Width = "80",
+            GroupKey = 3, GroupName = "G3 检验结果" },
+
+        // G4: 不合格处理
+        new() { Key = "QualifiedConcessionQuantity", Label = "让步放行支", SortKey = "qualifiedconcessionquantity", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格处理" },
+        new() { Key = "ConcessionRemark",       Label = "让步说明",     SortKey = "concessionremark", FilterType = "string", Width = "120",
+            GroupKey = 4, GroupName = "G4 不合格处理" },
+        new() { Key = "DefectReworkQuantity",   Label = "次品返整支",   SortKey = "defectreworkquantity", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格处理" },
+        new() { Key = "DefectWarehouseQuantity",Label = "次品入库支",   SortKey = "defectwarehousequantity", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格处理" },
+        new() { Key = "DefectScrapQuantity",    Label = "次品报废支",   SortKey = "defectscrapquantity", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格处理" },
+        new() { Key = "DefectDescription",      Label = "次品情况描述", SortKey = "defectdescription", FilterType = "string", Width = "120",
+            GroupKey = 4, GroupName = "G4 不合格处理" },
+
+        // G5: 尺寸与压力
+        new() { Key = "OuterDiameterRange",     Label = "外径范围",   SortKey = "outerdiameterrange", FilterType = "string", Width = "120",
+            GroupKey = 5, GroupName = "G5 尺寸与压力" },
+        new() { Key = "WallThicknessRange",     Label = "壁厚范围",   SortKey = "wallthicknessrange", FilterType = "string", Width = "120",
+            GroupKey = 5, GroupName = "G5 尺寸与压力" },
+        new() { Key = "LengthAllowanceRange",   Label = "长度余量范围", SortKey = "lengthallowancerange", FilterType = "string", Width = "120",
+            GroupKey = 5, GroupName = "G5 尺寸与压力" },
+        new() { Key = "Pressure",               Label = "压力Mpa",    SortKey = "pressure", Width = "80",
+            GroupKey = 5, GroupName = "G5 尺寸与压力" },
+        new() { Key = "HoldTime",               Label = "保压时间s",  SortKey = "holdtime", Width = "80",
+            GroupKey = 5, GroupName = "G5 尺寸与压力" },
+
+        // G6: 辅助信息
+        new() { Key = "Remark",                 Label = "检验备注",   SortKey = "remark", FilterType = "string", Width = "120",
+            GroupKey = 6, GroupName = "G6 辅助信息" },
         new() { Key = "DataSource",             Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Width = "80",
+            GroupKey = 6, GroupName = "G6 辅助信息",
             EnumOptions = new() { new("SCAN", "扫码"), new("MANUAL", "手动") } },
-        new() { Key = "UpdatedTime",            Label = "更新日期",   SortKey = "updatedtime", Width = "120" },
+        new() { Key = "UpdatedTime",            Label = "更新日期",   SortKey = "updatedtime", Width = "120",
+            GroupKey = 6, GroupName = "G6 辅助信息" },
     };
 
     // ========== 服务端数据加载 ==========
@@ -136,12 +186,19 @@ public partial class FinalInspections
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "inspectiondate";
             var filtersJson = SerializeFilters();
 
+            DateTime? dateFrom = null;
+            DateTime? dateTo = null;
+            if (DateTime.TryParse(_dateFrom, out var df)) dateFrom = df;
+            if (DateTime.TryParse(_dateTo, out var dt)) dateTo = dt;
+
             var result = await FinalInspectionService.GetAllAsync(
                 pageIndex: state.Page + 1,
                 pageSize: state.PageSize,
                 keyword: string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 sortBy: sortBy,
                 isDescending: sortDescending,
+                inspectionDateFrom: dateFrom,
+                inspectionDateTo: dateTo,
                 filters: filtersJson);
 
             if (result.Success && result.Data != null)
@@ -202,7 +259,10 @@ public partial class FinalInspections
                 BuildFilterContextOptions(result.Data);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
@@ -289,6 +349,20 @@ public partial class FinalInspections
         if (table != null) await table.ReloadServerData();
     }
 
+    private async Task OnDateFromChanged(string value)
+    {
+        _dateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateToChanged(string value)
+    {
+        _dateTo = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
     // ========== 列选择操作 ==========
 
     private async Task OnColumnToggle(ColumnDef col)
@@ -354,6 +428,10 @@ public partial class FinalInspections
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
             _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
+            if (savedState.Extras?.ContainsKey("dateFrom") == true)
+                _dateFrom = savedState.Extras["dateFrom"];
+            if (savedState.Extras?.ContainsKey("dateTo") == true)
+                _dateTo = savedState.Extras["dateTo"];
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try
@@ -377,6 +455,12 @@ public partial class FinalInspections
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#final-inspection-list-table");
+        }
+        catch { }
+
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
@@ -617,6 +701,104 @@ public partial class FinalInspections
         return _pageSums.GetValueOrDefault(col.Key, "");
     }
 
+    // ========== 分组标题栏 ==========
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+        // 选择列起始占位符（必须最前，对应 JS 遍历的第一个 <th> checkbox，gk=0）
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0, GroupName = "", TotalWidth = 40, ColumnCount = 0, CssClass = ""
+        });
+        int? lastKey = null;
+        int totalWidth = 0;
+        var groupKey = 0;
+        var groupName = "";
+        var count = 0;
+
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo
+                {
+                    GroupKey = groupKey,
+                    GroupName = groupName,
+                    TotalWidth = totalWidth,
+                    ColumnCount = count,
+                    CssClass = GetHeaderGroupCss(groupKey, true)
+                });
+                totalWidth = 0;
+                count = 0;
+            }
+            groupKey = gk;
+            groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++;
+            lastKey = gk;
+        }
+        if (count > 0)
+        {
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        }
+        // 操作列尾随占位符（必须最后，对应 JS 遍历的最后一个 <th> 操作列，gk=0）
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0, GroupName = "", TotalWidth = 90, ColumnCount = 0, CssClass = ""
+        });
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1",
+            2 => "col-g2",
+            3 => "col-g3",
+            4 => "col-g4",
+            5 => "col-g5",
+            6 => "col-g6",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1-cell",
+            2 => "col-g2-cell",
+            3 => "col-g3-cell",
+            4 => "col-g4-cell",
+            5 => "col-g5-cell",
+            6 => "col-g6-cell",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; set; }
+        public string GroupName { get; set; } = "";
+        public int TotalWidth { get; set; }
+        public int ColumnCount { get; set; }
+        public string CssClass { get; set; } = "";
+    }
+
     // ========== 持久化 ==========
 
     private async Task SavePageStateAsync()
@@ -624,6 +806,10 @@ public partial class FinalInspections
         var extras = new Dictionary<string, string>();
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
+        if (!string.IsNullOrEmpty(_dateFrom))
+            extras["dateFrom"] = _dateFrom;
+        if (!string.IsNullOrEmpty(_dateTo))
+            extras["dateTo"] = _dateTo;
         var state = new PageState
         {
             SortBy = sortColumn,
@@ -694,6 +880,8 @@ public partial class FinalInspections
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
             SortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "inspectiondate",
             IsDescending = sortDescending,
+            InspectionDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
+            InspectionDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
             Columns = GetPrintColumnDefs()
         };
         var json = JsonSerializer.Serialize(request);

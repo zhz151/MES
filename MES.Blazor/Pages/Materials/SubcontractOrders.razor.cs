@@ -52,6 +52,10 @@ public partial class SubcontractOrders : IAsyncDisposable
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
 
+    // 日期范围搜索
+    private string _dateFrom = string.Empty;
+    private string _dateTo = string.Empty;
+
     // B33: 分页汇总
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
@@ -216,7 +220,10 @@ public partial class SubcontractOrders : IAsyncDisposable
                 query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filtersJson);
             }
 
-            var result = await SubcontractService.GetPagedAsync(query);
+            DateTime? dateFrom = DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null;
+            DateTime? dateTo = DateTime.TryParse(_dateTo, out var dTo) ? dTo : null;
+
+            var result = await SubcontractService.GetPagedAsync(query, status: null, dateFrom: dateFrom, dateTo: dateTo);
 
             if (result.Success && result.Data != null)
             {
@@ -274,7 +281,10 @@ public partial class SubcontractOrders : IAsyncDisposable
                 BuildFilterContextOptions(result.Data);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
@@ -356,6 +366,20 @@ public partial class SubcontractOrders : IAsyncDisposable
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateFromChanged(string value)
+    {
+        _dateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateToChanged(string value)
+    {
+        _dateTo = value ?? string.Empty;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -466,6 +490,10 @@ public partial class SubcontractOrders : IAsyncDisposable
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
             _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
+            if (savedState.Extras?.ContainsKey("dateFrom") == true)
+                _dateFrom = savedState.Extras["dateFrom"];
+            if (savedState.Extras?.ContainsKey("dateTo") == true)
+                _dateTo = savedState.Extras["dateTo"];
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try
@@ -564,11 +592,15 @@ public partial class SubcontractOrders : IAsyncDisposable
         try
         {
             Snackbar.Add("正在生成PDF...", Severity.Info);
+            DateTime? dateFrom = DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null;
+            DateTime? dateTo = DateTime.TryParse(_dateTo, out var dTo) ? dTo : null;
             var request = new OrderPrintAllRequest
             {
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 SortBy = sortColumn,
-                IsDescending = sortDescending
+                IsDescending = sortDescending,
+                DateFrom = dateFrom,
+                DateTo = dateTo
             };
             var apiUrl = $"{Navigation.BaseUri}api/subcontract/print-all-file";
             var json = JsonSerializer.Serialize(request);
@@ -611,6 +643,8 @@ public partial class SubcontractOrders : IAsyncDisposable
         var extras = new Dictionary<string, string>();
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
+        if (!string.IsNullOrEmpty(_dateFrom)) extras["dateFrom"] = _dateFrom;
+        if (!string.IsNullOrEmpty(_dateTo)) extras["dateTo"] = _dateTo;
         var state = new PageState
         {
             SortBy = sortColumn,

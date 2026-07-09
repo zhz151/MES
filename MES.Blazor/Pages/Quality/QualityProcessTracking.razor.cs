@@ -23,6 +23,8 @@ public partial class QualityProcessTracking
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
+    private string _dateFrom = string.Empty;
+    private string _dateTo = string.Empty;
 
     private string sortColumn = "receivedate";
     private bool sortDescending = true;
@@ -201,7 +203,9 @@ public partial class QualityProcessTracking
                 PageSize = state.PageSize,
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 SortBy = sortBy,
-                IsDescending = sortDescending
+                IsDescending = sortDescending,
+                ReceiveDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
+                ReceiveDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null
             };
             if (filtersJson != null)
                 query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filtersJson);
@@ -263,23 +267,37 @@ public partial class QualityProcessTracking
             if (result.Success && result.Data != null)
                 BuildFilterContextOptions(result.Data);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
     {
         _filterContextOptions.Clear();
+
+        // 构建列名 → ColumnDef 快速查找
+        var colMap = _allColumns.ToDictionary(c => c.Key, c => c);
+
         foreach (var kvp in filterContexts)
         {
-            _filterContextOptions[kvp.Key] = kvp.Value.Select(v => new ExcelFilterOption
+            colMap.TryGetValue(kvp.Key, out var col);
+            _filterContextOptions[kvp.Key] = kvp.Value.Select(v =>
             {
-                Value = v,
-                Display = v,
-                Count = 0
+                var display = v;
+                // 对含 EnumOptions 的列，将英文 Value 映射为中文 Display
+                if (col?.EnumOptions != null)
+                {
+                    var match = col.EnumOptions.FirstOrDefault(e => e.Value == v);
+                    if (match != null)
+                        display = match.Display;
+                }
+                return new ExcelFilterOption { Value = v, Display = display, Count = 0 };
             }).ToList();
         }
 
-        // 补充枚举/布尔列
+        // 补充枚举/布尔列（API 无数据时用硬编码选项兜底）
         foreach (var col in _allColumns)
         {
             if (col.FilterType == "enum" && col.EnumOptions != null && !_filterContextOptions.ContainsKey(col.Key))
@@ -322,6 +340,20 @@ public partial class QualityProcessTracking
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateFromChanged(string value)
+    {
+        _dateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDateToChanged(string value)
+    {
+        _dateTo = value ?? string.Empty;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -409,6 +441,31 @@ public partial class QualityProcessTracking
     {
         _allColumns = GetAllColumnDefs();
 
+        // 恢复列显隐/顺序
+        var savedPrefs = await ColumnPrefs.LoadAsync("quality-process-tracking", null);
+        if (savedPrefs.Count > 0)
+        {
+            foreach (var s in savedPrefs)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
+            }
+            var reordered = new List<ColumnDef>();
+            foreach (var s in savedPrefs)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
+        }
+
         var savedState = await PageState.LoadAsync("qualityprocesstracking");
         if (savedState != null)
         {
@@ -417,6 +474,10 @@ public partial class QualityProcessTracking
             _searchKeyword = savedState.Keyword ?? string.Empty;
             _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
 
+            if (savedState.Extras?.ContainsKey("dateFrom") == true)
+                _dateFrom = savedState.Extras["dateFrom"];
+            if (savedState.Extras?.ContainsKey("dateTo") == true)
+                _dateTo = savedState.Extras["dateTo"];
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try
@@ -657,7 +718,9 @@ public partial class QualityProcessTracking
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
             SortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "receivedate",
             IsDescending = sortDescending,
-            Columns = GetPrintColumnDefs()
+            Columns = GetPrintColumnDefs(),
+            ReceiveDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
+            ReceiveDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null
         };
         var json = JsonSerializer.Serialize(request);
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
@@ -670,6 +733,10 @@ public partial class QualityProcessTracking
         var extras = new Dictionary<string, string>();
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
+        if (!string.IsNullOrEmpty(_dateFrom))
+            extras["dateFrom"] = _dateFrom;
+        if (!string.IsNullOrEmpty(_dateTo))
+            extras["dateTo"] = _dateTo;
         var state = new PageState
         {
             SortBy = sortColumn,

@@ -30,6 +30,8 @@ public partial class InboundHistory
     private List<InventoryBatchDto> _pageItems = new();
     private int _totalCount;
     private string _searchKeyword = string.Empty;
+    private string _dateFrom = string.Empty;
+    private string _dateTo = string.Empty;
     private int _currentPage = 1;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
@@ -271,6 +273,8 @@ public partial class InboundHistory
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 WarehouseId = _warehouseId,
                 OnlyWithStock = false,
+                InboundDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
+                InboundDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
             };
 
             var result = await InventoryService.GetPagedAsync(query, filtersJson);
@@ -336,7 +340,10 @@ public partial class InboundHistory
                 BuildFilterContextOptions(result.Data);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
     }
 
     private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
@@ -442,6 +449,22 @@ public partial class InboundHistory
         _searchKeyword = value ?? string.Empty;
         ClearEditState();
         _selectedItems.Clear();
+        await SavePageStateAsync();
+        if (_table != null) await _table.ReloadServerData();
+    }
+
+    // ========== 日期搜索 ==========
+
+    private async Task OnDateFromChanged(string value)
+    {
+        _dateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (_table != null) await _table.ReloadServerData();
+    }
+
+    private async Task OnDateToChanged(string value)
+    {
+        _dateTo = value ?? string.Empty;
         await SavePageStateAsync();
         if (_table != null) await _table.ReloadServerData();
     }
@@ -776,6 +799,10 @@ public partial class InboundHistory
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
             _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
+            if (savedState.Extras?.ContainsKey("dateFrom") == true)
+                _dateFrom = savedState.Extras["dateFrom"] ?? string.Empty;
+            if (savedState.Extras?.ContainsKey("dateTo") == true)
+                _dateTo = savedState.Extras["dateTo"] ?? string.Empty;
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try
@@ -1050,6 +1077,8 @@ public partial class InboundHistory
                 IsDescending = sortDescending,
                 WarehouseId = _warehouseId ?? 0,
                 OnlyWithStock = false,
+                InboundDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
+                InboundDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
                 Columns = columns
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
@@ -1087,6 +1116,8 @@ public partial class InboundHistory
     private async Task SavePageStateAsync()
     {
         var extras = new Dictionary<string, string>();
+        if (!string.IsNullOrEmpty(_dateFrom)) extras["dateFrom"] = _dateFrom;
+        if (!string.IsNullOrEmpty(_dateTo)) extras["dateTo"] = _dateTo;
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
         var state = new PageState

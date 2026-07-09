@@ -202,6 +202,8 @@ public class InspectionRecordService : IInspectionRecordService
         }
 
         await _context.SaveChangesAsync();
+        // 同步更新设备点检状况
+        await EquipmentStatusCalculator.RecalculateInspectionStatusAsync(_context, entity.EquipmentId);
         return await ToDtoAsync(entity);
     }
 
@@ -247,6 +249,8 @@ public class InspectionRecordService : IInspectionRecordService
         }
 
         await _context.SaveChangesAsync();
+        // 同步更新设备点检状况
+        await EquipmentStatusCalculator.RecalculateInspectionStatusAsync(_context, entity.EquipmentId);
         return await ToDtoAsync(entity);
     }
 
@@ -258,6 +262,8 @@ public class InspectionRecordService : IInspectionRecordService
 
         _context.InspectionRecords.Remove(entity);
         await _context.SaveChangesAsync();
+        // 同步更新设备点检状况
+        await EquipmentStatusCalculator.RecalculateInspectionStatusAsync(_context, entity.EquipmentId);
     }
 
     public async Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)

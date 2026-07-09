@@ -13,6 +13,8 @@ public class BatchPrintAllRequest
     public string? SalesOrderNo { get; set; }
     public string? ProductionMainNo { get; set; }
     public string? ProductionSubNo { get; set; }
+    public DateTime? StartDateFrom { get; set; }
+    public DateTime? StartDateTo { get; set; }
     public List<PrintColumnDef> Columns { get; set; } = new();
 }
 

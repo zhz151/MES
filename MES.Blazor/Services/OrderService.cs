@@ -17,9 +17,11 @@ public class OrderService
     }
 
     public async Task<ApiResponse<PagedResult<SalesOrderListDto>>> GetPagedAsync(
-        QueryParams query, 
-        bool? hasTechnicalRequirement = null, 
-        List<SalesOrderStatus>? statuses = null)
+        QueryParams query,
+        bool? hasTechnicalRequirement = null,
+        List<SalesOrderStatus>? statuses = null,
+        DateTime? dateFrom = null,
+        DateTime? dateTo = null)
     {
         try
         {
@@ -36,6 +38,9 @@ public class OrderService
                 var statusParam = string.Join(",", statuses.Select(s => s.ToString()));
                 url += $"&orderStatus={Uri.EscapeDataString(statusParam)}";
             }
+
+            if (dateFrom.HasValue) url += $"&signDateFrom={dateFrom.Value:yyyy-MM-dd}";
+            if (dateTo.HasValue) url += $"&signDateTo={dateTo.Value:yyyy-MM-dd}";
 
             if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
 

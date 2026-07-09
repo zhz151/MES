@@ -22,13 +22,15 @@ public class SubcontractOrderService
         catch (Exception ex) { return ApiResponse<List<SubcontractOrderDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<PagedResult<SubcontractOrderDto>>> GetPagedAsync(QueryParams query, string? status = null)
+    public async Task<ApiResponse<PagedResult<SubcontractOrderDto>>> GetPagedAsync(QueryParams query, string? status = null, DateTime? dateFrom = null, DateTime? dateTo = null)
     {
         try
         {
             var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={Uri.EscapeDataString(query.SortBy)}&isDescending={query.IsDescending}";
             if (!string.IsNullOrEmpty(query.Keyword)) url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
             if (!string.IsNullOrEmpty(status)) url += $"&status={Uri.EscapeDataString(status)}";
+            if (dateFrom.HasValue) url += $"&dateFrom={dateFrom.Value:yyyy-MM-dd}";
+            if (dateTo.HasValue) url += $"&dateTo={dateTo.Value:yyyy-MM-dd}";
             if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<SubcontractOrderDto>>>(url)
                    ?? ApiResponse<PagedResult<SubcontractOrderDto>>.Fail("获取数据失败");
