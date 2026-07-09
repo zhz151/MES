@@ -7,6 +7,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Helpers;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Quality;
 
@@ -14,11 +15,13 @@ public class FlaringTestService : IFlaringTestService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<FlaringTestService> _logger;
+    private readonly IMemoryCache _cache;
 
-    public FlaringTestService(AppDbContext context, ILogger<FlaringTestService> logger)
+    public FlaringTestService(AppDbContext context, ILogger<FlaringTestService> logger, IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
+        _cache = cache;
     }
 
     public async Task<FlaringTestDto?> GetByIdAsync(int id)
@@ -120,22 +123,27 @@ public class FlaringTestService : IFlaringTestService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        var all = await _context.FlaringTests
-            .AsNoTracking()
-            .Select(r => new { r.Inspector, r.FurnaceNo, r.Grade, r.Specification, r.InspectionStandard, r.MandrelTaper, r.Judgment, r.InspectionDate })
-            .ToListAsync();
-
-        return new Dictionary<string, List<string>>
+        return await _cache.GetOrCreateAsync("FlaringTestService:FilterContexts", async entry =>
         {
-            ["Inspector"] = all.Select(x => x.Inspector ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["FurnaceNo"] = all.Select(x => x.FurnaceNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["Grade"] = all.Select(x => x.Grade ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["Specification"] = all.Select(x => x.Specification ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["InspectionStandard"] = all.Select(x => x.InspectionStandard ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["MandrelTaper"] = all.Select(x => x.MandrelTaper ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["Judgment"] = all.Select(x => x.Judgment ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["InspectionDate"] = all.Select(x => x.InspectionDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList()
-        };
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
+            var all = await _context.FlaringTests
+                .AsNoTracking()
+                .Select(r => new { r.Inspector, r.FurnaceNo, r.Grade, r.Specification, r.InspectionStandard, r.MandrelTaper, r.Judgment, r.InspectionDate })
+                .ToListAsync();
+
+            return new Dictionary<string, List<string>>
+            {
+                ["Inspector"] = all.Select(x => x.Inspector ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["FurnaceNo"] = all.Select(x => x.FurnaceNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["Grade"] = all.Select(x => x.Grade ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["Specification"] = all.Select(x => x.Specification ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["InspectionStandard"] = all.Select(x => x.InspectionStandard ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["MandrelTaper"] = all.Select(x => x.MandrelTaper ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["Judgment"] = all.Select(x => x.Judgment ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["InspectionDate"] = all.Select(x => x.InspectionDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList()
+            };
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     private static IQueryable<FlaringTest> ApplySorting(IQueryable<FlaringTest> queryable, string sortBy, bool isDescending)

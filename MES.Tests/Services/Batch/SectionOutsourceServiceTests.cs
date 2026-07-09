@@ -27,7 +27,7 @@ public class SectionOutsourceServiceTests : TestBase
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        return new SectionOutsourceService(ctx, loggerMock.Object, prodRecSvcMock.Object, configMock.Object);
+        return new SectionOutsourceService(ctx, loggerMock.Object, prodRecSvcMock.Object, configMock.Object, Mock.Of<Microsoft.Extensions.Caching.Memory.IMemoryCache>());
     }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")

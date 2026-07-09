@@ -11,6 +11,7 @@ using MES.Core.Enums;
 using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Services.Printing;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Quality;
 
@@ -22,16 +23,34 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
     private readonly AppDbContext _context;
     private readonly ILogger<MaterialReceiveCheckService> _logger;
     private readonly IConfigParameterService _configService;
+    private readonly IQualityProcessTrackingService _qualityProcessTracking;
+    private readonly IMemoryCache _cache;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
     public MaterialReceiveCheckService(
         AppDbContext context,
         IConfigParameterService configService,
-        ILogger<MaterialReceiveCheckService> logger)
+        IQualityProcessTrackingService qualityProcessTracking,
+        ILogger<MaterialReceiveCheckService> logger,
+        IMemoryCache cache)
     {
         _context = context;
         _configService = configService;
+        _qualityProcessTracking = qualityProcessTracking;
         _logger = logger;
+        _cache = cache;
+    }
+
+    private void TryRefreshQualityProcessTrackingAsync(int mrCheckId)
+    {
+        try
+        {
+            _ = _qualityProcessTracking.RefreshByMrCheckIdAsync(mrCheckId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "质量过程跟踪刷新失败（不影响主流程）: MrCheckId={MrCheckId}", mrCheckId);
+        }
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -178,6 +197,8 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         _context.ProductionBatches.Update(batch);
 
         await _context.SaveChangesAsync();
+
+        TryRefreshQualityProcessTrackingAsync(entity.Id);
 
         return new MaterialReceiveCheckDto
         {
@@ -341,6 +362,8 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         _context.MaterialReceiveChecks.Update(entity);
         await _context.SaveChangesAsync();
 
+        TryRefreshQualityProcessTrackingAsync(entity.Id);
+
         return new MaterialReceiveCheckDto
         {
             Id = entity.Id,
@@ -383,6 +406,15 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         }
 
         await _context.SaveChangesAsync();
+
+        // 删除物化行
+        var existingQpt = await _context.QualityProcessTrackings
+            .FirstOrDefaultAsync(q => q.MaterialReceiveCheckId == id);
+        if (existingQpt != null)
+        {
+            _context.QualityProcessTrackings.Remove(existingQpt);
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task<PagedResult<MaterialReceiveCheckDto>> GetAllMaterialReceiveChecksAsync(QueryParams query)
@@ -633,13 +665,6 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         return pending;
     }
 
-    // ========== 筛选上下文缓存 ==========
-    // 枚举/布尔列由前端 EnumOptions 后备处理，无需查询数据库
-    // 仅缓存字符串列的 DISTINCT 值，5 分钟过期
-    private static Dictionary<string, List<string>>? _filterContextCache;
-    private static DateTime _filterContextCacheExpiry = DateTime.MinValue;
-    private static readonly object _filterContextLock = new();
-    private static readonly TimeSpan _filterContextCacheDuration = TimeSpan.FromMinutes(5);
 
     // 需要从数据库 DISTINCT 查询的列（枚举/布尔由前端 EnumOptions 处理）
     private static readonly string[] _stringFilterColumns = new[]
@@ -651,35 +676,28 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
 
     public async Task<Dictionary<string, List<string>>> GetMaterialCheckFilterContextsAsync()
     {
-        // 缓存命中
-        var now = DateTime.UtcNow;
-        if (_filterContextCache != null && now < _filterContextCacheExpiry)
-            return _filterContextCache;
-
-        var dict = new Dictionary<string, List<string>>();
-
-        // 逐个列 SELECT DISTINCT（各列简单查询，SQL Server 可为每列优化访问路径）
-        foreach (var col in _stringFilterColumns)
+        return await _cache.GetOrCreateAsync("MaterialReceiveCheckService:FilterContexts", async entry =>
         {
-            var query = ApplyFilterColumnDistinct(col);
-            if (query != null)
-                dict[col] = await query.ToListAsync();
-        }
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
 
-        // ReceiveDate 格式化为字符串
-        var dates = await _context.MaterialReceiveChecks
-            .Select(m => m.ReceiveDate).Distinct().ToListAsync();
-        dict["ReceiveDate"] = dates.Select(d => d.ToString("yyyy-MM-dd"))
-            .OrderBy(x => x).ToList();
+            var dict = new Dictionary<string, List<string>>();
 
-        // 写入缓存
-        lock (_filterContextLock)
-        {
-            _filterContextCache = dict;
-            _filterContextCacheExpiry = now + _filterContextCacheDuration;
-        }
+            // 逐个列 SELECT DISTINCT（各列简单查询，SQL Server 可为每列优化访问路径）
+            foreach (var col in _stringFilterColumns)
+            {
+                var query = ApplyFilterColumnDistinct(col);
+                if (query != null)
+                    dict[col] = await query.ToListAsync();
+            }
 
-        return dict;
+            // ReceiveDate 格式化为字符串
+            var dates = await _context.MaterialReceiveChecks
+                .Select(m => m.ReceiveDate).Distinct().ToListAsync();
+            dict["ReceiveDate"] = dates.Select(d => d.ToString("yyyy-MM-dd"))
+                .OrderBy(x => x).ToList();
+
+            return dict;
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     private IQueryable<string>? ApplyFilterColumnDistinct(string column)

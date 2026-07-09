@@ -36,7 +36,7 @@ public class BatchServiceTests : TestBase
             .ReturnsAsync(new Dictionary<string, decimal>());
         var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
         var materialPlanMock = new Mock<IMaterialPlanService>();
-        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, configMock.Object, workOrderExecMock.Object, materialPlanMock.Object);
+        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, configMock.Object, workOrderExecMock.Object, materialPlanMock.Object, Mock.Of<IMemoryCache>());
     }
 
     // ========== 种子数据辅助方法 ==========
@@ -98,7 +98,7 @@ public class BatchServiceTests : TestBase
         var itemIds = items.Select(i => i.Sequence).ToList();
 
         var configMock = new Mock<IConfigParameterService>();
-        var woSvc = new WorkOrderService(ctx, new Mock<ILogger<WorkOrderService>>().Object, configMock.Object);
+        var woSvc = new WorkOrderService(ctx, new Mock<ILogger<WorkOrderService>>().Object, configMock.Object, Mock.Of<IMemoryCache>());
         var generated = await woSvc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
         {
             SalesOrderNo = order.OrderNumber,
@@ -1381,41 +1381,33 @@ public class BatchServiceTests : TestBase
     }
 
     [Fact]
-    public async Task GetFilterContextsAsync_Salesman从CustomerProfile覆盖()
+    public async Task GetFilterContextsAsync_Salesman从BatchSnapshot读取()
     {
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        // 1. 种子 CustomerProfile 自定义业务员
-        var customer = new CustomerProfile
-        {
-            CustomerCode = "CUST001",
-            CustomerUnit = "测试客户",
-            Salesman = "客服业务员",
-            Status = CustomerStatus.Active
-        };
-        ctx.CustomerProfiles.Add(customer);
-        await ctx.SaveChangesAsync();
-
-        // 2. 种子 SalesOrder 关联该客户
+        // 1. 种子 SalesOrder 含业务员快照字段
         var salesOrder = new SalesOrder
         {
             OrderNumber = "SO-CUSTOM",
             SignDate = new DateTime(2025, 1, 1),
-            CustomerId = customer.Id,
-            Status = SalesOrderStatus.Confirmed
+            CustomerId = 1,
+            Status = SalesOrderStatus.Confirmed,
+            CustomerName = "测试客户",
+            Salesman = "订单业务员",
+            EndCustomer = null
         };
         ctx.SalesOrders.Add(salesOrder);
         await ctx.SaveChangesAsync();
 
-        // 3. 种子 ProductionBatch 使用该 SalesOrderNo，Salesman 设不同值以验证覆盖
-        await SeedBatchViaDirectAsync(ctx, batchNo: "B001", salesOrderNo: "SO-CUSTOM", salesman: "旧业务员");
+        // 2. 种子 ProductionBatch 使用该 SalesOrderNo，Salesman 设不同值（快照）
+        await SeedBatchViaDirectAsync(ctx, batchNo: "B001", salesOrderNo: "SO-CUSTOM", salesman: "批次快照业务员");
 
         var contexts = await svc.GetFilterContextsAsync();
 
-        // 应返回 CustomerProfile 中的"客服业务员"，而非 ProductionBatch 快照的"旧业务员"
-        contexts["Salesman"].Should().Contain("客服业务员");
-        contexts["Salesman"].Should().NotContain("旧业务员");
+        // 不再从 CustomerProfile 覆盖，返回 ProductionBatch 自身的快照值
+        contexts["Salesman"].Should().Contain("批次快照业务员");
+        contexts["Salesman"].Should().NotContain("订单业务员");
     }
 
     // ========== 辅助方法：直接种子（避开 CreateAsync 的复杂校验） ==========

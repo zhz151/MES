@@ -15,7 +15,7 @@ namespace MES.Tests.Services;
 /// </summary>
 public class MaterialServiceTests : TestBase
 {
-    private MaterialService CreateService(AppDbContext ctx) => new(ctx);
+    private MaterialService CreateService(AppDbContext ctx) => new(ctx, Mock.Of<IMemoryCache>());
 
     private async Task SeedMaterialAsync(AppDbContext ctx, string category = "钢管", string grade = "20#", string spec = "219*8", bool isActive = true)
     {

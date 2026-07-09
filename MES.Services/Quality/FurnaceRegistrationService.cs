@@ -8,6 +8,7 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Helpers;
 using MES.Services.Printing;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Quality;
 
@@ -19,15 +20,18 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
     private readonly AppDbContext _context;
     private readonly ILogger<FurnaceRegistrationService> _logger;
     private readonly IChemicalValidationRuleService _chemicalValidationRuleService;
+    private readonly IMemoryCache _cache;
 
     public FurnaceRegistrationService(
         AppDbContext context,
         ILogger<FurnaceRegistrationService> logger,
-        IChemicalValidationRuleService chemicalValidationRuleService)
+        IChemicalValidationRuleService chemicalValidationRuleService,
+        IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
         _chemicalValidationRuleService = chemicalValidationRuleService;
+        _cache = cache;
     }
 
     public async Task<FurnaceRegistrationDto?> GetByIdAsync(int id)
@@ -364,6 +368,10 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
+        return await _cache.GetOrCreateAsync("FurnaceRegistrationService:FilterContexts", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
         var all = await _context.FurnaceRegistrations
             .AsNoTracking()
             .Select(r => new
@@ -390,6 +398,8 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
             ["IncomingDate"] = all.Select(x => x.IncomingDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList(),
             ["Remark"] = all.Select(x => x.Remark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList()
         };
+
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     public async Task<string?> LookupPlantGradeAsync(string registeredGrade)

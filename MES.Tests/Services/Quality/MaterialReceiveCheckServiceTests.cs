@@ -21,8 +21,9 @@ public class MaterialReceiveCheckServiceTests : TestBase
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        return new(ctx, configMock.Object,
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<MaterialReceiveCheckService>.Instance);
+        var qptMock = new Mock<IQualityProcessTrackingService>();
+        return new(ctx, configMock.Object, qptMock.Object,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<MaterialReceiveCheckService>.Instance, Mock.Of<IMemoryCache>());
     }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")

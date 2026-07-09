@@ -64,6 +64,9 @@ builder.Services.AddHangfireServer(options =>
 // 注册 Hangfire 定时任务服务
 builder.Services.AddScoped<HangfireJobService>();
 
+// 内存缓存（用于 GetFilterContexts 等高频查询）
+builder.Services.AddMemoryCache();
+
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
 
@@ -286,6 +289,12 @@ recurringJobManager.AddOrUpdate<HangfireJobService>(
     "cleanup-old-notifications",
     service => service.CleanupOldNotificationsJob(),
     "0 2 * * *");  // 每天凌晨2点执行
+
+// 质量过程跟踪物化表增量刷新：每小时执行一次（避开整点减少并发峰值）
+recurringJobManager.AddOrUpdate<HangfireJobService>(
+    "refresh-quality-process-tracking",
+    service => service.RefreshQualityProcessTrackingJob(),
+    "7 * * * *");
 
 app.UseHttpsRedirection();
 app.UseCors("AllowBlazor");

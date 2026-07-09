@@ -11,6 +11,7 @@ using MES.Data.Entities;
 using MES.Services.Mapping;
 using MES.Services.Helpers;
 using MES.Services.Printing;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.WorkOrder;
 
@@ -23,14 +24,16 @@ public class WorkOrderService : IWorkOrderService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<WorkOrderService> _logger;
-private readonly IConfigParameterService _configService;
+    private readonly IConfigParameterService _configService;
     private readonly IWorkOrderListSummaryRefreshService? _listSummaryService;
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
+    private readonly IMemoryCache _cache;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
     private static readonly SemaphoreSlim _workOrderNoSemaphore = new SemaphoreSlim(1, 1);
 
     public WorkOrderService(AppDbContext context, ILogger<WorkOrderService> logger,
         IConfigParameterService configService,
+        IMemoryCache cache,
         IWorkOrderListSummaryRefreshService? listSummaryService = null,
         IWorkOrderExecutionService? workOrderExecutionService = null)
     {
@@ -39,6 +42,7 @@ private readonly IConfigParameterService _configService;
         _configService = configService;
         _listSummaryService = listSummaryService;
         _workOrderExecutionService = workOrderExecutionService!;
+        _cache = cache;
     }
 
     private async Task TryRefreshExecutionSummaryAsync(string? workOrderNo)
@@ -91,16 +95,15 @@ private readonly IConfigParameterService _configService;
     /// </summary>
     public async Task<List<OrderWorkOrderStatusDto>> GetAllOrderStatusListAsync()
     {
-        // ===== 1. 基础查询：已确认订单 + 客户 =====
+        // ===== 1. 基础查询：已确认订单 =====
         var orders = await _context.SalesOrders
             .Where(so => so.Status == SalesOrderStatus.Confirmed)
-            .Join(_context.CustomerProfiles, so => so.CustomerId, c => c.Id, (so, c) => new { SalesOrder = so, Customer = c })
             .ToListAsync();
 
         if (!orders.Any()) return new List<OrderWorkOrderStatusDto>();
 
-        var orderIds = orders.Select(x => x.SalesOrder.Id).ToList();
-        var orderNumbers = orders.Select(x => x.SalesOrder.OrderNumber).ToList();
+        var orderIds = orders.Select(x => x.Id).ToList();
+        var orderNumbers = orders.Select(x => x.OrderNumber).ToList();
 
         var orderItemAggs = await _context.OrderItems
             .Where(oi => orderIds.Contains(oi.SalesOrderId))
@@ -130,10 +133,8 @@ private readonly IConfigParameterService _configService;
             .ToListAsync();
         var workOrderDict = workOrderGroups.ToDictionary(x => x.SalesOrderNo);
 
-        return orders.Select(item =>
+        return orders.Select(order =>
         {
-            var order = item.SalesOrder;
-            var customer = item.Customer;
             var woInfo = workOrderDict.GetValueOrDefault(order.OrderNumber);
             var agg = itemAggDict.GetValueOrDefault(order.Id);
 
@@ -161,9 +162,9 @@ private readonly IConfigParameterService _configService;
                 SalesOrderId = order.Id,
                 OrderNumber = order.OrderNumber,
                 SignDate = order.SignDate,
-                Salesman = customer.Salesman,
-                CustomerName = customer.CustomerUnit,
-                EndCustomer = customer.EndCustomer,
+                Salesman = order.Salesman,
+                CustomerName = order.CustomerName,
+                EndCustomer = order.EndCustomer,
                 DeliveryStart = agg?.DeliveryStart,
                 DeliveryEnd = agg?.DeliveryEnd,
                 HasDelayPenalty = agg?.HasDelayPenalty ?? false,
@@ -182,33 +183,27 @@ private readonly IConfigParameterService _configService;
     /// </summary>
     private async Task<PagedResult<OrderWorkOrderStatusDto>> GetOrderWorkOrderStatusPageLegacyAsync(WorkOrderQueryParams query)
     {
-        // ===== 1. 基础查询：已确认订单 + 客户（DB层面） =====
+        // ===== 1. 基础查询：已确认订单 =====
         var orderQuery = _context.SalesOrders
-            .Where(so => so.Status == SalesOrderStatus.Confirmed)
-            .Join(
-                _context.CustomerProfiles,
-                so => so.CustomerId,
-                c => c.Id,
-                (so, c) => new { SalesOrder = so, Customer = c }
-            );
+            .Where(so => so.Status == SalesOrderStatus.Confirmed);
 
         // ===== 2. 应用DB级文本筛选 =====
         if (!string.IsNullOrEmpty(query.Salesman))
-            orderQuery = orderQuery.Where(x => x.Customer.Salesman.Contains(query.Salesman));
+            orderQuery = orderQuery.Where(x => x.Salesman.Contains(query.Salesman));
 
         if (!string.IsNullOrEmpty(query.EndCustomer))
-            orderQuery = orderQuery.Where(x => x.Customer.EndCustomer != null && x.Customer.EndCustomer.Contains(query.EndCustomer));
+            orderQuery = orderQuery.Where(x => x.EndCustomer != null && x.EndCustomer.Contains(query.EndCustomer));
 
         if (!string.IsNullOrEmpty(query.Keyword))
         {
             var keyword = query.Keyword;
             orderQuery = orderQuery.Where(x =>
-                x.SalesOrder.OrderNumber.Contains(keyword) ||
-                x.Customer.CustomerUnit.Contains(keyword) ||
-                x.Customer.Salesman.Contains(keyword) ||
-                (x.Customer.EndCustomer != null && x.Customer.EndCustomer.Contains(keyword)) ||
-                (keyword == "是" && _context.OrderItems.Any(oi => oi.SalesOrderId == x.SalesOrder.Id && oi.DelayPenalty)) ||
-                (keyword == "否" && _context.OrderItems.Any(oi => oi.SalesOrderId == x.SalesOrder.Id && !oi.DelayPenalty))
+                x.OrderNumber.Contains(keyword) ||
+                x.CustomerName.Contains(keyword) ||
+                x.Salesman.Contains(keyword) ||
+                (x.EndCustomer != null && x.EndCustomer.Contains(keyword)) ||
+                (keyword == "是" && _context.OrderItems.Any(oi => oi.SalesOrderId == x.Id && oi.DelayPenalty)) ||
+                (keyword == "否" && _context.OrderItems.Any(oi => oi.SalesOrderId == x.Id && !oi.DelayPenalty))
             );
         }
 
@@ -219,16 +214,16 @@ private readonly IConfigParameterService _configService;
             {
                 case WorkOrderStatus.NotGenerated:
                     orderQuery = orderQuery.Where(x =>
-                        !_context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber));
+                        !_context.WorkOrders.Any(wo => wo.SalesOrderNo == x.OrderNumber));
                     break;
                 case WorkOrderStatus.Pending:
                     orderQuery = orderQuery.Where(x =>
-                        _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status == WorkOrderStatus.Pending));
+                        _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.OrderNumber && wo.Status == WorkOrderStatus.Pending));
                     break;
                 case WorkOrderStatus.Confirmed:
                     orderQuery = orderQuery.Where(x =>
-                        _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber) &&
-                        !_context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status == WorkOrderStatus.Pending));
+                        _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.OrderNumber) &&
+                        !_context.WorkOrders.Any(wo => wo.SalesOrderNo == x.OrderNumber && wo.Status == WorkOrderStatus.Pending));
                     break;
             }
         }
@@ -244,39 +239,39 @@ private readonly IConfigParameterService _configService;
                 {
                     case "deliverystart":
                         if (DateTime.TryParse(filter.From?.ToString(), out var dsFrom))
-                            orderQuery = orderQuery.Where(x => x.SalesOrder.OrderItems.Min(oi => (DateTime?)oi.DeliveryDate) >= dsFrom);
+                            orderQuery = orderQuery.Where(x => x.OrderItems.Min(oi => (DateTime?)oi.DeliveryDate) >= dsFrom);
                         if (DateTime.TryParse(filter.To?.ToString(), out var dsTo))
-                            orderQuery = orderQuery.Where(x => x.SalesOrder.OrderItems.Min(oi => (DateTime?)oi.DeliveryDate) <= dsTo);
+                            orderQuery = orderQuery.Where(x => x.OrderItems.Min(oi => (DateTime?)oi.DeliveryDate) <= dsTo);
                         break;
                     case "deliveryend":
                         if (DateTime.TryParse(filter.From?.ToString(), out var deFrom))
-                            orderQuery = orderQuery.Where(x => x.SalesOrder.OrderItems.Max(oi => (DateTime?)oi.DeliveryDate) >= deFrom);
+                            orderQuery = orderQuery.Where(x => x.OrderItems.Max(oi => (DateTime?)oi.DeliveryDate) >= deFrom);
                         if (DateTime.TryParse(filter.To?.ToString(), out var deTo))
-                            orderQuery = orderQuery.Where(x => x.SalesOrder.OrderItems.Max(oi => (DateTime?)oi.DeliveryDate) <= deTo);
+                            orderQuery = orderQuery.Where(x => x.OrderItems.Max(oi => (DateTime?)oi.DeliveryDate) <= deTo);
                         break;
                     case "hasdelaypenalty":
                         if (filter.Value == "是")
-                            orderQuery = orderQuery.Where(x => x.SalesOrder.OrderItems.Any(oi => oi.DelayPenalty));
+                            orderQuery = orderQuery.Where(x => x.OrderItems.Any(oi => oi.DelayPenalty));
                         else if (filter.Value == "否")
-                            orderQuery = orderQuery.Where(x => !x.SalesOrder.OrderItems.Any(oi => oi.DelayPenalty));
+                            orderQuery = orderQuery.Where(x => !x.OrderItems.Any(oi => oi.DelayPenalty));
                         break;
                     case "totalcontractweight":
                         if (int.TryParse(filter.From?.ToString(), out var tcwMin))
-                            orderQuery = orderQuery.Where(x => x.SalesOrder.OrderItems.Sum(oi => oi.ContractWeight) >= tcwMin);
+                            orderQuery = orderQuery.Where(x => x.OrderItems.Sum(oi => oi.ContractWeight) >= tcwMin);
                         if (int.TryParse(filter.To?.ToString(), out var tcwMax))
-                            orderQuery = orderQuery.Where(x => x.SalesOrder.OrderItems.Sum(oi => oi.ContractWeight) <= tcwMax);
+                            orderQuery = orderQuery.Where(x => x.OrderItems.Sum(oi => oi.ContractWeight) <= tcwMax);
                         break;
                     case "itemcount":
                         if (int.TryParse(filter.From?.ToString(), out var icMin))
-                            orderQuery = orderQuery.Where(x => x.SalesOrder.OrderItems.Count >= icMin);
+                            orderQuery = orderQuery.Where(x => x.OrderItems.Count >= icMin);
                         if (int.TryParse(filter.To?.ToString(), out var icMax))
-                            orderQuery = orderQuery.Where(x => x.SalesOrder.OrderItems.Count <= icMax);
+                            orderQuery = orderQuery.Where(x => x.OrderItems.Count <= icMax);
                         break;
                     case "workordercount":
                         if (int.TryParse(filter.From?.ToString(), out var wcMin))
-                            orderQuery = orderQuery.Where(x => _context.WorkOrders.Count(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber) >= wcMin);
+                            orderQuery = orderQuery.Where(x => _context.WorkOrders.Count(wo => wo.SalesOrderNo == x.OrderNumber) >= wcMin);
                         if (int.TryParse(filter.To?.ToString(), out var wcMax))
-                            orderQuery = orderQuery.Where(x => _context.WorkOrders.Count(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber) <= wcMax);
+                            orderQuery = orderQuery.Where(x => _context.WorkOrders.Count(wo => wo.SalesOrderNo == x.OrderNumber) <= wcMax);
                         break;
                 }
             }
@@ -293,75 +288,75 @@ private readonly IConfigParameterService _configService;
             {
                 case "ordernumber":
                     orderQuery = sortDesc
-                        ? orderQuery.OrderByDescending(x => x.SalesOrder.OrderNumber)
-                        : orderQuery.OrderBy(x => x.SalesOrder.OrderNumber);
+                        ? orderQuery.OrderByDescending(x => x.OrderNumber)
+                        : orderQuery.OrderBy(x => x.OrderNumber);
                     break;
                 case "signdate":
                     orderQuery = sortDesc
-                        ? orderQuery.OrderByDescending(x => x.SalesOrder.SignDate)
-                        : orderQuery.OrderBy(x => x.SalesOrder.SignDate);
+                        ? orderQuery.OrderByDescending(x => x.SignDate)
+                        : orderQuery.OrderBy(x => x.SignDate);
                     break;
                 case "salesman":
                     orderQuery = sortDesc
-                        ? orderQuery.OrderByDescending(x => x.Customer.Salesman)
-                        : orderQuery.OrderBy(x => x.Customer.Salesman);
+                        ? orderQuery.OrderByDescending(x => x.Salesman)
+                        : orderQuery.OrderBy(x => x.Salesman);
                     break;
                 case "customername":
                     orderQuery = sortDesc
-                        ? orderQuery.OrderByDescending(x => x.Customer.CustomerUnit)
-                        : orderQuery.OrderBy(x => x.Customer.CustomerUnit);
+                        ? orderQuery.OrderByDescending(x => x.CustomerName)
+                        : orderQuery.OrderBy(x => x.CustomerName);
                     break;
                 case "endcustomer":
                     orderQuery = sortDesc
-                        ? orderQuery.OrderByDescending(x => x.Customer.EndCustomer ?? "")
-                        : orderQuery.OrderBy(x => x.Customer.EndCustomer ?? "");
+                        ? orderQuery.OrderByDescending(x => x.EndCustomer ?? "")
+                        : orderQuery.OrderBy(x => x.EndCustomer ?? "");
                     break;
                 case "deliverystart":
                     orderQuery = sortDesc
-                        ? orderQuery.OrderByDescending(x => _context.OrderItems.Where(oi => oi.SalesOrderId == x.SalesOrder.Id).Min(oi => (DateTime?)oi.DeliveryDate))
-                        : orderQuery.OrderBy(x => _context.OrderItems.Where(oi => oi.SalesOrderId == x.SalesOrder.Id).Min(oi => (DateTime?)oi.DeliveryDate));
+                        ? orderQuery.OrderByDescending(x => _context.OrderItems.Where(oi => oi.SalesOrderId == x.Id).Min(oi => (DateTime?)oi.DeliveryDate))
+                        : orderQuery.OrderBy(x => _context.OrderItems.Where(oi => oi.SalesOrderId == x.Id).Min(oi => (DateTime?)oi.DeliveryDate));
                     break;
                 case "deliveryend":
                     orderQuery = sortDesc
-                        ? orderQuery.OrderByDescending(x => _context.OrderItems.Where(oi => oi.SalesOrderId == x.SalesOrder.Id).Max(oi => (DateTime?)oi.DeliveryDate))
-                        : orderQuery.OrderBy(x => _context.OrderItems.Where(oi => oi.SalesOrderId == x.SalesOrder.Id).Max(oi => (DateTime?)oi.DeliveryDate));
+                        ? orderQuery.OrderByDescending(x => _context.OrderItems.Where(oi => oi.SalesOrderId == x.Id).Max(oi => (DateTime?)oi.DeliveryDate))
+                        : orderQuery.OrderBy(x => _context.OrderItems.Where(oi => oi.SalesOrderId == x.Id).Max(oi => (DateTime?)oi.DeliveryDate));
                     break;
                 case "hasdelaypenalty":
                     orderQuery = sortDesc
-                        ? orderQuery.OrderByDescending(x => _context.OrderItems.Any(oi => oi.SalesOrderId == x.SalesOrder.Id && oi.DelayPenalty))
-                        : orderQuery.OrderBy(x => _context.OrderItems.Any(oi => oi.SalesOrderId == x.SalesOrder.Id && oi.DelayPenalty));
+                        ? orderQuery.OrderByDescending(x => _context.OrderItems.Any(oi => oi.SalesOrderId == x.Id && oi.DelayPenalty))
+                        : orderQuery.OrderBy(x => _context.OrderItems.Any(oi => oi.SalesOrderId == x.Id && oi.DelayPenalty));
                     break;
                 case "totalcontractweight":
                     orderQuery = sortDesc
-                        ? orderQuery.OrderByDescending(x => _context.OrderItems.Where(oi => oi.SalesOrderId == x.SalesOrder.Id).Sum(oi => oi.ContractWeight))
-                        : orderQuery.OrderBy(x => _context.OrderItems.Where(oi => oi.SalesOrderId == x.SalesOrder.Id).Sum(oi => oi.ContractWeight));
+                        ? orderQuery.OrderByDescending(x => _context.OrderItems.Where(oi => oi.SalesOrderId == x.Id).Sum(oi => oi.ContractWeight))
+                        : orderQuery.OrderBy(x => _context.OrderItems.Where(oi => oi.SalesOrderId == x.Id).Sum(oi => oi.ContractWeight));
                     break;
                 case "itemcount":
                     orderQuery = sortDesc
-                        ? orderQuery.OrderByDescending(x => _context.OrderItems.Count(oi => oi.SalesOrderId == x.SalesOrder.Id))
-                        : orderQuery.OrderBy(x => _context.OrderItems.Count(oi => oi.SalesOrderId == x.SalesOrder.Id));
+                        ? orderQuery.OrderByDescending(x => _context.OrderItems.Count(oi => oi.SalesOrderId == x.Id))
+                        : orderQuery.OrderBy(x => _context.OrderItems.Count(oi => oi.SalesOrderId == x.Id));
                     break;
                 case "workordercount":
                     orderQuery = sortDesc
-                        ? orderQuery.OrderByDescending(x => _context.WorkOrders.Count(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber))
-                        : orderQuery.OrderBy(x => _context.WorkOrders.Count(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber));
+                        ? orderQuery.OrderByDescending(x => _context.WorkOrders.Count(wo => wo.SalesOrderNo == x.OrderNumber))
+                        : orderQuery.OrderBy(x => _context.WorkOrders.Count(wo => wo.SalesOrderNo == x.OrderNumber));
                     break;
                 case "workorderstatus":
                     // 子查询计算状态排序优先级：Pending=1, NotGenerated=2, Confirmed=3
                     orderQuery = sortDesc
                         ? orderQuery.OrderByDescending(x =>
-                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status == WorkOrderStatus.Pending) ? 1 :
-                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber) ? 3 : 2)
+                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.OrderNumber && wo.Status == WorkOrderStatus.Pending) ? 1 :
+                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.OrderNumber) ? 3 : 2)
                         : orderQuery.OrderBy(x =>
-                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status == WorkOrderStatus.Pending) ? 1 :
-                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber) ? 3 : 2);
+                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.OrderNumber && wo.Status == WorkOrderStatus.Pending) ? 1 :
+                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.OrderNumber) ? 3 : 2);
                     break;
                 default:
                     orderQuery = orderQuery
                         .OrderBy(x =>
-                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status == WorkOrderStatus.Pending) ? 1 :
-                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber) ? 3 : 2)
-                        .ThenByDescending(x => x.SalesOrder.SignDate);
+                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.OrderNumber && wo.Status == WorkOrderStatus.Pending) ? 1 :
+                            _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.OrderNumber) ? 3 : 2)
+                        .ThenByDescending(x => x.SignDate);
                     break;
             }
         }
@@ -370,9 +365,9 @@ private readonly IConfigParameterService _configService;
             // 默认排序：Pending→NotGenerated→Confirmed → 签订日期降序
             orderQuery = orderQuery
                 .OrderBy(x =>
-                    _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber && wo.Status == WorkOrderStatus.Pending) ? 1 :
-                    _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.SalesOrder.OrderNumber) ? 3 : 2)
-                .ThenByDescending(x => x.SalesOrder.SignDate);
+                    _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.OrderNumber && wo.Status == WorkOrderStatus.Pending) ? 1 :
+                    _context.WorkOrders.Any(wo => wo.SalesOrderNo == x.OrderNumber) ? 3 : 2)
+                .ThenByDescending(x => x.SignDate);
         }
 
         // ===== 6. 分页（DB级 Skip/Take，只加载当前页数据到内存） =====
@@ -393,8 +388,8 @@ private readonly IConfigParameterService _configService;
         }
 
         // ===== 7. 仅查询当前页订单的聚合数据 =====
-        var pagedOrderIds = pagedOrders.Select(x => x.SalesOrder.Id).ToList();
-        var pagedOrderNumbers = pagedOrders.Select(x => x.SalesOrder.OrderNumber).ToList();
+        var pagedOrderIds = pagedOrders.Select(x => x.Id).ToList();
+        var pagedOrderNumbers = pagedOrders.Select(x => x.OrderNumber).ToList();
 
         var workOrderGroups = await _context.WorkOrders
             .Where(wo => pagedOrderNumbers.Contains(wo.SalesOrderNo))
@@ -425,10 +420,8 @@ private readonly IConfigParameterService _configService;
         var itemAggDict = orderItemAggs.ToDictionary(x => x.OrderId);
 
         // ===== 8. 组装 DTO =====
-        var items = pagedOrders.Select(item =>
+        var items = pagedOrders.Select(order =>
         {
-            var order = item.SalesOrder;
-            var customer = item.Customer;
             var woInfo = workOrderDict.GetValueOrDefault(order.OrderNumber);
             var agg = itemAggDict.GetValueOrDefault(order.Id);
 
@@ -456,9 +449,9 @@ private readonly IConfigParameterService _configService;
                 SalesOrderId = order.Id,
                 OrderNumber = order.OrderNumber,
                 SignDate = order.SignDate,
-                Salesman = customer.Salesman,
-                CustomerName = customer.CustomerUnit,
-                EndCustomer = customer.EndCustomer,
+                Salesman = order.Salesman,
+                CustomerName = order.CustomerName,
+                EndCustomer = order.EndCustomer,
                 DeliveryStart = agg?.DeliveryStart,
                 DeliveryEnd = agg?.DeliveryEnd,
                 HasDelayPenalty = agg?.HasDelayPenalty ?? false,
@@ -495,8 +488,8 @@ private readonly IConfigParameterService _configService;
                 so.OrderNumber,
                 so.SignDate,
                 so.CreatedTime,
-                Salesman = so.Customer.Salesman,
-                EndCustomer = so.Customer.EndCustomer
+                so.Salesman,
+                so.EndCustomer
             })
             .ToListAsync();
 
@@ -789,9 +782,8 @@ private readonly IConfigParameterService _configService;
         if (salesOrder.Status != SalesOrderStatus.Confirmed)
             throw new BusinessException($"订单 {request.SalesOrderNo} 状态不是已确认，无法生成工单");
 
-        // 单独加载 Customer
-        var salesOrderCustomer = await _context.CustomerProfiles
-            .FirstOrDefaultAsync(c => c.Id == salesOrder.CustomerId);
+        // 单独加载 Customer（从 SalesOrder 快照字段读取）
+        var salesOrderCustomer = salesOrder;
 
         // 2. 获取订单项次
         var allOrderItems = await _context.OrderItems
@@ -1021,8 +1013,7 @@ private readonly IConfigParameterService _configService;
         if (salesOrder.Status != SalesOrderStatus.Confirmed)
             throw new BusinessException($"订单 {request.SalesOrderNo} 状态不是已确认，无法修改工单");
 
-        var customer = await _context.CustomerProfiles
-            .FirstOrDefaultAsync(c => c.Id == salesOrder.CustomerId);
+        var customer = salesOrder;
 
         // 2. 获取订单项次
         var allOrderItems = await _context.OrderItems
@@ -1439,42 +1430,45 @@ private readonly IConfigParameterService _configService;
         return items;
     }
 
-    // ========== 筛选上下文 ==========
-
     public async Task<Dictionary<string, List<string>>> GetWorkOrderFilterContextsAsync()
     {
-        var items = await _context.Set<WorkOrderListSummary>()
-            .AsNoTracking()
-            .Select(s => new
-            {
-                s.WorkOrderNo,
-                s.SalesOrderNo,
-                s.ProductionMainNo,
-                s.ProductionSubNo,
-                s.SignDate,
-                s.Salesman,
-                s.EndCustomer,
-                s.DeliveryDate,
-                s.PlantGrade,
-                s.Specification,
-                s.LatestPlanDate
-            })
-            .ToListAsync();
-
-        return new Dictionary<string, List<string>>
+        return await _cache.GetOrCreateAsync("WorkOrderService:FilterContexts", async entry =>
         {
-            ["WorkOrderNo"] = items.Select(x => x.WorkOrderNo).Distinct().OrderBy(x => x).ToList(),
-            ["SalesOrderNo"] = items.Select(x => x.SalesOrderNo).Distinct().OrderBy(x => x).ToList(),
-            ["ProductionMainNo"] = items.Select(x => x.ProductionMainNo).Distinct().OrderBy(x => x).ToList(),
-            ["ProductionSubNo"] = items.Select(x => x.ProductionSubNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["SignDate"] = items.Select(x => x.SignDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["Salesman"] = items.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
-            ["EndCustomer"] = items.Select(x => x.EndCustomer).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["DeliveryDate"] = items.Select(x => x.DeliveryDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["PlantGrade"] = items.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
-            ["Specification"] = items.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
-            ["LatestPlanDate"] = items.Select(x => x.LatestPlanDate?.ToString("yyyy-MM-dd")).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!
-        };
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
+            var items = await _context.Set<WorkOrderListSummary>()
+                .AsNoTracking()
+                .Select(s => new
+                {
+                    s.WorkOrderNo,
+                    s.SalesOrderNo,
+                    s.ProductionMainNo,
+                    s.ProductionSubNo,
+                    s.SignDate,
+                    s.Salesman,
+                    s.EndCustomer,
+                    s.DeliveryDate,
+                    s.PlantGrade,
+                    s.Specification,
+                    s.LatestPlanDate
+                })
+                .ToListAsync();
+
+            return new Dictionary<string, List<string>>
+            {
+                ["WorkOrderNo"] = items.Select(x => x.WorkOrderNo).Distinct().OrderBy(x => x).ToList(),
+                ["SalesOrderNo"] = items.Select(x => x.SalesOrderNo).Distinct().OrderBy(x => x).ToList(),
+                ["ProductionMainNo"] = items.Select(x => x.ProductionMainNo).Distinct().OrderBy(x => x).ToList(),
+                ["ProductionSubNo"] = items.Select(x => x.ProductionSubNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["SignDate"] = items.Select(x => x.SignDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["Salesman"] = items.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
+                ["EndCustomer"] = items.Select(x => x.EndCustomer).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["DeliveryDate"] = items.Select(x => x.DeliveryDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["PlantGrade"] = items.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
+                ["Specification"] = items.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
+                ["LatestPlanDate"] = items.Select(x => x.LatestPlanDate?.ToString("yyyy-MM-dd")).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!
+            };
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     public async Task<PagedResult<WorkOrderListItemDto>> GetPagedAsync(WorkOrderQueryParams query)
@@ -1713,7 +1707,7 @@ private readonly IConfigParameterService _configService;
     /// </summary>
     private async Task EnrichWithAggregatedStatusAsync(List<WorkOrderListDto> items)
     {
-        // 0. 从 CustomerProfile 覆盖冗余快照字段
+        // 0. 覆盖冗余快照字段（直接从 SalesOrder 快照字段读取）
         await PatchCustomerFieldsAsync(items);
 
         var orderNos = items.Select(i => i.SalesOrderNo).Distinct().ToList();
@@ -2053,8 +2047,15 @@ private readonly IConfigParameterService _configService;
 
         var dto = workOrder.ToDetailDto();
 
-        // 覆盖冗余快照字段：从 CustomerProfile 取当前最新值
-        await PatchCustomerFieldsAsync(dto, workOrder.SalesOrderNo);
+        // 覆盖冗余快照字段：从 SalesOrder 快照字段读取
+        var salesOrder = await _context.SalesOrders
+            .AsNoTracking()
+            .FirstOrDefaultAsync(so => so.OrderNumber == workOrder.SalesOrderNo);
+        if (salesOrder != null)
+        {
+            dto.Salesman = salesOrder.Salesman;
+            dto.EndCustomer = salesOrder.EndCustomer;
+        }
 
         return dto;
     }
@@ -2068,7 +2069,17 @@ private readonly IConfigParameterService _configService;
             throw new BusinessException("工单不存在");
 
         var dto = workOrder.ToDetailDto();
-        await PatchCustomerFieldsAsync(dto, workOrder.SalesOrderNo);
+
+        // 覆盖冗余快照字段：从 SalesOrder 快照字段读取
+        var salesOrder = await _context.SalesOrders
+            .AsNoTracking()
+            .FirstOrDefaultAsync(so => so.OrderNumber == workOrder.SalesOrderNo);
+        if (salesOrder != null)
+        {
+            dto.Salesman = salesOrder.Salesman;
+            dto.EndCustomer = salesOrder.EndCustomer;
+        }
+
         return dto;
     }
 
@@ -2085,23 +2096,22 @@ private readonly IConfigParameterService _configService;
     }
 
     /// <summary>
-    /// 从 CustomerProfile 取当前最新 Salesman/EndCustomer，覆盖 WorkOrder 冗余快照
+    /// 从 SalesOrder 快照字段读取 Salesman/EndCustomer，覆盖 WorkOrder 冗余快照
     /// </summary>
     private async Task PatchCustomerFieldsAsync(WorkOrderDetailDto dto, string salesOrderNo)
     {
         var salesOrder = await _context.SalesOrders
             .AsNoTracking()
-            .Include(so => so.Customer)
             .FirstOrDefaultAsync(so => so.OrderNumber == salesOrderNo);
-        if (salesOrder?.Customer != null)
+        if (salesOrder != null)
         {
-            dto.Salesman = salesOrder.Customer.Salesman;
-            dto.EndCustomer = salesOrder.Customer.EndCustomer;
+            dto.Salesman = salesOrder.Salesman;
+            dto.EndCustomer = salesOrder.EndCustomer;
         }
     }
 
     /// <summary>
-    /// 批量从 CustomerProfile 覆盖 WorkOrderListDto 的冗余快照字段
+    /// 批量从 SalesOrder 快照字段覆盖 WorkOrderListDto 的冗余快照字段
     /// </summary>
     private async Task PatchCustomerFieldsAsync(List<WorkOrderListDto> items)
     {
@@ -2110,18 +2120,17 @@ private readonly IConfigParameterService _configService;
 
         var salesOrders = await _context.SalesOrders
             .AsNoTracking()
-            .Include(so => so.Customer)
             .Where(so => orderNos.Contains(so.OrderNumber))
             .ToListAsync();
 
-        var customerByOrderNo = salesOrders.ToDictionary(so => so.OrderNumber, so => so.Customer, StringComparer.OrdinalIgnoreCase);
+        var salesOrderByNo = salesOrders.ToDictionary(so => so.OrderNumber, so => so, StringComparer.OrdinalIgnoreCase);
 
         foreach (var item in items)
         {
-            if (customerByOrderNo.TryGetValue(item.SalesOrderNo, out var customer))
+            if (salesOrderByNo.TryGetValue(item.SalesOrderNo, out var so))
             {
-                item.Salesman = customer.Salesman;
-                item.EndCustomer = customer.EndCustomer;
+                item.Salesman = so.Salesman;
+                item.EndCustomer = so.EndCustomer;
             }
         }
     }
@@ -2389,19 +2398,11 @@ private readonly IConfigParameterService _configService;
     public async Task<OrderWorkOrderRelationDto> GetOrderWorkOrderRelationAsync(string salesOrderNo)
     {
         // 1. 获取订单信息
-        var salesOrderQuery = await _context.SalesOrders
-            .Where(so => so.OrderNumber == salesOrderNo)
-            .Join(_context.CustomerProfiles,
-                so => so.CustomerId,
-                c => c.Id,
-                (so, c) => new { SalesOrder = so, Customer = c })
-            .FirstOrDefaultAsync();
+        var salesOrder = await _context.SalesOrders
+            .FirstOrDefaultAsync(so => so.OrderNumber == salesOrderNo);
 
-        if (salesOrderQuery == null)
+        if (salesOrder == null)
             throw new BusinessException($"订单 {salesOrderNo} 不存在");
-
-        var salesOrder = salesOrderQuery.SalesOrder;
-        var customer = salesOrderQuery.Customer;
 
         // 2. 获取该订单下的所有工单（状态不为已取消的工单）
         var workOrders = await _context.WorkOrders
@@ -2432,9 +2433,9 @@ private readonly IConfigParameterService _configService;
             SalesOrderId = salesOrder.Id,
             OrderNumber = salesOrder.OrderNumber,
             SignDate = salesOrder.SignDate,
-            Salesman = customer.Salesman,
-            CustomerName = customer.CustomerUnit,
-            EndCustomer = customer.EndCustomer,
+            Salesman = salesOrder.Salesman,
+            CustomerName = salesOrder.CustomerName,
+            EndCustomer = salesOrder.EndCustomer,
             WorkOrders = new List<WorkOrderRelationDto>()
         };
 
@@ -2541,32 +2542,26 @@ result.WorkOrders.Add(new WorkOrderRelationDto
     {
         // 复用首页筛选逻辑：获取所有已确认订单
         var orderQuery = _context.SalesOrders
-            .Where(so => so.Status == SalesOrderStatus.Confirmed)
-            .Join(
-                _context.CustomerProfiles,
-                so => so.CustomerId,
-                c => c.Id,
-                (so, c) => new { SalesOrder = so, Customer = c }
-            );
+            .Where(so => so.Status == SalesOrderStatus.Confirmed);
 
         if (!string.IsNullOrEmpty(query.Salesman))
-            orderQuery = orderQuery.Where(x => x.Customer.Salesman.Contains(query.Salesman));
+            orderQuery = orderQuery.Where(x => x.Salesman.Contains(query.Salesman));
 
         if (!string.IsNullOrEmpty(query.EndCustomer))
-            orderQuery = orderQuery.Where(x => x.Customer.EndCustomer != null && x.Customer.EndCustomer.Contains(query.EndCustomer));
+            orderQuery = orderQuery.Where(x => x.EndCustomer != null && x.EndCustomer.Contains(query.EndCustomer));
 
         if (!string.IsNullOrEmpty(query.Keyword))
         {
             var keyword = query.Keyword;
             orderQuery = orderQuery.Where(x =>
-                x.SalesOrder.OrderNumber.Contains(keyword) ||
-                x.Customer.CustomerUnit.Contains(keyword) ||
-                x.Customer.Salesman.Contains(keyword) ||
-                (x.Customer.EndCustomer != null && x.Customer.EndCustomer.Contains(keyword)));
+                x.OrderNumber.Contains(keyword) ||
+                x.CustomerName.Contains(keyword) ||
+                x.Salesman.Contains(keyword) ||
+                (x.EndCustomer != null && x.EndCustomer.Contains(keyword)));
         }
 
         var allOrders = await orderQuery.ToListAsync();
-        var allOrderNumbers = allOrders.Select(x => x.SalesOrder.OrderNumber).ToList();
+        var allOrderNumbers = allOrders.Select(x => x.OrderNumber).ToList();
 
         // 获取关联的所有工单
         var allWorkOrders = await _context.WorkOrders
@@ -2576,9 +2571,8 @@ result.WorkOrders.Add(new WorkOrderRelationDto
 
         // 计算每个订单的工单状态并筛选
         var matchedOrderNumbers = new List<string>();
-        foreach (var item in allOrders)
+        foreach (var order in allOrders)
         {
-            var order = item.SalesOrder;
             var orderWorkOrders = allWorkOrders.Where(wo => wo.SalesOrderNo == order.OrderNumber).ToList();
 
             string workOrderStatus;

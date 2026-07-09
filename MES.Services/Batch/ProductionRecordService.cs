@@ -11,6 +11,7 @@ using MES.Core.Constants;
 using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Services.Printing;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Batch;
 
@@ -24,7 +25,9 @@ public class ProductionRecordService : IProductionRecordService
     private readonly IStandardWorkDayService _standardWorkDayService;
     private readonly IStandardWorkDayDeliveryStateService _deliveryStateService;
     private readonly IConfigParameterService _configService;
+    private readonly IQualityProcessTrackingService _qualityProcessTracking;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
+    private readonly IMemoryCache _cache;
 
     private sealed record SectionOutsourceInfo(
         int Id,
@@ -42,13 +45,29 @@ public class ProductionRecordService : IProductionRecordService
         ILogger<ProductionRecordService> logger,
         IStandardWorkDayService standardWorkDayService,
         IStandardWorkDayDeliveryStateService deliveryStateService,
-        IConfigParameterService configService)
+        IConfigParameterService configService,
+        IQualityProcessTrackingService qualityProcessTracking,
+        IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
         _standardWorkDayService = standardWorkDayService;
         _deliveryStateService = deliveryStateService;
         _configService = configService;
+        _qualityProcessTracking = qualityProcessTracking;
+        _cache = cache;
+    }
+
+    private void TryRefreshQualityProcessTrackingAsync(int productionBatchId)
+    {
+        try
+        {
+            _ = _qualityProcessTracking.RefreshByProductionBatchIdAsync(productionBatchId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "质量过程跟踪刷新失败（不影响主流程）: ProductionBatchId={ProductionBatchId}", productionBatchId);
+        }
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -175,6 +194,7 @@ public class ProductionRecordService : IProductionRecordService
         _context.ProductionRecords.Add(entity);
         await _context.SaveChangesAsync();
 
+        TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchId);
         await UpdateBatchTrackingFromRecordsAsync(batchId);
 
         return new ProductionRecordDto
@@ -506,6 +526,8 @@ public class ProductionRecordService : IProductionRecordService
 
         // 批量刷新所有涉及批次的跟踪字段
         var distinctBatchIds = entities.Select(e => e.ProductionBatchId).Distinct().ToList();
+        foreach (var id in distinctBatchIds)
+            TryRefreshQualityProcessTrackingAsync(id);
         await BatchUpdateTrackingFromRecordsAsync(distinctBatchIds);
 
         return entities.Select(e => new ProductionRecordDto
@@ -561,6 +583,7 @@ public class ProductionRecordService : IProductionRecordService
         _context.ProductionRecords.Update(entity);
         await _context.SaveChangesAsync();
 
+        TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchId);
         await UpdateBatchTrackingFromRecordsAsync(entity.ProductionBatchId);
 
         return new ProductionRecordDto
@@ -602,6 +625,7 @@ public class ProductionRecordService : IProductionRecordService
         _context.ProductionRecords.Remove(entity);
         await _context.SaveChangesAsync();
 
+        TryRefreshQualityProcessTrackingAsync(batchId);
         await UpdateBatchTrackingFromRecordsAsync(batchId);
     }
 
@@ -2229,41 +2253,45 @@ public class ProductionRecordService : IProductionRecordService
     /// </summary>
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        var query = from r in _context.ProductionRecords
-                    join pb in _context.ProductionBatches on r.ProductionBatchId equals pb.Id
-                    select new
-                    {
-                        pb.BatchNo,
-                        r.ProcessName,
-                        r.ManufacturingSpec,
-                        r.SectionName,
-                        r.EquipmentName,
-                        r.Operator,
-                        r.Shift,
-                        r.TagNo,
-                        r.PlantGrade,
-                        r.Remark,
-                        r.ExecDate,
-                        r.DataSource
-                    };
-
-        var results = await query.AsNoTracking().ToListAsync();
-
-        return new Dictionary<string, List<string>>
+        return await _cache.GetOrCreateAsync("ProductionRecordService:FilterContexts", async entry =>
         {
-            ["BatchNo"] = results.Select(x => x.BatchNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["ProcessName"] = results.Select(x => x.ProcessName).Distinct().OrderBy(x => x).ToList(),
-            ["ManufacturingSpec"] = results.Select(x => x.ManufacturingSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["SectionName"] = results.Select(x => x.SectionName).Distinct().OrderBy(x => x).ToList(),
-            ["EquipmentName"] = results.Select(x => x.EquipmentName).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["Operator"] = results.Select(x => x.Operator).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["Shift"] = results.Select(x => x.Shift).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["TagNo"] = results.Select(x => x.TagNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["PlantGrade"] = results.Select(x => x.PlantGrade).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["Remark"] = results.Select(x => x.Remark).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["ExecDate"] = results.Select(x => x.ExecDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["DataSource"] = results.Select(x => x.DataSource).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!
-        };
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            var query = from r in _context.ProductionRecords
+                        join pb in _context.ProductionBatches on r.ProductionBatchId equals pb.Id
+                        select new
+                        {
+                            pb.BatchNo,
+                            r.ProcessName,
+                            r.ManufacturingSpec,
+                            r.SectionName,
+                            r.EquipmentName,
+                            r.Operator,
+                            r.Shift,
+                            r.TagNo,
+                            r.PlantGrade,
+                            r.Remark,
+                            r.ExecDate,
+                            r.DataSource
+                        };
+
+            var results = await query.AsNoTracking().ToListAsync();
+
+            return new Dictionary<string, List<string>>
+            {
+                ["BatchNo"] = results.Select(x => x.BatchNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["ProcessName"] = results.Select(x => x.ProcessName).Distinct().OrderBy(x => x).ToList(),
+                ["ManufacturingSpec"] = results.Select(x => x.ManufacturingSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["SectionName"] = results.Select(x => x.SectionName).Distinct().OrderBy(x => x).ToList(),
+                ["EquipmentName"] = results.Select(x => x.EquipmentName).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["Operator"] = results.Select(x => x.Operator).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["Shift"] = results.Select(x => x.Shift).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["TagNo"] = results.Select(x => x.TagNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["PlantGrade"] = results.Select(x => x.PlantGrade).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["Remark"] = results.Select(x => x.Remark).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["ExecDate"] = results.Select(x => x.ExecDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["DataSource"] = results.Select(x => x.DataSource).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!
+            };
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     /// <summary>

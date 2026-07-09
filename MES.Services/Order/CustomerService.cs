@@ -11,6 +11,7 @@ using MES.Services.Mapping;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 using MES.Services.Order;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Order;
 
@@ -21,11 +22,13 @@ public class CustomerService : ICustomerService
 {
     private readonly AppDbContext _context;
     private readonly IOrderService _orderService;
+    private readonly IMemoryCache _cache;
 
-    public CustomerService(AppDbContext context, IOrderService orderService)
+    public CustomerService(AppDbContext context, IOrderService orderService, IMemoryCache cache)
     {
         _context = context;
         _orderService = orderService;
+        _cache = cache;
     }
 
     /// <summary>
@@ -292,6 +295,10 @@ public class CustomerService : ICustomerService
 
     public async Task<Dictionary<string, List<string>>> GetCustomerFilterContextsAsync()
     {
+        return await _cache.GetOrCreateAsync("CustomerService:FilterContexts", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
         // 注意：枚举列（Status）不在此处返回，
         // 由前端 EnumOptions fallback 直接提供带中文 Display 的选项，避免映射丢失。
         var all = await _context.CustomerProfiles
@@ -320,6 +327,8 @@ public class CustomerService : ICustomerService
             ["Address"] = all.Select(x => x.Address ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
             ["Remark"] = all.Select(x => x.Remark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList()
         };
+
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     // ========== 打印 ==========

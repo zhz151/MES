@@ -21,7 +21,8 @@ public class FinalInspectionServiceTests : TestBase
     private FinalInspectionService CreateService(AppDbContext ctx)
     {
         var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
-        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FinalInspectionService>.Instance, workOrderExecMock.Object);
+        var qptMock = new Mock<IQualityProcessTrackingService>();
+        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FinalInspectionService>.Instance, workOrderExecMock.Object, qptMock.Object, Mock.Of<IMemoryCache>());
     }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")

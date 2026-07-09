@@ -9,6 +9,7 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Helpers;
 using MES.Services.Printing;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Quality;
 
@@ -20,12 +21,16 @@ public class FinalInspectionService : IFinalInspectionService
     private readonly AppDbContext _context;
     private readonly ILogger<FinalInspectionService> _logger;
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
+    private readonly IQualityProcessTrackingService _qualityProcessTracking;
+    private readonly IMemoryCache _cache;
 
-    public FinalInspectionService(AppDbContext context, ILogger<FinalInspectionService> logger, IWorkOrderExecutionService workOrderExecutionService)
+    public FinalInspectionService(AppDbContext context, ILogger<FinalInspectionService> logger, IWorkOrderExecutionService workOrderExecutionService, IQualityProcessTrackingService qualityProcessTracking, IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
         _workOrderExecutionService = workOrderExecutionService;
+        _qualityProcessTracking = qualityProcessTracking;
+        _cache = cache;
     }
 
     private async Task TryRefreshExecutionSummaryAsync(string? workOrderNo)
@@ -50,6 +55,18 @@ public class FinalInspectionService : IFinalInspectionService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "工单执行状况批量刷新失败（不影响主流程）: Count={Count}", workOrderNos.Count);
+        }
+    }
+
+    private void TryRefreshQualityProcessTrackingAsync(int productionBatchId)
+    {
+        try
+        {
+            _ = _qualityProcessTracking.RefreshByProductionBatchIdAsync(productionBatchId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "质量过程跟踪刷新失败（不影响主流程）: ProductionBatchId={ProductionBatchId}", productionBatchId);
         }
     }
 
@@ -331,6 +348,7 @@ public class FinalInspectionService : IFinalInspectionService
         await _context.SaveChangesAsync();
 
         _ = TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchId);
 
         return new FinalInspectionDto
         {
@@ -403,6 +421,7 @@ public class FinalInspectionService : IFinalInspectionService
         await _context.SaveChangesAsync();
 
         _ = TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchId);
 
         return new FinalInspectionDto
         {
@@ -452,10 +471,12 @@ public class FinalInspectionService : IFinalInspectionService
             ?? throw new BusinessException("成品检验记录不存在");
 
         var workOrderNo = entity.WorkOrderNo;
+        var productionBatchId = entity.ProductionBatchId;
         _context.FinalInspections.Remove(entity);
         await _context.SaveChangesAsync();
 
         _ = TryRefreshExecutionSummaryAsync(workOrderNo);
+        TryRefreshQualityProcessTrackingAsync(productionBatchId);
     }
 
     public async Task<List<FinalInspectionDto>> BatchCreateAsync(List<CreateFinalInspectionRequest> requests)
@@ -578,6 +599,9 @@ public class FinalInspectionService : IFinalInspectionService
         await _context.SaveChangesAsync();
 
         // 批量创建后触发增量刷新
+        foreach (var e in entities)
+            TryRefreshQualityProcessTrackingAsync(e.ProductionBatchId);
+
         var workOrderNos = entities
             .Select(e => e.WorkOrderNo)
             .Where(w => !string.IsNullOrWhiteSpace(w) && w != "非工单")
@@ -633,60 +657,65 @@ public class FinalInspectionService : IFinalInspectionService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        var all = await _context.FinalInspections
-            .AsNoTracking()
-            .Select(r => new
-            {
-                r.BatchNo,
-                r.MaterialName,
-                r.TagNo,
-                r.WorkOrderNo,
-                r.SalesOrderNo,
-                r.SourceUnit,
-                r.FurnaceNo,
-                r.PlantGrade,
-                r.Specification,
-                r.FixedLength,
-                r.ProductionType,
-                r.EquipmentName,
-                r.Shift,
-                r.Operator,
-                r.ConcessionRemark,
-                r.DefectDescription,
-                r.OuterDiameterRange,
-                r.WallThicknessRange,
-                r.LengthAllowanceRange,
-                r.InspectionDate,
-                r.Remark,
-                r.DataSource
-            })
-            .ToListAsync();
-
-        return new Dictionary<string, List<string>>
+        return await _cache.GetOrCreateAsync("FinalInspectionService:FilterContexts", async entry =>
         {
-            ["BatchNo"] = all.Select(x => x.BatchNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
-            ["MaterialName"] = all.Select(x => x.MaterialName ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["TagNo"] = all.Select(x => x.TagNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["SourceUnit"] = all.Select(x => x.SourceUnit ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["FurnaceNo"] = all.Select(x => x.FurnaceNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["PlantGrade"] = all.Select(x => x.PlantGrade ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["Specification"] = all.Select(x => x.Specification ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["FixedLength"] = all.Select(x => x.FixedLength ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["ProductionType"] = all.Select(x => x.ProductionType ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["EquipmentName"] = all.Select(x => x.EquipmentName ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["Shift"] = all.Select(x => x.Shift ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["Operator"] = all.Select(x => x.Operator ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["ConcessionRemark"] = all.Select(x => x.ConcessionRemark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["DefectDescription"] = all.Select(x => x.DefectDescription ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["OuterDiameterRange"] = all.Select(x => x.OuterDiameterRange ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["WallThicknessRange"] = all.Select(x => x.WallThicknessRange ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["LengthAllowanceRange"] = all.Select(x => x.LengthAllowanceRange ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["InspectionDate"] = all.Select(x => x.InspectionDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList(),
-            ["Remark"] = all.Select(x => x.Remark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["DataSource"] = all.Select(x => x.DataSource ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList()
-        };
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
+            var all = await _context.FinalInspections
+                .AsNoTracking()
+                .Select(r => new
+                {
+                    r.BatchNo,
+                    r.MaterialName,
+                    r.TagNo,
+                    r.WorkOrderNo,
+                    r.SalesOrderNo,
+                    r.SourceUnit,
+                    r.FurnaceNo,
+                    r.PlantGrade,
+                    r.Specification,
+                    r.FixedLength,
+                    r.ProductionType,
+                    r.EquipmentName,
+                    r.Shift,
+                    r.Operator,
+                    r.ConcessionRemark,
+                    r.DefectDescription,
+                    r.OuterDiameterRange,
+                    r.WallThicknessRange,
+                    r.LengthAllowanceRange,
+                    r.InspectionDate,
+                    r.Remark,
+                    r.DataSource
+                })
+                .ToListAsync();
+
+            return new Dictionary<string, List<string>>
+            {
+                ["BatchNo"] = all.Select(x => x.BatchNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+                ["MaterialName"] = all.Select(x => x.MaterialName ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["TagNo"] = all.Select(x => x.TagNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["SourceUnit"] = all.Select(x => x.SourceUnit ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["FurnaceNo"] = all.Select(x => x.FurnaceNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["PlantGrade"] = all.Select(x => x.PlantGrade ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["Specification"] = all.Select(x => x.Specification ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["FixedLength"] = all.Select(x => x.FixedLength ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["ProductionType"] = all.Select(x => x.ProductionType ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["EquipmentName"] = all.Select(x => x.EquipmentName ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["Shift"] = all.Select(x => x.Shift ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["Operator"] = all.Select(x => x.Operator ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["ConcessionRemark"] = all.Select(x => x.ConcessionRemark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["DefectDescription"] = all.Select(x => x.DefectDescription ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["OuterDiameterRange"] = all.Select(x => x.OuterDiameterRange ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["WallThicknessRange"] = all.Select(x => x.WallThicknessRange ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["LengthAllowanceRange"] = all.Select(x => x.LengthAllowanceRange ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["InspectionDate"] = all.Select(x => x.InspectionDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList(),
+                ["Remark"] = all.Select(x => x.Remark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["DataSource"] = all.Select(x => x.DataSource ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList()
+            };
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     public async Task<BatchLookupResultDto?> LookupBatchAsync(string batchNo)

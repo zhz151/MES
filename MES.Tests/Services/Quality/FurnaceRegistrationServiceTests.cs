@@ -19,7 +19,7 @@ public class FurnaceRegistrationServiceTests : TestBase
     private FurnaceRegistrationService CreateService(AppDbContext ctx)
     {
         var ruleServiceMock = new Moq.Mock<IChemicalValidationRuleService>();
-        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FurnaceRegistrationService>.Instance, ruleServiceMock.Object);
+        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FurnaceRegistrationService>.Instance, ruleServiceMock.Object, Mock.Of<IMemoryCache>());
     }
 
     private async Task SeedFurnaceAsync(AppDbContext ctx, string furnaceNo = "FUR001",

@@ -10,6 +10,7 @@ using MES.Data.Entities;
 using MES.Data.Entities.Scheduling;
 using MES.Services.Helpers;
 using WoEntity = MES.Data.Entities.WorkOrder;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.WorkOrder;
 
@@ -23,15 +24,18 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     private readonly IConfigParameterService _configService;
     private readonly IDailyOutputEstimateService _dailyOutputService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
+    private readonly IMemoryCache _cache;
 
     public WorkOrderExecutionService(AppDbContext context, ILogger<WorkOrderExecutionService> logger,
         IConfigParameterService configService,
-        IDailyOutputEstimateService dailyOutputService)
+        IDailyOutputEstimateService dailyOutputService,
+        IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
         _configService = configService;
         _dailyOutputService = dailyOutputService;
+        _cache = cache;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -66,7 +70,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 x.ProductionMainNo.Contains(kw) ||
                 (x.ProductionSubNo != null && x.ProductionSubNo.Contains(kw)) ||
                 (x.UrgencyLevel != null && x.UrgencyLevel.Contains(kw)) ||
-                (x.RawMaterialLockRemark != null && x.RawMaterialLockRemark.Contains(kw)));
+                (x.RawMaterialLockRemark != null && x.RawMaterialLockRemark.Contains(kw)) ||
+                (x.ProductionAttentionProcess != null && x.ProductionAttentionProcess.Contains(kw)) ||
+                (x.AdjustmentRemark != null && x.AdjustmentRemark.Contains(kw)) ||
+                (x.ProductionFlowProperty != null && x.ProductionFlowProperty.Contains(kw)) ||
+                (x.MainNoAttentionProcess != null && x.MainNoAttentionProcess.Contains(kw)));
         }
 
         // 排序
@@ -287,33 +295,19 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .GroupBy(b => b.WorkOrderNo, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
 
-        // 构建客户名称字典（WorkOrder.SalesOrderNo → CustomerProfile.CustomerUnit）
+        // 构建客户名称字典（直接从 SalesOrder 快照字段读取）
         var salesOrders = await _context.SalesOrders
             .AsNoTracking()
             .Where(so => workOrders.Select(w => w.SalesOrderNo).Contains(so.OrderNumber))
             .ToListAsync();
 
-        var customerIds = salesOrders.Select(so => so.CustomerId).Distinct().ToList();
-        var customerProfiles = await _context.CustomerProfiles
-            .AsNoTracking()
-            .Where(c => customerIds.Contains(c.Id))
-            .ToDictionaryAsync(c => c.Id);
-
         var customerNameByWo = new Dictionary<int, string>();
         var customerSalesmanByWo = new Dictionary<int, string>();
         foreach (var wo in workOrders)
         {
-            var salesOrder = salesOrders.FirstOrDefault(so => so.OrderNumber.Equals(wo.SalesOrderNo, StringComparison.OrdinalIgnoreCase));
-            if (salesOrder != null && customerProfiles.TryGetValue(salesOrder.CustomerId, out var cp))
-            {
-                customerNameByWo[wo.Id] = cp.CustomerUnit;
-                customerSalesmanByWo[wo.Id] = cp.Salesman;
-            }
-            else
-            {
-                customerNameByWo[wo.Id] = "";
-                customerSalesmanByWo[wo.Id] = "";
-            }
+            var so = salesOrders.FirstOrDefault(s => s.OrderNumber.Equals(wo.SalesOrderNo, StringComparison.OrdinalIgnoreCase));
+            customerNameByWo[wo.Id] = so?.CustomerName ?? "";
+            customerSalesmanByWo[wo.Id] = so?.Salesman ?? "";
         }
 
         // 批量加载采购订单（用于 Group 5 物料执行实时信息）
@@ -883,26 +877,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .AsNoTracking()
             .Where(so => salesOrderNos.Contains(so.OrderNumber))
             .ToListAsync();
-        var customerIds = salesOrders.Select(so => so.CustomerId).Distinct().ToList();
-        var customerProfiles = await _context.CustomerProfiles
-            .AsNoTracking()
-            .Where(c => customerIds.Contains(c.Id))
-            .ToDictionaryAsync(c => c.Id);
         var customerNameByWo = new Dictionary<int, string>();
         var customerSalesmanByWo = new Dictionary<int, string>();
         foreach (var wo in workOrders)
         {
             var so = salesOrders.FirstOrDefault(s => s.OrderNumber.Equals(wo.SalesOrderNo, StringComparison.OrdinalIgnoreCase));
-            if (so != null && customerProfiles.TryGetValue(so.CustomerId, out var cp))
-            {
-                customerNameByWo[wo.Id] = cp.CustomerUnit;
-                customerSalesmanByWo[wo.Id] = cp.Salesman;
-            }
-            else
-            {
-                customerNameByWo[wo.Id] = "";
-                customerSalesmanByWo[wo.Id] = "";
-            }
+            customerNameByWo[wo.Id] = so?.CustomerName ?? "";
+            customerSalesmanByWo[wo.Id] = so?.Salesman ?? "";
         }
 
         var purchaseOrders = await _context.PurchaseOrders
@@ -1226,7 +1207,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         decimal groupDiscountRate = 0m,
         decimal supplySatisfiedRate = 0m)
     {
-        // Group 1: 直接从工单复制（Salesman 从 CustomerProfile 取最新值，已由调用方传入）
+        // Group 1: 直接从工单复制（Salesman 从 SalesOrder 快照字段读取，已由调用方传入）
         var summary = new WorkOrderExecutionSummary
         {
             WorkOrderId = wo.Id,
@@ -2088,49 +2069,55 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        var query = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
-
-        var all = await query
-            .Select(s => new
-            {
-                s.WorkOrderNo,
-                s.Salesman,
-                s.CustomerName,
-                s.SalesOrderNo,
-                s.ProductionMainNo,
-                s.ProductionSubNo,
-                s.PlantGrade,
-                s.Specification,
-                s.UrgencyLevel,
-                s.RawMaterialLockRemark,
-                s.ProductionFlowProperty,
-                s.ProductionAttentionProcess,
-                s.AdjustmentRemark,
-            })
-            .ToListAsync();
-
-        return new Dictionary<string, List<string>>
+        return await _cache.GetOrCreateAsync("WorkOrderExecutionService:FilterContexts", async entry =>
         {
-            ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo).Distinct().OrderBy(x => x).ToList(),
-            ["Salesman"] = all.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
-            ["CustomerName"] = all.Select(x => x.CustomerName).Distinct().OrderBy(x => x).ToList(),
-            ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo).Distinct().OrderBy(x => x).ToList(),
-            ["ProductionMainNo"] = all.Select(x => x.ProductionMainNo).Distinct().OrderBy(x => x).ToList(),
-            ["ProductionSubNo"] = all.Where(x => x.ProductionSubNo != null).Select(x => x.ProductionSubNo!).Distinct().OrderBy(x => x).ToList(),
-            ["PlantGrade"] = all.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
-            ["Specification"] = all.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
-            ["UrgencyLevel"] = all.Where(x => x.UrgencyLevel != null).Select(x => x.UrgencyLevel!).Distinct().OrderBy(x => x).ToList(),
-            ["RawMaterialLockRemark"] = all.Where(x => x.RawMaterialLockRemark != null).Select(x => x.RawMaterialLockRemark!).Distinct().OrderBy(x => x).ToList(),
-            ["ProductionFlowProperty"] = new List<string> { "暂停", "正常", "待料", "疑问", "略" },
-            ["ProductionAttentionProcess"] = all
-                .Where(x => x.ProductionAttentionProcess != null)
-                .Select(x => x.ProductionAttentionProcess!)
-                .Distinct()
-                .OrderBy(x => x)
-                .Union(new[] { "收尾-成检" }) // 确保兜底值始终可选
-                .ToList(),
-            ["AdjustmentRemark"] = all.Where(x => x.AdjustmentRemark != null).Select(x => x.AdjustmentRemark!).Distinct().OrderBy(x => x).ToList(),
-        };
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
+            var query = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
+
+            var all = await query
+                .Select(s => new
+                {
+                    s.WorkOrderNo,
+                    s.Salesman,
+                    s.CustomerName,
+                    s.SalesOrderNo,
+                    s.ProductionMainNo,
+                    s.ProductionSubNo,
+                    s.PlantGrade,
+                    s.Specification,
+                    s.UrgencyLevel,
+                    s.RawMaterialLockRemark,
+                    s.ProductionFlowProperty,
+                    s.ProductionAttentionProcess,
+                    s.MainNoAttentionProcess,
+                    s.AdjustmentRemark,
+                })
+                .ToListAsync();
+
+            return new Dictionary<string, List<string>>
+            {
+                ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo).Distinct().OrderBy(x => x).ToList(),
+                ["Salesman"] = all.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
+                ["CustomerName"] = all.Select(x => x.CustomerName).Distinct().OrderBy(x => x).ToList(),
+                ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo).Distinct().OrderBy(x => x).ToList(),
+                ["ProductionMainNo"] = all.Select(x => x.ProductionMainNo).Distinct().OrderBy(x => x).ToList(),
+                ["ProductionSubNo"] = all.Where(x => x.ProductionSubNo != null).Select(x => x.ProductionSubNo!).Distinct().OrderBy(x => x).ToList(),
+                ["PlantGrade"] = all.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
+                ["Specification"] = all.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
+                ["UrgencyLevel"] = all.Where(x => x.UrgencyLevel != null).Select(x => x.UrgencyLevel!).Distinct().OrderBy(x => x).ToList(),
+                ["RawMaterialLockRemark"] = all.Where(x => x.RawMaterialLockRemark != null).Select(x => x.RawMaterialLockRemark!).Distinct().OrderBy(x => x).ToList(),
+                ["ProductionFlowProperty"] = new List<string> { "暂停", "正常", "待料", "疑问", "略" },
+                ["ProductionAttentionProcess"] = all
+                    .Where(x => x.ProductionAttentionProcess != null)
+                    .Select(x => x.ProductionAttentionProcess!)
+                    .Distinct()
+                    .OrderBy(x => x)
+                    .Union(new[] { "收尾-成检" })
+                    .ToList(),
+                ["AdjustmentRemark"] = all.Where(x => x.AdjustmentRemark != null).Select(x => x.AdjustmentRemark!).Distinct().OrderBy(x => x).ToList(),
+            };
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     private static IQueryable<WorkOrderExecutionSummary> ApplySorting(

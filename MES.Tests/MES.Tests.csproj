@@ -22,6 +22,8 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="Microsoft.Extensions.Caching.Memory" />
+    <Using Include="Moq" />
   </ItemGroup>
 
   <ItemGroup>

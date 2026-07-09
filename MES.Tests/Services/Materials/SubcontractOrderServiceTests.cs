@@ -26,7 +26,7 @@ public class SubcontractOrderServiceTests : TestBase
             .ReturnsAsync(new Dictionary<string, decimal>());
         var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
         var loggerMock = new Mock<ILogger<SubcontractOrderService>>();
-        return new SubcontractOrderService(ctx, new Mock<IPurchaseOrderService>().Object, configMock.Object, workOrderExecMock.Object, loggerMock.Object);
+        return new SubcontractOrderService(ctx, new Mock<IPurchaseOrderService>().Object, configMock.Object, workOrderExecMock.Object, loggerMock.Object, Mock.Of<IMemoryCache>());
     }
 
     private async Task<int> SeedSupplierAsync(AppDbContext ctx, string name = "委外供应商")

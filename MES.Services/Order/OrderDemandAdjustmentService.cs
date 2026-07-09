@@ -6,6 +6,7 @@ using MES.Data;
 using MES.Data.Entities;
 
 using MES.Services.Helpers;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Order;
 
@@ -16,11 +17,13 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
 {
     private readonly AppDbContext _context;
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
+    private readonly IMemoryCache _cache;
 
-    public OrderDemandAdjustmentService(AppDbContext context, IWorkOrderExecutionService workOrderExecutionService)
+    public OrderDemandAdjustmentService(AppDbContext context, IWorkOrderExecutionService workOrderExecutionService, IMemoryCache cache)
     {
         _context = context;
         _workOrderExecutionService = workOrderExecutionService;
+        _cache = cache;
     }
 
     public async Task<PagedResult<OrderDemandAdjustmentDto>> GetPagedAsync(QueryParams query)
@@ -164,6 +167,10 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
+        return await _cache.GetOrCreateAsync("OrderDemandAdjustmentService:FilterContexts", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
         var query = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
 
         var all = await query
@@ -209,6 +216,8 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
             ["RawMaterialLockRemark"] = all.Where(x => x.RawMaterialLockRemark != null).Select(x => x.RawMaterialLockRemark!).Distinct().OrderBy(x => x).ToList(),
             ["AdjustmentRemark"] = adjustmentRemarks,
         };
+
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     private static IQueryable<OrderDemandAdjustmentDto> ApplySorting(

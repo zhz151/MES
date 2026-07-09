@@ -21,7 +21,7 @@ public class CustomerServiceTests : TestBase
     private CustomerService CreateService(AppDbContext ctx)
     {
         var orderServiceMock = new Mock<IOrderService>();
-        return new(ctx, orderServiceMock.Object);
+        return new(ctx, orderServiceMock.Object, Mock.Of<IMemoryCache>());
     }
 
     private async Task SeedCustomerAsync(AppDbContext ctx, string code = "C001", string unit = "测试客户",

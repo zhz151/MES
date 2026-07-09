@@ -7,16 +7,19 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Helpers;
 using MES.Services.Printing;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Materials;
 
 public class MaterialService : IMaterialService
 {
     private readonly AppDbContext _context;
+    private readonly IMemoryCache _cache;
 
-    public MaterialService(AppDbContext context)
+    public MaterialService(AppDbContext context, IMemoryCache cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task<PagedResult<MaterialDto>> GetPagedAsync(QueryParams query)
@@ -276,16 +279,20 @@ public class MaterialService : IMaterialService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        var query = _context.Materials.AsNoTracking();
-        return new Dictionary<string, List<string>>
+        return await _cache.GetOrCreateAsync("MaterialService:FilterContexts", async entry =>
         {
-            ["MaterialCode"] = await query.Where(m => m.MaterialCode != null).Select(m => m.MaterialCode).Distinct().OrderBy(x => x).ToListAsync(),
-            ["MaterialCategory"] = await query.Where(m => m.MaterialCategory != null).Select(m => m.MaterialCategory).Distinct().OrderBy(x => x).ToListAsync(),
-            ["PlantGrade"] = await query.Where(m => m.PlantGrade != null).Select(m => m.PlantGrade).Distinct().OrderBy(x => x).ToListAsync(),
-            ["Specification"] = await query.Where(m => m.Specification != null).Select(m => m.Specification).Distinct().OrderBy(x => x).ToListAsync(),
-            ["Remark"] = await query.Where(m => m.Remark != null).Select(m => m.Remark!).Distinct().OrderBy(x => x).ToListAsync(),
-            ["IsActive"] = await query.Select(m => m.IsActive.ToString()).Distinct().OrderBy(x => x).ToListAsync(),
-        };
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            var query = _context.Materials.AsNoTracking();
+            return new Dictionary<string, List<string>>
+            {
+                ["MaterialCode"] = await query.Where(m => m.MaterialCode != null).Select(m => m.MaterialCode).Distinct().OrderBy(x => x).ToListAsync(),
+                ["MaterialCategory"] = await query.Where(m => m.MaterialCategory != null).Select(m => m.MaterialCategory).Distinct().OrderBy(x => x).ToListAsync(),
+                ["PlantGrade"] = await query.Where(m => m.PlantGrade != null).Select(m => m.PlantGrade).Distinct().OrderBy(x => x).ToListAsync(),
+                ["Specification"] = await query.Where(m => m.Specification != null).Select(m => m.Specification).Distinct().OrderBy(x => x).ToListAsync(),
+                ["Remark"] = await query.Where(m => m.Remark != null).Select(m => m.Remark!).Distinct().OrderBy(x => x).ToListAsync(),
+                ["IsActive"] = await query.Select(m => m.IsActive.ToString()).Distinct().OrderBy(x => x).ToListAsync(),
+            };
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     public async Task<byte[]> PrintMaterialAsync(int id)

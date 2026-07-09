@@ -10,6 +10,7 @@ using MES.Data.Entities;
 using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Services.Printing;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Batch;
 
@@ -17,11 +18,13 @@ public class PicklingService : IPicklingService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<PicklingService> _logger;
+    private readonly IMemoryCache _cache;
 
-    public PicklingService(AppDbContext context, ILogger<PicklingService> logger)
+    public PicklingService(AppDbContext context, ILogger<PicklingService> logger, IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
+        _cache = cache;
     }
 
     // ========== 入缸记录 ==========
@@ -45,7 +48,13 @@ public class PicklingService : IPicklingService
                 (s.TagNo != null && s.TagNo.Contains(kw)) ||
                 (s.ManufacturingSpec != null && s.ManufacturingSpec.Contains(kw)) ||
                 (s.PlantGrade != null && s.PlantGrade.Contains(kw)) ||
-                (s.Remark != null && s.Remark.Contains(kw)));
+                (s.Remark != null && s.Remark.Contains(kw)) ||
+                (s.EquipmentName != null && s.EquipmentName.Contains(kw)) ||
+                (s.Operator != null && s.Operator.Contains(kw)) ||
+                (s.Shift != null && s.Shift.Contains(kw)) ||
+                s.SequenceNumber.ToString().Contains(kw) ||
+                (s.DataSource != null && s.DataSource.Contains(kw)) ||
+                s.Status.ToString().Contains(kw));
         }
 
         // 入缸日期范围筛选
@@ -385,7 +394,14 @@ public class PicklingService : IPicklingService
                 r.PicklingInRecord.ProductionBatch.BatchNo.Contains(kw) ||
                 r.PicklingInRecord.ProcessName.Contains(kw) ||
                 r.SectionName.Contains(kw) ||
-                (r.Remark != null && r.Remark.Contains(kw)));
+                (r.Remark != null && r.Remark.Contains(kw)) ||
+                (r.DataSource != null && r.DataSource.Contains(kw)) ||
+                (r.EquipmentName != null && r.EquipmentName.Contains(kw)) ||
+                (r.Operator != null && r.Operator.Contains(kw)) ||
+                (r.Shift != null && r.Shift.Contains(kw)) ||
+                (r.PicklingInRecord.ManufacturingSpec != null && r.PicklingInRecord.ManufacturingSpec.Contains(kw)) ||
+                (r.PicklingInRecord.TagNo != null && r.PicklingInRecord.TagNo.Contains(kw)) ||
+                (r.PlantGrade != null && r.PlantGrade.Contains(kw)));
         }
 
         // 完工日期范围筛选
@@ -765,11 +781,12 @@ public class PicklingService : IPicklingService
         return TablePrintHelper.GeneratePdf("去油/酸洗完工记录", data, columns);
     }
 
-    // ========== 筛选上下文 ==========
-
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        var dict = new Dictionary<string, List<string>>();
+        return await _cache.GetOrCreateAsync("PicklingService:FilterContexts", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            var dict = new Dictionary<string, List<string>>();
 
         // 从入缸记录获取各列去重值
         var processNames = await _context.PicklingInRecords
@@ -861,7 +878,28 @@ public class PicklingService : IPicklingService
             .ToListAsync();
         if (sequenceNumbers.Count > 0) dict["SequenceNumber"] = sequenceNumbers;
 
-        return dict;
+        // BatchNo 来自导航属性
+        var batchNos = await _context.PicklingInRecords
+            .AsNoTracking()
+            .Include(s => s.ProductionBatch)
+            .Where(s => s.ProductionBatch.BatchNo != null)
+            .Select(s => s.ProductionBatch.BatchNo)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToListAsync();
+        if (batchNos.Count > 0) dict["BatchNo"] = batchNos;
+
+        var remarks = await _context.PicklingInRecords
+            .AsNoTracking()
+            .Where(r => r.Remark != null)
+            .Select(r => r.Remark!)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToListAsync();
+        if (remarks.Count > 0) dict["Remark"] = remarks;
+
+            return dict;
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     public async Task<List<PicklingInRecordDto>> GetByBatchAsync(string batchNo)
@@ -901,7 +939,10 @@ public class PicklingService : IPicklingService
 
     public async Task<Dictionary<string, List<string>>> GetOutRecordFilterContextsAsync()
     {
-        var dict = new Dictionary<string, List<string>>();
+        return await _cache.GetOrCreateAsync("PicklingService:OutRecordFilterContexts", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            var dict = new Dictionary<string, List<string>>();
 
         var processNames = await _context.PicklingOutRecords
             .AsNoTracking()
@@ -978,6 +1019,47 @@ public class PicklingService : IPicklingService
             .ToListAsync();
         if (isFinishedValues.Count > 0) dict["IsFinished"] = isFinishedValues;
 
-        return dict;
+        // 补充滤网：Remark / PlantGrade / TagNo / ManufacturingSpec
+        var remarks = await _context.PicklingOutRecords
+            .AsNoTracking()
+            .Where(r => r.Remark != null)
+            .Select(r => r.Remark!)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToListAsync();
+        if (remarks.Count > 0) dict["Remark"] = remarks;
+
+        var plantGrades = await _context.PicklingOutRecords
+            .AsNoTracking()
+            .Include(r => r.PicklingInRecord)
+            .Where(r => r.PicklingInRecord.PlantGrade != null)
+            .Select(r => r.PicklingInRecord.PlantGrade!)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToListAsync();
+        if (plantGrades.Count > 0) dict["PlantGrade"] = plantGrades;
+
+        var tagNos = await _context.PicklingOutRecords
+            .AsNoTracking()
+            .Include(r => r.PicklingInRecord)
+            .Where(r => r.PicklingInRecord.TagNo != null)
+            .Select(r => r.PicklingInRecord.TagNo!)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToListAsync();
+        if (tagNos.Count > 0) dict["TagNo"] = tagNos;
+
+        var mfSpecs = await _context.PicklingOutRecords
+            .AsNoTracking()
+            .Include(r => r.PicklingInRecord)
+            .Where(r => r.PicklingInRecord.ManufacturingSpec != null)
+            .Select(r => r.PicklingInRecord.ManufacturingSpec!)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToListAsync();
+        if (mfSpecs.Count > 0) dict["ManufacturingSpec"] = mfSpecs;
+
+            return dict;
+        }) ?? new Dictionary<string, List<string>>();
     }
 }

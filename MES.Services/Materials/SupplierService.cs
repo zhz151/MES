@@ -7,16 +7,19 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Helpers;
 using MES.Services.Printing;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Materials;
 
 public class SupplierService : ISupplierService
 {
     private readonly AppDbContext _context;
+    private readonly IMemoryCache _cache;
 
-    public SupplierService(AppDbContext context)
+    public SupplierService(AppDbContext context, IMemoryCache cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task<PagedResult<SupplierProfileDto>> GetPagedAsync(QueryParams query)
@@ -203,6 +206,10 @@ public class SupplierService : ISupplierService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
+        return await _cache.GetOrCreateAsync("SupplierService:FilterContexts", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
         var query = _context.SupplierProfiles.AsNoTracking();
         return new Dictionary<string, List<string>>
         {
@@ -215,6 +222,8 @@ public class SupplierService : ISupplierService
             ["Remark"] = await query.Where(s => s.Remark != null).Select(s => s.Remark!).Distinct().OrderBy(x => x).ToListAsync(),
             ["IsActive"] = await query.Select(s => s.IsActive.ToString()).Distinct().OrderBy(x => x).ToListAsync(),
         };
+
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     public async Task<byte[]> PrintSupplierAsync(int id)

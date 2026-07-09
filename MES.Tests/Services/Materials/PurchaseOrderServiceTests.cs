@@ -26,7 +26,7 @@ public class PurchaseOrderServiceTests : TestBase
             .ReturnsAsync(new Dictionary<string, decimal>());
         var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
         var loggerMock = new Mock<ILogger<PurchaseOrderService>>();
-        return new PurchaseOrderService(ctx, configMock.Object, workOrderExecMock.Object, loggerMock.Object);
+        return new PurchaseOrderService(ctx, configMock.Object, workOrderExecMock.Object, loggerMock.Object, Mock.Of<IMemoryCache>());
     }
 
     private async Task<int> SeedSupplierAsync(AppDbContext ctx, string name = "测试供应商")

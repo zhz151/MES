@@ -7,6 +7,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Helpers;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Quality;
 
@@ -14,12 +15,16 @@ public class TensileTestService : ITensileTestService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<TensileTestService> _logger;
+    private readonly IMemoryCache _cache;
 
-    public TensileTestService(AppDbContext context, ILogger<TensileTestService> logger)
+    public TensileTestService(AppDbContext context, ILogger<TensileTestService> logger, IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
+        _cache = cache;
     }
+
+    // 筛选上下文缓存由 IMemoryCache 管理（注入 _cache）
 
     public async Task<TensileTestDto?> GetByIdAsync(int id)
     {
@@ -120,6 +125,10 @@ public class TensileTestService : ITensileTestService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
+        return await _cache.GetOrCreateAsync("TensileTestService:FilterContexts", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
         var all = await _context.TensileTests
             .AsNoTracking()
             .Select(r => new { r.Inspector, r.FurnaceNo, r.Grade, r.Specification, r.InspectionStandard, r.Judgment, r.InspectionDate })
@@ -135,6 +144,8 @@ public class TensileTestService : ITensileTestService
             ["Judgment"] = all.Select(x => x.Judgment ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
             ["InspectionDate"] = all.Select(x => x.InspectionDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList()
         };
+
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     private static IQueryable<TensileTest> ApplySorting(IQueryable<TensileTest> queryable, string sortBy, bool isDescending)

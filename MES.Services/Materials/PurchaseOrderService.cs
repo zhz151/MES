@@ -9,6 +9,7 @@ using MES.Data.Entities;
 using MES.Core.Enums;
 using MES.Services.Helpers;
 using MES.Services.Printing;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Materials;
 
@@ -19,14 +20,16 @@ public class PurchaseOrderService : IPurchaseOrderService
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly ILogger<PurchaseOrderService> _logger;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
+    private readonly IMemoryCache _cache;
 
     public PurchaseOrderService(AppDbContext context, IConfigParameterService configService,
-        IWorkOrderExecutionService workOrderExecutionService, ILogger<PurchaseOrderService> logger)
+        IWorkOrderExecutionService workOrderExecutionService, ILogger<PurchaseOrderService> logger, IMemoryCache cache)
     {
         _context = context;
         _configService = configService;
         _workOrderExecutionService = workOrderExecutionService;
         _logger = logger;
+        _cache = cache;
     }
 
     private async Task TryRefreshExecutionSummaryAsync(string? sourceWorkOrderNo)
@@ -967,10 +970,12 @@ public class PurchaseOrderService : IPurchaseOrderService
         };
     }
 
-    // ========== 筛选上下文 ==========
-
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
+        return await _cache.GetOrCreateAsync("PurchaseOrderService:FilterContexts", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
         var query = from p in _context.PurchaseOrders.AsNoTracking()
                     join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
                     from w in wj.DefaultIfEmpty()
@@ -1017,6 +1022,8 @@ public class PurchaseOrderService : IPurchaseOrderService
             ["WoPlantGrade"] = all.Where(x => x.WoPlantGrade != null).Select(x => x.WoPlantGrade!).Distinct().OrderBy(x => x).ToList(),
             ["WoSpecification"] = all.Where(x => x.WoSpecification != null).Select(x => x.WoSpecification!).Distinct().OrderBy(x => x).ToList(),
         };
+
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     // ========== 打印 ==========

@@ -22,7 +22,7 @@ public class OrderDemandAdjustmentServiceTests : TestBase
     {
         woMock ??= new Mock<IWorkOrderExecutionService>();
         woMock.Setup(x => x.RefreshAllAsync()).ReturnsAsync(new WorkOrderExecutionRefreshResultDto());
-        return new OrderDemandAdjustmentService(ctx, woMock.Object);
+        return new OrderDemandAdjustmentService(ctx, woMock.Object, Mock.Of<IMemoryCache>());
     }
 
     private void SeedSummary(AppDbContext ctx, string workOrderNo, int workOrderId, string salesman = "", string customerName = "", string plantGrade = "", string specification = "")

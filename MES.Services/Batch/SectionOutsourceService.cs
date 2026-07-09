@@ -11,6 +11,7 @@ using MES.Data.Entities;
 using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Services.Printing;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Batch;
 
@@ -21,14 +22,16 @@ public class SectionOutsourceService : ISectionOutsourceService
     private readonly IProductionRecordService _productionRecordService;
     private readonly IConfigParameterService _configService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
+    private readonly IMemoryCache _cache;
 
     public SectionOutsourceService(AppDbContext context, ILogger<SectionOutsourceService> logger,
-        IProductionRecordService productionRecordService, IConfigParameterService configService)
+        IProductionRecordService productionRecordService, IConfigParameterService configService, IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
         _productionRecordService = productionRecordService;
         _configService = configService;
+        _cache = cache;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -1119,46 +1122,50 @@ public class SectionOutsourceService : ISectionOutsourceService
         return TablePrintHelper.GeneratePdf("委外回收列表", data, columns);
     }
 
-    // ========== 筛选上下文 ==========
+    // IMemoryCache 由构造函数注入，用于 GetFilterContexts 缓存
 
     public async Task<Dictionary<string, List<string>>> GetOutsourceRecoveryFilterContextsAsync()
     {
-        var results = await _context.OutsourceRecoveries
-            .AsNoTracking()
-            .Include(r => r.SectionOutsource)
-                .ThenInclude(s => s.ProductionBatch)
-            .Select(r => new
-            {
-                r.RecoveryDate,
-                r.CreatedTime,
-                BatchNo = r.SectionOutsource.ProductionBatch.BatchNo,
-                r.SectionOutsource.OutsourceVendor,
-                r.SectionOutsource.ProcessName,
-                r.SectionOutsource.SectionName,
-                ManufacturingSpec = r.SectionOutsource.ManufacturingSpec,
-                OutsourceSpec = r.SectionOutsource.OutsourceSpec,
-                r.SectionOutsource.TagNo,
-                r.SectionOutsource.PlantGrade,
-                r.Remark,
-                r.DataSource
-            })
-            .ToListAsync();
-
-        return new Dictionary<string, List<string>>
+        return await _cache.GetOrCreateAsync("SectionOutsourceService:RecoveryFilterContexts", async entry =>
         {
-            ["BatchNo"] = results.Select(x => x.BatchNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["OutsourceVendor"] = results.Select(x => x.OutsourceVendor).Distinct().OrderBy(x => x).ToList(),
-            ["ProcessName"] = results.Select(x => x.ProcessName).Distinct().OrderBy(x => x).ToList(),
-            ["SectionName"] = results.Select(x => x.SectionName).Distinct().OrderBy(x => x).ToList(),
-            ["ManufacturingSpec"] = results.Where(x => x.ManufacturingSpec != null).Select(x => x.ManufacturingSpec!).Distinct().OrderBy(x => x).ToList()!,
-            ["OutsourceSpec"] = results.Where(x => x.OutsourceSpec != null).Select(x => x.OutsourceSpec!).Distinct().OrderBy(x => x).ToList()!,
-            ["TagNo"] = results.Where(x => x.TagNo != null).Select(x => x.TagNo!).Distinct().OrderBy(x => x).ToList()!,
-            ["PlantGrade"] = results.Where(x => x.PlantGrade != null).Select(x => x.PlantGrade!).Distinct().OrderBy(x => x).ToList()!,
-            ["Remark"] = results.Where(x => x.Remark != null).Select(x => x.Remark!).Distinct().OrderBy(x => x).ToList()!,
-            ["RecoveryDate"] = results.Select(x => x.RecoveryDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["CreatedTime"] = results.Select(x => x.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")).Distinct().OrderBy(x => x).ToList(),
-            ["DataSource"] = results.Where(x => x.DataSource != null).Select(x => x.DataSource!).Distinct().OrderBy(x => x).ToList()!,
-        };
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            var results = await _context.OutsourceRecoveries
+                .AsNoTracking()
+                .Include(r => r.SectionOutsource)
+                    .ThenInclude(s => s.ProductionBatch)
+                .Select(r => new
+                {
+                    r.RecoveryDate,
+                    r.UpdatedTime,
+                    BatchNo = r.SectionOutsource.ProductionBatch.BatchNo,
+                    r.SectionOutsource.OutsourceVendor,
+                    r.SectionOutsource.ProcessName,
+                    r.SectionOutsource.SectionName,
+                    ManufacturingSpec = r.SectionOutsource.ManufacturingSpec,
+                    OutsourceSpec = r.SectionOutsource.OutsourceSpec,
+                    r.SectionOutsource.TagNo,
+                    r.SectionOutsource.PlantGrade,
+                    r.Remark,
+                    r.DataSource
+                })
+                .ToListAsync();
+
+            return new Dictionary<string, List<string>>
+            {
+                ["BatchNo"] = results.Select(x => x.BatchNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["OutsourceVendor"] = results.Select(x => x.OutsourceVendor).Distinct().OrderBy(x => x).ToList(),
+                ["ProcessName"] = results.Select(x => x.ProcessName).Distinct().OrderBy(x => x).ToList(),
+                ["SectionName"] = results.Select(x => x.SectionName).Distinct().OrderBy(x => x).ToList(),
+                ["ManufacturingSpec"] = results.Where(x => x.ManufacturingSpec != null).Select(x => x.ManufacturingSpec!).Distinct().OrderBy(x => x).ToList()!,
+                ["OutsourceSpec"] = results.Where(x => x.OutsourceSpec != null).Select(x => x.OutsourceSpec!).Distinct().OrderBy(x => x).ToList()!,
+                ["TagNo"] = results.Where(x => x.TagNo != null).Select(x => x.TagNo!).Distinct().OrderBy(x => x).ToList()!,
+                ["PlantGrade"] = results.Where(x => x.PlantGrade != null).Select(x => x.PlantGrade!).Distinct().OrderBy(x => x).ToList()!,
+                ["Remark"] = results.Where(x => x.Remark != null).Select(x => x.Remark!).Distinct().OrderBy(x => x).ToList()!,
+                ["RecoveryDate"] = results.Select(x => x.RecoveryDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["UpdatedTime"] = results.Select(x => x.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")).Distinct().OrderBy(x => x).ToList(),
+                ["DataSource"] = results.Where(x => x.DataSource != null).Select(x => x.DataSource!).Distinct().OrderBy(x => x).ToList()!,
+            };
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     /// <summary>
@@ -1166,48 +1173,62 @@ public class SectionOutsourceService : ISectionOutsourceService
     /// </summary>
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        var query = _context.SectionOutsources
-            .AsNoTracking()
-            .Include(s => s.ProductionBatch)
-            .Include(s => s.OutsourceRecoveries);
-
-        // 注意：枚举列（Status）不在此处返回，
-        // 由前端 EnumOptions fallback 直接提供带中文 Display 的选项，避免映射丢失。
-        var results = await query.Select(s => new
+        return await _cache.GetOrCreateAsync("SectionOutsourceService:FilterContexts", async entry =>
         {
-            s.ProductionBatch.BatchNo,
-            s.ProcessName,
-            s.ManufacturingSpec,
-            s.SectionName,
-            s.OutsourceVendor,
-            s.TagNo,
-            s.PlantGrade,
-            s.OutsourceSpec,
-            s.Remark,
-            s.SendOutDate,
-            s.ExpectedReturnDate,
-            s.DataSource,
-            ActualRecoveryDate = s.OutsourceRecoveries.Max(r => (DateTime?)r.RecoveryDate)
-        }).ToListAsync();
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            var query = _context.SectionOutsources
+                .AsNoTracking()
+                .Include(s => s.ProductionBatch)
+                .Include(s => s.OutsourceRecoveries);
 
-        return new Dictionary<string, List<string>>
-        {
-            ["BatchNo"] = results.Select(x => x.BatchNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["ProcessName"] = results.Select(x => x.ProcessName).Distinct().OrderBy(x => x).ToList(),
-            ["ManufacturingSpec"] = results.Select(x => x.ManufacturingSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["SectionName"] = results.Select(x => x.SectionName).Distinct().OrderBy(x => x).ToList(),
-            ["OutsourceVendor"] = results.Select(x => x.OutsourceVendor).Distinct().OrderBy(x => x).ToList(),
-            ["TagNo"] = results.Select(x => x.TagNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["PlantGrade"] = results.Select(x => x.PlantGrade).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["OutsourceSpec"] = results.Select(x => x.OutsourceSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["Remark"] = results.Select(x => x.Remark).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["SendOutDate"] = results.Select(x => x.SendOutDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["DataSource"] = results.Select(x => x.DataSource).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["ExpectedReturnDate"] = results.Where(x => x.ExpectedReturnDate.HasValue)
-                .Select(x => x.ExpectedReturnDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["ActualRecoveryDate"] = results.Where(x => x.ActualRecoveryDate.HasValue)
-                .Select(x => x.ActualRecoveryDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-        };
+            // 注意：枚举列（Status）不在此处返回，
+            // 由前端 EnumOptions fallback 直接提供带中文 Display 的选项，避免映射丢失。
+            var results = await query.Select(s => new
+            {
+                s.ProductionBatch.BatchNo,
+                s.ProcessName,
+                s.ManufacturingSpec,
+                s.SectionName,
+                s.OutsourceVendor,
+                s.TagNo,
+                s.PlantGrade,
+                s.OutsourceSpec,
+                s.Remark,
+                s.SendOutDate,
+                s.ExpectedReturnDate,
+                s.DataSource,
+                ActualRecoveryDate = s.OutsourceRecoveries.Max(r => (DateTime?)r.RecoveryDate),
+                RecoveryRemark = s.OutsourceRecoveries
+                    .Where(r => r.Remark != null)
+                    .Select(r => r.Remark)
+                    .FirstOrDefault()
+            }).ToListAsync();
+
+            return new Dictionary<string, List<string>>
+            {
+                ["BatchNo"] = results.Select(x => x.BatchNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["ProcessName"] = results.Select(x => x.ProcessName).Distinct().OrderBy(x => x).ToList(),
+                ["ManufacturingSpec"] = results.Select(x => x.ManufacturingSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["SectionName"] = results.Select(x => x.SectionName).Distinct().OrderBy(x => x).ToList(),
+                ["OutsourceVendor"] = results.Select(x => x.OutsourceVendor).Distinct().OrderBy(x => x).ToList(),
+                ["TagNo"] = results.Select(x => x.TagNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["PlantGrade"] = results.Select(x => x.PlantGrade).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["OutsourceSpec"] = results.Select(x => x.OutsourceSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["Remark"] = results.Select(x => x.Remark).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["SendOutDate"] = results.Select(x => x.SendOutDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["DataSource"] = results.Select(x => x.DataSource).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["ExpectedReturnDate"] = results.Where(x => x.ExpectedReturnDate.HasValue)
+                    .Select(x => x.ExpectedReturnDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["ActualRecoveryDate"] = results.Where(x => x.ActualRecoveryDate.HasValue)
+                    .Select(x => x.ActualRecoveryDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["RecoveryRemark"] = results
+                    .Select(x => x.RecoveryRemark)
+                    .Where(x => x != null)
+                    .Distinct()
+                    .OrderBy(x => x)
+                    .ToList()!,
+            };
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     // ========== 辅助方法 ==========

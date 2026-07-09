@@ -15,7 +15,7 @@ namespace MES.Tests.Services;
 /// </summary>
 public class SupplierServiceTests : TestBase
 {
-    private SupplierService CreateService(AppDbContext ctx) => new(ctx);
+    private SupplierService CreateService(AppDbContext ctx) => new(ctx, Mock.Of<IMemoryCache>());
 
     private async Task SeedSupplierAsync(AppDbContext ctx, string name = "测试供应商", string? code = null, string contact = "张三", string phone = "13800138000")
     {

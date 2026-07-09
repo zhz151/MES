@@ -10,6 +10,7 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Helpers;
 using MES.Services.Printing;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Order;
 
@@ -22,8 +23,9 @@ public class OrderService : IOrderService
     private readonly IWorkOrderService? _workOrderService;
     private readonly IWorkOrderListSummaryRefreshService? _listSummaryService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
+    private readonly IMemoryCache _cache;
 
-    public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService, IConfigParameterService configService, IWorkOrderService? workOrderService = null, IWorkOrderListSummaryRefreshService? listSummaryService = null)
+    public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService, IConfigParameterService configService, IMemoryCache cache, IWorkOrderService? workOrderService = null, IWorkOrderListSummaryRefreshService? listSummaryService = null)
     {
         _context = context;
         _logger = logger;
@@ -31,6 +33,7 @@ public class OrderService : IOrderService
         _configService = configService;
         _workOrderService = workOrderService;
         _listSummaryService = listSummaryService;
+        _cache = cache;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -224,12 +227,7 @@ public class OrderService : IOrderService
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
 
-        // 2. 查客户
-        var customer = await _context.CustomerProfiles
-            .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == salesOrder.CustomerId);
-
-        // 3. 查项次（独立查询，不与订单头 JOIN）
+        // 2. 查项次（独立查询，不与订单头 JOIN）
         var orderItems = await _context.OrderItems
             .AsNoTracking()
             .Where(oi => oi.SalesOrderId == id)
@@ -258,9 +256,9 @@ public class OrderService : IOrderService
             OrderNumber = salesOrder.OrderNumber,
             SignDate = salesOrder.SignDate,
             CustomerId = salesOrder.CustomerId,
-            CustomerName = customer?.CustomerUnit ?? "未知客户",
-            Salesman = customer?.Salesman ?? string.Empty,
-            EndCustomer = customer?.EndCustomer,
+            CustomerName = salesOrder.CustomerName,
+            Salesman = salesOrder.Salesman,
+            EndCustomer = salesOrder.EndCustomer,
             Status = salesOrder.Status,
             RowVersion = salesOrder.RowVersion,
             Items = orderItems.Select(oi =>
@@ -322,7 +320,10 @@ public class OrderService : IOrderService
             OrderNumber = request.OrderNumber,
             SignDate = request.SignDate,
             CustomerId = request.CustomerId,
-            Status = SalesOrderStatus.Pending
+            Status = SalesOrderStatus.Pending,
+            CustomerName = customer.CustomerUnit,
+            Salesman = customer.Salesman,
+            EndCustomer = customer.EndCustomer
         };
 
         var sequence = 1;
@@ -345,9 +346,9 @@ public class OrderService : IOrderService
             Id = salesOrder.Id,
             OrderNumber = salesOrder.OrderNumber,
             SignDate = salesOrder.SignDate,
-            CustomerName = customer.CustomerUnit,
-            Salesman = customer.Salesman,
-            EndCustomer = customer.EndCustomer,
+            CustomerName = salesOrder.CustomerName,
+            Salesman = salesOrder.Salesman,
+            EndCustomer = salesOrder.EndCustomer,
             Status = salesOrder.Status,
             RowVersion = salesOrder.RowVersion
         };
@@ -356,7 +357,6 @@ public class OrderService : IOrderService
     public async Task<SalesOrderListDto> UpdateAsync(int id, UpdateSalesOrderRequest request)
     {
         var salesOrder = await _context.SalesOrders
-            .Include(so => so.Customer)
             .FirstOrDefaultAsync(so => so.Id == id);
 
         if (salesOrder == null)
@@ -378,6 +378,9 @@ public class OrderService : IOrderService
             if (customer == null)
                 throw new BusinessException("客户不存在");
             salesOrder.CustomerId = request.CustomerId.Value;
+            salesOrder.CustomerName = customer.CustomerUnit;
+            salesOrder.Salesman = customer.Salesman;
+            salesOrder.EndCustomer = customer.EndCustomer;
         }
 
         if (!string.IsNullOrEmpty(request.Status))
@@ -404,16 +407,14 @@ public class OrderService : IOrderService
 
         await RefreshByOrderIdAsync(salesOrder.Id);
 
-        var updatedCustomer = await _context.CustomerProfiles.FirstOrDefaultAsync(c => c.Id == salesOrder.CustomerId);
-
         return new SalesOrderListDto
         {
             Id = salesOrder.Id,
             OrderNumber = salesOrder.OrderNumber,
             SignDate = salesOrder.SignDate,
-            CustomerName = updatedCustomer?.CustomerUnit ?? string.Empty,
-            Salesman = updatedCustomer?.Salesman ?? string.Empty,
-            EndCustomer = updatedCustomer?.EndCustomer,
+            CustomerName = salesOrder.CustomerName,
+            Salesman = salesOrder.Salesman,
+            EndCustomer = salesOrder.EndCustomer,
             Status = salesOrder.Status,
             RowVersion = salesOrder.RowVersion
         };
@@ -909,6 +910,9 @@ public async Task DeleteAsync(int id)
                 var customer = await _context.CustomerProfiles.FirstOrDefaultAsync(c => c.Id == request.CustomerId.Value);
                 if (customer == null) throw new BusinessException("客户不存在");
                 salesOrder.CustomerId = request.CustomerId.Value;
+                salesOrder.CustomerName = customer.CustomerUnit;
+                salesOrder.Salesman = customer.Salesman;
+                salesOrder.EndCustomer = customer.EndCustomer;
             }
 
             salesOrder.LastItemChangeTime = DateTimeOffset.Now;
@@ -1047,7 +1051,6 @@ public async Task DeleteAsync(int id)
     {
         var salesOrder = await _context.SalesOrders
             .AsNoTracking()
-            .Include(so => so.Customer)
             .Include(so => so.OrderItems)
                 .ThenInclude(oi => oi.ProductRequirement)
             .FirstOrDefaultAsync(so => so.Id == orderId);
@@ -1075,9 +1078,9 @@ public async Task DeleteAsync(int id)
         {
             existingSummary.OrderNumber = salesOrder.OrderNumber;
             existingSummary.SignDate = salesOrder.SignDate;
-            existingSummary.CustomerName = salesOrder.Customer?.CustomerUnit ?? string.Empty;
-            existingSummary.Salesman = salesOrder.Customer?.Salesman ?? string.Empty;
-            existingSummary.EndCustomer = salesOrder.Customer?.EndCustomer;
+            existingSummary.CustomerName = salesOrder.CustomerName;
+            existingSummary.Salesman = salesOrder.Salesman;
+            existingSummary.EndCustomer = salesOrder.EndCustomer;
             existingSummary.DeliveryStart = deliveryStart;
             existingSummary.DeliveryEnd = deliveryEnd;
             existingSummary.HasDelayPenalty = items.Any(oi => oi.DelayPenalty);
@@ -1095,9 +1098,9 @@ public async Task DeleteAsync(int id)
                 OrderId = salesOrder.Id,
                 OrderNumber = salesOrder.OrderNumber,
                 SignDate = salesOrder.SignDate,
-                CustomerName = salesOrder.Customer?.CustomerUnit ?? string.Empty,
-                Salesman = salesOrder.Customer?.Salesman ?? string.Empty,
-                EndCustomer = salesOrder.Customer?.EndCustomer,
+                CustomerName = salesOrder.CustomerName,
+                Salesman = salesOrder.Salesman,
+                EndCustomer = salesOrder.EndCustomer,
                 DeliveryStart = deliveryStart,
                 DeliveryEnd = deliveryEnd,
                 HasDelayPenalty = items.Any(oi => oi.DelayPenalty),
@@ -1491,10 +1494,6 @@ public async Task DeleteAsync(int id)
             .Where(so => ids.Contains(so.Id))
             .ToListAsync();
 
-        var customerIds = salesOrders.Select(so => so.CustomerId).Distinct().ToList();
-        var customers = await _context.CustomerProfiles
-            .Where(c => customerIds.Contains(c.Id))
-            .ToDictionaryAsync(c => c.Id, c => c);
 
         var allStandardNos = salesOrders.SelectMany(so => so.OrderItems)
             .Where(oi => !string.IsNullOrEmpty(oi.StandardNo))
@@ -1513,16 +1512,15 @@ public async Task DeleteAsync(int id)
 
         return salesOrders.Select(so =>
         {
-            customers.TryGetValue(so.CustomerId, out var customer);
             return new SalesOrderDetailDto
             {
                 Id = so.Id,
                 OrderNumber = so.OrderNumber,
                 SignDate = so.SignDate,
                 CustomerId = so.CustomerId,
-                CustomerName = customer?.CustomerUnit ?? "未知客户",
-                Salesman = customer?.Salesman ?? string.Empty,
-                EndCustomer = customer?.EndCustomer,
+                CustomerName = so.CustomerName,
+                Salesman = so.Salesman,
+                EndCustomer = so.EndCustomer,
                 Status = so.Status,
                 RowVersion = so.RowVersion,
                 Items = so.OrderItems.Select(oi =>
@@ -1652,6 +1650,20 @@ public async Task DeleteAsync(int id)
                     if (int.TryParse(filter.To?.ToString(), out var icMax))
                         queryable = queryable.Where(s => s.ItemCount <= icMax);
                     break;
+
+                case "notech":
+                    if (bool.TryParse(filter.Value, out var techVal))
+                    {
+                        if (techVal)
+                            queryable = queryable.Where(s => s.ItemCount > 0 && s.HasTechReqCount == s.ItemCount);
+                        else
+                            queryable = queryable.Where(s => s.HasTechReqCount < s.ItemCount);
+                    }
+                    else if (filter.Value == "已编辑")
+                        queryable = queryable.Where(s => s.ItemCount > 0 && s.HasTechReqCount == s.ItemCount);
+                    else if (filter.Value == "未编辑")
+                        queryable = queryable.Where(s => s.HasTechReqCount < s.ItemCount);
+                    break;
             }
         }
         return queryable;
@@ -1659,36 +1671,38 @@ public async Task DeleteAsync(int id)
 
     #endregion
 
-    // ========== 筛选上下文 ==========
-
     public async Task<Dictionary<string, List<string>>> GetOrderFilterContextsAsync()
     {
-        var query = _context.Set<OrderListSummary>().AsNoTracking();
-
-        var all = await query
-            .Select(x => new
-            {
-                x.OrderNumber,
-                x.SignDate,
-                x.Salesman,
-                x.CustomerName,
-                x.EndCustomer,
-                x.DeliveryStart,
-                x.DeliveryEnd,
-                x.LastChangeDate
-            })
-            .ToListAsync();
-
-        return new Dictionary<string, List<string>>
+        return await _cache.GetOrCreateAsync("OrderService:FilterContexts", async entry =>
         {
-            ["OrderNumber"] = all.Select(x => x.OrderNumber).Distinct().OrderBy(x => x).ToList(),
-            ["SignDate"] = all.Select(x => x.SignDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["Salesman"] = all.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
-            ["CustomerName"] = all.Select(x => x.CustomerName).Distinct().OrderBy(x => x).ToList(),
-            ["EndCustomer"] = all.Where(x => x.EndCustomer != null).Select(x => x.EndCustomer!).Distinct().OrderBy(x => x).ToList(),
-            ["DeliveryStart"] = all.Where(x => x.DeliveryStart != null).Select(x => x.DeliveryStart!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["DeliveryEnd"] = all.Where(x => x.DeliveryEnd != null).Select(x => x.DeliveryEnd!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["LastChangeDate"] = all.Where(x => x.LastChangeDate != null).Select(x => x.LastChangeDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-        };
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            var query = _context.Set<OrderListSummary>().AsNoTracking();
+
+            var all = await query
+                .Select(x => new
+                {
+                    x.OrderNumber,
+                    x.SignDate,
+                    x.Salesman,
+                    x.CustomerName,
+                    x.EndCustomer,
+                    x.DeliveryStart,
+                    x.DeliveryEnd,
+                    x.LastChangeDate
+                })
+                .ToListAsync();
+
+            return new Dictionary<string, List<string>>
+            {
+                ["OrderNumber"] = all.Select(x => x.OrderNumber).Distinct().OrderBy(x => x).ToList(),
+                ["SignDate"] = all.Select(x => x.SignDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["Salesman"] = all.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
+                ["CustomerName"] = all.Select(x => x.CustomerName).Distinct().OrderBy(x => x).ToList(),
+                ["EndCustomer"] = all.Where(x => x.EndCustomer != null).Select(x => x.EndCustomer!).Distinct().OrderBy(x => x).ToList(),
+                ["DeliveryStart"] = all.Where(x => x.DeliveryStart != null).Select(x => x.DeliveryStart!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["DeliveryEnd"] = all.Where(x => x.DeliveryEnd != null).Select(x => x.DeliveryEnd!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["LastChangeDate"] = all.Where(x => x.LastChangeDate != null).Select(x => x.LastChangeDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            };
+        }) ?? new Dictionary<string, List<string>>();
     }
 }

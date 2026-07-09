@@ -41,7 +41,8 @@ public class ProcessInspectionServiceTests : TestBase
         return new ProcessInspectionService(ctx,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<ProcessInspectionService>.Instance,
             mockProductionRecordService.Object,
-            configMock.Object);
+            configMock.Object,
+            Mock.Of<IMemoryCache>());
     }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")

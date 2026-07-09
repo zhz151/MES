@@ -11,6 +11,7 @@ using MES.Data;
 using MES.Data.Entities;
 using WoEntity = MES.Data.Entities.WorkOrder;
 using MES.Services.Helpers;
+using Microsoft.Extensions.Caching.Memory;
 using MES.Services.Printing;
 
 namespace MES.Services.Batch;
@@ -26,8 +27,9 @@ public class BatchService : IBatchService
     private readonly IConfigParameterService _configService;
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly IMaterialPlanService _materialPlanService;
+    private readonly IMemoryCache _cache;
 
-    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService)
+    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService, IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
@@ -35,6 +37,7 @@ public class BatchService : IBatchService
         _configService = configService;
         _workOrderExecutionService = workOrderExecutionService;
         _materialPlanService = materialPlanService;
+        _cache = cache;
     }
 
     private async Task TryRefreshExecutionSummaryAsync(string? workOrderNo)
@@ -131,19 +134,14 @@ public class BatchService : IBatchService
         if (!string.IsNullOrEmpty(query.ProductionSubNo))
             queryable = queryable.Where(b => b.ProductionSubNo != null && b.ProductionSubNo.Contains(query.ProductionSubNo));
 
-        // 处理 Salesman/EndCustomer 筛选（来自 CustomerProfile，非 ProductionBatch 快照）
+        // 处理 Salesman/EndCustomer 筛选（直接从 ProductionBatch 快照字段筛选，
+        // 无需通过 CustomerProfile，SalesOrder 已有独立快照字段）
         if (query.Filters != null)
         {
             var salesmanFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("Salesman", StringComparison.OrdinalIgnoreCase));
             if (salesmanFilter != null && salesmanFilter.Values?.Count > 0)
             {
-                var salesmanValues = salesmanFilter.Values;
-                var matchedOrderNos = _context.SalesOrders
-                    .AsNoTracking()
-                    .Include(so => so.Customer)
-                    .Where(so => so.Customer != null && salesmanValues.Contains(so.Customer.Salesman))
-                    .Select(so => so.OrderNumber);
-                queryable = queryable.Where(b => matchedOrderNos.Contains(b.SalesOrderNo));
+                queryable = queryable.Where(b => salesmanFilter.Values.Contains(b.Salesman));
                 query.Filters.Remove(salesmanFilter);
             }
 
@@ -151,12 +149,7 @@ public class BatchService : IBatchService
             if (endCustomerFilter != null && endCustomerFilter.Values?.Count > 0)
             {
                 var endCustomerValues = endCustomerFilter.Values;
-                var matchedOrderNos = _context.SalesOrders
-                    .AsNoTracking()
-                    .Include(so => so.Customer)
-                    .Where(so => so.Customer != null && so.Customer.EndCustomer != null && endCustomerValues.Contains(so.Customer.EndCustomer))
-                    .Select(so => so.OrderNumber);
-                queryable = queryable.Where(b => matchedOrderNos.Contains(b.SalesOrderNo));
+                queryable = queryable.Where(b => b.EndCustomer != null && endCustomerValues.Contains(b.EndCustomer));
                 query.Filters.Remove(endCustomerFilter);
             }
         }
@@ -231,9 +224,6 @@ public class BatchService : IBatchService
                 ValidInputQuestion = b.ValidInputQuestion
             })
             .ToListAsync();
-
-        // ========== 从 CustomerProfile 覆盖 Salesman/EndCustomer ==========
-        await PatchCustomerFieldsAsync(items);
 
         return new PagedResult<ProductionBatchListDto>
         {
@@ -312,9 +302,6 @@ public class BatchService : IBatchService
             })
             .ToListAsync();
 
-        // ========== 从 CustomerProfile 覆盖 Salesman/EndCustomer ==========
-        await PatchCustomerFieldsAsync(items);
-
         return items;
     }
 
@@ -330,9 +317,6 @@ public class BatchService : IBatchService
 
         var dto = ToDetailDto(entity);
 
-        // 从 CustomerProfile 取最新 Salesman/EndCustomer
-        await PatchCustomerFieldsAsync(dto);
-
         return dto;
     }
 
@@ -347,9 +331,6 @@ public class BatchService : IBatchService
             throw new BusinessException($"生产批次不存在 (BatchNo={batchNo})");
 
         var dto = ToDetailDto(entity);
-
-        // 从 CustomerProfile 取最新 Salesman/EndCustomer
-        await PatchCustomerFieldsAsync(dto);
 
         return dto;
     }
@@ -766,9 +747,6 @@ public class BatchService : IBatchService
         _logger.LogInformation("更新生产批次 {BatchNo} (Id={Id})", entity.BatchNo, id);
 
         var dto = ToDetailDto(entity);
-
-        // 从 CustomerProfile 取最新 Salesman/EndCustomer
-        await PatchCustomerFieldsAsync(dto);
 
         _ = TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
 
@@ -1809,83 +1787,57 @@ public class BatchService : IBatchService
         return ProcessCardPrintHelper.GeneratePdf("工 艺 流 转 卡", entities, columns);
     }
 
-    // ========== 筛选上下文 ==========
-
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        // 注意：枚举列（ProductionType/Status/MaterialName 等）不在此处返回，
-        // 由前端 EnumOptions fallback 直接提供带中文 Display 的选项，避免映射丢失。
-        var results = await _context.ProductionBatches
-            .AsNoTracking()
-            .Select(b => new
-            {
-                b.BatchNo, b.TagNo, b.WorkOrderNo, b.SalesOrderNo,
-                b.ProductionMainNo, b.ProductionSubNo,
-                b.CurrentExecDate,
-                b.CurrentGroupName, b.CurrentSectionName, b.CurrentEquipmentName,
-                b.CurrentOutsource, b.CurrentSpec, b.NextSectionName,
-                b.CorrespondingSpec, b.NextProcess, b.SignDate, b.Salesman, b.EndCustomer,
-                b.DeliveryDate,
-                b.StandardCode, b.PlantGrade, b.Specification, b.CreatedBy
-            })
-            .ToListAsync();
-
-        // ========== 从 CustomerProfile 覆盖业务员/最终用户（与 GetPagedAsync 的 PatchCustomerFieldsAsync 一致） ==========
-        var orderNos = results.Select(x => x.SalesOrderNo).Distinct().ToList();
-        Dictionary<string, (string Salesman, string? EndCustomer)> customerByOrderNo = new();
-        if (orderNos.Count > 0)
+        return await _cache.GetOrCreateAsync("BatchService:FilterContexts", async entry =>
         {
-            customerByOrderNo = await _context.SalesOrders
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
+            // 注意：枚举列（ProductionType/Status/MaterialName 等）不在此处返回，
+            // 由前端 EnumOptions fallback 直接提供带中文 Display 的选项，避免映射丢失。
+            var results = await _context.ProductionBatches
                 .AsNoTracking()
-                .Include(so => so.Customer)
-                .Where(so => orderNos.Contains(so.OrderNumber))
-                .ToDictionaryAsync(so => so.OrderNumber, so =>
-                    (so.Customer?.Salesman ?? "", so.Customer?.EndCustomer));
-        }
-        // 用一个可变类型承载 patched 值
-        var patchedResults = results.Select(r =>
-        {
-            var salesman = r.Salesman;
-            var endCustomer = r.EndCustomer;
-            if (customerByOrderNo.TryGetValue(r.SalesOrderNo, out var c))
-            {
-                salesman = c.Salesman;
-                endCustomer = c.EndCustomer;
-            }
-            return new { r.BatchNo, r.TagNo, r.WorkOrderNo, r.SalesOrderNo, r.ProductionMainNo,
-                r.ProductionSubNo, r.CurrentExecDate, r.CurrentGroupName, r.CurrentSectionName,
-                r.CurrentEquipmentName, r.CurrentOutsource, r.CurrentSpec, r.NextSectionName,
-                r.CorrespondingSpec, r.NextProcess, r.SignDate, Salesman = salesman, EndCustomer = endCustomer,
-                r.DeliveryDate, r.StandardCode, r.PlantGrade, r.Specification, r.CreatedBy };
-        }).ToList();
+                .Select(b => new
+                {
+                    b.BatchNo, b.TagNo, b.WorkOrderNo, b.SalesOrderNo,
+                    b.ProductionMainNo, b.ProductionSubNo,
+                    b.CurrentExecDate,
+                    b.CurrentGroupName, b.CurrentSectionName, b.CurrentEquipmentName,
+                    b.CurrentOutsource, b.CurrentSpec, b.NextSectionName,
+                    b.CorrespondingSpec, b.NextProcess, b.SignDate, b.Salesman, b.EndCustomer,
+                    b.DeliveryDate,
+                    b.StandardCode, b.PlantGrade, b.Specification, b.CreatedBy
+                })
+                .ToListAsync();
 
-        return new Dictionary<string, List<string>>
-        {
-            ["BatchNo"] = patchedResults.Select(x => x.BatchNo).Distinct().OrderBy(x => x).ToList(),
-            ["TagNo"] = patchedResults.Select(x => x.TagNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["WorkOrderNo"] = patchedResults.Select(x => x.WorkOrderNo).Distinct().OrderBy(x => x).ToList(),
-            ["SalesOrderNo"] = patchedResults.Select(x => x.SalesOrderNo).Distinct().OrderBy(x => x).ToList(),
-            ["ProductionMainNo"] = patchedResults.Select(x => x.ProductionMainNo).Distinct().OrderBy(x => x).ToList(),
-            ["ProductionSubNo"] = patchedResults.Select(x => x.ProductionSubNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["CurrentExecDate"] = patchedResults.Where(x => x.CurrentExecDate.HasValue)
-                .Select(x => x.CurrentExecDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["CurrentGroupName"] = patchedResults.Select(x => x.CurrentGroupName).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["CurrentSectionName"] = patchedResults.Select(x => x.CurrentSectionName).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["CurrentEquipmentName"] = patchedResults.Select(x => x.CurrentEquipmentName).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["CurrentOutsource"] = patchedResults.Select(x => x.CurrentOutsource).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["CurrentSpec"] = patchedResults.Select(x => x.CurrentSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["NextSectionName"] = patchedResults.Select(x => x.NextSectionName).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["CorrespondingSpec"] = patchedResults.Select(x => x.CorrespondingSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["NextProcess"] = patchedResults.Select(x => x.NextProcess).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["SignDate"] = patchedResults.Select(x => x.SignDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["Salesman"] = patchedResults.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
-            ["EndCustomer"] = patchedResults.Select(x => x.EndCustomer).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
-            ["DeliveryDate"] = patchedResults.Select(x => x.DeliveryDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["StandardCode"] = patchedResults.Select(x => x.StandardCode).Distinct().OrderBy(x => x).ToList(),
-            ["PlantGrade"] = patchedResults.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
-            ["Specification"] = patchedResults.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
-            ["CreatedBy"] = patchedResults.Select(x => x.CreatedBy).Distinct().OrderBy(x => x).ToList(),
-        };
+            return new Dictionary<string, List<string>>
+            {
+                ["BatchNo"] = results.Select(x => x.BatchNo).Distinct().OrderBy(x => x).ToList(),
+                ["TagNo"] = results.Select(x => x.TagNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["WorkOrderNo"] = results.Select(x => x.WorkOrderNo).Distinct().OrderBy(x => x).ToList(),
+                ["SalesOrderNo"] = results.Select(x => x.SalesOrderNo).Distinct().OrderBy(x => x).ToList(),
+                ["ProductionMainNo"] = results.Select(x => x.ProductionMainNo).Distinct().OrderBy(x => x).ToList(),
+                ["ProductionSubNo"] = results.Select(x => x.ProductionSubNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["CurrentExecDate"] = results.Where(x => x.CurrentExecDate.HasValue)
+                    .Select(x => x.CurrentExecDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["CurrentGroupName"] = results.Select(x => x.CurrentGroupName).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["CurrentSectionName"] = results.Select(x => x.CurrentSectionName).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["CurrentEquipmentName"] = results.Select(x => x.CurrentEquipmentName).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["CurrentOutsource"] = results.Select(x => x.CurrentOutsource).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["CurrentSpec"] = results.Select(x => x.CurrentSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["NextSectionName"] = results.Select(x => x.NextSectionName).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["CorrespondingSpec"] = results.Select(x => x.CorrespondingSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["NextProcess"] = results.Select(x => x.NextProcess).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["SignDate"] = results.Select(x => x.SignDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["Salesman"] = results.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
+                ["EndCustomer"] = results.Select(x => x.EndCustomer).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["DeliveryDate"] = results.Select(x => x.DeliveryDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["StandardCode"] = results.Select(x => x.StandardCode).Distinct().OrderBy(x => x).ToList(),
+                ["PlantGrade"] = results.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
+                ["Specification"] = results.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
+                ["CreatedBy"] = results.Select(x => x.CreatedBy).Distinct().OrderBy(x => x).ToList(),
+            };
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     // ========== 辅助方法 ==========
@@ -2102,50 +2054,6 @@ public class BatchService : IBatchService
             CreatedTime = entity.CreatedTime,
             CreatedBy = entity.CreatedBy
         };
-    }
-
-    /// <summary>
-    /// 从 CustomerProfile 取当前最新 Salesman/EndCustomer，覆盖 ProductionBatch 冗余快照
-    /// </summary>
-    private async Task PatchCustomerFieldsAsync(ProductionBatchDetailDto dto)
-    {
-        if (string.IsNullOrEmpty(dto.SalesOrderNo)) return;
-
-        var salesOrder = await _context.SalesOrders
-            .AsNoTracking()
-            .Include(so => so.Customer)
-            .FirstOrDefaultAsync(so => so.OrderNumber == dto.SalesOrderNo);
-        if (salesOrder?.Customer != null)
-        {
-            dto.Salesman = salesOrder.Customer.Salesman;
-            dto.EndCustomer = salesOrder.Customer.EndCustomer;
-        }
-    }
-
-    /// <summary>
-    /// 批量从 CustomerProfile 覆盖 ProductionBatchListDto 的冗余快照字段
-    /// </summary>
-    private async Task PatchCustomerFieldsAsync(List<ProductionBatchListDto> items)
-    {
-        var orderNos = items.Select(i => i.SalesOrderNo).Distinct().ToList();
-        if (orderNos.Count == 0) return;
-
-        var salesOrders = await _context.SalesOrders
-            .AsNoTracking()
-            .Include(so => so.Customer)
-            .Where(so => orderNos.Contains(so.OrderNumber))
-            .ToListAsync();
-
-        var customerByOrderNo = salesOrders.ToDictionary(so => so.OrderNumber, so => so.Customer, StringComparer.OrdinalIgnoreCase);
-
-        foreach (var item in items)
-        {
-            if (customerByOrderNo.TryGetValue(item.SalesOrderNo, out var customer))
-            {
-                item.Salesman = customer.Salesman;
-                item.EndCustomer = customer.EndCustomer;
-            }
-        }
     }
 
     /// <summary>

@@ -10,6 +10,7 @@ using MES.Data.Entities;
 using WoEntity = MES.Data.Entities.WorkOrder;
 using MES.Services.Helpers;
 using MES.Services.Printing;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Materials;
 
@@ -21,16 +22,18 @@ public class SubcontractOrderService : ISubcontractOrderService
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly ILogger<SubcontractOrderService> _logger;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
+    private readonly IMemoryCache _cache;
 
     public SubcontractOrderService(AppDbContext context, IPurchaseOrderService purchaseService,
         IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService,
-        ILogger<SubcontractOrderService> logger)
+        ILogger<SubcontractOrderService> logger, IMemoryCache cache)
     {
         _context = context;
         _purchaseService = purchaseService;
         _configService = configService;
         _workOrderExecutionService = workOrderExecutionService;
         _logger = logger;
+        _cache = cache;
     }
 
     private async Task TryRefreshExecutionSummaryAsync(string? sourceWorkOrderNo)
@@ -659,10 +662,12 @@ public class SubcontractOrderService : ISubcontractOrderService
         return await _purchaseService.GetPlanDetailAsync(workOrderNo, materialCategory);
     }
 
-    // ========== 筛选上下文 ==========
-
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
+        return await _cache.GetOrCreateAsync("SubcontractOrderService:FilterContexts", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
         var query = from s in _context.SubcontractOrders.AsNoTracking()
                     select new
                     {
@@ -689,6 +694,8 @@ public class SubcontractOrderService : ISubcontractOrderService
             ["ReturnDeadline"] = all.Where(x => x.ReturnDeadline != null).Select(x => x.ReturnDeadline!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
             ["SupplierName"] = all.Where(x => x.SupplierName != null).Select(x => x.SupplierName!).Distinct().OrderBy(x => x).ToList(),
         };
+
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     // ========== 打印 ==========

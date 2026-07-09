@@ -33,7 +33,7 @@ public class WorkOrderServiceTests : TestBase
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        return new WorkOrderService(ctx, loggerMock.Object, configMock.Object);
+        return new WorkOrderService(ctx, loggerMock.Object, configMock.Object, Mock.Of<IMemoryCache>());
     }
 
     private async Task<(int OrderId, string OrderNo)> SeedConfirmedOrderAsync(AppDbContext ctx)

@@ -18,7 +18,7 @@ namespace MES.Tests.Services;
 public class PicklingServiceTests : TestBase
 {
     private PicklingService CreateService(AppDbContext ctx)
-        => new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<PicklingService>.Instance);
+        => new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<PicklingService>.Instance, Mock.Of<IMemoryCache>());
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")
     {

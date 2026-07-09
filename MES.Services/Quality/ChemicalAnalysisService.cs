@@ -7,6 +7,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Helpers;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Quality;
 
@@ -17,11 +18,13 @@ public class ChemicalAnalysisService : IChemicalAnalysisService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<ChemicalAnalysisService> _logger;
+    private readonly IMemoryCache _cache;
 
-    public ChemicalAnalysisService(AppDbContext context, ILogger<ChemicalAnalysisService> logger)
+    public ChemicalAnalysisService(AppDbContext context, ILogger<ChemicalAnalysisService> logger, IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
+        _cache = cache;
     }
 
     public async Task<ChemicalAnalysisDto?> GetByIdAsync(int id)
@@ -187,26 +190,31 @@ public class ChemicalAnalysisService : IChemicalAnalysisService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        var all = await _context.ChemicalAnalyses
-            .AsNoTracking()
-            .Select(r => new
-            {
-                r.Analyst,
-                r.FurnaceNo,
-                r.Grade,
-                r.AnalysisStandard,
-                r.AnalysisDate
-            })
-            .ToListAsync();
-
-        return new Dictionary<string, List<string>>
+        return await _cache.GetOrCreateAsync("ChemicalAnalysisService:FilterContexts", async entry =>
         {
-            ["Analyst"] = all.Select(x => x.Analyst ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["FurnaceNo"] = all.Select(x => x.FurnaceNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["Grade"] = all.Select(x => x.Grade ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["AnalysisStandard"] = all.Select(x => x.AnalysisStandard ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["AnalysisDate"] = all.Select(x => x.AnalysisDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList()
-        };
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
+            var all = await _context.ChemicalAnalyses
+                .AsNoTracking()
+                .Select(r => new
+                {
+                    r.Analyst,
+                    r.FurnaceNo,
+                    r.Grade,
+                    r.AnalysisStandard,
+                    r.AnalysisDate
+                })
+                .ToListAsync();
+
+            return new Dictionary<string, List<string>>
+            {
+                ["Analyst"] = all.Select(x => x.Analyst ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["FurnaceNo"] = all.Select(x => x.FurnaceNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["Grade"] = all.Select(x => x.Grade ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["AnalysisStandard"] = all.Select(x => x.AnalysisStandard ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["AnalysisDate"] = all.Select(x => x.AnalysisDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList()
+            };
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     private static IQueryable<ChemicalAnalysis> ApplySorting(IQueryable<ChemicalAnalysis> queryable, string sortBy, bool isDescending)

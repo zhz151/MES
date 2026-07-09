@@ -9,6 +9,7 @@ using MES.Data.Entities;
 using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Services.Printing;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Services.Quality;
 
@@ -21,18 +22,21 @@ public class ProcessInspectionService : IProcessInspectionService
     private readonly ILogger<ProcessInspectionService> _logger;
     private readonly IProductionRecordService _productionRecordService;
     private readonly IConfigParameterService _configService;
+    private readonly IMemoryCache _cache;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
     public ProcessInspectionService(
         AppDbContext context,
         ILogger<ProcessInspectionService> logger,
         IProductionRecordService productionRecordService,
-        IConfigParameterService configService)
+        IConfigParameterService configService,
+        IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
         _productionRecordService = productionRecordService;
         _configService = configService;
+        _cache = cache;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -177,87 +181,51 @@ public class ProcessInspectionService : IProcessInspectionService
             .ToListAsync();
     }
 
-    // ========== 筛选上下文缓存 ==========
-    private static Dictionary<string, List<string>>? _filterContextCache;
-    private static DateTime _filterContextCacheExpiry = DateTime.MinValue;
-    private static readonly object _filterContextLock = new();
-    private static readonly TimeSpan _filterContextCacheDuration = TimeSpan.FromMinutes(5);
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        var now = DateTime.UtcNow;
-        if (_filterContextCache != null && now < _filterContextCacheExpiry)
-            return _filterContextCache;
-
-        // 并行执行所有逐列 DISTINCT 查询
-        var taskBatchNos = _context.ProcessInspections.Where(r => r.BatchNo != null).Select(r => r.BatchNo!).Distinct().OrderBy(v => v).ToListAsync();
-        var taskProcessNames = _context.ProcessInspections.Where(r => r.ProcessName != null).Select(r => r.ProcessName!).Distinct().OrderBy(v => v).ToListAsync();
-        var taskManufacturingSpecs = _context.ProcessInspections.Where(r => r.ManufacturingSpec != null && r.ManufacturingSpec != "").Select(r => r.ManufacturingSpec!).Distinct().OrderBy(v => v).ToListAsync();
-        var taskSectionNames = _context.ProcessInspections.Where(r => r.SectionName != null).Select(r => r.SectionName!).Distinct().OrderBy(v => v).ToListAsync();
-        var taskEquipmentNames = _context.ProcessInspections.Where(r => r.EquipmentName != null && r.EquipmentName != "").Select(r => r.EquipmentName!).Distinct().OrderBy(v => v).ToListAsync();
-        var taskInspectors = _context.ProcessInspections.Where(r => r.Inspector != null && r.Inspector != "").Select(r => r.Inspector!).Distinct().OrderBy(v => v).ToListAsync();
-        var taskShifts = _context.ProcessInspections.Where(r => r.Shift != null && r.Shift != "").Select(r => r.Shift!).Distinct().OrderBy(v => v).ToListAsync();
-        var taskInspectionItems = _context.ProcessInspections.Where(r => r.InspectionItem != null && r.InspectionItem != "").Select(r => r.InspectionItem!).Distinct().OrderBy(v => v).ToListAsync();
-        var taskConcessionRemarks = _context.ProcessInspections.Where(r => r.ConcessionRemark != null && r.ConcessionRemark != "").Select(r => r.ConcessionRemark!).Distinct().OrderBy(v => v).ToListAsync();
-        var taskDefectDescriptions = _context.ProcessInspections.Where(r => r.DefectDescription != null && r.DefectDescription != "").Select(r => r.DefectDescription!).Distinct().OrderBy(v => v).ToListAsync();
-        var taskSourceUnits = _context.ProcessInspections.Where(r => r.SourceUnit != null && r.SourceUnit != "").Select(r => r.SourceUnit!).Distinct().OrderBy(v => v).ToListAsync();
-        var taskTagNos = _context.ProcessInspections.Where(r => r.TagNo != null && r.TagNo != "").Select(r => r.TagNo!).Distinct().OrderBy(v => v).ToListAsync();
-        var taskPlantGrades = _context.ProcessInspections.Where(r => r.PlantGrade != null && r.PlantGrade != "").Select(r => r.PlantGrade!).Distinct().OrderBy(v => v).ToListAsync();
-        var taskInspectionDates = _context.ProcessInspections.Select(r => r.InspectionDate).Distinct().ToListAsync();
-        var taskRemarks = _context.ProcessInspections.Where(r => r.Remark != null && r.Remark != "").Select(r => r.Remark!).Distinct().OrderBy(v => v).ToListAsync();
-        var taskDataSources = _context.ProcessInspections.Where(r => r.DataSource != null && r.DataSource != "").Select(r => r.DataSource!).Distinct().OrderBy(v => v).ToListAsync();
-
-        await Task.WhenAll(
-            taskBatchNos, taskProcessNames, taskManufacturingSpecs, taskSectionNames,
-            taskEquipmentNames, taskInspectors, taskShifts, taskInspectionItems,
-            taskConcessionRemarks, taskDefectDescriptions, taskSourceUnits, taskTagNos,
-            taskPlantGrades, taskInspectionDates, taskRemarks, taskDataSources);
-
-        var batchNos = (await taskBatchNos)!;
-        var processNames = (await taskProcessNames)!;
-        var manufacturingSpecs = (await taskManufacturingSpecs)!;
-        var sectionNames = (await taskSectionNames)!;
-        var equipmentNames = (await taskEquipmentNames)!;
-        var inspectors = (await taskInspectors)!;
-        var shifts = (await taskShifts)!;
-        var inspectionItems = (await taskInspectionItems)!;
-        var concessionRemarks = (await taskConcessionRemarks)!;
-        var defectDescriptions = (await taskDefectDescriptions)!;
-        var sourceUnits = (await taskSourceUnits)!;
-        var tagNos = (await taskTagNos)!;
-        var plantGrades = (await taskPlantGrades)!;
-        var inspectionDates = (await taskInspectionDates).Select(d => d.ToString("yyyy-MM-dd")).OrderBy(x => x).ToList();
-        var remarks = (await taskRemarks)!;
-        var dataSources = (await taskDataSources)!;
-
-        var result = new Dictionary<string, List<string>>
+        return await _cache.GetOrCreateAsync("ProcessInspectionService:FilterContexts", async entry =>
         {
-            ["BatchNo"] = batchNos,
-            ["ProcessName"] = processNames,
-            ["ManufacturingSpec"] = manufacturingSpecs,
-            ["SectionName"] = sectionNames,
-            ["EquipmentName"] = equipmentNames,
-            ["Inspector"] = inspectors,
-            ["Shift"] = shifts,
-            ["InspectionItem"] = inspectionItems,
-            ["ConcessionRemark"] = concessionRemarks,
-            ["DefectDescription"] = defectDescriptions,
-            ["DataSource"] = dataSources,
-            ["SourceUnit"] = sourceUnits,
-            ["TagNo"] = tagNos,
-            ["PlantGrade"] = plantGrades,
-            ["InspectionDate"] = inspectionDates,
-            ["Remark"] = remarks
-        };
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
 
-        // 写入缓存
-        lock (_filterContextLock)
-        {
-            _filterContextCache = result;
-            _filterContextCacheExpiry = now + _filterContextCacheDuration;
-        }
+            // 顺序执行各列 DISTINCT 查询（DbContext 非线程安全，禁止并行）
+            var batchNos = await _context.ProcessInspections.Where(r => r.BatchNo != null).Select(r => r.BatchNo!).Distinct().OrderBy(v => v).ToListAsync();
+            var processNames = await _context.ProcessInspections.Where(r => r.ProcessName != null).Select(r => r.ProcessName!).Distinct().OrderBy(v => v).ToListAsync();
+            var manufacturingSpecs = await _context.ProcessInspections.Where(r => r.ManufacturingSpec != null && r.ManufacturingSpec != "").Select(r => r.ManufacturingSpec!).Distinct().OrderBy(v => v).ToListAsync();
+            var sectionNames = await _context.ProcessInspections.Where(r => r.SectionName != null).Select(r => r.SectionName!).Distinct().OrderBy(v => v).ToListAsync();
+            var equipmentNames = await _context.ProcessInspections.Where(r => r.EquipmentName != null && r.EquipmentName != "").Select(r => r.EquipmentName!).Distinct().OrderBy(v => v).ToListAsync();
+            var inspectors = await _context.ProcessInspections.Where(r => r.Inspector != null && r.Inspector != "").Select(r => r.Inspector!).Distinct().OrderBy(v => v).ToListAsync();
+            var shifts = await _context.ProcessInspections.Where(r => r.Shift != null && r.Shift != "").Select(r => r.Shift!).Distinct().OrderBy(v => v).ToListAsync();
+            var inspectionItems = await _context.ProcessInspections.Where(r => r.InspectionItem != null && r.InspectionItem != "").Select(r => r.InspectionItem!).Distinct().OrderBy(v => v).ToListAsync();
+            var concessionRemarks = await _context.ProcessInspections.Where(r => r.ConcessionRemark != null && r.ConcessionRemark != "").Select(r => r.ConcessionRemark!).Distinct().OrderBy(v => v).ToListAsync();
+            var defectDescriptions = await _context.ProcessInspections.Where(r => r.DefectDescription != null && r.DefectDescription != "").Select(r => r.DefectDescription!).Distinct().OrderBy(v => v).ToListAsync();
+            var sourceUnits = await _context.ProcessInspections.Where(r => r.SourceUnit != null && r.SourceUnit != "").Select(r => r.SourceUnit!).Distinct().OrderBy(v => v).ToListAsync();
+            var tagNos = await _context.ProcessInspections.Where(r => r.TagNo != null && r.TagNo != "").Select(r => r.TagNo!).Distinct().OrderBy(v => v).ToListAsync();
+            var plantGrades = await _context.ProcessInspections.Where(r => r.PlantGrade != null && r.PlantGrade != "").Select(r => r.PlantGrade!).Distinct().OrderBy(v => v).ToListAsync();
+            var inspectionDates = (await _context.ProcessInspections.Select(r => r.InspectionDate).Distinct().ToListAsync()).Select(d => d.ToString("yyyy-MM-dd")).OrderBy(x => x).ToList();
+            var remarks = await _context.ProcessInspections.Where(r => r.Remark != null && r.Remark != "").Select(r => r.Remark!).Distinct().OrderBy(v => v).ToListAsync();
+            var dataSources = await _context.ProcessInspections.Where(r => r.DataSource != null && r.DataSource != "").Select(r => r.DataSource!).Distinct().OrderBy(v => v).ToListAsync();
 
-        return result;
+            return new Dictionary<string, List<string>>
+            {
+                ["BatchNo"] = batchNos,
+                ["ProcessName"] = processNames,
+                ["ManufacturingSpec"] = manufacturingSpecs,
+                ["SectionName"] = sectionNames,
+                ["EquipmentName"] = equipmentNames,
+                ["Inspector"] = inspectors,
+                ["Shift"] = shifts,
+                ["InspectionItem"] = inspectionItems,
+                ["ConcessionRemark"] = concessionRemarks,
+                ["DefectDescription"] = defectDescriptions,
+                ["DataSource"] = dataSources,
+                ["SourceUnit"] = sourceUnits,
+                ["TagNo"] = tagNos,
+                ["PlantGrade"] = plantGrades,
+                ["InspectionDate"] = inspectionDates,
+                ["Remark"] = remarks
+            };
+        }) ?? new Dictionary<string, List<string>>();
     }
 
     public async Task<List<ProcessInspectionDto>> BatchCreateAsync(List<CreateProcessInspectionRequest> requests)
