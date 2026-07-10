@@ -1,9 +1,29 @@
 using Microsoft.EntityFrameworkCore;
 using MES.Core.Enums;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
-using MES.Data.Entities;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Quality;
 using MES.Services.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -68,6 +88,7 @@ public class DataFixService : IDataFixService
             await FixSubcontractOrdersAsync();
             report.EquipmentFixed = await FixEquipmentTrackingAsync();
             await FixWorkOrderSummariesAsync();
+            report.SalesOrderSnapshotFixed = await FixSalesOrderSnapshotsAsync();
 
             await transaction.CommitAsync();
             _logger.LogInformation("全字段修复完成，总计 {Total} 条", report.Total);
@@ -270,7 +291,7 @@ public class DataFixService : IDataFixService
 
     private async Task<int> FixEquipmentTrackingAsync()
     {
-        var equipments = await _context.Set<MES.Data.Entities.Equipment>().ToListAsync();
+        var equipments = await _context.Set<MES.Data.Entities.Equipment.Equipment>().ToListAsync();
 
         // 一次查询所有点检记录的最大日期（按设备分组）
         var maxInsDates = await _context.Set<InspectionRecord>()
@@ -367,5 +388,38 @@ public class DataFixService : IDataFixService
         _logger.LogInformation("开始刷新工单执行状况汇总");
         await _workOrderExecutionService.RefreshAllAsync();
         _logger.LogInformation("工单执行状况汇总刷新完成");
+    }
+
+    // ==================== 9. 修复订单客户快照字段 ====================
+
+    private async Task<int> FixSalesOrderSnapshotsAsync()
+    {
+        var salesOrders = await _context.SalesOrders
+            .Include(so => so.Customer)
+            .Where(so => string.IsNullOrEmpty(so.CustomerName) || string.IsNullOrEmpty(so.Salesman) || string.IsNullOrEmpty(so.EndCustomer))
+            .ToListAsync();
+
+        int fixedCount = 0;
+        foreach (var so in salesOrders)
+        {
+            if (so.Customer == null) continue;
+
+            if (string.IsNullOrEmpty(so.CustomerName))
+                so.CustomerName = so.Customer.CustomerUnit;
+
+            if (string.IsNullOrEmpty(so.Salesman))
+                so.Salesman = so.Customer.Salesman;
+
+            if (string.IsNullOrEmpty(so.EndCustomer))
+                so.EndCustomer = so.Customer.EndCustomer;
+
+            fixedCount++;
+        }
+
+        if (fixedCount > 0)
+            await _context.SaveChangesAsync();
+
+        _logger.LogInformation("订单客户快照字段修复完成: {Count} 条", fixedCount);
+        return fixedCount;
     }
 }

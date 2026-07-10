@@ -17,7 +17,10 @@ public class DataFixReport
     /// <summary>设备日期字段修复条数</summary>
     public int EquipmentFixed { get; set; }
 
+    /// <summary>订单客户快照字段修复条数</summary>
+    public int SalesOrderSnapshotFixed { get; set; }
+
     /// <summary>总修复条数</summary>
     public int Total => SequenceNumbersFixed + OutsourceStatusFixed + BatchTrackingFixed
-                        + EquipmentFixed;
+                        + EquipmentFixed + SalesOrderSnapshotFixed;
 }

@@ -1,13 +1,47 @@
 // 文件路径: MES.Services/Order/OrderService.cs
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Order;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 using Microsoft.Extensions.Caching.Memory;
@@ -250,7 +284,7 @@ public class OrderService : IOrderService
                 .AsNoTracking()
                 .Where(sr => standardNos.Contains(sr.StandardNo))
                 .ToDictionaryAsync(sr => sr.StandardNo, sr => sr, StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, Data.Entities.StandardRegister>(StringComparer.OrdinalIgnoreCase);
+            : new Dictionary<string, MES.Data.Entities.ProductionStandard.StandardRegister>(StringComparer.OrdinalIgnoreCase);
 
         // 5. 加载牌号映射
         var gradeDict = await LoadGradeMappingsDictAsync(orderItems);
@@ -384,10 +418,16 @@ public class OrderService : IOrderService
             if (customer == null)
                 throw new BusinessException("客户不存在");
             salesOrder.CustomerId = request.CustomerId.Value;
-            salesOrder.CustomerName = customer.CustomerUnit;
-            salesOrder.Salesman = customer.Salesman;
-            salesOrder.EndCustomer = customer.EndCustomer;
         }
+
+        if (request.CustomerName != null)
+            salesOrder.CustomerName = request.CustomerName;
+
+        if (request.Salesman != null)
+            salesOrder.Salesman = request.Salesman;
+
+        if (request.EndCustomer != null)
+            salesOrder.EndCustomer = request.EndCustomer;
 
         if (!string.IsNullOrEmpty(request.Status))
         {
@@ -474,7 +514,7 @@ public async Task DeleteAsync(int id)
             var now = DateTimeOffset.Now;
             foreach (var batch in affectedBatches)
             {
-                _context.Notifications.Add(new MES.Data.Entities.Notification
+                _context.Notifications.Add(new MES.Data.Entities.WorkOrder.Notification
                 {
                     NotificationType = "WorkOrderDeleted",
                     TargetId = batch.Id,
@@ -749,7 +789,7 @@ public async Task DeleteAsync(int id)
         var srDict = allStandardNos.Any()
             ? await _context.StandardRegisters.Where(sr => allStandardNos.Contains(sr.StandardNo))
                 .ToDictionaryAsync(sr => sr.StandardNo, sr => sr, StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, Data.Entities.StandardRegister>(StringComparer.OrdinalIgnoreCase);
+            : new Dictionary<string, MES.Data.Entities.ProductionStandard.StandardRegister>(StringComparer.OrdinalIgnoreCase);
         var gradeDict = allGradeNames.Any()
             ? (await _context.StandardGradeMappings.Where(sgm => allGradeNames.Contains(sgm.StandardGrade))
                 .ToListAsync())
@@ -916,10 +956,16 @@ public async Task DeleteAsync(int id)
                 var customer = await _context.CustomerProfiles.FirstOrDefaultAsync(c => c.Id == request.CustomerId.Value);
                 if (customer == null) throw new BusinessException("客户不存在");
                 salesOrder.CustomerId = request.CustomerId.Value;
-                salesOrder.CustomerName = customer.CustomerUnit;
-                salesOrder.Salesman = customer.Salesman;
-                salesOrder.EndCustomer = customer.EndCustomer;
             }
+
+            if (request.CustomerName != null)
+                salesOrder.CustomerName = request.CustomerName;
+
+            if (request.Salesman != null)
+                salesOrder.Salesman = request.Salesman;
+
+            if (request.EndCustomer != null)
+                salesOrder.EndCustomer = request.EndCustomer;
 
             salesOrder.LastItemChangeTime = DateTimeOffset.Now;
             _context.Entry(salesOrder).Property(x => x.LastItemChangeTime).IsModified = true;
@@ -1510,7 +1556,7 @@ public async Task DeleteAsync(int id)
             ? await _context.StandardRegisters
                 .Where(sr => allStandardNos.Contains(sr.StandardNo))
                 .ToDictionaryAsync(sr => sr.StandardNo, sr => sr, StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, Data.Entities.StandardRegister>(StringComparer.OrdinalIgnoreCase);
+            : new Dictionary<string, MES.Data.Entities.ProductionStandard.StandardRegister>(StringComparer.OrdinalIgnoreCase);
 
         // 加载牌号映射（从 StandardGradeMapping 取最新 PlantGrade/Density）
         var allOrderItems = salesOrders.SelectMany(so => so.OrderItems).ToList();

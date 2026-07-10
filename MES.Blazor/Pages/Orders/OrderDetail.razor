@@ -1,12 +1,13 @@
 @page "/orders/{Id:int}"
 @using MES.Blazor.Helpers
 @using MES.Blazor.Services
-@using MES.Core.DTOs
 @using MES.Core.Models
 @using MES.Core.Enums
 @using Microsoft.AspNetCore.Authorization
 @using System.Text.Json
 @using MES.Blazor.Shared
+@using MES.Core.DTOs.Order
+@using MES.Core.DTOs.ProductionStandard
 @inject OrderService OrderService
 @inject CustomerService CustomerService
 @inject ProductRequirementService RequirementService
@@ -897,6 +898,9 @@
                 OrderNumber = _headerEditItem.OrderNumber,
                 SignDate = signDate,
                 CustomerId = _headerEditItem.CustomerId,
+                CustomerName = _headerEditItem.CustomerName,
+                Salesman = _headerEditItem.SelectedSalesman,
+                EndCustomer = _headerEditItem.SelectedEndCustomer,
                 RowVersion = _headerEditItem.RowVersion,
                 NewItems = newItems,
                 UpdatedItems = updatedItems,
